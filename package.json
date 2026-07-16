@@ -10,10 +10,38 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "hk.ysk.instant-drama-magician",
+    "productName": "InstantDrama Magician",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json",
+      "node_modules/**/*",
+      "src/types/prisma/**/*",
+      "prisma/**/*"
+    ],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "AudioVideo"
+    },
+    "mac": {
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"]
+    }
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",
@@ -34,7 +62,9 @@
     "postcss": "^8.5.3",
     "prisma": "^6.5.0",
     "tailwindcss": "^3.4.17",
+    "electron-builder": "^25.1.8",
     "typescript": "^5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^3.0.8"
   }
 }

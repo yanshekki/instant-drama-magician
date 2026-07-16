@@ -1,58 +1,56 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getApi } from '../../lib/api'
-import type { Scene } from '../../types/domain'
+import { nextSceneNumber } from '../../domain/scene'
 import { useApp } from '../context/AppContext'
+import { useScenes } from '../hooks/useScenes'
 import { PageHeader } from '../components/PageHeader'
 import { Button, Card, EmptyState, Input, Label, Textarea } from '../components/ui'
 
 export function ScenesPage(): JSX.Element {
   const { t } = useTranslation()
   const { activeStoryId } = useApp()
-  const [items, setItems] = useState<Scene[]>([])
+  const { items, loading, error, create, update, remove } = useScenes(activeStoryId)
   const [sceneNumber, setSceneNumber] = useState(1)
   const [description, setDescription] = useState('')
   const [script, setScript] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    if (!activeStoryId) {
-      setItems([])
+  const resetForm = (): void => {
+    setDescription('')
+    setScript('')
+    setEditingId(null)
+    setShowForm(false)
+    setSceneNumber(nextSceneNumber(items.map((s) => s.sceneNumber)))
+  }
+
+  const handleSubmit = async (): Promise<void> => {
+    if (!description.trim()) return
+    if (editingId) {
+      const ok = await update(editingId, {
+        sceneNumber,
+        description: description.trim(),
+        script: script.trim() || null
+      })
+      if (ok) resetForm()
       return
     }
-    setLoading(true)
-    try {
-      const list = (await getApi().scenes.list(activeStoryId)) as Scene[]
-      setItems(list)
-      setSceneNumber(list.length + 1)
-    } finally {
-      setLoading(false)
-    }
-  }, [activeStoryId])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  const handleCreate = async (): Promise<void> => {
-    if (!activeStoryId || !description.trim()) return
-    await getApi().scenes.create({
-      storyId: activeStoryId,
+    const ok = await create({
       sceneNumber,
       description: description.trim(),
       script: script.trim() || null
     })
-    setDescription('')
-    setScript('')
-    setShowForm(false)
-    await load()
+    if (ok) resetForm()
   }
 
-  const handleDelete = async (id: string): Promise<void> => {
-    if (!confirm(t('common.confirmDelete'))) return
-    await getApi().scenes.delete(id)
-    await load()
+  const startEdit = (id: string): void => {
+    const s = items.find((x) => x.id === id)
+    if (!s) return
+    setEditingId(s.id)
+    setSceneNumber(s.sceneNumber)
+    setDescription(s.description)
+    setScript(s.script ?? '')
+    setShowForm(true)
   }
 
   if (!activeStoryId) {
@@ -71,10 +69,26 @@ export function ScenesPage(): JSX.Element {
       <PageHeader
         title={t('scenes.title')}
         subtitle={t('scenes.subtitle')}
-        actions={<Button onClick={() => setShowForm((v) => !v)}>{t('scenes.new')}</Button>}
+        actions={
+          <Button
+            onClick={() => {
+              setEditingId(null)
+              setSceneNumber(nextSceneNumber(items.map((s) => s.sceneNumber)))
+              setShowForm((v) => !v)
+            }}
+          >
+            {t('scenes.new')}
+          </Button>
+        }
       />
 
       <div className="flex-1 overflow-y-auto px-8 py-6">
+        {error && (
+          <p className="mb-4 rounded-lg bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
+            {error.message}
+          </p>
+        )}
+
         {showForm && (
           <Card className="mb-6 max-w-xl space-y-3">
             <div>
@@ -105,10 +119,10 @@ export function ScenesPage(): JSX.Element {
               />
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => void handleCreate()} disabled={!description.trim()}>
-                {t('common.create')}
+              <Button onClick={() => void handleSubmit()} disabled={!description.trim()}>
+                {editingId ? t('common.save') : t('common.create')}
               </Button>
-              <Button variant="ghost" onClick={() => setShowForm(false)}>
+              <Button variant="ghost" onClick={resetForm}>
                 {t('common.cancel')}
               </Button>
             </div>
@@ -124,8 +138,13 @@ export function ScenesPage(): JSX.Element {
             {items.map((s) => (
               <Card key={s.id} className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-brand-400">
-                    {t('scenes.number')} {s.sceneNumber}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium uppercase tracking-wide text-brand-400">
+                      {t('scenes.number')} {s.sceneNumber}
+                    </span>
+                    <span className="rounded-full bg-ink-800 px-2 py-0.5 text-[10px] text-ink-300">
+                      {s.status}
+                    </span>
                   </div>
                   <p className="mt-1 text-sm text-ink-100">{s.description}</p>
                   {s.script && (
@@ -134,9 +153,19 @@ export function ScenesPage(): JSX.Element {
                     </pre>
                   )}
                 </div>
-                <Button variant="danger" onClick={() => void handleDelete(s.id)}>
-                  {t('common.delete')}
-                </Button>
+                <div className="flex shrink-0 gap-2">
+                  <Button variant="secondary" onClick={() => startEdit(s.id)}>
+                    {t('common.edit')}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      if (confirm(t('common.confirmDelete'))) void remove(s.id)
+                    }}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>

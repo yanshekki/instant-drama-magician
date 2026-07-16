@@ -31,7 +31,9 @@ export interface ElectronApi {
     create: (input: CreateSceneInput) => Promise<unknown>
     update: (
       id: string,
-      data: Partial<Pick<CreateSceneInput, 'sceneNumber' | 'description' | 'script'>>
+      data: Partial<
+        Pick<CreateSceneInput, 'sceneNumber' | 'description' | 'script' | 'status'>
+      >
     ) => Promise<unknown>
     delete: (id: string) => Promise<{ ok: boolean }>
   }
@@ -53,11 +55,25 @@ export interface ElectronApi {
   }
   generation: {
     run: (storyId: string) => Promise<unknown>
+    onProgress: (
+      callback: (payload: {
+        storyId: string
+        step: string
+        index: number
+        total: number
+        result?: { step: string; success: boolean; output?: string; error?: string }
+      }) => void
+    ) => () => void
   }
   ai: {
     status: () => Promise<unknown>
   }
   shell: {
     openExternal: (url: string) => Promise<{ ok: boolean }>
+    openPath: (filePath: string) => Promise<{ ok: boolean }>
+  }
+  media: {
+    pickRefImage: () => Promise<{ filePath: string; originalName?: string } | null>
+    exportStoryboard: (storyId: string) => Promise<{ outputPath: string }>
   }
 }

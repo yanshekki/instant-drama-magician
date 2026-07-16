@@ -26,6 +26,8 @@
     "error": "Error",
     "generate": "Generate",
     "generating": "Generating…",
+    "export": "Export video",
+    "exporting": "Exporting…",
     "refresh": "Refresh"
   },
   "stories": {
@@ -54,7 +56,9 @@
     "importHint": "Supports soul.md exported from soulmd-hub.ysk.hk",
     "noCharacters": "No characters yet.",
     "namePlaceholder": "e.g. Ming",
-    "descriptionPlaceholder": "Looks, personality, backstory…"
+    "descriptionPlaceholder": "Looks, personality, backstory…",
+    "refImage": "Reference image",
+    "pickImage": "Pick image"
   },
   "scenes": {
     "title": "Scenes",
@@ -93,7 +97,9 @@
     "noEntries": "Timeline is empty. Reference assets on the right and add clips.",
     "library": "Library",
     "none": "(none)",
-    "addClip": "Add to timeline"
+    "addClip": "Add to timeline",
+    "dragHint": "Drag onto the timeline, or click to append the next free slot.",
+    "reorder": "Reorder by time"
   },
   "ai": {
     "status": "AI status",

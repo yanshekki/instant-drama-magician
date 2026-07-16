@@ -1,6 +1,8 @@
 node_modules
 dist
 out
+release
+.media
 .DS_Store
 *.log
 .env

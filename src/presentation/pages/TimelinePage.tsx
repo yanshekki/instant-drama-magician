@@ -1,132 +1,181 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TimelineService } from '../../application/TimelineService'
 import { getApi } from '../../lib/api'
-import type { Character, Prop, Scene, TimelineEntry } from '../../types/domain'
+import { parseIpcError } from '../../lib/ipc'
+import type { GenerationResult } from '../../types/domain'
 import { useApp } from '../context/AppContext'
+import { useCharacters } from '../hooks/useCharacters'
+import { useProps } from '../hooks/useProps'
+import { useScenes } from '../hooks/useScenes'
+import { useTimeline } from '../hooks/useTimeline'
 import { PageHeader } from '../components/PageHeader'
 import {
-  Button,
-  Card,
-  EmptyState,
-  Input,
-  Label,
-  Select,
-  Textarea
-} from '../components/ui'
+  AssetLibrary
+} from '../components/timeline/AssetLibrary'
+import {
+  TimelineCanvas,
+  type AssetDropPayload
+} from '../components/timeline/TimelineCanvas'
+import { Button, EmptyState, Label, Textarea } from '../components/ui'
 
 const MAX_CLIP = TimelineService.DEFAULT_MAX_CLIP_SECONDS
 
 export function TimelinePage(): JSX.Element {
   const { t } = useTranslation()
-  const { activeStoryId, refreshStories } = useApp()
-  const [entries, setEntries] = useState<TimelineEntry[]>([])
-  const [characters, setCharacters] = useState<Character[]>([])
-  const [scenes, setScenes] = useState<Scene[]>([])
-  const [props, setProps] = useState<Prop[]>([])
-  const [loading, setLoading] = useState(false)
-  const [generating, setGenerating] = useState(false)
-  const [genLog, setGenLog] = useState<string | null>(null)
+  const { activeStoryId, refreshStories, refreshAiStatus } = useApp()
+  const { items: characters } = useCharacters(activeStoryId)
+  const { items: scenes } = useScenes(activeStoryId)
+  const { items: props } = useProps(activeStoryId)
+  const {
+    entries,
+    loading,
+    error,
+    totalDuration,
+    create,
+    update,
+    remove,
+    reorder,
+    reload
+  } = useTimeline(activeStoryId)
 
-  const [characterId, setCharacterId] = useState('')
-  const [sceneId, setSceneId] = useState('')
-  const [propId, setPropId] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dialogue, setDialogue] = useState('')
-  const [duration, setDuration] = useState(MAX_CLIP)
+  const [generating, setGenerating] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [progressLog, setProgressLog] = useState<string[]>([])
+  const [genResult, setGenResult] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    if (!activeStoryId) {
-      setEntries([])
-      setCharacters([])
-      setScenes([])
-      setProps([])
-      return
-    }
-    setLoading(true)
-    try {
-      const api = getApi()
-      const [tl, chars, scns, prps] = await Promise.all([
-        api.timeline.list(activeStoryId) as Promise<TimelineEntry[]>,
-        api.characters.list(activeStoryId) as Promise<Character[]>,
-        api.scenes.list(activeStoryId) as Promise<Scene[]>,
-        api.props.list(activeStoryId) as Promise<Prop[]>
-      ])
-      setEntries(TimelineService.sort(tl))
-      setCharacters(chars)
-      setScenes(scns)
-      setProps(prps)
-    } finally {
-      setLoading(false)
-    }
-  }, [activeStoryId])
+  const selected = entries.find((e) => e.id === selectedId) ?? null
 
   useEffect(() => {
-    void load()
-  }, [load])
+    setDialogue(selected?.dialogue ?? '')
+  }, [selected?.id, selected?.dialogue])
 
-  const total = useMemo(() => TimelineService.totalDuration(entries), [entries])
+  useEffect(() => {
+    return getApi().generation.onProgress((payload) => {
+      const line = payload.result?.success
+        ? `✓ [${payload.index + 1}/${payload.total}] ${payload.step}`
+        : `… [${payload.index + 1}/${payload.total}] ${payload.step}${
+            payload.result?.error ? `: ${payload.result.error}` : ''
+          }`
+      setProgressLog((prev) => [...prev, line])
+    })
+  }, [])
 
-  const charMap = useMemo(
-    () => new Map(characters.map((c) => [c.id, c.name])),
-    [characters]
-  )
-  const sceneMap = useMemo(
-    () => new Map(scenes.map((s) => [s.id, `#${s.sceneNumber} ${s.description}`])),
-    [scenes]
-  )
-  const propMap = useMemo(() => new Map(props.map((p) => [p.id, p.name])), [props])
+  const labels = useMemo(() => {
+    const map: Record<string, string> = {}
+    const charMap = new Map(characters.map((c) => [c.id, c.name]))
+    const sceneMap = new Map(
+      scenes.map((s) => [s.id, `#${s.sceneNumber}`])
+    )
+    const propMap = new Map(props.map((p) => [p.id, p.name]))
+    for (const e of entries) {
+      map[e.id] =
+        e.dialogue ||
+        (e.characterId && charMap.get(e.characterId)) ||
+        (e.sceneId && sceneMap.get(e.sceneId)) ||
+        (e.propId && propMap.get(e.propId)) ||
+        `#${e.order + 1}`
+    }
+    return map
+  }, [entries, characters, scenes, props])
 
-  const handleAdd = async (): Promise<void> => {
+  const addAsset = async (
+    payload: AssetDropPayload,
+    atTime?: number
+  ): Promise<void> => {
     if (!activeStoryId) return
-    const clampedDuration = Math.min(Math.max(0.5, duration), MAX_CLIP)
-    const slot = TimelineService.suggestNextSlot(entries, clampedDuration)
-    const clamped = TimelineService.clampDuration(
-      slot.startTime,
-      slot.endTime,
+    const duration = Math.min(MAX_CLIP, 5)
+    let startTime: number
+    let order: number
+    if (atTime !== undefined) {
+      startTime = Math.max(0, atTime)
+      order = entries.length
+    } else {
+      const slot = TimelineService.suggestNextSlot(entries, duration)
+      startTime = slot.startTime
+      order = slot.order
+    }
+    const range = TimelineService.clampDuration(
+      startTime,
+      startTime + duration,
       MAX_CLIP
     )
-
-    await getApi().timeline.create({
-      storyId: activeStoryId,
-      startTime: clamped.startTime,
-      endTime: clamped.endTime,
-      order: slot.order,
-      characterId: characterId || null,
-      sceneId: sceneId || null,
-      propId: propId || null,
-      dialogue: dialogue.trim() || null
+    await create({
+      startTime: range.startTime,
+      endTime: range.endTime,
+      order,
+      characterId: payload.kind === 'character' ? payload.id : null,
+      sceneId: payload.kind === 'scene' ? payload.id : null,
+      propId: payload.kind === 'prop' ? payload.id : null,
+      dialogue: null
     })
-
-    setDialogue('')
-    await load()
     await refreshStories()
   }
 
-  const handleDelete = async (id: string): Promise<void> => {
-    if (!confirm(t('common.confirmDelete'))) return
-    await getApi().timeline.delete(id)
-    await load()
-    await refreshStories()
+  const persistMove = async (
+    id: string,
+    startTime: number,
+    endTime: number
+  ): Promise<void> => {
+    // optimistic local feel via immediate update call
+    await update(id, { startTime, endTime })
+  }
+
+  const handleSaveDialogue = async (): Promise<void> => {
+    if (!selectedId) return
+    await update(selectedId, { dialogue: dialogue.trim() || null })
+  }
+
+  const handleReorderByStart = async (): Promise<void> => {
+    const ordered = [...entries]
+      .sort((a, b) => a.startTime - b.startTime)
+      .map((e) => e.id)
+    await reorder(ordered)
   }
 
   const handleGenerate = async (): Promise<void> => {
     if (!activeStoryId) return
     setGenerating(true)
-    setGenLog(null)
+    setProgressLog([])
+    setGenResult(null)
+    setActionError(null)
     try {
-      const result = await getApi().generation.run(activeStoryId)
-      const lines = (result as { steps: { step: string; success: boolean; output?: string; error?: string }[] })
-        .steps
-        .map((s) => {
-          if (s.success) return `✓ ${s.step}\n${s.output ?? ''}`
-          return `✗ ${s.step}: ${s.error ?? 'failed'}`
-        })
-      setGenLog(lines.join('\n\n'))
+      const result = (await getApi().generation.run(
+        activeStoryId
+      )) as GenerationResult
+      const lines = result.steps.map((s) =>
+        s.success
+          ? `✓ ${s.step}\n${s.output ?? ''}`
+          : `✗ ${s.step}: ${s.error ?? 'failed'}`
+      )
+      setGenResult(lines.join('\n\n'))
+      await reload()
       await refreshStories()
-    } catch (error) {
-      setGenLog(error instanceof Error ? error.message : String(error))
+      await refreshAiStatus()
+    } catch (e) {
+      setActionError(parseIpcError(e).message)
     } finally {
       setGenerating(false)
+    }
+  }
+
+  const handleExport = async (): Promise<void> => {
+    if (!activeStoryId) return
+    setExporting(true)
+    setActionError(null)
+    try {
+      const { outputPath } = await getApi().media.exportStoryboard(activeStoryId)
+      setGenResult((prev) =>
+        [prev, `Export: ${outputPath}`].filter(Boolean).join('\n\n')
+      )
+      await getApi().shell.openPath(outputPath)
+    } catch (e) {
+      setActionError(parseIpcError(e).message)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -147,173 +196,128 @@ export function TimelinePage(): JSX.Element {
         title={t('timeline.title')}
         subtitle={t('timeline.subtitle')}
         actions={
-          <Button onClick={() => void handleGenerate()} disabled={generating}>
-            {generating ? t('common.generating') : t('common.generate')}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => void handleReorderByStart()}>
+              {t('timeline.reorder')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+            >
+              {exporting ? t('common.exporting') : t('common.export')}
+            </Button>
+            <Button onClick={() => void handleGenerate()} disabled={generating}>
+              {generating ? t('common.generating') : t('common.generate')}
+            </Button>
+          </div>
         }
       />
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r border-ink-800">
           <div className="flex items-center justify-between gap-4 border-b border-ink-800 px-6 py-3 text-xs text-ink-400">
-            <span>{t('timeline.duration', { seconds: total.toFixed(1) })}</span>
+            <span>
+              {t('timeline.duration', { seconds: totalDuration.toFixed(1) })}
+            </span>
             <span>{t('timeline.maxClip', { seconds: MAX_CLIP })}</span>
           </div>
 
-          {/* Visual linear track */}
-          <div className="border-b border-ink-800 bg-ink-900/40 px-6 py-4">
-            <div className="relative h-16 overflow-x-auto rounded-lg bg-ink-950 ring-1 ring-ink-800">
-              <div
-                className="relative h-full"
-                style={{
-                  width: `${Math.max(100, total * 40 + 80)}px`,
-                  minWidth: '100%'
-                }}
-              >
-                {entries.map((e) => {
-                  const left = e.startTime * 40
-                  const width = Math.max(24, (e.endTime - e.startTime) * 40)
-                  return (
-                    <div
-                      key={e.id}
-                      className="absolute top-2 flex h-12 items-center overflow-hidden rounded-md bg-brand-600/80 px-2 text-[10px] font-medium text-white shadow"
-                      style={{ left, width }}
-                      title={`${e.startTime}s–${e.endTime}s`}
-                    >
-                      <span className="truncate">
-                        {e.dialogue ||
-                          (e.characterId && charMap.get(e.characterId)) ||
-                          (e.sceneId && sceneMap.get(e.sceneId)) ||
-                          `#${e.order + 1}`}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+          <div className="border-b border-ink-800 px-6 py-4">
+            <TimelineCanvas
+              entries={entries}
+              labels={labels}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onMove={(id, s, e) => void persistMove(id, s, e)}
+              onResize={(id, s, e) => void persistMove(id, s, e)}
+              onDropAsset={(payload, at) => void addAsset(payload, at)}
+            />
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
+            {(error || actionError) && (
+              <p className="mb-3 rounded-lg bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
+                {error?.message ?? actionError}
+              </p>
+            )}
+
+            {selected && (
+              <div className="mb-4 rounded-xl border border-ink-800 bg-ink-900/50 p-4">
+                <div className="mb-2 text-xs text-brand-300">
+                  {selected.startTime.toFixed(1)}s → {selected.endTime.toFixed(1)}s
+                </div>
+                <Label>{t('timeline.dialogue')}</Label>
+                <Textarea
+                  rows={2}
+                  value={dialogue}
+                  onChange={(e) => setDialogue(e.target.value)}
+                />
+                <div className="mt-2 flex gap-2">
+                  <Button onClick={() => void handleSaveDialogue()}>
+                    {t('common.save')}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      if (confirm(t('common.confirmDelete'))) {
+                        void remove(selected.id)
+                        setSelectedId(null)
+                      }
+                    }}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {loading ? (
               <p className="text-sm text-ink-400">{t('common.loading')}</p>
             ) : entries.length === 0 ? (
               <EmptyState message={t('timeline.noEntries')} />
             ) : (
-              <div className="space-y-2">
+              <ul className="space-y-2 text-sm">
                 {entries.map((e) => (
-                  <Card key={e.id} className="flex items-start justify-between gap-3 py-3">
-                    <div className="min-w-0 text-sm">
-                      <div className="font-mono text-xs text-brand-300">
-                        {e.startTime.toFixed(1)}s → {e.endTime.toFixed(1)}s · #
-                        {e.order}
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-ink-400">
-                        {e.characterId && (
-                          <span className="rounded bg-ink-800 px-1.5 py-0.5">
-                            {t('timeline.character')}: {charMap.get(e.characterId) ?? e.characterId}
-                          </span>
-                        )}
-                        {e.sceneId && (
-                          <span className="rounded bg-ink-800 px-1.5 py-0.5">
-                            {t('timeline.scene')}: {sceneMap.get(e.sceneId) ?? e.sceneId}
-                          </span>
-                        )}
-                        {e.propId && (
-                          <span className="rounded bg-ink-800 px-1.5 py-0.5">
-                            {t('timeline.prop')}: {propMap.get(e.propId) ?? e.propId}
-                          </span>
-                        )}
-                      </div>
-                      {e.dialogue && (
-                        <p className="mt-1 text-ink-200">&ldquo;{e.dialogue}&rdquo;</p>
-                      )}
-                    </div>
-                    <Button variant="danger" onClick={() => void handleDelete(e.id)}>
-                      {t('common.delete')}
-                    </Button>
-                  </Card>
+                  <li
+                    key={e.id}
+                    className={[
+                      'cursor-pointer rounded-lg border px-3 py-2',
+                      selectedId === e.id
+                        ? 'border-brand-500 bg-brand-950/30'
+                        : 'border-ink-800 bg-ink-900/40'
+                    ].join(' ')}
+                    onClick={() => setSelectedId(e.id)}
+                  >
+                    <span className="font-mono text-xs text-brand-300">
+                      {e.startTime.toFixed(1)}–{e.endTime.toFixed(1)}s
+                    </span>{' '}
+                    <span className="text-ink-200">{labels[e.id]}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
 
-            {genLog && (
-              <pre className="mt-4 max-h-64 overflow-auto rounded-xl border border-ink-800 bg-ink-950 p-4 text-xs text-ink-300">
-                {genLog}
+            {progressLog.length > 0 && (
+              <pre className="mt-4 max-h-32 overflow-auto rounded-xl border border-ink-800 bg-ink-950 p-3 text-xs text-ink-300">
+                {progressLog.join('\n')}
+              </pre>
+            )}
+            {genResult && (
+              <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-ink-800 bg-ink-950 p-4 text-xs text-ink-300">
+                {genResult}
               </pre>
             )}
           </div>
         </div>
 
-        {/* Library / add form */}
-        <aside className="w-80 shrink-0 overflow-y-auto bg-ink-900/40 p-5">
-          <h3 className="mb-3 text-sm font-semibold text-ink-100">
-            {t('timeline.library')}
-          </h3>
-
-          <div className="space-y-3">
-            <div>
-              <Label>{t('timeline.character')}</Label>
-              <Select value={characterId} onChange={(e) => setCharacterId(e.target.value)}>
-                <option value="">{t('timeline.none')}</option>
-                {characters.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div>
-              <Label>{t('timeline.scene')}</Label>
-              <Select value={sceneId} onChange={(e) => setSceneId(e.target.value)}>
-                <option value="">{t('timeline.none')}</option>
-                {scenes.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    #{s.sceneNumber} {s.description.slice(0, 40)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div>
-              <Label>{t('timeline.prop')}</Label>
-              <Select value={propId} onChange={(e) => setPropId(e.target.value)}>
-                <option value="">{t('timeline.none')}</option>
-                {props.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div>
-              <Label>{t('timeline.dialogue')}</Label>
-              <Textarea
-                rows={3}
-                value={dialogue}
-                onChange={(e) => setDialogue(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label>
-                {t('timeline.end').replace('（秒）', '').replace(' (s)', '')} duration (s)
-              </Label>
-              <Input
-                type="number"
-                min={0.5}
-                max={MAX_CLIP}
-                step={0.5}
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value) || MAX_CLIP)}
-              />
-            </div>
-
-            <Button className="w-full" onClick={() => void handleAdd()}>
-              {t('timeline.addClip')}
-            </Button>
-          </div>
+        <aside className="w-72 shrink-0 overflow-y-auto bg-ink-900/40 p-5">
+          <AssetLibrary
+            characters={characters}
+            scenes={scenes}
+            props={props}
+            onAdd={(p) => void addAsset(p)}
+          />
         </aside>
       </div>
     </div>

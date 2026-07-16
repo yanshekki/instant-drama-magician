@@ -2,6 +2,7 @@ import type {
   AIProvider,
   GenerationResult,
   PipelineContext,
+  PipelinePersistence,
   PipelineStep,
   PipelineStepResult,
   StoryDetail
@@ -12,6 +13,16 @@ import { SceneStep } from './steps/SceneStep'
 import { PropsStep } from './steps/PropsStep'
 import { TimelineStep } from './steps/TimelineStep'
 import { ExportStep } from './steps/ExportStep'
+
+export interface PipelineRunOptions {
+  onStepComplete?: (
+    result: PipelineStepResult,
+    index: number,
+    total: number
+  ) => void
+  persistence?: PipelinePersistence
+  media?: PipelineContext['media']
+}
 
 /**
  * Composable generation pipeline:
@@ -36,19 +47,27 @@ export class GenerationPipeline {
       ]
   }
 
-  async run(story: StoryDetail): Promise<GenerationResult> {
+  async run(
+    story: StoryDetail,
+    options?: PipelineRunOptions
+  ): Promise<GenerationResult> {
     const context: PipelineContext = {
       story,
       ai: this.ai,
-      artifacts: {}
+      artifacts: {},
+      persistence: options?.persistence,
+      media: options?.media
     }
 
     const results: PipelineStepResult[] = []
+    const total = this.steps.length
 
-    for (const step of this.steps) {
+    for (let i = 0; i < this.steps.length; i++) {
+      const step = this.steps[i]
       try {
         const result = await step.run(context)
         results.push(result)
+        options?.onStepComplete?.(result, i, total)
         if (!result.success) {
           return { storyId: story.id, steps: results, success: false }
         }
@@ -57,7 +76,13 @@ export class GenerationPipeline {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        results.push({ step: step.name, success: false, error: message })
+        const result: PipelineStepResult = {
+          step: step.name,
+          success: false,
+          error: message
+        }
+        results.push(result)
+        options?.onStepComplete?.(result, i, total)
         return { storyId: story.id, steps: results, success: false }
       }
     }

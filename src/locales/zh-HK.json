@@ -26,6 +26,8 @@
     "error": "錯誤",
     "generate": "開始生成",
     "generating": "生成中…",
+    "export": "匯出影片",
+    "exporting": "匯出中…",
     "refresh": "重新整理"
   },
   "stories": {
@@ -54,7 +56,9 @@
     "importHint": "支援從 soulmd-hub.ysk.hk 匯出之 soul.md",
     "noCharacters": "尚未建立人物。",
     "namePlaceholder": "例如：阿明",
-    "descriptionPlaceholder": "外貌、性格、背景…"
+    "descriptionPlaceholder": "外貌、性格、背景…",
+    "refImage": "參考圖",
+    "pickImage": "選擇圖片"
   },
   "scenes": {
     "title": "場景創作",
@@ -93,7 +97,9 @@
     "noEntries": "時間軸為空。從右側引用資源並新增片段。",
     "library": "資源庫",
     "none": "（無）",
-    "addClip": "加入時間軸"
+    "addClip": "加入時間軸",
+    "dragHint": "拖曳至時間軸，或點擊以加入下一空檔。",
+    "reorder": "按時間重排"
   },
   "ai": {
     "status": "AI 狀態",

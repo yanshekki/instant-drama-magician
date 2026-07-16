@@ -164,6 +164,7 @@ export interface PipelineStepResult {
   success: boolean
   output?: string
   error?: string
+  degraded?: boolean
 }
 
 export interface GenerationResult {
@@ -177,8 +178,33 @@ export interface PipelineStep {
   run(context: PipelineContext): Promise<PipelineStepResult>
 }
 
+/** Optional persistence hooks for steps that write back to the DB */
+export interface PipelinePersistence {
+  updateSceneScript?: (
+    sceneId: string,
+    script: string,
+    status?: SceneStatus
+  ) => Promise<void>
+  replaceTimelineSuggestions?: (
+    storyId: string,
+    entries: Array<{
+      startTime: number
+      endTime: number
+      sceneId?: string | null
+      characterId?: string | null
+      dialogue?: string | null
+      order: number
+    }>
+  ) => Promise<void>
+  setExportPath?: (storyId: string, path: string) => Promise<void>
+}
+
 export interface PipelineContext {
   story: StoryDetail
   ai: AIProvider
   artifacts: Record<string, string>
+  persistence?: PipelinePersistence
+  media?: {
+    exportStoryboard?: (storyId: string) => Promise<string>
+  }
 }

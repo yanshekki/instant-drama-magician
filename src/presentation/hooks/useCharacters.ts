@@ -1,0 +1,93 @@
+import { useCallback, useEffect, useState } from 'react'
+import { getApi } from '../../lib/api'
+import { parseIpcError } from '../../lib/ipc'
+import type { Character, CreateCharacterInput } from '../../types/domain'
+import type { AppErrorBody } from '../../types/errors'
+
+export function useCharacters(storyId: string | null): {
+  items: Character[]
+  loading: boolean
+  error: AppErrorBody | null
+  reload: () => Promise<void>
+  create: (input: Omit<CreateCharacterInput, 'storyId'>) => Promise<boolean>
+  update: (
+    id: string,
+    data: Partial<Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>>
+  ) => Promise<boolean>
+  remove: (id: string) => Promise<boolean>
+} {
+  const [items, setItems] = useState<Character[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<AppErrorBody | null>(null)
+
+  const reload = useCallback(async () => {
+    if (!storyId) {
+      setItems([])
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const list = (await getApi().characters.list(storyId)) as Character[]
+      setItems(list)
+    } catch (e) {
+      setError(parseIpcError(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [storyId])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  const create = useCallback(
+    async (input: Omit<CreateCharacterInput, 'storyId'>): Promise<boolean> => {
+      if (!storyId) return false
+      try {
+        await getApi().characters.create({ ...input, storyId })
+        await reload()
+        return true
+      } catch (e) {
+        setError(parseIpcError(e))
+        return false
+      }
+    },
+    [storyId, reload]
+  )
+
+  const update = useCallback(
+    async (
+      id: string,
+      data: Partial<
+        Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>
+      >
+    ): Promise<boolean> => {
+      try {
+        await getApi().characters.update(id, data)
+        await reload()
+        return true
+      } catch (e) {
+        setError(parseIpcError(e))
+        return false
+      }
+    },
+    [reload]
+  )
+
+  const remove = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        await getApi().characters.delete(id)
+        await reload()
+        return true
+      } catch (e) {
+        setError(parseIpcError(e))
+        return false
+      }
+    },
+    [reload]
+  )
+
+  return { items, loading, error, reload, create, update, remove }
+}

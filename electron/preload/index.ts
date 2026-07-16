@@ -23,7 +23,9 @@ const api: ElectronApi = {
     create: (input: CreateCharacterInput) => ipcRenderer.invoke('characters:create', input),
     update: (
       id: string,
-      data: Partial<Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>>
+      data: Partial<
+        Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>
+      >
     ) => ipcRenderer.invoke('characters:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('characters:delete', id),
     importSoulMd: () =>
@@ -37,7 +39,9 @@ const api: ElectronApi = {
     create: (input: CreateSceneInput) => ipcRenderer.invoke('scenes:create', input),
     update: (
       id: string,
-      data: Partial<Pick<CreateSceneInput, 'sceneNumber' | 'description' | 'script'>>
+      data: Partial<
+        Pick<CreateSceneInput, 'sceneNumber' | 'description' | 'script' | 'status'>
+      >
     ) => ipcRenderer.invoke('scenes:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('scenes:delete', id)
   },
@@ -58,13 +62,37 @@ const api: ElectronApi = {
       ipcRenderer.invoke('timeline:reorder', storyId, orderedIds)
   },
   generation: {
-    run: (storyId: string) => ipcRenderer.invoke('generation:run', storyId)
+    run: (storyId: string) => ipcRenderer.invoke('generation:run', storyId),
+    onProgress: (callback) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        payload: {
+          storyId: string
+          step: string
+          index: number
+          total: number
+          result?: { step: string; success: boolean; output?: string; error?: string }
+        }
+      ): void => {
+        callback(payload)
+      }
+      ipcRenderer.on('generation:progress', listener)
+      return () => {
+        ipcRenderer.removeListener('generation:progress', listener)
+      }
+    }
   },
   ai: {
     status: () => ipcRenderer.invoke('ai:status')
   },
   shell: {
-    openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url)
+    openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+    openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath)
+  },
+  media: {
+    pickRefImage: () => ipcRenderer.invoke('media:pickRefImage'),
+    exportStoryboard: (storyId: string) =>
+      ipcRenderer.invoke('media:exportStoryboard', storyId)
   }
 }
 
