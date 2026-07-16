@@ -11,9 +11,11 @@ npx prisma db push
 npm run dev
 ```
 
-Optional AI backend: [Grok-Cli-to-OpenAI-compatible](https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible) on `:39281`.
+### Optional services
 
-Optional export: system `ffmpeg` (or `FFMPEG_PATH`).
+- **Grok CLI wrapper**: [Grok-Cli-to-OpenAI-compatible](https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible) on `:39281`
+- **FFmpeg**: required for export (`FFMPEG_PATH` override supported)
+- **Video stub** (default): `GROK_VIDEO_STUB=1` generates solid-color clips when no video API exists
 
 ## Scripts
 
@@ -22,33 +24,24 @@ Optional export: system `ffmpeg` (or `FFMPEG_PATH`).
 | `npm run dev` | Electron + Vite |
 | `npm run build` | Production bundle |
 | `npm run typecheck` | Strict TS |
-| `npm test` | Domain unit tests (vitest) |
+| `npm test` | Unit tests (vitest) |
 | `npm run db:push` | SQLite schema |
 | `npm run pack` / `dist` | electron-builder |
 
-## Architecture
+## Features (Round 2)
 
-See [docs/architecture.md](./docs/architecture.md) and [docs/project-brief.md](./docs/project-brief.md).
+- Konva linear timeline: zoom, playhead, drag/resize, library drop  
+- Per-clip media status + import local clip  
+- Generation pipeline with **video step** + cancel / retry failed  
+- FFmpeg **concat final** (uses READY clips, else color fallback)  
+- soul.md frontmatter preview + soulmd-hub link  
 
-### Pages
+## Docs
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Stories |
-| `/characters` | Characters + soul.md import |
-| `/scenes` | Scenes + scripts |
-| `/props` | Props |
-| `/timeline` | Linear timeline (drag/drop, generate, export) |
+- [docs/project-brief.md](./docs/project-brief.md)  
+- [docs/architecture.md](./docs/architecture.md)  
 
 ## i18n
 
-- **zh-HK** (default) — 香港書面語繁體
-- **en** — English
-
-## Tech
-
-- Electron + electron-vite
-- React 18, TypeScript strict, TailwindCSS
-- Prisma + SQLite (`src/types/prisma` generated client)
-- Grok CLI OpenAI-compatible AI client
-- FFmpeg storyboard export
+- **zh-HK** (default)  
+- **en**  

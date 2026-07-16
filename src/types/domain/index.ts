@@ -2,11 +2,13 @@
 
 export type StoryStatus = 'DRAFT' | 'GENERATING' | 'COMPLETED' | 'FAILED'
 export type SceneStatus = 'PENDING' | 'GENERATING' | 'COMPLETED' | 'FAILED'
+export type MediaStatus = 'EMPTY' | 'QUEUED' | 'GENERATING' | 'READY' | 'FAILED'
 
 export interface Story {
   id: string
   title: string
   status: StoryStatus
+  exportPath?: string | null
   createdAt: string | Date
   updatedAt: string | Date
 }
@@ -62,6 +64,9 @@ export interface TimelineEntry {
   propId: string | null
   dialogue: string | null
   order: number
+  mediaPath: string | null
+  mediaStatus: MediaStatus
+  mediaError: string | null
 }
 
 export interface CreateStoryInput {
@@ -109,6 +114,21 @@ export interface UpdateTimelineEntryInput {
   propId?: string | null
   dialogue?: string | null
   order?: number
+  mediaPath?: string | null
+  mediaStatus?: MediaStatus
+  mediaError?: string | null
+}
+
+export interface VideoGenRequest {
+  prompt: string
+  durationSeconds: number
+  refImagePath?: string | null
+  outputPath: string
+}
+
+export interface VideoGenResult {
+  outputPath: string
+  degraded?: boolean
 }
 
 /** AI provider contract */
@@ -148,6 +168,7 @@ export interface AIProviderStatus {
 export interface AIProvider {
   getStatus(): Promise<AIProviderStatus>
   chat(request: ChatCompletionRequest): Promise<ChatCompletionResponse>
+  generateVideo?(request: VideoGenRequest): Promise<VideoGenResult>
 }
 
 /** Generation pipeline */
@@ -157,6 +178,7 @@ export type PipelineStepName =
   | 'scene'
   | 'props'
   | 'timeline'
+  | 'video'
   | 'export'
 
 export interface PipelineStepResult {
@@ -197,6 +219,15 @@ export interface PipelinePersistence {
     }>
   ) => Promise<void>
   setExportPath?: (storyId: string, path: string) => Promise<void>
+  updateEntryMedia?: (
+    entryId: string,
+    data: {
+      mediaPath?: string | null
+      mediaStatus: MediaStatus
+      mediaError?: string | null
+    }
+  ) => Promise<void>
+  listTimeline?: (storyId: string) => Promise<TimelineEntry[]>
 }
 
 export interface PipelineContext {
@@ -206,5 +237,15 @@ export interface PipelineContext {
   persistence?: PipelinePersistence
   media?: {
     exportStoryboard?: (storyId: string) => Promise<string>
+    exportConcat?: (storyId: string) => Promise<string>
+    clipOutputPath?: (storyId: string, entryId: string) => string
   }
+  signal?: AbortSignal
+  onlyFailedVideos?: boolean
+  onClipProgress?: (payload: {
+    entryId: string
+    index: number
+    total: number
+    status: MediaStatus
+  }) => void
 }

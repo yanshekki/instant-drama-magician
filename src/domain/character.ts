@@ -1,3 +1,34 @@
+export interface SoulMdDocument {
+  title: string | null
+  frontmatter: Record<string, string>
+  body: string
+  tags: string[]
+}
+
+/** Parse simple --- frontmatter and body from soul.md */
+export function parseSoulMd(content: string): SoulMdDocument {
+  let frontmatter: Record<string, string> = {}
+  let body = content
+
+  const fm = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
+  if (fm) {
+    frontmatter = {}
+    for (const line of fm[1].split(/\r?\n/)) {
+      const m = line.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/)
+      if (m) frontmatter[m[1]] = m[2].trim().replace(/^["']|["']$/g, '')
+    }
+    body = fm[2]
+  }
+
+  const title = extractNameFromSoulMd(body) ?? frontmatter.name ?? frontmatter.title ?? null
+  const tagsRaw = frontmatter.tags ?? frontmatter.tag ?? ''
+  const tags = tagsRaw
+    ? tagsRaw.split(/[,，]/).map((t) => t.trim()).filter(Boolean)
+    : []
+
+  return { title, frontmatter, body: body.trim(), tags }
+}
+
 /** Extract a display name from soul.md markdown content (first ATX heading). */
 export function extractNameFromSoulMd(content: string): string | null {
   const match = content.match(/^#\s+(.+)$/m)

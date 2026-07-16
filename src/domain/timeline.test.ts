@@ -17,6 +17,9 @@ function entry(partial: Partial<TimelineEntry> & Pick<TimelineEntry, 'id' | 'ord
     sceneId: null,
     propId: null,
     dialogue: null,
+    mediaPath: null,
+    mediaStatus: 'EMPTY',
+    mediaError: null,
     ...partial
   }
 }

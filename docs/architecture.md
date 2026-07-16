@@ -3,57 +3,63 @@
 ## Layers
 
 ```
-Presentation (React pages, hooks, timeline UI)
+Presentation (React pages, hooks, Konva timeline)
         ↓ IPC (preload bridge)
 Application (Services, GenerationPipeline, TimelineService)
         ↓
-Domain (pure rules: story / character / scene / timeline)
+Domain (pure rules: story / character / scene / timeline / layout)
         ↓
-Infrastructure (Prisma, GrokCliClient, FfmpegService)
+Infrastructure (Prisma, GrokCliClient, FfmpegService, MediaStore)
 ```
 
-## Main process services
+## Round 2 modules
 
-| Service | Responsibility |
-|---------|----------------|
-| `StoryService` | Story CRUD + validation |
-| `CharacterService` | Characters + soul.md path |
-| `SceneService` | Scenes + status |
-| `PropService` | Props |
-| `TimelinePersistenceService` | Timeline entries + reorder + clamp |
-| `GenerationService` | Pipeline orchestration + export |
+| Module | Path | Role |
+|--------|------|------|
+| MediaStore | `src/infrastructure/media/MediaStore.ts` | clip/export paths under userData |
+| VideoStep | `src/application/steps/VideoStep.ts` | per-clip generateVideo (+ stub) |
+| FfmpegService | `exportConcat` / `makeColorClip` | real concat + fallback segments |
+| KonvaTimeline | `src/presentation/components/timeline/KonvaTimeline.tsx` | zoom, playhead, drag/resize |
+| soul.md parse | `parseSoulMd` in domain/character | frontmatter + tags preview |
 
 ## Generation pipeline
 
-1. **ScriptStep** — AI (or offline seed) → writes `Scene.script`
-2. **CharacterStep** — character bible
-3. **SceneStep** — visual beats
-4. **PropsStep** — continuity notes
-5. **TimelineStep** — suggest linear clips if empty (≤ max AI clip seconds)
-6. **ExportStep** — FFmpeg storyboard MP4
+1. ScriptStep → Scene.script  
+2. CharacterStep  
+3. SceneStep  
+4. PropsStep  
+5. TimelineStep (suggest if empty)  
+6. **VideoStep** → mediaPath / mediaStatus  
+7. ExportStep → FFmpeg concat (media files or color fallback)
 
-## Timeline rules
+### Env
 
-- Linear single track (gaps allowed)
-- Default max clip: **10s** (`DEFAULT_MAX_CLIP_SECONDS`)
-- Drag / resize / library drop in Presentation
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `GROK_CLI_BASE_URL` | `http://127.0.0.1:39281/v1` | Chat API |
+| `GROK_VIDEO_ENABLED` | `1` | Enable video step |
+| `GROK_VIDEO_STUB` | `1` | ffmpeg color stub if no video API |
+| `GROK_CLI_VIDEO_PATH` | `{base}/video/generations` | Optional real endpoint |
+| `FFMPEG_PATH` | `ffmpeg` | Binary |
 
-## AI
+## Timeline media status
 
-Grok CLI OpenAI-compatible wrapper (default `http://127.0.0.1:39281/v1`).  
-See: https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible
-
-## Media
-
-- User data: `{userData}/media/{storyId}/exports/`
-- FFmpeg required for export (`FFMPEG_PATH` override supported)
+`EMPTY | QUEUED | GENERATING | READY | FAILED` on `TimelineEntry`.
 
 ## Success criteria checklist
 
-- [x] Type-safe TypeScript strict
-- [x] Modular clean architecture
-- [x] Independent creation pages
-- [x] Timeline cross-references assets
-- [x] i18n zh-HK + en
-- [x] Grok CLI integration
-- [x] FFmpeg export MVP
+- [x] Type-safe TypeScript strict  
+- [x] Modular clean architecture  
+- [x] Independent creation pages  
+- [x] Timeline cross-references + Konva UX  
+- [x] i18n zh-HK + en  
+- [x] Grok CLI chat + optional video  
+- [x] FFmpeg concat export MVP  
+- [x] Domain + media path unit tests  
+
+## Release smoke
+
+```bash
+npm run typecheck && npm test && npm run build
+npm run pack   # electron-builder --dir
+```

@@ -60,9 +60,39 @@ export class TimelinePersistenceService {
         ...(data.sceneId !== undefined ? { sceneId: data.sceneId } : {}),
         ...(data.propId !== undefined ? { propId: data.propId } : {}),
         ...(data.dialogue !== undefined ? { dialogue: data.dialogue } : {}),
-        ...(data.order !== undefined ? { order: data.order } : {})
+        ...(data.order !== undefined ? { order: data.order } : {}),
+        ...(data.mediaPath !== undefined ? { mediaPath: data.mediaPath } : {}),
+        ...(data.mediaStatus !== undefined ? { mediaStatus: data.mediaStatus } : {}),
+        ...(data.mediaError !== undefined ? { mediaError: data.mediaError } : {})
       }
     })
+  }
+
+  async setMedia(
+    id: string,
+    data: {
+      mediaPath?: string | null
+      mediaStatus: 'EMPTY' | 'QUEUED' | 'GENERATING' | 'READY' | 'FAILED'
+      mediaError?: string | null
+    }
+  ) {
+    await this.ensureExists(id)
+    return this.prisma.timelineEntry.update({
+      where: { id },
+      data: {
+        mediaPath: data.mediaPath === undefined ? undefined : data.mediaPath,
+        mediaStatus: data.mediaStatus,
+        mediaError: data.mediaError ?? null
+      }
+    })
+  }
+
+  private async ensureExists(id: string): Promise<void> {
+    const found = await this.prisma.timelineEntry.findUnique({
+      where: { id },
+      select: { id: true }
+    })
+    if (!found) throw new AppError('NOT_FOUND', `Timeline entry not found: ${id}`)
   }
 
   async delete(id: string) {

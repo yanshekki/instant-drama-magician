@@ -26,8 +26,11 @@
     "error": "Error",
     "generate": "Generate",
     "generating": "Generating…",
-    "export": "Export video",
+    "export": "Export final",
+    "exportBoard": "Export storyboard",
     "exporting": "Exporting…",
+    "cancelGen": "Cancel",
+    "retryFailed": "Retry failed clips",
     "refresh": "Refresh"
   },
   "stories": {
@@ -58,7 +61,8 @@
     "namePlaceholder": "e.g. Ming",
     "descriptionPlaceholder": "Looks, personality, backstory…",
     "refImage": "Reference image",
-    "pickImage": "Pick image"
+    "pickImage": "Pick image",
+    "openHub": "Open soulmd-hub"
   },
   "scenes": {
     "title": "Scenes",
@@ -99,7 +103,9 @@
     "none": "(none)",
     "addClip": "Add to timeline",
     "dragHint": "Drag onto the timeline, or click to append the next free slot.",
-    "reorder": "Reorder by time"
+    "reorder": "Reorder by time",
+    "importClip": "Import clip",
+    "openClip": "Open clip"
   },
   "ai": {
     "status": "AI status",

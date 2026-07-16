@@ -5,6 +5,7 @@ import type {
   CreateSceneInput,
   CreateStoryInput,
   CreateTimelineEntryInput,
+  MediaStatus,
   UpdateTimelineEntryInput
 } from '../../src/types/domain'
 import type { ElectronApi } from '../../src/types/electron-api'
@@ -59,10 +60,20 @@ const api: ElectronApi = {
       ipcRenderer.invoke('timeline:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('timeline:delete', id),
     reorder: (storyId: string, orderedIds: string[]) =>
-      ipcRenderer.invoke('timeline:reorder', storyId, orderedIds)
+      ipcRenderer.invoke('timeline:reorder', storyId, orderedIds),
+    setMedia: (
+      id: string,
+      data: {
+        mediaPath?: string | null
+        mediaStatus: MediaStatus
+        mediaError?: string | null
+      }
+    ) => ipcRenderer.invoke('timeline:setMedia', id, data)
   },
   generation: {
-    run: (storyId: string) => ipcRenderer.invoke('generation:run', storyId),
+    run: (storyId: string, opts?: { onlyFailedVideos?: boolean }) =>
+      ipcRenderer.invoke('generation:run', storyId, opts),
+    cancel: () => ipcRenderer.invoke('generation:cancel'),
     onProgress: (callback) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
@@ -72,6 +83,8 @@ const api: ElectronApi = {
           index: number
           total: number
           result?: { step: string; success: boolean; output?: string; error?: string }
+          entryId?: string
+          mediaStatus?: string
         }
       ): void => {
         callback(payload)
@@ -92,7 +105,11 @@ const api: ElectronApi = {
   media: {
     pickRefImage: () => ipcRenderer.invoke('media:pickRefImage'),
     exportStoryboard: (storyId: string) =>
-      ipcRenderer.invoke('media:exportStoryboard', storyId)
+      ipcRenderer.invoke('media:exportStoryboard', storyId),
+    exportConcat: (storyId: string) => ipcRenderer.invoke('media:exportConcat', storyId),
+    importClip: (storyId: string, entryId: string) =>
+      ipcRenderer.invoke('media:importClip', storyId, entryId),
+    openClip: (filePath: string) => ipcRenderer.invoke('media:openClip', filePath)
   }
 }
 

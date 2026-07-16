@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   extractDescriptionFromSoulMd,
-  extractNameFromSoulMd
+  extractNameFromSoulMd,
+  parseSoulMd,
+  type SoulMdDocument
 } from '../../domain/character'
 import { getApi } from '../../lib/api'
 import { useApp } from '../context/AppContext'
@@ -18,6 +20,7 @@ export function CharactersPage(): JSX.Element {
   const [description, setDescription] = useState('')
   const [soulMdPath, setSoulMdPath] = useState<string | null>(null)
   const [soulPreview, setSoulPreview] = useState<string | null>(null)
+  const [soulDoc, setSoulDoc] = useState<SoulMdDocument | null>(null)
   const [refImagePath, setRefImagePath] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -27,6 +30,7 @@ export function CharactersPage(): JSX.Element {
     setDescription('')
     setSoulMdPath(null)
     setSoulPreview(null)
+    setSoulDoc(null)
     setRefImagePath(null)
     setEditingId(null)
     setShowForm(false)
@@ -36,14 +40,20 @@ export function CharactersPage(): JSX.Element {
     const result = await getApi().characters.importSoulMd()
     if (!result) return
     setSoulMdPath(result.filePath)
-    setSoulPreview(result.content.slice(0, 400))
+    const doc = parseSoulMd(result.content)
+    setSoulDoc(doc)
+    setSoulPreview(doc.body.slice(0, 600))
     if (!description.trim()) {
       setDescription(extractDescriptionFromSoulMd(result.content))
     }
     if (!name.trim()) {
-      const extracted = extractNameFromSoulMd(result.content)
+      const extracted = doc.title ?? extractNameFromSoulMd(result.content)
       if (extracted) setName(extracted)
     }
+  }
+
+  const openSoulHub = (): void => {
+    void getApi().shell.openExternal('https://soulmd-hub.ysk.hk')
   }
 
   const handlePickRefImage = async (): Promise<void> => {
@@ -139,24 +149,55 @@ export function CharactersPage(): JSX.Element {
               />
             </div>
             <div className="rounded-lg border border-dashed border-ink-700 p-3">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="text-sm font-medium text-ink-200">
                     {t('characters.soulMd')}
                   </div>
                   <p className="text-xs text-ink-500">{t('characters.importHint')}</p>
                 </div>
-                <Button variant="secondary" onClick={() => void handleImportSoul()}>
-                  {t('characters.importSoul')}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="ghost" onClick={openSoulHub}>
+                    {t('characters.openHub')}
+                  </Button>
+                  <Button variant="secondary" onClick={() => void handleImportSoul()}>
+                    {t('characters.importSoul')}
+                  </Button>
+                </div>
               </div>
               {soulMdPath && (
                 <p className="mt-2 truncate text-xs text-brand-300">{soulMdPath}</p>
               )}
+              {soulDoc && (
+                <div className="mt-2 space-y-1 rounded bg-ink-950/80 p-2 text-[11px] text-ink-300">
+                  {soulDoc.title && (
+                    <div className="font-semibold text-ink-100">{soulDoc.title}</div>
+                  )}
+                  {soulDoc.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {soulDoc.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded bg-brand-900/40 px-1.5 py-0.5 text-brand-200"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {Object.keys(soulDoc.frontmatter).length > 0 && (
+                    <pre className="max-h-16 overflow-auto text-ink-500">
+                      {Object.entries(soulDoc.frontmatter)
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join('\n')}
+                    </pre>
+                  )}
+                </div>
+              )}
               {soulPreview && (
                 <pre className="mt-2 max-h-28 overflow-auto rounded bg-ink-950/80 p-2 text-[11px] text-ink-400">
                   {soulPreview}
-                  {soulPreview.length >= 400 ? '…' : ''}
+                  {soulPreview.length >= 600 ? '…' : ''}
                 </pre>
               )}
             </div>

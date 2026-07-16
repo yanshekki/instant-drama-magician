@@ -12,6 +12,7 @@ import { CharacterStep } from './steps/CharacterStep'
 import { SceneStep } from './steps/SceneStep'
 import { PropsStep } from './steps/PropsStep'
 import { TimelineStep } from './steps/TimelineStep'
+import { VideoStep } from './steps/VideoStep'
 import { ExportStep } from './steps/ExportStep'
 
 export interface PipelineRunOptions {
@@ -22,11 +23,13 @@ export interface PipelineRunOptions {
   ) => void
   persistence?: PipelinePersistence
   media?: PipelineContext['media']
+  signal?: AbortSignal
+  onlyFailedVideos?: boolean
+  onClipProgress?: PipelineContext['onClipProgress']
 }
 
 /**
- * Composable generation pipeline:
- * Script → Character → Scene → Props → Timeline → Export
+ * Script → Character → Scene → Props → Timeline → Video → Export
  */
 export class GenerationPipeline {
   private readonly steps: PipelineStep[]
@@ -43,6 +46,7 @@ export class GenerationPipeline {
         new SceneStep(),
         new PropsStep(),
         new TimelineStep(),
+        new VideoStep(),
         new ExportStep()
       ]
   }
@@ -56,13 +60,21 @@ export class GenerationPipeline {
       ai: this.ai,
       artifacts: {},
       persistence: options?.persistence,
-      media: options?.media
+      media: options?.media,
+      signal: options?.signal,
+      onlyFailedVideos: options?.onlyFailedVideos,
+      onClipProgress: options?.onClipProgress
     }
 
     const results: PipelineStepResult[] = []
     const total = this.steps.length
 
     for (let i = 0; i < this.steps.length; i++) {
+      if (options?.signal?.aborted) {
+        results.push({ step: this.steps[i].name, success: false, error: 'Cancelled' })
+        return { storyId: story.id, steps: results, success: false }
+      }
+
       const step = this.steps[i]
       try {
         const result = await step.run(context)

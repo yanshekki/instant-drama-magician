@@ -62,8 +62,17 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   const props = (): PropService => new PropService(getPrisma())
   const timeline = (): TimelinePersistenceService =>
     new TimelinePersistenceService(getPrisma())
-  const generation = (): GenerationService =>
-    new GenerationService(getPrisma(), aiClient, { mediaRoot: mediaRoot() })
+
+  // Singleton so cancel() can abort the in-flight run
+  let generationService: GenerationService | null = null
+  const generation = (): GenerationService => {
+    if (!generationService) {
+      generationService = new GenerationService(getPrisma(), aiClient, {
+        mediaRoot: mediaRoot()
+      })
+    }
+    return generationService
+  }
 
   // ─── Stories ───────────────────────────────────────────────
   ipcMain.handle(
@@ -214,13 +223,46 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     )
   )
 
+  ipcMain.handle(
+    'timeline:setMedia',
+    wrap(
+      async (
+        _e,
+        id: string,
+        data: {
+          mediaPath?: string | null
+          mediaStatus: 'EMPTY' | 'QUEUED' | 'GENERATING' | 'READY' | 'FAILED'
+          mediaError?: string | null
+        }
+      ) => timeline().setMedia(id, data)
+    )
+  )
+
   // ─── Generation ────────────────────────────────────────────
   ipcMain.handle(
     'generation:run',
-    wrap(async (event, storyId: string) => {
-      return generation().run(storyId, (payload) => {
-        event.sender.send('generation:progress', payload)
-      })
+    wrap(
+      async (
+        event,
+        storyId: string,
+        opts?: { onlyFailedVideos?: boolean }
+      ) => {
+        return generation().run(
+          storyId,
+          (payload) => {
+            event.sender.send('generation:progress', payload)
+          },
+          opts
+        )
+      }
+    )
+  )
+
+  ipcMain.handle(
+    'generation:cancel',
+    wrap(async () => {
+      generation().cancel()
+      return { ok: true as const }
     })
   )
 
@@ -279,5 +321,50 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   ipcMain.handle(
     'media:exportStoryboard',
     wrap(async (_e, storyId: string) => generation().exportStoryboard(storyId))
+  )
+
+  ipcMain.handle(
+    'media:exportConcat',
+    wrap(async (_e, storyId: string) => generation().exportConcat(storyId))
+  )
+
+  ipcMain.handle(
+    'media:importClip',
+    wrap(async (_e, storyId: string, entryId: string) => {
+      const win = getMainWindow()
+      const options: OpenDialogOptions = {
+        title: 'Import video clip',
+        filters: [
+          { name: 'Video', extensions: ['mp4', 'webm', 'mov', 'mkv'] }
+        ],
+        properties: ['openFile']
+      }
+      const result = win
+        ? await dialog.showOpenDialog(win, options)
+        : await dialog.showOpenDialog(options)
+      if (result.canceled || result.filePaths.length === 0) return null
+
+      const dest = generation()
+        .getMediaStore()
+        .importClip(storyId, entryId, result.filePaths[0])
+      await timeline().setMedia(entryId, {
+        mediaPath: dest,
+        mediaStatus: 'READY',
+        mediaError: null
+      })
+      return { filePath: dest }
+    })
+  )
+
+  ipcMain.handle(
+    'media:openClip',
+    wrap(async (_e, filePath: string) => {
+      if (!existsSync(filePath)) {
+        throw new AppError('NOT_FOUND', `Clip not found: ${filePath}`)
+      }
+      const err = await shell.openPath(filePath)
+      if (err) throw new AppError('IO', err)
+      return { ok: true as const }
+    })
   )
 }

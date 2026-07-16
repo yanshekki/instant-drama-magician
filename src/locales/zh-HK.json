@@ -26,8 +26,11 @@
     "error": "錯誤",
     "generate": "開始生成",
     "generating": "生成中…",
-    "export": "匯出影片",
+    "export": "匯出成片",
+    "exportBoard": "匯出分鏡板",
     "exporting": "匯出中…",
+    "cancelGen": "取消生成",
+    "retryFailed": "重試失敗片段",
     "refresh": "重新整理"
   },
   "stories": {
@@ -58,7 +61,8 @@
     "namePlaceholder": "例如：阿明",
     "descriptionPlaceholder": "外貌、性格、背景…",
     "refImage": "參考圖",
-    "pickImage": "選擇圖片"
+    "pickImage": "選擇圖片",
+    "openHub": "開啟 soulmd-hub"
   },
   "scenes": {
     "title": "場景創作",
@@ -99,7 +103,9 @@
     "none": "（無）",
     "addClip": "加入時間軸",
     "dragHint": "拖曳至時間軸，或點擊以加入下一空檔。",
-    "reorder": "按時間重排"
+    "reorder": "按時間重排",
+    "importClip": "匯入片段",
+    "openClip": "開啟片段"
   },
   "ai": {
     "status": "AI 狀態",

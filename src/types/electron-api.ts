@@ -4,6 +4,7 @@ import type {
   CreateSceneInput,
   CreateStoryInput,
   CreateTimelineEntryInput,
+  MediaStatus,
   UpdateTimelineEntryInput
 } from './domain'
 
@@ -21,7 +22,9 @@ export interface ElectronApi {
     create: (input: CreateCharacterInput) => Promise<unknown>
     update: (
       id: string,
-      data: Partial<Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>>
+      data: Partial<
+        Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>
+      >
     ) => Promise<unknown>
     delete: (id: string) => Promise<{ ok: boolean }>
     importSoulMd: () => Promise<{ filePath: string; content: string } | null>
@@ -52,9 +55,21 @@ export interface ElectronApi {
     update: (id: string, data: UpdateTimelineEntryInput) => Promise<unknown>
     delete: (id: string) => Promise<{ ok: boolean }>
     reorder: (storyId: string, orderedIds: string[]) => Promise<unknown>
+    setMedia: (
+      id: string,
+      data: {
+        mediaPath?: string | null
+        mediaStatus: MediaStatus
+        mediaError?: string | null
+      }
+    ) => Promise<unknown>
   }
   generation: {
-    run: (storyId: string) => Promise<unknown>
+    run: (
+      storyId: string,
+      opts?: { onlyFailedVideos?: boolean }
+    ) => Promise<unknown>
+    cancel: () => Promise<{ ok: boolean }>
     onProgress: (
       callback: (payload: {
         storyId: string
@@ -62,6 +77,8 @@ export interface ElectronApi {
         index: number
         total: number
         result?: { step: string; success: boolean; output?: string; error?: string }
+        entryId?: string
+        mediaStatus?: string
       }) => void
     ) => () => void
   }
@@ -75,5 +92,11 @@ export interface ElectronApi {
   media: {
     pickRefImage: () => Promise<{ filePath: string; originalName?: string } | null>
     exportStoryboard: (storyId: string) => Promise<{ outputPath: string }>
+    exportConcat: (storyId: string) => Promise<{ outputPath: string }>
+    importClip: (
+      storyId: string,
+      entryId: string
+    ) => Promise<{ filePath: string } | null>
+    openClip: (filePath: string) => Promise<{ ok: boolean }>
   }
 }

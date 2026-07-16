@@ -28,6 +28,8 @@ export function StoriesPage(): JSX.Element {
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
 
   const handleCreate = async (): Promise<void> => {
     if (!title.trim()) return
@@ -46,6 +48,14 @@ export function StoriesPage(): JSX.Element {
   const handleDelete = async (id: string): Promise<void> => {
     if (!confirm(t('common.confirmDelete'))) return
     await getApi().stories.delete(id)
+    await refreshStories()
+  }
+
+  const handleRename = async (): Promise<void> => {
+    if (!renamingId || !renameTitle.trim()) return
+    await getApi().stories.update(renamingId, { title: renameTitle.trim() })
+    setRenamingId(null)
+    setRenameTitle('')
     await refreshStories()
   }
 
@@ -114,12 +124,39 @@ export function StoriesPage(): JSX.Element {
                     timeline: story._count?.timeline ?? 0
                   })}
                 </p>
-                <div className="mt-4 flex gap-2">
-                  <Button onClick={() => handleOpen(story.id)}>{t('stories.open')}</Button>
-                  <Button variant="danger" onClick={() => void handleDelete(story.id)}>
-                    {t('common.delete')}
-                  </Button>
-                </div>
+                {renamingId === story.id ? (
+                  <div className="mt-3 space-y-2">
+                    <Input
+                      value={renameTitle}
+                      onChange={(e) => setRenameTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handleRename()
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={() => void handleRename()}>{t('common.save')}</Button>
+                      <Button variant="ghost" onClick={() => setRenamingId(null)}>
+                        {t('common.cancel')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button onClick={() => handleOpen(story.id)}>{t('stories.open')}</Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setRenamingId(story.id)
+                        setRenameTitle(story.title)
+                      }}
+                    >
+                      {t('common.edit')}
+                    </Button>
+                    <Button variant="danger" onClick={() => void handleDelete(story.id)}>
+                      {t('common.delete')}
+                    </Button>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
