@@ -7,7 +7,8 @@ const navItems: { to: string; key: string; end?: boolean }[] = [
   { to: '/characters', key: 'characters' },
   { to: '/scenes', key: 'scenes' },
   { to: '/props', key: 'props' },
-  { to: '/timeline', key: 'timeline' }
+  { to: '/timeline', key: 'timeline' },
+  { to: '/settings', key: 'settings' }
 ]
 
 export function Layout(): JSX.Element {

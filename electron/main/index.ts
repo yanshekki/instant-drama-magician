@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
+import { pathToFileURL } from 'url'
 import { PrismaClient } from '../../src/types/prisma'
 import { registerIpcHandlers } from './ipc'
 
@@ -16,6 +17,20 @@ function resolveDatabaseUrl(): string {
 }
 
 process.env.DATABASE_URL = resolveDatabaseUrl()
+
+// Must be called before app ready
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'idm-media',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      bypassCSP: true
+    }
+  }
+])
 
 let mainWindow: BrowserWindow | null = null
 let prisma: PrismaClient | null = null
@@ -58,6 +73,21 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  protocol.handle('idm-media', (request) => {
+    try {
+      const u = new URL(request.url)
+      const p = u.searchParams.get('p')
+      if (!p) return new Response('missing path', { status: 400 })
+      const filePath = decodeURIComponent(p)
+      if (!existsSync(filePath)) {
+        return new Response('not found', { status: 404 })
+      }
+      return net.fetch(pathToFileURL(filePath).toString())
+    } catch {
+      return new Response('bad request', { status: 400 })
+    }
+  })
+
   registerIpcHandlers({
     ipcMain,
     dialog,

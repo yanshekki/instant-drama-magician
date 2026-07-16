@@ -3,63 +3,39 @@
 ## Layers
 
 ```
-Presentation (React pages, hooks, Konva timeline)
-        ↓ IPC (preload bridge)
-Application (Services, GenerationPipeline, TimelineService)
+Presentation (React, Konva, PreviewPlayer, Settings)
+        ↓ IPC + idm-media:// protocol
+Application (Services, GenerationPipeline)
         ↓
-Domain (pure rules: story / character / scene / timeline / layout)
+Domain (timeline, subtitle, soul parse)
         ↓
-Infrastructure (Prisma, GrokCliClient, FfmpegService, MediaStore)
+Infrastructure (Prisma, GrokCliClient, VideoProviders, FFmpeg, MediaStore, SettingsStore)
 ```
 
-## Round 2 modules
+## Round 3 modules
 
-| Module | Path | Role |
-|--------|------|------|
-| MediaStore | `src/infrastructure/media/MediaStore.ts` | clip/export paths under userData |
-| VideoStep | `src/application/steps/VideoStep.ts` | per-clip generateVideo (+ stub) |
-| FfmpegService | `exportConcat` / `makeColorClip` | real concat + fallback segments |
-| KonvaTimeline | `src/presentation/components/timeline/KonvaTimeline.tsx` | zoom, playhead, drag/resize |
-| soul.md parse | `parseSoulMd` in domain/character | frontmatter + tags preview |
+| Module | Path |
+|--------|------|
+| SettingsStore | `src/infrastructure/settings/SettingsStore.ts` |
+| CompositeVideoProvider | `src/infrastructure/ai/video/*` |
+| exportFinal | `FfmpegService.exportFinal` + `buildSrt` |
+| PreviewPlayer | `idm-media://` protocol + `<video>` |
+| soul URL import | `characters:importSoulMdUrl` |
 
-## Generation pipeline
+## Pipeline
 
-1. ScriptStep → Scene.script  
-2. CharacterStep  
-3. SceneStep  
-4. PropsStep  
-5. TimelineStep (suggest if empty)  
-6. **VideoStep** → mediaPath / mediaStatus  
-7. ExportStep → FFmpeg concat (media files or color fallback)
+Script → Character → Scene → Props → Timeline → **Video** → Export
 
-### Env
+Video uses `settings.videoMode`: auto | http | stub.
 
-| Variable | Default | Meaning |
-|----------|---------|---------|
-| `GROK_CLI_BASE_URL` | `http://127.0.0.1:39281/v1` | Chat API |
-| `GROK_VIDEO_ENABLED` | `1` | Enable video step |
-| `GROK_VIDEO_STUB` | `1` | ffmpeg color stub if no video API |
-| `GROK_CLI_VIDEO_PATH` | `{base}/video/generations` | Optional real endpoint |
-| `FFMPEG_PATH` | `ffmpeg` | Binary |
+## Media protocol
 
-## Timeline media status
+`idm-media://local/?p=<encodeURIComponent(absPath)>` — registered in Electron main for safe preview.
 
-`EMPTY | QUEUED | GENERATING | READY | FAILED` on `TimelineEntry`.
-
-## Success criteria checklist
-
-- [x] Type-safe TypeScript strict  
-- [x] Modular clean architecture  
-- [x] Independent creation pages  
-- [x] Timeline cross-references + Konva UX  
-- [x] i18n zh-HK + en  
-- [x] Grok CLI chat + optional video  
-- [x] FFmpeg concat export MVP  
-- [x] Domain + media path unit tests  
-
-## Release smoke
+## Verification
 
 ```bash
-npm run typecheck && npm test && npm run build
-npm run pack   # electron-builder --dir
+npm run typecheck && npm test && npm run build && npm run pack
 ```
+
+See also [video-providers.md](./video-providers.md).

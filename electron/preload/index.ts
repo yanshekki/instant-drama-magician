@@ -33,7 +33,8 @@ const api: ElectronApi = {
       ipcRenderer.invoke('characters:importSoulMd') as Promise<{
         filePath: string
         content: string
-      } | null>
+      } | null>,
+    importSoulMdUrl: (url: string) => ipcRenderer.invoke('characters:importSoulMdUrl', url)
   },
   scenes: {
     list: (storyId: string) => ipcRenderer.invoke('scenes:list', storyId),
@@ -96,7 +97,12 @@ const api: ElectronApi = {
     }
   },
   ai: {
-    status: () => ipcRenderer.invoke('ai:status')
+    status: () => ipcRenderer.invoke('ai:status'),
+    probeVideo: () => ipcRenderer.invoke('ai:probeVideo')
+  },
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    set: (partial) => ipcRenderer.invoke('settings:set', partial)
   },
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
@@ -107,9 +113,11 @@ const api: ElectronApi = {
     exportStoryboard: (storyId: string) =>
       ipcRenderer.invoke('media:exportStoryboard', storyId),
     exportConcat: (storyId: string) => ipcRenderer.invoke('media:exportConcat', storyId),
+    exportFinal: (storyId: string) => ipcRenderer.invoke('media:exportFinal', storyId),
     importClip: (storyId: string, entryId: string) =>
       ipcRenderer.invoke('media:importClip', storyId, entryId),
-    openClip: (filePath: string) => ipcRenderer.invoke('media:openClip', filePath)
+    openClip: (filePath: string) => ipcRenderer.invoke('media:openClip', filePath),
+    toPreviewUrl: (filePath: string) => ipcRenderer.invoke('media:toPreviewUrl', filePath)
   }
 }
 

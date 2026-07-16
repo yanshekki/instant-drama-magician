@@ -1,6 +1,6 @@
 import { spawn } from 'child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'fs'
-import { dirname, join } from 'path'
+import { basename, dirname, join } from 'path'
 import { AppError } from '../../types/errors'
 
 export interface StoryboardClip {
@@ -118,6 +118,82 @@ export class FfmpegService {
     // Storyboard always synthesizes color segments (ignore existing media)
     const clips = options.clips.map((c) => ({ ...c, mediaPath: null }))
     return this.exportConcat({ ...options, clips })
+  }
+
+  /**
+   * High-quality final export: normalize clips, optional burn-in SRT, silent AAC.
+   */
+  async exportFinal(options: {
+    outDir: string
+    fileName: string
+    title: string
+    clips: StoryboardClip[]
+    srtContent?: string | null
+    burnSubtitles?: boolean
+    includeSilentAudio?: boolean
+    profile?: 'fast' | 'balanced'
+  }): Promise<string> {
+    await this.ensureAvailable()
+    mkdirSync(options.outDir, { recursive: true })
+
+    // First assemble visual track via concat (with fallbacks)
+    const rawPath = join(options.outDir, `_raw_${Date.now()}.mp4`)
+    await this.exportConcat({
+      outDir: options.outDir,
+      fileName: basename(rawPath),
+      title: options.title,
+      clips: options.clips
+    })
+
+    const crf = options.profile === 'fast' ? '28' : '23'
+    const outputPath = join(options.outDir, options.fileName)
+    const vfParts = ['scale=1280:720:force_original_aspect_ratio=decrease', 'pad=1280:720:(ow-iw)/2:(oh-ih)/2', 'fps=24']
+
+    if (options.burnSubtitles && options.srtContent && options.srtContent.trim()) {
+      const srtPath = join(options.outDir, `_subs_${Date.now()}.srt`)
+      writeFileSync(srtPath, options.srtContent, 'utf-8')
+      // Escape path for subtitles filter
+      const escaped = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "\\'")
+      vfParts.push(`subtitles='${escaped}'`)
+    }
+
+    const args = [
+      this.ffmpegBin,
+      '-y',
+      '-i',
+      rawPath,
+      '-vf',
+      vfParts.join(','),
+      '-c:v',
+      'libx264',
+      '-pix_fmt',
+      'yuv420p',
+      '-crf',
+      crf
+    ]
+
+    if (options.includeSilentAudio !== false) {
+      // Generate silent audio matching duration via anullsrc + shortest
+      args.push(
+        '-f',
+        'lavfi',
+        '-i',
+        'anullsrc=channel_layout=stereo:sample_rate=44100',
+        '-c:a',
+        'aac',
+        '-shortest'
+      )
+    } else {
+      args.push('-an')
+    }
+
+    args.push(outputPath)
+    await this.run(args)
+
+    if (!existsSync(outputPath)) {
+      throw new AppError('FFMPEG_FAILED', 'Final export missing output file')
+    }
+    return outputPath
   }
 
   private async concatFiles(paths: string[], outputPath: string): Promise<string> {

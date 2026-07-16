@@ -13,6 +13,7 @@ import { PageHeader } from '../components/PageHeader'
 import { AssetLibrary } from '../components/timeline/AssetLibrary'
 import type { AssetDropPayload } from '../components/timeline/TimelineCanvas'
 import { KonvaTimeline } from '../components/timeline/KonvaTimeline'
+import { PreviewPlayer } from '../components/timeline/PreviewPlayer'
 import { Button, EmptyState, Label, Textarea } from '../components/ui'
 
 const MAX_CLIP = TimelineService.DEFAULT_MAX_CLIP_SECONDS
@@ -54,12 +55,37 @@ export function TimelinePage(): JSX.Element {
   const [actionError, setActionError] = useState<string | null>(null)
   const [playhead, setPlayhead] = useState(0)
   const [pxPerSec, setPxPerSec] = useState(40)
+  const [isPlaying, setIsPlaying] = useState(false)
 
   const selected = entries.find((e) => e.id === selectedId) ?? null
 
   useEffect(() => {
     setDialogue(selected?.dialogue ?? '')
   }, [selected?.id, selected?.dialogue])
+
+  useEffect(() => {
+    if (!isPlaying) return
+    let raf = 0
+    let last = performance.now()
+    const tick = (now: number): void => {
+      const dt = (now - last) / 1000
+      last = now
+      setPlayhead((t) => {
+        const next = t + dt
+        if (next >= Math.max(totalDuration, 0.1)) {
+          setIsPlaying(false)
+          return Math.max(totalDuration, 0)
+        }
+        // Auto-select clip under playhead
+        const hit = entries.find((e) => next >= e.startTime && next < e.endTime)
+        if (hit && hit.id !== selectedId) setSelectedId(hit.id)
+        return next
+      })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [isPlaying, totalDuration, entries, selectedId])
 
   useEffect(() => {
     return getApi().generation.onProgress((payload) => {
@@ -177,14 +203,15 @@ export function TimelinePage(): JSX.Element {
     await getApi().generation.cancel()
   }
 
-  const handleExport = async (concat: boolean): Promise<void> => {
+  const handleExport = async (mode: 'board' | 'final'): Promise<void> => {
     if (!activeStoryId) return
     setExporting(true)
     setActionError(null)
     try {
-      const { outputPath } = concat
-        ? await getApi().media.exportConcat(activeStoryId)
-        : await getApi().media.exportStoryboard(activeStoryId)
+      const { outputPath } =
+        mode === 'final'
+          ? await getApi().media.exportFinal(activeStoryId)
+          : await getApi().media.exportStoryboard(activeStoryId)
       setGenResult((prev) =>
         [prev, `Export: ${outputPath}`].filter(Boolean).join('\n\n')
       )
@@ -233,14 +260,20 @@ export function TimelinePage(): JSX.Element {
             </Button>
             <Button
               variant="secondary"
-              onClick={() => void handleExport(false)}
+              onClick={() => setIsPlaying((p) => !p)}
+            >
+              {isPlaying ? t('timeline.pause') : t('timeline.play')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void handleExport('board')}
               disabled={exporting}
             >
               {t('common.exportBoard')}
             </Button>
             <Button
               variant="secondary"
-              onClick={() => void handleExport(true)}
+              onClick={() => void handleExport('final')}
               disabled={exporting}
             >
               {exporting ? t('common.exporting') : t('common.export')}
@@ -300,12 +333,22 @@ export function TimelinePage(): JSX.Element {
               playhead={playhead}
               pxPerSec={pxPerSec}
               onPxPerSecChange={setPxPerSec}
-              onPlayheadChange={setPlayhead}
+              onPlayheadChange={(t) => {
+                setIsPlaying(false)
+                setPlayhead(t)
+              }}
               onSelect={setSelectedId}
               onMove={(id, s, e) => void persistMove(id, s, e)}
               onDropAsset={(payload, at) => void addAsset(payload, at)}
               width={900}
             />
+            <div className="mt-3 max-w-xl">
+              <PreviewPlayer
+                entry={selected}
+                playhead={playhead}
+                isPlaying={isPlaying}
+              />
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">

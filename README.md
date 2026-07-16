@@ -11,37 +11,36 @@ npx prisma db push
 npm run dev
 ```
 
-### Optional services
+## Features
 
-- **Grok CLI wrapper**: [Grok-Cli-to-OpenAI-compatible](https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible) on `:39281`
-- **FFmpeg**: required for export (`FFMPEG_PATH` override supported)
-- **Video stub** (default): `GROK_VIDEO_STUB=1` generates solid-color clips when no video API exists
+- Konva timeline (zoom, playhead, play/pause, preview)
+- Pluggable **video providers**: auto / http / stub (Settings)
+- Final export with optional **burn-in subtitles** + silent audio
+- soul.md file + **URL import**, soulmd-hub link
+- FFmpeg storyboard & final concat
+
+## Docs
+
+- [docs/project-brief.md](./docs/project-brief.md)
+- [docs/architecture.md](./docs/architecture.md)
+- [docs/video-providers.md](./docs/video-providers.md)
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Electron + Vite |
-| `npm run build` | Production bundle |
-| `npm run typecheck` | Strict TS |
-| `npm test` | Unit tests (vitest) |
-| `npm run db:push` | SQLite schema |
-| `npm run pack` / `dist` | electron-builder |
+| `npm run dev` | Electron dev |
+| `npm run build` | Bundle |
+| `npm test` | Vitest |
+| `npm run pack` | electron-builder `--dir` |
 
-## Features (Round 2)
+## Release checklist
 
-- Konva linear timeline: zoom, playhead, drag/resize, library drop  
-- Per-clip media status + import local clip  
-- Generation pipeline with **video step** + cancel / retry failed  
-- FFmpeg **concat final** (uses READY clips, else color fallback)  
-- soul.md frontmatter preview + soulmd-hub link  
-
-## Docs
-
-- [docs/project-brief.md](./docs/project-brief.md)  
-- [docs/architecture.md](./docs/architecture.md)  
+1. `npm run typecheck && npm test && npm run build`
+2. `npm run pack` → `release/linux-unpacked`
+3. Configure Settings → video mode if you have a real video API
+4. Ensure system `ffmpeg` is installed
 
 ## i18n
 
-- **zh-HK** (default)  
-- **en**  
+zh-HK (default) + en

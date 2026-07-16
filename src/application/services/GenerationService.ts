@@ -6,8 +6,11 @@ import type {
   PipelineStepResult,
   StoryDetail
 } from '../../types/domain'
+import type { AppSettings } from '../../types/settings'
+import { DEFAULT_SETTINGS } from '../../types/settings'
 import { AppError } from '../../types/errors'
 import { canStartGeneration } from '../../domain/story'
+import { buildSrt } from '../../domain/subtitle'
 import { GenerationPipeline } from '../GenerationPipeline'
 import { FfmpegService } from '../../infrastructure/ffmpeg/FfmpegService'
 import { MediaStore } from '../../infrastructure/media/MediaStore'
@@ -23,10 +26,11 @@ export type GenerationProgressHandler = (payload: {
 }) => void
 
 export class GenerationService {
-  private readonly pipeline: GenerationPipeline
+  private pipeline: GenerationPipeline
   private readonly ffmpeg: FfmpegService
   private readonly store: MediaStore
   private abort: AbortController | null = null
+  private settings: AppSettings
 
   constructor(
     private readonly prisma: PrismaClient,
@@ -35,11 +39,18 @@ export class GenerationService {
       pipeline?: GenerationPipeline
       ffmpeg?: FfmpegService
       mediaRoot?: string
+      settings?: AppSettings
     }
   ) {
     this.pipeline = options?.pipeline ?? new GenerationPipeline(ai)
     this.ffmpeg = options?.ffmpeg ?? new FfmpegService()
     this.store = new MediaStore(options?.mediaRoot ?? join(process.cwd(), '.media'))
+    this.settings = options?.settings ?? { ...DEFAULT_SETTINGS }
+  }
+
+  rebindAi(ai: AIProvider, settings?: AppSettings): void {
+    this.pipeline = new GenerationPipeline(ai)
+    if (settings) this.settings = settings
   }
 
   cancel(): void {
@@ -188,16 +199,31 @@ export class GenerationService {
   }
 
   async exportConcat(storyId: string): Promise<{ outputPath: string }> {
+    return this.exportFinal(storyId)
+  }
+
+  async exportFinal(storyId: string): Promise<{ outputPath: string }> {
     const story = await this.loadStory(storyId)
     const clips = this.mapClips(story)
     const outDir = this.store.exportsDir(storyId)
     const safeTitle =
       story.title.replace(/[^\w\u4e00-\u9fff-]+/g, '_').slice(0, 40) || 'story'
-    const outputPath = await this.ffmpeg.exportConcat({
+    const srt = buildSrt(
+      story.timeline.map((e) => ({
+        startSeconds: e.startTime,
+        endSeconds: e.endTime,
+        text: e.dialogue ?? ''
+      }))
+    )
+    const outputPath = await this.ffmpeg.exportFinal({
       outDir,
       fileName: `${safeTitle}_final_${Date.now()}.mp4`,
       title: story.title,
-      clips
+      clips,
+      srtContent: srt,
+      burnSubtitles: this.settings.burnSubtitles,
+      includeSilentAudio: this.settings.includeSilentAudio,
+      profile: this.settings.exportProfile
     })
     await this.prisma.story.update({
       where: { id: storyId },

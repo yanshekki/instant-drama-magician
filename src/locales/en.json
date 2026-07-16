@@ -9,7 +9,8 @@
     "characters": "Characters",
     "scenes": "Scenes",
     "props": "Props",
-    "timeline": "Timeline"
+    "timeline": "Timeline",
+    "settings": "Settings"
   },
   "common": {
     "create": "Create",
@@ -62,7 +63,9 @@
     "descriptionPlaceholder": "Looks, personality, backstory…",
     "refImage": "Reference image",
     "pickImage": "Pick image",
-    "openHub": "Open soulmd-hub"
+    "openHub": "Open soulmd-hub",
+    "soulUrl": "soul.md URL",
+    "importUrl": "Import from URL"
   },
   "scenes": {
     "title": "Scenes",
@@ -105,7 +108,27 @@
     "dragHint": "Drag onto the timeline, or click to append the next free slot.",
     "reorder": "Reorder by time",
     "importClip": "Import clip",
-    "openClip": "Open clip"
+    "openClip": "Open clip",
+    "previewEmpty": "Select a timeline clip to preview",
+    "previewNoMedia": "No playable media on this clip",
+    "play": "Play",
+    "pause": "Pause"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "AI video providers, export quality, and connectivity",
+    "video": "Video provider",
+    "videoMode": "Video mode (auto / http / stub)",
+    "baseUrl": "Chat Base URL",
+    "videoPath": "Video API URL",
+    "apiKey": "API Key",
+    "model": "Model",
+    "probeVideo": "Probe video endpoint",
+    "export": "Export options",
+    "burnSubtitles": "Burn-in dialogue subtitles",
+    "silentAudio": "Add silent audio track",
+    "profile": "Encode profile (fast / balanced)",
+    "saved": "Settings saved"
   },
   "ai": {
     "status": "AI status",

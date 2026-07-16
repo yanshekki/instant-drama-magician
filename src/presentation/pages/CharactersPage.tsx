@@ -24,6 +24,7 @@ export function CharactersPage(): JSX.Element {
   const [refImagePath, setRefImagePath] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [soulUrl, setSoulUrl] = useState('')
 
   const resetForm = (): void => {
     setName('')
@@ -54,6 +55,16 @@ export function CharactersPage(): JSX.Element {
 
   const openSoulHub = (): void => {
     void getApi().shell.openExternal('https://soulmd-hub.ysk.hk')
+  }
+
+  const handleImportSoulUrl = async (): Promise<void> => {
+    if (!soulUrl.trim()) return
+    const result = await getApi().characters.importSoulMdUrl(soulUrl.trim())
+    setSoulMdPath(result.url)
+    setSoulDoc(result.parsed as SoulMdDocument)
+    setSoulPreview(result.content.slice(0, 600))
+    if (!description.trim()) setDescription(result.description)
+    if (!name.trim() && result.name) setName(result.name)
   }
 
   const handlePickRefImage = async (): Promise<void> => {
@@ -164,6 +175,20 @@ export function CharactersPage(): JSX.Element {
                     {t('characters.importSoul')}
                   </Button>
                 </div>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Input
+                  value={soulUrl}
+                  onChange={(e) => setSoulUrl(e.target.value)}
+                  placeholder={t('characters.soulUrl')}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => void handleImportSoulUrl()}
+                  disabled={!soulUrl.trim()}
+                >
+                  {t('characters.importUrl')}
+                </Button>
               </div>
               {soulMdPath && (
                 <p className="mt-2 truncate text-xs text-brand-300">{soulMdPath}</p>

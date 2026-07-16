@@ -11,6 +11,7 @@ import type { PrismaClient } from '../../src/types/prisma'
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { basename, extname, join } from 'path'
 import { GrokCliClient } from '../../src/infrastructure/ai/GrokCliClient'
+import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
 import {
   CharacterService,
   GenerationService,
@@ -27,8 +28,14 @@ import type {
   CreateTimelineEntryInput,
   UpdateTimelineEntryInput
 } from '../../src/types/domain'
+import type { AppSettings } from '../../src/types/settings'
 import { AppError, toAppError } from '../../src/types/errors'
-import { isSoulMdPath } from '../../src/domain/character'
+import {
+  extractDescriptionFromSoulMd,
+  extractNameFromSoulMd,
+  isSoulMdPath,
+  parseSoulMd
+} from '../../src/domain/character'
 
 export interface IpcContext {
   ipcMain: IpcMain
@@ -53,7 +60,11 @@ function wrap<TArgs extends unknown[], TResult>(
 
 export function registerIpcHandlers(ctx: IpcContext): void {
   const { ipcMain, dialog, shell, getPrisma, getMainWindow } = ctx
-  const aiClient = new GrokCliClient()
+  const settingsStore = new SettingsStore(
+    SettingsStore.defaultPath(app.getPath('userData'))
+  )
+  let settings = settingsStore.load()
+  let aiClient = new GrokCliClient(settings)
   const mediaRoot = (): string => join(app.getPath('userData'), 'media')
 
   const stories = (): StoryService => new StoryService(getPrisma())
@@ -68,10 +79,17 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   const generation = (): GenerationService => {
     if (!generationService) {
       generationService = new GenerationService(getPrisma(), aiClient, {
-        mediaRoot: mediaRoot()
+        mediaRoot: mediaRoot(),
+        settings
       })
     }
     return generationService
+  }
+
+  const rebindAi = (next: AppSettings): void => {
+    settings = next
+    aiClient = new GrokCliClient(settings)
+    generation().rebindAi(aiClient, settings)
   }
 
   // ─── Stories ───────────────────────────────────────────────
@@ -144,6 +162,28 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       }
       const content = readFileSync(filePath, 'utf-8')
       return { filePath, content }
+    })
+  )
+
+  ipcMain.handle(
+    'characters:importSoulMdUrl',
+    wrap(async (_e, url: string) => {
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        throw new AppError('VALIDATION', 'URL must start with http:// or https://')
+      }
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
+      if (!res.ok) {
+        throw new AppError('IO', `Failed to fetch soul.md (${res.status})`)
+      }
+      const content = await res.text()
+      const doc = parseSoulMd(content)
+      return {
+        url,
+        content,
+        name: doc.title ?? extractNameFromSoulMd(content),
+        description: extractDescriptionFromSoulMd(content),
+        parsed: doc
+      }
     })
   )
 
@@ -271,6 +311,25 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     wrap(async () => aiClient.getStatus())
   )
 
+  ipcMain.handle(
+    'ai:probeVideo',
+    wrap(async () => aiClient.videoProvider.probe())
+  )
+
+  // ─── Settings ──────────────────────────────────────────────
+  ipcMain.handle(
+    'settings:get',
+    wrap(async () => settingsStore.load())
+  )
+  ipcMain.handle(
+    'settings:set',
+    wrap(async (_e, partial: Partial<AppSettings>) => {
+      const next = settingsStore.save(partial)
+      rebindAi(next)
+      return next
+    })
+  )
+
   // ─── Shell helpers ─────────────────────────────────────────
   ipcMain.handle(
     'shell:openExternal',
@@ -326,6 +385,23 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   ipcMain.handle(
     'media:exportConcat',
     wrap(async (_e, storyId: string) => generation().exportConcat(storyId))
+  )
+
+  ipcMain.handle(
+    'media:exportFinal',
+    wrap(async (_e, storyId: string) => generation().exportFinal(storyId))
+  )
+
+  ipcMain.handle(
+    'media:toPreviewUrl',
+    wrap(async (_e, filePath: string) => {
+      if (!filePath || !existsSync(filePath)) {
+        throw new AppError('NOT_FOUND', 'Media file not found')
+      }
+      // Custom protocol registered in main: idm-media://local/?p=<encoded>
+      const url = `idm-media://local/?p=${encodeURIComponent(filePath)}`
+      return { url, filePath }
+    })
   )
 
   ipcMain.handle(

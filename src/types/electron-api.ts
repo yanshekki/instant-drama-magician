@@ -7,6 +7,7 @@ import type {
   MediaStatus,
   UpdateTimelineEntryInput
 } from './domain'
+import type { AppSettings } from './settings'
 
 /** Renderer-facing Electron IPC API (mirrors preload bridge). */
 export interface ElectronApi {
@@ -28,6 +29,13 @@ export interface ElectronApi {
     ) => Promise<unknown>
     delete: (id: string) => Promise<{ ok: boolean }>
     importSoulMd: () => Promise<{ filePath: string; content: string } | null>
+    importSoulMdUrl: (url: string) => Promise<{
+      url: string
+      content: string
+      name: string | null
+      description: string
+      parsed: unknown
+    }>
   }
   scenes: {
     list: (storyId: string) => Promise<unknown>
@@ -84,6 +92,11 @@ export interface ElectronApi {
   }
   ai: {
     status: () => Promise<unknown>
+    probeVideo: () => Promise<{ id: string; available: boolean; message: string }>
+  }
+  settings: {
+    get: () => Promise<AppSettings>
+    set: (partial: Partial<AppSettings>) => Promise<AppSettings>
   }
   shell: {
     openExternal: (url: string) => Promise<{ ok: boolean }>
@@ -93,10 +106,12 @@ export interface ElectronApi {
     pickRefImage: () => Promise<{ filePath: string; originalName?: string } | null>
     exportStoryboard: (storyId: string) => Promise<{ outputPath: string }>
     exportConcat: (storyId: string) => Promise<{ outputPath: string }>
+    exportFinal: (storyId: string) => Promise<{ outputPath: string }>
     importClip: (
       storyId: string,
       entryId: string
     ) => Promise<{ filePath: string } | null>
     openClip: (filePath: string) => Promise<{ ok: boolean }>
+    toPreviewUrl: (filePath: string) => Promise<{ url: string; filePath: string }>
   }
 }

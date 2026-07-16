@@ -6,6 +6,7 @@ import { CharactersPage } from './presentation/pages/CharactersPage'
 import { ScenesPage } from './presentation/pages/ScenesPage'
 import { PropsPage } from './presentation/pages/PropsPage'
 import { TimelinePage } from './presentation/pages/TimelinePage'
+import { SettingsPage } from './presentation/pages/SettingsPage'
 
 export default function App(): JSX.Element {
   return (
@@ -18,6 +19,7 @@ export default function App(): JSX.Element {
             <Route path="scenes" element={<ScenesPage />} />
             <Route path="props" element={<PropsPage />} />
             <Route path="timeline" element={<TimelinePage />} />
+            <Route path="settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

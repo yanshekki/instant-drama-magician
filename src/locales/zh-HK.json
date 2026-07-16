@@ -9,7 +9,8 @@
     "characters": "人物",
     "scenes": "場景",
     "props": "道具",
-    "timeline": "時間軸"
+    "timeline": "時間軸",
+    "settings": "設定"
   },
   "common": {
     "create": "建立",
@@ -62,7 +63,9 @@
     "descriptionPlaceholder": "外貌、性格、背景…",
     "refImage": "參考圖",
     "pickImage": "選擇圖片",
-    "openHub": "開啟 soulmd-hub"
+    "openHub": "開啟 soulmd-hub",
+    "soulUrl": "soul.md URL",
+    "importUrl": "由 URL 匯入"
   },
   "scenes": {
     "title": "場景創作",
@@ -105,7 +108,27 @@
     "dragHint": "拖曳至時間軸，或點擊以加入下一空檔。",
     "reorder": "按時間重排",
     "importClip": "匯入片段",
-    "openClip": "開啟片段"
+    "openClip": "開啟片段",
+    "previewEmpty": "選取時間軸片段以預覽",
+    "previewNoMedia": "此片段尚無可播放媒體",
+    "play": "播放",
+    "pause": "暫停"
+  },
+  "settings": {
+    "title": "設定",
+    "subtitle": "AI video 供應商、匯出品質與連線",
+    "video": "Video 供應商",
+    "videoMode": "Video 模式 (auto / http / stub)",
+    "baseUrl": "Chat Base URL",
+    "videoPath": "Video API URL",
+    "apiKey": "API Key",
+    "model": "Model",
+    "probeVideo": "測試 Video 連線",
+    "export": "匯出選項",
+    "burnSubtitles": "燒錄對白字幕",
+    "silentAudio": "加入靜音音軌（方便播放器）",
+    "profile": "編碼檔 (fast / balanced)",
+    "saved": "設定已儲存"
   },
   "ai": {
     "status": "AI 狀態",
