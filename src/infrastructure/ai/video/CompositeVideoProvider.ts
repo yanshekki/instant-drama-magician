@@ -1,4 +1,5 @@
 import type { VideoMode } from '../../../types/settings'
+import type { AppSettings } from '../../../types/settings'
 import type { VideoGenRequest, VideoGenResult } from '../../../types/domain'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { GrokHttpVideoProvider } from './GrokHttpVideoProvider'
@@ -16,9 +17,17 @@ export class CompositeVideoProvider implements VideoProvider {
     videoPath: string,
     apiKey: string,
     model: string,
+    opts?: Partial<Pick<AppSettings, 'videoPollMs' | 'videoTimeoutSec' | 'videoMaxRetries'>>,
     stub?: StubVideoProvider
   ) {
-    this.http = new GrokHttpVideoProvider(videoPath, apiKey, model)
+    this.http = new GrokHttpVideoProvider({
+      videoPath,
+      apiKey,
+      model,
+      pollMs: opts?.videoPollMs,
+      timeoutSec: opts?.videoTimeoutSec,
+      maxRetries: opts?.videoMaxRetries
+    })
     this.stub = stub ?? new StubVideoProvider()
   }
 
@@ -50,7 +59,6 @@ export class CompositeVideoProvider implements VideoProvider {
       return this.http.generate(request)
     }
 
-    // auto
     try {
       const probe = await this.http.probe()
       if (probe.available) {

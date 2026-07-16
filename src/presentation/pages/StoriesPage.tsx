@@ -64,13 +64,30 @@ export function StoriesPage(): JSX.Element {
     navigate('/timeline')
   }
 
+  const handleExportBackup = async (id: string): Promise<void> => {
+    await getApi().project.exportBackup(id)
+  }
+
+  const handleImportBackup = async (): Promise<void> => {
+    const result = await getApi().project.importBackup()
+    if (result) {
+      await refreshStories()
+      setActiveStoryId(result.storyId)
+    }
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <PageHeader
         title={t('stories.title')}
         subtitle={t('stories.subtitle')}
         actions={
-          <Button onClick={() => setShowForm((v) => !v)}>{t('stories.new')}</Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => void handleImportBackup()}>
+              {t('stories.importBackup')}
+            </Button>
+            <Button onClick={() => setShowForm((v) => !v)}>{t('stories.new')}</Button>
+          </div>
         }
       />
 
@@ -151,6 +168,12 @@ export function StoriesPage(): JSX.Element {
                       }}
                     >
                       {t('common.edit')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => void handleExportBackup(story.id)}
+                    >
+                      {t('stories.exportBackup')}
                     </Button>
                     <Button variant="danger" onClick={() => void handleDelete(story.id)}>
                       {t('common.delete')}

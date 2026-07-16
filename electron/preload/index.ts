@@ -110,6 +110,7 @@ const api: ElectronApi = {
   },
   media: {
     pickRefImage: () => ipcRenderer.invoke('media:pickRefImage'),
+    pickBgm: () => ipcRenderer.invoke('media:pickBgm'),
     exportStoryboard: (storyId: string) =>
       ipcRenderer.invoke('media:exportStoryboard', storyId),
     exportConcat: (storyId: string) => ipcRenderer.invoke('media:exportConcat', storyId),
@@ -118,6 +119,10 @@ const api: ElectronApi = {
       ipcRenderer.invoke('media:importClip', storyId, entryId),
     openClip: (filePath: string) => ipcRenderer.invoke('media:openClip', filePath),
     toPreviewUrl: (filePath: string) => ipcRenderer.invoke('media:toPreviewUrl', filePath)
+  },
+  project: {
+    exportBackup: (storyId: string) => ipcRenderer.invoke('project:exportBackup', storyId),
+    importBackup: () => ipcRenderer.invoke('project:importBackup')
   }
 }
 

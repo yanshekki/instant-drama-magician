@@ -83,6 +83,7 @@ export class GenerationService {
       const result = await this.pipeline.run(detail, {
         signal: this.abort.signal,
         onlyFailedVideos: opts?.onlyFailedVideos,
+        videoConcurrency: this.settings.videoConcurrency,
         onStepComplete: (stepResult, index, total) => {
           onProgress?.({
             storyId,
@@ -215,6 +216,39 @@ export class GenerationService {
         text: e.dialogue ?? ''
       }))
     )
+    // Optional TTS for dialogues (non-blocking failures)
+    if (this.settings.ttsEnabled) {
+      try {
+        const { CompositeTtsProvider } = await import(
+          '../../infrastructure/audio/TtsProvider'
+        )
+        const { mkdirSync } = await import('fs')
+        const { dirname } = await import('path')
+        const tts = new CompositeTtsProvider(
+          this.settings.ttsHttpUrl,
+          this.settings.apiKey
+        )
+        if (await tts.available()) {
+          for (const e of story.timeline) {
+            if (!e.dialogue?.trim()) continue
+            const out = join(this.store.rootDir, storyId, 'tts', `${e.id}.wav`)
+            mkdirSync(dirname(out), { recursive: true })
+            try {
+              await tts.speak({
+                text: e.dialogue,
+                outputPath: out,
+                voice: this.settings.ttsVoice
+              })
+            } catch {
+              // skip clip
+            }
+          }
+        }
+      } catch {
+        // TTS stack optional
+      }
+    }
+
     const outputPath = await this.ffmpeg.exportFinal({
       outDir,
       fileName: `${safeTitle}_final_${Date.now()}.mp4`,
@@ -223,7 +257,9 @@ export class GenerationService {
       srtContent: srt,
       burnSubtitles: this.settings.burnSubtitles,
       includeSilentAudio: this.settings.includeSilentAudio,
-      profile: this.settings.exportProfile
+      profile: this.settings.exportProfile,
+      bgmPath: this.settings.bgmPath,
+      bgmVolume: this.settings.bgmVolume
     })
     await this.prisma.story.update({
       where: { id: storyId },

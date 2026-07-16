@@ -132,6 +132,9 @@ export class FfmpegService {
     burnSubtitles?: boolean
     includeSilentAudio?: boolean
     profile?: 'fast' | 'balanced'
+    bgmPath?: string | null
+    bgmVolume?: number
+    dialogueAudioPaths?: Array<{ path: string; startSeconds: number }> | null
   }): Promise<string> {
     await this.ensureAvailable()
     mkdirSync(options.outDir, { recursive: true })
@@ -147,42 +150,47 @@ export class FfmpegService {
 
     const crf = options.profile === 'fast' ? '28' : '23'
     const outputPath = join(options.outDir, options.fileName)
-    const vfParts = ['scale=1280:720:force_original_aspect_ratio=decrease', 'pad=1280:720:(ow-iw)/2:(oh-ih)/2', 'fps=24']
+    const vfParts = [
+      'scale=1280:720:force_original_aspect_ratio=decrease',
+      'pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+      'fps=24'
+    ]
 
     if (options.burnSubtitles && options.srtContent && options.srtContent.trim()) {
       const srtPath = join(options.outDir, `_subs_${Date.now()}.srt`)
       writeFileSync(srtPath, options.srtContent, 'utf-8')
-      // Escape path for subtitles filter
       const escaped = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "\\'")
       vfParts.push(`subtitles='${escaped}'`)
     }
 
-    const args = [
-      this.ffmpegBin,
-      '-y',
-      '-i',
-      rawPath,
-      '-vf',
-      vfParts.join(','),
-      '-c:v',
-      'libx264',
-      '-pix_fmt',
-      'yuv420p',
-      '-crf',
-      crf
-    ]
+    const hasBgm = Boolean(options.bgmPath && existsSync(options.bgmPath))
+    const vol = Math.min(1, Math.max(0, options.bgmVolume ?? 0.25))
+    const args: string[] = [this.ffmpegBin, '-y', '-i', rawPath]
 
-    if (options.includeSilentAudio !== false) {
-      // Generate silent audio matching duration via anullsrc + shortest
-      args.push(
-        '-f',
-        'lavfi',
-        '-i',
-        'anullsrc=channel_layout=stereo:sample_rate=44100',
-        '-c:a',
-        'aac',
-        '-shortest'
-      )
+    if (hasBgm) {
+      args.push('-stream_loop', '-1', '-i', options.bgmPath!)
+    } else if (options.includeSilentAudio !== false) {
+      args.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100')
+    }
+
+    args.push('-vf', vfParts.join(','), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', crf)
+
+    if (hasBgm || options.includeSilentAudio !== false) {
+      if (hasBgm) {
+        args.push(
+          '-filter_complex',
+          `[1:a]volume=${vol}[bg];[bg]apad[a]`,
+          '-map',
+          '0:v',
+          '-map',
+          '[a]',
+          '-c:a',
+          'aac',
+          '-shortest'
+        )
+      } else {
+        args.push('-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-shortest')
+      }
     } else {
       args.push('-an')
     }

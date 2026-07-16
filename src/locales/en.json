@@ -47,7 +47,9 @@
     "statusFailed": "Failed",
     "counts": "{{characters}} chars · {{scenes}} scenes · {{props}} props · {{timeline}} clips",
     "open": "Open",
-    "noStories": "No stories yet. Click “New story” to begin."
+    "noStories": "No stories yet. Click “New story” to begin.",
+    "exportBackup": "Export backup",
+    "importBackup": "Import backup"
   },
   "characters": {
     "title": "Characters",
@@ -112,7 +114,11 @@
     "previewEmpty": "Select a timeline clip to preview",
     "previewNoMedia": "No playable media on this clip",
     "play": "Play",
-    "pause": "Pause"
+    "pause": "Pause",
+    "undoDone": "Undone (local snapshot)",
+    "redoDone": "Redone (local snapshot)",
+    "undoHint": "Undo: timeline snapshot (reload syncs server)",
+    "redoHint": "Redo: timeline snapshot"
   },
   "settings": {
     "title": "Settings",
@@ -128,7 +134,14 @@
     "burnSubtitles": "Burn-in dialogue subtitles",
     "silentAudio": "Add silent audio track",
     "profile": "Encode profile (fast / balanced)",
-    "saved": "Settings saved"
+    "saved": "Settings saved",
+    "videoConcurrency": "Video concurrency",
+    "videoMaxRetries": "Video max retries",
+    "audio": "Audio",
+    "pickBgm": "Pick BGM",
+    "noBgm": "(none)",
+    "ttsEnabled": "Try TTS for dialogue on export (optional)",
+    "snapEnabled": "Timeline snap"
   },
   "ai": {
     "status": "AI status",

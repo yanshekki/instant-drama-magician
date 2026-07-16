@@ -14,6 +14,7 @@ import { AssetLibrary } from '../components/timeline/AssetLibrary'
 import type { AssetDropPayload } from '../components/timeline/TimelineCanvas'
 import { KonvaTimeline } from '../components/timeline/KonvaTimeline'
 import { PreviewPlayer } from '../components/timeline/PreviewPlayer'
+import { useTimelineHistory } from '../hooks/useTimelineHistory'
 import { Button, EmptyState, Label, Textarea } from '../components/ui'
 
 const MAX_CLIP = TimelineService.DEFAULT_MAX_CLIP_SECONDS
@@ -56,8 +57,32 @@ export function TimelinePage(): JSX.Element {
   const [playhead, setPlayhead] = useState(0)
   const [pxPerSec, setPxPerSec] = useState(40)
   const [isPlaying, setIsPlaying] = useState(false)
+  const history = useTimelineHistory()
+  const [banner, setBanner] = useState<string | null>(null)
 
   const selected = entries.find((e) => e.id === selectedId) ?? null
+
+  useEffect(() => {
+    if (entries.length > 0) history.push(entries)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot after load only when length changes
+  }, [entries.length])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) {
+          const next = history.redo()
+          if (next) setBanner(t('timeline.redoDone'))
+        } else {
+          const prev = history.undo()
+          if (prev) setBanner(t('timeline.undoDone'))
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [history, t])
 
   useEffect(() => {
     setDialogue(selected?.dialogue ?? '')
@@ -157,7 +182,18 @@ export function TimelinePage(): JSX.Element {
     startTime: number,
     endTime: number
   ): Promise<void> => {
+    history.push(entries)
     await update(id, { startTime, endTime })
+  }
+
+  const handleUndoLocal = (): void => {
+    const prev = history.undo()
+    if (prev) setBanner(t('timeline.undoHint'))
+  }
+
+  const handleRedoLocal = (): void => {
+    const next = history.redo()
+    if (next) setBanner(t('timeline.redoHint'))
   }
 
   const handleSaveDialogue = async (): Promise<void> => {
@@ -258,6 +294,12 @@ export function TimelinePage(): JSX.Element {
             <Button variant="secondary" onClick={() => void handleReorderByStart()}>
               {t('timeline.reorder')}
             </Button>
+            <Button variant="ghost" onClick={handleUndoLocal} disabled={!history.canUndo}>
+              Undo
+            </Button>
+            <Button variant="ghost" onClick={handleRedoLocal} disabled={!history.canRedo}>
+              Redo
+            </Button>
             <Button
               variant="secondary"
               onClick={() => setIsPlaying((p) => !p)}
@@ -352,6 +394,11 @@ export function TimelinePage(): JSX.Element {
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
+            {banner && (
+              <p className="mb-3 rounded-lg bg-brand-950/40 px-3 py-2 text-sm text-brand-200">
+                {banner}
+              </p>
+            )}
             {(error || actionError) && (
               <p className="mb-3 rounded-lg bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
                 {error?.message ?? actionError}

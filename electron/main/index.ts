@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } from 'electron'
-import { join } from 'path'
+import { join, resolve as pathResolve, sep } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { pathToFileURL } from 'url'
 import { PrismaClient } from '../../src/types/prisma'
@@ -73,16 +73,23 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  const mediaRoot = join(app.getPath('userData'), 'media')
   protocol.handle('idm-media', (request) => {
     try {
       const u = new URL(request.url)
       const p = u.searchParams.get('p')
       if (!p) return new Response('missing path', { status: 400 })
       const filePath = decodeURIComponent(p)
-      if (!existsSync(filePath)) {
+      // Path traversal protection: only allow files under userData/media
+      const resolved = pathResolve(filePath)
+      const root = pathResolve(mediaRoot)
+      if (!resolved.startsWith(root + sep) && resolved !== root) {
+        return new Response('forbidden', { status: 403 })
+      }
+      if (!existsSync(resolved)) {
         return new Response('not found', { status: 404 })
       }
-      return net.fetch(pathToFileURL(filePath).toString())
+      return net.fetch(pathToFileURL(resolved).toString())
     } catch {
       return new Response('bad request', { status: 400 })
     }

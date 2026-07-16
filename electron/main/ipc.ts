@@ -15,11 +15,13 @@ import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
 import {
   CharacterService,
   GenerationService,
+  ProjectBackupService,
   PropService,
   SceneService,
   StoryService,
   TimelinePersistenceService
 } from '../../src/application/services'
+import { MediaStore } from '../../src/infrastructure/media/MediaStore'
 import type {
   CreateCharacterInput,
   CreatePropInput,
@@ -398,9 +400,76 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       if (!filePath || !existsSync(filePath)) {
         throw new AppError('NOT_FOUND', 'Media file not found')
       }
-      // Custom protocol registered in main: idm-media://local/?p=<encoded>
       const url = `idm-media://local/?p=${encodeURIComponent(filePath)}`
       return { url, filePath }
+    })
+  )
+
+  ipcMain.handle(
+    'media:pickBgm',
+    wrap(async () => {
+      const win = getMainWindow()
+      const options: OpenDialogOptions = {
+        title: 'Select BGM',
+        filters: [
+          { name: 'Audio', extensions: ['mp3', 'wav', 'm4a', 'aac', 'ogg'] }
+        ],
+        properties: ['openFile']
+      }
+      const result = win
+        ? await dialog.showOpenDialog(win, options)
+        : await dialog.showOpenDialog(options)
+      if (result.canceled || result.filePaths.length === 0) return null
+      const src = result.filePaths[0]
+      const destDir = join(mediaRoot(), 'bgm')
+      mkdirSync(destDir, { recursive: true })
+      const dest = join(destDir, `${Date.now()}${extname(src) || '.mp3'}`)
+      copyFileSync(src, dest)
+      const next = settingsStore.save({ bgmPath: dest })
+      rebindAi(next)
+      return { filePath: dest }
+    })
+  )
+
+  // ─── Project backup ────────────────────────────────────────
+  const backup = (): ProjectBackupService =>
+    new ProjectBackupService(getPrisma(), new MediaStore(mediaRoot()))
+
+  ipcMain.handle(
+    'project:exportBackup',
+    wrap(async (_e, storyId: string) => {
+      const win = getMainWindow()
+      const result = win
+        ? await dialog.showSaveDialog(win, {
+            title: 'Export story backup',
+            defaultPath: `story-${storyId}.idm.zip`,
+            filters: [{ name: 'IDM Backup', extensions: ['zip'] }]
+          })
+        : await dialog.showSaveDialog({
+            title: 'Export story backup',
+            defaultPath: `story-${storyId}.idm.zip`,
+            filters: [{ name: 'IDM Backup', extensions: ['zip'] }]
+          })
+      if (result.canceled || !result.filePath) return null
+      const path = await backup().exportStoryToZip(storyId, result.filePath)
+      return { filePath: path }
+    })
+  )
+
+  ipcMain.handle(
+    'project:importBackup',
+    wrap(async () => {
+      const win = getMainWindow()
+      const options: OpenDialogOptions = {
+        title: 'Import story backup',
+        filters: [{ name: 'IDM Backup', extensions: ['zip'] }],
+        properties: ['openFile']
+      }
+      const result = win
+        ? await dialog.showOpenDialog(win, options)
+        : await dialog.showOpenDialog(options)
+      if (result.canceled || result.filePaths.length === 0) return null
+      return backup().importZipAsNewStory(result.filePaths[0])
     })
   )
 

@@ -10,6 +10,7 @@ import {
   timeToX,
   xToTime
 } from '../../../domain/timelineLayout'
+import { anchorsFromEntries, snapTime } from '../../../domain/timelineSnap'
 import type { AssetDropPayload } from './TimelineCanvas'
 
 const TRACK_H = 56
@@ -29,6 +30,8 @@ interface KonvaTimelineProps {
   onMove: (id: string, startTime: number, endTime: number) => void
   onDropAsset: (payload: AssetDropPayload, atTime: number) => void
   width: number
+  snapEnabled?: boolean
+  snapGridSec?: number
 }
 
 function clipFill(entry: TimelineEntry): string {
@@ -52,7 +55,9 @@ export function KonvaTimeline({
   onSelect,
   onMove,
   onDropAsset,
-  width
+  width,
+  snapEnabled = true,
+  snapGridSec = 0.5
 }: KonvaTimelineProps): JSX.Element {
   const stageRef = useRef<Konva.Stage>(null)
   const total = Math.max(TimelineService.totalDuration(entries), 12)
@@ -190,7 +195,21 @@ export function KonvaTimeline({
                   onDragEnd={() => {
                     const prev = dragPreview[entry.id]
                     if (prev) {
-                      onMove(entry.id, prev.start, prev.end)
+                      const anchors = anchorsFromEntries(
+                        entries.filter((e) => e.id !== entry.id)
+                      )
+                      const start = snapTime(prev.start, {
+                        enabled: snapEnabled,
+                        grid: snapGridSec,
+                        anchors
+                      })
+                      const dur = prev.end - prev.start
+                      const clamped = TimelineService.clampDuration(
+                        start,
+                        start + dur,
+                        MAX_CLIP
+                      )
+                      onMove(entry.id, clamped.startTime, clamped.endTime)
                     }
                     setDragPreview((p) => {
                       const n = { ...p }
@@ -247,7 +266,21 @@ export function KonvaTimeline({
                     }}
                     onDragEnd={() => {
                       const prev = dragPreview[entry.id]
-                      if (prev) onMove(entry.id, prev.start, prev.end)
+                      if (prev) {
+                        const end = snapTime(prev.end, {
+                          enabled: snapEnabled,
+                          grid: snapGridSec,
+                          anchors: anchorsFromEntries(
+                            entries.filter((e) => e.id !== entry.id)
+                          )
+                        })
+                        const next = TimelineService.clampDuration(
+                          prev.start,
+                          end,
+                          MAX_CLIP
+                        )
+                        onMove(entry.id, next.startTime, next.endTime)
+                      }
                       setDragPreview((p) => {
                         const n = { ...p }
                         delete n[entry.id]

@@ -104,6 +104,7 @@ export interface ElectronApi {
   }
   media: {
     pickRefImage: () => Promise<{ filePath: string; originalName?: string } | null>
+    pickBgm: () => Promise<{ filePath: string } | null>
     exportStoryboard: (storyId: string) => Promise<{ outputPath: string }>
     exportConcat: (storyId: string) => Promise<{ outputPath: string }>
     exportFinal: (storyId: string) => Promise<{ outputPath: string }>
@@ -113,5 +114,9 @@ export interface ElectronApi {
     ) => Promise<{ filePath: string } | null>
     openClip: (filePath: string) => Promise<{ ok: boolean }>
     toPreviewUrl: (filePath: string) => Promise<{ url: string; filePath: string }>
+  }
+  project: {
+    exportBackup: (storyId: string) => Promise<{ filePath: string } | null>
+    importBackup: () => Promise<{ storyId: string; title: string } | null>
   }
 }

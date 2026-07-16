@@ -1,50 +1,40 @@
 # Video providers
 
-InstantDrama Magician supports pluggable video generation modes.
-
-## Modes (`settings.videoMode`)
+## Modes
 
 | Mode | Behavior |
 |------|----------|
-| `auto` (default) | Probe HTTP video endpoint; on failure use FFmpeg **stub** color clips (`degraded`) |
-| `http` | Always call `videoPath` HTTP API |
-| `stub` | Always FFmpeg solid-color placeholder clips |
+| `auto` | Probe HTTP; fallback to FFmpeg stub |
+| `http` | Always HTTP (`videoPath`) |
+| `stub` | Color clips only |
 
-Configure in-app: **Settings** sidebar page, or edit `userData/settings.json`.
-
-## HTTP contract (Grok / OpenAI-compatible style)
-
-`POST {videoPath}`
+## HTTP POST body
 
 ```json
 {
   "model": "grok-cli",
   "prompt": "...",
   "duration": 5,
-  "ref_image": "/optional/path.png",
-  "output_path": "/absolute/path/clip.mp4"
+  "ref_image": null,
+  "output_path": "/abs/path.mp4"
 }
 ```
 
-Accepted responses:
+## Responses (all supported)
 
-1. **JSON** `{ "output_path": "..." }` or `{ "path": "..." }` or `{ "url": "https://..." }`  
-2. **Binary** `video/mp4` body written to `output_path`
+1. JSON immediate: `{ "output_path" }`, `{ "path" }`, `{ "url" }` / `{ "output_url" }`
+2. Binary `video/*` body
+3. **Async job**: `{ "job_id", "status_url" }` or `{ "id" }` → poll until `status` is `succeeded|completed|ready`
 
-Headers: `Authorization: Bearer {apiKey}`
+## Client settings
 
-## Env defaults (overridden by settings file after first save)
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `videoPollMs` | 2000 | Job poll interval |
+| `videoTimeoutSec` | 300 | Max wait |
+| `videoMaxRetries` | 3 | Retry on 429/5xx/network |
+| `videoConcurrency` | 1 | Parallel clip gens |
 
-| Variable | Default |
-|----------|---------|
-| `GROK_CLI_BASE_URL` | `http://127.0.0.1:39281/v1` |
-| Video path | `{baseUrl}/video/generations` |
+## Retry
 
-## Export final
-
-`media:exportFinal` / Timeline **Export final**:
-
-- Concat READY clips (fallback color segments if missing)
-- Optional burn-in SRT from dialogue
-- Optional silent AAC track
-- Profiles: `fast` (CRF 28), `balanced` (CRF 23)
+Exponential backoff with jitter on retryable errors.

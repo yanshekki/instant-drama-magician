@@ -3,39 +3,32 @@
 ## Layers
 
 ```
-Presentation (React, Konva, PreviewPlayer, Settings)
-        ↓ IPC + idm-media:// protocol
-Application (Services, GenerationPipeline)
+Presentation (React, Konva, Preview, Settings, Undo snapshots)
+        ↓ IPC + idm-media:// (path allowlist)
+Application (Services, Pipeline, ProjectBackup)
         ↓
-Domain (timeline, subtitle, soul parse)
+Domain (timeline, snap, subtitle, soul)
         ↓
-Infrastructure (Prisma, GrokCliClient, VideoProviders, FFmpeg, MediaStore, SettingsStore)
+Infrastructure (Prisma, Video providers+retry/jobs, FFmpeg, TTS, MediaStore, Settings)
 ```
 
-## Round 3 modules
+## Round 4
 
-| Module | Path |
-|--------|------|
-| SettingsStore | `src/infrastructure/settings/SettingsStore.ts` |
-| CompositeVideoProvider | `src/infrastructure/ai/video/*` |
-| exportFinal | `FfmpegService.exportFinal` + `buildSrt` |
-| PreviewPlayer | `idm-media://` protocol + `<video>` |
-| soul URL import | `characters:importSoulMdUrl` |
+| Module | Notes |
+|--------|--------|
+| GrokHttpVideoProvider | job poll, retry, mock tests |
+| VideoStep | concurrent mapPool |
+| BGM + TTS | settings + exportFinal mix |
+| snapTime | Konva drag end |
+| ProjectBackupService | jszip export/import |
+| CI | `.github/workflows/ci.yml` |
 
-## Pipeline
+## Security
 
-Script → Character → Scene → Props → Timeline → **Video** → Export
+`idm-media://` only serves files under `{userData}/media/`.
 
-Video uses `settings.videoMode`: auto | http | stub.
-
-## Media protocol
-
-`idm-media://local/?p=<encodeURIComponent(absPath)>` — registered in Electron main for safe preview.
-
-## Verification
+## Verify
 
 ```bash
 npm run typecheck && npm test && npm run build && npm run pack
 ```
-
-See also [video-providers.md](./video-providers.md).

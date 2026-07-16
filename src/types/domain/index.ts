@@ -242,6 +242,7 @@ export interface PipelineContext {
   }
   signal?: AbortSignal
   onlyFailedVideos?: boolean
+  videoConcurrency?: number
   onClipProgress?: (payload: {
     entryId: string
     index: number

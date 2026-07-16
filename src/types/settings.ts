@@ -11,6 +11,20 @@ export interface AppSettings {
   burnSubtitles: boolean
   includeSilentAudio: boolean
   exportProfile: ExportProfile
+  /** Video HTTP client */
+  videoPollMs: number
+  videoTimeoutSec: number
+  videoMaxRetries: number
+  videoConcurrency: number
+  /** Audio */
+  bgmPath: string | null
+  bgmVolume: number
+  ttsEnabled: boolean
+  ttsVoice: string
+  ttsHttpUrl: string
+  /** UX */
+  snapEnabled: boolean
+  snapGridSec: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -22,7 +36,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultMaxClipSeconds: 10,
   burnSubtitles: true,
   includeSilentAudio: true,
-  exportProfile: 'balanced'
+  exportProfile: 'balanced',
+  videoPollMs: 2000,
+  videoTimeoutSec: 300,
+  videoMaxRetries: 3,
+  videoConcurrency: 1,
+  bgmPath: null,
+  bgmVolume: 0.25,
+  ttsEnabled: false,
+  ttsVoice: 'default',
+  ttsHttpUrl: '',
+  snapEnabled: true,
+  snapGridSec: 0.5
 }
 
 export function mergeSettings(partial?: Partial<AppSettings> | null): AppSettings {

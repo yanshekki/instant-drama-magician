@@ -112,9 +112,70 @@ export function SettingsPage(): JSX.Element {
                   onChange={(e) => patch('model', e.target.value)}
                 />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>{t('settings.videoConcurrency')}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={4}
+                    value={settings.videoConcurrency}
+                    onChange={(e) =>
+                      patch('videoConcurrency', Number(e.target.value) || 1)
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>{t('settings.videoMaxRetries')}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={8}
+                    value={settings.videoMaxRetries}
+                    onChange={(e) =>
+                      patch('videoMaxRetries', Number(e.target.value) || 0)
+                    }
+                  />
+                </div>
+              </div>
               <Button variant="secondary" onClick={() => void handleProbe()}>
                 {t('settings.probeVideo')}
               </Button>
+            </Card>
+
+            <Card className="space-y-3">
+              <h2 className="text-sm font-semibold text-ink-100">{t('settings.audio')}</h2>
+              <div className="text-xs text-ink-400">
+                BGM: {settings.bgmPath ?? t('settings.noBgm')}
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  void getApi()
+                    .media.pickBgm()
+                    .then((r) => {
+                      if (r) patch('bgmPath', r.filePath)
+                    })
+                }
+              >
+                {t('settings.pickBgm')}
+              </Button>
+              <label className="flex items-center gap-2 text-sm text-ink-200">
+                <input
+                  type="checkbox"
+                  checked={settings.ttsEnabled}
+                  onChange={(e) => patch('ttsEnabled', e.target.checked)}
+                />
+                {t('settings.ttsEnabled')}
+              </label>
+              <label className="flex items-center gap-2 text-sm text-ink-200">
+                <input
+                  type="checkbox"
+                  checked={settings.snapEnabled}
+                  onChange={(e) => patch('snapEnabled', e.target.checked)}
+                />
+                {t('settings.snapEnabled')}
+              </label>
             </Card>
 
             <Card className="space-y-3">

@@ -47,7 +47,9 @@
     "statusFailed": "失敗",
     "counts": "{{characters}} 人物 · {{scenes}} 場景 · {{props}} 道具 · {{timeline}} 時間軸",
     "open": "開啟",
-    "noStories": "尚未建立故事。按「新故事」開始創作。"
+    "noStories": "尚未建立故事。按「新故事」開始創作。",
+    "exportBackup": "匯出備份",
+    "importBackup": "匯入備份"
   },
   "characters": {
     "title": "人物創作",
@@ -112,7 +114,11 @@
     "previewEmpty": "選取時間軸片段以預覽",
     "previewNoMedia": "此片段尚無可播放媒體",
     "play": "播放",
-    "pause": "暫停"
+    "pause": "暫停",
+    "undoDone": "已撤銷（本機快照）",
+    "redoDone": "已重做（本機快照）",
+    "undoHint": "撤銷：時間軸快照（重新整理可同步伺服器狀態）",
+    "redoHint": "重做：時間軸快照"
   },
   "settings": {
     "title": "設定",
@@ -128,7 +134,14 @@
     "burnSubtitles": "燒錄對白字幕",
     "silentAudio": "加入靜音音軌（方便播放器）",
     "profile": "編碼檔 (fast / balanced)",
-    "saved": "設定已儲存"
+    "saved": "設定已儲存",
+    "videoConcurrency": "Video 並發數",
+    "videoMaxRetries": "Video 重試次數",
+    "audio": "音訊",
+    "pickBgm": "選擇 BGM",
+    "noBgm": "（未設定）",
+    "ttsEnabled": "匯出時嘗試 TTS 對白（可選）",
+    "snapEnabled": "時間軸吸附"
   },
   "ai": {
     "status": "AI 狀態",

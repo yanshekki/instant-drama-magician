@@ -29,7 +29,12 @@ export class GrokCliClient implements AIProvider {
       s.videoMode,
       s.videoPath || `${s.baseUrl}/video/generations`,
       s.apiKey,
-      s.model
+      s.model,
+      {
+        videoPollMs: s.videoPollMs,
+        videoTimeoutSec: s.videoTimeoutSec,
+        videoMaxRetries: s.videoMaxRetries
+      }
     )
   }
 
