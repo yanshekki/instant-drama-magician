@@ -141,7 +141,9 @@
     "pickBgm": "Pick BGM",
     "noBgm": "(none)",
     "ttsEnabled": "Try TTS for dialogue on export (optional)",
-    "snapEnabled": "Timeline snap"
+    "snapEnabled": "Timeline snap",
+    "aspectRatio": "Video aspect ratio",
+    "videoPathHint": "Default {baseUrl}/videos (OpenAI Videos API)"
   },
   "ai": {
     "status": "AI status",

@@ -87,6 +87,7 @@ export interface ElectronApi {
         result?: { step: string; success: boolean; output?: string; error?: string }
         entryId?: string
         mediaStatus?: string
+        jobId?: string
       }) => void
     ) => () => void
   }

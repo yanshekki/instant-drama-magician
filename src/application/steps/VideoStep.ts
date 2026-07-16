@@ -1,5 +1,6 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
 import { DEFAULT_MAX_CLIP_SECONDS } from '../../domain/timeline'
+import { snapVideoSeconds } from '../../domain/videoDuration'
 import { mapPool } from '../../infrastructure/ai/video/httpUtils'
 
 export class VideoStep implements PipelineStep {
@@ -54,10 +55,11 @@ export class VideoStep implements PipelineStep {
       async (entry, i) => {
         if (signal?.aborted) throw new Error('Cancelled')
 
-        const duration = Math.min(
+        const clipDur = Math.min(
           DEFAULT_MAX_CLIP_SECONDS,
           Math.max(0.5, entry.endTime - entry.startTime)
         )
+        const seconds = snapVideoSeconds(clipDur)
         const character = entry.characterId ? charMap.get(entry.characterId) : undefined
         const scene = entry.sceneId ? sceneMap.get(entry.sceneId) : undefined
         const prop = entry.propId ? propMap.get(entry.propId) : undefined
@@ -65,11 +67,14 @@ export class VideoStep implements PipelineStep {
         const prompt = [
           `Short drama clip for story "${story.title}".`,
           character ? `Character: ${character.name} — ${character.description}` : null,
+          character?.refImagePath
+            ? `Use character reference image for visual consistency (${character.name}).`
+            : null,
           scene ? `Scene #${scene.sceneNumber}: ${scene.description}` : null,
           scene?.script ? `Script: ${scene.script.slice(0, 400)}` : null,
           prop ? `Prop: ${prop.name}` : null,
           entry.dialogue ? `Dialogue: ${entry.dialogue}` : null,
-          `Duration: ${duration.toFixed(1)}s. Cinematic, continuous action.`
+          `Duration: ${seconds}s. Cinematic, continuous action.`
         ]
           .filter(Boolean)
           .join('\n')
@@ -79,7 +84,8 @@ export class VideoStep implements PipelineStep {
 
         await persistence?.updateEntryMedia?.(entry.id, {
           mediaStatus: 'GENERATING',
-          mediaError: null
+          mediaError: null,
+          videoJobId: null
         })
         onClipProgress?.({
           entryId: entry.id,
@@ -91,25 +97,28 @@ export class VideoStep implements PipelineStep {
         try {
           const result = await ai.generateVideo!({
             prompt,
-            durationSeconds: duration,
+            durationSeconds: seconds,
             refImagePath: character?.refImagePath,
-            outputPath
+            outputPath,
+            aspectRatio: context.aspectRatio
           })
           await persistence?.updateEntryMedia?.(entry.id, {
             mediaPath: result.outputPath,
             mediaStatus: 'READY',
-            mediaError: null
+            mediaError: null,
+            videoJobId: result.jobId ?? null
           })
           onClipProgress?.({
             entryId: entry.id,
             index: i,
             total: targets.length,
-            status: 'READY'
+            status: 'READY',
+            jobId: result.jobId
           })
           return {
             ok: true as const,
             degraded: Boolean(result.degraded),
-            line: `✓ ${entry.id} → ${result.outputPath}${result.degraded ? ' (stub)' : ''}`
+            line: `✓ ${entry.id} ${seconds}s → ${result.outputPath}${result.jobId ? ` job=${result.jobId}` : ''}${result.degraded ? ' (stub)' : ''}`
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
@@ -128,9 +137,7 @@ export class VideoStep implements PipelineStep {
       },
       () => Boolean(signal?.aborted)
     ).catch((error) => {
-      if (error instanceof Error && error.message === 'Cancelled') {
-        return null
-      }
+      if (error instanceof Error && error.message === 'Cancelled') return null
       throw error
     })
 
@@ -160,7 +167,7 @@ export class VideoStep implements PipelineStep {
       step: this.name,
       success: failures < targets.length || targets.length === 0,
       degraded,
-      output: `Video clips: ${targets.length - failures}/${targets.length} ready (concurrency=${concurrency})\n${lines.join('\n')}`,
+      output: `Video clips: ${targets.length - failures}/${targets.length} ready (concurrency=${concurrency}, seconds=6|10)\n${lines.join('\n')}`,
       error: failures === targets.length ? 'All clip generations failed' : undefined
     }
   }

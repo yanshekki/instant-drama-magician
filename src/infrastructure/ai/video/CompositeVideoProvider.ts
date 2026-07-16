@@ -1,5 +1,4 @@
-import type { VideoMode } from '../../../types/settings'
-import type { AppSettings } from '../../../types/settings'
+import type { AppSettings, VideoMode } from '../../../types/settings'
 import type { VideoGenRequest, VideoGenResult } from '../../../types/domain'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { GrokHttpVideoProvider } from './GrokHttpVideoProvider'
@@ -14,25 +13,43 @@ export class CompositeVideoProvider implements VideoProvider {
 
   constructor(
     private readonly mode: VideoMode,
-    videoPath: string,
+    baseUrl: string,
     apiKey: string,
     model: string,
-    opts?: Partial<Pick<AppSettings, 'videoPollMs' | 'videoTimeoutSec' | 'videoMaxRetries'>>,
+    opts?: Partial<
+      Pick<
+        AppSettings,
+        | 'videoPollMs'
+        | 'videoTimeoutSec'
+        | 'videoMaxRetries'
+        | 'videoPath'
+        | 'aspectRatio'
+      >
+    >,
     stub?: StubVideoProvider
   ) {
+    const base = baseUrl.replace(/\/$/, '')
     this.http = new GrokHttpVideoProvider({
-      videoPath,
+      baseUrl: base,
+      videosCreateUrl: opts?.videoPath?.includes('/videos')
+        ? opts.videoPath
+        : `${base}/videos`,
       apiKey,
       model,
       pollMs: opts?.videoPollMs,
       timeoutSec: opts?.videoTimeoutSec,
-      maxRetries: opts?.videoMaxRetries
+      maxRetries: opts?.videoMaxRetries,
+      aspectRatio: opts?.aspectRatio
     })
     this.stub = stub ?? new StubVideoProvider()
   }
 
   get lastUsedId(): string {
     return this.lastProviderId
+  }
+
+  get httpProvider(): GrokHttpVideoProvider {
+    return this.http
   }
 
   async probe(): Promise<VideoProviderStatus> {
@@ -66,7 +83,7 @@ export class CompositeVideoProvider implements VideoProvider {
           this.lastProviderId = this.http.id
           return await this.http.generate(request)
         } catch {
-          // fall through to stub
+          // fall through
         }
       }
     } catch {

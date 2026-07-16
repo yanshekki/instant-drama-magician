@@ -32,7 +32,8 @@ describe('story → timeline → export artifacts smoke', () => {
           dialogue: 'Hello',
           mediaPath: null,
           mediaStatus: 'EMPTY',
-          mediaError: null
+          mediaError: null,
+          videoJobId: null
         }
       ],
       4

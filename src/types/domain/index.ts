@@ -67,6 +67,7 @@ export interface TimelineEntry {
   mediaPath: string | null
   mediaStatus: MediaStatus
   mediaError: string | null
+  videoJobId: string | null
 }
 
 export interface CreateStoryInput {
@@ -117,6 +118,7 @@ export interface UpdateTimelineEntryInput {
   mediaPath?: string | null
   mediaStatus?: MediaStatus
   mediaError?: string | null
+  videoJobId?: string | null
 }
 
 export interface VideoGenRequest {
@@ -124,11 +126,15 @@ export interface VideoGenRequest {
   durationSeconds: number
   refImagePath?: string | null
   outputPath: string
+  aspectRatio?: string
+  sourceAssetId?: string
+  sourceDocumentId?: string
 }
 
 export interface VideoGenResult {
   outputPath: string
   degraded?: boolean
+  jobId?: string
 }
 
 /** AI provider contract */
@@ -225,6 +231,7 @@ export interface PipelinePersistence {
       mediaPath?: string | null
       mediaStatus: MediaStatus
       mediaError?: string | null
+      videoJobId?: string | null
     }
   ) => Promise<void>
   listTimeline?: (storyId: string) => Promise<TimelineEntry[]>
@@ -248,5 +255,7 @@ export interface PipelineContext {
     index: number
     total: number
     status: MediaStatus
+    jobId?: string
   }) => void
+  aspectRatio?: string
 }

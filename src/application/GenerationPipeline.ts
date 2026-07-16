@@ -26,6 +26,7 @@ export interface PipelineRunOptions {
   signal?: AbortSignal
   onlyFailedVideos?: boolean
   videoConcurrency?: number
+  aspectRatio?: string
   onClipProgress?: PipelineContext['onClipProgress']
 }
 
@@ -65,6 +66,7 @@ export class GenerationPipeline {
       signal: options?.signal,
       onlyFailedVideos: options?.onlyFailedVideos,
       videoConcurrency: options?.videoConcurrency,
+      aspectRatio: options?.aspectRatio,
       onClipProgress: options?.onClipProgress
     }
 

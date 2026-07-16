@@ -27,13 +27,15 @@ export class GrokCliClient implements AIProvider {
     this.apiKey = s.apiKey
     this.video = new CompositeVideoProvider(
       s.videoMode,
-      s.videoPath || `${s.baseUrl}/video/generations`,
+      s.baseUrl,
       s.apiKey,
       s.model,
       {
         videoPollMs: s.videoPollMs,
         videoTimeoutSec: s.videoTimeoutSec,
-        videoMaxRetries: s.videoMaxRetries
+        videoMaxRetries: s.videoMaxRetries,
+        videoPath: s.videoPath,
+        aspectRatio: s.aspectRatio
       }
     )
   }

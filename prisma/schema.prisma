@@ -69,6 +69,7 @@ model TimelineEntry {
   mediaPath   String?
   mediaStatus MediaStatus @default(EMPTY)
   mediaError  String?
+  videoJobId  String?
 
   story     Story      @relation(fields: [storyId], references: [id], onDelete: Cascade)
   character Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)

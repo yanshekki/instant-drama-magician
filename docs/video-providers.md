@@ -4,37 +4,35 @@
 
 | Mode | Behavior |
 |------|----------|
-| `auto` | Probe HTTP; fallback to FFmpeg stub |
-| `http` | Always HTTP (`videoPath`) |
+| `auto` | Probe gateway; on failure use FFmpeg stub |
+| `http` | Always OpenAI-style `/v1/videos` |
 | `stub` | Color clips only |
 
-## HTTP POST body
+## Grok CLI OpenAI Videos (primary)
 
-```json
-{
-  "model": "grok-cli",
-  "prompt": "...",
-  "duration": 5,
-  "ref_image": null,
-  "output_path": "/abs/path.mp4"
-}
-```
+Aligned with **Grok-Cli-to-OpenAI-compatible**:
 
-## Responses (all supported)
+1. `POST {baseUrl}/videos` with `seconds` **6 or 10**  
+2. Poll `GET {baseUrl}/videos/{id}` until `completed`  
+3. Download `GET {baseUrl}/videos/{id}/content` → local clip path  
 
-1. JSON immediate: `{ "output_path" }`, `{ "path" }`, `{ "url" }` / `{ "output_url" }`
-2. Binary `video/*` body
-3. **Async job**: `{ "job_id", "status_url" }` or `{ "id" }` → poll until `status` is `succeeded|completed|ready`
+Optional:
 
-## Client settings
+- `aspect_ratio` (settings, default `16:9`)  
+- `source_document_id` after uploading Character ref image to `/v1/documents`  
 
-| Setting | Default | Meaning |
-|---------|---------|---------|
-| `videoPollMs` | 2000 | Job poll interval |
-| `videoTimeoutSec` | 300 | Max wait |
-| `videoMaxRetries` | 3 | Retry on 429/5xx/network |
-| `videoConcurrency` | 1 | Parallel clip gens |
+See [grok-gateway.md](./grok-gateway.md).
 
-## Retry
+## Duration snap
 
-Exponential backoff with jitter on retryable errors.
+`snapVideoSeconds(d)`: `d >= 8 → 10`, else `6` (matches gateway).
+
+## Settings knobs
+
+| Key | Default |
+|-----|---------|
+| videoPollMs | 2000 |
+| videoTimeoutSec | 300 |
+| videoMaxRetries | 3 |
+| videoConcurrency | 1 |
+| aspectRatio | 16:9 |

@@ -25,12 +25,14 @@ export interface AppSettings {
   /** UX */
   snapEnabled: boolean
   snapGridSec: number
+  /** Grok video */
+  aspectRatio: string
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   videoMode: 'auto',
   baseUrl: 'http://127.0.0.1:39281/v1',
-  videoPath: 'http://127.0.0.1:39281/v1/video/generations',
+  videoPath: 'http://127.0.0.1:39281/v1/videos',
   apiKey: 'grok-cli',
   model: 'grok-cli',
   defaultMaxClipSeconds: 10,
@@ -47,7 +49,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ttsVoice: 'default',
   ttsHttpUrl: '',
   snapEnabled: true,
-  snapGridSec: 0.5
+  snapGridSec: 0.5,
+  aspectRatio: '16:9'
 }
 
 export function mergeSettings(partial?: Partial<AppSettings> | null): AppSettings {

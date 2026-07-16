@@ -63,26 +63,25 @@ export function TimelinePage(): JSX.Element {
   const selected = entries.find((e) => e.id === selectedId) ?? null
 
   useEffect(() => {
-    if (entries.length > 0) history.push(entries)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot after load only when length changes
-  }, [entries.length])
-
-  useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
-        if (e.shiftKey) {
-          const next = history.redo()
-          if (next) setBanner(t('timeline.redoDone'))
-        } else {
-          const prev = history.undo()
-          if (prev) setBanner(t('timeline.undoDone'))
-        }
+        void (async () => {
+          if (e.shiftKey) {
+            if (await history.redo()) {
+              setBanner(t('timeline.redoDone'))
+              await reload()
+            }
+          } else if (await history.undo()) {
+            setBanner(t('timeline.undoDone'))
+            await reload()
+          }
+        })()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [history, t])
+  }, [history, t, reload])
 
   useEffect(() => {
     setDialogue(selected?.dialogue ?? '')
@@ -117,7 +116,9 @@ export function TimelinePage(): JSX.Element {
       setStepIndex(payload.index + 1)
       setStepTotal(payload.total)
       const line = payload.entryId
-        ? `clip ${payload.entryId} → ${payload.mediaStatus ?? payload.step}`
+        ? `clip ${payload.entryId} → ${payload.mediaStatus ?? payload.step}${
+            payload.jobId ? ` job=${payload.jobId}` : ''
+          }`
         : payload.result?.success
           ? `✓ [${payload.index + 1}/${payload.total}] ${payload.step}`
           : `… [${payload.index + 1}/${payload.total}] ${payload.step}${
@@ -182,18 +183,29 @@ export function TimelinePage(): JSX.Element {
     startTime: number,
     endTime: number
   ): Promise<void> => {
-    history.push(entries)
+    const prev = entries.find((e) => e.id === id)
+    if (prev) {
+      history.recordUpdate(
+        id,
+        { startTime: prev.startTime, endTime: prev.endTime },
+        { startTime, endTime }
+      )
+    }
     await update(id, { startTime, endTime })
   }
 
-  const handleUndoLocal = (): void => {
-    const prev = history.undo()
-    if (prev) setBanner(t('timeline.undoHint'))
+  const handleUndoLocal = async (): Promise<void> => {
+    if (await history.undo()) {
+      setBanner(t('timeline.undoDone'))
+      await reload()
+    }
   }
 
-  const handleRedoLocal = (): void => {
-    const next = history.redo()
-    if (next) setBanner(t('timeline.redoHint'))
+  const handleRedoLocal = async (): Promise<void> => {
+    if (await history.redo()) {
+      setBanner(t('timeline.redoDone'))
+      await reload()
+    }
   }
 
   const handleSaveDialogue = async (): Promise<void> => {
@@ -294,10 +306,18 @@ export function TimelinePage(): JSX.Element {
             <Button variant="secondary" onClick={() => void handleReorderByStart()}>
               {t('timeline.reorder')}
             </Button>
-            <Button variant="ghost" onClick={handleUndoLocal} disabled={!history.canUndo}>
+            <Button
+              variant="ghost"
+              onClick={() => void handleUndoLocal()}
+              disabled={!history.canUndo}
+            >
               Undo
             </Button>
-            <Button variant="ghost" onClick={handleRedoLocal} disabled={!history.canRedo}>
+            <Button
+              variant="ghost"
+              onClick={() => void handleRedoLocal()}
+              disabled={!history.canRedo}
+            >
               Redo
             </Button>
             <Button
@@ -485,6 +505,11 @@ export function TimelinePage(): JSX.Element {
                     >
                       {e.mediaStatus}
                     </span>
+                    {e.videoJobId && (
+                      <span className="ml-1 font-mono text-[10px] text-ink-500">
+                        job:{e.videoJobId.slice(0, 8)}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -2,33 +2,23 @@
 
 ## Layers
 
-```
-Presentation (React, Konva, Preview, Settings, Undo snapshots)
-        ↓ IPC + idm-media:// (path allowlist)
-Application (Services, Pipeline, ProjectBackup)
-        ↓
-Domain (timeline, snap, subtitle, soul)
-        ↓
-Infrastructure (Prisma, Video providers+retry/jobs, FFmpeg, TTS, MediaStore, Settings)
-```
+Presentation → IPC / `idm-media://` → Application → Domain → Infrastructure
 
-## Round 4
+## Round 5
 
-| Module | Notes |
-|--------|--------|
-| GrokHttpVideoProvider | job poll, retry, mock tests |
-| VideoStep | concurrent mapPool |
-| BGM + TTS | settings + exportFinal mix |
-| snapTime | Konva drag end |
-| ProjectBackupService | jszip export/import |
-| CI | `.github/workflows/ci.yml` |
+| Module | Role |
+|--------|------|
+| GrokHttpVideoProvider | OpenAI `/v1/videos` create/poll/content + document upload for ref |
+| snapVideoSeconds | Map clip length → 6 \| 10 |
+| videoJobId | TimelineEntry + progress UI |
+| useTimelineHistory | Persistent undo/redo via IPC |
 
-## Security
+## Pipeline
 
-`idm-media://` only serves files under `{userData}/media/`.
+Script → Character → Scene → Props → Timeline → **Video** (6/10s jobs) → Export
 
-## Verify
+## Docs
 
-```bash
-npm run typecheck && npm test && npm run build && npm run pack
-```
+- [grok-gateway.md](./grok-gateway.md)  
+- [video-providers.md](./video-providers.md)  
+- [release.md](./release.md)  

@@ -20,6 +20,7 @@ function entry(partial: Partial<TimelineEntry> & Pick<TimelineEntry, 'id' | 'ord
     mediaPath: null,
     mediaStatus: 'EMPTY',
     mediaError: null,
+    videoJobId: null,
     ...partial
   }
 }

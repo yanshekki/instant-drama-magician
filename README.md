@@ -13,11 +13,16 @@ npm run dev
 
 ## Features
 
-- Konva timeline (zoom, playhead, play/pause, preview)
-- Pluggable **video providers**: auto / http / stub (Settings)
-- Final export with optional **burn-in subtitles** + silent audio
-- soul.md file + **URL import**, soulmd-hub link
-- FFmpeg storyboard & final concat
+- Konva timeline (zoom, playhead, play/pause, preview, snap, undo)
+- **Grok OpenAI Videos API** (`/v1/videos` create → poll → content), 6/10s snaps
+- Pluggable video modes: auto / http / stub
+- Final export: subtitles, BGM, optional TTS
+- soul.md file + URL import; story backup zip
+- Project CI on GitHub Actions
+
+## Gateway
+
+See [docs/grok-gateway.md](./docs/grok-gateway.md) to connect **Grok-Cli-to-OpenAI-compatible**.
 
 ## Docs
 

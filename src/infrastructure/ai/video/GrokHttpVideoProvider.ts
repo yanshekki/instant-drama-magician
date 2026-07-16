@@ -1,38 +1,63 @@
-import { createWriteStream, existsSync, writeFileSync } from 'fs'
+/**
+ * OpenAI-style Videos client aligned with Grok-Cli-to-OpenAI-compatible:
+ *   POST   {baseUrl}/videos
+ *   GET    {baseUrl}/videos/:id
+ *   GET    {baseUrl}/videos/:id/content
+ *
+ * Also keeps legacy fallbacks (output_path / url / /video/generations).
+ */
+
+import { createWriteStream, existsSync, readFileSync, writeFileSync } from 'fs'
+import { basename } from 'path'
 import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
 import type { VideoGenRequest, VideoGenResult } from '../../../types/domain'
+import { snapVideoSeconds } from '../../../domain/videoDuration'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { isRetryableError, sleep, withRetries } from './httpUtils'
 
 export interface GrokHttpVideoOptions {
-  videoPath: string
+  /** e.g. http://127.0.0.1:39281/v1 */
+  baseUrl: string
   apiKey: string
   model: string
+  /** Optional override create URL; default `${baseUrl}/videos` */
+  videosCreateUrl?: string
   pollMs?: number
   timeoutSec?: number
   maxRetries?: number
+  aspectRatio?: string
   fetchImpl?: typeof fetch
 }
 
-type JobJson = {
+type JobPublic = {
+  id?: string
+  object?: string
+  status?: string
+  error?: string | null
+  result_asset_id?: string | null
   output_path?: string
   path?: string
   url?: string
   output_url?: string
   job_id?: string
-  id?: string
   status_url?: string
-  status?: string
 }
 
 export class GrokHttpVideoProvider implements VideoProvider {
   readonly id = 'grok-http'
-  readonly name = 'Grok HTTP video'
+  readonly name = 'Grok OpenAI Videos API'
   private readonly fetchFn: typeof fetch
+  private readonly baseUrl: string
+  private readonly createUrl: string
+  private readonly apiKey: string
+  private readonly model: string
   private readonly pollMs: number
   private readonly timeoutSec: number
   private readonly maxRetries: number
+  private readonly aspectRatio: string
+  lastJobId: string | null = null
+  lastJobStatus: string | null = null
 
   constructor(
     videoPathOrOpts: string | GrokHttpVideoOptions,
@@ -40,32 +65,38 @@ export class GrokHttpVideoProvider implements VideoProvider {
     model?: string
   ) {
     if (typeof videoPathOrOpts === 'string') {
-      this.videoPath = videoPathOrOpts
+      // Legacy: videoPath was full create URL or generations URL
+      this.createUrl = videoPathOrOpts.includes('/videos')
+        ? videoPathOrOpts.replace(/\/$/, '')
+        : videoPathOrOpts.replace(/\/video\/generations\/?$/, '/videos')
+      this.baseUrl = this.createUrl.replace(/\/videos\/?$/, '')
       this.apiKey = apiKey ?? 'grok-cli'
       this.model = model ?? 'grok-cli'
       this.pollMs = 2000
       this.timeoutSec = 300
       this.maxRetries = 3
+      this.aspectRatio = '16:9'
       this.fetchFn = fetch.bind(globalThis)
     } else {
-      this.videoPath = videoPathOrOpts.videoPath
+      this.baseUrl = videoPathOrOpts.baseUrl.replace(/\/$/, '')
+      this.createUrl = (
+        videoPathOrOpts.videosCreateUrl ?? `${this.baseUrl}/videos`
+      ).replace(/\/$/, '')
       this.apiKey = videoPathOrOpts.apiKey
       this.model = videoPathOrOpts.model
       this.pollMs = videoPathOrOpts.pollMs ?? 2000
       this.timeoutSec = videoPathOrOpts.timeoutSec ?? 300
       this.maxRetries = videoPathOrOpts.maxRetries ?? 3
+      this.aspectRatio = videoPathOrOpts.aspectRatio ?? '16:9'
       this.fetchFn = videoPathOrOpts.fetchImpl ?? fetch.bind(globalThis)
     }
   }
 
-  private readonly videoPath: string
-  private readonly apiKey: string
-  private readonly model: string
-
   async probe(): Promise<VideoProviderStatus> {
     try {
-      const res = await this.fetchFn(this.videoPath, {
-        method: 'OPTIONS',
+      // Prefer models health on same base
+      const modelsUrl = `${this.baseUrl}/models`
+      const res = await this.fetchFn(modelsUrl, {
         headers: this.headers(),
         signal: AbortSignal.timeout(3000)
       })
@@ -73,13 +104,15 @@ export class GrokHttpVideoProvider implements VideoProvider {
         return {
           id: this.id,
           available: false,
-          message: `Video endpoint error ${res.status}`
+          message: `Gateway models error ${res.status}`
         }
       }
       return {
         id: this.id,
-        available: true,
-        message: `Video endpoint reachable (${res.status})`
+        available: res.ok || res.status === 401 || res.status === 403,
+        message: res.ok
+          ? `Gateway online; videos at ${this.createUrl}`
+          : `Gateway reachable (${res.status}); check API key (agent/admin for video)`
       }
     } catch (error) {
       return {
@@ -87,46 +120,93 @@ export class GrokHttpVideoProvider implements VideoProvider {
         available: false,
         message:
           error instanceof Error
-            ? `Cannot reach video endpoint: ${error.message}`
-            : 'Cannot reach video endpoint'
+            ? `Cannot reach gateway: ${error.message}`
+            : 'Cannot reach gateway'
       }
     }
   }
 
   async generate(request: VideoGenRequest): Promise<VideoGenResult> {
+    this.lastJobId = null
+    this.lastJobStatus = null
+
     return withRetries(
       async () => {
-        const res = await this.fetchFn(this.videoPath, {
+        const seconds = snapVideoSeconds(request.durationSeconds)
+        let sourceDocumentId = request.sourceDocumentId ?? undefined
+        let sourceAssetId = request.sourceAssetId ?? undefined
+
+        // Upload local ref image as document when no asset id yet
+        if (!sourceDocumentId && !sourceAssetId && request.refImagePath) {
+          try {
+            sourceDocumentId =
+              (await this.uploadDocument(request.refImagePath)) ?? undefined
+          } catch {
+            // continue without source; prompt may still mention character
+          }
+        }
+
+        const body: Record<string, unknown> = {
+          prompt: request.prompt,
+          model: this.model,
+          seconds,
+          aspect_ratio: request.aspectRatio ?? this.aspectRatio
+        }
+        if (sourceAssetId) body.source_asset_id = sourceAssetId
+        if (sourceDocumentId) body.source_document_id = sourceDocumentId
+
+        const res = await this.fetchFn(this.createUrl, {
           method: 'POST',
           headers: {
             ...this.headers(),
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            model: this.model,
-            prompt: request.prompt,
-            duration: request.durationSeconds,
-            ref_image: request.refImagePath,
-            output_path: request.outputPath
-          }),
-          signal: AbortSignal.timeout(Math.min(180_000, this.timeoutSec * 1000))
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(60_000)
         })
 
         if (!res.ok) {
+          // Legacy fallback endpoint
+          if (res.status === 404) {
+            return this.legacyGenerate(request, seconds)
+          }
           const text = await res.text()
           throw new Error(`Video HTTP ${res.status}: ${text.slice(0, 500)}`)
         }
 
         const contentType = res.headers.get('content-type') ?? ''
-        if (contentType.includes('application/json')) {
-          const json = (await res.json()) as JobJson
-          return this.resolveJsonResult(json, request.outputPath)
+        if (!contentType.includes('application/json')) {
+          const buf = Buffer.from(await res.arrayBuffer())
+          if (buf.length < 32) throw new Error('Video API returned empty body')
+          writeFileSync(request.outputPath, buf)
+          return { outputPath: request.outputPath }
         }
 
-        const buf = Buffer.from(await res.arrayBuffer())
-        if (buf.length < 32) throw new Error('Video API returned empty body')
-        writeFileSync(request.outputPath, buf)
-        return { outputPath: request.outputPath }
+        const json = (await res.json()) as JobPublic
+        if (json.id) this.lastJobId = json.id
+        this.lastJobStatus = json.status ?? null
+
+        // Immediate file paths (legacy)
+        if (json.output_path && existsSync(json.output_path)) {
+          return { outputPath: json.output_path }
+        }
+        if (json.path && existsSync(json.path)) {
+          return { outputPath: json.path }
+        }
+        if (json.url || json.output_url) {
+          await this.downloadTo(json.url ?? json.output_url!, request.outputPath)
+          return { outputPath: request.outputPath }
+        }
+
+        const jobId = json.id ?? json.job_id
+        if (!jobId) {
+          throw new Error('Video API response missing job id')
+        }
+        this.lastJobId = jobId
+
+        await this.pollUntilDone(jobId)
+        await this.downloadContent(jobId, request.outputPath)
+        return { outputPath: request.outputPath, jobId }
       },
       {
         maxRetries: this.maxRetries,
@@ -135,40 +215,28 @@ export class GrokHttpVideoProvider implements VideoProvider {
     )
   }
 
-  private async resolveJsonResult(
-    json: JobJson,
-    outputPath: string
-  ): Promise<VideoGenResult> {
-    if (json.output_path && existsSync(json.output_path)) {
-      return { outputPath: json.output_path }
-    }
-    if (json.path && existsSync(json.path)) {
-      return { outputPath: json.path }
-    }
-    if (json.url || json.output_url) {
-      await this.downloadTo(json.url ?? json.output_url!, outputPath)
-      return { outputPath }
-    }
-    if (existsSync(outputPath)) {
-      return { outputPath }
-    }
+  /** Upload image via POST /v1/documents for source_document_id */
+  async uploadDocument(filePath: string): Promise<string | null> {
+    if (!existsSync(filePath)) return null
+    const buf = readFileSync(filePath)
+    const form = new FormData()
+    const blob = new Blob([buf])
+    form.append('file', blob, basename(filePath))
 
-    // Async job polling
-    const statusUrl =
-      json.status_url ??
-      (json.job_id || json.id
-        ? `${this.videoPath.replace(/\/$/, '')}/jobs/${json.job_id ?? json.id}`
-        : null)
-
-    if (statusUrl) {
-      return this.pollJob(statusUrl, outputPath)
-    }
-
-    throw new Error('Video API JSON missing usable path/url/job')
+    const res = await this.fetchFn(`${this.baseUrl}/documents`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: form,
+      signal: AbortSignal.timeout(60_000)
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as { data?: { id?: string }; id?: string }
+    return json.data?.id ?? json.id ?? null
   }
 
-  private async pollJob(statusUrl: string, outputPath: string): Promise<VideoGenResult> {
+  private async pollUntilDone(jobId: string): Promise<void> {
     const deadline = Date.now() + this.timeoutSec * 1000
+    const statusUrl = `${this.createUrl}/${jobId}`
     while (Date.now() < deadline) {
       const res = await this.fetchFn(statusUrl, {
         headers: this.headers(),
@@ -177,26 +245,77 @@ export class GrokHttpVideoProvider implements VideoProvider {
       if (!res.ok) {
         throw new Error(`Video job poll HTTP ${res.status}`)
       }
-      const json = (await res.json()) as JobJson & { error?: string }
+      const json = (await res.json()) as JobPublic
+      this.lastJobStatus = json.status ?? null
       const status = (json.status ?? '').toLowerCase()
-      if (status === 'succeeded' || status === 'completed' || status === 'ready') {
-        if (json.output_path && existsSync(json.output_path)) {
-          return { outputPath: json.output_path }
-        }
-        if (json.path && existsSync(json.path)) return { outputPath: json.path }
-        if (json.url || json.output_url) {
-          await this.downloadTo(json.url ?? json.output_url!, outputPath)
-          return { outputPath }
-        }
-        if (existsSync(outputPath)) return { outputPath }
-        throw new Error('Job succeeded but no output file')
+      if (
+        status === 'completed' ||
+        status === 'succeeded' ||
+        status === 'ready' ||
+        status === 'success'
+      ) {
+        return
       }
-      if (status === 'failed' || status === 'error') {
-        throw new Error(json.error ?? 'Video job failed')
+      if (status === 'failed' || status === 'error' || status === 'cancelled') {
+        throw new Error(json.error ?? `Video job ${status}`)
       }
+      // queued | in_progress | processing
       await sleep(this.pollMs)
     }
     throw new Error(`Video job timed out after ${this.timeoutSec}s`)
+  }
+
+  private async downloadContent(jobId: string, dest: string): Promise<void> {
+    const contentUrl = `${this.createUrl}/${jobId}/content`
+    const res = await this.fetchFn(contentUrl, {
+      headers: this.headers(),
+      signal: AbortSignal.timeout(180_000)
+    })
+    if (!res.ok) {
+      throw new Error(`Video content HTTP ${res.status}`)
+    }
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length < 32) throw new Error('Video content empty')
+    writeFileSync(dest, buf)
+  }
+
+  private async legacyGenerate(
+    request: VideoGenRequest,
+    seconds: number
+  ): Promise<VideoGenResult> {
+    const legacyUrl = `${this.baseUrl}/video/generations`
+    const res = await this.fetchFn(legacyUrl, {
+      method: 'POST',
+      headers: {
+        ...this.headers(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: this.model,
+        prompt: request.prompt,
+        duration: seconds,
+        output_path: request.outputPath
+      }),
+      signal: AbortSignal.timeout(180_000)
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Legacy video HTTP ${res.status}: ${text.slice(0, 300)}`)
+    }
+    const ct = res.headers.get('content-type') ?? ''
+    if (ct.includes('application/json')) {
+      const json = (await res.json()) as JobPublic
+      if (json.output_path && existsSync(json.output_path)) {
+        return { outputPath: json.output_path }
+      }
+      if (json.url) {
+        await this.downloadTo(json.url, request.outputPath)
+        return { outputPath: request.outputPath }
+      }
+    }
+    const buf = Buffer.from(await res.arrayBuffer())
+    writeFileSync(request.outputPath, buf)
+    return { outputPath: request.outputPath }
   }
 
   private async downloadTo(url: string, dest: string): Promise<void> {

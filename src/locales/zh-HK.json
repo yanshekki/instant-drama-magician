@@ -141,7 +141,9 @@
     "pickBgm": "選擇 BGM",
     "noBgm": "（未設定）",
     "ttsEnabled": "匯出時嘗試 TTS 對白（可選）",
-    "snapEnabled": "時間軸吸附"
+    "snapEnabled": "時間軸吸附",
+    "aspectRatio": "影片比例 (aspect_ratio)",
+    "videoPathHint": "預設 {baseUrl}/videos（OpenAI Videos API）"
   },
   "ai": {
     "status": "AI 狀態",

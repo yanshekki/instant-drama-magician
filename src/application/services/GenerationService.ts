@@ -23,6 +23,7 @@ export type GenerationProgressHandler = (payload: {
   result?: PipelineStepResult
   entryId?: string
   mediaStatus?: string
+  jobId?: string
 }) => void
 
 export class GenerationService {
@@ -84,6 +85,7 @@ export class GenerationService {
         signal: this.abort.signal,
         onlyFailedVideos: opts?.onlyFailedVideos,
         videoConcurrency: this.settings.videoConcurrency,
+        aspectRatio: this.settings.aspectRatio,
         onStepComplete: (stepResult, index, total) => {
           onProgress?.({
             storyId,
@@ -100,7 +102,8 @@ export class GenerationService {
             index: p.index,
             total: p.total,
             entryId: p.entryId,
-            mediaStatus: p.status
+            mediaStatus: p.status,
+            jobId: p.jobId
           })
         },
         persistence: {
@@ -140,7 +143,8 @@ export class GenerationService {
               data: {
                 mediaPath: data.mediaPath === undefined ? undefined : data.mediaPath,
                 mediaStatus: data.mediaStatus,
-                mediaError: data.mediaError ?? null
+                mediaError: data.mediaError ?? null,
+                videoJobId: data.videoJobId === undefined ? undefined : data.videoJobId
               }
             })
           },

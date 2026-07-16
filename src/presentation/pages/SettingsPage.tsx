@@ -112,6 +112,17 @@ export function SettingsPage(): JSX.Element {
                   onChange={(e) => patch('model', e.target.value)}
                 />
               </div>
+              <div>
+                <Label>{t('settings.aspectRatio')}</Label>
+                <Select
+                  value={settings.aspectRatio}
+                  onChange={(e) => patch('aspectRatio', e.target.value)}
+                >
+                  <option value="16:9">16:9</option>
+                  <option value="9:16">9:16</option>
+                  <option value="1:1">1:1</option>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label>{t('settings.videoConcurrency')}</Label>

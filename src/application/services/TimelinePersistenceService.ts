@@ -63,7 +63,8 @@ export class TimelinePersistenceService {
         ...(data.order !== undefined ? { order: data.order } : {}),
         ...(data.mediaPath !== undefined ? { mediaPath: data.mediaPath } : {}),
         ...(data.mediaStatus !== undefined ? { mediaStatus: data.mediaStatus } : {}),
-        ...(data.mediaError !== undefined ? { mediaError: data.mediaError } : {})
+        ...(data.mediaError !== undefined ? { mediaError: data.mediaError } : {}),
+        ...(data.videoJobId !== undefined ? { videoJobId: data.videoJobId } : {})
       }
     })
   }
@@ -74,6 +75,7 @@ export class TimelinePersistenceService {
       mediaPath?: string | null
       mediaStatus: 'EMPTY' | 'QUEUED' | 'GENERATING' | 'READY' | 'FAILED'
       mediaError?: string | null
+      videoJobId?: string | null
     }
   ) {
     await this.ensureExists(id)
@@ -82,7 +84,8 @@ export class TimelinePersistenceService {
       data: {
         mediaPath: data.mediaPath === undefined ? undefined : data.mediaPath,
         mediaStatus: data.mediaStatus,
-        mediaError: data.mediaError ?? null
+        mediaError: data.mediaError ?? null,
+        videoJobId: data.videoJobId === undefined ? undefined : data.videoJobId
       }
     })
   }
