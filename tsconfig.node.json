@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@electron/*": ["electron/*"],
+      "@shared/*": ["src/types/*"]
+    }
+  },
+  "include": [
+    "electron/**/*",
+    "electron.vite.config.ts",
+    "prisma/**/*",
+    "src/types/**/*",
+    "src/application/**/*",
+    "src/infrastructure/**/*",
+    "src/domain/**/*"
+  ]
+}

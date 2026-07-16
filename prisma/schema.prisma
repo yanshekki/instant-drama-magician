@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Story {
+  id        String      @id @default(cuid())
+  title     String
+  status    StoryStatus @default(DRAFT)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  characters Character[]
+  scenes     Scene[]
+  props      Prop[]
+  timeline   TimelineEntry[]
+}
+
+model Character {
+  id           String  @id @default(cuid())
+  storyId      String
+  name         String
+  soulMdPath   String?
+  description  String
+  refImagePath String?
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+model Scene {
+  id          String @id @default(cuid())
+  storyId     String
+  sceneNumber Int
+  description String
+  script      String?
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+model Prop {
+  id          String @id @default(cuid())
+  storyId     String
+  name        String
+  description String
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+model TimelineEntry {
+  id          String  @id @default(cuid())
+  storyId     String
+  startTime   Float
+  endTime     Float
+  characterId String?
+  sceneId     String?
+  propId      String?
+  dialogue    String?
+  order       Int
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+enum StoryStatus {
+  DRAFT
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+enum SceneStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}

@@ -1,0 +1,104 @@
+{
+  "app": {
+    "name": "InstantDrama Magician",
+    "tagline": "Professional AI short-drama desktop studio",
+    "language": "Language"
+  },
+  "nav": {
+    "stories": "Stories",
+    "characters": "Characters",
+    "scenes": "Scenes",
+    "props": "Props",
+    "timeline": "Timeline"
+  },
+  "common": {
+    "create": "Create",
+    "save": "Save",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "empty": "No data",
+    "selectStory": "Select a story first",
+    "actions": "Actions",
+    "confirmDelete": "Delete this item?",
+    "success": "Success",
+    "error": "Error",
+    "generate": "Generate",
+    "generating": "Generating…",
+    "refresh": "Refresh"
+  },
+  "stories": {
+    "title": "Stories",
+    "subtitle": "Create and manage multiple independent short dramas",
+    "new": "New story",
+    "titleLabel": "Title",
+    "titlePlaceholder": "e.g. Reunion in the Rain",
+    "status": "Status",
+    "statusDraft": "Draft",
+    "statusGenerating": "Generating",
+    "statusCompleted": "Completed",
+    "statusFailed": "Failed",
+    "counts": "{{characters}} chars · {{scenes}} scenes · {{props}} props · {{timeline}} clips",
+    "open": "Open",
+    "noStories": "No stories yet. Click “New story” to begin."
+  },
+  "characters": {
+    "title": "Characters",
+    "subtitle": "Create characters independently; import soul.md as soul settings",
+    "new": "New character",
+    "name": "Name",
+    "description": "Description",
+    "soulMd": "soul.md",
+    "importSoul": "Import soul.md",
+    "importHint": "Supports soul.md exported from soulmd-hub.ysk.hk",
+    "noCharacters": "No characters yet.",
+    "namePlaceholder": "e.g. Ming",
+    "descriptionPlaceholder": "Looks, personality, backstory…"
+  },
+  "scenes": {
+    "title": "Scenes",
+    "subtitle": "Create scenes and script fragments independently",
+    "new": "New scene",
+    "number": "Scene #",
+    "description": "Description",
+    "script": "Script",
+    "noScenes": "No scenes yet.",
+    "descriptionPlaceholder": "Location, mood, action…",
+    "scriptPlaceholder": "Dialogue and shot notes…"
+  },
+  "props": {
+    "title": "Props",
+    "subtitle": "Create props independently",
+    "new": "New prop",
+    "name": "Name",
+    "description": "Description",
+    "noProps": "No props yet.",
+    "namePlaceholder": "e.g. Pocket watch",
+    "descriptionPlaceholder": "Appearance, symbolism…"
+  },
+  "timeline": {
+    "title": "Linear Timeline",
+    "subtitle": "Reference characters, scenes, props & dialogue with precise duration control (AI video limits)",
+    "new": "Add clip",
+    "start": "Start (s)",
+    "end": "End (s)",
+    "character": "Character",
+    "scene": "Scene",
+    "prop": "Prop",
+    "dialogue": "Dialogue",
+    "order": "Order",
+    "duration": "Total duration: {{seconds}}s",
+    "maxClip": "Max clip: {{seconds}}s",
+    "noEntries": "Timeline is empty. Reference assets on the right and add clips.",
+    "library": "Library",
+    "none": "(none)",
+    "addClip": "Add to timeline"
+  },
+  "ai": {
+    "status": "AI status",
+    "online": "Grok CLI online",
+    "offline": "Grok CLI offline",
+    "hint": "Start the Grok-Cli-to-OpenAI-compatible service (default :39281)"
+  }
+}

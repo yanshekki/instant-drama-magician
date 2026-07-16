@@ -1,0 +1,17 @@
+node_modules
+dist
+out
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+*.tsbuildinfo
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea
+coverage

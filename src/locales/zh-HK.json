@@ -1,0 +1,104 @@
+{
+  "app": {
+    "name": "瞬劇魔法師",
+    "tagline": "AI 專業短劇生成桌面工具",
+    "language": "語言"
+  },
+  "nav": {
+    "stories": "故事",
+    "characters": "人物",
+    "scenes": "場景",
+    "props": "道具",
+    "timeline": "時間軸"
+  },
+  "common": {
+    "create": "建立",
+    "save": "儲存",
+    "delete": "刪除",
+    "cancel": "取消",
+    "edit": "編輯",
+    "loading": "載入中…",
+    "empty": "暫無資料",
+    "selectStory": "請先選擇故事",
+    "actions": "操作",
+    "confirmDelete": "確定刪除？",
+    "success": "成功",
+    "error": "錯誤",
+    "generate": "開始生成",
+    "generating": "生成中…",
+    "refresh": "重新整理"
+  },
+  "stories": {
+    "title": "故事管理",
+    "subtitle": "建立及管理多個獨立短劇故事",
+    "new": "新故事",
+    "titleLabel": "故事標題",
+    "titlePlaceholder": "例如：雨夜重逢",
+    "status": "狀態",
+    "statusDraft": "草稿",
+    "statusGenerating": "生成中",
+    "statusCompleted": "已完成",
+    "statusFailed": "失敗",
+    "counts": "{{characters}} 人物 · {{scenes}} 場景 · {{props}} 道具 · {{timeline}} 時間軸",
+    "open": "開啟",
+    "noStories": "尚未建立故事。按「新故事」開始創作。"
+  },
+  "characters": {
+    "title": "人物創作",
+    "subtitle": "獨立創作人物，可匯入 soul.md 作為靈魂設定",
+    "new": "新人物",
+    "name": "名稱",
+    "description": "描述",
+    "soulMd": "soul.md",
+    "importSoul": "匯入 soul.md",
+    "importHint": "支援從 soulmd-hub.ysk.hk 匯出之 soul.md",
+    "noCharacters": "尚未建立人物。",
+    "namePlaceholder": "例如：阿明",
+    "descriptionPlaceholder": "外貌、性格、背景…"
+  },
+  "scenes": {
+    "title": "場景創作",
+    "subtitle": "獨立創作短劇場景與劇本片段",
+    "new": "新場景",
+    "number": "場次",
+    "description": "描述",
+    "script": "劇本",
+    "noScenes": "尚未建立場景。",
+    "descriptionPlaceholder": "地點、氣氛、動作…",
+    "scriptPlaceholder": "對白與鏡頭指示…"
+  },
+  "props": {
+    "title": "道具創作",
+    "subtitle": "獨立創作短劇道具",
+    "new": "新道具",
+    "name": "名稱",
+    "description": "描述",
+    "noProps": "尚未建立道具。",
+    "namePlaceholder": "例如：懷錶",
+    "descriptionPlaceholder": "外觀、象徵意義…"
+  },
+  "timeline": {
+    "title": "線性時間軸",
+    "subtitle": "引用人物、場景、道具與對白，精準控制時長（因應 AI 影片長度限制）",
+    "new": "新增片段",
+    "start": "開始（秒）",
+    "end": "結束（秒）",
+    "character": "人物",
+    "scene": "場景",
+    "prop": "道具",
+    "dialogue": "對白",
+    "order": "順序",
+    "duration": "總時長：{{seconds}} 秒",
+    "maxClip": "單段上限：{{seconds}} 秒",
+    "noEntries": "時間軸為空。從右側引用資源並新增片段。",
+    "library": "資源庫",
+    "none": "（無）",
+    "addClip": "加入時間軸"
+  },
+  "ai": {
+    "status": "AI 狀態",
+    "online": "Grok CLI 已連線",
+    "offline": "Grok CLI 離線",
+    "hint": "請啟動 Grok-Cli-to-OpenAI-compatible 服務（預設 :39281）"
+  }
+}
