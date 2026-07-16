@@ -42,6 +42,7 @@ export interface Scene {
   sceneNumber: number
   description: string
   script: string | null
+  status: SceneStatus
 }
 
 export interface Prop {
@@ -80,6 +81,7 @@ export interface CreateSceneInput {
   sceneNumber: number
   description: string
   script?: string | null
+  status?: SceneStatus
 }
 
 export interface CreatePropInput {

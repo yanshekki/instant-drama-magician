@@ -2,6 +2,10 @@ import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
+// Custom Prisma Client lives outside node_modules (src/types/prisma).
+// It must stay external: CJS + native query engine cannot be rolled up.
+const prismaClientExternal = /(?:^|[\\/])src[\\/]types[\\/]prisma(?:[\\/].*)?$/
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
@@ -9,7 +13,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('electron/main/index.ts')
-        }
+        },
+        external: [prismaClientExternal]
       }
     }
   },

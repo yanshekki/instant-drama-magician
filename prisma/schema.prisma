@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/types/prisma"
 }
 
 datasource db {
@@ -28,17 +29,20 @@ model Character {
   description  String
   refImagePath String?
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timelineEntries TimelineEntry[]
 }
 
 model Scene {
-  id          String @id @default(cuid())
+  id          String      @id @default(cuid())
   storyId     String
   sceneNumber Int
   description String
   script      String?
+  status      SceneStatus @default(PENDING)
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timelineEntries TimelineEntry[]
 }
 
 model Prop {
@@ -47,7 +51,8 @@ model Prop {
   name        String
   description String
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  timelineEntries TimelineEntry[]
 }
 
 model TimelineEntry {
@@ -61,7 +66,10 @@ model TimelineEntry {
   dialogue    String?
   order       Int
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  story     Story      @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  scene     Scene?     @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  prop      Prop?      @relation(fields: [propId], references: [id], onDelete: SetNull)
 }
 
 enum StoryStatus {

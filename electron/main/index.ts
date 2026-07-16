@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../../src/types/prisma'
 import { registerIpcHandlers } from './ipc'
 
 const isDev = !app.isPackaged

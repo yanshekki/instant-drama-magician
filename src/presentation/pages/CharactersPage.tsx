@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  extractDescriptionFromSoulMd,
+  extractNameFromSoulMd
+} from '../../domain/character'
 import { getApi } from '../../lib/api'
 import type { Character } from '../../types/domain'
 import { useApp } from '../context/AppContext'
@@ -41,12 +45,11 @@ export function CharactersPage(): JSX.Element {
     setSoulMdPath(result.filePath)
     setSoulPreview(result.content.slice(0, 400))
     if (!description.trim()) {
-      setDescription(result.content.slice(0, 500))
+      setDescription(extractDescriptionFromSoulMd(result.content))
     }
-    // Try to extract a name from first heading
-    const match = result.content.match(/^#\s+(.+)$/m)
-    if (match && !name.trim()) {
-      setName(match[1].trim())
+    if (!name.trim()) {
+      const extracted = extractNameFromSoulMd(result.content)
+      if (extracted) setName(extracted)
     }
   }
 

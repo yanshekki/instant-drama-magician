@@ -1,46 +1,75 @@
 import type { TimelineEntry } from '../types/domain'
+import {
+  DEFAULT_MAX_CLIP_SECONDS,
+  clampDuration,
+  moveClip,
+  reindexOrders,
+  resizeClipEnd,
+  sortTimelineEntries,
+  suggestNextSlot,
+  totalDuration,
+  validateTimeRange,
+  type TimeRange,
+  type TimeSlot
+} from '../domain/timeline'
 
-/** Pure helpers for linear timeline control (AI video length limits). */
+/**
+ * Application-facing timeline helpers.
+ * Pure rules live in `src/domain/timeline`; this class is a stable facade
+ * for presentation and future persistence services.
+ */
 export class TimelineService {
-  /** Total duration in seconds from the latest endTime. */
-  static totalDuration(entries: TimelineEntry[]): number {
-    if (entries.length === 0) return 0
-    return entries.reduce((max, e) => Math.max(max, e.endTime), 0)
+  static readonly DEFAULT_MAX_CLIP_SECONDS = DEFAULT_MAX_CLIP_SECONDS
+
+  static totalDuration(entries: readonly TimelineEntry[]): number {
+    return totalDuration(entries)
   }
 
-  /** Sort by order, then startTime. */
-  static sort(entries: TimelineEntry[]): TimelineEntry[] {
-    return [...entries].sort((a, b) => {
-      if (a.order !== b.order) return a.order - b.order
-      return a.startTime - b.startTime
-    })
+  static sort(entries: readonly TimelineEntry[]): TimelineEntry[] {
+    return sortTimelineEntries(entries)
   }
 
-  /** Suggest next free slot of given duration after the last clip. */
   static suggestNextSlot(
-    entries: TimelineEntry[],
+    entries: readonly TimelineEntry[],
     durationSeconds: number
-  ): { startTime: number; endTime: number; order: number } {
-    const sorted = this.sort(entries)
-    const startTime = sorted.length > 0 ? this.totalDuration(sorted) : 0
-    const order = sorted.length > 0 ? sorted[sorted.length - 1].order + 1 : 0
-    return {
-      startTime,
-      endTime: startTime + durationSeconds,
-      order
-    }
+  ): TimeSlot {
+    return suggestNextSlot(entries, durationSeconds)
   }
 
-  /** Clamp entry duration to a max clip length (e.g. AI video limit). */
   static clampDuration(
     startTime: number,
     endTime: number,
-    maxClipSeconds: number
-  ): { startTime: number; endTime: number } {
-    const duration = Math.max(0, endTime - startTime)
-    const clamped = Math.min(duration, maxClipSeconds)
-    return { startTime, endTime: startTime + clamped }
+    maxClipSeconds: number = DEFAULT_MAX_CLIP_SECONDS
+  ): TimeRange {
+    return clampDuration(startTime, endTime, maxClipSeconds)
   }
 
-  static readonly DEFAULT_MAX_CLIP_SECONDS = 10
+  static moveClip(
+    startTime: number,
+    endTime: number,
+    deltaSeconds: number,
+    maxClipSeconds: number = DEFAULT_MAX_CLIP_SECONDS
+  ): TimeRange {
+    return moveClip(startTime, endTime, deltaSeconds, maxClipSeconds)
+  }
+
+  static resizeClipEnd(
+    startTime: number,
+    endTime: number,
+    maxClipSeconds: number = DEFAULT_MAX_CLIP_SECONDS
+  ): TimeRange {
+    return resizeClipEnd(startTime, endTime, maxClipSeconds)
+  }
+
+  static validateTimeRange(
+    startTime: number,
+    endTime: number,
+    maxClipSeconds: number = DEFAULT_MAX_CLIP_SECONDS
+  ): string | null {
+    return validateTimeRange(startTime, endTime, maxClipSeconds)
+  }
+
+  static reindexOrders(orderedIds: readonly string[]): Map<string, number> {
+    return reindexOrders(orderedIds)
+  }
 }

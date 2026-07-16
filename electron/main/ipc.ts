@@ -5,7 +5,7 @@ import type {
   OpenDialogOptions,
   Shell
 } from 'electron'
-import type { PrismaClient, StoryStatus } from '@prisma/client'
+import type { PrismaClient, StoryStatus } from '../../src/types/prisma'
 import { readFileSync, existsSync } from 'fs'
 import { GrokCliClient } from '../../src/infrastructure/ai/GrokCliClient'
 import { GenerationPipeline } from '../../src/application/GenerationPipeline'

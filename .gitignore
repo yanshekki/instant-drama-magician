@@ -9,6 +9,8 @@ out
 prisma/dev.db
 prisma/dev.db-journal
 prisma/*.db
+# Generated Prisma Client (brief: src/types/prisma)
+src/types/prisma
 *.tsbuildinfo
 *.local
 .vscode/*
