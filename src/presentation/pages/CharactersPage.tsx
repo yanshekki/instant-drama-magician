@@ -226,16 +226,24 @@ export function CharactersPage(): JSX.Element {
                 </pre>
               )}
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <div className="text-xs text-ink-400">{t('characters.refImage')}</div>
+            <div className="space-y-2 rounded-lg border border-ink-700 p-3">
+              <div className="text-sm font-medium text-ink-200">{t('characters.refImage')}</div>
+              <p className="text-xs text-ink-500">{t('characters.refHint')}</p>
+              {refImagePath ? (
+                <p className="truncate text-[11px] text-brand-300">{refImagePath}</p>
+              ) : (
+                <p className="text-xs text-amber-300/90">{t('characters.refMissing')}</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => void handlePickRefImage()}>
+                  {t('characters.pickImage')}
+                </Button>
                 {refImagePath && (
-                  <p className="truncate text-[11px] text-brand-300">{refImagePath}</p>
+                  <Button variant="ghost" onClick={() => setRefImagePath(null)}>
+                    {t('characters.clearRef')}
+                  </Button>
                 )}
               </div>
-              <Button variant="secondary" onClick={() => void handlePickRefImage()}>
-                {t('characters.pickImage')}
-              </Button>
             </div>
             <div className="flex gap-2">
               <Button onClick={() => void handleSubmit()} disabled={!name.trim()}>
@@ -256,11 +264,28 @@ export function CharactersPage(): JSX.Element {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {items.map((c) => (
               <Card key={c.id}>
-                <h2 className="font-semibold text-ink-50">{c.name}</h2>
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="font-semibold text-ink-50">{c.name}</h2>
+                  <span
+                    className={[
+                      'shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase',
+                      c.refImagePath
+                        ? 'bg-emerald-900/50 text-emerald-200'
+                        : 'bg-amber-900/40 text-amber-200'
+                    ].join(' ')}
+                  >
+                    {c.refImagePath ? t('characters.refOk') : t('characters.refMissingBadge')}
+                  </span>
+                </div>
                 <p className="mt-2 line-clamp-4 text-sm text-ink-400">{c.description}</p>
                 {c.soulMdPath && (
                   <p className="mt-2 truncate text-[11px] text-brand-400">
                     soul.md · {c.soulMdPath}
+                  </p>
+                )}
+                {c.refImagePath && (
+                  <p className="mt-1 truncate text-[11px] text-ink-500">
+                    ref · {c.refImagePath}
                   </p>
                 )}
                 <div className="mt-4 flex gap-2">

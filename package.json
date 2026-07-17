@@ -1,6 +1,6 @@
 {
   "name": "instant-drama-magician",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI 專業短劇生成桌面工具 — InstantDrama Magician",
   "main": "./out/main/index.js",
   "author": "yanshekki",

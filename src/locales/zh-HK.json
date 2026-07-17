@@ -56,7 +56,9 @@
     "step1": "建立故事，或載入 Demo",
     "step2": "在人物／場景／道具頁加內容（Demo 已預填）",
     "step3": "到時間軸生成或匯出（無 gateway 會用色塊占位片）",
-    "prototypeNote": "Brief MVP 已齊；商業發行級成片能力仍在發展。"
+    "prototypeNote": "Brief MVP 已齊；商業發行級成片能力仍在發展。",
+    "styleNote": "風格備註（Style bible）",
+    "styleNotePlaceholder": "例如：雨夜霓虹、手持鏡頭、冷暖對比…"
   },
   "characters": {
     "title": "人物創作",
@@ -74,7 +76,12 @@
     "pickImage": "選擇圖片",
     "openHub": "開啟 soulmd-hub",
     "soulUrl": "soul.md URL",
-    "importUrl": "由 URL 匯入"
+    "importUrl": "由 URL 匯入",
+    "refHint": "參考圖會上傳至 Gateway，提升人物外貌一致性。",
+    "refMissing": "未設定參考圖 — live 生成時外貌可能不一致。",
+    "clearRef": "清除參考圖",
+    "refOk": "有參考圖",
+    "refMissingBadge": "無參考圖"
   },
   "scenes": {
     "title": "場景創作",
@@ -153,7 +160,12 @@
     "confirmAuto": "將自動選擇 Gateway 或 stub。繼續？",
     "exportFallbackConfirm": "部分片段未 READY，將使用色塊占位。仍要匯出？",
     "clipDoneOk": "此段影片已就緒。",
-    "clipDoneStub": "此段已就緒（stub 占位）。"
+    "clipDoneStub": "此段已就緒（stub 占位）。",
+    "cancelled": "已取消生成。",
+    "cancelling": "正在取消…",
+    "noFailedClips": "沒有失敗片段可重試。",
+    "missingRefConfirm": "以下人物未設定參考圖：{{names}}。繼續生成？",
+    "missingRefBanner": "人物缺參考圖（一致性較差）：{{names}}"
   },
   "settings": {
     "title": "設定",
@@ -174,8 +186,14 @@
     "videoMaxRetries": "Video 重試次數",
     "audio": "音訊",
     "pickBgm": "選擇 BGM",
+    "clearBgm": "清除 BGM",
     "noBgm": "（未設定）",
+    "bgmVolume": "BGM 音量",
+    "dialogueVolume": "對白 TTS 音量",
     "ttsEnabled": "匯出時嘗試 TTS 對白（可選）",
+    "ttsHttpUrl": "TTS HTTP URL（可選）",
+    "ttsVoice": "TTS 聲線",
+    "openExportFolder": "匯出後在資料夾中顯示",
     "snapEnabled": "時間軸吸附",
     "aspectRatio": "影片比例 (aspect_ratio)",
     "videoPathHint": "預設 {baseUrl}/videos（OpenAI Videos API）",

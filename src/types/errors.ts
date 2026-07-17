@@ -4,6 +4,7 @@ export type AppErrorCode =
   | 'VALIDATION'
   | 'NOT_FOUND'
   | 'CONFLICT'
+  | 'CANCELLED'
   | 'AI_UNAVAILABLE'
   | 'AI_FAILED'
   | 'FFMPEG_UNAVAILABLE'
@@ -57,6 +58,9 @@ export function toAppError(error: unknown): AppErrorBody {
 /** Map gateway / provider error strings to structured codes. */
 export function mapVideoHttpMessage(message: string): AppErrorBody | null {
   const m = message.toLowerCase()
+  if (/^cancell?ed$|aborted|user cancelled/.test(m)) {
+    return { code: 'CANCELLED', message: message }
+  }
   if (/videoapi|video api is disabled|featuredisabled|feature.?disabled/.test(m)) {
     return {
       code: 'VIDEO_FEATURE_OFF',

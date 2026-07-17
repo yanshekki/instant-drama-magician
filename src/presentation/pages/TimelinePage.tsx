@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TimelineService } from '../../application/TimelineService'
+import { charactersMissingRef } from '../../domain/promptContinuity'
 import { snapVideoSeconds } from '../../domain/videoDuration'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
@@ -71,16 +72,38 @@ export function TimelinePage(): JSX.Element {
   const [banner, setBanner] = useState<string | null>(null)
   const [clipSeconds, setClipSeconds] = useState<6 | 10>(6)
   const [videoMode, setVideoMode] = useState<string>('auto')
+  const [openExportFolder, setOpenExportFolder] = useState(true)
   const [lastExportPath, setLastExportPath] = useState<string | null>(null)
   const [currentStepLabel, setCurrentStepLabel] = useState<string | null>(null)
   const [clipBusyId, setClipBusyId] = useState<string | null>(null)
+  const [liveClipStatus, setLiveClipStatus] = useState<
+    Record<string, string>
+  >({})
+  const [jobSummary, setJobSummary] = useState<string | null>(null)
 
   const selected = entries.find((e) => e.id === selectedId) ?? null
+  const busy = generating || Boolean(clipBusyId)
+
+  const missingRefs = useMemo(
+    () => charactersMissingRef(entries, characters),
+    [entries, characters]
+  )
+  const failedCount = useMemo(
+    () => entries.filter((e) => e.mediaStatus === 'FAILED').length,
+    [entries]
+  )
+  const readyCount = useMemo(
+    () => entries.filter((e) => e.mediaStatus === 'READY').length,
+    [entries]
+  )
 
   useEffect(() => {
     void getApi()
       .settings.get()
-      .then((s: AppSettings) => setVideoMode(s.videoMode))
+      .then((s: AppSettings) => {
+        setVideoMode(s.videoMode)
+        setOpenExportFolder(s.openExportFolder)
+      })
       .catch(() => undefined)
   }, [])
 
@@ -140,6 +163,17 @@ export function TimelinePage(): JSX.Element {
       const stepKey = STEP_I18N[payload.step]
       const human = stepKey ? t(stepKey) : payload.step
       setCurrentStepLabel(human)
+      if (payload.entryId && payload.mediaStatus) {
+        setLiveClipStatus((prev) => ({
+          ...prev,
+          [payload.entryId!]: payload.mediaStatus!
+        }))
+        setJobSummary(
+          `${human} · ${payload.index + 1}/${payload.total} · ${payload.mediaStatus}${
+            payload.jobId ? ` · job ${payload.jobId.slice(0, 8)}` : ''
+          }`
+        )
+      }
       const line = payload.entryId
         ? `${human} · clip ${payload.entryId.slice(0, 6)} → ${payload.mediaStatus ?? ''}${
             payload.jobId ? ` job=${payload.jobId.slice(0, 8)}` : ''
@@ -149,7 +183,7 @@ export function TimelinePage(): JSX.Element {
           : `… [${payload.index + 1}/${payload.total}] ${human}${
               payload.result?.error ? `: ${payload.result.error}` : ''
             }`
-      setProgressLog((prev) => [...prev, line])
+      setProgressLog((prev) => [...prev.slice(-80), line])
       if (payload.entryId) void reload()
     })
   }, [reload, t])
@@ -247,6 +281,10 @@ export function TimelinePage(): JSX.Element {
 
   const handleGenerate = async (onlyFailed = false): Promise<void> => {
     if (!activeStoryId) return
+    if (onlyFailed && failedCount === 0) {
+      setBanner(t('pipeline.noFailedClips'))
+      return
+    }
     const modeHint =
       videoMode === 'stub'
         ? t('pipeline.confirmStub')
@@ -254,10 +292,20 @@ export function TimelinePage(): JSX.Element {
           ? t('pipeline.confirmHttp')
           : t('pipeline.confirmAuto')
     if (!confirm(modeHint)) return
+    if (videoMode !== 'stub' && missingRefs.length > 0) {
+      const ok = confirm(
+        t('pipeline.missingRefConfirm', {
+          names: missingRefs.map((c) => c.name).join(', ')
+        })
+      )
+      if (!ok) return
+    }
     setGenerating(true)
     setProgressLog([])
     setGenResult(null)
     setActionError(null)
+    setLiveClipStatus({})
+    setJobSummary(onlyFailed ? t('common.retryFailed') : t('common.generate'))
     setStepIndex(0)
     try {
       const result = (await getApi().generation.run(activeStoryId, {
@@ -270,30 +318,41 @@ export function TimelinePage(): JSX.Element {
           : `✗ ${human}: ${s.error ?? 'failed'}`
       })
       setGenResult(lines.join('\n\n'))
+      const cancelled = result.steps.some(
+        (s) => !s.success && /cancell?ed/i.test(s.error ?? '')
+      )
       const anyDegraded = result.steps.some((s) => s.degraded)
       setBanner(
-        result.success
-          ? anyDegraded
-            ? t('pipeline.doneStub')
-            : t('pipeline.doneOk')
-          : t('pipeline.doneFail')
+        cancelled
+          ? t('pipeline.cancelled')
+          : result.success
+            ? anyDegraded
+              ? t('pipeline.doneStub')
+              : t('pipeline.doneOk')
+            : t('pipeline.doneFail')
       )
       await reload()
       await refreshStories()
       await refreshAiStatus()
     } catch (e) {
       const err = parseIpcError(e)
-      setActionError(
-        `${err.message}${err.code === 'FFMPEG_UNAVAILABLE' ? ` — ${t('pipeline.needFfmpeg')}` : ` — ${t('pipeline.checkGateway')}`}`
-      )
-      setBanner(t('pipeline.doneFail'))
+      if (err.code === 'CANCELLED') {
+        setBanner(t('pipeline.cancelled'))
+      } else {
+        setActionError(
+          `${err.message}${err.code === 'FFMPEG_UNAVAILABLE' ? ` — ${t('pipeline.needFfmpeg')}` : ` — ${t('pipeline.checkGateway')}`}`
+        )
+        setBanner(t('pipeline.doneFail'))
+      }
     } finally {
       setGenerating(false)
+      setJobSummary(null)
     }
   }
 
   const handleCancel = async (): Promise<void> => {
     await getApi().generation.cancel()
+    setBanner(t('pipeline.cancelling'))
   }
 
   const handleExport = async (mode: 'board' | 'final'): Promise<void> => {
@@ -323,6 +382,9 @@ export function TimelinePage(): JSX.Element {
       setGenResult((prev) =>
         [prev, `Export: ${outputPath}`].filter(Boolean).join('\n\n')
       )
+      if (openExportFolder) {
+        void getApi().shell.showItemInFolder(outputPath)
+      }
     } catch (e) {
       const err = parseIpcError(e)
       setActionError(
@@ -336,9 +398,19 @@ export function TimelinePage(): JSX.Element {
   }
 
   const handleRunClip = async (entryId: string): Promise<void> => {
-    if (!activeStoryId || generating || clipBusyId) return
+    if (!activeStoryId || busy) return
+    if (videoMode !== 'stub' && missingRefs.length > 0) {
+      const ok = confirm(
+        t('pipeline.missingRefConfirm', {
+          names: missingRefs.map((c) => c.name).join(', ')
+        })
+      )
+      if (!ok) return
+    }
     setClipBusyId(entryId)
     setActionError(null)
+    setJobSummary(t('timeline.generateClip'))
+    setLiveClipStatus((prev) => ({ ...prev, [entryId]: 'GENERATING' }))
     try {
       const r = await getApi().generation.runClip(activeStoryId, entryId)
       setBanner(
@@ -348,12 +420,17 @@ export function TimelinePage(): JSX.Element {
       await refreshStories()
     } catch (e) {
       const err = parseIpcError(e)
-      setActionError(
-        `${err.message}${err.details ? ` — ${err.details}` : ''}`
-      )
+      if (err.code === 'CANCELLED') {
+        setBanner(t('pipeline.cancelled'))
+      } else {
+        setActionError(
+          `${err.message}${err.details ? ` — ${err.details}` : ''}`
+        )
+      }
       await reload()
     } finally {
       setClipBusyId(null)
+      setJobSummary(null)
     }
   }
 
@@ -426,7 +503,7 @@ export function TimelinePage(): JSX.Element {
             >
               {exporting ? t('common.exporting') : t('common.export')}
             </Button>
-            {generating ? (
+            {busy ? (
               <Button variant="danger" onClick={() => void handleCancel()}>
                 {t('common.cancelGen')}
               </Button>
@@ -435,13 +512,19 @@ export function TimelinePage(): JSX.Element {
                 <Button
                   variant="secondary"
                   onClick={() => void handleGenerate(true)}
-                  disabled={Boolean(clipBusyId)}
+                  disabled={exporting || failedCount === 0}
+                  title={
+                    failedCount === 0
+                      ? t('pipeline.noFailedClips')
+                      : t('common.retryFailed')
+                  }
                 >
                   {t('common.retryFailed')}
+                  {failedCount > 0 ? ` (${failedCount})` : ''}
                 </Button>
                 <Button
                   onClick={() => void handleGenerate(false)}
-                  disabled={Boolean(clipBusyId)}
+                  disabled={exporting}
                 >
                   {t('common.generate')}
                 </Button>
@@ -463,24 +546,53 @@ export function TimelinePage(): JSX.Element {
             <span className="rounded-full bg-ink-800 px-2 py-0.5 text-brand-200">
               Video: {videoMode}
             </span>
+            <span className="rounded-full bg-ink-800 px-2 py-0.5 text-ink-300">
+              {readyCount}/{entries.length} READY
+              {failedCount > 0 ? ` · ${failedCount} FAILED` : ''}
+            </span>
           </div>
 
-          {generating && (
+          {missingRefs.length > 0 && videoMode !== 'stub' && (
+            <div className="border-b border-amber-900/40 bg-amber-950/30 px-6 py-2 text-xs text-amber-100">
+              {t('pipeline.missingRefBanner', {
+                names: missingRefs.map((c) => c.name).join(', ')
+              })}
+            </div>
+          )}
+
+          {busy && (
             <div className="border-b border-ink-800 px-6 py-2">
               <div className="mb-1 flex justify-between text-[11px] text-ink-400">
                 <span>
                   {t('common.generating')}
-                  {currentStepLabel ? ` · ${currentStepLabel}` : ''} ({stepIndex}/
-                  {stepTotal})
+                  {currentStepLabel ? ` · ${currentStepLabel}` : ''}
+                  {jobSummary ? ` · ${jobSummary}` : ''} ({stepIndex}/{stepTotal})
                 </span>
                 <span>{progressPct}%</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-ink-800">
                 <div
                   className="h-full bg-brand-500 transition-all"
-                  style={{ width: `${progressPct}%` }}
+                  style={{ width: `${Math.max(progressPct, 4)}%` }}
                 />
               </div>
+              {Object.keys(liveClipStatus).length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {Object.entries(liveClipStatus).map(([id, st]) => (
+                    <span
+                      key={id}
+                      className={[
+                        'rounded px-1.5 py-0.5 text-[10px] uppercase',
+                        mediaBadge[(st as MediaStatus) in mediaBadge
+                          ? (st as MediaStatus)
+                          : 'GENERATING']
+                      ].join(' ')}
+                    >
+                      {id.slice(0, 6)}:{st}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -631,7 +743,7 @@ export function TimelinePage(): JSX.Element {
                     <Button
                       variant="ghost"
                       className="ml-2 !py-0.5 !px-2 text-[11px]"
-                      disabled={generating || clipBusyId === e.id}
+                      disabled={busy}
                       onClick={(ev) => {
                         ev.stopPropagation()
                         void handleRunClip(e.id)
@@ -643,6 +755,11 @@ export function TimelinePage(): JSX.Element {
                           ? t('timeline.generateClip')
                           : t('timeline.regenClip')}
                     </Button>
+                    {liveClipStatus[e.id] && liveClipStatus[e.id] !== e.mediaStatus && (
+                      <span className="ml-1 text-[10px] text-amber-200">
+                        → {liveClipStatus[e.id]}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

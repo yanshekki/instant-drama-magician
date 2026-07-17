@@ -1,6 +1,7 @@
 import { spawn } from 'child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import { basename, dirname, join } from 'path'
+import { buildAudioMixFilter, secondsToMs } from '../../domain/audioMix'
 import { AppError } from '../../types/errors'
 
 export interface StoryboardClip {
@@ -121,7 +122,8 @@ export class FfmpegService {
   }
 
   /**
-   * High-quality final export: normalize clips, optional burn-in SRT, silent AAC.
+   * High-quality final export: normalize clips, optional burn-in SRT,
+   * BGM + timed dialogue TTS stems.
    */
   async exportFinal(options: {
     outDir: string
@@ -134,6 +136,7 @@ export class FfmpegService {
     profile?: 'fast' | 'balanced'
     bgmPath?: string | null
     bgmVolume?: number
+    dialogueVolume?: number
     dialogueAudioPaths?: Array<{ path: string; startSeconds: number }> | null
   }): Promise<string> {
     await this.ensureAvailable()
@@ -163,34 +166,60 @@ export class FfmpegService {
       vfParts.push(`subtitles='${escaped}'`)
     }
 
+    const dialogue = (options.dialogueAudioPaths ?? []).filter(
+      (d) => d.path && existsSync(d.path)
+    )
     const hasBgm = Boolean(options.bgmPath && existsSync(options.bgmPath))
+    const needsAudio =
+      hasBgm || dialogue.length > 0 || options.includeSilentAudio !== false
     const vol = Math.min(1, Math.max(0, options.bgmVolume ?? 0.25))
+    const dVol = Math.min(1, Math.max(0, options.dialogueVolume ?? 1))
+
     const args: string[] = [this.ffmpegBin, '-y', '-i', rawPath]
 
     if (hasBgm) {
       args.push('-stream_loop', '-1', '-i', options.bgmPath!)
-    } else if (options.includeSilentAudio !== false) {
-      args.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100')
+    } else if (needsAudio) {
+      args.push(
+        '-f',
+        'lavfi',
+        '-i',
+        'anullsrc=channel_layout=stereo:sample_rate=44100'
+      )
     }
 
-    args.push('-vf', vfParts.join(','), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', crf)
+    for (const d of dialogue) {
+      args.push('-i', d.path)
+    }
 
-    if (hasBgm || options.includeSilentAudio !== false) {
-      if (hasBgm) {
-        args.push(
-          '-filter_complex',
-          `[1:a]volume=${vol}[bg];[bg]apad[a]`,
-          '-map',
-          '0:v',
-          '-map',
-          '[a]',
-          '-c:a',
-          'aac',
-          '-shortest'
-        )
-      } else {
-        args.push('-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-shortest')
-      }
+    args.push(
+      '-vf',
+      vfParts.join(','),
+      '-c:v',
+      'libx264',
+      '-pix_fmt',
+      'yuv420p',
+      '-crf',
+      crf
+    )
+
+    if (needsAudio) {
+      const filter = buildAudioMixFilter({
+        bgmVolume: hasBgm ? vol : 0,
+        dialogueVolume: dVol,
+        dialogueStartsMs: dialogue.map((d) => secondsToMs(d.startSeconds))
+      })
+      args.push(
+        '-filter_complex',
+        filter,
+        '-map',
+        '0:v',
+        '-map',
+        '[a]',
+        '-c:a',
+        'aac',
+        '-shortest'
+      )
     } else {
       args.push('-an')
     }

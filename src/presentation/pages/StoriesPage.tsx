@@ -6,7 +6,7 @@ import { parseIpcError } from '../../lib/ipc'
 import type { StoryStatus } from '../../types/domain'
 import { useApp } from '../context/AppContext'
 import { PageHeader } from '../components/PageHeader'
-import { Button, Card, EmptyState, Input, Label } from '../components/ui'
+import { Button, Card, EmptyState, Input, Label, Textarea } from '../components/ui'
 
 const statusKey: Record<StoryStatus, string> = {
   DRAFT: 'stories.statusDraft',
@@ -31,6 +31,7 @@ export function StoriesPage(): JSX.Element {
   const [showForm, setShowForm] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
+  const [styleNote, setStyleNote] = useState('')
 
   const handleCreate = async (): Promise<void> => {
     if (!title.trim()) return
@@ -54,9 +55,13 @@ export function StoriesPage(): JSX.Element {
 
   const handleRename = async (): Promise<void> => {
     if (!renamingId || !renameTitle.trim()) return
-    await getApi().stories.update(renamingId, { title: renameTitle.trim() })
+    await getApi().stories.update(renamingId, {
+      title: renameTitle.trim(),
+      styleNote: styleNote.trim() || null
+    })
     setRenamingId(null)
     setRenameTitle('')
+    setStyleNote('')
     await refreshStories()
   }
 
@@ -187,6 +192,7 @@ export function StoriesPage(): JSX.Element {
                 </p>
                 {renamingId === story.id ? (
                   <div className="mt-3 space-y-2">
+                    <Label>{t('stories.titleLabel')}</Label>
                     <Input
                       value={renameTitle}
                       onChange={(e) => setRenameTitle(e.target.value)}
@@ -194,9 +200,22 @@ export function StoriesPage(): JSX.Element {
                         if (e.key === 'Enter') void handleRename()
                       }}
                     />
+                    <Label>{t('stories.styleNote')}</Label>
+                    <Textarea
+                      rows={3}
+                      value={styleNote}
+                      onChange={(e) => setStyleNote(e.target.value)}
+                      placeholder={t('stories.styleNotePlaceholder')}
+                    />
                     <div className="flex gap-2">
                       <Button onClick={() => void handleRename()}>{t('common.save')}</Button>
-                      <Button variant="ghost" onClick={() => setRenamingId(null)}>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setRenamingId(null)
+                          setStyleNote('')
+                        }}
+                      >
                         {t('common.cancel')}
                       </Button>
                     </div>
@@ -209,6 +228,11 @@ export function StoriesPage(): JSX.Element {
                       onClick={() => {
                         setRenamingId(story.id)
                         setRenameTitle(story.title)
+                        setStyleNote(
+                          'styleNote' in story && typeof story.styleNote === 'string'
+                            ? story.styleNote
+                            : ''
+                        )
                       }}
                     >
                       {t('common.edit')}

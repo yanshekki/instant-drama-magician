@@ -1,5 +1,5 @@
 import type { PrismaClient, StoryStatus } from '../../types/prisma'
-import type { CreateStoryInput } from '../../types/domain'
+import type { CreateStoryInput, UpdateStoryInput } from '../../types/domain'
 import { AppError } from '../../types/errors'
 import { isStoryStatus, normalizeStoryTitle, validateStoryTitle } from '../../domain/story'
 
@@ -35,12 +35,21 @@ export class StoryService {
     const title = normalizeStoryTitle(input.title)
     const err = validateStoryTitle(title)
     if (err) throw new AppError('VALIDATION', err)
-    return this.prisma.story.create({ data: { title } })
+    return this.prisma.story.create({
+      data: {
+        title,
+        styleNote: input.styleNote?.trim() || null
+      }
+    })
   }
 
-  async update(id: string, data: { title?: string; status?: StoryStatus | string }) {
+  async update(id: string, data: UpdateStoryInput) {
     await this.ensureExists(id)
-    const patch: { title?: string; status?: StoryStatus } = {}
+    const patch: {
+      title?: string
+      status?: StoryStatus
+      styleNote?: string | null
+    } = {}
     if (data.title !== undefined) {
       const title = normalizeStoryTitle(data.title)
       const err = validateStoryTitle(title)
@@ -52,6 +61,10 @@ export class StoryService {
         throw new AppError('VALIDATION', `Invalid story status: ${data.status}`)
       }
       patch.status = data.status
+    }
+    if (data.styleNote !== undefined) {
+      const note = data.styleNote?.trim() || null
+      patch.styleNote = note
     }
     return this.prisma.story.update({ where: { id }, data: patch })
   }

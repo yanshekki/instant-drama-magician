@@ -26,13 +26,22 @@ export class MediaStore {
     return join(this.storyDir(storyId), 'exports')
   }
 
+  ttsDir(storyId: string): string {
+    return join(this.storyDir(storyId), 'tts')
+  }
+
   clipPath(storyId: string, entryId: string, ext = '.mp4'): string {
     return join(this.clipsDir(storyId), `${entryId}${ext}`)
+  }
+
+  ttsPath(storyId: string, entryId: string, ext = '.wav'): string {
+    return join(this.ttsDir(storyId), `${entryId}${ext}`)
   }
 
   ensureStoryDirs(storyId: string): void {
     mkdirSync(this.clipsDir(storyId), { recursive: true })
     mkdirSync(this.exportsDir(storyId), { recursive: true })
+    mkdirSync(this.ttsDir(storyId), { recursive: true })
   }
 
   importClip(storyId: string, entryId: string, sourcePath: string): string {

@@ -15,8 +15,10 @@ const api: ElectronApi = {
     list: () => ipcRenderer.invoke('stories:list'),
     get: (id: string) => ipcRenderer.invoke('stories:get', id),
     create: (input: CreateStoryInput) => ipcRenderer.invoke('stories:create', input),
-    update: (id: string, data: { title?: string; status?: string }) =>
-      ipcRenderer.invoke('stories:update', id, data),
+    update: (
+      id: string,
+      data: { title?: string; status?: string; styleNote?: string | null }
+    ) => ipcRenderer.invoke('stories:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('stories:delete', id),
     seedDemo: (locale?: 'zh-HK' | 'en') =>
       ipcRenderer.invoke('stories:seedDemo', locale)

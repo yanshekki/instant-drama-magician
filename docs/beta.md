@@ -26,9 +26,11 @@
 ## 已知限制（Beta）
 
 - 非商店簽章安裝包
-- TTS / BGM 品質有限
+- TTS / BGM 品質有限（Round 8 已接混音路徑，品質仍依賴本機 TTS）
 - 單軌時間軸
 - 真片品質取決於 gateway `MEDIA_PROVIDER`
+
+Production UX 深化見 [production-ux.md](./production-ux.md)。
 
 ## 打包
 

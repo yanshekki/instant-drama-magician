@@ -56,7 +56,9 @@
     "step1": "Create a story or load the demo",
     "step2": "Add characters / scenes / props (demo is prefilled)",
     "step3": "Generate or export on the timeline (stub clips without a gateway)",
-    "prototypeNote": "Brief MVP is complete; commercial-grade film quality is still evolving."
+    "prototypeNote": "Brief MVP is complete; commercial-grade film quality is still evolving.",
+    "styleNote": "Style bible",
+    "styleNotePlaceholder": "e.g. rainy neon night, handheld camera, cool/warm contrast…"
   },
   "characters": {
     "title": "Characters",
@@ -74,7 +76,12 @@
     "pickImage": "Pick image",
     "openHub": "Open soulmd-hub",
     "soulUrl": "soul.md URL",
-    "importUrl": "Import from URL"
+    "importUrl": "Import from URL",
+    "refHint": "Reference images are uploaded to the gateway for character consistency.",
+    "refMissing": "No reference image — live generation may look inconsistent.",
+    "clearRef": "Clear reference",
+    "refOk": "Has ref",
+    "refMissingBadge": "No ref"
   },
   "scenes": {
     "title": "Scenes",
@@ -153,7 +160,12 @@
     "confirmAuto": "Will auto-pick Gateway or stub. Continue?",
     "exportFallbackConfirm": "Some clips are not READY; color fallbacks will be used. Export anyway?",
     "clipDoneOk": "Clip video is ready.",
-    "clipDoneStub": "Clip ready (stub placeholder)."
+    "clipDoneStub": "Clip ready (stub placeholder).",
+    "cancelled": "Generation cancelled.",
+    "cancelling": "Cancelling…",
+    "noFailedClips": "No failed clips to retry.",
+    "missingRefConfirm": "These characters have no reference image: {{names}}. Continue?",
+    "missingRefBanner": "Missing character refs (weaker consistency): {{names}}"
   },
   "settings": {
     "title": "Settings",
@@ -174,8 +186,14 @@
     "videoMaxRetries": "Video max retries",
     "audio": "Audio",
     "pickBgm": "Pick BGM",
+    "clearBgm": "Clear BGM",
     "noBgm": "(none)",
+    "bgmVolume": "BGM volume",
+    "dialogueVolume": "Dialogue TTS volume",
     "ttsEnabled": "Try TTS for dialogue on export (optional)",
+    "ttsHttpUrl": "TTS HTTP URL (optional)",
+    "ttsVoice": "TTS voice",
+    "openExportFolder": "Reveal export in folder after save",
     "snapEnabled": "Timeline snap",
     "aspectRatio": "Video aspect ratio",
     "videoPathHint": "Default {baseUrl}/videos (OpenAI Videos API)",

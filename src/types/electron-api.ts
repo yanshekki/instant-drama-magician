@@ -15,7 +15,10 @@ export interface ElectronApi {
     list: () => Promise<unknown>
     get: (id: string) => Promise<unknown>
     create: (input: CreateStoryInput) => Promise<{ id: string }>
-    update: (id: string, data: { title?: string; status?: string }) => Promise<unknown>
+    update: (
+      id: string,
+      data: { title?: string; status?: string; styleNote?: string | null }
+    ) => Promise<unknown>
     delete: (id: string) => Promise<{ ok: boolean }>
     seedDemo: (locale?: 'zh-HK' | 'en') => Promise<{ storyId: string; title: string }>
   }

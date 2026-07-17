@@ -19,9 +19,13 @@ export interface AppSettings {
   /** Audio */
   bgmPath: string | null
   bgmVolume: number
+  /** Dialogue TTS level when mixed into final export (0–1) */
+  dialogueVolume: number
   ttsEnabled: boolean
   ttsVoice: string
   ttsHttpUrl: string
+  /** After export, reveal file in folder manager */
+  openExportFolder: boolean
   /** UX */
   snapEnabled: boolean
   snapGridSec: number
@@ -49,9 +53,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   videoConcurrency: 1,
   bgmPath: null,
   bgmVolume: 0.25,
+  dialogueVolume: 1,
   ttsEnabled: false,
   ttsVoice: 'default',
   ttsHttpUrl: '',
+  openExportFolder: true,
   snapEnabled: true,
   snapGridSec: 0.5,
   aspectRatio: '16:9',

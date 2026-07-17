@@ -110,8 +110,12 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   )
   ipcMain.handle(
     'stories:update',
-    wrap(async (_e, id: string, data: { title?: string; status?: string }) =>
-      stories().update(id, data)
+    wrap(
+      async (
+        _e,
+        id: string,
+        data: { title?: string; status?: string; styleNote?: string | null }
+      ) => stories().update(id, data)
     )
   )
   ipcMain.handle(

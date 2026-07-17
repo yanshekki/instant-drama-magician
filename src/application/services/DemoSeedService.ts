@@ -10,7 +10,14 @@ export class DemoSeedService {
     const zh = locale === 'zh-HK'
     const title = zh ? 'Demo：雨夜重逢' : 'Demo: Reunion in the Rain'
 
-    const story = await this.prisma.story.create({ data: { title } })
+    const story = await this.prisma.story.create({
+      data: {
+        title,
+        styleNote: zh
+          ? '香港雨夜霓虹寫實風格，冷暖對比，手持輕微晃動，電影感。'
+          : 'Hong Kong rainy-night neon realism; cool/warm contrast; slight handheld; cinematic.'
+      }
+    })
 
     const charA = await this.prisma.character.create({
       data: {

@@ -25,3 +25,12 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Pack (dir)
+        run: npm run pack
+      - name: Upload linux pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: instant-drama-magician-linux-unpacked
+          path: release/linux-unpacked
+          if-no-files-found: warn
+          retention-days: 14

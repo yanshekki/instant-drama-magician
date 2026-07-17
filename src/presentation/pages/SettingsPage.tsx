@@ -177,18 +177,54 @@ export function SettingsPage(): JSX.Element {
               <div className="text-xs text-ink-400">
                 BGM: {settings.bgmPath ?? t('settings.noBgm')}
               </div>
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  void getApi()
-                    .media.pickBgm()
-                    .then((r) => {
-                      if (r) patch('bgmPath', r.filePath)
-                    })
-                }
-              >
-                {t('settings.pickBgm')}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    void getApi()
+                      .media.pickBgm()
+                      .then((r) => {
+                        if (r) patch('bgmPath', r.filePath)
+                      })
+                  }
+                >
+                  {t('settings.pickBgm')}
+                </Button>
+                {settings.bgmPath && (
+                  <Button variant="ghost" onClick={() => patch('bgmPath', null)}>
+                    {t('settings.clearBgm')}
+                  </Button>
+                )}
+              </div>
+              <div>
+                <Label>
+                  {t('settings.bgmVolume')} ({Math.round(settings.bgmVolume * 100)}%)
+                </Label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(settings.bgmVolume * 100)}
+                  onChange={(e) => patch('bgmVolume', Number(e.target.value) / 100)}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <Label>
+                  {t('settings.dialogueVolume')} (
+                  {Math.round(settings.dialogueVolume * 100)}%)
+                </Label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(settings.dialogueVolume * 100)}
+                  onChange={(e) =>
+                    patch('dialogueVolume', Number(e.target.value) / 100)
+                  }
+                  className="w-full"
+                />
+              </div>
               <label className="flex items-center gap-2 text-sm text-ink-200">
                 <input
                   type="checkbox"
@@ -197,6 +233,21 @@ export function SettingsPage(): JSX.Element {
                 />
                 {t('settings.ttsEnabled')}
               </label>
+              <div>
+                <Label>{t('settings.ttsHttpUrl')}</Label>
+                <Input
+                  value={settings.ttsHttpUrl}
+                  onChange={(e) => patch('ttsHttpUrl', e.target.value)}
+                  placeholder="http://127.0.0.1:…/tts"
+                />
+              </div>
+              <div>
+                <Label>{t('settings.ttsVoice')}</Label>
+                <Input
+                  value={settings.ttsVoice}
+                  onChange={(e) => patch('ttsVoice', e.target.value)}
+                />
+              </div>
               <label className="flex items-center gap-2 text-sm text-ink-200">
                 <input
                   type="checkbox"
@@ -224,6 +275,14 @@ export function SettingsPage(): JSX.Element {
                   onChange={(e) => patch('includeSilentAudio', e.target.checked)}
                 />
                 {t('settings.silentAudio')}
+              </label>
+              <label className="flex items-center gap-2 text-sm text-ink-200">
+                <input
+                  type="checkbox"
+                  checked={settings.openExportFolder}
+                  onChange={(e) => patch('openExportFolder', e.target.checked)}
+                />
+                {t('settings.openExportFolder')}
               </label>
               <div>
                 <Label>{t('settings.profile')}</Label>

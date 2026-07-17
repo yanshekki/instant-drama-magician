@@ -42,8 +42,10 @@ describe('story → timeline → export artifacts smoke', () => {
     store.ensureStoryDirs(storyId)
     const clip0 = store.clipPath(storyId, 'e0')
     const clip1 = store.clipPath(storyId, 'e1')
+    const tts0 = store.ttsPath(storyId, 'e0')
     expect(clip0).toContain(join(storyId, 'clips', 'e0.mp4'))
     expect(clip1).toContain('e1.mp4')
+    expect(tts0).toContain(join(storyId, 'tts', 'e0.wav'))
 
     const srt = buildSrt([
       {

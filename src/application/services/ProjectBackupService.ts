@@ -66,6 +66,7 @@ export class ProjectBackupService {
     if (!storyFile) throw new AppError('VALIDATION', 'Invalid backup: missing story.json')
     const raw = JSON.parse(await storyFile.async('string')) as {
       title: string
+      styleNote?: string | null
       characters: Array<{
         name: string
         description: string
@@ -93,7 +94,12 @@ export class ProjectBackupService {
     }
 
     const title = `${raw.title} (import)`
-    const created = await this.prisma.story.create({ data: { title } })
+    const created = await this.prisma.story.create({
+      data: {
+        title,
+        styleNote: raw.styleNote?.trim() || null
+      }
+    })
 
     const charIdMap = new Map<string, string>()
     const sceneIdMap = new Map<string, string>()

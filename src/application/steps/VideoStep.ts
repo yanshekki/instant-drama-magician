@@ -1,6 +1,10 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
 import { DEFAULT_MAX_CLIP_SECONDS } from '../../domain/timeline'
 import { snapVideoSeconds } from '../../domain/videoDuration'
+import {
+  buildClipPrompt,
+  previousClipContext
+} from '../../domain/promptContinuity'
 import { mapPool } from '../../infrastructure/ai/video/httpUtils'
 
 export class VideoStep implements PipelineStep {
@@ -63,21 +67,21 @@ export class VideoStep implements PipelineStep {
         const character = entry.characterId ? charMap.get(entry.characterId) : undefined
         const scene = entry.sceneId ? sceneMap.get(entry.sceneId) : undefined
         const prop = entry.propId ? propMap.get(entry.propId) : undefined
-
-        const prompt = [
-          `Short drama clip for story "${story.title}".`,
-          character ? `Character: ${character.name} — ${character.description}` : null,
-          character?.refImagePath
-            ? `Use character reference image for visual consistency (${character.name}).`
-            : null,
-          scene ? `Scene #${scene.sceneNumber}: ${scene.description}` : null,
-          scene?.script ? `Script: ${scene.script.slice(0, 400)}` : null,
-          prop ? `Prop: ${prop.name}` : null,
-          entry.dialogue ? `Dialogue: ${entry.dialogue}` : null,
-          `Duration: ${seconds}s. Cinematic, continuous action.`
-        ]
-          .filter(Boolean)
-          .join('\n')
+        const prev = previousClipContext(entries, entry.id, {
+          characters: charMap,
+          scenes: sceneMap,
+          props: propMap
+        })
+        const prompt = buildClipPrompt({
+          storyTitle: story.title,
+          styleNote: story.styleNote,
+          character,
+          scene,
+          prop,
+          dialogue: entry.dialogue,
+          seconds,
+          previousContext: prev
+        })
 
         const outputPath =
           media?.clipOutputPath?.(story.id, entry.id) ?? `/tmp/idm-${entry.id}.mp4`

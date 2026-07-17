@@ -13,6 +13,8 @@ model Story {
   title      String
   status     StoryStatus @default(DRAFT)
   exportPath String?
+  /** Visual / tone bible for clip prompt continuity */
+  styleNote  String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 

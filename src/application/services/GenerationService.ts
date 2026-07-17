@@ -1,3 +1,4 @@
+import { existsSync } from 'fs'
 import { join } from 'path'
 import type { PrismaClient } from '../../types/prisma'
 import type {
@@ -13,6 +14,10 @@ import { DEFAULT_SETTINGS } from '../../types/settings'
 import { AppError } from '../../types/errors'
 import { canStartGeneration } from '../../domain/story'
 import { buildSrt } from '../../domain/subtitle'
+import {
+  buildClipPrompt,
+  previousClipContext
+} from '../../domain/promptContinuity'
 import { GenerationPipeline } from '../GenerationPipeline'
 import { FfmpegService } from '../../infrastructure/ffmpeg/FfmpegService'
 import { MediaStore } from '../../infrastructure/media/MediaStore'
@@ -65,6 +70,7 @@ export class GenerationService {
 
   /**
    * Generate video for a single timeline entry (no full pipeline).
+   * Honour cancel() via AbortController.
    */
   async generateClip(
     storyId: string,
@@ -78,10 +84,20 @@ export class GenerationService {
     const entry = story.timeline.find((e) => e.id === entryId)
     if (!entry) throw new AppError('NOT_FOUND', `Timeline entry not found: ${entryId}`)
 
+    this.abort = new AbortController()
+    const signal = this.abort.signal
     this.store.ensureStoryDirs(storyId)
     const char = story.characters.find((c) => c.id === entry.characterId)
     const scene = story.scenes.find((s) => s.id === entry.sceneId)
     const prop = story.props.find((p) => p.id === entry.propId)
+    const charMap = new Map(story.characters.map((c) => [c.id, c]))
+    const sceneMap = new Map(story.scenes.map((s) => [s.id, s]))
+    const propMap = new Map(story.props.map((p) => [p.id, p]))
+    const prev = previousClipContext(story.timeline, entryId, {
+      characters: charMap,
+      scenes: sceneMap,
+      props: propMap
+    })
     const seconds = snapVideoSeconds(entry.endTime - entry.startTime)
     const outputPath = this.store.clipPath(storyId, entryId)
 
@@ -99,18 +115,20 @@ export class GenerationService {
     })
 
     try {
-      const prompt = [
-        `Short drama clip for story "${story.title}".`,
-        char ? `Character: ${char.name} — ${char.description}` : null,
-        char?.refImagePath ? `Use reference image for ${char.name}.` : null,
-        scene ? `Scene #${scene.sceneNumber}: ${scene.description}` : null,
-        scene?.script ? `Script: ${scene.script.slice(0, 400)}` : null,
-        prop ? `Prop: ${prop.name}` : null,
-        entry.dialogue ? `Dialogue: ${entry.dialogue}` : null,
-        `Duration: ${seconds}s.`
-      ]
-        .filter(Boolean)
-        .join('\n')
+      if (signal.aborted) {
+        throw new AppError('CANCELLED', 'Cancelled')
+      }
+
+      const prompt = buildClipPrompt({
+        storyTitle: story.title,
+        styleNote: story.styleNote,
+        character: char,
+        scene,
+        prop,
+        dialogue: entry.dialogue,
+        seconds,
+        previousContext: prev
+      })
 
       const result = await this.ai.generateVideo({
         prompt,
@@ -119,6 +137,10 @@ export class GenerationService {
         outputPath,
         aspectRatio: this.settings.aspectRatio
       })
+
+      if (signal.aborted) {
+        throw new AppError('CANCELLED', 'Cancelled')
+      }
 
       await this.prisma.timelineEntry.update({
         where: { id: entryId },
@@ -145,10 +167,21 @@ export class GenerationService {
         degraded: result.degraded
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const cancelled =
+        signal.aborted ||
+        (error instanceof AppError && error.code === 'CANCELLED') ||
+        (error instanceof Error && /cancell?ed/i.test(error.message))
+      const message = cancelled
+        ? 'Cancelled'
+        : error instanceof Error
+          ? error.message
+          : String(error)
       await this.prisma.timelineEntry.update({
         where: { id: entryId },
-        data: { mediaStatus: 'FAILED', mediaError: message }
+        data: {
+          mediaStatus: 'FAILED',
+          mediaError: message
+        }
       })
       onProgress?.({
         storyId,
@@ -158,7 +191,10 @@ export class GenerationService {
         entryId,
         mediaStatus: 'FAILED'
       })
+      if (cancelled) throw new AppError('CANCELLED', 'Cancelled')
       throw error
+    } finally {
+      this.abort = null
     }
   }
 
@@ -364,6 +400,7 @@ export class GenerationService {
     const story = await this.loadStory(storyId)
     const clips = this.mapClips(story)
     const outDir = this.store.exportsDir(storyId)
+    this.store.ensureStoryDirs(storyId)
     const safeTitle =
       story.title.replace(/[^\w\u4e00-\u9fff-]+/g, '_').slice(0, 40) || 'story'
     const srt = buildSrt(
@@ -373,14 +410,13 @@ export class GenerationService {
         text: e.dialogue ?? ''
       }))
     )
-    // Optional TTS for dialogues (non-blocking failures)
+
+    const dialogueAudioPaths: Array<{ path: string; startSeconds: number }> = []
     if (this.settings.ttsEnabled) {
       try {
         const { CompositeTtsProvider } = await import(
           '../../infrastructure/audio/TtsProvider'
         )
-        const { mkdirSync } = await import('fs')
-        const { dirname } = await import('path')
         const tts = new CompositeTtsProvider(
           this.settings.ttsHttpUrl,
           this.settings.apiKey
@@ -388,16 +424,21 @@ export class GenerationService {
         if (await tts.available()) {
           for (const e of story.timeline) {
             if (!e.dialogue?.trim()) continue
-            const out = join(this.store.rootDir, storyId, 'tts', `${e.id}.wav`)
-            mkdirSync(dirname(out), { recursive: true })
+            const out = this.store.ttsPath(storyId, e.id)
             try {
-              await tts.speak({
+              const spoken = await tts.speak({
                 text: e.dialogue,
                 outputPath: out,
                 voice: this.settings.ttsVoice
               })
+              if (spoken.outputPath && existsSync(spoken.outputPath)) {
+                dialogueAudioPaths.push({
+                  path: spoken.outputPath,
+                  startSeconds: e.startTime
+                })
+              }
             } catch {
-              // skip clip
+              // skip clip TTS failure
             }
           }
         }
@@ -416,7 +457,9 @@ export class GenerationService {
       includeSilentAudio: this.settings.includeSilentAudio,
       profile: this.settings.exportProfile,
       bgmPath: this.settings.bgmPath,
-      bgmVolume: this.settings.bgmVolume
+      bgmVolume: this.settings.bgmVolume,
+      dialogueVolume: this.settings.dialogueVolume,
+      dialogueAudioPaths
     })
     await this.prisma.story.update({
       where: { id: storyId },

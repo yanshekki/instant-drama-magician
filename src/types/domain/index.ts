@@ -9,6 +9,8 @@ export interface Story {
   title: string
   status: StoryStatus
   exportPath?: string | null
+  /** Visual / tone bible for clip prompt continuity */
+  styleNote?: string | null
   createdAt: string | Date
   updatedAt: string | Date
 }
@@ -72,6 +74,13 @@ export interface TimelineEntry {
 
 export interface CreateStoryInput {
   title: string
+  styleNote?: string | null
+}
+
+export interface UpdateStoryInput {
+  title?: string
+  status?: StoryStatus | string
+  styleNote?: string | null
 }
 
 export interface CreateCharacterInput {

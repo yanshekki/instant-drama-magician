@@ -70,16 +70,25 @@ export class GenerationPipeline {
       onClipProgress: options?.onClipProgress
     }
 
-    const results: PipelineStepResult[] = []
-    const total = this.steps.length
+    // Retry-failed path: only re-run video (skip script/export noise).
+    const activeSteps = options?.onlyFailedVideos
+      ? this.steps.filter((s) => s.name === 'video')
+      : this.steps
 
-    for (let i = 0; i < this.steps.length; i++) {
+    const results: PipelineStepResult[] = []
+    const total = activeSteps.length
+
+    for (let i = 0; i < activeSteps.length; i++) {
       if (options?.signal?.aborted) {
-        results.push({ step: this.steps[i].name, success: false, error: 'Cancelled' })
+        results.push({
+          step: activeSteps[i].name,
+          success: false,
+          error: 'Cancelled'
+        })
         return { storyId: story.id, steps: results, success: false }
       }
 
-      const step = this.steps[i]
+      const step = activeSteps[i]
       try {
         const result = await step.run(context)
         results.push(result)
