@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
+import { migrateGatewayDefaults } from '../../domain/gatewayDefaults'
 import {
   DEFAULT_SETTINGS,
   mergeSettings,
@@ -8,6 +9,8 @@ import {
 
 export class SettingsStore {
   private cache: AppSettings | null = null
+  /** True if last load migrated legacy :39281 defaults */
+  lastLoadMigrated = false
 
   constructor(private readonly filePath: string) {}
 
@@ -20,12 +23,22 @@ export class SettingsStore {
     try {
       if (existsSync(this.filePath)) {
         const raw = JSON.parse(readFileSync(this.filePath, 'utf-8')) as Partial<AppSettings>
-        this.cache = mergeSettings(raw)
+        let merged = mergeSettings(raw)
+        const { settings, migrated } = migrateGatewayDefaults(merged)
+        merged = settings
+        this.lastLoadMigrated = migrated
+        this.cache = merged
+        if (migrated) {
+          // Persist migrated defaults once
+          mkdirSync(dirname(this.filePath), { recursive: true })
+          writeFileSync(this.filePath, JSON.stringify(merged, null, 2), 'utf-8')
+        }
         return this.cache
       }
     } catch {
       // corrupt file → defaults
     }
+    this.lastLoadMigrated = false
     this.cache = { ...DEFAULT_SETTINGS }
     return this.cache
   }

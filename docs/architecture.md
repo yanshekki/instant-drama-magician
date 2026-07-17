@@ -42,6 +42,14 @@ Presentation → IPC / `idm-media://` → Application → Domain → Infrastruct
 | SupportReport | redacted diagnostics export |
 | release.yml | linux + windows + macos matrix |
 
+## Round 11 — Grok Gateway LLM first
+
+| Module | Role |
+|--------|------|
+| gatewayDefaults | :3847 base + migrate :39281 |
+| GrokCliClient | listModels, probeChat, testChat |
+| Settings | Grok Gateway card (primary LLM) |
+
 ## Pipeline
 
 Script → Character → Scene → Props → Timeline → **Video** (6/10s jobs) → Export  

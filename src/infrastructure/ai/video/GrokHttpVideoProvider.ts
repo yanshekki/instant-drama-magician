@@ -18,7 +18,7 @@ import type { VideoProvider, VideoProviderStatus } from './types'
 import { isRetryableError, sleep, withRetries } from './httpUtils'
 
 export interface GrokHttpVideoOptions {
-  /** e.g. http://127.0.0.1:39281/v1 */
+  /** e.g. http://127.0.0.1:3847/v1 */
   baseUrl: string
   apiKey: string
   model: string

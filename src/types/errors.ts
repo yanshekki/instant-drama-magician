@@ -7,6 +7,9 @@ export type AppErrorCode =
   | 'CANCELLED'
   | 'AI_UNAVAILABLE'
   | 'AI_FAILED'
+  | 'AI_UNAUTHORIZED'
+  | 'AI_RATE_LIMIT'
+  | 'AI_KEY_MODE'
   | 'FFMPEG_UNAVAILABLE'
   | 'FFMPEG_FAILED'
   | 'IO'
@@ -47,12 +50,92 @@ export class AppError extends Error {
 export function toAppError(error: unknown): AppErrorBody {
   if (error instanceof AppError) return error.toJSON()
   if (error instanceof Error) {
-    return mapVideoHttpMessage(error.message) ?? {
-      code: 'INTERNAL',
-      message: error.message
-    }
+    return (
+      mapVideoHttpMessage(error.message) ??
+      mapChatMessage(error.message) ?? {
+        code: 'INTERNAL',
+        message: error.message
+      }
+    )
   }
   return { code: 'INTERNAL', message: String(error) }
+}
+
+/** Map chat / models HTTP failures for Grok Gateway. */
+export function mapChatHttpStatus(status: number, bodyText: string): AppError {
+  const mapped = mapChatMessage(`Chat HTTP ${status}: ${bodyText}`)
+  if (mapped) {
+    return new AppError(mapped.code, mapped.message, mapped.details)
+  }
+  if (status === 401) {
+    return new AppError(
+      'AI_UNAUTHORIZED',
+      `Chat HTTP 401`,
+      'Check API key (gk_live_…) in Settings'
+    )
+  }
+  if (status === 403) {
+    return new AppError(
+      'AI_KEY_MODE',
+      `Chat HTTP 403`,
+      'Key mode may be restricted; use a valid key from Gateway Admin'
+    )
+  }
+  if (status === 429) {
+    return new AppError(
+      'AI_RATE_LIMIT',
+      `Chat HTTP 429`,
+      'Rate limited — wait or check Gateway DDoS / queue settings'
+    )
+  }
+  return new AppError(
+    'AI_FAILED',
+    `Chat HTTP ${status}: ${bodyText.slice(0, 400)}`
+  )
+}
+
+export function mapChatMessage(message: string): AppErrorBody | null {
+  const m = message.toLowerCase()
+  if (/cannot reach|econnrefused|fetch failed|network|enotfound/.test(m)) {
+    return {
+      code: 'AI_UNAVAILABLE',
+      message,
+      details:
+        'Start Grok Gateway: gctoac start (default http://127.0.0.1:3847). See docs/grok-gateway.md'
+    }
+  }
+  if (/\b401\b|unauthorized|invalid api key|no api key/.test(m)) {
+    return {
+      code: 'AI_UNAUTHORIZED',
+      message,
+      details: 'Paste gk_live_… from Gateway Admin → Keys'
+    }
+  }
+  if (/\b403\b|forbidden|safe.?mode|key mode/.test(m)) {
+    return {
+      code: 'AI_KEY_MODE',
+      message,
+      details: 'Check key mode (safe/agent/admin) in Gateway Admin'
+    }
+  }
+  if (/\b429\b|rate limit/.test(m)) {
+    return {
+      code: 'AI_RATE_LIMIT',
+      message,
+      details: 'Wait and retry; check Gateway rate limits'
+    }
+  }
+  if (/timed out|timeout|aborted/.test(m)) {
+    return {
+      code: 'AI_FAILED',
+      message,
+      details: 'Increase chatTimeoutMs or check Gateway chat queue'
+    }
+  }
+  if (/chat http|grok cli chat failed|gateway/.test(m)) {
+    return { code: 'AI_FAILED', message }
+  }
+  return null
 }
 
 /** Map gateway / provider error strings to structured codes. */

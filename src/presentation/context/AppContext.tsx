@@ -44,7 +44,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
     } catch {
       setAiStatus({
         available: false,
-        baseUrl: 'http://127.0.0.1:39281/v1',
+        baseUrl: 'http://127.0.0.1:3847/v1',
         model: 'grok-cli',
         message: 'Unable to query AI status'
       })

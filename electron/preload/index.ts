@@ -104,7 +104,11 @@ const api: ElectronApi = {
   },
   ai: {
     status: () => ipcRenderer.invoke('ai:status'),
-    probeVideo: () => ipcRenderer.invoke('ai:probeVideo')
+    probeVideo: () => ipcRenderer.invoke('ai:probeVideo'),
+    probeChat: () => ipcRenderer.invoke('ai:probeChat'),
+    listModels: () => ipcRenderer.invoke('ai:listModels'),
+    testChat: (prompt?: string) => ipcRenderer.invoke('ai:testChat', prompt),
+    applyGrokDefaults: () => ipcRenderer.invoke('ai:applyGrokDefaults')
   },
   diagnostics: {
     full: () => ipcRenderer.invoke('diagnostics:full')

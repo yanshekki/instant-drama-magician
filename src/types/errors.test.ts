@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { mapHttpStatusToVideoError, mapVideoHttpMessage } from './errors'
+import {
+  mapChatHttpStatus,
+  mapChatMessage,
+  mapHttpStatusToVideoError,
+  mapVideoHttpMessage
+} from './errors'
 
 describe('video error mapping', () => {
   it('maps feature disabled', () => {
@@ -20,5 +25,22 @@ describe('video error mapping', () => {
   it('maps timeout', () => {
     const m = mapVideoHttpMessage('Video job timed out after 300s')
     expect(m?.code).toBe('VIDEO_TIMEOUT')
+  })
+})
+
+describe('chat error mapping (Grok Gateway)', () => {
+  it('maps unauthorized', () => {
+    const e = mapChatHttpStatus(401, 'invalid api key')
+    expect(e.code).toBe('AI_UNAUTHORIZED')
+  })
+
+  it('maps rate limit', () => {
+    const e = mapChatHttpStatus(429, 'too many')
+    expect(e.code).toBe('AI_RATE_LIMIT')
+  })
+
+  it('maps connection refused message', () => {
+    const m = mapChatMessage('fetch failed: ECONNREFUSED')
+    expect(m?.code).toBe('AI_UNAVAILABLE')
   })
 })

@@ -2,6 +2,8 @@
 
 AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLite）。
 
+**LLM 首選**：[Grok-Cli-to-OpenAI-compatible](https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible)（預設 `http://127.0.0.1:3847/v1`）— 見 [docs/grok-gateway.md](./docs/grok-gateway.md)。
+
 ## 進度（誠實）
 
 | 範圍 | 完成度 |
@@ -51,20 +53,31 @@ AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLit
 - [x] `v1.0.0` + [docs/commercial.md](./docs/commercial.md)  
 - [ ] 商店簽章／Notarize／Store 上架（需憑證）  
 
+## Grok Gateway LLM checklist（Round 11）
+
+- [x] 預設 **:3847** + 舊 39281 自動遷移  
+- [x] `listModels` / **測試 Chat** / 錯誤映射  
+- [x] Settings **Grok Gateway（LLM 首選）**  
+- [x] [docs/grok-gateway.md](./docs/grok-gateway.md)  
+
 ---
 
 ## Quick start
 
 ```bash
+# 1) Gateway（另開終端）
+# gctoac start   → http://127.0.0.1:3847
+# Admin 建 gk_live_… key
+
 cd "/home/ki/文件/instant-drama-magician"
 npm install && npx prisma db push && npm run dev
 ```
 
-1. 載入 Demo  
-2. 時間軸生成 → 匯出  
-3. Settings：更新檢查、支援報告  
+1. **設定** → 貼 API key → **測試 Chat**  
+2. 載入 Demo → 時間軸生成  
+3. 匯出成片（可選真 video）  
 
-真 video：[docs/grok-gateway.md](./docs/grok-gateway.md)
+詳見 [docs/grok-gateway.md](./docs/grok-gateway.md)
 
 ### 發佈 v1.0.0
 

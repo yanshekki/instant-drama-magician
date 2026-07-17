@@ -1,13 +1,21 @@
+import {
+  GROK_GATEWAY_BASE_URL,
+  GROK_GATEWAY_VIDEO_PATH
+} from '../domain/gatewayDefaults'
+
 export type VideoMode = 'auto' | 'http' | 'stub'
 export type ExportProfile = 'fast' | 'balanced'
 export type TransitionMode = 'cut' | 'fade'
 
 export interface AppSettings {
   videoMode: VideoMode
+  /** OpenAI-compatible base, e.g. http://127.0.0.1:3847/v1 */
   baseUrl: string
   videoPath: string
   apiKey: string
   model: string
+  /** Chat completion timeout (ms) */
+  chatTimeoutMs: number
   defaultMaxClipSeconds: number
   burnSubtitles: boolean
   includeSilentAudio: boolean
@@ -45,10 +53,12 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   videoMode: 'auto',
-  baseUrl: 'http://127.0.0.1:39281/v1',
-  videoPath: 'http://127.0.0.1:39281/v1/videos',
-  apiKey: 'grok-cli',
+  baseUrl: GROK_GATEWAY_BASE_URL,
+  videoPath: GROK_GATEWAY_VIDEO_PATH,
+  /** Placeholder — paste gk_live_… from Gateway Admin → Keys */
+  apiKey: '',
   model: 'grok-cli',
+  chatTimeoutMs: 120_000,
   defaultMaxClipSeconds: 6,
   burnSubtitles: true,
   includeSilentAudio: true,

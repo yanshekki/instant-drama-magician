@@ -379,10 +379,50 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     wrap(async () => aiClient.videoProvider.probe())
   )
 
+  ipcMain.handle(
+    'ai:probeChat',
+    wrap(async () => aiClient.probeChat())
+  )
+
+  ipcMain.handle(
+    'ai:listModels',
+    wrap(async () => aiClient.listModels())
+  )
+
+  ipcMain.handle(
+    'ai:testChat',
+    wrap(async (_e, prompt?: string) => aiClient.testChat(prompt))
+  )
+
+  ipcMain.handle(
+    'ai:applyGrokDefaults',
+    wrap(async () => {
+      const { GROK_GATEWAY_BASE_URL, GROK_GATEWAY_VIDEO_PATH } = await import(
+        '../../src/domain/gatewayDefaults'
+      )
+      const next = settingsStore.save({
+        baseUrl: GROK_GATEWAY_BASE_URL,
+        videoPath: GROK_GATEWAY_VIDEO_PATH
+      })
+      rebindAi(next)
+      return next
+    })
+  )
+
   // ─── Settings ──────────────────────────────────────────────
   ipcMain.handle(
     'settings:get',
-    wrap(async () => settingsStore.load())
+    wrap(async () => {
+      const s = settingsStore.load()
+      if (settingsStore.lastLoadMigrated) {
+        activity.append({
+          kind: 'settings',
+          message: 'migrated gateway defaults 39281 → 3847'
+        })
+        settingsStore.lastLoadMigrated = false
+      }
+      return s
+    })
   )
   ipcMain.handle(
     'settings:set',
@@ -625,6 +665,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   ipcMain.handle(
     'diagnostics:full',
     wrap(async () => {
+      const chatProbe = await aiClient.probeChat()
       const chat = await aiClient.getStatus()
       const video = await aiClient.videoProvider.probe()
       let ffmpeg = { available: false, message: 'unknown' }
@@ -641,9 +682,18 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         }
       }
       const tips: string[] = []
-      if (!chat.available) tips.push('Start Gateway; set baseUrl + API key.')
+      if (!settings.apiKey?.trim()) {
+        tips.push(
+          'LLM: create API key in Grok Gateway Admin → Keys (gk_live_…), paste in Settings.'
+        )
+      }
+      if (!chat.available) {
+        tips.push(
+          'Start Grok Gateway: gctoac start (default :3847). https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible'
+        )
+      }
       if (!video.available) {
-        tips.push('Enable videoApi; use agent/admin key; videoPath=/v1/videos.')
+        tips.push('Video: enable videoApi; use agent/admin key; videoPath=/v1/videos.')
       }
       if (!ffmpeg.available) {
         tips.push(
@@ -657,6 +707,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       }
       return {
         chat,
+        chatProbe,
         video,
         ffmpeg,
         videoMode: settings.videoMode,

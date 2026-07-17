@@ -38,6 +38,8 @@ export function SettingsPage(): JSX.Element {
   } | null>(null)
   const [updateBusy, setUpdateBusy] = useState(false)
   const [activityLines, setActivityLines] = useState<string[]>([])
+  const [modelIds, setModelIds] = useState<string[]>([])
+  const [chatBusy, setChatBusy] = useState(false)
 
   useEffect(() => {
     void getApi()
@@ -65,6 +67,10 @@ export function SettingsPage(): JSX.Element {
           rows.map((r) => `${r.ts.slice(11, 19)} [${r.kind}] ${r.message}`)
         )
       )
+      .catch(() => undefined)
+    void getApi()
+      .ai.listModels()
+      .then((m) => setModelIds(m.map((x) => x.id)))
       .catch(() => undefined)
     return getApi().updates.onState(setUpdateState)
   }, [t])
@@ -134,12 +140,16 @@ export function SettingsPage(): JSX.Element {
   const handleProbe = async (): Promise<void> => {
     try {
       const d = await getApi().diagnostics.full()
+      const modelCount = d.chatProbe?.models?.length
       setProbeMsg(
         [
           d.app
             ? `App: v${d.app.version} · ${d.app.isPackaged ? t('app.packaged') : t('app.dev')}`
             : null,
-          `Chat: ${d.chat.available ? 'OK' : 'OFFLINE'} — ${d.chat.message}`,
+          `Chat (Grok Gateway): ${d.chat.available ? 'OK' : 'OFFLINE'} — ${d.chat.message}`,
+          d.chatProbe
+            ? `  probe: ${d.chatProbe.message}${typeof d.chatProbe.latencyMs === 'number' ? ` (${d.chatProbe.latencyMs}ms)` : ''}${typeof modelCount === 'number' ? ` · models=${modelCount}` : ''}${d.chatProbe.healthOk === false ? ' · health=fail' : ''}`
+            : null,
           `Video (${d.videoMode}): ${d.video.available ? 'OK' : 'FAIL'} — ${d.video.message}`,
           `FFmpeg: ${d.ffmpeg.available ? 'OK' : 'FAIL'} — ${d.ffmpeg.message}`,
           d.tips.length ? `${t('settings.tips')}:\n- ${d.tips.join('\n- ')}` : '',
@@ -149,10 +159,77 @@ export function SettingsPage(): JSX.Element {
           .join('\n')
       )
       setFfmpegMsg(d.ffmpeg.message)
+      if (d.chatProbe?.models?.length) {
+        setModelIds(d.chatProbe.models.map((m) => m.id))
+      }
       await refreshAiStatus()
     } catch (e) {
       setError(parseIpcError(e).message)
     }
+  }
+
+  const handleApplyGrokDefaults = async (): Promise<void> => {
+    try {
+      const next = await getApi().ai.applyGrokDefaults()
+      setSettings(next)
+      setProbeMsg(t('settings.appliedGrokDefaults'))
+      await refreshAiStatus()
+    } catch (e) {
+      setError(parseIpcError(e).message)
+    }
+  }
+
+  const handleRefreshModels = async (): Promise<void> => {
+    setChatBusy(true)
+    setError(null)
+    try {
+      const models = await getApi().ai.listModels()
+      setModelIds(models.map((m) => m.id))
+      setProbeMsg(
+        t('settings.modelsLoaded', { count: models.length })
+      )
+    } catch (e) {
+      const err = parseIpcError(e)
+      setError(`${err.message}${err.details ? ` — ${err.details}` : ''}`)
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const handleTestChat = async (): Promise<void> => {
+    if (!settings) return
+    setChatBusy(true)
+    setError(null)
+    try {
+      // Persist current form so test uses latest key/url
+      await getApi().settings.set(settings)
+      const r = await getApi().ai.testChat()
+      setProbeMsg(
+        `${r.message}\nmodel=${r.model}\nreply: ${r.replyPreview}`
+      )
+      await refreshAiStatus()
+    } catch (e) {
+      const err = parseIpcError(e)
+      setError(`${err.message}${err.details ? ` — ${err.details}` : ''}`)
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const handleOpenAdmin = (): void => {
+    if (!settings) return
+    try {
+      const u = new URL(settings.baseUrl)
+      void getApi().shell.openExternal(`${u.origin}/admin/`)
+    } catch {
+      void getApi().shell.openExternal('http://127.0.0.1:3847/admin/')
+    }
+  }
+
+  const handleOpenGatewayRepo = (): void => {
+    void getApi().shell.openExternal(
+      'https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible'
+    )
   }
 
   return (
@@ -175,6 +252,111 @@ export function SettingsPage(): JSX.Element {
         ) : (
           <div className="grid max-w-2xl gap-4">
             <Card className="space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-semibold text-ink-100">
+                    {t('settings.grokGateway')}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-ink-500">
+                    {t('settings.grokGatewayHint')}
+                  </p>
+                </div>
+                <Button variant="ghost" onClick={handleOpenGatewayRepo}>
+                  {t('settings.openGatewayRepo')}
+                </Button>
+              </div>
+              <div>
+                <Label>{t('settings.baseUrl')}</Label>
+                <Input
+                  value={settings.baseUrl}
+                  onChange={(e) => patch('baseUrl', e.target.value)}
+                  placeholder="http://127.0.0.1:3847/v1"
+                />
+              </div>
+              <div>
+                <Label>{t('settings.apiKey')}</Label>
+                <Input
+                  value={settings.apiKey}
+                  onChange={(e) => patch('apiKey', e.target.value)}
+                  placeholder="gk_live_…"
+                />
+                <p className="mt-1 text-[11px] text-ink-500">
+                  {t('settings.apiKeyHint')}
+                </p>
+              </div>
+              <div>
+                <Label>{t('settings.model')}</Label>
+                {modelIds.length > 0 ? (
+                  <Select
+                    value={
+                      modelIds.includes(settings.model)
+                        ? settings.model
+                        : modelIds[0]
+                    }
+                    onChange={(e) => patch('model', e.target.value)}
+                  >
+                    {modelIds.map((id) => (
+                      <option key={id} value={id}>
+                        {id}
+                      </option>
+                    ))}
+                    {!modelIds.includes(settings.model) && settings.model && (
+                      <option value={settings.model}>{settings.model}</option>
+                    )}
+                  </Select>
+                ) : (
+                  <Input
+                    value={settings.model}
+                    onChange={(e) => patch('model', e.target.value)}
+                    placeholder="grok-cli"
+                  />
+                )}
+              </div>
+              <div>
+                <Label>
+                  {t('settings.chatTimeoutMs')} ({settings.chatTimeoutMs}ms)
+                </Label>
+                <Input
+                  type="number"
+                  min={5000}
+                  max={600000}
+                  step={1000}
+                  value={settings.chatTimeoutMs}
+                  onChange={(e) =>
+                    patch('chatTimeoutMs', Number(e.target.value) || 120000)
+                  }
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => void handleApplyGrokDefaults()}
+                >
+                  {t('settings.applyGrokDefaults')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={chatBusy}
+                  onClick={() => void handleRefreshModels()}
+                >
+                  {t('settings.refreshModels')}
+                </Button>
+                <Button
+                  disabled={chatBusy}
+                  onClick={() => void handleTestChat()}
+                >
+                  {t('settings.testChat')}
+                </Button>
+                <Button variant="ghost" onClick={handleOpenAdmin}>
+                  {t('settings.openAdmin')}
+                </Button>
+                <Button variant="secondary" onClick={() => void handleProbe()}>
+                  {t('settings.probeAll')}
+                </Button>
+              </div>
+            </Card>
+
+            <Card className="space-y-3">
               <h2 className="text-sm font-semibold text-ink-100">{t('settings.video')}</h2>
               <div>
                 <Label>{t('settings.videoMode')}</Label>
@@ -188,32 +370,15 @@ export function SettingsPage(): JSX.Element {
                 </Select>
               </div>
               <div>
-                <Label>{t('settings.baseUrl')}</Label>
-                <Input
-                  value={settings.baseUrl}
-                  onChange={(e) => patch('baseUrl', e.target.value)}
-                />
-              </div>
-              <div>
                 <Label>{t('settings.videoPath')}</Label>
                 <Input
                   value={settings.videoPath}
                   onChange={(e) => patch('videoPath', e.target.value)}
+                  placeholder="http://127.0.0.1:3847/v1/videos"
                 />
-              </div>
-              <div>
-                <Label>{t('settings.apiKey')}</Label>
-                <Input
-                  value={settings.apiKey}
-                  onChange={(e) => patch('apiKey', e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>{t('settings.model')}</Label>
-                <Input
-                  value={settings.model}
-                  onChange={(e) => patch('model', e.target.value)}
-                />
+                <p className="mt-1 text-[11px] text-ink-500">
+                  {t('settings.videoPathHint')}
+                </p>
               </div>
               <div>
                 <Label>{t('settings.aspectRatio')}</Label>
@@ -252,9 +417,6 @@ export function SettingsPage(): JSX.Element {
                   />
                 </div>
               </div>
-              <Button variant="secondary" onClick={() => void handleProbe()}>
-                {t('settings.probeAll')}
-              </Button>
             </Card>
 
             <Card className="space-y-3">

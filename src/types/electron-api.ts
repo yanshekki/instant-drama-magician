@@ -107,10 +107,33 @@ export interface ElectronApi {
   ai: {
     status: () => Promise<unknown>
     probeVideo: () => Promise<{ id: string; available: boolean; message: string }>
+    probeChat: () => Promise<{
+      available: boolean
+      message: string
+      models?: Array<{ id: string; ownedBy?: string }>
+      latencyMs?: number
+      healthOk?: boolean
+    }>
+    listModels: () => Promise<Array<{ id: string; ownedBy?: string }>>
+    testChat: (prompt?: string) => Promise<{
+      ok: boolean
+      latencyMs: number
+      model: string
+      replyPreview: string
+      message: string
+    }>
+    applyGrokDefaults: () => Promise<AppSettings>
   }
   diagnostics: {
     full: () => Promise<{
       chat: { available: boolean; message: string }
+      chatProbe?: {
+        available: boolean
+        message: string
+        models?: Array<{ id: string }>
+        latencyMs?: number
+        healthOk?: boolean
+      }
       video: { available: boolean; message: string }
       ffmpeg: { available: boolean; message: string }
       videoMode: string
