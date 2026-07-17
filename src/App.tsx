@@ -7,11 +7,13 @@ import { ScenesPage } from './presentation/pages/ScenesPage'
 import { PropsPage } from './presentation/pages/PropsPage'
 import { TimelinePage } from './presentation/pages/TimelinePage'
 import { SettingsPage } from './presentation/pages/SettingsPage'
+import { FirstRunModal } from './presentation/components/FirstRunModal'
 
 export default function App(): JSX.Element {
   return (
     <AppProvider>
       <HashRouter>
+        <FirstRunModal />
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<StoriesPage />} />

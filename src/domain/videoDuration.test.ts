@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { snapVideoSeconds } from './videoDuration'
+import { snapClipRange, snapVideoSeconds } from './videoDuration'
 
 describe('snapVideoSeconds', () => {
   it('maps short clips to 6s', () => {
@@ -12,5 +12,10 @@ describe('snapVideoSeconds', () => {
     expect(snapVideoSeconds(8)).toBe(10)
     expect(snapVideoSeconds(10)).toBe(10)
     expect(snapVideoSeconds(15)).toBe(10)
+  })
+
+  it('snaps clip ranges to exact 6 or 10 duration', () => {
+    expect(snapClipRange(0, 4)).toEqual({ startTime: 0, endTime: 6, seconds: 6 })
+    expect(snapClipRange(2, 12)).toEqual({ startTime: 2, endTime: 12, seconds: 10 })
   })
 })

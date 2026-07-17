@@ -11,12 +11,12 @@ import {
   xToTime
 } from '../../../domain/timelineLayout'
 import { anchorsFromEntries, snapTime } from '../../../domain/timelineSnap'
+import { snapClipRange } from '../../../domain/videoDuration'
 import type { AssetDropPayload } from './TimelineCanvas'
 
 const TRACK_H = 56
 const RULER_H = 24
 const PAD = 12
-const MAX_CLIP = TimelineService.DEFAULT_MAX_CLIP_SECONDS
 
 interface KonvaTimelineProps {
   entries: TimelineEntry[]
@@ -182,11 +182,7 @@ export function KonvaTimeline({
                     const nx = evt.target.x()
                     const start = xToTime(nx, pxPerSec, PAD)
                     const dur = range.end - range.start
-                    const next = TimelineService.clampDuration(
-                      start,
-                      start + dur,
-                      MAX_CLIP
-                    )
+                    const next = snapClipRange(start, start + dur)
                     setDragPreview((p) => ({
                       ...p,
                       [entry.id]: { start: next.startTime, end: next.endTime }
@@ -203,13 +199,8 @@ export function KonvaTimeline({
                         grid: snapGridSec,
                         anchors
                       })
-                      const dur = prev.end - prev.start
-                      const clamped = TimelineService.clampDuration(
-                        start,
-                        start + dur,
-                        MAX_CLIP
-                      )
-                      onMove(entry.id, clamped.startTime, clamped.endTime)
+                      const range = snapClipRange(start, start + (prev.end - prev.start))
+                      onMove(entry.id, range.startTime, range.endTime)
                     }
                     setDragPreview((p) => {
                       const n = { ...p }
@@ -253,32 +244,19 @@ export function KonvaTimeline({
                       const handleX = evt.target.x()
                       const start = range.start
                       const end = start + handleX / pxPerSec
-                      const next = TimelineService.clampDuration(
-                        start,
-                        end,
-                        MAX_CLIP
-                      )
+                      const next = snapClipRange(start, end)
                       setDragPreview((p) => ({
                         ...p,
                         [entry.id]: { start: next.startTime, end: next.endTime }
                       }))
-                      evt.target.x(durationToWidth(next.endTime - next.startTime, pxPerSec) - 8)
+                      evt.target.x(
+                        durationToWidth(next.endTime - next.startTime, pxPerSec) - 8
+                      )
                     }}
                     onDragEnd={() => {
                       const prev = dragPreview[entry.id]
                       if (prev) {
-                        const end = snapTime(prev.end, {
-                          enabled: snapEnabled,
-                          grid: snapGridSec,
-                          anchors: anchorsFromEntries(
-                            entries.filter((e) => e.id !== entry.id)
-                          )
-                        })
-                        const next = TimelineService.clampDuration(
-                          prev.start,
-                          end,
-                          MAX_CLIP
-                        )
+                        const next = snapClipRange(prev.start, prev.end)
                         onMove(entry.id, next.startTime, next.endTime)
                       }
                       setDragPreview((p) => {

@@ -14,13 +14,20 @@ export function SettingsPage(): JSX.Element {
   const [probeMsg, setProbeMsg] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [ffmpegMsg, setFfmpegMsg] = useState<string | null>(null)
 
   useEffect(() => {
     void getApi()
       .settings.get()
       .then(setSettings)
       .catch((e) => setError(parseIpcError(e).message))
-  }, [])
+    void getApi()
+      .media.checkFfmpeg()
+      .then((r) =>
+        setFfmpegMsg(r.available ? t('settings.ffmpegOk') : r.message)
+      )
+      .catch(() => setFfmpegMsg(t('pipeline.needFfmpeg')))
+  }, [t])
 
   const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]): void => {
     setSettings((s) => (s ? { ...s, [key]: value } : s))
@@ -235,6 +242,11 @@ export function SettingsPage(): JSX.Element {
             <Card className="text-xs text-ink-400">
               <div className="font-medium text-ink-200">{t('ai.status')}</div>
               <p className="mt-1">{aiStatus?.message ?? '—'}</p>
+              {ffmpegMsg && (
+                <p className="mt-2 text-ink-300">
+                  FFmpeg: {ffmpegMsg}
+                </p>
+              )}
             </Card>
 
             <Button onClick={() => void handleSave()} disabled={saving}>

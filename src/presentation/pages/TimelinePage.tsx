@@ -246,6 +246,13 @@ export function TimelinePage(): JSX.Element {
 
   const handleGenerate = async (onlyFailed = false): Promise<void> => {
     if (!activeStoryId) return
+    const modeHint =
+      videoMode === 'stub'
+        ? t('pipeline.confirmStub')
+        : videoMode === 'http'
+          ? t('pipeline.confirmHttp')
+          : t('pipeline.confirmAuto')
+    if (!confirm(modeHint)) return
     setGenerating(true)
     setProgressLog([])
     setGenResult(null)

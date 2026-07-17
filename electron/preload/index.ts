@@ -122,7 +122,8 @@ const api: ElectronApi = {
     importClip: (storyId: string, entryId: string) =>
       ipcRenderer.invoke('media:importClip', storyId, entryId),
     openClip: (filePath: string) => ipcRenderer.invoke('media:openClip', filePath),
-    toPreviewUrl: (filePath: string) => ipcRenderer.invoke('media:toPreviewUrl', filePath)
+    toPreviewUrl: (filePath: string) => ipcRenderer.invoke('media:toPreviewUrl', filePath),
+    checkFfmpeg: () => ipcRenderer.invoke('media:checkFfmpeg')
   },
   project: {
     exportBackup: (storyId: string) => ipcRenderer.invoke('project:exportBackup', storyId),

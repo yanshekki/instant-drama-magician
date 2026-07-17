@@ -426,6 +426,24 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   )
 
   ipcMain.handle(
+    'media:checkFfmpeg',
+    wrap(async () => {
+      const { FfmpegService } = await import(
+        '../../src/infrastructure/ffmpeg/FfmpegService'
+      )
+      try {
+        await new FfmpegService().ensureAvailable()
+        return { available: true, message: 'ffmpeg OK' }
+      } catch (error) {
+        return {
+          available: false,
+          message: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+  )
+
+  ipcMain.handle(
     'media:pickBgm',
     wrap(async () => {
       const win = getMainWindow()

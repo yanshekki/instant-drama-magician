@@ -56,7 +56,7 @@
     "step1": "建立故事，或載入 Demo",
     "step2": "在人物／場景／道具頁加內容（Demo 已預填）",
     "step3": "到時間軸生成或匯出（無 gateway 會用色塊占位片）",
-    "prototypeNote": "目前產品約 15–20%：可演示骨架，未達可用成品。"
+    "prototypeNote": "Brief MVP 已齊；商業發行級成片能力仍在發展。"
   },
   "characters": {
     "title": "人物創作",
@@ -145,7 +145,10 @@
     "needFfmpeg": "需要安裝系統 ffmpeg（或設定 FFMPEG_PATH）。",
     "exportOk": "匯出成功：{{path}}",
     "openFile": "開啟檔案",
-    "openFolder": "在資料夾中顯示"
+    "openFolder": "在資料夾中顯示",
+    "confirmStub": "將使用 stub 色塊占位片（非真 AI 影片）。繼續？",
+    "confirmHttp": "將呼叫 Gateway /v1/videos（需 agent/admin key）。繼續？",
+    "confirmAuto": "將自動選擇 Gateway 或 stub。繼續？"
   },
   "settings": {
     "title": "設定",
@@ -172,7 +175,8 @@
     "aspectRatio": "影片比例 (aspect_ratio)",
     "videoPathHint": "預設 {baseUrl}/videos（OpenAI Videos API）",
     "gatewayHint": "連線失敗時請啟動 Grok gateway，並確認 videoApi + agent/admin key。見 docs/grok-gateway.md",
-    "probeAll": "檢測 Chat + Video"
+    "probeAll": "檢測 Chat + Video",
+    "ffmpegOk": "已找到 ffmpeg"
   },
   "ai": {
     "status": "AI 狀態",
@@ -180,5 +184,11 @@
     "offline": "Grok CLI 離線",
     "hint": "請啟動 Grok-Cli-to-OpenAI-compatible 服務（預設 :39281）",
     "lastStub": "上次生成含 stub 占位"
+  },
+  "onboarding": {
+    "welcome": "歡迎使用瞬劇魔法師",
+    "body": "這是可演示的 prototype（MVP）。建議先載入 Demo 故事，5 分鐘內走完生成／匯出流程。",
+    "skip": "稍後再說",
+    "progressNote": "MVP 骨架可用；完整商業成片能力仍在發展中。"
   }
 }

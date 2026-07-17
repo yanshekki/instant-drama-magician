@@ -56,7 +56,7 @@
     "step1": "Create a story or load the demo",
     "step2": "Add characters / scenes / props (demo is prefilled)",
     "step3": "Generate or export on the timeline (stub clips without a gateway)",
-    "prototypeNote": "Product is ~15–20%: demoable scaffold, not a finished product."
+    "prototypeNote": "Brief MVP is complete; commercial-grade film quality is still evolving."
   },
   "characters": {
     "title": "Characters",
@@ -145,7 +145,10 @@
     "needFfmpeg": "Install system ffmpeg (or set FFMPEG_PATH).",
     "exportOk": "Export OK: {{path}}",
     "openFile": "Open file",
-    "openFolder": "Show in folder"
+    "openFolder": "Show in folder",
+    "confirmStub": "This will use stub color placeholders (not real AI video). Continue?",
+    "confirmHttp": "This will call Gateway /v1/videos (needs agent/admin key). Continue?",
+    "confirmAuto": "Will auto-pick Gateway or stub. Continue?"
   },
   "settings": {
     "title": "Settings",
@@ -172,7 +175,8 @@
     "aspectRatio": "Video aspect ratio",
     "videoPathHint": "Default {baseUrl}/videos (OpenAI Videos API)",
     "gatewayHint": "If offline, start the Grok gateway with videoApi + agent/admin key. See docs/grok-gateway.md",
-    "probeAll": "Probe Chat + Video"
+    "probeAll": "Probe Chat + Video",
+    "ffmpegOk": "ffmpeg found"
   },
   "ai": {
     "status": "AI status",
@@ -180,5 +184,11 @@
     "offline": "Grok CLI offline",
     "hint": "Start the Grok-Cli-to-OpenAI-compatible service (default :39281)",
     "lastStub": "last run used stub"
+  },
+  "onboarding": {
+    "welcome": "Welcome to InstantDrama Magician",
+    "body": "This is a demoable prototype (MVP). Load the demo story and walk generate/export in about five minutes.",
+    "skip": "Skip for now",
+    "progressNote": "MVP scaffold is usable; full commercial film quality is still in progress."
   }
 }

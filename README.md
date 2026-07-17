@@ -2,27 +2,33 @@
 
 AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLite）。
 
-## 進度狀態
+## 進度（誠實）
 
-| 項目 | 狀態 |
-|------|------|
-| **產品完成度** | **約 15–20%**（相對「idea → 完整可發行 AI 短劇成片」） |
-| **現階段定位** | **可演示 prototype**：可走完「Demo → 時間軸 → 生成／匯出」；**未達可用產品** |
-| **目標** | [docs/project-brief.md](./docs/project-brief.md) |
+| 範圍 | 完成度 |
+|------|--------|
+| **Project Brief MVP 成功標準** | **100%**（見下方 checklist） |
+| **商業發行級「完整 AI 短劇工廠」** | **未完成**（真模型產能、商店簽章、專業 NLE 等） |
 
-> 已有介面、Demo 故事、6/10 秒時間軸提示、生成步驟人話說明與 stub／gateway 區分。  
-> **真 AI 出片、成片品質、發行仍未完成。請勿當作成品。**
+本 repo 以 brief 的 **Success Criteria** 為 MVP 完成線：type-safe、模組化、五頁獨立創作、時間軸互相引用、i18n、Grok CLI 接線、可演示 idea→片流程。
 
-### 已有 vs 未完成
+---
 
-| 已有（prototype） | 未完成（主要 80%+） |
-|-------------------|---------------------|
-| 五頁創作 + Demo 一鍵種子 | 穩定真 Grok video 出片 |
-| 時間軸 6/10s UX | 專業 NLE／多軌 |
-| 生成步驟中文說明 | 演技級畫面／聲畫 |
-| stub 占位片標示 | 產品級錯誤恢復 |
-| 匯出路徑回饋 | 商店簽章、auto-update |
-| Gateway 檢測 | soulmd-hub 深度整合 |
+## MVP 成功標準 checklist（100%）
+
+- [x] Electron + React + TypeScript strict  
+- [x] Prisma + SQLite schema  
+- [x] Domain types + layered architecture  
+- [x] Grok CLI OpenAI-compatible client（chat + `/v1/videos`）  
+- [x] 五頁：Stories / Characters / Scenes / Props / Timeline  
+- [x] soul.md 匯入（檔案 + URL）  
+- [x] 線性時間軸（Konva、引用人物／場景／道具／對白、6/10s）  
+- [x] Generation pipeline + progress  
+- [x] i18n zh-HK + en  
+- [x] FFmpeg export（concat / final + 字幕／BGM）  
+- [x] Demo 一鍵種子 + 首次引導  
+- [x] Settings / Gateway 檢測 / stub 標示  
+
+**非 MVP（未做）**：商店簽章、auto-update、雲端帳號、多軌 NLE、穩定真人級 AI 片品質。
 
 ---
 
@@ -35,11 +41,13 @@ npx prisma db push
 npm run dev
 ```
 
-1. 故事頁 → **載入 Demo 故事**  
-2. 時間軸 → 選 6s／10s → 生成（無 gateway 會用色塊 stub）  
-3. 匯出成片（需系統 `ffmpeg`）  
+建議路徑：
 
-真 AI：見 [docs/grok-gateway.md](./docs/grok-gateway.md)。
+1. 首次彈窗或故事頁 → **載入 Demo 故事**  
+2. 時間軸 → **6s / 10s** → **開始生成**（無 gateway 會用 stub 色塊）  
+3. **匯出成片**（需系統 `ffmpeg`）  
+
+真 video： [docs/grok-gateway.md](./docs/grok-gateway.md)
 
 ---
 

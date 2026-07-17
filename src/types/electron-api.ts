@@ -117,6 +117,7 @@ export interface ElectronApi {
     ) => Promise<{ filePath: string } | null>
     openClip: (filePath: string) => Promise<{ ok: boolean }>
     toPreviewUrl: (filePath: string) => Promise<{ url: string; filePath: string }>
+    checkFfmpeg: () => Promise<{ available: boolean; message: string }>
   }
   project: {
     exportBackup: (storyId: string) => Promise<{ filePath: string } | null>
