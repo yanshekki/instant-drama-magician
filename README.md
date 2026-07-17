@@ -2,7 +2,7 @@
 
 AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLite）。
 
-**LLM 首選**：[Grok-Cli-to-OpenAI-compatible](https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible)（預設 `http://127.0.0.1:3847/v1`）— 見 [docs/grok-gateway.md](./docs/grok-gateway.md)。
+**LLM**：統一 **OpenAI-compatible**（preset：Grok CLI Gateway 預設 / OpenAI / Custom）— 見 [docs/grok-gateway.md](./docs/grok-gateway.md)。
 
 ## 進度（誠實）
 

@@ -122,6 +122,10 @@ export interface ElectronApi {
       replyPreview: string
       message: string
     }>
+    applyLlmPreset: (
+      preset: 'grok-gateway' | 'openai' | 'custom'
+    ) => Promise<AppSettings>
+    /** @deprecated use applyLlmPreset('grok-gateway') */
     applyGrokDefaults: () => Promise<AppSettings>
   }
   diagnostics: {

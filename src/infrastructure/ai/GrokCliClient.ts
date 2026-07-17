@@ -1,9 +1,13 @@
 /**
- * OpenAI-compatible client for Grok-Cli-to-OpenAI-compatible
- * https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible
+ * OpenAI-compatible LLM client (single implementation for all presets).
  *
- * Primary LLM path: GET /v1/models · POST /v1/chat/completions
- * Video: CompositeVideoProvider → /v1/videos
+ * Works with any OpenAI-style base:
+ * - Grok-Cli-to-OpenAI-compatible (default preset, :3847)
+ * - OpenAI API (api.openai.com)
+ * - Custom OpenAI-compatible gateways
+ *
+ * Paths: GET /v1/models · POST /v1/chat/completions
+ * Video (when supported by host): CompositeVideoProvider → /v1/videos
  */
 
 import type {
@@ -42,6 +46,9 @@ export interface ChatTestResult {
 }
 
 export class GrokCliClient implements AIProvider {
+  /** Alias for clarity in new code */
+  static readonly protocol = 'openai-compatible' as const
+
   private readonly baseUrl: string
   private readonly model: string
   private readonly apiKey: string
@@ -251,3 +258,6 @@ export class GrokCliClient implements AIProvider {
     }
   }
 }
+
+/** Preferred name — identical to GrokCliClient (OpenAI-compatible HTTP). */
+export { GrokCliClient as OpenAiCompatibleClient }

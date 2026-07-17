@@ -395,14 +395,39 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   )
 
   ipcMain.handle(
+    'ai:applyLlmPreset',
+    wrap(async (_e, preset: 'grok-gateway' | 'openai' | 'custom') => {
+      const { applyLlmPreset } = await import('../../src/domain/openaiCompatible')
+      const current = settingsStore.load()
+      const patched = applyLlmPreset(current, preset)
+      const next = settingsStore.save({
+        llmProvider: patched.llmProvider,
+        baseUrl: patched.baseUrl,
+        videoPath: patched.videoPath,
+        model: patched.model
+      })
+      rebindAi(next)
+      activity.append({
+        kind: 'settings',
+        message: `llm preset → ${preset}`,
+        meta: { baseUrl: next.baseUrl }
+      })
+      return next
+    })
+  )
+
+  /** @deprecated alias — same as applyLlmPreset('grok-gateway') */
+  ipcMain.handle(
     'ai:applyGrokDefaults',
     wrap(async () => {
-      const { GROK_GATEWAY_BASE_URL, GROK_GATEWAY_VIDEO_PATH } = await import(
-        '../../src/domain/gatewayDefaults'
-      )
+      const { applyLlmPreset } = await import('../../src/domain/openaiCompatible')
+      const current = settingsStore.load()
+      const patched = applyLlmPreset(current, 'grok-gateway')
       const next = settingsStore.save({
-        baseUrl: GROK_GATEWAY_BASE_URL,
-        videoPath: GROK_GATEWAY_VIDEO_PATH
+        llmProvider: patched.llmProvider,
+        baseUrl: patched.baseUrl,
+        videoPath: patched.videoPath,
+        model: patched.model
       })
       rebindAi(next)
       return next

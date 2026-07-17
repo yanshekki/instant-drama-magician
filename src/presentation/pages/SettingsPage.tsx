@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import {
+  adminUrlFromBase,
+  applyLlmPreset,
+  llmPresetHintKey,
+  supportsLocalAdmin,
+  type LlmProviderPreset
+} from '../../domain/openaiCompatible'
 import type {
   AppSettings,
   ExportProfile,
@@ -146,14 +153,14 @@ export function SettingsPage(): JSX.Element {
           d.app
             ? `App: v${d.app.version} · ${d.app.isPackaged ? t('app.packaged') : t('app.dev')}`
             : null,
-          `Chat (Grok Gateway): ${d.chat.available ? 'OK' : 'OFFLINE'} — ${d.chat.message}`,
+          `Chat (OpenAI-compatible): ${d.chat.available ? 'OK' : 'OFFLINE'} — ${d.chat.message}`,
           d.chatProbe
             ? `  probe: ${d.chatProbe.message}${typeof d.chatProbe.latencyMs === 'number' ? ` (${d.chatProbe.latencyMs}ms)` : ''}${typeof modelCount === 'number' ? ` · models=${modelCount}` : ''}${d.chatProbe.healthOk === false ? ' · health=fail' : ''}`
             : null,
           `Video (${d.videoMode}): ${d.video.available ? 'OK' : 'FAIL'} — ${d.video.message}`,
           `FFmpeg: ${d.ffmpeg.available ? 'OK' : 'FAIL'} — ${d.ffmpeg.message}`,
           d.tips.length ? `${t('settings.tips')}:\n- ${d.tips.join('\n- ')}` : '',
-          t('settings.gatewayHint')
+          t('settings.llmHintGeneric')
         ]
           .filter(Boolean)
           .join('\n')
@@ -168,11 +175,28 @@ export function SettingsPage(): JSX.Element {
     }
   }
 
-  const handleApplyGrokDefaults = async (): Promise<void> => {
+  const handleLlmPresetChange = async (
+    preset: LlmProviderPreset
+  ): Promise<void> => {
+    if (!settings) return
+    setError(null)
     try {
-      const next = await getApi().ai.applyGrokDefaults()
+      // Prefer IPC so main rebinds AI; fall back to local apply + set
+      let next: AppSettings
+      try {
+        next = await getApi().ai.applyLlmPreset(preset)
+      } catch {
+        const patched = applyLlmPreset(settings, preset)
+        next = await getApi().settings.set({
+          llmProvider: patched.llmProvider,
+          baseUrl: patched.baseUrl,
+          videoPath: patched.videoPath,
+          model: patched.model
+        })
+      }
       setSettings(next)
-      setProbeMsg(t('settings.appliedGrokDefaults'))
+      setModelIds([])
+      setProbeMsg(t('settings.presetApplied', { preset }))
       await refreshAiStatus()
     } catch (e) {
       setError(parseIpcError(e).message)
@@ -218,19 +242,25 @@ export function SettingsPage(): JSX.Element {
 
   const handleOpenAdmin = (): void => {
     if (!settings) return
-    try {
-      const u = new URL(settings.baseUrl)
-      void getApi().shell.openExternal(`${u.origin}/admin/`)
-    } catch {
-      void getApi().shell.openExternal('http://127.0.0.1:3847/admin/')
-    }
+    void getApi().shell.openExternal(adminUrlFromBase(settings.baseUrl))
   }
 
-  const handleOpenGatewayRepo = (): void => {
+  const handleOpenDocs = (): void => {
+    if (settings?.llmProvider === 'openai') {
+      void getApi().shell.openExternal('https://platform.openai.com/docs')
+      return
+    }
     void getApi().shell.openExternal(
       'https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible'
     )
   }
+
+  const keyPlaceholder =
+    settings?.llmProvider === 'openai'
+      ? 'sk-…'
+      : settings?.llmProvider === 'grok-gateway'
+        ? 'gk_live_…'
+        : 'API key'
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -255,22 +285,52 @@ export function SettingsPage(): JSX.Element {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <h2 className="text-sm font-semibold text-ink-100">
-                    {t('settings.grokGateway')}
+                    {t('settings.llm')}
                   </h2>
                   <p className="mt-0.5 text-xs text-ink-500">
-                    {t('settings.grokGatewayHint')}
+                    {t('settings.llmSubtitle')}
                   </p>
                 </div>
-                <Button variant="ghost" onClick={handleOpenGatewayRepo}>
-                  {t('settings.openGatewayRepo')}
+                <Button variant="ghost" onClick={handleOpenDocs}>
+                  {t('settings.openProviderDocs')}
                 </Button>
               </div>
+
+              <div>
+                <Label>{t('settings.llmProvider')}</Label>
+                <Select
+                  value={settings.llmProvider}
+                  onChange={(e) =>
+                    void handleLlmPresetChange(
+                      e.target.value as LlmProviderPreset
+                    )
+                  }
+                >
+                  <option value="grok-gateway">
+                    {t('settings.llmPreset.grokGateway')}
+                  </option>
+                  <option value="openai">
+                    {t('settings.llmPreset.openai')}
+                  </option>
+                  <option value="custom">
+                    {t('settings.llmPreset.custom')}
+                  </option>
+                </Select>
+                <p className="mt-1 text-[11px] text-ink-500">
+                  {t(`settings.${llmPresetHintKey(settings.llmProvider)}`)}
+                </p>
+              </div>
+
               <div>
                 <Label>{t('settings.baseUrl')}</Label>
                 <Input
                   value={settings.baseUrl}
-                  onChange={(e) => patch('baseUrl', e.target.value)}
+                  onChange={(e) => {
+                    patch('baseUrl', e.target.value)
+                    patch('llmProvider', 'custom')
+                  }}
                   placeholder="http://127.0.0.1:3847/v1"
+                  disabled={settings.llmProvider === 'openai'}
                 />
               </div>
               <div>
@@ -278,10 +338,14 @@ export function SettingsPage(): JSX.Element {
                 <Input
                   value={settings.apiKey}
                   onChange={(e) => patch('apiKey', e.target.value)}
-                  placeholder="gk_live_…"
+                  placeholder={keyPlaceholder}
                 />
                 <p className="mt-1 text-[11px] text-ink-500">
-                  {t('settings.apiKeyHint')}
+                  {settings.llmProvider === 'openai'
+                    ? t('settings.apiKeyHintOpenAI')
+                    : settings.llmProvider === 'grok-gateway'
+                      ? t('settings.apiKeyHint')
+                      : t('settings.apiKeyHintCustom')}
                 </p>
               </div>
               <div>
@@ -308,32 +372,32 @@ export function SettingsPage(): JSX.Element {
                   <Input
                     value={settings.model}
                     onChange={(e) => patch('model', e.target.value)}
-                    placeholder="grok-cli"
+                    placeholder={
+                      settings.llmProvider === 'openai'
+                        ? 'gpt-4o-mini'
+                        : 'grok-cli'
+                    }
                   />
                 )}
               </div>
               <div>
                 <Label>
-                  {t('settings.chatTimeoutMs')} ({settings.chatTimeoutMs}ms)
+                  {t('settings.chatTimeoutMs')} (
+                  {settings.chatTimeoutMs || 120000}
+                  ms)
                 </Label>
                 <Input
                   type="number"
                   min={5000}
                   max={600000}
                   step={1000}
-                  value={settings.chatTimeoutMs}
+                  value={settings.chatTimeoutMs || 120000}
                   onChange={(e) =>
                     patch('chatTimeoutMs', Number(e.target.value) || 120000)
                   }
                 />
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => void handleApplyGrokDefaults()}
-                >
-                  {t('settings.applyGrokDefaults')}
-                </Button>
                 <Button
                   variant="secondary"
                   disabled={chatBusy}
@@ -347,9 +411,11 @@ export function SettingsPage(): JSX.Element {
                 >
                   {t('settings.testChat')}
                 </Button>
-                <Button variant="ghost" onClick={handleOpenAdmin}>
-                  {t('settings.openAdmin')}
-                </Button>
+                {supportsLocalAdmin(settings.llmProvider) && (
+                  <Button variant="ghost" onClick={handleOpenAdmin}>
+                    {t('settings.openAdmin')}
+                  </Button>
+                )}
                 <Button variant="secondary" onClick={() => void handleProbe()}>
                   {t('settings.probeAll')}
                 </Button>

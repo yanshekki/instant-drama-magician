@@ -2,13 +2,20 @@ import {
   GROK_GATEWAY_BASE_URL,
   GROK_GATEWAY_VIDEO_PATH
 } from '../domain/gatewayDefaults'
+import type { LlmProviderPreset } from '../domain/openaiCompatible'
 
 export type VideoMode = 'auto' | 'http' | 'stub'
 export type ExportProfile = 'fast' | 'balanced'
 export type TransitionMode = 'cut' | 'fade'
+export type { LlmProviderPreset }
 
 export interface AppSettings {
   videoMode: VideoMode
+  /**
+   * Which OpenAI-compatible endpoint preset is selected.
+   * All presets use the same chat/completions client.
+   */
+  llmProvider: LlmProviderPreset
   /** OpenAI-compatible base, e.g. http://127.0.0.1:3847/v1 */
   baseUrl: string
   videoPath: string
@@ -53,9 +60,10 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   videoMode: 'auto',
+  llmProvider: 'grok-gateway',
   baseUrl: GROK_GATEWAY_BASE_URL,
   videoPath: GROK_GATEWAY_VIDEO_PATH,
-  /** Placeholder — paste gk_live_… from Gateway Admin → Keys */
+  /** Placeholder — paste key for selected provider */
   apiKey: '',
   model: 'grok-cli',
   chatTimeoutMs: 120_000,
@@ -85,5 +93,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
 }
 
 export function mergeSettings(partial?: Partial<AppSettings> | null): AppSettings {
-  return { ...DEFAULT_SETTINGS, ...(partial ?? {}) }
+  const merged = { ...DEFAULT_SETTINGS, ...(partial ?? {}) }
+  // Backfill timeout if corrupt/empty from older settings files
+  if (!merged.chatTimeoutMs || merged.chatTimeoutMs < 1000) {
+    merged.chatTimeoutMs = DEFAULT_SETTINGS.chatTimeoutMs
+  }
+  if (!merged.llmProvider) {
+    merged.llmProvider = DEFAULT_SETTINGS.llmProvider
+  }
+  return merged
 }

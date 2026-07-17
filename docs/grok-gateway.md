@@ -1,13 +1,19 @@
-# InstantDrama ↔ Grok-Cli-to-OpenAI-compatible
+# InstantDrama ↔ OpenAI-compatible LLM
 
-**LLM 首選（本產品預設）**：[Grok-Cli-to-OpenAI-compatible](https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible)
+App 用 **同一套** OpenAI-compatible 客戶端（`/v1/models` · `/v1/chat/completions`）。  
+用 Settings 的 **供應商 preset** 揀 endpoint：
 
-本機範例：`/home/ki/文件/Grok-Cli-to-OpenAI-compatible`  
-預設 port：**`3847`**（`gctoac start`）
+| Preset | Base URL 例 | Key |
+|--------|-------------|-----|
+| **Grok CLI Gateway**（預設） | `http://127.0.0.1:3847/v1` | `gk_live_…` |
+| **OpenAI** | `https://api.openai.com/v1` | `sk-…` |
+| **Custom** | 任意 | 任意 Bearer |
+
+本機預設對齊：[Grok-Cli-to-OpenAI-compatible](https://github.com/yanshekki/Grok-Cli-to-OpenAI-compatible) · port **`3847`**
 
 ---
 
-## 1. LLM（Chat）— 優先打通
+## 1. LLM（Chat）
 
 | Method | Path | 用途 |
 |--------|------|------|

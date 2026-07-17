@@ -108,6 +108,8 @@ const api: ElectronApi = {
     probeChat: () => ipcRenderer.invoke('ai:probeChat'),
     listModels: () => ipcRenderer.invoke('ai:listModels'),
     testChat: (prompt?: string) => ipcRenderer.invoke('ai:testChat', prompt),
+    applyLlmPreset: (preset: 'grok-gateway' | 'openai' | 'custom') =>
+      ipcRenderer.invoke('ai:applyLlmPreset', preset),
     applyGrokDefaults: () => ipcRenderer.invoke('ai:applyGrokDefaults')
   },
   diagnostics: {

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { migrateGatewayDefaults } from '../../domain/gatewayDefaults'
+import { inferLlmPreset } from '../../domain/openaiCompatible'
 import {
   DEFAULT_SETTINGS,
   mergeSettings,
@@ -25,11 +26,18 @@ export class SettingsStore {
         const raw = JSON.parse(readFileSync(this.filePath, 'utf-8')) as Partial<AppSettings>
         let merged = mergeSettings(raw)
         const { settings, migrated } = migrateGatewayDefaults(merged)
-        merged = settings
+        merged = {
+          ...settings,
+          // Align preset tag with base URL when missing / stale
+          llmProvider: settings.llmProvider ?? inferLlmPreset(settings.baseUrl)
+        }
+        // If URL looks like grok gateway but preset wrong after migrate
+        if (migrated) {
+          merged.llmProvider = 'grok-gateway'
+        }
         this.lastLoadMigrated = migrated
         this.cache = merged
-        if (migrated) {
-          // Persist migrated defaults once
+        if (migrated || raw.llmProvider === undefined) {
           mkdirSync(dirname(this.filePath), { recursive: true })
           writeFileSync(this.filePath, JSON.stringify(merged, null, 2), 'utf-8')
         }
