@@ -39,3 +39,16 @@ Optional image_to_video:
 
 - `videoMode=stub` or HTTP failure → FFmpeg color stub (`degraded`)  
 - Chat still uses `/v1/chat/completions`
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| VIDEO_FEATURE_OFF | Admin → API features → enable **videoApi** |
+| VIDEO_KEY_MODE / 403 | Use **agent** or **admin** API key |
+| VIDEO_UNAUTHORIZED / 401 | Check key in InstantDrama Settings |
+| VIDEO_TIMEOUT | Raise `videoTimeoutSec`; check job queue |
+| VIDEO_RATE_LIMIT / 429 | Lower `videoConcurrency`; wait |
+| ffmpeg fail | Install ffmpeg; Settings shows status |
+
+Settings → **檢測 Chat + Video** runs full diagnostics.

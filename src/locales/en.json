@@ -127,7 +127,9 @@
     "undoHint": "Undo",
     "redoHint": "Redo",
     "aiClipHint": "AI clips support 6 or 10 seconds only (snapped on generate)",
-    "clipLength": "New clip length"
+    "clipLength": "New clip length",
+    "generateClip": "Generate clip",
+    "regenClip": "Regenerate"
   },
   "pipeline": {
     "script": "Writing script",
@@ -148,7 +150,10 @@
     "openFolder": "Show in folder",
     "confirmStub": "This will use stub color placeholders (not real AI video). Continue?",
     "confirmHttp": "This will call Gateway /v1/videos (needs agent/admin key). Continue?",
-    "confirmAuto": "Will auto-pick Gateway or stub. Continue?"
+    "confirmAuto": "Will auto-pick Gateway or stub. Continue?",
+    "exportFallbackConfirm": "Some clips are not READY; color fallbacks will be used. Export anyway?",
+    "clipDoneOk": "Clip video is ready.",
+    "clipDoneStub": "Clip ready (stub placeholder)."
   },
   "settings": {
     "title": "Settings",
@@ -176,7 +181,8 @@
     "videoPathHint": "Default {baseUrl}/videos (OpenAI Videos API)",
     "gatewayHint": "If offline, start the Grok gateway with videoApi + agent/admin key. See docs/grok-gateway.md",
     "probeAll": "Probe Chat + Video",
-    "ffmpegOk": "ffmpeg found"
+    "ffmpegOk": "ffmpeg found",
+    "tips": "Tips"
   },
   "ai": {
     "status": "AI status",

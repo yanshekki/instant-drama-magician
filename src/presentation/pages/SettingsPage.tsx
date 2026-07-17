@@ -51,19 +51,19 @@ export function SettingsPage(): JSX.Element {
 
   const handleProbe = async (): Promise<void> => {
     try {
-      const [chat, video] = await Promise.all([
-        getApi().ai.status() as Promise<{ available: boolean; message: string }>,
-        getApi().ai.probeVideo()
-      ])
+      const d = await getApi().diagnostics.full()
       setProbeMsg(
         [
-          `Chat: ${chat.available ? 'OK' : 'OFFLINE'} — ${chat.message}`,
-          `Video: ${video.available ? 'OK' : 'FAIL'} — ${video.message}`,
-          !chat.available || !video.available ? t('settings.gatewayHint') : ''
+          `Chat: ${d.chat.available ? 'OK' : 'OFFLINE'} — ${d.chat.message}`,
+          `Video (${d.videoMode}): ${d.video.available ? 'OK' : 'FAIL'} — ${d.video.message}`,
+          `FFmpeg: ${d.ffmpeg.available ? 'OK' : 'FAIL'} — ${d.ffmpeg.message}`,
+          d.tips.length ? `${t('settings.tips')}:\n- ${d.tips.join('\n- ')}` : '',
+          t('settings.gatewayHint')
         ]
           .filter(Boolean)
           .join('\n')
       )
+      setFfmpegMsg(d.ffmpeg.message)
       await refreshAiStatus()
     } catch (e) {
       setError(parseIpcError(e).message)

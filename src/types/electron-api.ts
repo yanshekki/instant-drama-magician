@@ -78,6 +78,15 @@ export interface ElectronApi {
       storyId: string,
       opts?: { onlyFailedVideos?: boolean }
     ) => Promise<unknown>
+    runClip: (
+      storyId: string,
+      entryId: string
+    ) => Promise<{
+      entryId: string
+      mediaPath: string
+      jobId?: string
+      degraded?: boolean
+    }>
     cancel: () => Promise<{ ok: boolean }>
     onProgress: (
       callback: (payload: {
@@ -95,6 +104,15 @@ export interface ElectronApi {
   ai: {
     status: () => Promise<unknown>
     probeVideo: () => Promise<{ id: string; available: boolean; message: string }>
+  }
+  diagnostics: {
+    full: () => Promise<{
+      chat: { available: boolean; message: string }
+      video: { available: boolean; message: string }
+      ffmpeg: { available: boolean; message: string }
+      videoMode: string
+      tips: string[]
+    }>
   }
   settings: {
     get: () => Promise<AppSettings>
@@ -118,6 +136,15 @@ export interface ElectronApi {
     openClip: (filePath: string) => Promise<{ ok: boolean }>
     toPreviewUrl: (filePath: string) => Promise<{ url: string; filePath: string }>
     checkFfmpeg: () => Promise<{ available: boolean; message: string }>
+    exportPreflight: (storyId: string) => Promise<{
+      ffmpeg: boolean
+      ffmpegMessage: string
+      readyClips: number
+      totalClips: number
+      willUseFallback: boolean
+      warnings: string[]
+      canExport: boolean
+    }>
   }
   project: {
     exportBackup: (storyId: string) => Promise<{ filePath: string } | null>

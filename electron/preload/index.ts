@@ -76,6 +76,8 @@ const api: ElectronApi = {
   generation: {
     run: (storyId: string, opts?: { onlyFailedVideos?: boolean }) =>
       ipcRenderer.invoke('generation:run', storyId, opts),
+    runClip: (storyId: string, entryId: string) =>
+      ipcRenderer.invoke('generation:runClip', storyId, entryId),
     cancel: () => ipcRenderer.invoke('generation:cancel'),
     onProgress: (callback) => {
       const listener = (
@@ -102,6 +104,9 @@ const api: ElectronApi = {
     status: () => ipcRenderer.invoke('ai:status'),
     probeVideo: () => ipcRenderer.invoke('ai:probeVideo')
   },
+  diagnostics: {
+    full: () => ipcRenderer.invoke('diagnostics:full')
+  },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (partial) => ipcRenderer.invoke('settings:set', partial)
@@ -123,7 +128,9 @@ const api: ElectronApi = {
       ipcRenderer.invoke('media:importClip', storyId, entryId),
     openClip: (filePath: string) => ipcRenderer.invoke('media:openClip', filePath),
     toPreviewUrl: (filePath: string) => ipcRenderer.invoke('media:toPreviewUrl', filePath),
-    checkFfmpeg: () => ipcRenderer.invoke('media:checkFfmpeg')
+    checkFfmpeg: () => ipcRenderer.invoke('media:checkFfmpeg'),
+    exportPreflight: (storyId: string) =>
+      ipcRenderer.invoke('media:exportPreflight', storyId)
   },
   project: {
     exportBackup: (storyId: string) => ipcRenderer.invoke('project:exportBackup', storyId),

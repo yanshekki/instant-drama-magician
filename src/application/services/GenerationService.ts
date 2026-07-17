@@ -4,8 +4,10 @@ import type {
   AIProvider,
   GenerationResult,
   PipelineStepResult,
-  StoryDetail
+  StoryDetail,
+  TimelineEntry
 } from '../../types/domain'
+import { snapVideoSeconds } from '../../domain/videoDuration'
 import type { AppSettings } from '../../types/settings'
 import { DEFAULT_SETTINGS } from '../../types/settings'
 import { AppError } from '../../types/errors'
@@ -28,6 +30,7 @@ export type GenerationProgressHandler = (payload: {
 
 export class GenerationService {
   private pipeline: GenerationPipeline
+  private ai: AIProvider
   private readonly ffmpeg: FfmpegService
   private readonly store: MediaStore
   private abort: AbortController | null = null
@@ -43,6 +46,7 @@ export class GenerationService {
       settings?: AppSettings
     }
   ) {
+    this.ai = ai
     this.pipeline = options?.pipeline ?? new GenerationPipeline(ai)
     this.ffmpeg = options?.ffmpeg ?? new FfmpegService()
     this.store = new MediaStore(options?.mediaRoot ?? join(process.cwd(), '.media'))
@@ -50,12 +54,157 @@ export class GenerationService {
   }
 
   rebindAi(ai: AIProvider, settings?: AppSettings): void {
+    this.ai = ai
     this.pipeline = new GenerationPipeline(ai)
     if (settings) this.settings = settings
   }
 
   cancel(): void {
     this.abort?.abort()
+  }
+
+  /**
+   * Generate video for a single timeline entry (no full pipeline).
+   */
+  async generateClip(
+    storyId: string,
+    entryId: string,
+    onProgress?: GenerationProgressHandler
+  ): Promise<{ entryId: string; mediaPath: string; jobId?: string; degraded?: boolean }> {
+    if (!this.ai.generateVideo) {
+      throw new AppError('AI_UNAVAILABLE', 'AI provider has no generateVideo')
+    }
+    const story = await this.loadStory(storyId)
+    const entry = story.timeline.find((e) => e.id === entryId)
+    if (!entry) throw new AppError('NOT_FOUND', `Timeline entry not found: ${entryId}`)
+
+    this.store.ensureStoryDirs(storyId)
+    const char = story.characters.find((c) => c.id === entry.characterId)
+    const scene = story.scenes.find((s) => s.id === entry.sceneId)
+    const prop = story.props.find((p) => p.id === entry.propId)
+    const seconds = snapVideoSeconds(entry.endTime - entry.startTime)
+    const outputPath = this.store.clipPath(storyId, entryId)
+
+    await this.prisma.timelineEntry.update({
+      where: { id: entryId },
+      data: { mediaStatus: 'GENERATING', mediaError: null, videoJobId: null }
+    })
+    onProgress?.({
+      storyId,
+      step: 'video',
+      index: 0,
+      total: 1,
+      entryId,
+      mediaStatus: 'GENERATING'
+    })
+
+    try {
+      const prompt = [
+        `Short drama clip for story "${story.title}".`,
+        char ? `Character: ${char.name} — ${char.description}` : null,
+        char?.refImagePath ? `Use reference image for ${char.name}.` : null,
+        scene ? `Scene #${scene.sceneNumber}: ${scene.description}` : null,
+        scene?.script ? `Script: ${scene.script.slice(0, 400)}` : null,
+        prop ? `Prop: ${prop.name}` : null,
+        entry.dialogue ? `Dialogue: ${entry.dialogue}` : null,
+        `Duration: ${seconds}s.`
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      const result = await this.ai.generateVideo({
+        prompt,
+        durationSeconds: seconds,
+        refImagePath: char?.refImagePath,
+        outputPath,
+        aspectRatio: this.settings.aspectRatio
+      })
+
+      await this.prisma.timelineEntry.update({
+        where: { id: entryId },
+        data: {
+          mediaPath: result.outputPath,
+          mediaStatus: 'READY',
+          mediaError: null,
+          videoJobId: result.jobId ?? null
+        }
+      })
+      onProgress?.({
+        storyId,
+        step: 'video',
+        index: 0,
+        total: 1,
+        entryId,
+        mediaStatus: 'READY',
+        jobId: result.jobId
+      })
+      return {
+        entryId,
+        mediaPath: result.outputPath,
+        jobId: result.jobId,
+        degraded: result.degraded
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await this.prisma.timelineEntry.update({
+        where: { id: entryId },
+        data: { mediaStatus: 'FAILED', mediaError: message }
+      })
+      onProgress?.({
+        storyId,
+        step: 'video',
+        index: 0,
+        total: 1,
+        entryId,
+        mediaStatus: 'FAILED'
+      })
+      throw error
+    }
+  }
+
+  async exportPreflight(storyId: string): Promise<{
+    ffmpeg: boolean
+    ffmpegMessage: string
+    readyClips: number
+    totalClips: number
+    willUseFallback: boolean
+    warnings: string[]
+    canExport: boolean
+  }> {
+    const story = await this.loadStory(storyId)
+    const warnings: string[] = []
+    let ffmpeg = true
+    let ffmpegMessage = 'ffmpeg OK'
+    try {
+      await this.ffmpeg.ensureAvailable()
+    } catch (error) {
+      ffmpeg = false
+      ffmpegMessage = error instanceof Error ? error.message : String(error)
+      warnings.push(ffmpegMessage)
+    }
+
+    const totalClips = story.timeline.length
+    const readyClips = story.timeline.filter((e) => e.mediaStatus === 'READY').length
+    const willUseFallback = totalClips === 0 || readyClips < totalClips
+    if (totalClips === 0) {
+      warnings.push('Timeline is empty — export will use a short placeholder.')
+    } else if (readyClips === 0) {
+      warnings.push('No READY clips — all segments will be color fallbacks.')
+    } else if (readyClips < totalClips) {
+      warnings.push(
+        `${totalClips - readyClips} clip(s) not READY — those will use color fallbacks.`
+      )
+    }
+
+    return {
+      ffmpeg,
+      ffmpegMessage,
+      readyClips,
+      totalClips,
+      willUseFallback,
+      warnings,
+      canExport: ffmpeg
+    }
   }
 
   async run(
@@ -313,5 +462,10 @@ export class GenerationService {
     })
     if (!story) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
     return story
+  }
+
+  // keep TimelineEntry type referenced for future typed helpers
+  static emptyTimeline(): TimelineEntry[] {
+    return []
   }
 }

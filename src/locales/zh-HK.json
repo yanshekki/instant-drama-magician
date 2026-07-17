@@ -127,7 +127,9 @@
     "undoHint": "撤銷",
     "redoHint": "重做",
     "aiClipHint": "AI 片段僅支援 6 或 10 秒（生成時會自動對齊）",
-    "clipLength": "新片段長度"
+    "clipLength": "新片段長度",
+    "generateClip": "生成此段",
+    "regenClip": "重新生成"
   },
   "pipeline": {
     "script": "撰寫劇本",
@@ -148,7 +150,10 @@
     "openFolder": "在資料夾中顯示",
     "confirmStub": "將使用 stub 色塊占位片（非真 AI 影片）。繼續？",
     "confirmHttp": "將呼叫 Gateway /v1/videos（需 agent/admin key）。繼續？",
-    "confirmAuto": "將自動選擇 Gateway 或 stub。繼續？"
+    "confirmAuto": "將自動選擇 Gateway 或 stub。繼續？",
+    "exportFallbackConfirm": "部分片段未 READY，將使用色塊占位。仍要匯出？",
+    "clipDoneOk": "此段影片已就緒。",
+    "clipDoneStub": "此段已就緒（stub 占位）。"
   },
   "settings": {
     "title": "設定",
@@ -176,7 +181,8 @@
     "videoPathHint": "預設 {baseUrl}/videos（OpenAI Videos API）",
     "gatewayHint": "連線失敗時請啟動 Grok gateway，並確認 videoApi + agent/admin key。見 docs/grok-gateway.md",
     "probeAll": "檢測 Chat + Video",
-    "ffmpegOk": "已找到 ffmpeg"
+    "ffmpegOk": "已找到 ffmpeg",
+    "tips": "建議"
   },
   "ai": {
     "status": "AI 狀態",

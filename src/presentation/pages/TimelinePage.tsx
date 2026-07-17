@@ -73,6 +73,7 @@ export function TimelinePage(): JSX.Element {
   const [videoMode, setVideoMode] = useState<string>('auto')
   const [lastExportPath, setLastExportPath] = useState<string | null>(null)
   const [currentStepLabel, setCurrentStepLabel] = useState<string | null>(null)
+  const [clipBusyId, setClipBusyId] = useState<string | null>(null)
 
   const selected = entries.find((e) => e.id === selectedId) ?? null
 
@@ -300,6 +301,19 @@ export function TimelinePage(): JSX.Element {
     setExporting(true)
     setActionError(null)
     try {
+      if (mode === 'final') {
+        const pre = await getApi().media.exportPreflight(activeStoryId)
+        if (!pre.canExport) {
+          setActionError(pre.ffmpegMessage || t('pipeline.needFfmpeg'))
+          return
+        }
+        if (pre.willUseFallback) {
+          const ok = confirm(
+            `${pre.warnings.join('\n')}\n\n${t('pipeline.exportFallbackConfirm')}`
+          )
+          if (!ok) return
+        }
+      }
       const { outputPath } =
         mode === 'final'
           ? await getApi().media.exportFinal(activeStoryId)
@@ -314,10 +328,32 @@ export function TimelinePage(): JSX.Element {
       setActionError(
         err.code === 'FFMPEG_UNAVAILABLE' || /ffmpeg/i.test(err.message)
           ? t('pipeline.needFfmpeg')
-          : err.message
+          : `${err.message}${err.details ? ` — ${err.details}` : ''}`
       )
     } finally {
       setExporting(false)
+    }
+  }
+
+  const handleRunClip = async (entryId: string): Promise<void> => {
+    if (!activeStoryId || generating || clipBusyId) return
+    setClipBusyId(entryId)
+    setActionError(null)
+    try {
+      const r = await getApi().generation.runClip(activeStoryId, entryId)
+      setBanner(
+        r.degraded ? t('pipeline.clipDoneStub') : t('pipeline.clipDoneOk')
+      )
+      await reload()
+      await refreshStories()
+    } catch (e) {
+      const err = parseIpcError(e)
+      setActionError(
+        `${err.message}${err.details ? ` — ${err.details}` : ''}`
+      )
+      await reload()
+    } finally {
+      setClipBusyId(null)
     }
   }
 
@@ -399,10 +435,14 @@ export function TimelinePage(): JSX.Element {
                 <Button
                   variant="secondary"
                   onClick={() => void handleGenerate(true)}
+                  disabled={Boolean(clipBusyId)}
                 >
                   {t('common.retryFailed')}
                 </Button>
-                <Button onClick={() => void handleGenerate(false)}>
+                <Button
+                  onClick={() => void handleGenerate(false)}
+                  disabled={Boolean(clipBusyId)}
+                >
                   {t('common.generate')}
                 </Button>
               </>
@@ -588,6 +628,21 @@ export function TimelinePage(): JSX.Element {
                         job:{e.videoJobId.slice(0, 8)}
                       </span>
                     )}
+                    <Button
+                      variant="ghost"
+                      className="ml-2 !py-0.5 !px-2 text-[11px]"
+                      disabled={generating || clipBusyId === e.id}
+                      onClick={(ev) => {
+                        ev.stopPropagation()
+                        void handleRunClip(e.id)
+                      }}
+                    >
+                      {clipBusyId === e.id
+                        ? t('common.generating')
+                        : e.mediaStatus === 'FAILED' || e.mediaStatus === 'EMPTY'
+                          ? t('timeline.generateClip')
+                          : t('timeline.regenClip')}
+                    </Button>
                   </li>
                 ))}
               </ul>

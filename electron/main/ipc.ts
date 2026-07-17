@@ -321,6 +321,19 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   )
 
   ipcMain.handle(
+    'generation:runClip',
+    wrap(async (event, storyId: string, entryId: string) => {
+      const result = await generation().generateClip(storyId, entryId, (payload) => {
+        event.sender.send('generation:progress', payload)
+      })
+      if (result.degraded) {
+        settingsStore.save({ lastGenerationDegraded: true })
+      }
+      return result
+    })
+  )
+
+  ipcMain.handle(
     'ai:status',
     wrap(async () => aiClient.getStatus())
   )
@@ -439,6 +452,45 @@ export function registerIpcHandlers(ctx: IpcContext): void {
           available: false,
           message: error instanceof Error ? error.message : String(error)
         }
+      }
+    })
+  )
+
+  ipcMain.handle(
+    'media:exportPreflight',
+    wrap(async (_e, storyId: string) => generation().exportPreflight(storyId))
+  )
+
+  ipcMain.handle(
+    'diagnostics:full',
+    wrap(async () => {
+      const chat = await aiClient.getStatus()
+      const video = await aiClient.videoProvider.probe()
+      let ffmpeg = { available: false, message: 'unknown' }
+      try {
+        const { FfmpegService } = await import(
+          '../../src/infrastructure/ffmpeg/FfmpegService'
+        )
+        await new FfmpegService().ensureAvailable()
+        ffmpeg = { available: true, message: 'ffmpeg OK' }
+      } catch (error) {
+        ffmpeg = {
+          available: false,
+          message: error instanceof Error ? error.message : String(error)
+        }
+      }
+      const tips: string[] = []
+      if (!chat.available) tips.push('Start Gateway; set baseUrl + API key.')
+      if (!video.available) {
+        tips.push('Enable videoApi; use agent/admin key; videoPath=/v1/videos.')
+      }
+      if (!ffmpeg.available) tips.push('Install ffmpeg or set FFMPEG_PATH.')
+      return {
+        chat,
+        video,
+        ffmpeg,
+        videoMode: settings.videoMode,
+        tips
       }
     })
   )

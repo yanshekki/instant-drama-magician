@@ -13,6 +13,7 @@ import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
 import type { VideoGenRequest, VideoGenResult } from '../../../types/domain'
 import { snapVideoSeconds } from '../../../domain/videoDuration'
+import { AppError, mapHttpStatusToVideoError } from '../../../types/errors'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { isRetryableError, sleep, withRetries } from './httpUtils'
 
@@ -171,7 +172,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
             return this.legacyGenerate(request, seconds)
           }
           const text = await res.text()
-          throw new Error(`Video HTTP ${res.status}: ${text.slice(0, 500)}`)
+          throw mapHttpStatusToVideoError(res.status, text)
         }
 
         const contentType = res.headers.get('content-type') ?? ''
@@ -257,12 +258,20 @@ export class GrokHttpVideoProvider implements VideoProvider {
         return
       }
       if (status === 'failed' || status === 'error' || status === 'cancelled') {
-        throw new Error(json.error ?? `Video job ${status}`)
+        throw new AppError(
+          'VIDEO_JOB_FAILED',
+          json.error ?? `Video job ${status}`,
+          'Retry this clip or check Gateway logs.'
+        )
       }
       // queued | in_progress | processing
       await sleep(this.pollMs)
     }
-    throw new Error(`Video job timed out after ${this.timeoutSec}s`)
+    throw new AppError(
+      'VIDEO_TIMEOUT',
+      `Video job timed out after ${this.timeoutSec}s`,
+      'Increase videoTimeoutSec in Settings.'
+    )
   }
 
   private async downloadContent(jobId: string, dest: string): Promise<void> {
