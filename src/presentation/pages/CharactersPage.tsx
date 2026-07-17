@@ -137,6 +137,7 @@ export function CharactersPage(): JSX.Element {
     setEditingId(null)
     setForm(emptyForm())
     setSelectedImageId(null)
+    setAiIdea('')
     setEditorOpen(true)
     setTab('library')
   }
@@ -163,6 +164,8 @@ export function CharactersPage(): JSX.Element {
       soulPreview: null,
       gallery
     })
+    // Prefill improve box with seed / short brief for instant refine
+    setAiIdea(c.seedPrompt?.trim() || '')
     setSelectedImageId(gallery[0]?.id ?? null)
     setEditorOpen(true)
   }
@@ -224,9 +227,17 @@ export function CharactersPage(): JSX.Element {
     }
   }
 
-  const handleAiFill = async (): Promise<void> => {
+  const handleAiFill = async (fromEditor = false): Promise<void> => {
     const idea = aiIdea.trim() || form.seedPrompt.trim()
-    if (!idea) {
+    const hasDraft = Boolean(
+      form.name.trim() ||
+        form.description.trim() ||
+        form.appearance.trim() ||
+        form.personality.trim() ||
+        form.voiceDesc.trim() ||
+        form.mannerisms.trim()
+    )
+    if (!idea && !hasDraft) {
       setActionError(t('characters.ideaRequired'))
       return
     }
@@ -235,9 +246,25 @@ export function CharactersPage(): JSX.Element {
     try {
       const locale = i18n.language === 'en' ? 'en' : 'zh-HK'
       const r = await getApi().characters.aiFill({
-        idea,
+        idea: idea || undefined,
         storyId: activeStoryId ?? undefined,
-        locale
+        locale,
+        existingDraft: hasDraft
+          ? {
+              name: form.name || undefined,
+              description: form.description || undefined,
+              appearance: form.appearance || undefined,
+              personality: form.personality || undefined,
+              backstory: form.backstory || undefined,
+              costume: form.costume || undefined,
+              ageRange: form.ageRange || undefined,
+              gender: form.gender || undefined,
+              voiceDesc: form.voiceDesc || undefined,
+              mannerisms: form.mannerisms || undefined,
+              relationships: form.relationships || undefined,
+              visualTags: form.visualTags || undefined
+            }
+          : undefined
       })
       const p = r.profile
       setForm((f) => ({
@@ -254,11 +281,13 @@ export function CharactersPage(): JSX.Element {
         mannerisms: p.mannerisms ?? f.mannerisms,
         relationships: p.relationships ?? f.relationships,
         visualTags: p.visualTags ?? f.visualTags,
-        seedPrompt: idea
+        seedPrompt: idea || f.seedPrompt || p.description
       }))
       setEditorOpen(true)
-      setTab('library')
-      setToast(t('characters.aiFillOk'))
+      if (!fromEditor) setTab('library')
+      setToast(
+        hasDraft ? t('characters.aiImproveOk') : t('characters.aiFillOk')
+      )
     } catch (e) {
       const err = parseIpcError(e)
       setActionError(`${err.message}${err.details ? ` — ${err.details}` : ''}`)
@@ -731,6 +760,43 @@ export function CharactersPage(): JSX.Element {
                   </p>
                 </section>
 
+                {/* AI create / improve — always available in new + edit */}
+                <section className="mb-8 rounded-2xl border border-brand-800/40 bg-gradient-to-br from-brand-950/50 via-ink-900/80 to-ink-950 p-4">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-brand-100">
+                      {editingId
+                        ? t('characters.aiImproveTitle')
+                        : t('characters.aiCreate')}
+                    </h3>
+                  </div>
+                  <p className="mb-3 text-[11px] leading-relaxed text-ink-400">
+                    {editingId
+                      ? t('characters.aiImproveHint')
+                      : t('characters.aiCreateHint')}
+                  </p>
+                  <Textarea
+                    rows={3}
+                    value={aiIdea}
+                    onChange={(e) => setAiIdea(e.target.value)}
+                    placeholder={
+                      editingId
+                        ? t('characters.improvePlaceholder')
+                        : t('characters.ideaPlaceholder')
+                    }
+                  />
+                  <Button
+                    className="mt-3 w-full"
+                    disabled={busy}
+                    onClick={() => void handleAiFill(true)}
+                  >
+                    {busy
+                      ? t('common.loading')
+                      : editingId
+                        ? t('characters.runMasterPromptImprove')
+                        : t('characters.runMasterPrompt')}
+                  </Button>
+                </section>
+
                 {/* Profile fields */}
                 <section className="space-y-4">
                   <h3 className="text-sm font-semibold text-ink-200">
@@ -998,7 +1064,7 @@ export function CharactersPage(): JSX.Element {
               <Button
                 className="mt-4 w-full"
                 disabled={busy}
-                onClick={() => void handleAiFill()}
+                onClick={() => void handleAiFill(false)}
               >
                 {busy ? t('common.loading') : t('characters.runMasterPrompt')}
               </Button>

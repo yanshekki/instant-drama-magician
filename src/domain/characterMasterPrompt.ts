@@ -64,30 +64,47 @@ export function buildCharacterMasterUserPrompt(options: {
   storyTitle?: string
   styleNote?: string | null
   locale?: 'zh-HK' | 'en'
+  /** When set, model should refine/improve this draft rather than invent from scratch */
+  existingDraft?: Partial<CharacterProfileFields> | null
 }): string {
-  const lines = [
-    options.locale === 'en' ? 'Character idea:' : '角色 idea：',
-    options.idea.trim(),
-    ''
-  ]
+  const en = options.locale === 'en'
+  const lines: string[] = []
+
+  if (options.existingDraft && Object.keys(options.existingDraft).length > 0) {
+    lines.push(
+      en
+        ? 'Improve / refine this existing character draft (keep identity unless the user asks to change it). Merge user instructions below into a complete profile:'
+        : '請改進／完善以下已有角色草稿（除非用戶要求改身份，否則保持核心一致），並按下方指示合併成完整 JSON：'
+    )
+    lines.push(JSON.stringify(options.existingDraft, null, 2))
+    lines.push('')
+    lines.push(
+      en
+        ? 'User improvement request (may be empty = polish all fields for video consistency):'
+        : '用戶改進要求（可留空 = 全面潤飾，令更適合拍片）：'
+    )
+    lines.push(options.idea.trim() || (en ? '(polish for short-drama + multi-angle sheet)' : '（全面潤飾：短劇可拍、多角度一致）'))
+  } else {
+    lines.push(en ? 'Character idea:' : '角色 idea：')
+    lines.push(options.idea.trim())
+  }
+  lines.push('')
   if (options.storyTitle) {
     lines.push(
-      options.locale === 'en'
-        ? `Story title: ${options.storyTitle}`
-        : `故事標題：${options.storyTitle}`
+      en ? `Story title: ${options.storyTitle}` : `故事標題：${options.storyTitle}`
     )
   }
   if (options.styleNote?.trim()) {
     lines.push(
-      options.locale === 'en'
+      en
         ? `Style bible: ${options.styleNote.trim()}`
         : `風格備註：${options.styleNote.trim()}`
     )
   }
   lines.push(
-    options.locale === 'en'
-      ? 'Output the JSON character profile now.'
-      : '請立即輸出 JSON 角色設定。'
+    en
+      ? 'Output the complete JSON character profile now.'
+      : '請立即輸出完整 JSON 角色設定。'
   )
   return lines.join('\n')
 }

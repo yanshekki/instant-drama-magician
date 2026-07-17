@@ -172,13 +172,25 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       async (
         _e,
         payload: {
-          idea: string
+          idea?: string
           storyId?: string
           locale?: 'zh-HK' | 'en'
+          /** Current form fields — enables create + edit refine */
+          existingDraft?: Record<string, string | undefined | null>
         }
       ) => {
-        const idea = payload.idea?.trim()
-        if (!idea) throw new AppError('VALIDATION', 'Idea prompt is required')
+        const idea = payload.idea?.trim() ?? ''
+        const draft = payload.existingDraft
+        const hasDraft = Boolean(
+          draft &&
+            Object.values(draft).some((v) => typeof v === 'string' && v.trim())
+        )
+        if (!idea && !hasDraft) {
+          throw new AppError(
+            'VALIDATION',
+            'Idea or existing character draft is required'
+          )
+        }
         let storyTitle: string | undefined
         let styleNote: string | null | undefined
         if (payload.storyId) {
@@ -189,6 +201,22 @@ export function registerIpcHandlers(ctx: IpcContext): void {
           styleNote = story?.styleNote
         }
         const locale = payload.locale ?? 'zh-HK'
+        const existingDraft = hasDraft
+          ? {
+              name: draft?.name ?? undefined,
+              description: draft?.description ?? undefined,
+              appearance: draft?.appearance ?? undefined,
+              personality: draft?.personality ?? undefined,
+              backstory: draft?.backstory ?? undefined,
+              costume: draft?.costume ?? undefined,
+              ageRange: draft?.ageRange ?? undefined,
+              gender: draft?.gender ?? undefined,
+              voiceDesc: draft?.voiceDesc ?? undefined,
+              mannerisms: draft?.mannerisms ?? undefined,
+              relationships: draft?.relationships ?? undefined,
+              visualTags: draft?.visualTags ?? undefined
+            }
+          : null
         const completion = await aiClient.chat({
           messages: [
             {
@@ -198,10 +226,11 @@ export function registerIpcHandlers(ctx: IpcContext): void {
             {
               role: 'user',
               content: buildCharacterMasterUserPrompt({
-                idea,
+                idea: idea || (locale === 'en' ? 'Polish all fields' : '全面潤飾'),
                 storyTitle,
                 styleNote,
-                locale
+                locale,
+                existingDraft
               })
             }
           ],
@@ -211,7 +240,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         const profile = extractCharacterProfileJson(text)
         activity.append({
           kind: 'character',
-          message: 'aiFill',
+          message: hasDraft ? 'aiRefine' : 'aiFill',
           storyId: payload.storyId,
           meta: { name: profile.name }
         })

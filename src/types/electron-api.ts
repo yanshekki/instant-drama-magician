@@ -38,9 +38,10 @@ export interface ElectronApi {
       parsed: unknown
     }>
     aiFill: (payload: {
-      idea: string
+      idea?: string
       storyId?: string
       locale?: 'zh-HK' | 'en'
+      existingDraft?: Record<string, string | undefined | null>
     }) => Promise<{
       profile: CharacterProfileFields
       profileJson: string

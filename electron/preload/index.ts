@@ -37,9 +37,10 @@ const api: ElectronApi = {
       } | null>,
     importSoulMdUrl: (url: string) => ipcRenderer.invoke('characters:importSoulMdUrl', url),
     aiFill: (payload: {
-      idea: string
+      idea?: string
       storyId?: string
       locale?: 'zh-HK' | 'en'
+      existingDraft?: Record<string, string | undefined | null>
     }) => ipcRenderer.invoke('characters:aiFill', payload),
     generateSheet: (payload: {
       characterId: string
