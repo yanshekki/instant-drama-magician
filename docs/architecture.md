@@ -24,6 +24,15 @@ Presentation → IPC / `idm-media://` → Application → Domain → Infrastruct
 | Story.styleNote | Per-story visual tone note |
 | openExportFolder | Reveal export after save |
 
+## Round 9 — Release Candidate
+
+| Module | Role |
+|--------|------|
+| exportLayout | aspect → frame size, xfade chain, duck expression |
+| exportFinal | fade/cut transitions, aspect-aware, BGM ducking |
+| app:getInfo | version / packaged / userData / mediaRoot |
+| release.yml | tag `v*` → AppImage + deb (unsigned RC) |
+
 ## Pipeline
 
 Script → Character → Scene → Props → Timeline → **Video** (6/10s jobs) → Export  

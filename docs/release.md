@@ -6,12 +6,28 @@
 4. Configure Settings → video mode if real API available
 5. Ensure `ffmpeg` is installed on target machine
 6. Never commit `userData` secrets; settings stay local
-7. Version is `0.2.0` (Production UX). Bump for store/sign builds later.
+7. Version is **`0.3.0`** (Release Candidate). Store/sign builds later.
+
+## Ship an RC from git tag
+
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+# → .github/workflows/release.yml builds AppImage + deb and publishes Release
+```
+
+Manual:
+
+```bash
+CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --linux AppImage deb
+```
+
+See [rc.md](./rc.md).
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, test, build on `main`,  
-and uploads a **linux pack** artifact (`npm run pack` → `release/`).
+- `.github/workflows/ci.yml` — typecheck, test, build, pack artifact on `main`  
+- `.github/workflows/release.yml` — tag `v*` / workflow_dispatch → AppImage + deb  
 
 ## Not yet (commercial)
 

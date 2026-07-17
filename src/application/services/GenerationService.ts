@@ -411,7 +411,11 @@ export class GenerationService {
       }))
     )
 
-    const dialogueAudioPaths: Array<{ path: string; startSeconds: number }> = []
+    const dialogueAudioPaths: Array<{
+      path: string
+      startSeconds: number
+      endSeconds: number
+    }> = []
     if (this.settings.ttsEnabled) {
       try {
         const { CompositeTtsProvider } = await import(
@@ -434,7 +438,8 @@ export class GenerationService {
               if (spoken.outputPath && existsSync(spoken.outputPath)) {
                 dialogueAudioPaths.push({
                   path: spoken.outputPath,
-                  startSeconds: e.startTime
+                  startSeconds: e.startTime,
+                  endSeconds: e.endTime
                 })
               }
             } catch {
@@ -459,7 +464,11 @@ export class GenerationService {
       bgmPath: this.settings.bgmPath,
       bgmVolume: this.settings.bgmVolume,
       dialogueVolume: this.settings.dialogueVolume,
-      dialogueAudioPaths
+      duckRatio: this.settings.duckRatio,
+      dialogueAudioPaths,
+      aspectRatio: this.settings.aspectRatio,
+      transitionMode: this.settings.transitionMode,
+      transitionSec: this.settings.transitionSec
     })
     await this.prisma.story.update({
       where: { id: storyId },

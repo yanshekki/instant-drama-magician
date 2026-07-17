@@ -20,6 +20,8 @@ export function Layout(): JSX.Element {
   const activeStory = stories.find((s) => s.id === activeStoryId)
   const [videoMode, setVideoMode] = useState('auto')
   const [degraded, setDegraded] = useState(false)
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+  const [isPackaged, setIsPackaged] = useState(false)
 
   useEffect(() => {
     void getApi()
@@ -27,6 +29,13 @@ export function Layout(): JSX.Element {
       .then((s: AppSettings) => {
         setVideoMode(s.videoMode)
         setDegraded(s.lastGenerationDegraded)
+      })
+      .catch(() => undefined)
+    void getApi()
+      .app.getInfo()
+      .then((info) => {
+        setAppVersion(info.version)
+        setIsPackaged(info.isPackaged)
       })
       .catch(() => undefined)
   }, [])
@@ -43,6 +52,12 @@ export function Layout(): JSX.Element {
             {t('app.name')}
           </div>
           <p className="mt-1 text-xs text-ink-400">{t('app.tagline')}</p>
+          {appVersion && (
+            <p className="mt-1 font-mono text-[10px] text-ink-500">
+              v{appVersion}
+              {isPackaged ? ` · ${t('app.packaged')}` : ` · ${t('app.dev')}`}
+            </p>
+          )}
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-3">

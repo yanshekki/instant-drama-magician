@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
-import type { AppSettings, ExportProfile, VideoMode } from '../../types/settings'
+import type {
+  AppSettings,
+  ExportProfile,
+  TransitionMode,
+  VideoMode
+} from '../../types/settings'
 import { useApp } from '../context/AppContext'
 import { PageHeader } from '../components/PageHeader'
 import { Button, Card, Input, Label, Select } from '../components/ui'
@@ -15,6 +20,15 @@ export function SettingsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [ffmpegMsg, setFfmpegMsg] = useState<string | null>(null)
+  const [appInfo, setAppInfo] = useState<{
+    version: string
+    name: string
+    electron: string
+    userData: string
+    mediaRoot: string
+    isPackaged: boolean
+    platform: string
+  } | null>(null)
 
   useEffect(() => {
     void getApi()
@@ -27,6 +41,10 @@ export function SettingsPage(): JSX.Element {
         setFfmpegMsg(r.available ? t('settings.ffmpegOk') : r.message)
       )
       .catch(() => setFfmpegMsg(t('pipeline.needFfmpeg')))
+    void getApi()
+      .app.getInfo()
+      .then(setAppInfo)
+      .catch(() => undefined)
   }, [t])
 
   const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]): void => {
@@ -54,6 +72,9 @@ export function SettingsPage(): JSX.Element {
       const d = await getApi().diagnostics.full()
       setProbeMsg(
         [
+          d.app
+            ? `App: v${d.app.version} · ${d.app.isPackaged ? t('app.packaged') : t('app.dev')}`
+            : null,
           `Chat: ${d.chat.available ? 'OK' : 'OFFLINE'} — ${d.chat.message}`,
           `Video (${d.videoMode}): ${d.video.available ? 'OK' : 'FAIL'} — ${d.video.message}`,
           `FFmpeg: ${d.ffmpeg.available ? 'OK' : 'FAIL'} — ${d.ffmpeg.message}`,
@@ -225,6 +246,22 @@ export function SettingsPage(): JSX.Element {
                   className="w-full"
                 />
               </div>
+              <div>
+                <Label>
+                  {t('settings.duckRatio')} ({Math.round(settings.duckRatio * 100)}
+                  %)
+                </Label>
+                <input
+                  type="range"
+                  min={5}
+                  max={100}
+                  value={Math.round(settings.duckRatio * 100)}
+                  onChange={(e) =>
+                    patch('duckRatio', Number(e.target.value) / 100)
+                  }
+                  className="w-full"
+                />
+              </div>
               <label className="flex items-center gap-2 text-sm text-ink-200">
                 <input
                   type="checkbox"
@@ -296,6 +333,68 @@ export function SettingsPage(): JSX.Element {
                   <option value="balanced">balanced</option>
                 </Select>
               </div>
+              <div>
+                <Label>{t('settings.transitionMode')}</Label>
+                <Select
+                  value={settings.transitionMode}
+                  onChange={(e) =>
+                    patch('transitionMode', e.target.value as TransitionMode)
+                  }
+                >
+                  <option value="fade">fade</option>
+                  <option value="cut">cut</option>
+                </Select>
+              </div>
+              <div>
+                <Label>
+                  {t('settings.transitionSec')} ({settings.transitionSec}s)
+                </Label>
+                <input
+                  type="range"
+                  min={5}
+                  max={100}
+                  value={Math.round(settings.transitionSec * 100)}
+                  onChange={(e) =>
+                    patch('transitionSec', Number(e.target.value) / 100)
+                  }
+                  className="w-full"
+                  disabled={settings.transitionMode === 'cut'}
+                />
+              </div>
+            </Card>
+
+            <Card className="space-y-2 text-xs text-ink-400">
+              <div className="font-medium text-ink-200">{t('settings.about')}</div>
+              {appInfo ? (
+                <div className="space-y-1 font-mono text-[11px] text-ink-300">
+                  <div>
+                    {t('settings.version')}: {appInfo.version}
+                  </div>
+                  <div>
+                    {t('settings.buildKind')}:{' '}
+                    {appInfo.isPackaged
+                      ? t('app.packaged')
+                      : t('app.dev')}
+                  </div>
+                  <div>Electron: {appInfo.electron}</div>
+                  <div>
+                    {t('settings.platform')}: {appInfo.platform}
+                  </div>
+                  <div className="break-all">
+                    userData: {appInfo.userData}
+                  </div>
+                  <div className="break-all">
+                    media: {appInfo.mediaRoot}
+                  </div>
+                  {appInfo.isPackaged && (
+                    <p className="mt-2 text-amber-200/90">
+                      {t('settings.packagedHint')}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p>—</p>
+              )}
             </Card>
 
             <Card className="text-xs text-ink-400">

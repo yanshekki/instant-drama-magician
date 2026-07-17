@@ -466,6 +466,19 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   )
 
   ipcMain.handle(
+    'app:getInfo',
+    wrap(async () => ({
+      version: app.getVersion(),
+      name: app.getName(),
+      electron: process.versions.electron ?? 'unknown',
+      userData: app.getPath('userData'),
+      mediaRoot: mediaRoot(),
+      isPackaged: app.isPackaged,
+      platform: process.platform
+    }))
+  )
+
+  ipcMain.handle(
     'diagnostics:full',
     wrap(async () => {
       const chat = await aiClient.getStatus()
@@ -488,13 +501,29 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       if (!video.available) {
         tips.push('Enable videoApi; use agent/admin key; videoPath=/v1/videos.')
       }
-      if (!ffmpeg.available) tips.push('Install ffmpeg or set FFMPEG_PATH.')
+      if (!ffmpeg.available) {
+        tips.push(
+          app.isPackaged
+            ? 'Packaged build: install system ffmpeg (or set FFMPEG_PATH).'
+            : 'Install ffmpeg or set FFMPEG_PATH.'
+        )
+      }
+      if (app.isPackaged) {
+        tips.push(`Media files live under: ${mediaRoot()}`)
+      }
       return {
         chat,
         video,
         ffmpeg,
         videoMode: settings.videoMode,
-        tips
+        tips,
+        app: {
+          version: app.getVersion(),
+          name: app.getName(),
+          isPackaged: app.isPackaged,
+          userData: app.getPath('userData'),
+          mediaRoot: mediaRoot()
+        }
       }
     })
   )

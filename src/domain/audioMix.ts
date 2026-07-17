@@ -1,3 +1,8 @@
+import {
+  buildDuckVolumeExpression,
+  type DuckWindow
+} from './exportLayout'
+
 /**
  * Build ffmpeg filter_complex for BGM + timed dialogue stems.
  *
@@ -11,11 +16,30 @@ export function buildAudioMixFilter(options: {
   dialogueVolume: number
   /** Delay each dialogue stem in milliseconds (timeline start). */
   dialogueStartsMs: number[]
+  /** When set, BGM is ducked during these windows (seconds). */
+  duckWindows?: DuckWindow[]
+  /** Multiplier applied to BGM during duck windows (0–1). Default 0.35. */
+  duckRatio?: number
 }): string {
   const bgVol = clamp01(options.bgmVolume)
   const dVol = clamp01(options.dialogueVolume)
   const delays = options.dialogueStartsMs.map((ms) => Math.max(0, Math.round(ms)))
-  const parts: string[] = [`[1:a]volume=${bgVol}[bg]`]
+  const duckWindows = options.duckWindows ?? []
+  const duckRatio = options.duckRatio ?? 0.35
+
+  let bgFilter: string
+  if (duckWindows.length > 0) {
+    const expr = buildDuckVolumeExpression({
+      baseVolume: bgVol,
+      duckRatio,
+      windows: duckWindows
+    })
+    bgFilter = `[1:a]volume='${expr}':eval=frame[bg]`
+  } else {
+    bgFilter = `[1:a]volume=${bgVol}[bg]`
+  }
+
+  const parts: string[] = [bgFilter]
   const mixLabels = ['[bg]']
 
   for (let i = 0; i < delays.length; i++) {

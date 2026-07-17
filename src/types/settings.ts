@@ -1,5 +1,6 @@
 export type VideoMode = 'auto' | 'http' | 'stub'
 export type ExportProfile = 'fast' | 'balanced'
+export type TransitionMode = 'cut' | 'fade'
 
 export interface AppSettings {
   videoMode: VideoMode
@@ -21,6 +22,8 @@ export interface AppSettings {
   bgmVolume: number
   /** Dialogue TTS level when mixed into final export (0–1) */
   dialogueVolume: number
+  /** BGM multiplier while dialogue TTS plays (0–1) */
+  duckRatio: number
   ttsEnabled: boolean
   ttsVoice: string
   ttsHttpUrl: string
@@ -31,6 +34,9 @@ export interface AppSettings {
   snapGridSec: number
   /** Grok video */
   aspectRatio: string
+  /** Final export clip transition */
+  transitionMode: TransitionMode
+  transitionSec: number
   /** First-run UX */
   firstRunSeen: boolean
   /** Last generation used stub/degraded clips */
@@ -54,6 +60,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   bgmPath: null,
   bgmVolume: 0.25,
   dialogueVolume: 1,
+  duckRatio: 0.35,
   ttsEnabled: false,
   ttsVoice: 'default',
   ttsHttpUrl: '',
@@ -61,6 +68,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   snapEnabled: true,
   snapGridSec: 0.5,
   aspectRatio: '16:9',
+  transitionMode: 'fade',
+  transitionSec: 0.3,
   firstRunSeen: false,
   lastGenerationDegraded: false
 }

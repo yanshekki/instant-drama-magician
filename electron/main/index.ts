@@ -45,12 +45,13 @@ function getPrisma(): PrismaClient {
 }
 
 function createWindow(): void {
+  const version = app.getVersion()
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    title: '瞬劇魔法師 · InstantDrama Magician',
+    title: `瞬劇魔法師 · InstantDrama Magician v${version}`,
     backgroundColor: '#020617',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

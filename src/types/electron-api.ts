@@ -115,6 +115,24 @@ export interface ElectronApi {
       ffmpeg: { available: boolean; message: string }
       videoMode: string
       tips: string[]
+      app?: {
+        version: string
+        name: string
+        isPackaged: boolean
+        userData: string
+        mediaRoot: string
+      }
+    }>
+  }
+  app: {
+    getInfo: () => Promise<{
+      version: string
+      name: string
+      electron: string
+      userData: string
+      mediaRoot: string
+      isPackaged: boolean
+      platform: string
     }>
   }
   settings: {

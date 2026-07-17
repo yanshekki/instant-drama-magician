@@ -109,6 +109,9 @@ const api: ElectronApi = {
   diagnostics: {
     full: () => ipcRenderer.invoke('diagnostics:full')
   },
+  app: {
+    getInfo: () => ipcRenderer.invoke('app:getInfo')
+  },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (partial) => ipcRenderer.invoke('settings:set', partial)

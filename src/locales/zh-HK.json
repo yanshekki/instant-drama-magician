@@ -2,7 +2,9 @@
   "app": {
     "name": "瞬劇魔法師",
     "tagline": "AI 專業短劇生成桌面工具",
-    "language": "語言"
+    "language": "語言",
+    "packaged": "已打包",
+    "dev": "開發模式"
   },
   "nav": {
     "stories": "故事",
@@ -190,12 +192,20 @@
     "noBgm": "（未設定）",
     "bgmVolume": "BGM 音量",
     "dialogueVolume": "對白 TTS 音量",
+    "duckRatio": "對白時 BGM 壓低比例",
     "ttsEnabled": "匯出時嘗試 TTS 對白（可選）",
     "ttsHttpUrl": "TTS HTTP URL（可選）",
     "ttsVoice": "TTS 聲線",
     "openExportFolder": "匯出後在資料夾中顯示",
     "snapEnabled": "時間軸吸附",
     "aspectRatio": "影片比例 (aspect_ratio)",
+    "transitionMode": "片段轉場 (cut / fade)",
+    "transitionSec": "轉場時長",
+    "about": "關於／環境",
+    "version": "版本",
+    "buildKind": "建置",
+    "platform": "平台",
+    "packagedHint": "打包版需系統已安裝 ffmpeg；媒體與資料庫位於 userData。",
     "videoPathHint": "預設 {baseUrl}/videos（OpenAI Videos API）",
     "gatewayHint": "連線失敗時請啟動 Grok gateway，並確認 videoApi + agent/admin key。見 docs/grok-gateway.md",
     "probeAll": "檢測 Chat + Video",

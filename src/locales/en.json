@@ -2,7 +2,9 @@
   "app": {
     "name": "InstantDrama Magician",
     "tagline": "Professional AI short-drama desktop studio",
-    "language": "Language"
+    "language": "Language",
+    "packaged": "packaged",
+    "dev": "dev"
   },
   "nav": {
     "stories": "Stories",
@@ -190,12 +192,20 @@
     "noBgm": "(none)",
     "bgmVolume": "BGM volume",
     "dialogueVolume": "Dialogue TTS volume",
+    "duckRatio": "BGM duck ratio during dialogue",
     "ttsEnabled": "Try TTS for dialogue on export (optional)",
     "ttsHttpUrl": "TTS HTTP URL (optional)",
     "ttsVoice": "TTS voice",
     "openExportFolder": "Reveal export in folder after save",
     "snapEnabled": "Timeline snap",
     "aspectRatio": "Video aspect ratio",
+    "transitionMode": "Clip transition (cut / fade)",
+    "transitionSec": "Transition duration",
+    "about": "About / environment",
+    "version": "Version",
+    "buildKind": "Build",
+    "platform": "Platform",
+    "packagedHint": "Packaged builds need system ffmpeg; media and DB live under userData.",
     "videoPathHint": "Default {baseUrl}/videos (OpenAI Videos API)",
     "gatewayHint": "If offline, start the Grok gateway with videoApi + agent/admin key. See docs/grok-gateway.md",
     "probeAll": "Probe Chat + Video",

@@ -1,7 +1,13 @@
 import { spawn } from 'child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'fs'
-import { basename, dirname, join } from 'path'
+import { dirname, join } from 'path'
 import { buildAudioMixFilter, secondsToMs } from '../../domain/audioMix'
+import {
+  buildXfadeFilterChain,
+  resolutionForAspect,
+  scalePadFilter,
+  type TransitionMode
+} from '../../domain/exportLayout'
 import { AppError } from '../../types/errors'
 
 export interface StoryboardClip {
@@ -33,19 +39,23 @@ export class FfmpegService {
     durationSeconds: number
     label: string
     color?: string
+    width?: number
+    height?: number
   }): Promise<string> {
     await this.ensureAvailable()
     mkdirSync(dirname(options.outputPath), { recursive: true })
     const duration = Math.max(0.5, options.durationSeconds)
     const text = sanitizeDrawText(options.label.slice(0, 80) || 'clip')
     const color = options.color ?? '0x1e1b4b'
+    const w = options.width ?? 1280
+    const h = options.height ?? 720
     await this.run([
       this.ffmpegBin,
       '-y',
       '-f',
       'lavfi',
       '-i',
-      `color=c=${color}:s=1280x720:d=${duration.toFixed(2)}`,
+      `color=c=${color}:s=${w}x${h}:d=${duration.toFixed(2)}`,
       '-vf',
       `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='${text}':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=(h-text_h)/2`,
       '-c:v',
@@ -70,9 +80,11 @@ export class FfmpegService {
     fileName: string
     title: string
     clips: StoryboardClip[]
+    aspectRatio?: string
   }): Promise<string> {
     await this.ensureAvailable()
     mkdirSync(options.outDir, { recursive: true })
+    const size = resolutionForAspect(options.aspectRatio ?? '16:9')
 
     const clips =
       options.clips.length > 0
@@ -91,7 +103,9 @@ export class FfmpegService {
       const clip = clips[i]
       const duration = Math.max(0.5, clip.endTime - clip.startTime)
       if (clip.mediaPath && existsSync(clip.mediaPath)) {
-        segmentPaths.push(clip.mediaPath)
+        const norm = join(options.outDir, `_norm_${i}_${Date.now()}.mp4`)
+        await this.normalizeClip(clip.mediaPath, norm, size, duration)
+        segmentPaths.push(norm)
         continue
       }
       const seg = join(options.outDir, `fallback_${i}.mp4`)
@@ -102,7 +116,9 @@ export class FfmpegService {
       await this.makeColorClip({
         outputPath: seg,
         durationSeconds: duration,
-        label: text
+        label: text,
+        width: size.width,
+        height: size.height
       })
       segmentPaths.push(seg)
     }
@@ -115,15 +131,15 @@ export class FfmpegService {
     fileName: string
     title: string
     clips: StoryboardClip[]
+    aspectRatio?: string
   }): Promise<string> {
-    // Storyboard always synthesizes color segments (ignore existing media)
     const clips = options.clips.map((c) => ({ ...c, mediaPath: null }))
     return this.exportConcat({ ...options, clips })
   }
 
   /**
-   * High-quality final export: normalize clips, optional burn-in SRT,
-   * BGM + timed dialogue TTS stems.
+   * High-quality final export: aspect-aware frame, optional xfade,
+   * burn-in SRT, BGM ducking + timed dialogue TTS.
    */
   async exportFinal(options: {
     outDir: string
@@ -137,27 +153,70 @@ export class FfmpegService {
     bgmPath?: string | null
     bgmVolume?: number
     dialogueVolume?: number
-    dialogueAudioPaths?: Array<{ path: string; startSeconds: number }> | null
+    duckRatio?: number
+    dialogueAudioPaths?: Array<{
+      path: string
+      startSeconds: number
+      endSeconds?: number
+    }> | null
+    aspectRatio?: string
+    transitionMode?: TransitionMode
+    transitionSec?: number
   }): Promise<string> {
     await this.ensureAvailable()
     mkdirSync(options.outDir, { recursive: true })
+    const size = resolutionForAspect(options.aspectRatio ?? '16:9')
+    const transitionMode = options.transitionMode ?? 'cut'
+    const transitionSec = options.transitionSec ?? 0.3
 
-    // First assemble visual track via concat (with fallbacks)
+    const clips =
+      options.clips.length > 0
+        ? options.clips
+        : [
+            {
+              startTime: 0,
+              endTime: 3,
+              label: options.title,
+              dialogue: 'Empty timeline'
+            }
+          ]
+
+    const durations = clips.map((c) => Math.max(0.5, c.endTime - c.startTime))
+    const segmentPaths: string[] = []
+    for (let i = 0; i < clips.length; i++) {
+      const clip = clips[i]
+      const duration = durations[i]
+      if (clip.mediaPath && existsSync(clip.mediaPath)) {
+        const norm = join(options.outDir, `_fnorm_${i}_${Date.now()}.mp4`)
+        await this.normalizeClip(clip.mediaPath, norm, size, duration)
+        segmentPaths.push(norm)
+      } else {
+        const seg = join(options.outDir, `_ffallback_${i}_${Date.now()}.mp4`)
+        const text = sanitizeDrawText(
+          [clip.label, clip.dialogue].filter(Boolean).join(' — ').slice(0, 80) ||
+            `Clip ${i + 1}`
+        )
+        await this.makeColorClip({
+          outputPath: seg,
+          durationSeconds: duration,
+          label: text,
+          width: size.width,
+          height: size.height
+        })
+        segmentPaths.push(seg)
+      }
+    }
+
     const rawPath = join(options.outDir, `_raw_${Date.now()}.mp4`)
-    await this.exportConcat({
-      outDir: options.outDir,
-      fileName: basename(rawPath),
-      title: options.title,
-      clips: options.clips
-    })
+    if (transitionMode === 'fade' && segmentPaths.length > 1) {
+      await this.assembleXfade(segmentPaths, durations, transitionSec, rawPath)
+    } else {
+      await this.concatFiles(segmentPaths, rawPath)
+    }
 
     const crf = options.profile === 'fast' ? '28' : '23'
     const outputPath = join(options.outDir, options.fileName)
-    const vfParts = [
-      'scale=1280:720:force_original_aspect_ratio=decrease',
-      'pad=1280:720:(ow-iw)/2:(oh-ih)/2',
-      'fps=24'
-    ]
+    const vfParts = [scalePadFilter(size)]
 
     if (options.burnSubtitles && options.srtContent && options.srtContent.trim()) {
       const srtPath = join(options.outDir, `_subs_${Date.now()}.srt`)
@@ -174,6 +233,14 @@ export class FfmpegService {
       hasBgm || dialogue.length > 0 || options.includeSilentAudio !== false
     const vol = Math.min(1, Math.max(0, options.bgmVolume ?? 0.25))
     const dVol = Math.min(1, Math.max(0, options.dialogueVolume ?? 1))
+    const duckRatio = Math.min(1, Math.max(0, options.duckRatio ?? 0.35))
+
+    const duckWindows = dialogue.map((d) => ({
+      startSeconds: d.startSeconds,
+      endSeconds:
+        d.endSeconds ??
+        d.startSeconds + 4
+    }))
 
     const args: string[] = [this.ffmpegBin, '-y', '-i', rawPath]
 
@@ -207,7 +274,9 @@ export class FfmpegService {
       const filter = buildAudioMixFilter({
         bgmVolume: hasBgm ? vol : 0,
         dialogueVolume: dVol,
-        dialogueStartsMs: dialogue.map((d) => secondsToMs(d.startSeconds))
+        dialogueStartsMs: dialogue.map((d) => secondsToMs(d.startSeconds)),
+        duckWindows: hasBgm && dialogue.length > 0 ? duckWindows : [],
+        duckRatio
       })
       args.push(
         '-filter_complex',
@@ -233,6 +302,65 @@ export class FfmpegService {
     return outputPath
   }
 
+  private async normalizeClip(
+    inputPath: string,
+    outputPath: string,
+    size: { width: number; height: number },
+    durationSeconds: number
+  ): Promise<void> {
+    await this.run([
+      this.ffmpegBin,
+      '-y',
+      '-i',
+      inputPath,
+      '-vf',
+      scalePadFilter(size),
+      '-t',
+      durationSeconds.toFixed(2),
+      '-c:v',
+      'libx264',
+      '-pix_fmt',
+      'yuv420p',
+      '-an',
+      outputPath
+    ])
+    if (!existsSync(outputPath)) {
+      throw new AppError('FFMPEG_FAILED', 'Normalize clip failed')
+    }
+  }
+
+  private async assembleXfade(
+    paths: string[],
+    durations: number[],
+    transitionSec: number,
+    outputPath: string
+  ): Promise<void> {
+    const args: string[] = [this.ffmpegBin, '-y']
+    for (const p of paths) {
+      args.push('-i', p)
+    }
+    const fc = buildXfadeFilterChain({
+      clipDurations: durations,
+      transitionSec
+    })
+    args.push(
+      '-filter_complex',
+      fc,
+      '-map',
+      '[vout]',
+      '-c:v',
+      'libx264',
+      '-pix_fmt',
+      'yuv420p',
+      outputPath
+    )
+    await this.run(args)
+    if (!existsSync(outputPath)) {
+      // fallback to concat if xfade unsupported
+      await this.concatFiles(paths, outputPath)
+    }
+  }
+
   private async concatFiles(paths: string[], outputPath: string): Promise<string> {
     const listFile = `${outputPath}.concat.txt`
     writeFileSync(
@@ -254,7 +382,6 @@ export class FfmpegService {
       outputPath
     ])
     if (!existsSync(outputPath)) {
-      // re-encode fallback if stream copy fails
       await this.run([
         this.ffmpegBin,
         '-y',
@@ -317,3 +444,4 @@ function sanitizeDrawText(text: string): string {
     .replace(/'/g, "\\'")
     .replace(/\n/g, ' ')
 }
+

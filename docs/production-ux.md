@@ -31,4 +31,5 @@
 - 多軌 NLE  
 - 商用級 TTS 模型 / 自動配樂  
 
+RC 成片轉場／比例／Release 包見 [rc.md](./rc.md)。  
 見 [release.md](./release.md)。

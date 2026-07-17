@@ -9,7 +9,10 @@ AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLit
 | **Project Brief MVP** | **100%** |
 | **Beta 試用層**（Round 7） | **100%** |
 | **Production UX**（Round 8） | **100%** |
+| **Release Candidate**（Round 9） | **100%** |
 | **商業發行**（簽章／商店／真人級成片） | **未做** |
+
+版本：**0.3.0**
 
 ---
 
@@ -34,8 +37,16 @@ AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLit
 - [x] **只重試失敗**（僅 video step）  
 - [x] 對白 **TTS → 匯出混音** + BGM 音量  
 - [x] 人物 **參考圖** + styleNote + 片段連貫 prompt  
-- [x] 匯出後開資料夾、`v0.2.0`、CI pack artifact  
+- [x] 匯出後開資料夾、CI pack artifact  
 - [x] [docs/production-ux.md](./docs/production-ux.md)  
+
+## Release Candidate checklist（Round 9）
+
+- [x] 成片 **xfade 轉場** + **BGM ducking**  
+- [x] **比例感知 export**（16:9 / 9:16 / 1:1）  
+- [x] About + 版本號 + pack 環境提示  
+- [x] Tag → AppImage/deb **Release workflow**  
+- [x] [docs/rc.md](./docs/rc.md)  
 
 ---
 
@@ -47,11 +58,11 @@ npm install && npx prisma db push && npm run dev
 ```
 
 1. **載入 Demo 故事**  
-2. 人物頁可選 **參考圖**  
-3. 時間軸 → **生成此段** / 整條生成 / **重試失敗**  
-4. **匯出成片**（可開 TTS + BGM）  
+2. Settings 可調 **轉場 / 比例 / ducking**  
+3. 時間軸生成 → **匯出成片**  
 
-真 video：[docs/grok-gateway.md](./docs/grok-gateway.md)
+真 video：[docs/grok-gateway.md](./docs/grok-gateway.md)  
+RC 下載：[docs/rc.md](./docs/rc.md)
 
 ---
 
@@ -60,6 +71,7 @@ npm install && npx prisma db push && npm run dev
 - [docs/project-brief.md](./docs/project-brief.md)  
 - [docs/beta.md](./docs/beta.md)  
 - [docs/production-ux.md](./docs/production-ux.md)  
+- [docs/rc.md](./docs/rc.md)  
 - [docs/architecture.md](./docs/architecture.md)  
 - [docs/video-providers.md](./docs/video-providers.md)  
 - [docs/grok-gateway.md](./docs/grok-gateway.md)  
@@ -72,7 +84,7 @@ npm install && npx prisma db push && npm run dev
 | `npm run dev` | 開發 |
 | `npm run build` | 建置 |
 | `npm test` | 測試 |
-| `npm run pack` | Beta/UX 目錄包 → `release/linux-unpacked` |
+| `npm run pack` | 目錄包 → `release/linux-unpacked` |
 | `npm run dist` | 安裝包（AppImage/deb 等） |
 
 ## i18n
