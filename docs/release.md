@@ -6,31 +6,39 @@
 4. Configure Settings → video mode if real API available
 5. Ensure `ffmpeg` is installed on target machine
 6. Never commit `userData` secrets; settings stay local
-7. Version is **`0.3.0`** (Release Candidate). Store/sign builds later.
+7. Version is **`1.0.0`** (commercial distribution path). Store signing still optional.
 
-## Ship an RC from git tag
+## Ship a release from git tag
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
-# → .github/workflows/release.yml builds AppImage + deb and publishes Release
+git tag v1.0.0
+git push origin v1.0.0
+# → release.yml: Linux AppImage/deb + Windows NSIS + macOS dmg (unsigned by default)
 ```
 
 Manual:
 
 ```bash
-CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --linux AppImage deb
+CSC_IDENTITY_AUTO_DISCOVERY=false npm run dist:linux
 ```
 
-See [rc.md](./rc.md).
+Auto-update feed: GitHub Releases (`build.publish`). See [commercial.md](./commercial.md).
+
+## Optional code signing
+
+Set repo secrets when you have certificates:
+
+- `CSC_LINK` / `CSC_KEY_PASSWORD` (Windows / generic)
+- Apple notarization secrets for macOS store-grade builds
+
+Without secrets, CI sets `CSC_IDENTITY_AUTO_DISCOVERY=false`.
 
 ## CI
 
-- `.github/workflows/ci.yml` — typecheck, test, build, pack artifact on `main`  
-- `.github/workflows/release.yml` — tag `v*` / workflow_dispatch → AppImage + deb  
+- `.github/workflows/ci.yml` — typecheck, test, build, pack on `main`  
+- `.github/workflows/release.yml` — tag `v*` → multi-platform installers + Release assets  
 
-## Not yet (commercial)
+## Still needs your accounts
 
-- Code signing / notarization  
-- Auto-update channel  
-- Store listings (Windows / macOS / Linux store)
+- Apple Developer / Microsoft Partner / EV code-signing cert  
+- Store listing copy and review submission

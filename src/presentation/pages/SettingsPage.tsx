@@ -29,6 +29,15 @@ export function SettingsPage(): JSX.Element {
     isPackaged: boolean
     platform: string
   } | null>(null)
+  const [updateState, setUpdateState] = useState<{
+    status: string
+    currentVersion: string
+    latestVersion?: string
+    progress?: number
+    message?: string
+  } | null>(null)
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [activityLines, setActivityLines] = useState<string[]>([])
 
   useEffect(() => {
     void getApi()
@@ -45,6 +54,19 @@ export function SettingsPage(): JSX.Element {
       .app.getInfo()
       .then(setAppInfo)
       .catch(() => undefined)
+    void getApi()
+      .updates.status()
+      .then(setUpdateState)
+      .catch(() => undefined)
+    void getApi()
+      .activity.recent(12)
+      .then((rows) =>
+        setActivityLines(
+          rows.map((r) => `${r.ts.slice(11, 19)} [${r.kind}] ${r.message}`)
+        )
+      )
+      .catch(() => undefined)
+    return getApi().updates.onState(setUpdateState)
   }, [t])
 
   const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]): void => {
@@ -64,6 +86,48 @@ export function SettingsPage(): JSX.Element {
       setError(parseIpcError(e).message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleCheckUpdate = async (): Promise<void> => {
+    setUpdateBusy(true)
+    setError(null)
+    try {
+      const s = await getApi().updates.check()
+      setUpdateState(s)
+    } catch (e) {
+      setError(parseIpcError(e).message)
+    } finally {
+      setUpdateBusy(false)
+    }
+  }
+
+  const handleDownloadUpdate = async (): Promise<void> => {
+    setUpdateBusy(true)
+    try {
+      const s = await getApi().updates.download()
+      setUpdateState(s)
+    } catch (e) {
+      setError(parseIpcError(e).message)
+    } finally {
+      setUpdateBusy(false)
+    }
+  }
+
+  const handleInstallUpdate = async (): Promise<void> => {
+    const r = await getApi().updates.install()
+    if (!r.ok) setError(r.message ?? t('settings.updateInstallFail'))
+  }
+
+  const handleSupportReport = async (): Promise<void> => {
+    try {
+      const r = await getApi().support.exportReport()
+      if (r) {
+        setProbeMsg(t('settings.supportExported', { path: r.filePath }))
+        void getApi().shell.showItemInFolder(r.filePath)
+      }
+    } catch (e) {
+      setError(parseIpcError(e).message)
     }
   }
 
@@ -394,6 +458,69 @@ export function SettingsPage(): JSX.Element {
                 </div>
               ) : (
                 <p>—</p>
+              )}
+            </Card>
+
+            <Card className="space-y-3">
+              <h2 className="text-sm font-semibold text-ink-100">
+                {t('settings.updates')}
+              </h2>
+              <p className="text-xs text-ink-400">
+                {updateState?.message ?? t('settings.updateIdle')}
+              </p>
+              {updateState && (
+                <div className="font-mono text-[11px] text-ink-300">
+                  {t('settings.version')}: {updateState.currentVersion}
+                  {updateState.latestVersion
+                    ? ` → ${updateState.latestVersion}`
+                    : ''}
+                  {typeof updateState.progress === 'number'
+                    ? ` · ${updateState.progress}%`
+                    : ''}
+                  {` · ${updateState.status}`}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={updateBusy}
+                  onClick={() => void handleCheckUpdate()}
+                >
+                  {t('settings.checkUpdate')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={
+                    updateBusy || updateState?.status !== 'available'
+                  }
+                  onClick={() => void handleDownloadUpdate()}
+                >
+                  {t('settings.downloadUpdate')}
+                </Button>
+                <Button
+                  disabled={updateState?.status !== 'downloaded'}
+                  onClick={() => void handleInstallUpdate()}
+                >
+                  {t('settings.installUpdate')}
+                </Button>
+              </div>
+              <p className="text-[11px] text-ink-500">{t('settings.updateHint')}</p>
+            </Card>
+
+            <Card className="space-y-3">
+              <h2 className="text-sm font-semibold text-ink-100">
+                {t('settings.support')}
+              </h2>
+              <Button
+                variant="secondary"
+                onClick={() => void handleSupportReport()}
+              >
+                {t('settings.exportSupport')}
+              </Button>
+              {activityLines.length > 0 && (
+                <pre className="max-h-28 overflow-auto rounded bg-ink-950/80 p-2 text-[10px] text-ink-400">
+                  {activityLines.join('\n')}
+                </pre>
               )}
             </Card>
 

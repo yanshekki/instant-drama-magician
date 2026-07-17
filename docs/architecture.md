@@ -33,6 +33,15 @@ Presentation → IPC / `idm-media://` → Application → Domain → Infrastruct
 | app:getInfo | version / packaged / userData / mediaRoot |
 | release.yml | tag `v*` → AppImage + deb (unsigned RC) |
 
+## Round 10 — Commercial path
+
+| Module | Role |
+|--------|------|
+| AppUpdateService | electron-updater → GitHub Releases |
+| ActivityLog | userData JSONL for support |
+| SupportReport | redacted diagnostics export |
+| release.yml | linux + windows + macos matrix |
+
 ## Pipeline
 
 Script → Character → Scene → Props → Timeline → **Video** (6/10s jobs) → Export  

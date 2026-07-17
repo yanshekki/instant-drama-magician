@@ -3,6 +3,7 @@ import { join, resolve as pathResolve, sep } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { pathToFileURL } from 'url'
 import { PrismaClient } from '../../src/types/prisma'
+import { appUpdateService } from '../../src/infrastructure/update/AppUpdateService'
 import { registerIpcHandlers } from './ipc'
 
 const isDev = !app.isPackaged
@@ -104,7 +105,15 @@ app.whenReady().then(() => {
     getMainWindow: () => mainWindow
   })
 
+  appUpdateService.bindWindow(() => mainWindow)
   createWindow()
+
+  // Packaged builds: quiet check a few seconds after launch (non-blocking)
+  if (app.isPackaged) {
+    setTimeout(() => {
+      void appUpdateService.check().catch(() => undefined)
+    }, 8000)
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

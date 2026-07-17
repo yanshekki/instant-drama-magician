@@ -1,10 +1,14 @@
 {
   "name": "instant-drama-magician",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "AI 專業短劇生成桌面工具 — InstantDrama Magician",
   "main": "./out/main/index.js",
   "author": "yanshekki",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yanshekki/instant-drama-magician.git"
+  },
   "scripts": {
     "dev": "ELECTRON_DISABLE_SANDBOX=1 electron-vite dev -- --no-sandbox",
     "build": "electron-vite build",
@@ -17,7 +21,10 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "dist:linux": "npm run build && electron-builder --linux AppImage deb",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:mac": "npm run build && electron-builder --mac dmg"
   },
   "build": {
     "appId": "hk.ysk.instant-drama-magician",
@@ -32,6 +39,13 @@
       "src/types/prisma/**/*",
       "prisma/**/*"
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yanshekki",
+        "repo": "instant-drama-magician"
+      }
+    ],
     "linux": {
       "target": [
         "AppImage",
@@ -42,16 +56,24 @@
     "mac": {
       "target": [
         "dmg"
-      ]
+      ],
+      "category": "public.app-category.video",
+      "identity": null
     },
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",
+    "electron-updater": "^6.8.9",
     "i18next": "^24.2.2",
     "jszip": "^3.10.1",
     "konva": "^9.3.20",

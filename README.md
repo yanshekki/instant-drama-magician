@@ -10,9 +10,10 @@ AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLit
 | **Beta 試用層**（Round 7） | **100%** |
 | **Production UX**（Round 8） | **100%** |
 | **Release Candidate**（Round 9） | **100%** |
-| **商業發行**（簽章／商店／真人級成片） | **未做** |
+| **商業發行路徑**（Round 10 · 分發／更新／支援） | **100%** |
+| **商店簽章上架**（Apple/MS 憑證＋審核） | **未做**（需你方帳號／憑證） |
 
-版本：**0.3.0**
+版本：**1.0.0**
 
 ---
 
@@ -26,27 +27,29 @@ AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLit
 ## Beta checklist（Round 7）
 
 - [x] Live 錯誤碼映射 + Settings 完整診斷  
-- [x] **單 clip 生成／重試**  
-- [x] **Export 預檢**（ffmpeg + READY/fallback 警告）  
-- [x] [docs/beta.md](./docs/beta.md) 試用說明  
-- [x] 自動化 smoke 測試  
+- [x] 單 clip 生成／重試  
+- [x] Export 預檢  
+- [x] [docs/beta.md](./docs/beta.md)  
 
 ## Production UX checklist（Round 8）
 
-- [x] 全管線／單 clip **可取消** + 即時 clip 進度  
-- [x] **只重試失敗**（僅 video step）  
-- [x] 對白 **TTS → 匯出混音** + BGM 音量  
-- [x] 人物 **參考圖** + styleNote + 片段連貫 prompt  
-- [x] 匯出後開資料夾、CI pack artifact  
+- [x] 取消生成 + 只重試失敗  
+- [x] TTS 混音 + 人物參考圖 + styleNote  
 - [x] [docs/production-ux.md](./docs/production-ux.md)  
 
 ## Release Candidate checklist（Round 9）
 
-- [x] 成片 **xfade 轉場** + **BGM ducking**  
-- [x] **比例感知 export**（16:9 / 9:16 / 1:1）  
-- [x] About + 版本號 + pack 環境提示  
-- [x] Tag → AppImage/deb **Release workflow**  
+- [x] xfade / ducking / 比例感知 export  
+- [x] About + 版本  
 - [x] [docs/rc.md](./docs/rc.md)  
+
+## 商業發行路徑 checklist（Round 10）
+
+- [x] **electron-updater**（檢查／下載／重啟安裝）  
+- [x] GitHub Release **Linux + Windows + macOS** workflow  
+- [x] 活動日誌 + **支援報告**（密鑰遮罩）  
+- [x] `v1.0.0` + [docs/commercial.md](./docs/commercial.md)  
+- [ ] 商店簽章／Notarize／Store 上架（需憑證）  
 
 ---
 
@@ -57,12 +60,17 @@ cd "/home/ki/文件/instant-drama-magician"
 npm install && npx prisma db push && npm run dev
 ```
 
-1. **載入 Demo 故事**  
-2. Settings 可調 **轉場 / 比例 / ducking**  
-3. 時間軸生成 → **匯出成片**  
+1. 載入 Demo  
+2. 時間軸生成 → 匯出  
+3. Settings：更新檢查、支援報告  
 
-真 video：[docs/grok-gateway.md](./docs/grok-gateway.md)  
-RC 下載：[docs/rc.md](./docs/rc.md)
+真 video：[docs/grok-gateway.md](./docs/grok-gateway.md)
+
+### 發佈 v1.0.0
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
 
 ---
 
@@ -72,6 +80,7 @@ RC 下載：[docs/rc.md](./docs/rc.md)
 - [docs/beta.md](./docs/beta.md)  
 - [docs/production-ux.md](./docs/production-ux.md)  
 - [docs/rc.md](./docs/rc.md)  
+- [docs/commercial.md](./docs/commercial.md)  
 - [docs/architecture.md](./docs/architecture.md)  
 - [docs/video-providers.md](./docs/video-providers.md)  
 - [docs/grok-gateway.md](./docs/grok-gateway.md)  
@@ -84,8 +93,9 @@ RC 下載：[docs/rc.md](./docs/rc.md)
 | `npm run dev` | 開發 |
 | `npm run build` | 建置 |
 | `npm test` | 測試 |
-| `npm run pack` | 目錄包 → `release/linux-unpacked` |
-| `npm run dist` | 安裝包（AppImage/deb 等） |
+| `npm run pack` | 目錄包 |
+| `npm run dist` | 當前平台安裝包 |
+| `npm run dist:linux` / `dist:win` / `dist:mac` | 分平台 |
 
 ## i18n
 

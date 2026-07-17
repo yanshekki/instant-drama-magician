@@ -23,6 +23,13 @@ import {
   TimelinePersistenceService
 } from '../../src/application/services'
 import { MediaStore } from '../../src/infrastructure/media/MediaStore'
+import { ActivityLog } from '../../src/infrastructure/activity/ActivityLog'
+import {
+  redactSettings,
+  supportReportPath,
+  writeSupportReportJson
+} from '../../src/infrastructure/support/SupportReport'
+import { appUpdateService } from '../../src/infrastructure/update/AppUpdateService'
 import type {
   CreateCharacterInput,
   CreatePropInput,
@@ -69,6 +76,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   let settings = settingsStore.load()
   let aiClient = new GrokCliClient(settings)
   const mediaRoot = (): string => join(app.getPath('userData'), 'media')
+  const activity = new ActivityLog(ActivityLog.defaultPath(app.getPath('userData')))
 
   const stories = (): StoryService => new StoryService(getPrisma())
   const characters = (): CharacterService => new CharacterService(getPrisma())
@@ -302,6 +310,11 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         storyId: string,
         opts?: { onlyFailedVideos?: boolean }
       ) => {
+        activity.append({
+          kind: 'generation',
+          message: opts?.onlyFailedVideos ? 'retry failed' : 'run pipeline',
+          storyId
+        })
         const result = await generation().run(
           storyId,
           (payload) => {
@@ -311,6 +324,12 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         )
         const degraded = result.steps.some((s) => s.degraded)
         settingsStore.save({ lastGenerationDegraded: degraded })
+        activity.append({
+          kind: 'generation',
+          message: result.success ? 'pipeline ok' : 'pipeline failed',
+          storyId,
+          meta: { degraded, steps: result.steps.length }
+        })
         return result
       }
     )
@@ -320,6 +339,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     'generation:cancel',
     wrap(async () => {
       generation().cancel()
+      activity.append({ kind: 'generation', message: 'cancelled' })
       return { ok: true as const }
     })
   )
@@ -327,12 +347,24 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   ipcMain.handle(
     'generation:runClip',
     wrap(async (event, storyId: string, entryId: string) => {
+      activity.append({
+        kind: 'generation',
+        message: 'run clip',
+        storyId,
+        meta: { entryId }
+      })
       const result = await generation().generateClip(storyId, entryId, (payload) => {
         event.sender.send('generation:progress', payload)
       })
       if (result.degraded) {
         settingsStore.save({ lastGenerationDegraded: true })
       }
+      activity.append({
+        kind: 'generation',
+        message: result.degraded ? 'clip stub' : 'clip ok',
+        storyId,
+        meta: { entryId }
+      })
       return result
     })
   )
@@ -428,7 +460,16 @@ export function registerIpcHandlers(ctx: IpcContext): void {
 
   ipcMain.handle(
     'media:exportFinal',
-    wrap(async (_e, storyId: string) => generation().exportFinal(storyId))
+    wrap(async (_e, storyId: string) => {
+      const result = await generation().exportFinal(storyId)
+      activity.append({
+        kind: 'export',
+        message: 'final',
+        storyId,
+        meta: { path: result.outputPath }
+      })
+      return result
+    })
   )
 
   ipcMain.handle(
@@ -476,6 +517,109 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       isPackaged: app.isPackaged,
       platform: process.platform
     }))
+  )
+
+  // ─── Auto-update ───────────────────────────────────────────
+  ipcMain.handle(
+    'updates:status',
+    wrap(async () => appUpdateService.getState())
+  )
+  ipcMain.handle(
+    'updates:check',
+    wrap(async () => {
+      const state = await appUpdateService.check()
+      activity.append({
+        kind: 'update',
+        message: `check → ${state.status}`,
+        meta: { latest: state.latestVersion ?? null }
+      })
+      return state
+    })
+  )
+  ipcMain.handle(
+    'updates:download',
+    wrap(async () => {
+      const state = await appUpdateService.download()
+      activity.append({ kind: 'update', message: `download → ${state.status}` })
+      return state
+    })
+  )
+  ipcMain.handle(
+    'updates:install',
+    wrap(async () => {
+      activity.append({ kind: 'update', message: 'quitAndInstall' })
+      return appUpdateService.quitAndInstall()
+    })
+  )
+
+  // ─── Activity + support report ─────────────────────────────
+  ipcMain.handle(
+    'activity:recent',
+    wrap(async (_e, limit?: number) => activity.readRecent(limit ?? 80))
+  )
+
+  ipcMain.handle(
+    'support:exportReport',
+    wrap(async () => {
+      const win = getMainWindow()
+      const chat = await aiClient.getStatus()
+      const video = await aiClient.videoProvider.probe()
+      let ffmpeg = { available: false, message: 'unknown' }
+      try {
+        const { FfmpegService } = await import(
+          '../../src/infrastructure/ffmpeg/FfmpegService'
+        )
+        await new FfmpegService().ensureAvailable()
+        ffmpeg = { available: true, message: 'ffmpeg OK' }
+      } catch (error) {
+        ffmpeg = {
+          available: false,
+          message: error instanceof Error ? error.message : String(error)
+        }
+      }
+      const tips: string[] = []
+      if (!chat.available) tips.push('Start Gateway; set baseUrl + API key.')
+      if (!video.available) tips.push('Enable videoApi; agent/admin key.')
+      if (!ffmpeg.available) tips.push('Install ffmpeg or set FFMPEG_PATH.')
+
+      const defaultPath = supportReportPath(app.getPath('userData'))
+      const result = win
+        ? await dialog.showSaveDialog(win, {
+            title: 'Export support report',
+            defaultPath,
+            filters: [{ name: 'JSON', extensions: ['json'] }]
+          })
+        : await dialog.showSaveDialog({
+            title: 'Export support report',
+            defaultPath,
+            filters: [{ name: 'JSON', extensions: ['json'] }]
+          })
+      if (result.canceled || !result.filePath) return null
+
+      const path = writeSupportReportJson(result.filePath, {
+        generatedAt: new Date().toISOString(),
+        app: {
+          version: app.getVersion(),
+          name: app.getName(),
+          isPackaged: app.isPackaged,
+          platform: process.platform,
+          electron: process.versions.electron ?? 'unknown',
+          userData: app.getPath('userData'),
+          mediaRoot: mediaRoot()
+        },
+        diagnostics: {
+          chat,
+          video,
+          ffmpeg,
+          videoMode: settings.videoMode,
+          tips
+        },
+        settings: redactSettings(settingsStore.load()),
+        activity: activity.readRecent(120)
+      })
+      activity.append({ kind: 'support', message: 'export report', meta: { path } })
+      return { filePath: path }
+    })
   )
 
   ipcMain.handle(

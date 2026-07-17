@@ -112,6 +112,37 @@ const api: ElectronApi = {
   app: {
     getInfo: () => ipcRenderer.invoke('app:getInfo')
   },
+  updates: {
+    status: () => ipcRenderer.invoke('updates:status'),
+    check: () => ipcRenderer.invoke('updates:check'),
+    download: () => ipcRenderer.invoke('updates:download'),
+    install: () => ipcRenderer.invoke('updates:install'),
+    onState: (callback) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        state: {
+          status: string
+          currentVersion: string
+          latestVersion?: string
+          progress?: number
+          message?: string
+          releaseNotes?: string | null
+        }
+      ): void => {
+        callback(state)
+      }
+      ipcRenderer.on('updates:state', listener)
+      return () => {
+        ipcRenderer.removeListener('updates:state', listener)
+      }
+    }
+  },
+  activity: {
+    recent: (limit?: number) => ipcRenderer.invoke('activity:recent', limit)
+  },
+  support: {
+    exportReport: () => ipcRenderer.invoke('support:exportReport')
+  },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (partial) => ipcRenderer.invoke('settings:set', partial)

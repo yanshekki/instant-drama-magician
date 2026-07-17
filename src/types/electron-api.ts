@@ -135,6 +135,56 @@ export interface ElectronApi {
       platform: string
     }>
   }
+  updates: {
+    status: () => Promise<{
+      status: string
+      currentVersion: string
+      latestVersion?: string
+      progress?: number
+      message?: string
+      releaseNotes?: string | null
+    }>
+    check: () => Promise<{
+      status: string
+      currentVersion: string
+      latestVersion?: string
+      progress?: number
+      message?: string
+      releaseNotes?: string | null
+    }>
+    download: () => Promise<{
+      status: string
+      currentVersion: string
+      latestVersion?: string
+      progress?: number
+      message?: string
+    }>
+    install: () => Promise<{ ok: boolean; message?: string }>
+    onState: (
+      callback: (state: {
+        status: string
+        currentVersion: string
+        latestVersion?: string
+        progress?: number
+        message?: string
+        releaseNotes?: string | null
+      }) => void
+    ) => () => void
+  }
+  activity: {
+    recent: (limit?: number) => Promise<
+      Array<{
+        ts: string
+        kind: string
+        message: string
+        storyId?: string
+        meta?: Record<string, string | number | boolean | null>
+      }>
+    >
+  }
+  support: {
+    exportReport: () => Promise<{ filePath: string } | null>
+  }
   settings: {
     get: () => Promise<AppSettings>
     set: (partial: Partial<AppSettings>) => Promise<AppSettings>

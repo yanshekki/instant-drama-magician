@@ -4,8 +4,8 @@
 
 ## 版本
 
-- App：`0.3.0`  
-- 進度標示：README **Release Candidate 100%**
+- App：見 `package.json`（商業路徑後為 `1.0.0`）  
+- 進度標示：README **Release Candidate 100%**；分發／更新見 [commercial.md](./commercial.md)
 
 ## 成片能力（本輪）
 

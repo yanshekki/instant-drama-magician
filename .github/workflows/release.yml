@@ -14,39 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
-
       - name: Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-
       - name: Install
         run: npm ci
-
       - name: Prisma generate
         run: npx prisma generate
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Test
         run: npm test
-
       - name: Build
         run: npm run build
-
       - name: Dist (AppImage + deb)
         run: npx electron-builder --linux AppImage deb
         env:
-          # Unsigned RC builds — skip code-signing secrets
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-
-      - name: Upload artifacts
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload linux artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-installers
@@ -56,16 +47,95 @@ jobs:
             release/latest-linux.yml
           if-no-files-found: warn
           retention-days: 30
-
-      - name: Publish GitHub Release
+      - name: Publish GitHub Release (linux)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: |
             release/*.AppImage
             release/*.deb
+            release/latest-linux.yml
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Prisma generate
+        run: npx prisma generate
+      - name: Build
+        run: npm run build
+      - name: Dist (NSIS)
+        run: npx electron-builder --win nsis
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            release/*.exe
+            release/latest.yml
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Attach Windows to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/latest.yml
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # macOS unsigned dmg (no Apple Developer cert). Optional secrets enable signing later.
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Prisma generate
+        run: npx prisma generate
+      - name: Build
+        run: npm run build
+      - name: Dist (dmg unsigned)
+        run: npx electron-builder --mac dmg
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: |
+            release/*.dmg
+            release/latest-mac.yml
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Attach macOS to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.dmg
+            release/latest-mac.yml
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
