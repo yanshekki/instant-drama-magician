@@ -246,13 +246,25 @@ export function registerIpcHandlers(ctx: IpcContext): void {
           mannerisms: row.mannerisms ?? undefined,
           visualTags: row.visualTags ?? undefined
         }
-        const prompt = buildCharacterSheetImagePrompt(
-          profile,
-          payload.variant ?? 'bible'
-        )
+        const variant = payload.variant ?? 'bible'
+        const prompt = buildCharacterSheetImagePrompt(profile, variant)
+        // Max sizes from Grok gateway OPENAI_IMAGE_SIZES
+        const sizeByVariant: Record<string, string> = {
+          bible: '1792x1024', // multi-panel landscape — largest wide canvas
+          turnaround: '1792x1024',
+          expression: '1024x1024', // largest square
+          costume: '1024x1792' // tall full-body + details
+        }
+        const size = sizeByVariant[variant] ?? '1792x1024'
         const img = await aiClient.generateImage({
           prompt,
-          aspectRatio: '16:9'
+          size,
+          aspectRatio:
+            size === '1024x1792'
+              ? '9:16'
+              : size === '1024x1024'
+                ? '1:1'
+                : '16:9'
         })
         const store = generation().getMediaStore()
         store.ensureStoryDirs(row.storyId)
@@ -266,9 +278,19 @@ export function registerIpcHandlers(ctx: IpcContext): void {
           kind: 'character',
           message: 'generateSheet',
           storyId: row.storyId,
-          meta: { characterId: row.id, path: outPath }
+          meta: {
+            characterId: row.id,
+            path: outPath,
+            size: img.sizeUsed,
+            aspect: img.aspectUsed
+          }
         })
-        return { character: updated, path: outPath }
+        return {
+          character: updated,
+          path: outPath,
+          size: img.sizeUsed,
+          aspect: img.aspectUsed
+        }
       }
     )
   )

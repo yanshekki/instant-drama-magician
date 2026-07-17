@@ -267,12 +267,17 @@ export class GrokCliClient implements AIProvider {
    * OpenAI-compatible image generation (Grok Gateway: POST /v1/images/generations).
    * Requires apiFeatures.imagesApi when using Grok-Cli-to-OpenAI-compatible.
    */
+  /**
+   * Max sizes accepted by Grok-Cli-to-OpenAI-compatible (OPENAI_IMAGE_SIZES):
+   * 1024x1024 | 1792x1024 | 1024x1792 — mapped to Grok aspect_ratio.
+   */
   async generateImage(options: {
     prompt: string
     aspectRatio?: string
+    /** Prefer max: 1792x1024 (wide) | 1024x1792 (tall) | 1024x1024 (square) */
     size?: string
     n?: number
-  }): Promise<{ b64: string; mime: string }> {
+  }): Promise<{ b64: string; mime: string; sizeUsed: string; aspectUsed: string }> {
     if (!this.apiKey.trim()) {
       throw new AppError(
         'AI_UNAUTHORIZED',
@@ -280,14 +285,24 @@ export class GrokCliClient implements AIProvider {
         'Image gen needs a valid API key'
       )
     }
+    // Always send both max pixel size + matching aspect for best gateway mapping
+    const size = options.size ?? '1792x1024'
+    const aspectRatio =
+      options.aspectRatio ??
+      (size === '1024x1792'
+        ? '9:16'
+        : size === '1024x1024'
+          ? '1:1'
+          : '16:9')
+
     const body: Record<string, unknown> = {
       prompt: options.prompt,
       model: this.model,
       n: options.n ?? 1,
-      response_format: 'b64_json'
+      response_format: 'b64_json',
+      size,
+      aspect_ratio: aspectRatio
     }
-    if (options.aspectRatio) body.aspect_ratio = options.aspectRatio
-    if (options.size) body.size = options.size
 
     const res = await fetch(`${this.baseUrl}/images/generations`, {
       method: 'POST',
@@ -313,7 +328,7 @@ export class GrokCliClient implements AIProvider {
         'Enable imagesApi on Gateway or check provider'
       )
     }
-    return { b64, mime: 'image/png' }
+    return { b64, mime: 'image/png', sizeUsed: size, aspectUsed: aspectRatio }
   }
 
   private headers(): Record<string, string> {

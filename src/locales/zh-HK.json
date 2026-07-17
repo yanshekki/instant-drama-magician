@@ -126,7 +126,7 @@
     "sheetTurnaround": "B · Turnaround 轉面",
     "sheetExpression": "C · 表情四宮格",
     "sheetCostume": "D · 服裝細節",
-    "sheetHint": "需 Gateway imagesApi；生成後自動設為影片 ref。",
+    "sheetHint": "需 Gateway imagesApi。會用最大支援 size（寬 1792×1024／方 1024²／高 1024×1792）。生成後自動設為影片 ref。",
     "sheetOk": "多角度圖已儲存：{{path}}",
     "saveFirstForSheet": "請先儲存角色再生成 sheet",
     "createAndSheet": "建立並生成 Sheet",

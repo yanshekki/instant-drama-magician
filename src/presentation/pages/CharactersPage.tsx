@@ -717,7 +717,8 @@ export function CharactersPage(): JSX.Element {
                   <LocalMediaImage
                     filePath={form.refSheetPath || form.refImagePath}
                     alt={form.name || 'character'}
-                    maxHeightClass="max-h-80"
+                    maxHeightClass="max-h-[min(75vh,900px)]"
+                    showMeta
                   />
                 )}
                 {form.refImagePath && (
@@ -880,7 +881,8 @@ export function CharactersPage(): JSX.Element {
                       <LocalMediaImage
                         filePath={c.refSheetPath || c.refImagePath}
                         alt={c.name}
-                        maxHeightClass="max-h-48"
+                        maxHeightClass="max-h-64"
+                        showMeta
                       />
                     </div>
                   )}

@@ -5,8 +5,10 @@ interface LocalMediaImageProps {
   filePath: string | null | undefined
   alt?: string
   className?: string
-  /** max height class, default max-h-64 */
+  /** max height class; form preview defaults large */
   maxHeightClass?: string
+  /** show native pixel size under image */
+  showMeta?: boolean
 }
 
 /**
@@ -16,15 +18,18 @@ export function LocalMediaImage({
   filePath,
   alt = '',
   className = '',
-  maxHeightClass = 'max-h-72'
+  maxHeightClass = 'max-h-[min(70vh,720px)]',
+  showMeta = false
 }: LocalMediaImageProps): JSX.Element | null {
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dims, setDims] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setUrl(null)
     setError(null)
+    setDims(null)
     if (!filePath) return
     void getApi()
       .media.toPreviewUrl(filePath)
@@ -57,7 +62,7 @@ export function LocalMediaImage({
         className={[
           'flex items-center justify-center rounded-xl border border-ink-800 bg-ink-950/60 text-xs text-ink-500',
           maxHeightClass,
-          'min-h-[8rem] w-full'
+          'min-h-[12rem] w-full'
         ].join(' ')}
       >
         …
@@ -76,7 +81,16 @@ export function LocalMediaImage({
         src={url}
         alt={alt}
         className={['w-full object-contain', maxHeightClass].join(' ')}
+        onLoad={(e) => {
+          const img = e.currentTarget
+          setDims(`${img.naturalWidth}×${img.naturalHeight}px`)
+        }}
       />
+      {showMeta && dims && (
+        <p className="border-t border-ink-800 px-2 py-1 text-center text-[10px] text-ink-500">
+          {dims}
+        </p>
+      )}
     </div>
   )
 }

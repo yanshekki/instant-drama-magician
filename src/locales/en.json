@@ -126,7 +126,7 @@
     "sheetTurnaround": "B · Turnaround strip",
     "sheetExpression": "C · Expression grid",
     "sheetCostume": "D · Costume details",
-    "sheetHint": "Needs Gateway imagesApi; result becomes video ref.",
+    "sheetHint": "Needs Gateway imagesApi. Uses max supported size (1792×1024 / 1024² / 1024×1792). Result becomes video ref.",
     "sheetOk": "Sheet saved: {{path}}",
     "saveFirstForSheet": "Save the character before generating a sheet",
     "createAndSheet": "Create & generate sheet",
