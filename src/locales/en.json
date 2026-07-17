@@ -102,6 +102,7 @@
     "refHint": "Multi-angle sheets improve video consistency.",
     "refMissing": "No reference image",
     "clearRef": "Clear reference",
+    "openImage": "Open image",
     "refOk": "Has ref",
     "refMissingBadge": "No ref",
     "sheetBadge": "Has sheet",

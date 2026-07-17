@@ -11,6 +11,7 @@ import { parseIpcError } from '../../lib/ipc'
 import type { Character } from '../../types/domain'
 import { useApp } from '../context/AppContext'
 import { useCharacters } from '../hooks/useCharacters'
+import { LocalMediaImage } from '../components/LocalMediaImage'
 import { PageHeader } from '../components/PageHeader'
 import { Button, Card, EmptyState, Input, Label, Textarea } from '../components/ui'
 
@@ -712,12 +713,19 @@ export function CharactersPage(): JSX.Element {
                 <div className="text-sm font-medium text-ink-200">
                   {t('characters.refImage')}
                 </div>
+                {(form.refSheetPath || form.refImagePath) && (
+                  <LocalMediaImage
+                    filePath={form.refSheetPath || form.refImagePath}
+                    alt={form.name || 'character'}
+                    maxHeightClass="max-h-80"
+                  />
+                )}
                 {form.refImagePath && (
                   <p className="truncate text-[11px] text-brand-300">
                     {form.refImagePath}
                   </p>
                 )}
-                {form.refSheetPath && (
+                {form.refSheetPath && form.refSheetPath !== form.refImagePath && (
                   <p className="truncate text-[11px] text-emerald-300">
                     sheet: {form.refSheetPath}
                   </p>
@@ -729,6 +737,18 @@ export function CharactersPage(): JSX.Element {
                   >
                     {t('characters.pickImage')}
                   </Button>
+                  {(form.refImagePath || form.refSheetPath) && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        if (form.refImagePath) {
+                          void getApi().media.openClip(form.refImagePath)
+                        }
+                      }}
+                    >
+                      {t('characters.openImage')}
+                    </Button>
+                  )}
                   {form.refImagePath && (
                     <Button
                       variant="ghost"
@@ -855,6 +875,15 @@ export function CharactersPage(): JSX.Element {
                           : t('characters.refMissingBadge')}
                     </span>
                   </div>
+                  {(c.refSheetPath || c.refImagePath) && (
+                    <div className="mt-3">
+                      <LocalMediaImage
+                        filePath={c.refSheetPath || c.refImagePath}
+                        alt={c.name}
+                        maxHeightClass="max-h-48"
+                      />
+                    </div>
+                  )}
                   <p className="mt-2 line-clamp-3 text-sm text-ink-400">
                     {c.description}
                   </p>

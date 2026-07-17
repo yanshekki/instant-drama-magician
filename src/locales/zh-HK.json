@@ -102,6 +102,7 @@
     "refHint": "多角度 sheet 會用作影片一致性參考。",
     "refMissing": "未設定參考圖",
     "clearRef": "清除參考圖",
+    "openImage": "開啟原圖",
     "refOk": "有參考圖",
     "refMissingBadge": "無參考圖",
     "sheetBadge": "有 Sheet",
