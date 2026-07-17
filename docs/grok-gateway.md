@@ -31,6 +31,19 @@ App 用 **同一套** OpenAI-compatible 客戶端（`/v1/models` · `/v1/chat/co
    - **測試 Chat** 應回 OK  
 4. 時間軸 **開始生成** → Script 等步驟走真 LLM  
 
+### Chat body 同 `strictSampling`（重要）
+
+Gateway 契約（`chat.dto` + `grok-request-builder`）：
+
+| 欄位 | 預設 features | `strictSampling: true`（locked preset） |
+|------|---------------|------------------------------------------|
+| `messages`, `model` | ✅ | ✅ |
+| `max_tokens` | ✅ | ✅ |
+| `temperature` / `top_p` / `stop` | 可送（會被忽略） | **禁止出現** → HTTP 400 |
+
+InstantDrama **Grok CLI Gateway preset** 會 **omit** temperature/top_p/stop，以兼容 locked Gateway。  
+OpenAI preset 仍會送 temperature。
+
 ### Chat 錯誤對照
 
 | 症狀 | 處理 |
@@ -39,6 +52,7 @@ App 用 **同一套** OpenAI-compatible 客戶端（`/v1/models` · `/v1/chat/co
 | AI_UNAUTHORIZED / 401 | 貼正確 `gk_live_` key |
 | AI_KEY_MODE / 403 | Admin 檢查 key 模式 |
 | AI_RATE_LIMIT / 429 | 等一下；查 Gateway 限流／佇列 |
+| Sampling parameters / strictSampling | 用最新 app（Grok 已 omit）；或 Admin 關 strictSampling |
 | timeout | 加大 `chatTimeoutMs`；查 chat 佇列 |
 
 ---

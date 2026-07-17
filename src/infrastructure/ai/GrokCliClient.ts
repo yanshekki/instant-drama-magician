@@ -1,10 +1,11 @@
 /**
  * OpenAI-compatible LLM client (single implementation for all presets).
  *
- * Works with any OpenAI-style base:
- * - Grok-Cli-to-OpenAI-compatible (default preset, :3847)
- * - OpenAI API (api.openai.com)
- * - Custom OpenAI-compatible gateways
+ * Chat body aligned with Grok-Cli-to-OpenAI-compatible:
+ * - POST /v1/chat/completions
+ * - When strictSampling is on (Gateway locked preset), temperature/top_p/stop
+ *   must be omitted entirely (see grok-request-builder.service.ts).
+ * - max_tokens remains allowed.
  *
  * Paths: GET /v1/models · POST /v1/chat/completions
  * Video (when supported by host): CompositeVideoProvider → /v1/videos
@@ -21,7 +22,12 @@ import type {
 import type { AppSettings } from '../../types/settings'
 import { DEFAULT_SETTINGS } from '../../types/settings'
 import { AppError, mapChatHttpStatus, mapChatMessage } from '../../types/errors'
+import {
+  buildChatCompletionBody,
+  shouldOmitSamplingForProvider
+} from '../../domain/chatCompletionBody'
 import { healthUrlFromBase } from '../../domain/gatewayDefaults'
+import type { LlmProviderPreset } from '../../domain/openaiCompatible'
 import { CompositeVideoProvider } from './video/CompositeVideoProvider'
 
 export interface ModelInfo {
@@ -46,13 +52,13 @@ export interface ChatTestResult {
 }
 
 export class GrokCliClient implements AIProvider {
-  /** Alias for clarity in new code */
   static readonly protocol = 'openai-compatible' as const
 
   private readonly baseUrl: string
   private readonly model: string
   private readonly apiKey: string
   private readonly chatTimeoutMs: number
+  private readonly omitSampling: boolean
   private readonly video: CompositeVideoProvider
 
   constructor(settings?: Partial<AppSettings>) {
@@ -61,6 +67,10 @@ export class GrokCliClient implements AIProvider {
     this.model = s.model
     this.apiKey = s.apiKey
     this.chatTimeoutMs = s.chatTimeoutMs ?? 120_000
+    this.omitSampling = shouldOmitSamplingForProvider(
+      s.llmProvider as LlmProviderPreset | undefined,
+      s.baseUrl
+    )
     this.video = new CompositeVideoProvider(
       s.videoMode,
       s.baseUrl,
@@ -144,7 +154,9 @@ export class GrokCliClient implements AIProvider {
       const mapped =
         error instanceof AppError
           ? error
-          : mapChatMessage(error instanceof Error ? error.message : String(error))
+          : mapChatMessage(
+              error instanceof Error ? error.message : String(error)
+            )
       return {
         available: false,
         message: mapped
@@ -168,11 +180,9 @@ export class GrokCliClient implements AIProvider {
       )
     }
     try {
+      // Do not pass temperature — Grok strictSampling rejects it
       const completion = await this.chat({
-        messages: [
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0,
+        messages: [{ role: 'user', content: prompt }],
         max_tokens: 32
       })
       const reply =
@@ -206,12 +216,13 @@ export class GrokCliClient implements AIProvider {
       )
     }
 
-    const body = {
+    const body = buildChatCompletionBody({
       model: request.model ?? this.model,
       messages: request.messages,
-      temperature: request.temperature ?? 0.7,
-      max_tokens: request.max_tokens ?? 2048
-    }
+      max_tokens: request.max_tokens ?? 2048,
+      temperature: request.temperature,
+      omitSampling: this.omitSampling
+    })
 
     let res: Response
     try {
@@ -235,8 +246,8 @@ export class GrokCliClient implements AIProvider {
       }
       throw new AppError(
         'AI_UNAVAILABLE',
-        `Cannot reach Grok Gateway at ${this.baseUrl}`,
-        'Start gateway: gctoac start (default :3847). See docs/grok-gateway.md'
+        `Cannot reach OpenAI-compatible API at ${this.baseUrl}`,
+        'For Grok gateway: gctoac start (default :3847). See docs/grok-gateway.md'
       )
     }
 

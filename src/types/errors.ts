@@ -125,6 +125,15 @@ export function mapChatMessage(message: string): AppErrorBody | null {
       details: 'Wait and retry; check Gateway rate limits'
     }
   }
+  // Grok-Cli-to-OpenAI-compatible: strictSampling rejects temperature/top_p/stop
+  if (/strictsampling|sampling parameters|temperature\/top_p\/stop/.test(m)) {
+    return {
+      code: 'AI_FAILED',
+      message,
+      details:
+        'Gateway strictSampling is on. App omits temperature for Grok preset; ensure you are on latest build, or disable strictSampling in Admin → API features.'
+    }
+  }
   if (/timed out|timeout|aborted/.test(m)) {
     return {
       code: 'AI_FAILED',
@@ -132,7 +141,7 @@ export function mapChatMessage(message: string): AppErrorBody | null {
       details: 'Increase chatTimeoutMs or check Gateway chat queue'
     }
   }
-  if (/chat http|grok cli chat failed|gateway/.test(m)) {
+  if (/chat http|grok cli chat failed|gateway|validation_error/.test(m)) {
     return { code: 'AI_FAILED', message }
   }
   return null

@@ -43,4 +43,12 @@ describe('chat error mapping (Grok Gateway)', () => {
     const m = mapChatMessage('fetch failed: ECONNREFUSED')
     expect(m?.code).toBe('AI_UNAVAILABLE')
   })
+
+  it('maps strictSampling validation', () => {
+    const m = mapChatMessage(
+      'Sampling parameters (temperature/top_p/stop) are not supported by Grok CLI'
+    )
+    expect(m?.code).toBe('AI_FAILED')
+    expect(m?.details).toMatch(/strictSampling/i)
+  })
 })
