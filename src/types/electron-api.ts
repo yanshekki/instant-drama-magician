@@ -49,7 +49,19 @@ export interface ElectronApi {
     generateSheet: (payload: {
       characterId: string
       variant?: 'bible' | 'turnaround' | 'expression' | 'costume'
-    }) => Promise<{ character: unknown; path: string }>
+    }) => Promise<{
+      character: unknown
+      path: string
+      size?: string
+      aspect?: string
+      gallery?: Array<{
+        id: string
+        path: string
+        kind: string
+        label: string
+        createdAt: string
+      }>
+    }>
   }
   souls: {
     list: (opts?: {

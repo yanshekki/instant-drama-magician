@@ -268,11 +268,40 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         })
         const store = generation().getMediaStore()
         store.ensureStoryDirs(row.storyId)
-        const outPath = store.characterSheetPath(row.storyId, row.id, '.png')
+        const outPath = store.characterImagePath(
+          row.storyId,
+          row.id,
+          `sheet_${variant}`,
+          '.png'
+        )
         writeFileSync(outPath, Buffer.from(img.b64, 'base64'))
+
+        const {
+          appendGalleryItem,
+          parseCharacterGallery,
+          primaryGalleryPath,
+          serializeCharacterGallery
+        } = await import('../../src/domain/characterGallery')
+        const gallery = parseCharacterGallery(row.refGalleryJson, {
+          refImagePath: row.refImagePath,
+          refSheetPath: row.refSheetPath
+        })
+        const labels: Record<string, string> = {
+          bible: 'Bible sheet',
+          turnaround: 'Turnaround',
+          expression: 'Expressions',
+          costume: 'Costume'
+        }
+        const nextGallery = appendGalleryItem(gallery, {
+          path: outPath,
+          kind: 'sheet',
+          label: labels[variant] ?? 'Sheet'
+        })
+        const primary = primaryGalleryPath(nextGallery)
         const updated = await characters().update(row.id, {
           refSheetPath: outPath,
-          refImagePath: outPath
+          refImagePath: primary,
+          refGalleryJson: serializeCharacterGallery(nextGallery)
         })
         activity.append({
           kind: 'character',
@@ -282,14 +311,16 @@ export function registerIpcHandlers(ctx: IpcContext): void {
             characterId: row.id,
             path: outPath,
             size: img.sizeUsed,
-            aspect: img.aspectUsed
+            aspect: img.aspectUsed,
+            gallery: nextGallery.length
           }
         })
         return {
           character: updated,
           path: outPath,
           size: img.sizeUsed,
-          aspect: img.aspectUsed
+          aspect: img.aspectUsed,
+          gallery: nextGallery
         }
       }
     )

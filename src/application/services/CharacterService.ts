@@ -49,6 +49,7 @@ export class CharacterService {
         seedPrompt: trimOrNull(input.seedPrompt),
         profileJson: trimOrNull(input.profileJson),
         refSheetPath: trimOrNull(input.refSheetPath),
+        refGalleryJson: trimOrNull(input.refGalleryJson),
         soulHubId: input.soulHubId ?? null
       }
     })
@@ -105,6 +106,9 @@ export class CharacterService {
           : {}),
         ...(data.refSheetPath !== undefined
           ? { refSheetPath: trimOrNull(data.refSheetPath) }
+          : {}),
+        ...(data.refGalleryJson !== undefined
+          ? { refGalleryJson: trimOrNull(data.refGalleryJson) }
           : {}),
         ...(data.soulHubId !== undefined ? { soulHubId: data.soulHubId } : {})
       }

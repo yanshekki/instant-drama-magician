@@ -51,6 +51,7 @@ export interface Character {
   seedPrompt?: string | null
   profileJson?: string | null
   refSheetPath?: string | null
+  refGalleryJson?: string | null
   soulHubId?: number | null
 }
 
@@ -132,6 +133,7 @@ export interface CreateCharacterInput {
   seedPrompt?: string | null
   profileJson?: string | null
   refSheetPath?: string | null
+  refGalleryJson?: string | null
   soulHubId?: number | null
 }
 

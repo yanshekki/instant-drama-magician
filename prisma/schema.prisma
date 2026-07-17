@@ -45,6 +45,8 @@ model Character {
   seedPrompt     String?
   profileJson    String?
   refSheetPath   String?
+  /** JSON array of gallery items: {id,path,kind,label,createdAt} */
+  refGalleryJson String?
   soulHubId      Int?
 
   story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)

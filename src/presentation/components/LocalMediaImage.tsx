@@ -9,6 +9,7 @@ interface LocalMediaImageProps {
   maxHeightClass?: string
   /** show native pixel size under image */
   showMeta?: boolean
+  objectFit?: 'contain' | 'cover'
 }
 
 /**
@@ -19,7 +20,8 @@ export function LocalMediaImage({
   alt = '',
   className = '',
   maxHeightClass = 'max-h-[min(70vh,720px)]',
-  showMeta = false
+  showMeta = false,
+  objectFit = 'contain'
 }: LocalMediaImageProps): JSX.Element | null {
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -80,7 +82,11 @@ export function LocalMediaImage({
       <img
         src={url}
         alt={alt}
-        className={['w-full object-contain', maxHeightClass].join(' ')}
+        className={[
+          'w-full',
+          objectFit === 'cover' ? 'h-full object-cover' : 'object-contain',
+          maxHeightClass
+        ].join(' ')}
         onLoad={(e) => {
           const img = e.currentTarget
           setDims(`${img.naturalWidth}×${img.naturalHeight}px`)

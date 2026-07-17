@@ -46,6 +46,20 @@ export class MediaStore {
     return join(this.charsDir(storyId), `${characterId}_sheet${ext}`)
   }
 
+  /** Unique path so multiple generations are kept. */
+  characterImagePath(
+    storyId: string,
+    characterId: string,
+    kind: string,
+    ext = '.png'
+  ): string {
+    const stamp = Date.now()
+    return join(
+      this.charsDir(storyId),
+      `${characterId}_${kind}_${stamp}${ext}`
+    )
+  }
+
   ensureStoryDirs(storyId: string): void {
     mkdirSync(this.clipsDir(storyId), { recursive: true })
     mkdirSync(this.exportsDir(storyId), { recursive: true })
