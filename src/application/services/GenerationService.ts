@@ -168,10 +168,14 @@ export class GenerationService {
         }
       })
 
+      const degraded = result.steps.some((s) => s.degraded)
+      // Persist degraded flag via settings file is done in main if needed;
+      // return steps with degraded for UI.
       await this.prisma.story.update({
         where: { id: storyId },
         data: { status: result.success ? 'COMPLETED' : 'FAILED' }
       })
+      void degraded
       return result
     } catch (error) {
       await this.prisma.story.update({

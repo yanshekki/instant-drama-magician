@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { getApi } from '../../lib/api'
+import { parseIpcError } from '../../lib/ipc'
 import type { StoryStatus } from '../../types/domain'
 import { useApp } from '../context/AppContext'
 import { PageHeader } from '../components/PageHeader'
@@ -76,15 +77,37 @@ export function StoriesPage(): JSX.Element {
     }
   }
 
+  const handleSeedDemo = async (): Promise<void> => {
+    setCreating(true)
+    try {
+      const locale = t('stories.demoLocale') === 'en' ? 'en' : 'zh-HK'
+      const result = await getApi().stories.seedDemo(locale)
+      await refreshStories()
+      setActiveStoryId(result.storyId)
+      navigate('/timeline')
+    } catch (e) {
+      alert(parseIpcError(e).message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <PageHeader
         title={t('stories.title')}
         subtitle={t('stories.subtitle')}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => void handleImportBackup()}>
               {t('stories.importBackup')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void handleSeedDemo()}
+              disabled={creating}
+            >
+              {t('stories.loadDemo')}
             </Button>
             <Button onClick={() => setShowForm((v) => !v)}>{t('stories.new')}</Button>
           </div>
@@ -117,7 +140,28 @@ export function StoriesPage(): JSX.Element {
         {loading ? (
           <p className="text-sm text-ink-400">{t('common.loading')}</p>
         ) : stories.length === 0 ? (
-          <EmptyState message={t('stories.noStories')} />
+          <div className="mx-auto max-w-lg space-y-4">
+            <EmptyState message={t('stories.noStories')} />
+            <Card className="space-y-3">
+              <h2 className="text-sm font-semibold text-ink-100">
+                {t('stories.onboardingTitle')}
+              </h2>
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-ink-300">
+                <li>{t('stories.step1')}</li>
+                <li>{t('stories.step2')}</li>
+                <li>{t('stories.step3')}</li>
+              </ol>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => void handleSeedDemo()} disabled={creating}>
+                  {t('stories.loadDemo')}
+                </Button>
+                <Button variant="secondary" onClick={() => setShowForm(true)}>
+                  {t('stories.new')}
+                </Button>
+              </div>
+              <p className="text-xs text-ink-500">{t('stories.prototypeNote')}</p>
+            </Card>
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {stories.map((story) => (

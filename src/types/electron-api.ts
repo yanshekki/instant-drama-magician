@@ -17,6 +17,7 @@ export interface ElectronApi {
     create: (input: CreateStoryInput) => Promise<{ id: string }>
     update: (id: string, data: { title?: string; status?: string }) => Promise<unknown>
     delete: (id: string) => Promise<{ ok: boolean }>
+    seedDemo: (locale?: 'zh-HK' | 'en') => Promise<{ storyId: string; title: string }>
   }
   characters: {
     list: (storyId: string) => Promise<unknown>
@@ -102,6 +103,7 @@ export interface ElectronApi {
   shell: {
     openExternal: (url: string) => Promise<{ ok: boolean }>
     openPath: (filePath: string) => Promise<{ ok: boolean }>
+    showItemInFolder: (filePath: string) => Promise<{ ok: boolean }>
   }
   media: {
     pickRefImage: () => Promise<{ filePath: string; originalName?: string } | null>

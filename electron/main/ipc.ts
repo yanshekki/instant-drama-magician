@@ -14,6 +14,7 @@ import { GrokCliClient } from '../../src/infrastructure/ai/GrokCliClient'
 import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
 import {
   CharacterService,
+  DemoSeedService,
   GenerationService,
   ProjectBackupService,
   PropService,
@@ -116,6 +117,14 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   ipcMain.handle(
     'stories:delete',
     wrap(async (_e, id: string) => stories().delete(id))
+  )
+  ipcMain.handle(
+    'stories:seedDemo',
+    wrap(async (_e, locale?: 'zh-HK' | 'en') => {
+      const result = await new DemoSeedService(getPrisma()).seed(locale ?? 'zh-HK')
+      settingsStore.save({ firstRunSeen: true })
+      return result
+    })
   )
 
   // ─── Characters ────────────────────────────────────────────
@@ -289,13 +298,16 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         storyId: string,
         opts?: { onlyFailedVideos?: boolean }
       ) => {
-        return generation().run(
+        const result = await generation().run(
           storyId,
           (payload) => {
             event.sender.send('generation:progress', payload)
           },
           opts
         )
+        const degraded = result.steps.some((s) => s.degraded)
+        settingsStore.save({ lastGenerationDegraded: degraded })
+        return result
       }
     )
   )
@@ -346,6 +358,14 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     wrap(async (_e, filePath: string) => {
       const err = await shell.openPath(filePath)
       if (err) throw new AppError('IO', err)
+      return { ok: true as const }
+    })
+  )
+
+  ipcMain.handle(
+    'shell:showItemInFolder',
+    wrap(async (_e, filePath: string) => {
+      shell.showItemInFolder(filePath)
       return { ok: true as const }
     })
   )

@@ -44,8 +44,19 @@ export function SettingsPage(): JSX.Element {
 
   const handleProbe = async (): Promise<void> => {
     try {
-      const r = await getApi().ai.probeVideo()
-      setProbeMsg(`${r.id}: ${r.available ? 'OK' : 'FAIL'} — ${r.message}`)
+      const [chat, video] = await Promise.all([
+        getApi().ai.status() as Promise<{ available: boolean; message: string }>,
+        getApi().ai.probeVideo()
+      ])
+      setProbeMsg(
+        [
+          `Chat: ${chat.available ? 'OK' : 'OFFLINE'} — ${chat.message}`,
+          `Video: ${video.available ? 'OK' : 'FAIL'} — ${video.message}`,
+          !chat.available || !video.available ? t('settings.gatewayHint') : ''
+        ]
+          .filter(Boolean)
+          .join('\n')
+      )
       await refreshAiStatus()
     } catch (e) {
       setError(parseIpcError(e).message)
@@ -62,9 +73,9 @@ export function SettingsPage(): JSX.Element {
           </p>
         )}
         {probeMsg && (
-          <p className="mb-4 rounded-lg bg-ink-800 px-3 py-2 text-sm text-ink-200">
+          <pre className="mb-4 whitespace-pre-wrap rounded-lg bg-ink-800 px-3 py-2 text-sm text-ink-200">
             {probeMsg}
-          </p>
+          </pre>
         )}
 
         {!settings ? (
@@ -150,7 +161,7 @@ export function SettingsPage(): JSX.Element {
                 </div>
               </div>
               <Button variant="secondary" onClick={() => void handleProbe()}>
-                {t('settings.probeVideo')}
+                {t('settings.probeAll')}
               </Button>
             </Card>
 

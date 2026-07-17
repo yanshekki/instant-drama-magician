@@ -49,7 +49,14 @@
     "open": "開啟",
     "noStories": "尚未建立故事。按「新故事」開始創作。",
     "exportBackup": "匯出備份",
-    "importBackup": "匯入備份"
+    "importBackup": "匯入備份",
+    "loadDemo": "載入 Demo 故事",
+    "demoLocale": "zh-HK",
+    "onboardingTitle": "三步開始試用（prototype）",
+    "step1": "建立故事，或載入 Demo",
+    "step2": "在人物／場景／道具頁加內容（Demo 已預填）",
+    "step3": "到時間軸生成或匯出（無 gateway 會用色塊占位片）",
+    "prototypeNote": "目前產品約 15–20%：可演示骨架，未達可用成品。"
   },
   "characters": {
     "title": "人物創作",
@@ -115,10 +122,30 @@
     "previewNoMedia": "此片段尚無可播放媒體",
     "play": "播放",
     "pause": "暫停",
-    "undoDone": "已撤銷（本機快照）",
-    "redoDone": "已重做（本機快照）",
-    "undoHint": "撤銷：時間軸快照（重新整理可同步伺服器狀態）",
-    "redoHint": "重做：時間軸快照"
+    "undoDone": "已撤銷並寫回資料庫",
+    "redoDone": "已重做並寫回資料庫",
+    "undoHint": "撤銷",
+    "redoHint": "重做",
+    "aiClipHint": "AI 片段僅支援 6 或 10 秒（生成時會自動對齊）",
+    "clipLength": "新片段長度"
+  },
+  "pipeline": {
+    "script": "撰寫劇本",
+    "character": "整理人物",
+    "scene": "擴展場景",
+    "props": "整理道具",
+    "timeline": "檢查時間軸",
+    "video": "生成影片片段",
+    "export": "匯出成片",
+    "degraded": "占位／降級",
+    "doneOk": "生成完成。",
+    "doneStub": "生成完成（含 stub 色塊占位片，非真 AI 影片）。",
+    "doneFail": "生成失敗。請檢查設定或 Gateway。",
+    "checkGateway": "可到「設定」檢測 Chat／Video 連線。",
+    "needFfmpeg": "需要安裝系統 ffmpeg（或設定 FFMPEG_PATH）。",
+    "exportOk": "匯出成功：{{path}}",
+    "openFile": "開啟檔案",
+    "openFolder": "在資料夾中顯示"
   },
   "settings": {
     "title": "設定",
@@ -143,12 +170,15 @@
     "ttsEnabled": "匯出時嘗試 TTS 對白（可選）",
     "snapEnabled": "時間軸吸附",
     "aspectRatio": "影片比例 (aspect_ratio)",
-    "videoPathHint": "預設 {baseUrl}/videos（OpenAI Videos API）"
+    "videoPathHint": "預設 {baseUrl}/videos（OpenAI Videos API）",
+    "gatewayHint": "連線失敗時請啟動 Grok gateway，並確認 videoApi + agent/admin key。見 docs/grok-gateway.md",
+    "probeAll": "檢測 Chat + Video"
   },
   "ai": {
     "status": "AI 狀態",
     "online": "Grok CLI 已連線",
     "offline": "Grok CLI 離線",
-    "hint": "請啟動 Grok-Cli-to-OpenAI-compatible 服務（預設 :39281）"
+    "hint": "請啟動 Grok-Cli-to-OpenAI-compatible 服務（預設 :39281）",
+    "lastStub": "上次生成含 stub 占位"
   }
 }

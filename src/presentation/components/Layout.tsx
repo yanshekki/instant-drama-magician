@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { getApi } from '../../lib/api'
+import type { AppSettings } from '../../types/settings'
 import { useApp } from '../context/AppContext'
 
 const navItems: { to: string; key: string; end?: boolean }[] = [
@@ -15,6 +18,18 @@ export function Layout(): JSX.Element {
   const { t, i18n } = useTranslation()
   const { aiStatus, activeStoryId, stories } = useApp()
   const activeStory = stories.find((s) => s.id === activeStoryId)
+  const [videoMode, setVideoMode] = useState('auto')
+  const [degraded, setDegraded] = useState(false)
+
+  useEffect(() => {
+    void getApi()
+      .settings.get()
+      .then((s: AppSettings) => {
+        setVideoMode(s.videoMode)
+        setDegraded(s.lastGenerationDegraded)
+      })
+      .catch(() => undefined)
+  }, [])
 
   const toggleLang = (): void => {
     void i18n.changeLanguage(i18n.language === 'zh-HK' ? 'en' : 'zh-HK')
@@ -73,6 +88,10 @@ export function Layout(): JSX.Element {
             </div>
             <div className="mt-0.5 text-[10px] opacity-80">
               {aiStatus?.message ?? t('ai.hint')}
+            </div>
+            <div className="mt-1 text-[10px] text-ink-300">
+              Video: <span className="font-mono">{videoMode}</span>
+              {degraded ? ` · ${t('ai.lastStub')}` : ''}
             </div>
           </div>
 

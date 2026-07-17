@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TimelineService } from '../../application/TimelineService'
+import { snapVideoSeconds } from '../../domain/videoDuration'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type { GenerationResult, MediaStatus } from '../../types/domain'
+import type { AppSettings } from '../../types/settings'
 import { useApp } from '../context/AppContext'
 import { useCharacters } from '../hooks/useCharacters'
 import { useProps } from '../hooks/useProps'
@@ -17,7 +19,15 @@ import { PreviewPlayer } from '../components/timeline/PreviewPlayer'
 import { useTimelineHistory } from '../hooks/useTimelineHistory'
 import { Button, EmptyState, Label, Textarea } from '../components/ui'
 
-const MAX_CLIP = TimelineService.DEFAULT_MAX_CLIP_SECONDS
+const STEP_I18N: Record<string, string> = {
+  script: 'pipeline.script',
+  character: 'pipeline.character',
+  scene: 'pipeline.scene',
+  props: 'pipeline.props',
+  timeline: 'pipeline.timeline',
+  video: 'pipeline.video',
+  export: 'pipeline.export'
+}
 
 const mediaBadge: Record<MediaStatus, string> = {
   EMPTY: 'bg-ink-700 text-ink-300',
@@ -59,8 +69,19 @@ export function TimelinePage(): JSX.Element {
   const [isPlaying, setIsPlaying] = useState(false)
   const history = useTimelineHistory()
   const [banner, setBanner] = useState<string | null>(null)
+  const [clipSeconds, setClipSeconds] = useState<6 | 10>(6)
+  const [videoMode, setVideoMode] = useState<string>('auto')
+  const [lastExportPath, setLastExportPath] = useState<string | null>(null)
+  const [currentStepLabel, setCurrentStepLabel] = useState<string | null>(null)
 
   const selected = entries.find((e) => e.id === selectedId) ?? null
+
+  useEffect(() => {
+    void getApi()
+      .settings.get()
+      .then((s: AppSettings) => setVideoMode(s.videoMode))
+      .catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -115,19 +136,22 @@ export function TimelinePage(): JSX.Element {
     return getApi().generation.onProgress((payload) => {
       setStepIndex(payload.index + 1)
       setStepTotal(payload.total)
+      const stepKey = STEP_I18N[payload.step]
+      const human = stepKey ? t(stepKey) : payload.step
+      setCurrentStepLabel(human)
       const line = payload.entryId
-        ? `clip ${payload.entryId} → ${payload.mediaStatus ?? payload.step}${
-            payload.jobId ? ` job=${payload.jobId}` : ''
+        ? `${human} · clip ${payload.entryId.slice(0, 6)} → ${payload.mediaStatus ?? ''}${
+            payload.jobId ? ` job=${payload.jobId.slice(0, 8)}` : ''
           }`
         : payload.result?.success
-          ? `✓ [${payload.index + 1}/${payload.total}] ${payload.step}`
-          : `… [${payload.index + 1}/${payload.total}] ${payload.step}${
+          ? `✓ [${payload.index + 1}/${payload.total}] ${human}`
+          : `… [${payload.index + 1}/${payload.total}] ${human}${
               payload.result?.error ? `: ${payload.result.error}` : ''
             }`
       setProgressLog((prev) => [...prev, line])
       if (payload.entryId) void reload()
     })
-  }, [reload])
+  }, [reload, t])
 
   const labels = useMemo(() => {
     const map: Record<string, string> = {}
@@ -150,7 +174,7 @@ export function TimelinePage(): JSX.Element {
     atTime?: number
   ): Promise<void> => {
     if (!activeStoryId) return
-    const duration = Math.min(MAX_CLIP, 5)
+    const duration = clipSeconds
     let startTime: number
     let order: number
     if (atTime !== undefined) {
@@ -164,7 +188,7 @@ export function TimelinePage(): JSX.Element {
     const range = TimelineService.clampDuration(
       startTime,
       startTime + duration,
-      MAX_CLIP
+      10
     )
     await create({
       startTime: range.startTime,
@@ -231,17 +255,30 @@ export function TimelinePage(): JSX.Element {
       const result = (await getApi().generation.run(activeStoryId, {
         onlyFailedVideos: onlyFailed
       })) as GenerationResult
-      const lines = result.steps.map((s) =>
-        s.success
-          ? `✓ ${s.step}${s.degraded ? ' (degraded)' : ''}\n${s.output ?? ''}`
-          : `✗ ${s.step}: ${s.error ?? 'failed'}`
-      )
+      const lines = result.steps.map((s) => {
+        const human = STEP_I18N[s.step] ? t(STEP_I18N[s.step]) : s.step
+        return s.success
+          ? `✓ ${human}${s.degraded ? ` (${t('pipeline.degraded')})` : ''}\n${s.output ?? ''}`
+          : `✗ ${human}: ${s.error ?? 'failed'}`
+      })
       setGenResult(lines.join('\n\n'))
+      const anyDegraded = result.steps.some((s) => s.degraded)
+      setBanner(
+        result.success
+          ? anyDegraded
+            ? t('pipeline.doneStub')
+            : t('pipeline.doneOk')
+          : t('pipeline.doneFail')
+      )
       await reload()
       await refreshStories()
       await refreshAiStatus()
     } catch (e) {
-      setActionError(parseIpcError(e).message)
+      const err = parseIpcError(e)
+      setActionError(
+        `${err.message}${err.code === 'FFMPEG_UNAVAILABLE' ? ` — ${t('pipeline.needFfmpeg')}` : ` — ${t('pipeline.checkGateway')}`}`
+      )
+      setBanner(t('pipeline.doneFail'))
     } finally {
       setGenerating(false)
     }
@@ -260,12 +297,18 @@ export function TimelinePage(): JSX.Element {
         mode === 'final'
           ? await getApi().media.exportFinal(activeStoryId)
           : await getApi().media.exportStoryboard(activeStoryId)
+      setLastExportPath(outputPath)
+      setBanner(t('pipeline.exportOk', { path: outputPath }))
       setGenResult((prev) =>
         [prev, `Export: ${outputPath}`].filter(Boolean).join('\n\n')
       )
-      await getApi().shell.openPath(outputPath)
     } catch (e) {
-      setActionError(parseIpcError(e).message)
+      const err = parseIpcError(e)
+      setActionError(
+        err.code === 'FFMPEG_UNAVAILABLE' || /ffmpeg/i.test(err.message)
+          ? t('pipeline.needFfmpeg')
+          : err.message
+      )
     } finally {
       setExporting(false)
     }
@@ -363,18 +406,25 @@ export function TimelinePage(): JSX.Element {
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r border-ink-800">
-          <div className="flex items-center justify-between gap-4 border-b border-ink-800 px-6 py-3 text-xs text-ink-400">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 px-6 py-3 text-xs text-ink-400">
             <span>
               {t('timeline.duration', { seconds: totalDuration.toFixed(1) })}
             </span>
-            <span>{t('timeline.maxClip', { seconds: MAX_CLIP })}</span>
+            <span className="rounded-full bg-ink-800 px-2 py-0.5 text-amber-200">
+              {t('timeline.aiClipHint')}
+            </span>
+            <span className="rounded-full bg-ink-800 px-2 py-0.5 text-brand-200">
+              Video: {videoMode}
+            </span>
           </div>
 
           {generating && (
             <div className="border-b border-ink-800 px-6 py-2">
               <div className="mb-1 flex justify-between text-[11px] text-ink-400">
                 <span>
-                  {t('common.generating')} ({stepIndex}/{stepTotal})
+                  {t('common.generating')}
+                  {currentStepLabel ? ` · ${currentStepLabel}` : ''} ({stepIndex}/
+                  {stepTotal})
                 </span>
                 <span>{progressPct}%</span>
               </div>
@@ -415,9 +465,27 @@ export function TimelinePage(): JSX.Element {
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {banner && (
-              <p className="mb-3 rounded-lg bg-brand-950/40 px-3 py-2 text-sm text-brand-200">
-                {banner}
-              </p>
+              <div className="mb-3 rounded-lg bg-brand-950/40 px-3 py-2 text-sm text-brand-200">
+                <p>{banner}</p>
+                {lastExportPath && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => void getApi().shell.openPath(lastExportPath)}
+                    >
+                      {t('pipeline.openFile')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        void getApi().shell.showItemInFolder(lastExportPath)
+                      }
+                    >
+                      {t('pipeline.openFolder')}
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
             {(error || actionError) && (
               <p className="mb-3 rounded-lg bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
@@ -496,6 +564,9 @@ export function TimelinePage(): JSX.Element {
                     <span className="font-mono text-xs text-brand-300">
                       {e.startTime.toFixed(1)}–{e.endTime.toFixed(1)}s
                     </span>{' '}
+                    <span className="rounded bg-ink-800 px-1 text-[10px] text-ink-300">
+                      {snapVideoSeconds(e.endTime - e.startTime)}s
+                    </span>{' '}
                     <span className="text-ink-200">{labels[e.id]}</span>{' '}
                     <span
                       className={[
@@ -529,6 +600,23 @@ export function TimelinePage(): JSX.Element {
         </div>
 
         <aside className="w-72 shrink-0 overflow-y-auto bg-ink-900/40 p-5">
+          <div className="mb-4">
+            <Label>{t('timeline.clipLength')}</Label>
+            <div className="mt-1 flex gap-2">
+              <Button
+                variant={clipSeconds === 6 ? 'primary' : 'secondary'}
+                onClick={() => setClipSeconds(6)}
+              >
+                6s
+              </Button>
+              <Button
+                variant={clipSeconds === 10 ? 'primary' : 'secondary'}
+                onClick={() => setClipSeconds(10)}
+              >
+                10s
+              </Button>
+            </div>
+          </div>
           <AssetLibrary
             characters={characters}
             scenes={scenes}

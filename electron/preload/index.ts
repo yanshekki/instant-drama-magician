@@ -17,7 +17,9 @@ const api: ElectronApi = {
     create: (input: CreateStoryInput) => ipcRenderer.invoke('stories:create', input),
     update: (id: string, data: { title?: string; status?: string }) =>
       ipcRenderer.invoke('stories:update', id, data),
-    delete: (id: string) => ipcRenderer.invoke('stories:delete', id)
+    delete: (id: string) => ipcRenderer.invoke('stories:delete', id),
+    seedDemo: (locale?: 'zh-HK' | 'en') =>
+      ipcRenderer.invoke('stories:seedDemo', locale)
   },
   characters: {
     list: (storyId: string) => ipcRenderer.invoke('characters:list', storyId),
@@ -106,7 +108,9 @@ const api: ElectronApi = {
   },
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
-    openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath)
+    openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath),
+    showItemInFolder: (filePath: string) =>
+      ipcRenderer.invoke('shell:showItemInFolder', filePath)
   },
   media: {
     pickRefImage: () => ipcRenderer.invoke('media:pickRefImage'),

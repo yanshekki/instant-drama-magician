@@ -6,27 +6,27 @@ AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLit
 
 | 項目 | 狀態 |
 |------|------|
-| **產品完成度** | **約 10%**（相對「idea → 完整可發行 AI 短劇成片」目標） |
-| **現階段定位** | 早期 prototype / architecture scaffold，**未達可用產品** |
-| **目標** | 見 [docs/project-brief.md](./docs/project-brief.md) |
+| **產品完成度** | **約 15–20%**（相對「idea → 完整可發行 AI 短劇成片」） |
+| **現階段定位** | **可演示 prototype**：可走完「Demo → 時間軸 → 生成／匯出」；**未達可用產品** |
+| **目標** | [docs/project-brief.md](./docs/project-brief.md) |
 
-> 已有介面骨架、時間軸、pipeline 與 export 接線，但真 AI 出片、成片品質、體驗與發行仍差很遠。  
-> **請勿當作已完成產品。**
+> 已有介面、Demo 故事、6/10 秒時間軸提示、生成步驟人話說明與 stub／gateway 區分。  
+> **真 AI 出片、成片品質、發行仍未完成。請勿當作成品。**
 
-### 10% 大致對應
+### 已有 vs 未完成
 
-| 已有（骨架） | 未完成（約 90%） |
-|--------------|------------------|
-| 專案結構、五個創作頁 | 真 Grok video 穩定出片與營運驗證 |
-| Prisma 資料模型 | 專業成片（演技級畫面、口型、聲畫） |
-| 線性時間軸 UI（可拖） | 完整 NLE / 多軌 / 專業預覽 |
-| Pipeline 步驟接線 | 端到端可靠生成與重試策略打磨 |
-| FFmpeg stub / 色塊／簡易 concat | 發行級打包、簽章、更新 |
-| i18n、Settings 雛形 | soulmd-hub 深度整合、帳號／雲端等 |
+| 已有（prototype） | 未完成（主要 80%+） |
+|-------------------|---------------------|
+| 五頁創作 + Demo 一鍵種子 | 穩定真 Grok video 出片 |
+| 時間軸 6/10s UX | 專業 NLE／多軌 |
+| 生成步驟中文說明 | 演技級畫面／聲畫 |
+| stub 占位片標示 | 產品級錯誤恢復 |
+| 匯出路徑回饋 | 商店簽章、auto-update |
+| Gateway 檢測 | soulmd-hub 深度整合 |
 
 ---
 
-## Quick start（開發試跑）
+## Quick start
 
 ```bash
 cd "/home/ki/文件/instant-drama-magician"
@@ -35,63 +35,31 @@ npx prisma db push
 npm run dev
 ```
 
-可選：
+1. 故事頁 → **載入 Demo 故事**  
+2. 時間軸 → 選 6s／10s → 生成（無 gateway 會用色塊 stub）  
+3. 匯出成片（需系統 `ffmpeg`）  
 
-- 系統需有 `ffmpeg` 先試匯出  
-- 真 AI：見 [docs/grok-gateway.md](./docs/grok-gateway.md)（仍屬實驗）
-
----
-
-## 而家有咩（prototype）
-
-- Electron 桌面殼 + React 頁面（Stories / Characters / Scenes / Props / Timeline / Settings）  
-- 時間軸：拖曳、zoom、playhead、簡易預覽  
-- 生成 pipeline 骨架（腳本 → … → video → export）  
-- Video：`stub` 色塊片為主；`http` 對齊 `/v1/videos` 契約（需自行接 gateway）  
-- 匯出：簡易 concat / 字幕 / 可選 BGM·TTS（品質未達產品級）  
-- soul.md 本機／URL 匯入（淺層）  
-
-## 未做（主要缺口）
-
-- 穩定、可演示的「一鍵真短劇片」  
-- 真 video 模型產能、失敗恢復、成本與佇列  
-- 專業時間軸與媒體管理  
-- 產品級 UX、錯誤處理、引導  
-- 測試覆蓋（E2E / live gateway）、多平台發行  
-- 商店簽章、auto-update、帳號與雲端  
+真 AI：見 [docs/grok-gateway.md](./docs/grok-gateway.md)。
 
 ---
 
 ## Docs
 
-| 文件 | 說明 |
-|------|------|
-| [docs/project-brief.md](./docs/project-brief.md) | 產品規格（目標狀態） |
-| [docs/architecture.md](./docs/architecture.md) | 現有架構筆記 |
-| [docs/video-providers.md](./docs/video-providers.md) | Video API 接線 |
-| [docs/grok-gateway.md](./docs/grok-gateway.md) | 接 Grok CLI gateway |
-| [docs/release.md](./docs/release.md) | 打包檢查（未達發行） |
-
----
+- [docs/project-brief.md](./docs/project-brief.md)  
+- [docs/architecture.md](./docs/architecture.md)  
+- [docs/video-providers.md](./docs/video-providers.md)  
+- [docs/grok-gateway.md](./docs/grok-gateway.md)  
+- [docs/release.md](./docs/release.md)  
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | 開發模式 |
-| `npm run build` | 建置 bundle |
-| `npm test` | 單元測試 |
-| `npm run pack` | electron-builder `--dir`（實驗） |
-
----
+| `npm run dev` | 開發 |
+| `npm run build` | 建置 |
+| `npm test` | 測試 |
+| `npm run pack` | 實驗打包 |
 
 ## i18n
 
-- **zh-HK**（預設）  
-- **en**  
-
----
-
-## License
-
-MIT（見 repo；產品本身仍屬 early prototype）
+zh-HK（預設）+ en
