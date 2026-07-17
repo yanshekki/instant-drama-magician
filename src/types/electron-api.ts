@@ -1,10 +1,12 @@
 import type {
+  CharacterProfileFields,
   CreateCharacterInput,
   CreatePropInput,
   CreateSceneInput,
   CreateStoryInput,
   CreateTimelineEntryInput,
   MediaStatus,
+  UpdateCharacterInput,
   UpdateTimelineEntryInput
 } from './domain'
 import type { AppSettings } from './settings'
@@ -25,12 +27,7 @@ export interface ElectronApi {
   characters: {
     list: (storyId: string) => Promise<unknown>
     create: (input: CreateCharacterInput) => Promise<unknown>
-    update: (
-      id: string,
-      data: Partial<
-        Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>
-      >
-    ) => Promise<unknown>
+    update: (id: string, data: UpdateCharacterInput) => Promise<unknown>
     delete: (id: string) => Promise<{ ok: boolean }>
     importSoulMd: () => Promise<{ filePath: string; content: string } | null>
     importSoulMdUrl: (url: string) => Promise<{
@@ -39,6 +36,77 @@ export interface ElectronApi {
       name: string | null
       description: string
       parsed: unknown
+    }>
+    aiFill: (payload: {
+      idea: string
+      storyId?: string
+      locale?: 'zh-HK' | 'en'
+    }) => Promise<{
+      profile: CharacterProfileFields
+      profileJson: string
+      raw: string
+    }>
+    generateSheet: (payload: {
+      characterId: string
+      variant?: 'bible' | 'turnaround' | 'expression' | 'costume'
+    }) => Promise<{ character: unknown; path: string }>
+  }
+  souls: {
+    list: (opts?: {
+      page?: number
+      limit?: number
+      q?: string
+      role?: string
+    }) => Promise<{
+      success: boolean
+      count: number
+      total_count?: number
+      current_page?: number
+      total_pages?: number
+      data: Array<{
+        id: number
+        title: string
+        description: string
+        role: string | null
+        domain: string | null
+        role_icon?: string | null
+      }>
+    }>
+    get: (id: number) => Promise<{
+      id: number
+      title: string
+      description: string
+      content: string
+      contentFlat: string
+      file_type?: string
+      role?: string | null
+      domain?: string | null
+    }>
+    categories: () => Promise<
+      Array<{ id: number; name: string; slug: string; icon: string }>
+    >
+    ensureIndex: (force?: boolean) => Promise<{
+      fromCache: boolean
+      pages: number
+      count: number
+      builtAt: string
+      suggestions: Array<{ kind: string; label: string; count?: number }>
+    }>
+    suggestions: () => Promise<
+      Array<{ kind: string; label: string; count?: number }>
+    >
+    searchLocal: (
+      q: string,
+      limit?: number
+    ) => Promise<{
+      items: Array<{
+        id: number
+        title: string
+        description: string
+        role: string | null
+        domain: string | null
+      }>
+      fromCache: boolean
     }>
   }
   scenes: {

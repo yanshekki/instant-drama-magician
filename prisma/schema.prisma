@@ -31,6 +31,21 @@ model Character {
   soulMdPath   String?
   description  String
   refImagePath String?
+  /** Detailed profile for short-drama + video consistency */
+  appearance     String?
+  personality    String?
+  backstory      String?
+  costume        String?
+  ageRange       String?
+  gender         String?
+  voiceDesc      String?
+  mannerisms     String?
+  relationships  String?
+  visualTags     String?
+  seedPrompt     String?
+  profileJson    String?
+  refSheetPath   String?
+  soulHubId      Int?
 
   story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
   timelineEntries TimelineEntry[]

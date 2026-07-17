@@ -60,6 +60,13 @@ AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLit
 - [x] Settings **Grok Gateway（LLM 首選）**  
 - [x] [docs/grok-gateway.md](./docs/grok-gateway.md)  
 
+## 人物頁（Round 12）
+
+- [x] SoulMD Hub 選 soul + 50 頁索引建議  
+- [x] 萬能角色 Prompt（聲音／小習慣等）  
+- [x] 多角度參考圖 sheet（A/B/C/D）  
+- [x] [docs/soulmd-hub.md](./docs/soulmd-hub.md)  
+
 ---
 
 ## Quick start

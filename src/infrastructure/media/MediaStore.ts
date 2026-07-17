@@ -38,10 +38,19 @@ export class MediaStore {
     return join(this.ttsDir(storyId), `${entryId}${ext}`)
   }
 
+  charsDir(storyId: string): string {
+    return join(this.storyDir(storyId), 'chars')
+  }
+
+  characterSheetPath(storyId: string, characterId: string, ext = '.png'): string {
+    return join(this.charsDir(storyId), `${characterId}_sheet${ext}`)
+  }
+
   ensureStoryDirs(storyId: string): void {
     mkdirSync(this.clipsDir(storyId), { recursive: true })
     mkdirSync(this.exportsDir(storyId), { recursive: true })
     mkdirSync(this.ttsDir(storyId), { recursive: true })
+    mkdirSync(this.charsDir(storyId), { recursive: true })
   }
 
   importClip(storyId: string, entryId: string, sourcePath: string): string {

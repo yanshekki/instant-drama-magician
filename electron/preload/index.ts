@@ -6,6 +6,7 @@ import type {
   CreateStoryInput,
   CreateTimelineEntryInput,
   MediaStatus,
+  UpdateCharacterInput,
   UpdateTimelineEntryInput
 } from '../../src/types/domain'
 import type { ElectronApi } from '../../src/types/electron-api'
@@ -26,19 +27,39 @@ const api: ElectronApi = {
   characters: {
     list: (storyId: string) => ipcRenderer.invoke('characters:list', storyId),
     create: (input: CreateCharacterInput) => ipcRenderer.invoke('characters:create', input),
-    update: (
-      id: string,
-      data: Partial<
-        Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>
-      >
-    ) => ipcRenderer.invoke('characters:update', id, data),
+    update: (id: string, data: UpdateCharacterInput) =>
+      ipcRenderer.invoke('characters:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('characters:delete', id),
     importSoulMd: () =>
       ipcRenderer.invoke('characters:importSoulMd') as Promise<{
         filePath: string
         content: string
       } | null>,
-    importSoulMdUrl: (url: string) => ipcRenderer.invoke('characters:importSoulMdUrl', url)
+    importSoulMdUrl: (url: string) => ipcRenderer.invoke('characters:importSoulMdUrl', url),
+    aiFill: (payload: {
+      idea: string
+      storyId?: string
+      locale?: 'zh-HK' | 'en'
+    }) => ipcRenderer.invoke('characters:aiFill', payload),
+    generateSheet: (payload: {
+      characterId: string
+      variant?: 'bible' | 'turnaround' | 'expression' | 'costume'
+    }) => ipcRenderer.invoke('characters:generateSheet', payload)
+  },
+  souls: {
+    list: (opts?: {
+      page?: number
+      limit?: number
+      q?: string
+      role?: string
+    }) => ipcRenderer.invoke('souls:list', opts),
+    get: (id: number) => ipcRenderer.invoke('souls:get', id),
+    categories: () => ipcRenderer.invoke('souls:categories'),
+    ensureIndex: (force?: boolean) =>
+      ipcRenderer.invoke('souls:ensureIndex', force),
+    suggestions: () => ipcRenderer.invoke('souls:suggestions'),
+    searchLocal: (q: string, limit?: number) =>
+      ipcRenderer.invoke('souls:searchLocal', q, limit)
   },
   scenes: {
     list: (storyId: string) => ipcRenderer.invoke('scenes:list', storyId),

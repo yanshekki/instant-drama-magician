@@ -18,6 +18,7 @@ import {
   buildClipPrompt,
   previousClipContext
 } from '../../domain/promptContinuity'
+import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
 import { GenerationPipeline } from '../GenerationPipeline'
 import { FfmpegService } from '../../infrastructure/ffmpeg/FfmpegService'
 import { MediaStore } from '../../infrastructure/media/MediaStore'
@@ -119,21 +120,36 @@ export class GenerationService {
         throw new AppError('CANCELLED', 'Cancelled')
       }
 
-      const prompt = buildClipPrompt({
-        storyTitle: story.title,
-        styleNote: story.styleNote,
-        character: char,
-        scene,
-        prop,
-        dialogue: entry.dialogue,
-        seconds,
-        previousContext: prev
-      })
+      const charBlock = char
+        ? characterVideoPromptBlock({
+            name: char.name,
+            ageRange: char.ageRange ?? undefined,
+            appearance: char.appearance ?? char.description,
+            costume: char.costume ?? undefined,
+            mannerisms: char.mannerisms ?? undefined,
+            voiceDesc: char.voiceDesc ?? undefined
+          })
+        : null
+      const prompt = [
+        buildClipPrompt({
+          storyTitle: story.title,
+          styleNote: story.styleNote,
+          character: char,
+          scene,
+          prop,
+          dialogue: entry.dialogue,
+          seconds,
+          previousContext: prev
+        }),
+        charBlock
+      ]
+        .filter(Boolean)
+        .join('\n')
 
       const result = await this.ai.generateVideo({
         prompt,
         durationSeconds: seconds,
-        refImagePath: char?.refImagePath,
+        refImagePath: char?.refSheetPath || char?.refImagePath,
         outputPath,
         aspectRatio: this.settings.aspectRatio
       })

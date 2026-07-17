@@ -38,6 +38,36 @@ export interface Character {
   soulMdPath: string | null
   description: string
   refImagePath: string | null
+  appearance?: string | null
+  personality?: string | null
+  backstory?: string | null
+  costume?: string | null
+  ageRange?: string | null
+  gender?: string | null
+  voiceDesc?: string | null
+  mannerisms?: string | null
+  relationships?: string | null
+  visualTags?: string | null
+  seedPrompt?: string | null
+  profileJson?: string | null
+  refSheetPath?: string | null
+  soulHubId?: number | null
+}
+
+/** AI-filled / form profile for a character (JSON schema for master prompt). */
+export interface CharacterProfileFields {
+  name: string
+  description: string
+  appearance?: string
+  personality?: string
+  backstory?: string
+  costume?: string
+  ageRange?: string
+  gender?: string
+  voiceDesc?: string
+  mannerisms?: string
+  relationships?: string
+  visualTags?: string
 }
 
 export interface Scene {
@@ -89,7 +119,25 @@ export interface CreateCharacterInput {
   description: string
   soulMdPath?: string | null
   refImagePath?: string | null
+  appearance?: string | null
+  personality?: string | null
+  backstory?: string | null
+  costume?: string | null
+  ageRange?: string | null
+  gender?: string | null
+  voiceDesc?: string | null
+  mannerisms?: string | null
+  relationships?: string | null
+  visualTags?: string | null
+  seedPrompt?: string | null
+  profileJson?: string | null
+  refSheetPath?: string | null
+  soulHubId?: number | null
 }
+
+export type UpdateCharacterInput = Partial<
+  Omit<CreateCharacterInput, 'storyId'>
+>
 
 export interface CreateSceneInput {
   storyId: string

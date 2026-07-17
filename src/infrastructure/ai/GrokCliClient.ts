@@ -263,6 +263,59 @@ export class GrokCliClient implements AIProvider {
     return this.video.generate(request)
   }
 
+  /**
+   * OpenAI-compatible image generation (Grok Gateway: POST /v1/images/generations).
+   * Requires apiFeatures.imagesApi when using Grok-Cli-to-OpenAI-compatible.
+   */
+  async generateImage(options: {
+    prompt: string
+    aspectRatio?: string
+    size?: string
+    n?: number
+  }): Promise<{ b64: string; mime: string }> {
+    if (!this.apiKey.trim()) {
+      throw new AppError(
+        'AI_UNAUTHORIZED',
+        'No API key',
+        'Image gen needs a valid API key'
+      )
+    }
+    const body: Record<string, unknown> = {
+      prompt: options.prompt,
+      model: this.model,
+      n: options.n ?? 1,
+      response_format: 'b64_json'
+    }
+    if (options.aspectRatio) body.aspect_ratio = options.aspectRatio
+    if (options.size) body.size = options.size
+
+    const res = await fetch(`${this.baseUrl}/images/generations`, {
+      method: 'POST',
+      headers: {
+        ...this.headers(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(Math.max(this.chatTimeoutMs, 180_000))
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw mapChatHttpStatus(res.status, text)
+    }
+    const json = (await res.json()) as {
+      data?: Array<{ b64_json?: string; url?: string }>
+    }
+    const b64 = json.data?.[0]?.b64_json
+    if (!b64) {
+      throw new AppError(
+        'AI_FAILED',
+        'Image API returned no b64_json',
+        'Enable imagesApi on Gateway or check provider'
+      )
+    }
+    return { b64, mime: 'image/png' }
+  }
+
   private headers(): Record<string, string> {
     return {
       Authorization: `Bearer ${this.apiKey}`

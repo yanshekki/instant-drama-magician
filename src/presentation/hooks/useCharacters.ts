@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
-import type { Character, CreateCharacterInput } from '../../types/domain'
+import type {
+  Character,
+  CreateCharacterInput,
+  UpdateCharacterInput
+} from '../../types/domain'
 import type { AppErrorBody } from '../../types/errors'
 
 export function useCharacters(storyId: string | null): {
@@ -10,10 +14,7 @@ export function useCharacters(storyId: string | null): {
   error: AppErrorBody | null
   reload: () => Promise<void>
   create: (input: Omit<CreateCharacterInput, 'storyId'>) => Promise<boolean>
-  update: (
-    id: string,
-    data: Partial<Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>>
-  ) => Promise<boolean>
+  update: (id: string, data: UpdateCharacterInput) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
 } {
   const [items, setItems] = useState<Character[]>([])
@@ -57,12 +58,7 @@ export function useCharacters(storyId: string | null): {
   )
 
   const update = useCallback(
-    async (
-      id: string,
-      data: Partial<
-        Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>
-      >
-    ): Promise<boolean> => {
+    async (id: string, data: UpdateCharacterInput): Promise<boolean> => {
       try {
         await getApi().characters.update(id, data)
         await reload()

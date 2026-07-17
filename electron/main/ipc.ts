@@ -8,7 +8,7 @@ import type {
 } from 'electron'
 import { app } from 'electron'
 import type { PrismaClient } from '../../src/types/prisma'
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { basename, extname, join } from 'path'
 import { GrokCliClient } from '../../src/infrastructure/ai/GrokCliClient'
 import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
@@ -36,8 +36,16 @@ import type {
   CreateSceneInput,
   CreateStoryInput,
   CreateTimelineEntryInput,
+  UpdateCharacterInput,
   UpdateTimelineEntryInput
 } from '../../src/types/domain'
+import { SoulMdHubClient } from '../../src/infrastructure/soulmd/SoulMdHubClient'
+import {
+  buildCharacterMasterSystemPrompt,
+  buildCharacterMasterUserPrompt,
+  buildCharacterSheetImagePrompt,
+  extractCharacterProfileJson
+} from '../../src/domain/characterMasterPrompt'
 import type { AppSettings } from '../../src/types/settings'
 import { AppError, toAppError } from '../../src/types/errors'
 import {
@@ -150,19 +158,204 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   )
   ipcMain.handle(
     'characters:update',
-    wrap(
-      async (
-        _e,
-        id: string,
-        data: Partial<
-          Pick<CreateCharacterInput, 'name' | 'description' | 'soulMdPath' | 'refImagePath'>
-        >
-      ) => characters().update(id, data)
+    wrap(async (_e, id: string, data: UpdateCharacterInput) =>
+      characters().update(id, data)
     )
   )
   ipcMain.handle(
     'characters:delete',
     wrap(async (_e, id: string) => characters().delete(id))
+  )
+  ipcMain.handle(
+    'characters:aiFill',
+    wrap(
+      async (
+        _e,
+        payload: {
+          idea: string
+          storyId?: string
+          locale?: 'zh-HK' | 'en'
+        }
+      ) => {
+        const idea = payload.idea?.trim()
+        if (!idea) throw new AppError('VALIDATION', 'Idea prompt is required')
+        let storyTitle: string | undefined
+        let styleNote: string | null | undefined
+        if (payload.storyId) {
+          const story = await getPrisma().story.findUnique({
+            where: { id: payload.storyId }
+          })
+          storyTitle = story?.title
+          styleNote = story?.styleNote
+        }
+        const locale = payload.locale ?? 'zh-HK'
+        const completion = await aiClient.chat({
+          messages: [
+            {
+              role: 'system',
+              content: buildCharacterMasterSystemPrompt(locale)
+            },
+            {
+              role: 'user',
+              content: buildCharacterMasterUserPrompt({
+                idea,
+                storyTitle,
+                styleNote,
+                locale
+              })
+            }
+          ],
+          max_tokens: 2500
+        })
+        const text = completion.choices[0]?.message.content ?? ''
+        const profile = extractCharacterProfileJson(text)
+        activity.append({
+          kind: 'character',
+          message: 'aiFill',
+          storyId: payload.storyId,
+          meta: { name: profile.name }
+        })
+        return {
+          profile,
+          profileJson: JSON.stringify(profile, null, 2),
+          raw: text
+        }
+      }
+    )
+  )
+  ipcMain.handle(
+    'characters:generateSheet',
+    wrap(
+      async (
+        _e,
+        payload: {
+          characterId: string
+          variant?: 'bible' | 'turnaround' | 'expression' | 'costume'
+        }
+      ) => {
+        const row = await characters().get(payload.characterId)
+        const profile = {
+          name: row.name,
+          description: row.description,
+          appearance: row.appearance ?? undefined,
+          personality: row.personality ?? undefined,
+          costume: row.costume ?? undefined,
+          ageRange: row.ageRange ?? undefined,
+          gender: row.gender ?? undefined,
+          voiceDesc: row.voiceDesc ?? undefined,
+          mannerisms: row.mannerisms ?? undefined,
+          visualTags: row.visualTags ?? undefined
+        }
+        const prompt = buildCharacterSheetImagePrompt(
+          profile,
+          payload.variant ?? 'bible'
+        )
+        const img = await aiClient.generateImage({
+          prompt,
+          aspectRatio: '16:9'
+        })
+        const store = generation().getMediaStore()
+        store.ensureStoryDirs(row.storyId)
+        const outPath = store.characterSheetPath(row.storyId, row.id, '.png')
+        writeFileSync(outPath, Buffer.from(img.b64, 'base64'))
+        const updated = await characters().update(row.id, {
+          refSheetPath: outPath,
+          refImagePath: outPath
+        })
+        activity.append({
+          kind: 'character',
+          message: 'generateSheet',
+          storyId: row.storyId,
+          meta: { characterId: row.id, path: outPath }
+        })
+        return { character: updated, path: outPath }
+      }
+    )
+  )
+
+  // ─── SoulMD Hub (public catalogue) ─────────────────────────
+  let soulIndexBuilding: Promise<unknown> | null = null
+  const soulHub = new SoulMdHubClient()
+  const userDataPath = (): string => app.getPath('userData')
+
+  ipcMain.handle(
+    'souls:list',
+    wrap(
+      async (
+        _e,
+        opts?: { page?: number; limit?: number; q?: string; role?: string }
+      ) => soulHub.listSouls({ ...opts, is_nft: 0 })
+    )
+  )
+  ipcMain.handle(
+    'souls:get',
+    wrap(async (_e, id: number) => {
+      const detail = await soulHub.getSoul(id)
+      const flat = SoulMdHubClient.flattenContent(
+        detail.content,
+        detail.file_type
+      )
+      return { ...detail, contentFlat: flat }
+    })
+  )
+  ipcMain.handle(
+    'souls:categories',
+    wrap(async () => soulHub.listCategories())
+  )
+  ipcMain.handle(
+    'souls:ensureIndex',
+    wrap(async (_e, force?: boolean) => {
+      const cached = SoulMdHubClient.loadCache(userDataPath())
+      if (cached && !force && cached.items.length > 0) {
+        return {
+          fromCache: true,
+          pages: cached.pages,
+          count: cached.items.length,
+          builtAt: cached.builtAt,
+          suggestions: cached.suggestions
+        }
+      }
+      if (!soulIndexBuilding) {
+        soulIndexBuilding = soulHub
+          .buildIndex(50)
+          .then((idx) => {
+            SoulMdHubClient.saveCache(userDataPath(), idx)
+            return idx
+          })
+          .finally(() => {
+            soulIndexBuilding = null
+          })
+      }
+      const idx = (await soulIndexBuilding) as Awaited<
+        ReturnType<SoulMdHubClient['buildIndex']>
+      >
+      return {
+        fromCache: false,
+        pages: idx.pages,
+        count: idx.items.length,
+        builtAt: idx.builtAt,
+        suggestions: idx.suggestions
+      }
+    })
+  )
+  ipcMain.handle(
+    'souls:suggestions',
+    wrap(async () => {
+      const cached = SoulMdHubClient.loadCache(userDataPath())
+      if (cached) return cached.suggestions
+      return []
+    })
+  )
+  ipcMain.handle(
+    'souls:searchLocal',
+    wrap(async (_e, q: string, limit?: number) => {
+      const cached = SoulMdHubClient.loadCache(userDataPath())
+      if (!cached) return { items: [] as unknown[], fromCache: false }
+      return {
+        items: SoulMdHubClient.filterIndex(cached, q, limit ?? 24),
+        fromCache: true
+      }
+    })
   )
   ipcMain.handle(
     'characters:importSoulMd',
