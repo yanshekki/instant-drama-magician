@@ -131,7 +131,7 @@ export function buildCharacterSheetImagePrompt(
   variant: 'bible' | 'turnaround' | 'expression' | 'costume' = 'bible'
 ): string {
   const base = [
-    `Character reference sheet for AI video consistency, single person only, same face identity across panels, clean white/light gray background, high detail, cinematic lighting, no watermark, no text labels.`,
+    `Ultra high-resolution character reference sheet for AI video consistency, single person only, same face identity across all panels, photoreal or cinematic production still quality, sharp focus, large detailed canvas, clean white/light gray studio background, professional lighting, no watermark, no text, no captions, no labels.`,
     `Name/concept: ${profile.name}`,
     profile.ageRange ? `Age: ${profile.ageRange}` : '',
     profile.gender ? `Gender presentation: ${profile.gender}` : '',
@@ -147,13 +147,13 @@ export function buildCharacterSheetImagePrompt(
 
   const layouts: Record<typeof variant, string> = {
     bible:
-      'Layout: one sheet with multiple panels — full body front, full body side, full body back, 3/4 view, head close-up front, head close-up 3/4, two expression variations (neutral + smile). Consistent wardrobe and face.',
+      'Wide 16:9 layout filling the full frame: multiple large panels — full body front, full body side, full body back, 3/4 view, head close-up front, head close-up 3/4, two expressions (neutral + smile). Each figure large and clear, not tiny thumbnails. Consistent wardrobe and face.',
     turnaround:
-      'Layout: horizontal turnaround strip — front, three-quarter, left side, back, right side, full body standing, same scale.',
+      'Wide 16:9 turnaround strip filling the frame — front, three-quarter, left side, back, right side, full body standing, same scale, figures as large as possible.',
     expression:
-      'Layout: 2x2 grid of face close-ups — neutral, smile, angry, surprised; same lighting and identity.',
+      'Square 1:1 layout: 2x2 grid of large face close-ups — neutral, smile, angry, surprised; same lighting and identity; faces fill each cell.',
     costume:
-      'Layout: full body hero pose + two clothing/detail close-ups (fabric, shoes, accessories); same character.'
+      'Tall 9:16 layout: large full body hero pose + clothing/detail close-ups (fabric, shoes, accessories); maximize figure size on canvas.'
   }
 
   return `${base}. ${layouts[variant]}`
