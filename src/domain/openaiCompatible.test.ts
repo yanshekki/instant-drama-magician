@@ -22,9 +22,14 @@ describe('openaiCompatible presets', () => {
   })
 
   it('applies openai preset', () => {
-    const s = applyLlmPreset({ ...base, model: 'grok-cli' }, 'openai')
+    const s = applyLlmPreset({ ...base, model: 'grok-4.5' }, 'openai')
     expect(s.baseUrl).toBe(OPENAI_API_BASE_URL)
     expect(s.model).toBe('gpt-4o-mini')
+  })
+
+  it('grok-gateway preset defaults model to grok-4.5', () => {
+    const s = applyLlmPreset({ ...base, model: '' }, 'grok-gateway')
+    expect(s.model).toBe('grok-4.5')
   })
 
   it('custom keeps urls', () => {

@@ -72,7 +72,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
         : videoPathOrOpts.replace(/\/video\/generations\/?$/, '/videos')
       this.baseUrl = this.createUrl.replace(/\/videos\/?$/, '')
       this.apiKey = apiKey ?? 'grok-cli'
-      this.model = model ?? 'grok-cli'
+      this.model = model ?? 'grok-4.5'
       this.pollMs = 2000
       this.timeoutSec = 300
       this.maxRetries = 3

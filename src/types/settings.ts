@@ -65,7 +65,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   videoPath: GROK_GATEWAY_VIDEO_PATH,
   /** Placeholder — paste key for selected provider */
   apiKey: '',
-  model: 'grok-cli',
+  model: 'grok-4.5',
   chatTimeoutMs: 120_000,
   defaultMaxClipSeconds: 6,
   burnSubtitles: true,

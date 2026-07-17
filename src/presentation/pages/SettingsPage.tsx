@@ -375,7 +375,7 @@ export function SettingsPage(): JSX.Element {
                     placeholder={
                       settings.llmProvider === 'openai'
                         ? 'gpt-4o-mini'
-                        : 'grok-cli'
+                        : 'grok-4.5'
                     }
                   />
                 )}

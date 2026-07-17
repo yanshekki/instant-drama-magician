@@ -35,9 +35,21 @@ export class SettingsStore {
         if (migrated) {
           merged.llmProvider = 'grok-gateway'
         }
+        // Refresh legacy default model name
+        if (
+          merged.llmProvider === 'grok-gateway' &&
+          (merged.model === 'grok-cli' || !merged.model?.trim())
+        ) {
+          merged.model = 'grok-4.5'
+        }
         this.lastLoadMigrated = migrated
         this.cache = merged
-        if (migrated || raw.llmProvider === undefined) {
+        const shouldPersist =
+          migrated ||
+          raw.llmProvider === undefined ||
+          raw.model === 'grok-cli' ||
+          !raw.model
+        if (shouldPersist) {
           mkdirSync(dirname(this.filePath), { recursive: true })
           writeFileSync(this.filePath, JSON.stringify(merged, null, 2), 'utf-8')
         }

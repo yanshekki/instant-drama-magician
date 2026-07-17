@@ -43,7 +43,12 @@ export function applyLlmPreset<T extends LlmEndpointFields>(
       llmProvider: 'grok-gateway',
       baseUrl: GROK_GATEWAY_BASE_URL,
       videoPath: GROK_GATEWAY_VIDEO_PATH,
-      model: settings.model?.trim() ? settings.model : 'grok-cli'
+      model:
+        !settings.model?.trim() ||
+        settings.model.startsWith('gpt-') ||
+        settings.model === 'grok-cli'
+          ? 'grok-4.5'
+          : settings.model
     }
   }
   if (preset === 'openai') {
@@ -53,9 +58,13 @@ export function applyLlmPreset<T extends LlmEndpointFields>(
       baseUrl: OPENAI_API_BASE_URL,
       // OpenAI has no /videos — keep path empty-ish under base for clarity
       videoPath: `${OPENAI_API_BASE_URL}/videos`,
-      model: settings.model === 'grok-cli' || !settings.model.trim()
-        ? 'gpt-4o-mini'
-        : settings.model
+      model:
+        !settings.model.trim() ||
+        settings.model === 'grok-cli' ||
+        settings.model === 'grok-4.5' ||
+        settings.model.startsWith('grok-')
+          ? 'gpt-4o-mini'
+          : settings.model
     }
   }
   return { ...settings, llmProvider: 'custom' }
