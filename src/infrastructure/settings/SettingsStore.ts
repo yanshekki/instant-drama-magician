@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { migrateGatewayDefaults } from '../../domain/gatewayDefaults'
-import { inferLlmPreset } from '../../domain/openaiCompatible'
+import { coerceLlmProviderPreset } from '../../domain/openaiCompatible'
 import {
   DEFAULT_SETTINGS,
   mergeSettings,
@@ -29,7 +29,10 @@ export class SettingsStore {
         merged = {
           ...settings,
           // Align preset tag with base URL when missing / stale
-          llmProvider: settings.llmProvider ?? inferLlmPreset(settings.baseUrl)
+          llmProvider: coerceLlmProviderPreset(
+            settings.llmProvider,
+            settings.baseUrl
+          )
         }
         // If URL looks like grok gateway but preset wrong after migrate
         if (migrated) {

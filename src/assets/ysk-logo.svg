@@ -1,0 +1,37 @@
+<svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <!-- 漸變色定義 -->
+        <linearGradient id="ysk-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#58a6ff;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2ea043;stop-opacity:1" />
+        </linearGradient>
+        <filter id="glow">
+            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+    </defs>
+    
+    <!-- 外框：六邊形 -->
+    <path d="M50 5 L95 27.5 L95 72.5 L50 95 L5 72.5 L5 27.5 Z" 
+          fill="none" 
+          stroke="url(#ysk-grad)" 
+          stroke-width="3"
+          filter="url(#glow)" />
+          
+    <!-- 內部：Y 字電路節點 -->
+    <g stroke="#c9d1d9" stroke-width="4" stroke-linecap="round">
+        <!-- 中心點連接 -->
+        <line x1="50" y1="50" x2="50" y2="80" /> <!-- 下 -->
+        <line x1="50" y1="50" x2="25" y2="35" /> <!-- 左上 -->
+        <line x1="50" y1="50" x2="75" y2="35" /> <!-- 右上 -->
+    </g>
+    
+    <!-- 節點圓點 -->
+    <circle cx="25" cy="35" r="4" fill="#58a6ff" />
+    <circle cx="75" cy="35" r="4" fill="#58a6ff" />
+    <circle cx="50" cy="80" r="4" fill="#2ea043" />
+    <circle cx="50" cy="50" r="3" fill="#fff" />
+</svg>

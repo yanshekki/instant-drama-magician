@@ -11,16 +11,22 @@ export interface Story {
   exportPath?: string | null
   /** Visual / tone bible for clip prompt continuity */
   styleNote?: string | null
+  /** List-card poster (like Character.refImagePath). */
+  coverPath?: string | null
+  refGalleryJson?: string | null
   createdAt: string | Date
   updatedAt: string | Date
 }
 
 export interface StoryWithCounts extends Story {
   _count?: {
-    characters: number
-    scenes: number
-    props: number
-    timeline: number
+    characters?: number
+    scenes?: number
+    props?: number
+    timeline?: number
+    storyCharacters?: number
+    storyScenes?: number
+    storyProps?: number
   }
 }
 
@@ -33,7 +39,8 @@ export interface StoryDetail extends Story {
 
 export interface Character {
   id: string
-  storyId: string
+  /** @deprecated assets are global; optional when loaded via story join */
+  storyId?: string
   name: string
   soulMdPath: string | null
   description: string
@@ -45,6 +52,8 @@ export interface Character {
   ageRange?: string | null
   gender?: string | null
   voiceDesc?: string | null
+  /** JSON array of BCP-47 / ISO language codes the character speaks */
+  spokenLanguages?: string | null
   mannerisms?: string | null
   relationships?: string | null
   visualTags?: string | null
@@ -53,6 +62,10 @@ export interface Character {
   refSheetPath?: string | null
   refGalleryJson?: string | null
   soulHubId?: number | null
+  /** Image art style id (photo_cinematic, anime_modern, …) */
+  artStyle?: string | null
+  /** JSON wardrobe library (see characterCostumes domain) */
+  costumesJson?: string | null
 }
 
 /** AI-filled / form profile for a character (JSON schema for master prompt). */
@@ -66,25 +79,85 @@ export interface CharacterProfileFields {
   ageRange?: string
   gender?: string
   voiceDesc?: string
+  /** ISO / BCP-47 codes (e.g. yue, en, ja) — multi spoken languages */
+  spokenLanguages?: string[]
   mannerisms?: string
   relationships?: string
   visualTags?: string
+  /** Original idea / seed used for master-prompt invent */
+  seedPrompt?: string
 }
 
 export interface Scene {
   id: string
-  storyId: string
-  sceneNumber: number
+  /** @deprecated global library; optional when via join */
+  storyId?: string
+  /** Per-story number from StoryScene join (not stored on Scene). */
+  sceneNumber?: number
   description: string
   script: string | null
   status: SceneStatus
+  title?: string | null
+  locationType?: string | null
+  timeOfDay?: string | null
+  weather?: string | null
+  mood?: string | null
+  lighting?: string | null
+  colorPalette?: string | null
+  setDressing?: string | null
+  soundscape?: string | null
+  cameraNotes?: string | null
+  visualTags?: string | null
+  artStyle?: string | null
+  refImagePath?: string | null
+  refGalleryJson?: string | null
+  looksJson?: string | null
+  profileJson?: string | null
+  seedPrompt?: string | null
+  locationKey?: string | null
+}
+
+/** AI-filled / form profile for a scene location bible. */
+export interface SceneProfileFields {
+  title?: string
+  description: string
+  script?: string
+  locationType?: string
+  timeOfDay?: string
+  weather?: string
+  mood?: string
+  lighting?: string
+  colorPalette?: string
+  setDressing?: string
+  soundscape?: string
+  cameraNotes?: string
+  visualTags?: string
 }
 
 export interface Prop {
   id: string
-  storyId: string
+  /** @deprecated global library; optional when via join */
+  storyId?: string
   name: string
   description: string
+  material?: string | null
+  sizeNotes?: string | null
+  condition?: string | null
+  visualTags?: string | null
+  artStyle?: string | null
+  refImagePath?: string | null
+  refGalleryJson?: string | null
+  profileJson?: string | null
+  seedPrompt?: string | null
+}
+
+export interface PropProfileFields {
+  name: string
+  description: string
+  material?: string
+  sizeNotes?: string
+  condition?: string
+  visualTags?: string
 }
 
 export interface TimelineEntry {
@@ -92,10 +165,18 @@ export interface TimelineEntry {
   storyId: string
   startTime: number
   endTime: number
+  /** Primary character = characterIds[0] */
   characterId: string | null
   sceneId: string | null
   propId: string | null
+  /** Multi-bind lists (hydrated on list/create/update responses). */
+  characterIds: string[]
+  sceneIds: string[]
+  propIds: string[]
+  /** Spoken-line cache / legacy free text */
   dialogue: string | null
+  /** Structured beat screenplay (BeatContent JSON) */
+  beatContentJson: string | null
   order: number
   mediaPath: string | null
   mediaStatus: MediaStatus
@@ -112,10 +193,14 @@ export interface UpdateStoryInput {
   title?: string
   status?: StoryStatus | string
   styleNote?: string | null
+  coverPath?: string | null
+  refGalleryJson?: string | null
 }
 
 export interface CreateCharacterInput {
-  storyId: string
+  /** When set, auto-link to this story after create (M2M). */
+  storyId?: string
+  linkStoryId?: string | null
   name: string
   description: string
   soulMdPath?: string | null
@@ -127,6 +212,8 @@ export interface CreateCharacterInput {
   ageRange?: string | null
   gender?: string | null
   voiceDesc?: string | null
+  /** JSON string array of language codes */
+  spokenLanguages?: string | null
   mannerisms?: string | null
   relationships?: string | null
   visualTags?: string | null
@@ -135,25 +222,67 @@ export interface CreateCharacterInput {
   refSheetPath?: string | null
   refGalleryJson?: string | null
   soulHubId?: number | null
+  artStyle?: string | null
+  costumesJson?: string | null
 }
 
 export type UpdateCharacterInput = Partial<
-  Omit<CreateCharacterInput, 'storyId'>
+  Omit<CreateCharacterInput, 'storyId' | 'linkStoryId'>
 >
 
 export interface CreateSceneInput {
-  storyId: string
-  sceneNumber: number
+  /** When set, auto-link to this story after create (M2M). */
+  storyId?: string
+  linkStoryId?: string | null
+  /** Per-story scene number when linking. */
+  sceneNumber?: number
   description: string
   script?: string | null
   status?: SceneStatus
+  title?: string | null
+  locationType?: string | null
+  timeOfDay?: string | null
+  weather?: string | null
+  mood?: string | null
+  lighting?: string | null
+  colorPalette?: string | null
+  setDressing?: string | null
+  soundscape?: string | null
+  cameraNotes?: string | null
+  visualTags?: string | null
+  artStyle?: string | null
+  refImagePath?: string | null
+  refGalleryJson?: string | null
+  looksJson?: string | null
+  profileJson?: string | null
+  seedPrompt?: string | null
+  locationKey?: string | null
 }
 
+export type UpdateSceneInput = Partial<
+  Omit<CreateSceneInput, 'storyId' | 'linkStoryId' | 'sceneNumber'>
+>
+
 export interface CreatePropInput {
-  storyId: string
+  /** When set, auto-link to this story after create (M2M). */
+  storyId?: string
+  linkStoryId?: string | null
   name: string
   description: string
+  material?: string | null
+  sizeNotes?: string | null
+  condition?: string | null
+  visualTags?: string | null
+  artStyle?: string | null
+  refImagePath?: string | null
+  refGalleryJson?: string | null
+  profileJson?: string | null
+  seedPrompt?: string | null
 }
+
+export type UpdatePropInput = Partial<
+  Omit<CreatePropInput, 'storyId' | 'linkStoryId'>
+>
 
 export interface CreateTimelineEntryInput {
   storyId: string
@@ -162,7 +291,11 @@ export interface CreateTimelineEntryInput {
   characterId?: string | null
   sceneId?: string | null
   propId?: string | null
+  characterIds?: string[] | null
+  sceneIds?: string[] | null
+  propIds?: string[] | null
   dialogue?: string | null
+  beatContentJson?: string | null
   order: number
 }
 
@@ -172,7 +305,11 @@ export interface UpdateTimelineEntryInput {
   characterId?: string | null
   sceneId?: string | null
   propId?: string | null
+  characterIds?: string[] | null
+  sceneIds?: string[] | null
+  propIds?: string[] | null
   dialogue?: string | null
+  beatContentJson?: string | null
   order?: number
   mediaPath?: string | null
   mediaStatus?: MediaStatus
@@ -223,11 +360,28 @@ export interface ChatCompletionResponse {
   choices: ChatCompletionChoice[]
 }
 
+export interface AIChannelStatus {
+  available: boolean
+  message: string
+  /** Provider id (e.g. openai, same-as-llm, stub) */
+  provider?: string
+}
+
 export interface AIProviderStatus {
   available: boolean
   baseUrl: string
   model: string
   message: string
+  /** Chat / LLM channel */
+  chat?: AIChannelStatus
+  /**
+   * Image channel — only populated when settings.imageProvider is not same-as-llm.
+   */
+  image?: AIChannelStatus | null
+  /**
+   * Video channel — only populated when settings.videoProvider is not same-as-llm.
+   */
+  video?: AIChannelStatus | null
 }
 
 export interface AIProvider {

@@ -2,51 +2,72 @@ import { useCallback, useEffect, useState } from 'react'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type {
-  Character,
   CreateCharacterInput,
+  Character,
   UpdateCharacterInput
 } from '../../types/domain'
 import type { AppErrorBody } from '../../types/errors'
 
-export function useCharacters(storyId: string | null): {
+/**
+ * Global character library. When activeStoryId is set, also loads
+ * which IDs are linked to that story (cast).
+ */
+export function useCharacters(activeStoryId: string | null): {
   items: Character[]
+  linkedIds: Set<string>
   loading: boolean
   error: AppErrorBody | null
   reload: () => Promise<void>
-  create: (input: Omit<CreateCharacterInput, 'storyId'>) => Promise<boolean>
+  create: (
+    input: Omit<CreateCharacterInput, 'storyId'> & { linkStoryId?: string | null }
+  ) => Promise<boolean>
   update: (id: string, data: UpdateCharacterInput) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
+  link: (characterId: string) => Promise<boolean>
+  unlink: (characterId: string) => Promise<boolean>
 } {
   const [items, setItems] = useState<Character[]>([])
+  const [linkedIds, setLinkedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<AppErrorBody | null>(null)
 
   const reload = useCallback(async () => {
-    if (!storyId) {
-      setItems([])
-      return
-    }
     setLoading(true)
     setError(null)
     try {
-      const list = (await getApi().characters.list(storyId)) as Character[]
+      const list = (await getApi().characters.list()) as Character[]
       setItems(list)
+      if (activeStoryId) {
+        const cast = (await getApi().characters.list({
+          storyId: activeStoryId,
+          forStory: true
+        })) as Character[]
+        setLinkedIds(new Set(cast.map((c) => c.id)))
+      } else {
+        setLinkedIds(new Set())
+      }
     } catch (e) {
       setError(parseIpcError(e))
     } finally {
       setLoading(false)
     }
-  }, [storyId])
+  }, [activeStoryId])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
   const create = useCallback(
-    async (input: Omit<CreateCharacterInput, 'storyId'>): Promise<boolean> => {
-      if (!storyId) return false
+    async (
+      input: Omit<CreateCharacterInput, 'storyId'> & {
+        linkStoryId?: string | null
+      }
+    ): Promise<boolean> => {
       try {
-        await getApi().characters.create({ ...input, storyId })
+        await getApi().characters.create({
+          ...input,
+          linkStoryId: input.linkStoryId ?? activeStoryId
+        })
         await reload()
         return true
       } catch (e) {
@@ -54,7 +75,7 @@ export function useCharacters(storyId: string | null): {
         return false
       }
     },
-    [storyId, reload]
+    [activeStoryId, reload]
   )
 
   const update = useCallback(
@@ -85,5 +106,52 @@ export function useCharacters(storyId: string | null): {
     [reload]
   )
 
-  return { items, loading, error, reload, create, update, remove }
+  const link = useCallback(
+    async (characterId: string): Promise<boolean> => {
+      if (!activeStoryId) return false
+      try {
+        await getApi().stories.linkCharacter({
+          storyId: activeStoryId,
+          characterId
+        })
+        await reload()
+        return true
+      } catch (e) {
+        setError(parseIpcError(e))
+        return false
+      }
+    },
+    [activeStoryId, reload]
+  )
+
+  const unlink = useCallback(
+    async (characterId: string): Promise<boolean> => {
+      if (!activeStoryId) return false
+      try {
+        await getApi().stories.unlinkCharacter({
+          storyId: activeStoryId,
+          characterId
+        })
+        await reload()
+        return true
+      } catch (e) {
+        setError(parseIpcError(e))
+        return false
+      }
+    },
+    [activeStoryId, reload]
+  )
+
+  return {
+    items,
+    linkedIds,
+    loading,
+    error,
+    reload,
+    create,
+    update,
+    remove,
+    link,
+    unlink
+  }
 }

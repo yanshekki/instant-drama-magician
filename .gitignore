@@ -1,21 +1,22 @@
-node_modules
+coverage
 dist
-out
-release
-.media
 .DS_Store
-*.log
 .env
 .env.*
 !.env.example
+# Generated Prisma Client (brief: src/types/prisma)
+.idea
+*.local
+.locale-cache/
+*.log
+.media
+node_modules
+out
+prisma/*.db
 prisma/dev.db
 prisma/dev.db-journal
-prisma/*.db
-# Generated Prisma Client (brief: src/types/prisma)
+release
 src/types/prisma
 *.tsbuildinfo
-*.local
 .vscode/*
 !.vscode/extensions.json
-.idea
-coverage

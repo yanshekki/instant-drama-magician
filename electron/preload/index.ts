@@ -18,14 +18,63 @@ const api: ElectronApi = {
     create: (input: CreateStoryInput) => ipcRenderer.invoke('stories:create', input),
     update: (
       id: string,
-      data: { title?: string; status?: string; styleNote?: string | null }
+      data: {
+        title?: string
+        status?: string
+        styleNote?: string | null
+        coverPath?: string | null
+        refGalleryJson?: string | null
+      }
     ) => ipcRenderer.invoke('stories:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('stories:delete', id),
+    generateCover: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('stories:generateCover', payload),
+    commitCover: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('stories:commitCover', payload),
     seedDemo: (locale?: 'zh-HK' | 'en') =>
-      ipcRenderer.invoke('stories:seedDemo', locale)
+      ipcRenderer.invoke('stories:seedDemo', locale),
+    aiFillMeta: (payload: {
+      storyId?: string
+      title?: string
+      idea?: string
+      existingStyleNote?: string | null
+      locale?: 'zh-HK' | 'en'
+    }) => ipcRenderer.invoke('stories:aiFillMeta', payload),
+    aiFillScript: (payload: {
+      storyId: string
+      idea?: string
+      locale?: 'zh-HK' | 'en'
+      replace?: boolean
+    }) => ipcRenderer.invoke('stories:aiFillScript', payload),
+    linkCharacter: (payload: {
+      storyId: string
+      characterId: string
+      roleNote?: string
+      costumeId?: string | null
+    }) => ipcRenderer.invoke('stories:linkCharacter', payload),
+    setCharacterCostume: (payload: {
+      storyId: string
+      characterId: string
+      costumeId: string | null
+    }) => ipcRenderer.invoke('stories:setCharacterCostume', payload),
+    unlinkCharacter: (payload: { storyId: string; characterId: string }) =>
+      ipcRenderer.invoke('stories:unlinkCharacter', payload),
+    linkScene: (payload: {
+      storyId: string
+      sceneId: string
+      sceneNumber?: number
+    }) => ipcRenderer.invoke('stories:linkScene', payload),
+    unlinkScene: (payload: { storyId: string; sceneId: string }) =>
+      ipcRenderer.invoke('stories:unlinkScene', payload),
+    linkProp: (payload: { storyId: string; propId: string }) =>
+      ipcRenderer.invoke('stories:linkProp', payload),
+    unlinkProp: (payload: { storyId: string; propId: string }) =>
+      ipcRenderer.invoke('stories:unlinkProp', payload),
+    listCast: (storyId: string) => ipcRenderer.invoke('stories:listCast', storyId)
   },
   characters: {
-    list: (storyId: string) => ipcRenderer.invoke('characters:list', storyId),
+    list: (opts?: string | { storyId?: string; q?: string; forStory?: boolean }) =>
+      ipcRenderer.invoke('characters:list', opts),
     create: (input: CreateCharacterInput) => ipcRenderer.invoke('characters:create', input),
     update: (id: string, data: UpdateCharacterInput) =>
       ipcRenderer.invoke('characters:update', id, data),
@@ -36,16 +85,69 @@ const api: ElectronApi = {
         content: string
       } | null>,
     importSoulMdUrl: (url: string) => ipcRenderer.invoke('characters:importSoulMdUrl', url),
+    readSoulContent: (payload: {
+      soulMdPath?: string | null
+      soulHubId?: number | null
+    }) => ipcRenderer.invoke('characters:readSoulContent', payload),
+    writeSoulContent: (payload: {
+      content: string
+      filePath?: string | null
+      characterId?: string | null
+    }) => ipcRenderer.invoke('characters:writeSoulContent', payload),
     aiFill: (payload: {
       idea?: string
       storyId?: string
       locale?: 'zh-HK' | 'en'
       existingDraft?: Record<string, string | undefined | null>
     }) => ipcRenderer.invoke('characters:aiFill', payload),
+    generateSoul: (payload: {
+      storyId?: string
+      locale?: 'zh-HK' | 'en'
+      profile: Record<string, string | undefined | null>
+    }) => ipcRenderer.invoke('characters:generateSoul', payload),
     generateSheet: (payload: {
       characterId: string
-      variant?: 'bible' | 'turnaround' | 'expression' | 'costume'
-    }) => ipcRenderer.invoke('characters:generateSheet', payload)
+      variant?: string
+      referenceImagePath?: string | null
+      useIdentityEdit?: boolean
+      persist?: boolean
+      artStyle?: string | null
+    }) => ipcRenderer.invoke('characters:generateSheet', payload),
+    generateIntroVideo: (payload: {
+      characterId: string
+      sourceImagePath: string
+      durationSeconds?: number
+      locale?: 'zh-HK' | 'en'
+    }) => ipcRenderer.invoke('characters:generateIntroVideo', payload),
+    commitSheet: (payload: {
+      characterId: string
+      path: string
+      variant?: string
+      label?: string
+      layer?: string
+      costumeDescription?: string | null
+    }) => ipcRenderer.invoke('characters:commitSheet', payload),
+    swapCostume: (payload: {
+      characterId: string
+      costumeDescription: string
+      baseImagePath?: string | null
+      artStyle?: string | null
+      pose?: string | null
+      persist?: boolean
+      updateCostumeField?: boolean
+    }) => ipcRenderer.invoke('characters:swapCostume', payload),
+    suggestWardrobe: (payload: {
+      characterId?: string
+      storyId?: string
+      segmentKey?: string | null
+      locale?: 'zh-HK' | 'en'
+      name?: string
+      appearance?: string | null
+      costume?: string | null
+      ageRange?: string | null
+      gender?: string | null
+      existingCostumeNames?: string[]
+    }) => ipcRenderer.invoke('characters:suggestWardrobe', payload)
   },
   souls: {
     list: (opts?: {
@@ -63,22 +165,92 @@ const api: ElectronApi = {
       ipcRenderer.invoke('souls:searchLocal', q, limit)
   },
   scenes: {
-    list: (storyId: string) => ipcRenderer.invoke('scenes:list', storyId),
+    list: (opts?: string | { storyId?: string; q?: string; forStory?: boolean }) =>
+      ipcRenderer.invoke('scenes:list', opts),
     create: (input: CreateSceneInput) => ipcRenderer.invoke('scenes:create', input),
-    update: (
-      id: string,
-      data: Partial<
-        Pick<CreateSceneInput, 'sceneNumber' | 'description' | 'script' | 'status'>
-      >
-    ) => ipcRenderer.invoke('scenes:update', id, data),
-    delete: (id: string) => ipcRenderer.invoke('scenes:delete', id)
+    update: (id: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('scenes:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('scenes:delete', id),
+    aiFill: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('scenes:aiFill', payload),
+    generatePlate: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('scenes:generatePlate', payload),
+    generateIntroVideo: (payload: {
+      sceneId: string
+      sourceImagePath: string
+      durationSeconds?: number
+      locale?: 'zh-HK' | 'en'
+    }) => ipcRenderer.invoke('scenes:generateIntroVideo', payload),
+    commitPlate: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('scenes:commitPlate', payload),
+    swapAtmosphere: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('scenes:swapAtmosphere', payload),
+    copyGalleryFrom: (payload: {
+      targetSceneId: string
+      sourceSceneId: string
+    }) => ipcRenderer.invoke('scenes:copyGalleryFrom', payload)
   },
   props: {
-    list: (storyId: string) => ipcRenderer.invoke('props:list', storyId),
+    list: (opts?: string | { storyId?: string; q?: string; forStory?: boolean }) =>
+      ipcRenderer.invoke('props:list', opts),
     create: (input: CreatePropInput) => ipcRenderer.invoke('props:create', input),
-    update: (id: string, data: Partial<Pick<CreatePropInput, 'name' | 'description'>>) =>
+    update: (id: string, data: Record<string, unknown>) =>
       ipcRenderer.invoke('props:update', id, data),
-    delete: (id: string) => ipcRenderer.invoke('props:delete', id)
+    delete: (id: string) => ipcRenderer.invoke('props:delete', id),
+    aiFill: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('props:aiFill', payload),
+    generatePlate: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('props:generatePlate', payload),
+    generateIntroVideo: (payload: {
+      propId: string
+      sourceImagePath: string
+      durationSeconds?: number
+      locale?: 'zh-HK' | 'en'
+    }) => ipcRenderer.invoke('props:generateIntroVideo', payload),
+    commitPlate: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('props:commitPlate', payload)
+  },
+  costumes: {
+    list: (opts?: {
+      q?: string
+      characterId?: string
+      unlinkedOnly?: boolean
+    }) => ipcRenderer.invoke('costumes:list', opts),
+    get: (id: string) => ipcRenderer.invoke('costumes:get', id),
+    create: (input: Record<string, unknown>) =>
+      ipcRenderer.invoke('costumes:create', input),
+    update: (id: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('costumes:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('costumes:delete', id),
+    linkCharacter: (payload: { costumeId: string; characterId: string }) =>
+      ipcRenderer.invoke('costumes:linkCharacter', payload),
+    unlinkCharacter: (payload: { costumeId: string; characterId: string }) =>
+      ipcRenderer.invoke('costumes:unlinkCharacter', payload),
+    setActive: (payload: { costumeId: string; characterId: string }) =>
+      ipcRenderer.invoke('costumes:setActive', payload),
+    listForCharacter: (characterId: string) =>
+      ipcRenderer.invoke('costumes:listForCharacter', characterId),
+    aiFill: (payload: {
+      idea?: string
+      locale?: 'zh-HK' | 'en'
+      existingDraft?: {
+        name?: string | null
+        description?: string | null
+        artStyle?: string | null
+      }
+    }) => ipcRenderer.invoke('costumes:aiFill', payload),
+    generateDressed: (payload: {
+      costumeId: string
+      characterId: string
+      baseImagePath?: string | null
+      pose?: string | null
+    }) => ipcRenderer.invoke('costumes:generateDressed', payload),
+    generateIntroVideo: (payload: {
+      costumeId: string
+      sourceImagePath: string
+      durationSeconds?: number
+      locale?: 'zh-HK' | 'en'
+    }) => ipcRenderer.invoke('costumes:generateIntroVideo', payload)
   },
   timeline: {
     list: (storyId: string) => ipcRenderer.invoke('timeline:list', storyId),
@@ -100,8 +272,11 @@ const api: ElectronApi = {
   generation: {
     run: (storyId: string, opts?: { onlyFailedVideos?: boolean }) =>
       ipcRenderer.invoke('generation:run', storyId, opts),
-    runClip: (storyId: string, entryId: string) =>
-      ipcRenderer.invoke('generation:runClip', storyId, entryId),
+    runClip: (
+      storyId: string,
+      entryId: string,
+      opts?: { revisionPrompt?: string | null }
+    ) => ipcRenderer.invoke('generation:runClip', storyId, entryId, opts),
     cancel: () => ipcRenderer.invoke('generation:cancel'),
     onProgress: (callback) => {
       const listener = (
@@ -130,9 +305,15 @@ const api: ElectronApi = {
     probeChat: () => ipcRenderer.invoke('ai:probeChat'),
     listModels: () => ipcRenderer.invoke('ai:listModels'),
     testChat: (prompt?: string) => ipcRenderer.invoke('ai:testChat', prompt),
-    applyLlmPreset: (preset: 'grok-gateway' | 'openai' | 'custom') =>
+    applyLlmPreset: (preset: string) =>
       ipcRenderer.invoke('ai:applyLlmPreset', preset),
     applyGrokDefaults: () => ipcRenderer.invoke('ai:applyGrokDefaults')
+  },
+  gateway: {
+    status: () => ipcRenderer.invoke('gateway:status'),
+    ensure: () => ipcRenderer.invoke('gateway:ensure'),
+    installHints: () => ipcRenderer.invoke('gateway:installHints'),
+    openAdmin: (url?: string) => ipcRenderer.invoke('gateway:openAdmin', url)
   },
   diagnostics: {
     full: () => ipcRenderer.invoke('diagnostics:full')
@@ -166,7 +347,18 @@ const api: ElectronApi = {
     }
   },
   activity: {
-    recent: (limit?: number) => ipcRenderer.invoke('activity:recent', limit)
+    recent: (limit?: number) => ipcRenderer.invoke('activity:recent', limit),
+    query: (opts?: {
+      limit?: number
+      kind?: string
+      level?: string
+      q?: string
+      since?: string
+      until?: string
+    }) => ipcRenderer.invoke('activity:query', opts),
+    clear: () => ipcRenderer.invoke('activity:clear'),
+    getPath: () => ipcRenderer.invoke('activity:getPath'),
+    openLogFolder: () => ipcRenderer.invoke('activity:openLogFolder')
   },
   support: {
     exportReport: () => ipcRenderer.invoke('support:exportReport')
@@ -187,11 +379,28 @@ const api: ElectronApi = {
     exportStoryboard: (storyId: string) =>
       ipcRenderer.invoke('media:exportStoryboard', storyId),
     exportConcat: (storyId: string) => ipcRenderer.invoke('media:exportConcat', storyId),
-    exportFinal: (storyId: string) => ipcRenderer.invoke('media:exportFinal', storyId),
+    exportFinal: (
+      storyId: string,
+      options?: Partial<{
+        exportProfile: 'balanced' | 'fast'
+        burnSubtitles: boolean
+        includeSilentAudio: boolean
+        bgmVolume: number
+        dialogueVolume: number
+        openExportFolder: boolean
+      }>
+    ) => ipcRenderer.invoke('media:exportFinal', storyId, options),
+    listExports: (storyId: string) =>
+      ipcRenderer.invoke('media:listExports', storyId),
+    deleteExport: (storyId: string, exportId: string) =>
+      ipcRenderer.invoke('media:deleteExport', storyId, exportId),
     importClip: (storyId: string, entryId: string) =>
       ipcRenderer.invoke('media:importClip', storyId, entryId),
     openClip: (filePath: string) => ipcRenderer.invoke('media:openClip', filePath),
     toPreviewUrl: (filePath: string) => ipcRenderer.invoke('media:toPreviewUrl', filePath),
+    saveAs: (filePath: string) => ipcRenderer.invoke('media:saveAs', filePath),
+    discardSheetDraft: (filePath: string) =>
+      ipcRenderer.invoke('media:discardSheetDraft', filePath),
     checkFfmpeg: () => ipcRenderer.invoke('media:checkFfmpeg'),
     exportPreflight: (storyId: string) =>
       ipcRenderer.invoke('media:exportPreflight', storyId)

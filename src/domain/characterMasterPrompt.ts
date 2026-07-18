@@ -4,6 +4,18 @@
  */
 
 import type { CharacterProfileFields } from '../types/domain'
+import { buildImproveUserPrompt } from './aiImprovePrompt'
+import {
+  getArtStyle,
+  qualityBlockForFamily,
+  type ArtStyleId
+} from './characterArtStyles'
+import {
+  buildSheetIdentityLock,
+  getSheetVariant
+} from './characterSheetVariants'
+import { inventFromProvidedSourcesRules } from './storyContextPolicy'
+import { normalizeLanguageCodes } from './worldLanguages'
 
 export const CHARACTER_PROFILE_JSON_KEYS = [
   'name',
@@ -15,6 +27,7 @@ export const CHARACTER_PROFILE_JSON_KEYS = [
   'ageRange',
   'gender',
   'voiceDesc',
+  'spokenLanguages',
   'mannerisms',
   'relationships',
   'visualTags'
@@ -25,15 +38,18 @@ export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK
     return [
       'You are a professional short-drama character designer for AI video production.',
       'Given a short idea from the user, invent a complete, filmable character bible.',
+      'A character may be human, animal, spirit, monster, robot, virtual avatar, or other designed entity — follow the idea; do not force a human if the idea is non-human.',
       'Return ONLY a single JSON object (no markdown fences, no commentary) with keys:',
       CHARACTER_PROFILE_JSON_KEYS.join(', '),
       'Rules:',
-      '- description: 1–3 sentence public summary',
-      '- appearance: face, hair, body, skin, distinctive features (detailed)',
-      '- costume: clothing, colors, accessories for the main look',
+      ...inventFromProvidedSourcesRules('en').map((r) => `- ${r}`),
+      '- description: 1–3 sentence public summary (role, vibe, personality)',
+      '- appearance: head/face (or equivalent), body plan, colors, distinctive marks (detailed)',
+      '- costume: clothing, exterior design, gear, accessories (or natural covering for creatures)',
       '- personality: traits and emotional core',
       '- backstory: concise origin relevant to drama',
-      '- voiceDesc: pitch, pace, accent, speech habits',
+      '- voiceDesc: pitch, pace, accent, speech or vocalization habits',
+      '- spokenLanguages: JSON array of BCP-47/ISO codes this character SPEAKS (multi OK), e.g. ["yue","en"] or ["ja"]. Prefer: yue=Cantonese, cmn/zh-Hant=Mandarin/Trad. Chinese, en, ja, ko, etc. Empty array if non-verbal.',
       '- mannerisms: small habits, micro-gestures, posture ticks (very specific)',
       '- visualTags: comma-separated English tags for image models',
       '- Keep identity consistent for multi-angle reference sheets and video gen.',
@@ -43,15 +59,18 @@ export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK
   return [
     '你是專業短劇角色設定師，專門為 AI 影片／短劇生成「可拍、可認、可一致」的角色聖經。',
     '用戶會給一段角色 idea（可很短）。請補齊完整角色設定。',
+    '角色可以是人類、動物、鬼靈、魔物、機械、虛擬形象或其他設計體——依 idea 而定，勿強行寫成人類。',
     '只輸出一個 JSON 物件（不要 markdown 代碼塊、不要解說），鍵名必須是：',
     CHARACTER_PROFILE_JSON_KEYS.join(', '),
     '規則：',
+    ...inventFromProvidedSourcesRules('zh-HK').map((r) => `- ${r}`),
     '- description：1–3 句對外摘要（繁體中文）',
-    '- appearance：五官、髮型、身形、膚色、辨識特徵（具體、可畫）',
-    '- costume：主要造型服裝、色調、配飾',
+    '- appearance：頭部／五官（或對應部位）、體型結構、顏色、辨識特徵（具體、可畫）',
+    '- costume：服裝、外觀設計、裝備、配飾（生物可寫皮毛／外殼等）',
     '- personality：性格與情緒底色',
     '- backstory：與劇情相關的簡潔背景',
-    '- voiceDesc：聲線高低、語速、口音、說話習慣（為配音／表演用）',
+    '- voiceDesc：聲線高低、語速、口音、說話或發聲習慣（為配音／表演用）',
+    '- spokenLanguages：角色使用的語言，JSON 字串陣列（可多選），BCP-47／ISO 代碼，例如 ["yue","en"]。常用：yue=粵語、cmn 或 zh-Hant=普通話／國語、en、ja、ko。非語言角色用 []。',
     '- mannerisms：小習慣、小動作、站姿／手勢癖好（越具體越好）',
     '- visualTags：逗號分隔英文標籤，方便 image model',
     '- 同一角色必須視覺一致，方便之後多角度參考圖與影片生成。',
@@ -66,47 +85,45 @@ export function buildCharacterMasterUserPrompt(options: {
   locale?: 'zh-HK' | 'en'
   /** When set, model should refine/improve this draft rather than invent from scratch */
   existingDraft?: Partial<CharacterProfileFields> | null
+  /**
+   * Full soul.md / Soul Hub markdown linked on the character.
+   * Used as high-priority identity bible when improving the profile.
+   */
+  soulContent?: string | null
 }): string {
-  const en = options.locale === 'en'
-  const lines: string[] = []
-
-  if (options.existingDraft && Object.keys(options.existingDraft).length > 0) {
-    lines.push(
-      en
-        ? 'Improve / refine this existing character draft (keep identity unless the user asks to change it). Merge user instructions below into a complete profile:'
-        : '請改進／完善以下已有角色草稿（除非用戶要求改身份，否則保持核心一致），並按下方指示合併成完整 JSON：'
-    )
-    lines.push(JSON.stringify(options.existingDraft, null, 2))
-    lines.push('')
-    lines.push(
-      en
-        ? 'User improvement request (may be empty = polish all fields for video consistency):'
-        : '用戶改進要求（可留空 = 全面潤飾，令更適合拍片）：'
-    )
-    lines.push(options.idea.trim() || (en ? '(polish for short-drama + multi-angle sheet)' : '（全面潤飾：短劇可拍、多角度一致）'))
-  } else {
-    lines.push(en ? 'Character idea:' : '角色 idea：')
-    lines.push(options.idea.trim())
-  }
-  lines.push('')
-  if (options.storyTitle) {
-    lines.push(
-      en ? `Story title: ${options.storyTitle}` : `故事標題：${options.storyTitle}`
-    )
-  }
-  if (options.styleNote?.trim()) {
-    lines.push(
-      en
-        ? `Style bible: ${options.styleNote.trim()}`
-        : `風格備註：${options.styleNote.trim()}`
-    )
-  }
-  lines.push(
-    en
-      ? 'Output the complete JSON character profile now.'
-      : '請立即輸出完整 JSON 角色設定。'
-  )
-  return lines.join('\n')
+  const soul = options.soulContent?.trim() ?? ''
+  return buildImproveUserPrompt({
+    locale: options.locale,
+    idea: options.idea,
+    draft: (options.existingDraft ?? undefined) as
+      | Record<string, unknown>
+      | undefined,
+    draftLabel: {
+      en: 'Current Profile form fields (all filled inputs):',
+      zh: '目前 Profile 表單欄位（已填內容）：'
+    },
+    extraBlocks: soul
+      ? [
+          {
+            labelEn:
+              'Linked soul.md / character bible (primary identity & personality source):',
+            labelZh: '已連結 soul.md／角色聖經（主要身份與性格依據）：',
+            body: soul
+          }
+        ]
+      : [],
+    storyTitle: options.storyTitle,
+    styleNote: options.styleNote,
+    createLabel: { en: 'Character idea:', zh: '角色 idea：' },
+    emptyIdeaPolish: {
+      en: '(polish all fields; integrate soul into profile)',
+      zh: '（全面潤飾：將 soul 與表單合併進完整 Profile）'
+    },
+    closing: {
+      en: 'Output the complete JSON character profile now (every key filled when possible).',
+      zh: '請立即輸出完整 JSON 角色設定（各鍵盡量填滿）。'
+    }
+  })
 }
 
 /** Extract first JSON object from model text (tolerates ```json fences). */
@@ -126,6 +143,9 @@ export function extractCharacterProfileJson(text: string): CharacterProfileField
   }
   const name = str('name')
   if (!name) throw new Error('Character JSON missing name')
+  const spokenLanguages = normalizeLanguageCodes(
+    parsed.spokenLanguages ?? parsed.languages ?? parsed.spoken_languages
+  )
   return {
     name,
     description: str('description') || name,
@@ -136,58 +156,200 @@ export function extractCharacterProfileJson(text: string): CharacterProfileField
     ageRange: str('ageRange') || undefined,
     gender: str('gender') || undefined,
     voiceDesc: str('voiceDesc') || undefined,
+    spokenLanguages:
+      spokenLanguages.length > 0 ? spokenLanguages : undefined,
     mannerisms: str('mannerisms') || undefined,
     relationships: str('relationships') || undefined,
     visualTags: str('visualTags') || undefined
   }
 }
 
-/** Prompt for multi-angle reference sheet (image gen). */
+/**
+ * Prompt for multi-angle reference sheet (image gen).
+ * Style is front-loaded — models weight the start of the prompt heavily.
+ */
 export function buildCharacterSheetImagePrompt(
   profile: Partial<CharacterProfileFields> & { name: string },
-  variant: 'bible' | 'turnaround' | 'expression' | 'costume' = 'bible'
+  variant: string = 'bible',
+  artStyle: string = 'photo_cinematic'
 ): string {
-  const base = [
-    `Ultra high-resolution character reference sheet for AI video consistency, single person only, same face identity across all panels, photoreal or cinematic production still quality, sharp focus, large detailed canvas, clean white/light gray studio background, professional lighting, no watermark, no text, no captions, no labels.`,
-    `Name/concept: ${profile.name}`,
-    profile.ageRange ? `Age: ${profile.ageRange}` : '',
-    profile.gender ? `Gender presentation: ${profile.gender}` : '',
-    profile.appearance ? `Appearance: ${profile.appearance}` : '',
-    profile.costume ? `Costume: ${profile.costume}` : '',
-    profile.visualTags ? `Tags: ${profile.visualTags}` : '',
-    profile.mannerisms
-      ? `Pose hints (subtle): ${profile.mannerisms.slice(0, 200)}`
-      : ''
-  ]
-    .filter(Boolean)
-    .join('. ')
-
-  const layouts: Record<typeof variant, string> = {
-    bible:
-      'Wide 16:9 layout filling the full frame: multiple large panels — full body front, full body side, full body back, 3/4 view, head close-up front, head close-up 3/4, two expressions (neutral + smile). Each figure large and clear, not tiny thumbnails. Consistent wardrobe and face.',
-    turnaround:
-      'Wide 16:9 turnaround strip filling the frame — front, three-quarter, left side, back, right side, full body standing, same scale, figures as large as possible.',
-    expression:
-      'Square 1:1 layout: 2x2 grid of large face close-ups — neutral, smile, angry, surprised; same lighting and identity; faces fill each cell.',
-    costume:
-      'Tall 9:16 layout: large full body hero pose + clothing/detail close-ups (fabric, shoes, accessories); maximize figure size on canvas.'
-  }
-
-  return `${base}. ${layouts[variant]}`
+  const def = getSheetVariant(variant)
+  const style = getArtStyle(artStyle)
+  const skipOuterCostume =
+    def.wardrobeLayer === 'nude' || def.wardrobeLayer === 'base'
+  // "nude" as a word trips Grok Imagine filters — prompt uses "body" for that layer
+  const layerTag =
+    def.wardrobeLayer === 'nude' ? 'body' : def.wardrobeLayer
+  const identity = buildSheetIdentityLock(
+    {
+      name: profile.name,
+      ageRange: profile.ageRange,
+      gender: profile.gender,
+      appearance: profile.appearance,
+      costume: profile.costume,
+      visualTags: profile.visualTags,
+      mannerisms: profile.mannerisms
+    },
+    qualityBlockForFamily(style.family),
+    { skipOuterCostume }
+  )
+  // Order: STYLE (×2) → identity → layout → style reminder
+  return [
+    style.promptBlock,
+    `Repeat: the final image medium MUST be exactly style id "${style.id}" (${style.family}).`,
+    identity,
+    `Wardrobe layer tag: ${layerTag}.`,
+    `LAYOUT: ${def.layout}`,
+    `Final check: if the image looks like the wrong medium, regenerate in the correct medium: ${style.promptBlock}`
+  ].join(' ')
 }
 
-/** Compact text block for video prompts. */
-export function characterVideoPromptBlock(
-  c: Partial<CharacterProfileFields> & { name: string }
+/**
+ * Decide generate vs edit for sheet packages.
+ * Default: pure generate so layout/variant can change freely.
+ * Edit only when the UI explicitly requests identity lock + a valid ref path exists.
+ */
+export function resolveSheetGenMode(opts: {
+  useIdentityEdit?: boolean | null
+  hasValidRef?: boolean
+}): 'generate' | 'edit' {
+  if (opts.useIdentityEdit === true && opts.hasValidRef) return 'edit'
+  return 'generate'
+}
+
+/**
+ * When re-generating with a prior gallery image as edit reference.
+ * Critical: force NEW layout + medium — image_edit otherwise clones the source sheet.
+ */
+export function buildCharacterSheetEditPrompt(
+  profile: Partial<CharacterProfileFields> & { name: string },
+  variant: string = 'bible',
+  artStyle: string = 'photo_cinematic'
 ): string {
+  const def = getSheetVariant(variant)
+  const style = getArtStyle(artStyle)
+  const skipOuterCostume =
+    def.wardrobeLayer === 'nude' || def.wardrobeLayer === 'base'
+  const layerTag =
+    def.wardrobeLayer === 'nude' ? 'body' : def.wardrobeLayer
+  const body = buildCharacterSheetImagePrompt(profile, variant, artStyle)
+  return [
+    'IMAGE EDIT / LAYOUT CHANGE TASK (highest priority — read fully):',
+    style.promptBlock,
+    `Target sheet package id: "${def.id}". Wardrobe layer: ${layerTag}.`,
+    'IGNORE the source image LAYOUT completely: panel count, gutters, camera angles, crop, and framing from the source must NOT be copied.',
+    'IGNORE the source wardrobe/clothing if it conflicts with the target wardrobe layer below.',
+    'KEEP only CHARACTER IDENTITY from the source: face/head design, hair, body proportions, species/body plan, skin or surface markings, age presentation.',
+    skipOuterCostume
+      ? 'STRIP all outer clothing/armor from the source. For body plates: skin-tone unitard only. For base layer: simple undergarments only. Do not preserve the source outfit.'
+      : 'You may apply the PROFILE costume description in the body prompt; do not merely recolor or crop the source costume panels.',
+    'Completely CHANGE the rendering medium if needed to match the mandatory art style.',
+    'DO NOT invent a different character. DO NOT only crop, zoom, or recolor the source.',
+    'Produce an entirely NEW reference-sheet composition that matches the LAYOUT block exactly (panel count and poses).',
+    `Final checklist: (1) identity matches source face/body (2) layout matches package "${def.id}" not the source sheet (3) wardrobe layer ${layerTag} (4) medium = ${style.id}.`,
+    body
+  ].join(' ')
+}
+
+export type { ArtStyleId }
+
+/** Compact text block for video prompts (fallback + LLM polish input). */
+export function characterVideoPromptBlock(
+  c: Partial<CharacterProfileFields> & {
+    name: string
+    gender?: string
+    artStyle?: string
+  }
+): string {
+  const langs =
+    Array.isArray(c.spokenLanguages) && c.spokenLanguages.length > 0
+      ? c.spokenLanguages.join(', ')
+      : null
   return [
     `Character: ${c.name}`,
     c.ageRange ? `Age: ${c.ageRange}` : null,
+    c.gender ? `Gender: ${c.gender}` : null,
     c.appearance ? `Look: ${c.appearance}` : null,
     c.costume ? `Costume: ${c.costume}` : null,
+    c.personality ? `Personality: ${c.personality}` : null,
+    c.backstory ? `Backstory: ${c.backstory.slice(0, 280)}` : null,
+    c.relationships ? `Relationships: ${c.relationships.slice(0, 200)}` : null,
     c.mannerisms ? `Mannerisms: ${c.mannerisms}` : null,
-    c.voiceDesc ? `Voice: ${c.voiceDesc}` : null
+    c.voiceDesc ? `Voice: ${c.voiceDesc}` : null,
+    c.visualTags ? `Visual tags: ${c.visualTags}` : null,
+    c.artStyle ? `Art style: ${c.artStyle}` : null,
+    langs ? `Spoken languages: ${langs}` : null
   ]
     .filter(Boolean)
     .join('. ')
+}
+
+/**
+ * Template fallback for self-intro video (LLM polish improves this).
+ * Identity must match the reference image; dialogue/persona from full profile.
+ */
+export function buildCharacterIntroVideoPrompt(
+  profile: Partial<CharacterProfileFields> & {
+    name: string
+    gender?: string
+    artStyle?: string
+  },
+  locale: 'zh-HK' | 'en' = 'zh-HK',
+  options?: { soulExcerpt?: string | null }
+): string {
+  const identity = characterVideoPromptBlock(profile)
+  const langs =
+    Array.isArray(profile.spokenLanguages) && profile.spokenLanguages.length > 0
+      ? profile.spokenLanguages.join(', ')
+      : locale === 'en'
+        ? 'match the character bible'
+        : '跟從角色人設語言'
+  const personality =
+    profile.personality?.trim() ||
+    profile.description?.trim() ||
+    (locale === 'en' ? 'warm, clear presence' : '溫暖清晰、有個性')
+  const manner =
+    profile.mannerisms?.trim() ||
+    (locale === 'en' ? 'natural micro-gestures' : '自然微動作')
+  const voice =
+    profile.voiceDesc?.trim() ||
+    (locale === 'en' ? 'clear speaking voice' : '清晰聲線')
+  const soul = (options?.soulExcerpt ?? '').trim().slice(0, 1200)
+  const backstory = profile.backstory?.trim().slice(0, 240)
+  const relationships = profile.relationships?.trim().slice(0, 160)
+
+  if (locale === 'en') {
+    return [
+      'IMAGE-TO-VIDEO: animate the exact person in the reference image as a short self-introduction clip for short-drama casting.',
+      'IDENTITY LOCK: same face, hair, body, age, wardrobe, and colors as the reference still — do not invent a different person.',
+      identity,
+      `Personality / vibe: ${personality}.`,
+      backstory ? `Backstory cue: ${backstory}.` : null,
+      relationships ? `Relationships cue: ${relationships}.` : null,
+      soul ? `Soul bible excerpt (performance source): ${soul}` : null,
+      `Performance: gentle camera push-in or subtle handheld; character looks toward camera or slightly off-camera; ${manner}.`,
+      `Speech: mouth moves as if introducing themselves briefly; voice tone: ${voice}; languages: ${langs}.`,
+      'Action beat: natural idle → small smile or nod → short spoken intro gesture (hand optional) → hold.',
+      'Cinematic lighting consistent with the still; no text overlays, no logos, no extra people.',
+      'Duration fits a 6–10s vertical-or-horizontal casting self-intro clip.'
+    ]
+      .filter(Boolean)
+      .join(' ')
+  }
+  return [
+    '圖生影片：以參考圖中的同一人物，拍一段短劇選角用「自我介紹」短片。',
+    '身份鎖定：臉、髮型、體型、年齡感、服裝與顏色必須與參考靜幀一致，不可換成另一個人。',
+    identity,
+    `性格／氣場：${personality}。`,
+    backstory ? `背景要點：${backstory}。` : null,
+    relationships ? `關係要點：${relationships}。` : null,
+    soul ? `Soul 摘要（表演來源）：${soul}` : null,
+    `表演：輕微推近或手持晃動；角色望向鏡頭或略偏鏡頭；${manner}。`,
+    `口白：嘴唇自然開合像在簡短自我介紹；聲線：${voice}；語言：${langs}。`,
+    '動作節奏：自然站定 → 微笑或輕點頭 → 簡短介紹手勢（可空手）→ 定格。',
+    '光線與靜幀一致；無字幕、無 logo、無其他人入鏡。',
+    '適合 6–10 秒自我介紹短片。'
+  ]
+    .filter(Boolean)
+    .join(' ')
 }

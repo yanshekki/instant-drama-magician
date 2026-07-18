@@ -82,6 +82,10 @@ export function useTimelineHistory(): {
         sceneId: e.sceneId,
         propId: e.propId,
         dialogue: e.dialogue,
+        beatContentJson: e.beatContentJson,
+        characterIds: e.characterIds,
+        sceneIds: e.sceneIds,
+        propIds: e.propIds,
         order: e.order
       })
       return
@@ -109,6 +113,10 @@ export function useTimelineHistory(): {
       sceneId: e.sceneId,
       propId: e.propId,
       dialogue: e.dialogue,
+      beatContentJson: e.beatContentJson,
+      characterIds: e.characterIds,
+      sceneIds: e.sceneIds,
+      propIds: e.propIds,
       order: e.order
     })
   }

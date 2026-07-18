@@ -1,53 +1,92 @@
 import type { PrismaClient } from '../../types/prisma'
-import type { CreateSceneInput, SceneStatus } from '../../types/domain'
+import type {
+  CreateSceneInput,
+  SceneStatus,
+  UpdateSceneInput
+} from '../../types/domain'
 import { AppError } from '../../types/errors'
 import {
   isSceneStatus,
-  validateSceneDescription,
-  validateSceneNumber
+  validateSceneDescription
 } from '../../domain/scene'
+import { StoryCastService } from './StoryCastService'
+
+function trimOrNull(v: string | null | undefined): string | null {
+  if (v === undefined || v === null) return null
+  const t = v.trim()
+  return t.length ? t : null
+}
 
 export class SceneService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  list(storyId: string) {
+  list(opts?: { q?: string }) {
+    const q = opts?.q?.trim()
     return this.prisma.scene.findMany({
-      where: { storyId },
-      orderBy: { sceneNumber: 'asc' }
+      where: q
+        ? {
+            OR: [
+              { title: { contains: q } },
+              { description: { contains: q } }
+            ]
+          }
+        : undefined,
+      orderBy: { title: 'asc' }
     })
   }
 
-  async create(input: CreateSceneInput) {
-    await this.ensureStory(input.storyId)
-    const numErr = validateSceneNumber(input.sceneNumber)
-    if (numErr) throw new AppError('VALIDATION', numErr)
+  listForStory(storyId: string) {
+    return new StoryCastService(this.prisma).listScenesForStory(storyId)
+  }
+
+  async get(id: string) {
+    const row = await this.prisma.scene.findUnique({ where: { id } })
+    if (!row) throw new AppError('NOT_FOUND', `Scene not found: ${id}`)
+    return row
+  }
+
+  async create(input: CreateSceneInput & { linkStoryId?: string | null }) {
     const descErr = validateSceneDescription(input.description)
     if (descErr) throw new AppError('VALIDATION', descErr)
     if (input.status !== undefined && !isSceneStatus(input.status)) {
       throw new AppError('VALIDATION', `Invalid scene status: ${input.status}`)
     }
-    return this.prisma.scene.create({
+    const row = await this.prisma.scene.create({
       data: {
-        storyId: input.storyId,
-        sceneNumber: input.sceneNumber,
         description: input.description.trim(),
-        script: input.script ?? null,
-        status: input.status ?? 'PENDING'
+        script: trimOrNull(input.script),
+        status: input.status ?? 'PENDING',
+        title: trimOrNull(input.title),
+        locationType: trimOrNull(input.locationType),
+        timeOfDay: trimOrNull(input.timeOfDay),
+        weather: trimOrNull(input.weather),
+        mood: trimOrNull(input.mood),
+        lighting: trimOrNull(input.lighting),
+        colorPalette: trimOrNull(input.colorPalette),
+        setDressing: trimOrNull(input.setDressing),
+        soundscape: trimOrNull(input.soundscape),
+        cameraNotes: trimOrNull(input.cameraNotes),
+        visualTags: trimOrNull(input.visualTags),
+        artStyle: trimOrNull(input.artStyle),
+        refImagePath: trimOrNull(input.refImagePath),
+        refGalleryJson: trimOrNull(input.refGalleryJson),
+        looksJson: trimOrNull(input.looksJson),
+        profileJson: trimOrNull(input.profileJson),
+        seedPrompt: trimOrNull(input.seedPrompt),
+        locationKey: trimOrNull(input.locationKey)
       }
     })
+    const linkStoryId = input.linkStoryId ?? input.storyId
+    if (linkStoryId) {
+      await new StoryCastService(this.prisma).linkScene(linkStoryId, row.id, {
+        sceneNumber: input.sceneNumber
+      })
+    }
+    return row
   }
 
-  async update(
-    id: string,
-    data: Partial<
-      Pick<CreateSceneInput, 'sceneNumber' | 'description' | 'script' | 'status'>
-    >
-  ) {
+  async update(id: string, data: UpdateSceneInput) {
     await this.ensureExists(id)
-    if (data.sceneNumber !== undefined) {
-      const numErr = validateSceneNumber(data.sceneNumber)
-      if (numErr) throw new AppError('VALIDATION', numErr)
-    }
     if (data.description !== undefined) {
       const descErr = validateSceneDescription(data.description)
       if (descErr) throw new AppError('VALIDATION', descErr)
@@ -58,12 +97,65 @@ export class SceneService {
     return this.prisma.scene.update({
       where: { id },
       data: {
-        ...(data.sceneNumber !== undefined ? { sceneNumber: data.sceneNumber } : {}),
         ...(data.description !== undefined
           ? { description: data.description.trim() }
           : {}),
-        ...(data.script !== undefined ? { script: data.script } : {}),
-        ...(data.status !== undefined ? { status: data.status as SceneStatus } : {})
+        ...(data.script !== undefined
+          ? { script: trimOrNull(data.script) }
+          : {}),
+        ...(data.status !== undefined
+          ? { status: data.status as SceneStatus }
+          : {}),
+        ...(data.title !== undefined ? { title: trimOrNull(data.title) } : {}),
+        ...(data.locationType !== undefined
+          ? { locationType: trimOrNull(data.locationType) }
+          : {}),
+        ...(data.timeOfDay !== undefined
+          ? { timeOfDay: trimOrNull(data.timeOfDay) }
+          : {}),
+        ...(data.weather !== undefined
+          ? { weather: trimOrNull(data.weather) }
+          : {}),
+        ...(data.mood !== undefined ? { mood: trimOrNull(data.mood) } : {}),
+        ...(data.lighting !== undefined
+          ? { lighting: trimOrNull(data.lighting) }
+          : {}),
+        ...(data.colorPalette !== undefined
+          ? { colorPalette: trimOrNull(data.colorPalette) }
+          : {}),
+        ...(data.setDressing !== undefined
+          ? { setDressing: trimOrNull(data.setDressing) }
+          : {}),
+        ...(data.soundscape !== undefined
+          ? { soundscape: trimOrNull(data.soundscape) }
+          : {}),
+        ...(data.cameraNotes !== undefined
+          ? { cameraNotes: trimOrNull(data.cameraNotes) }
+          : {}),
+        ...(data.visualTags !== undefined
+          ? { visualTags: trimOrNull(data.visualTags) }
+          : {}),
+        ...(data.artStyle !== undefined
+          ? { artStyle: trimOrNull(data.artStyle) }
+          : {}),
+        ...(data.refImagePath !== undefined
+          ? { refImagePath: trimOrNull(data.refImagePath) }
+          : {}),
+        ...(data.refGalleryJson !== undefined
+          ? { refGalleryJson: trimOrNull(data.refGalleryJson) }
+          : {}),
+        ...(data.looksJson !== undefined
+          ? { looksJson: trimOrNull(data.looksJson) }
+          : {}),
+        ...(data.profileJson !== undefined
+          ? { profileJson: trimOrNull(data.profileJson) }
+          : {}),
+        ...(data.seedPrompt !== undefined
+          ? { seedPrompt: trimOrNull(data.seedPrompt) }
+          : {}),
+        ...(data.locationKey !== undefined
+          ? { locationKey: trimOrNull(data.locationKey) }
+          : {})
       }
     })
   }
@@ -72,14 +164,6 @@ export class SceneService {
     await this.ensureExists(id)
     await this.prisma.scene.delete({ where: { id } })
     return { ok: true as const }
-  }
-
-  private async ensureStory(storyId: string): Promise<void> {
-    const story = await this.prisma.story.findUnique({
-      where: { id: storyId },
-      select: { id: true }
-    })
-    if (!story) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
   }
 
   private async ensureExists(id: string): Promise<void> {

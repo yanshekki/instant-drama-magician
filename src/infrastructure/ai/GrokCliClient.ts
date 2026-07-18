@@ -29,6 +29,11 @@ import {
 import { healthUrlFromBase } from '../../domain/gatewayDefaults'
 import type { LlmProviderPreset } from '../../domain/openaiCompatible'
 import { CompositeVideoProvider } from './video/CompositeVideoProvider'
+import {
+  resolveChatEndpoint,
+  resolveImageEndpoint,
+  resolveVideoEndpoint
+} from '../../domain/providerEndpoints'
 
 export interface ModelInfo {
   id: string
@@ -58,29 +63,43 @@ export class GrokCliClient implements AIProvider {
   private readonly model: string
   private readonly apiKey: string
   private readonly chatTimeoutMs: number
+  private readonly imageTimeoutMs: number
   private readonly omitSampling: boolean
   private readonly video: CompositeVideoProvider
 
+  private readonly imageBaseUrl: string
+  private readonly imageApiKey: string
+  private readonly imageProvider: string
+  private readonly videoProviderMode: string
+
   constructor(settings?: Partial<AppSettings>) {
     const s = { ...DEFAULT_SETTINGS, ...settings }
-    this.baseUrl = s.baseUrl.replace(/\/$/, '')
-    this.model = s.model
-    this.apiKey = s.apiKey
+    const chat = resolveChatEndpoint(s)
+    const image = resolveImageEndpoint(s)
+    const videoEp = resolveVideoEndpoint(s)
+    this.baseUrl = chat.baseUrl.replace(/\/$/, '')
+    this.model = chat.model
+    this.apiKey = chat.apiKey
+    this.imageBaseUrl = image.baseUrl.replace(/\/$/, '')
+    this.imageApiKey = image.apiKey
+    this.imageProvider = s.imageProvider || 'same-as-llm'
+    this.videoProviderMode = s.videoProvider || 'same-as-llm'
     this.chatTimeoutMs = s.chatTimeoutMs ?? 120_000
+    this.imageTimeoutMs = s.imageTimeoutMs ?? DEFAULT_SETTINGS.imageTimeoutMs
     this.omitSampling = shouldOmitSamplingForProvider(
       s.llmProvider as LlmProviderPreset | undefined,
-      s.baseUrl
+      chat.baseUrl
     )
     this.video = new CompositeVideoProvider(
-      s.videoMode,
-      s.baseUrl,
-      s.apiKey,
-      s.model,
+      videoEp.mode,
+      videoEp.baseUrl,
+      videoEp.apiKey,
+      videoEp.model,
       {
         videoPollMs: s.videoPollMs,
         videoTimeoutSec: s.videoTimeoutSec,
         videoMaxRetries: s.videoMaxRetries,
-        videoPath: s.videoPath,
+        videoPath: videoEp.videoPath,
         aspectRatio: s.aspectRatio
       }
     )
@@ -90,35 +109,148 @@ export class GrokCliClient implements AIProvider {
     return this.video
   }
 
+  /** Lightweight probe of the image base (OpenAI-compatible /models). */
+  async probeImage(): Promise<{ available: boolean; message: string }> {
+    if (!this.imageApiKey.trim() && !this.imageBaseUrl.includes('127.0.0.1')) {
+      return {
+        available: false,
+        message: 'No image API key'
+      }
+    }
+    try {
+      const res = await fetch(`${this.imageBaseUrl}/models`, {
+        headers: this.imageHeaders(),
+        signal: AbortSignal.timeout(5000)
+      })
+      if (res.ok) {
+        return {
+          available: true,
+          message: `Online · ${this.imageBaseUrl}`
+        }
+      }
+      return {
+        available: false,
+        message: `HTTP ${res.status} · ${this.imageBaseUrl}`
+      }
+    } catch (error) {
+      return {
+        available: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : `Unreachable · ${this.imageBaseUrl}`
+      }
+    }
+  }
+
   async getStatus(): Promise<AIProviderStatus> {
     const chat = await this.probeChat()
-    const videoProbe = await this.video.probe()
+    const imageSeparate = this.imageProvider !== 'same-as-llm'
+    const videoSeparate = this.videoProviderMode !== 'same-as-llm'
+
+    const image: AIProviderStatus['image'] = imageSeparate
+      ? {
+          ...(await this.probeImage()),
+          provider: this.imageProvider
+        }
+      : null
+
+    let video: AIProviderStatus['video'] = null
+    let sharedVideoMsg: string | null = null
+    if (videoSeparate) {
+      if (this.videoProviderMode === 'stub') {
+        video = {
+          available: true,
+          message: 'Stub placeholders',
+          provider: 'stub'
+        }
+      } else {
+        const videoProbe = await this.video.probe()
+        video = {
+          available: videoProbe.available,
+          message: videoProbe.message,
+          provider: this.videoProviderMode
+        }
+      }
+    } else {
+      const videoProbe = await this.video.probe()
+      sharedVideoMsg = videoProbe.message
+    }
+
+    const parts = [`Chat: ${chat.message}`]
+    if (image) {
+      parts.push(`Image(${this.imageProvider}): ${image.message}`)
+    }
+    if (video) {
+      parts.push(`Video(${this.videoProviderMode}): ${video.message}`)
+    } else if (sharedVideoMsg) {
+      parts.push(`Video: ${sharedVideoMsg}`)
+    }
+
     return {
       available: chat.available,
       baseUrl: this.baseUrl,
       model: this.model,
-      message: `Chat: ${chat.message}; video: ${videoProbe.message}`
+      message: parts.join('; '),
+      chat: {
+        available: chat.available,
+        message: chat.message,
+        provider: 'llm'
+      },
+      image,
+      video
     }
   }
 
   async listModels(): Promise<ModelInfo[]> {
-    const res = await fetch(`${this.baseUrl}/models`, {
-      headers: this.headers(),
-      signal: AbortSignal.timeout(8000)
-    })
-    if (!res.ok) {
-      throw mapChatHttpStatus(res.status, await res.text())
+    try {
+      const res = await fetch(`${this.baseUrl}/models`, {
+        headers: this.headers(),
+        signal: AbortSignal.timeout(8000)
+      })
+      if (!res.ok) {
+        // Rate limit / transient: fall back to known Grok models so Settings still works
+        if (res.status === 429 || res.status === 503) {
+          return this.fallbackModelList()
+        }
+        throw mapChatHttpStatus(res.status, await res.text())
+      }
+      const json = (await res.json()) as {
+        data?: Array<{ id?: string; owned_by?: string }>
+      }
+      const list = (json.data ?? [])
+        .map((m) => ({
+          id: m.id ?? '',
+          ownedBy: m.owned_by
+        }))
+        .filter((m) => m.id.length > 0)
+      return list.length > 0 ? list : this.fallbackModelList()
+    } catch (error) {
+      if (error instanceof AppError && error.code === 'AI_RATE_LIMIT') {
+        return this.fallbackModelList()
+      }
+      // Network blip while gateway is up — prefer fallback over red toast for list
+      const msg = error instanceof Error ? error.message : String(error)
+      if (/429|rate limit|timeout|abort/i.test(msg)) {
+        return this.fallbackModelList()
+      }
+      throw error
     }
-    const json = (await res.json()) as {
-      data?: Array<{ id?: string; owned_by?: string }>
-    }
-    const list = (json.data ?? [])
-      .map((m) => ({
-        id: m.id ?? '',
-        ownedBy: m.owned_by
-      }))
-      .filter((m) => m.id.length > 0)
-    return list
+  }
+
+  /** Built-in models when /models is rate-limited or empty (Grok gateway). */
+  private fallbackModelList(): ModelInfo[] {
+    const current = this.model?.trim()
+    const defaults = [
+      'grok-4.5',
+      'grok-4',
+      'grok-3',
+      'grok-3-mini',
+      'grok-2'
+    ]
+    const ids = new Set<string>(defaults)
+    if (current) ids.add(current)
+    return [...ids].map((id) => ({ id, ownedBy: 'fallback' }))
   }
 
   async probeChat(): Promise<ChatProbeResult> {
@@ -265,11 +397,8 @@ export class GrokCliClient implements AIProvider {
 
   /**
    * OpenAI-compatible image generation (Grok Gateway: POST /v1/images/generations).
+   * Max sizes (OPENAI_IMAGE_SIZES): 1024x1024 | 1792x1024 | 1024x1792.
    * Requires apiFeatures.imagesApi when using Grok-Cli-to-OpenAI-compatible.
-   */
-  /**
-   * Max sizes accepted by Grok-Cli-to-OpenAI-compatible (OPENAI_IMAGE_SIZES):
-   * 1024x1024 | 1792x1024 | 1024x1792 — mapped to Grok aspect_ratio.
    */
   async generateImage(options: {
     prompt: string
@@ -278,22 +407,8 @@ export class GrokCliClient implements AIProvider {
     size?: string
     n?: number
   }): Promise<{ b64: string; mime: string; sizeUsed: string; aspectUsed: string }> {
-    if (!this.apiKey.trim()) {
-      throw new AppError(
-        'AI_UNAUTHORIZED',
-        'No API key',
-        'Image gen needs a valid API key'
-      )
-    }
-    // Always send both max pixel size + matching aspect for best gateway mapping
-    const size = options.size ?? '1792x1024'
-    const aspectRatio =
-      options.aspectRatio ??
-      (size === '1024x1792'
-        ? '9:16'
-        : size === '1024x1024'
-          ? '1:1'
-          : '16:9')
+    this.assertImageKey()
+    const { size, aspectRatio } = this.resolveImageSize(options)
 
     const body: Record<string, unknown> = {
       prompt: options.prompt,
@@ -304,15 +419,105 @@ export class GrokCliClient implements AIProvider {
       aspect_ratio: aspectRatio
     }
 
-    const res = await fetch(`${this.baseUrl}/images/generations`, {
+    const res = await fetch(`${this.imageBaseUrl}/images/generations`, {
       method: 'POST',
       headers: {
-        ...this.headers(),
+        ...this.imageHeaders(),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(Math.max(this.chatTimeoutMs, 180_000))
+      signal: AbortSignal.timeout(this.imageTimeoutMs)
     })
+    return this.parseImageResponse(res, size, aspectRatio)
+  }
+
+  /**
+   * OpenAI-compatible image edit (Grok Gateway: POST /v1/images/edits).
+   * Multipart field `image` only — gateway maxCount is 1 (optional `mask`).
+   * Use when the character already has a gallery image so identity stays consistent.
+   */
+  async editImage(options: {
+    prompt: string
+    /** Absolute path to the single reference image (API limit: 1). */
+    imagePath: string
+    aspectRatio?: string
+    size?: string
+    n?: number
+  }): Promise<{ b64: string; mime: string; sizeUsed: string; aspectUsed: string }> {
+    this.assertImageKey()
+    const { size, aspectRatio } = this.resolveImageSize(options)
+
+    const { readFileSync, existsSync } = await import('fs')
+    const { basename } = await import('path')
+    if (!existsSync(options.imagePath)) {
+      throw new AppError(
+        'VALIDATION',
+        `Reference image not found: ${options.imagePath}`,
+        'Pick or generate a photo first'
+      )
+    }
+    const buf = readFileSync(options.imagePath)
+    const form = new FormData()
+    form.append('prompt', options.prompt)
+    form.append('model', this.model)
+    form.append('n', String(options.n ?? 1))
+    form.append('response_format', 'b64_json')
+    form.append('size', size)
+    form.append('aspect_ratio', aspectRatio)
+    // Do not set Content-Type — boundary must be set by fetch/FormData
+    form.append(
+      'image',
+      new Blob([new Uint8Array(buf)], {
+        type: mimeFromPath(options.imagePath)
+      }),
+      basename(options.imagePath)
+    )
+
+    const res = await fetch(`${this.imageBaseUrl}/images/edits`, {
+      method: 'POST',
+      headers: this.imageHeaders(),
+      body: form,
+      signal: AbortSignal.timeout(this.imageTimeoutMs)
+    })
+    return this.parseImageResponse(res, size, aspectRatio)
+  }
+
+  private assertImageKey(): void {
+    if (!this.imageApiKey.trim()) {
+      throw new AppError(
+        'AI_UNAUTHORIZED',
+        'No API key',
+        'Image gen needs a valid API key on the image provider'
+      )
+    }
+  }
+
+  private imageHeaders(): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.imageApiKey}`
+    }
+  }
+
+  private resolveImageSize(options: {
+    size?: string
+    aspectRatio?: string
+  }): { size: string; aspectRatio: string } {
+    const size = options.size ?? '1792x1024'
+    const aspectRatio =
+      options.aspectRatio ??
+      (size === '1024x1792'
+        ? '9:16'
+        : size === '1024x1024'
+          ? '1:1'
+          : '16:9')
+    return { size, aspectRatio }
+  }
+
+  private async parseImageResponse(
+    res: Response,
+    size: string,
+    aspectRatio: string
+  ): Promise<{ b64: string; mime: string; sizeUsed: string; aspectUsed: string }> {
     if (!res.ok) {
       const text = await res.text()
       throw mapChatHttpStatus(res.status, text)
@@ -325,7 +530,7 @@ export class GrokCliClient implements AIProvider {
       throw new AppError(
         'AI_FAILED',
         'Image API returned no b64_json',
-        'Enable imagesApi on Gateway or check provider'
+        'IMAGE_NO_SANDBOX: Enable imagesApi on Gateway; if using body/nude plates, content filters may block — try base-layer or costume packages first.'
       )
     }
     return { b64, mime: 'image/png', sizeUsed: size, aspectUsed: aspectRatio }
@@ -336,6 +541,14 @@ export class GrokCliClient implements AIProvider {
       Authorization: `Bearer ${this.apiKey}`
     }
   }
+}
+
+function mimeFromPath(filePath: string): string {
+  const lower = filePath.toLowerCase()
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  if (lower.endsWith('.gif')) return 'image/gif'
+  return 'image/png'
 }
 
 /** Preferred name — identical to GrokCliClient (OpenAI-compatible HTTP). */

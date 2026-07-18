@@ -2,6 +2,307 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Brand palette aligned with https://ysk.hk/ (tokens.css):
+ *   brand-blue  #3b82f6 · brand-green #10b981
+ * Semantic number meaning is STABLE across themes:
+ *   ink-50  = primary text
+ *   ink-400 = secondary text
+ *   ink-800 = border
+ *   ink-950 = app background
+ *   brand-600 = solid CTA (white label)
+ *   brand-950 = soft brand wash
+ */
+
+:root {
+  --overlay: 0 0 0;
+  --shadow-rgb: 0 0 0;
+}
+
+/* ─── Dark (YSK on deep slate) ───────────────────────────── */
+.theme-dark {
+  color-scheme: dark;
+
+  /* Ink — slate like ysk text scale inverted for dark UI */
+  --ink-50: 248 250 252;
+  --ink-100: 241 245 249;
+  --ink-200: 226 232 240;
+  --ink-300: 203 213 225;
+  --ink-400: 148 163 184;
+  --ink-500: 100 116 139;
+  --ink-600: 71 85 105;
+  --ink-700: 51 65 85;
+  --ink-800: 30 41 59;
+  --ink-900: 15 23 42;
+  --ink-950: 8 12 22;
+
+  /* Brand = YSK blue scale (dark: low = light accent text) */
+  --brand-50: 239 246 255;
+  --brand-100: 219 234 254;
+  --brand-200: 191 219 254;
+  --brand-300: 147 197 253;
+  --brand-400: 96 165 250;
+  --brand-500: 59 130 246;
+  --brand-600: 37 99 235;
+  --brand-700: 29 78 216;
+  --brand-800: 30 64 175;
+  --brand-900: 30 58 138;
+  --brand-950: 23 37 84;
+
+  /* Emerald = YSK brand-green */
+  --emerald-50: 236 253 245;
+  --emerald-100: 209 250 229;
+  --emerald-200: 167 243 208;
+  --emerald-300: 110 231 183;
+  --emerald-400: 52 211 153;
+  --emerald-500: 16 185 129;
+  --emerald-600: 5 150 105;
+  --emerald-700: 4 120 87;
+  --emerald-800: 6 95 70;
+  --emerald-900: 6 78 59;
+  --emerald-950: 2 44 34;
+
+  --amber-50: 255 251 235;
+  --amber-100: 254 243 199;
+  --amber-200: 253 230 138;
+  --amber-300: 252 211 77;
+  --amber-400: 251 191 36;
+  --amber-500: 245 158 11;
+  --amber-600: 217 119 6;
+  --amber-700: 180 83 9;
+  --amber-800: 146 64 14;
+  --amber-900: 120 53 15;
+  --amber-950: 69 26 3;
+
+  --rose-50: 255 241 242;
+  --rose-100: 255 228 230;
+  --rose-200: 254 205 211;
+  --rose-300: 253 164 175;
+  --rose-400: 251 113 133;
+  --rose-500: 244 63 94;
+  --rose-600: 225 29 72;
+  --rose-700: 190 18 60;
+  --rose-800: 159 18 57;
+  --rose-900: 136 19 55;
+  --rose-950: 76 5 25;
+
+  --overlay: 0 0 0;
+  --shadow-rgb: 0 0 0;
+  --scrollbar-thumb: 51 65 85;
+  --scrollbar-thumb-hover: 71 85 105;
+}
+
+/* ─── Light (matches ysk.hk page tokens) ─────────────────── */
+.theme-light {
+  color-scheme: light;
+
+  /* ysk: text-main / text-sub / bg-page / border-color */
+  --ink-50: 15 23 42;
+  --ink-100: 30 41 59;
+  --ink-200: 51 65 85;
+  --ink-300: 71 85 105;
+  --ink-400: 100 116 139;
+  --ink-500: 100 116 139;
+  --ink-600: 148 163 184;
+  --ink-700: 226 232 240;
+  --ink-800: 226 232 240;
+  --ink-900: 241 245 249;
+  --ink-950: 250 251 252;
+
+  /*
+   * Brand blue: low = deep text accents, high = soft wash.
+   * 500/600 = solid YSK blue CTAs with white labels.
+   */
+  --brand-50: 23 37 84;
+  --brand-100: 30 58 138;
+  --brand-200: 30 64 175;
+  --brand-300: 29 78 216;
+  --brand-400: 37 99 235;
+  --brand-500: 59 130 246;
+  --brand-600: 37 99 235;
+  --brand-700: 59 130 246;
+  --brand-800: 147 197 253;
+  --brand-900: 219 234 254;
+  --brand-950: 239 246 255;
+
+  /* Green status — soft wash + deep text */
+  --emerald-50: 6 78 59;
+  --emerald-100: 6 95 70;
+  --emerald-200: 4 120 87;
+  --emerald-300: 4 120 87;
+  --emerald-400: 5 150 105;
+  --emerald-500: 16 185 129;
+  --emerald-600: 16 185 129;
+  --emerald-700: 52 211 153;
+  --emerald-800: 167 243 208;
+  --emerald-900: 209 250 229;
+  --emerald-950: 236 253 245;
+
+  --amber-50: 120 53 15;
+  --amber-100: 146 64 14;
+  --amber-200: 180 83 9;
+  --amber-300: 180 83 9;
+  --amber-400: 217 119 6;
+  --amber-500: 217 119 6;
+  --amber-600: 245 158 11;
+  --amber-700: 251 191 36;
+  --amber-800: 253 230 138;
+  --amber-900: 254 243 199;
+  --amber-950: 255 251 235;
+
+  --rose-50: 136 19 55;
+  --rose-100: 159 18 57;
+  --rose-200: 190 18 60;
+  --rose-300: 190 18 60;
+  --rose-400: 225 29 72;
+  --rose-500: 225 29 72;
+  --rose-600: 244 63 94;
+  --rose-700: 251 113 133;
+  --rose-800: 254 205 211;
+  --rose-900: 255 228 230;
+  --rose-950: 255 241 242;
+
+  --overlay: 15 23 42;
+  --shadow-rgb: 15 23 42;
+  --scrollbar-thumb: 203 213 225;
+  --scrollbar-thumb-hover: 148 163 184;
+}
+
+/* Pre-JS OS follow */
+:root:not(.theme-light):not(.theme-dark) {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.theme-light):not(.theme-dark) {
+    color-scheme: dark;
+    --ink-50: 248 250 252;
+    --ink-100: 241 245 249;
+    --ink-200: 226 232 240;
+    --ink-300: 203 213 225;
+    --ink-400: 148 163 184;
+    --ink-500: 100 116 139;
+    --ink-600: 71 85 105;
+    --ink-700: 51 65 85;
+    --ink-800: 30 41 59;
+    --ink-900: 15 23 42;
+    --ink-950: 8 12 22;
+    --brand-50: 239 246 255;
+    --brand-100: 219 234 254;
+    --brand-200: 191 219 254;
+    --brand-300: 147 197 253;
+    --brand-400: 96 165 250;
+    --brand-500: 59 130 246;
+    --brand-600: 37 99 235;
+    --brand-700: 29 78 216;
+    --brand-800: 30 64 175;
+    --brand-900: 30 58 138;
+    --brand-950: 23 37 84;
+    --emerald-50: 236 253 245;
+    --emerald-100: 209 250 229;
+    --emerald-200: 167 243 208;
+    --emerald-300: 110 231 183;
+    --emerald-400: 52 211 153;
+    --emerald-500: 16 185 129;
+    --emerald-600: 5 150 105;
+    --emerald-700: 4 120 87;
+    --emerald-800: 6 95 70;
+    --emerald-900: 6 78 59;
+    --emerald-950: 2 44 34;
+    --amber-50: 255 251 235;
+    --amber-100: 254 243 199;
+    --amber-200: 253 230 138;
+    --amber-300: 252 211 77;
+    --amber-400: 251 191 36;
+    --amber-500: 245 158 11;
+    --amber-600: 217 119 6;
+    --amber-700: 180 83 9;
+    --amber-800: 146 64 14;
+    --amber-900: 120 53 15;
+    --amber-950: 69 26 3;
+    --rose-50: 255 241 242;
+    --rose-100: 255 228 230;
+    --rose-200: 254 205 211;
+    --rose-300: 253 164 175;
+    --rose-400: 251 113 133;
+    --rose-500: 244 63 94;
+    --rose-600: 225 29 72;
+    --rose-700: 190 18 60;
+    --rose-800: 159 18 57;
+    --rose-900: 136 19 55;
+    --rose-950: 76 5 25;
+    --overlay: 0 0 0;
+    --shadow-rgb: 0 0 0;
+    --scrollbar-thumb: 51 65 85;
+    --scrollbar-thumb-hover: 71 85 105;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.theme-light):not(.theme-dark) {
+    color-scheme: light;
+    --ink-50: 15 23 42;
+    --ink-100: 30 41 59;
+    --ink-200: 51 65 85;
+    --ink-300: 71 85 105;
+    --ink-400: 100 116 139;
+    --ink-500: 100 116 139;
+    --ink-600: 148 163 184;
+    --ink-700: 226 232 240;
+    --ink-800: 226 232 240;
+    --ink-900: 241 245 249;
+    --ink-950: 250 251 252;
+    --brand-50: 23 37 84;
+    --brand-100: 30 58 138;
+    --brand-200: 30 64 175;
+    --brand-300: 29 78 216;
+    --brand-400: 37 99 235;
+    --brand-500: 59 130 246;
+    --brand-600: 37 99 235;
+    --brand-700: 59 130 246;
+    --brand-800: 147 197 253;
+    --brand-900: 219 234 254;
+    --brand-950: 239 246 255;
+    --emerald-50: 6 78 59;
+    --emerald-100: 6 95 70;
+    --emerald-200: 4 120 87;
+    --emerald-300: 4 120 87;
+    --emerald-400: 5 150 105;
+    --emerald-500: 16 185 129;
+    --emerald-600: 16 185 129;
+    --emerald-700: 52 211 153;
+    --emerald-800: 167 243 208;
+    --emerald-900: 209 250 229;
+    --emerald-950: 236 253 245;
+    --amber-50: 120 53 15;
+    --amber-100: 146 64 14;
+    --amber-200: 180 83 9;
+    --amber-300: 180 83 9;
+    --amber-400: 217 119 6;
+    --amber-500: 217 119 6;
+    --amber-600: 245 158 11;
+    --amber-700: 251 191 36;
+    --amber-800: 253 230 138;
+    --amber-900: 254 243 199;
+    --amber-950: 255 251 235;
+    --rose-50: 136 19 55;
+    --rose-100: 159 18 57;
+    --rose-200: 190 18 60;
+    --rose-300: 190 18 60;
+    --rose-400: 225 29 72;
+    --rose-500: 225 29 72;
+    --rose-600: 244 63 94;
+    --rose-700: 251 113 133;
+    --rose-800: 254 205 211;
+    --rose-900: 255 228 230;
+    --rose-950: 255 241 242;
+    --overlay: 15 23 42;
+    --shadow-rgb: 15 23 42;
+    --scrollbar-thumb: 203 213 225;
+    --scrollbar-thumb-hover: 148 163 184;
+  }
+}
+
 html,
 body,
 #root {
@@ -11,10 +312,19 @@ body,
 
 body {
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  background-color: rgb(var(--ink-950));
+  color: rgb(var(--ink-50));
 }
 
 * {
   box-sizing: border-box;
+}
+
+select,
+input,
+textarea,
+button {
+  color-scheme: inherit;
 }
 
 ::-webkit-scrollbar {
@@ -27,10 +337,36 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: rgb(var(--scrollbar-thumb));
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: rgb(var(--scrollbar-thumb-hover));
+}
+
+.bg-overlay {
+  background-color: rgb(var(--overlay) / 0.72);
+}
+
+.shadow-theme-sm {
+  box-shadow: 0 1px 2px rgb(var(--shadow-rgb) / 0.04),
+    0 2px 8px rgb(var(--shadow-rgb) / 0.06);
+}
+
+.shadow-theme-md {
+  box-shadow: 0 8px 24px rgb(var(--shadow-rgb) / 0.08),
+    0 2px 8px rgb(var(--shadow-rgb) / 0.06);
+}
+
+/* YSK blue→green accent gradient (ysk.hk brand-gradient) */
+.ysk-gradient-text {
+  background-image: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ysk-gradient-bar {
+  background-image: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
 }

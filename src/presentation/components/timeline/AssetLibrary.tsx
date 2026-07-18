@@ -1,13 +1,26 @@
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Character, Prop, Scene } from '../../../types/domain'
+import type { Character, Prop } from '../../../types/domain'
+import { matchesSearchQuery } from '../../lib/searchQuery'
+import { Button, EmptyState, Input } from '../ui'
 import { makeAssetDragData, type AssetDropPayload } from './TimelineCanvas'
+import {
+  sceneCastLabel,
+  type StoryCastScene
+} from './timelineLabels'
+
+export type { StoryCastScene }
+export { sceneCastLabel }
 
 interface AssetLibraryProps {
   characters: Character[]
-  scenes: Scene[]
+  scenes: StoryCastScene[]
   props: Prop[]
   onAdd: (payload: AssetDropPayload) => void
+  onOpenStoryEditor?: () => void
 }
+
+type CastTab = 'character' | 'scene' | 'prop'
 
 function DraggableChip({
   payload,
@@ -25,9 +38,9 @@ function DraggableChip({
         e.dataTransfer.effectAllowed = 'copy'
       }}
       onClick={() => onAdd(payload)}
-      className="w-full rounded-lg border border-ink-700 bg-ink-900 px-2.5 py-1.5 text-left text-xs text-ink-100 hover:border-brand-500 hover:bg-ink-800"
+      className="w-full rounded-xl border border-ink-700/80 bg-ink-900/60 px-2.5 py-2 text-left text-xs text-ink-100 transition hover:border-brand-500 hover:bg-ink-800/80"
     >
-      {payload.label}
+      <span className="line-clamp-2">{payload.label}</span>
     </button>
   )
 }
@@ -36,61 +49,136 @@ export function AssetLibrary({
   characters,
   scenes,
   props,
-  onAdd
+  onAdd,
+  onOpenStoryEditor
 }: AssetLibraryProps): JSX.Element {
   const { t } = useTranslation()
+  const [tab, setTab] = useState<CastTab>('character')
+  const [q, setQ] = useState('')
+
+  const filteredCharacters = useMemo(() => {
+    return characters.filter((c) =>
+      matchesSearchQuery([c.name, c.description ?? ''].join(' '), q)
+    )
+  }, [characters, q])
+
+  const filteredScenes = useMemo(() => {
+    return scenes.filter((s) =>
+      matchesSearchQuery(
+        [sceneCastLabel(s), s.title ?? '', s.description ?? ''].join(' '),
+        q
+      )
+    )
+  }, [scenes, q])
+
+  const filteredProps = useMemo(() => {
+    return props.filter((p) =>
+      matchesSearchQuery([p.name, p.description ?? ''].join(' '), q)
+    )
+  }, [props, q])
+
+  const tabs: { id: CastTab; label: string; count: number }[] = [
+    { id: 'character', label: t('timeline.character'), count: characters.length },
+    { id: 'scene', label: t('timeline.scene'), count: scenes.length },
+    { id: 'prop', label: t('timeline.prop'), count: props.length }
+  ]
+
+  const emptyKindKey =
+    tab === 'character'
+      ? 'timeline.castEmptyCharacters'
+      : tab === 'scene'
+        ? 'timeline.castEmptyScenes'
+        : 'timeline.castEmptyProps'
+
+  const listEmpty =
+    tab === 'character'
+      ? characters.length === 0
+      : tab === 'scene'
+        ? scenes.length === 0
+        : props.length === 0
+
+  const filteredEmpty =
+    tab === 'character'
+      ? filteredCharacters.length === 0
+      : tab === 'scene'
+        ? filteredScenes.length === 0
+        : filteredProps.length === 0
 
   return (
-    <div className="space-y-4 text-sm">
-      <h3 className="font-semibold text-ink-100">{t('timeline.library')}</h3>
-      <p className="text-xs text-ink-500">{t('timeline.dragHint')}</p>
+    <div className="flex h-full min-h-0 flex-col text-sm">
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-ink-100">{t('timeline.library')}</h3>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-ink-500">
+          {t('timeline.libraryHint')}
+        </p>
+      </div>
 
-      <section className="space-y-1.5">
-        <div className="text-xs font-medium uppercase tracking-wide text-ink-400">
-          {t('timeline.character')}
-        </div>
-        {characters.length === 0 ? (
-          <p className="text-xs text-ink-600">{t('common.empty')}</p>
-        ) : (
-          characters.map((c) => (
+      <div className="mb-3 flex gap-1 rounded-xl border border-ink-800/80 bg-ink-950/50 p-1">
+        {tabs.map((tb) => (
+          <button
+            key={tb.id}
+            type="button"
+            onClick={() => setTab(tb.id)}
+            className={[
+              'flex-1 rounded-lg px-1.5 py-1.5 text-[11px] font-medium transition',
+              tab === tb.id
+                ? 'bg-brand-600/90 text-white shadow-sm'
+                : 'text-ink-400 hover:bg-ink-800/60 hover:text-ink-200'
+            ].join(' ')}
+          >
+            {tb.label}
+            <span className="ml-0.5 opacity-70">({tb.count})</span>
+          </button>
+        ))}
+      </div>
+
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={t('timeline.searchCast')}
+        className="mb-3 !py-1.5 text-xs"
+      />
+
+      <p className="mb-2 text-[10px] text-ink-600">{t('timeline.dragHint')}</p>
+
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+        {listEmpty ? (
+          <div className="rounded-xl border border-dashed border-ink-700/80 bg-ink-950/40 px-3 py-5 text-center">
+            <p className="text-xs text-ink-400">{t(emptyKindKey)}</p>
+            {onOpenStoryEditor && (
+              <Button
+                variant="secondary"
+                className="mt-3 !text-xs"
+                onClick={onOpenStoryEditor}
+              >
+                {t('timeline.openStoryEditor')}
+              </Button>
+            )}
+          </div>
+        ) : filteredEmpty ? (
+          <EmptyState message={t('timeline.searchNoResults')} />
+        ) : tab === 'character' ? (
+          filteredCharacters.map((c) => (
             <DraggableChip
               key={c.id}
               payload={{ kind: 'character', id: c.id, label: c.name }}
               onAdd={onAdd}
             />
           ))
-        )}
-      </section>
-
-      <section className="space-y-1.5">
-        <div className="text-xs font-medium uppercase tracking-wide text-ink-400">
-          {t('timeline.scene')}
-        </div>
-        {scenes.length === 0 ? (
-          <p className="text-xs text-ink-600">{t('common.empty')}</p>
-        ) : (
-          scenes.map((s) => (
+        ) : tab === 'scene' ? (
+          filteredScenes.map((s) => (
             <DraggableChip
               key={s.id}
               payload={{
                 kind: 'scene',
                 id: s.id,
-                label: `#${s.sceneNumber} ${s.description.slice(0, 32)}`
+                label: sceneCastLabel(s)
               }}
               onAdd={onAdd}
             />
           ))
-        )}
-      </section>
-
-      <section className="space-y-1.5">
-        <div className="text-xs font-medium uppercase tracking-wide text-ink-400">
-          {t('timeline.prop')}
-        </div>
-        {props.length === 0 ? (
-          <p className="text-xs text-ink-600">{t('common.empty')}</p>
         ) : (
-          props.map((p) => (
+          filteredProps.map((p) => (
             <DraggableChip
               key={p.id}
               payload={{ kind: 'prop', id: p.id, label: p.name }}
@@ -98,7 +186,7 @@ export function AssetLibrary({
             />
           ))
         )}
-      </section>
+      </div>
     </div>
   )
 }

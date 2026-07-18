@@ -11,7 +11,12 @@ export class StoryService {
       orderBy: { updatedAt: 'desc' },
       include: {
         _count: {
-          select: { characters: true, scenes: true, props: true, timeline: true }
+          select: {
+            storyCharacters: true,
+            storyScenes: true,
+            storyProps: true,
+            timeline: true
+          }
         }
       }
     })
@@ -21,14 +26,55 @@ export class StoryService {
     const story = await this.prisma.story.findUnique({
       where: { id },
       include: {
-        characters: true,
-        scenes: { orderBy: { sceneNumber: 'asc' } },
-        props: true,
+        storyCharacters: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            character: true,
+            costume: true
+          }
+        },
+        storyScenes: {
+          orderBy: { sceneNumber: 'asc' },
+          include: { scene: true }
+        },
+        storyProps: {
+          orderBy: { sortOrder: 'asc' },
+          include: { prop: true }
+        },
         timeline: { orderBy: { order: 'asc' } }
       }
     })
     if (!story) throw new AppError('NOT_FOUND', `Story not found: ${id}`)
-    return story
+    // Flatten for consumers expecting characters/scenes/props arrays
+    return {
+      ...story,
+      characters: story.storyCharacters.map((l) => ({
+        ...l.character,
+        /** Story-level wardrobe pick (null = character default costume text). */
+        storyCostumeId: l.costumeId,
+        storyCostume: l.costume
+          ? {
+              id: l.costume.id,
+              name: l.costume.name,
+              description: l.costume.description,
+              refImagePath: l.costume.refImagePath
+            }
+          : null
+      })),
+      scenes: story.storyScenes.map((l) => ({
+        ...l.scene,
+        sceneNumber: l.sceneNumber,
+        script: l.scriptOverride ?? l.scene.script,
+        status: l.statusOverride ?? l.scene.status
+      })),
+      props: story.storyProps.map((l) => l.prop),
+      _count: {
+        characters: story.storyCharacters.length,
+        scenes: story.storyScenes.length,
+        props: story.storyProps.length,
+        timeline: story.timeline.length
+      }
+    }
   }
 
   create(input: CreateStoryInput) {
@@ -49,6 +95,8 @@ export class StoryService {
       title?: string
       status?: StoryStatus
       styleNote?: string | null
+      coverPath?: string | null
+      refGalleryJson?: string | null
     } = {}
     if (data.title !== undefined) {
       const title = normalizeStoryTitle(data.title)
@@ -63,8 +111,13 @@ export class StoryService {
       patch.status = data.status
     }
     if (data.styleNote !== undefined) {
-      const note = data.styleNote?.trim() || null
-      patch.styleNote = note
+      patch.styleNote = data.styleNote?.trim() || null
+    }
+    if (data.coverPath !== undefined) {
+      patch.coverPath = data.coverPath?.trim() || null
+    }
+    if (data.refGalleryJson !== undefined) {
+      patch.refGalleryJson = data.refGalleryJson?.trim() || null
     }
     return this.prisma.story.update({ where: { id }, data: patch })
   }
@@ -76,7 +129,10 @@ export class StoryService {
   }
 
   private async ensureExists(id: string): Promise<void> {
-    const found = await this.prisma.story.findUnique({ where: { id }, select: { id: true } })
+    const found = await this.prisma.story.findUnique({
+      where: { id },
+      select: { id: true }
+    })
     if (!found) throw new AppError('NOT_FOUND', `Story not found: ${id}`)
   }
 }

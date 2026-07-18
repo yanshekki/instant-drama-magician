@@ -42,7 +42,8 @@ npm run pack
 ## 系統要求
 
 - Linux x64（AppImage / deb）  
-- **ffmpeg** 已安裝（打包版不會內嵌 ffmpeg）  
+- **FFmpeg** 已內嵌（`ffmpeg-static`）；可用環境變數 `FFMPEG_PATH` 覆寫  
+
 - 可選：本機 Grok gateway 真 video  
 
 ## 已知限制（RC）

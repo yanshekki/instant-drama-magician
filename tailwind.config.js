@@ -1,43 +1,45 @@
 /** @type {import('tailwindcss').Config} */
+
+/** Build a full 50–950 scale from CSS variables. */
+function cssScale(prefix) {
+  const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+  /** @type {Record<string, string>} */
+  const out = {}
+  for (const s of steps) {
+    out[s] = `rgb(var(--${prefix}-${s}) / <alpha-value>)`
+  }
+  return out
+}
+
 module.exports = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: ['class', '[class~="theme-dark"]'],
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#f5f3ff',
-          100: '#ede9fe',
-          200: '#ddd6fe',
-          300: '#c4b5fd',
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#6d28d9',
-          800: '#5b21b6',
-          900: '#4c1d95'
-        },
-        ink: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617'
-        }
+        brand: cssScale('brand'),
+        ink: cssScale('ink'),
+        emerald: cssScale('emerald'),
+        amber: cssScale('amber'),
+        rose: cssScale('rose'),
+        /** Theme-aware dimmer for modals */
+        overlay: 'rgb(var(--overlay) / <alpha-value>)'
       },
       fontFamily: {
         sans: [
+          'Plus Jakarta Sans',
           'Inter',
           'Noto Sans TC',
           'system-ui',
           '-apple-system',
           'sans-serif'
         ]
+      },
+      boxShadow: {
+        'theme-sm':
+          '0 1px 2px rgb(var(--shadow-rgb) / 0.06), 0 1px 3px rgb(var(--shadow-rgb) / 0.08)',
+        'theme-md':
+          '0 4px 12px rgb(var(--shadow-rgb) / 0.1), 0 2px 4px rgb(var(--shadow-rgb) / 0.06)'
       }
     }
   },

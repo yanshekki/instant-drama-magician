@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest'
+import {
+  buildWardrobeSuggestSystemPrompt,
+  buildWardrobeSuggestUserPrompt,
+  extractWardrobeSuggestionJson
+} from './wardrobeSuggest'
+
+describe('wardrobeSuggest', () => {
+  it('system prompt lists art styles and invents when thin', () => {
+    const s = buildWardrobeSuggestSystemPrompt('en')
+    expect(s).toMatch(/photo_cinematic/)
+    expect(s).toMatch(/JSON/)
+    expect(s).toMatch(/invent/i)
+    const zh = buildWardrobeSuggestSystemPrompt('zh-HK')
+    expect(zh).toMatch(/自由|造型/)
+  })
+
+
+  it('user prompt includes character and scenes', () => {
+    const u = buildWardrobeSuggestUserPrompt({
+      characterName: 'Aiko',
+      appearance: 'black hair',
+      sceneSnippets: ['Rainy alley chase'],
+      locale: 'en'
+    })
+    expect(u).toMatch(/Aiko/)
+    expect(u).toMatch(/Rainy alley/)
+  })
+
+  it('parses suggestion JSON', () => {
+    const r = extractWardrobeSuggestionJson(
+      '```json\n{"name":"Night","costume":"leather jacket","artStyle":"anime_modern","rationale":"fits chase"}\n```'
+    )
+    expect(r.name).toBe('Night')
+    expect(r.costume).toMatch(/leather/)
+    expect(r.artStyle).toBe('anime_modern')
+  })
+
+  it('falls back unknown artStyle', () => {
+    const r = extractWardrobeSuggestionJson(
+      '{"name":"X","costume":"robe","artStyle":"not_real","rationale":""}'
+    )
+    expect(r.artStyle).toBe('photo_cinematic')
+  })
+})

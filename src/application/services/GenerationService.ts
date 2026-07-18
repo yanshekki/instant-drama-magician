@@ -1,4 +1,5 @@
-import { existsSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync } from 'fs'
+import { homedir } from 'os'
 import { join } from 'path'
 import type { PrismaClient } from '../../types/prisma'
 import type {
@@ -76,7 +77,8 @@ export class GenerationService {
   async generateClip(
     storyId: string,
     entryId: string,
-    onProgress?: GenerationProgressHandler
+    onProgress?: GenerationProgressHandler,
+    opts?: { revisionPrompt?: string | null }
   ): Promise<{ entryId: string; mediaPath: string; jobId?: string; degraded?: boolean }> {
     if (!this.ai.generateVideo) {
       throw new AppError('AI_UNAVAILABLE', 'AI provider has no generateVideo')
@@ -88,9 +90,35 @@ export class GenerationService {
     this.abort = new AbortController()
     const signal = this.abort.signal
     this.store.ensureStoryDirs(storyId)
-    const char = story.characters.find((c) => c.id === entry.characterId)
-    const scene = story.scenes.find((s) => s.id === entry.sceneId)
-    const prop = story.props.find((p) => p.id === entry.propId)
+    const { parseIdList } = await import('../../domain/timelineBindings')
+    const raw = entry as {
+      characterIds?: string | string[] | null
+      sceneIds?: string | string[] | null
+      propIds?: string | string[] | null
+    }
+    const asList = (
+      multi: string | string[] | null | undefined,
+      primary: string | null
+    ): string[] => {
+      if (Array.isArray(multi) && multi.length > 0) return multi
+      if (typeof multi === 'string') return parseIdList(multi, primary)
+      return parseIdList(null, primary)
+    }
+    const charIdList = asList(raw.characterIds, entry.characterId)
+    const sceneIdList = asList(raw.sceneIds, entry.sceneId)
+    const propIdList = asList(raw.propIds, entry.propId)
+    const chars = charIdList
+      .map((id) => story.characters.find((c) => c.id === id))
+      .filter(Boolean) as typeof story.characters
+    const scenesBound = sceneIdList
+      .map((id) => story.scenes.find((s) => s.id === id))
+      .filter(Boolean) as typeof story.scenes
+    const propsBound = propIdList
+      .map((id) => story.props.find((p) => p.id === id))
+      .filter(Boolean) as typeof story.props
+    const char = chars[0]
+    const scene = scenesBound[0]
+    const prop = propsBound[0]
     const charMap = new Map(story.characters.map((c) => [c.id, c]))
     const sceneMap = new Map(story.scenes.map((s) => [s.id, s]))
     const propMap = new Map(story.props.map((p) => [p.id, p]))
@@ -120,38 +148,161 @@ export class GenerationService {
         throw new AppError('CANCELLED', 'Cancelled')
       }
 
-      const charBlock = char
-        ? characterVideoPromptBlock({
-            name: char.name,
-            ageRange: char.ageRange ?? undefined,
-            appearance: char.appearance ?? char.description,
-            costume: char.costume ?? undefined,
-            mannerisms: char.mannerisms ?? undefined,
-            voiceDesc: char.voiceDesc ?? undefined
-          })
-        : null
-      const prompt = [
-        buildClipPrompt({
+      const parseLangs = (c: (typeof chars)[0]): string[] | undefined => {
+        try {
+          const raw = (c as { spokenLanguages?: string | null }).spokenLanguages
+          if (!raw?.trim()) return undefined
+          const parsed = JSON.parse(raw) as unknown
+          return Array.isArray(parsed)
+            ? parsed.filter((x): x is string => typeof x === 'string')
+            : undefined
+        } catch {
+          return undefined
+        }
+      }
+      const charBlocks = chars.map((c) =>
+        characterVideoPromptBlock({
+          name: c.name,
+          description: c.description,
+          ageRange: c.ageRange ?? undefined,
+          gender: c.gender ?? undefined,
+          appearance: c.appearance ?? c.description,
+          costume: c.costume ?? undefined,
+          personality: c.personality ?? undefined,
+          backstory: c.backstory ?? undefined,
+          relationships: c.relationships ?? undefined,
+          mannerisms: c.mannerisms ?? undefined,
+          voiceDesc: c.voiceDesc ?? undefined,
+          visualTags: c.visualTags ?? undefined,
+          artStyle: (c as { artStyle?: string | null }).artStyle ?? undefined,
+          spokenLanguages: parseLangs(c)
+        })
+      )
+      const multiCastNote =
+        chars.length > 1 || scenesBound.length > 1 || propsBound.length > 1
+          ? [
+              'MULTI-SUBJECT CLIP:',
+              chars.length
+                ? `Characters (primary first): ${chars.map((c) => c.name).join(', ')}.`
+                : null,
+              scenesBound.length > 1
+                ? `Locations: ${scenesBound.map((s) => s.title || s.description.slice(0, 40)).join(' | ')}.`
+                : null,
+              propsBound.length > 1
+                ? `Props: ${propsBound.map((p) => p.name).join(', ')}.`
+                : null,
+              'Keep all listed subjects visible/consistent; primary character is the action focus.'
+            ]
+              .filter(Boolean)
+              .join(' ')
+          : null
+      const { resolveClipRefImage, appendRevisionToClipPrompt } = await import(
+        '../../domain/promptContinuity'
+      )
+      const { polishThenGenerateVideo } = await import(
+        '../video/polishVideoPrompt'
+      )
+      const {
+        buildClipVideoPolishUserPrompt
+      } = await import('../../domain/videoPromptPolish')
+      const { beatContentToClipPromptBlock, parseBeatContent } = await import(
+        '../../domain/beatContent'
+      )
+      const beatOrDialogue =
+        beatContentToClipPromptBlock(
+          parseBeatContent(
+            entry.dialogue,
+            (entry as { beatContentJson?: string | null }).beatContentJson
+          ),
+          entry.dialogue
+        ) || entry.dialogue || null
+      const fallbackPrompt = appendRevisionToClipPrompt(
+        [
+          buildClipPrompt({
+            storyTitle: story.title,
+            styleNote: story.styleNote,
+            character: char,
+            scene,
+            prop,
+            dialogue: entry.dialogue,
+            beatContentJson:
+              (entry as { beatContentJson?: string | null }).beatContentJson,
+            seconds,
+            previousContext: prev
+          }),
+          multiCastNote,
+          ...charBlocks
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        opts?.revisionPrompt
+      )
+      const ref = resolveClipRefImage({
+        character: char,
+        scene,
+        prop
+      })
+      const locale: 'zh-HK' | 'en' =
+        String(this.settings.uiLanguage || '').startsWith('en')
+          ? 'en'
+          : 'zh-HK'
+      onProgress?.({
+        storyId,
+        step: 'video',
+        index: 0,
+        total: 1,
+        entryId,
+        mediaStatus: 'GENERATING',
+        jobId: undefined
+      })
+      const result = await polishThenGenerateVideo({
+        ai: this.ai,
+        locale,
+        fallbackPrompt,
+        polishUserContent: buildClipVideoPolishUserPrompt({
+          locale,
+          seconds,
+          aspectRatio: this.settings.aspectRatio,
+          hasRefImage: Boolean(ref?.path),
+          fallbackPrompt,
           storyTitle: story.title,
           styleNote: story.styleNote,
-          character: char,
-          scene,
-          prop,
-          dialogue: entry.dialogue,
-          seconds,
-          previousContext: prev
+          characterBlocks: charBlocks,
+          sceneBlock: scene
+            ? [
+                `#${scene.sceneNumber} ${scene.title || ''}`,
+                scene.description,
+                scene.mood ? `mood: ${scene.mood}` : null,
+                scene.lighting ? `lighting: ${scene.lighting}` : null
+              ]
+                .filter(Boolean)
+                .join('\n')
+            : null,
+          propBlock: prop
+            ? `${prop.name}: ${prop.description}`
+            : null,
+          beatOrDialogue,
+          previousContext: prev,
+          multiCastNote,
+          revisionPrompt: opts?.revisionPrompt
         }),
-        charBlock
-      ]
-        .filter(Boolean)
-        .join('\n')
-
-      const result = await this.ai.generateVideo({
-        prompt,
-        durationSeconds: seconds,
-        refImagePath: char?.refSheetPath || char?.refImagePath,
-        outputPath,
-        aspectRatio: this.settings.aspectRatio
+        videoRequest: {
+          durationSeconds: seconds,
+          refImagePath: ref?.path,
+          outputPath,
+          aspectRatio: this.settings.aspectRatio
+        },
+        signal,
+        onPhase: (phase) => {
+          onProgress?.({
+            storyId,
+            step: phase === 'llm' ? 'video' : 'video',
+            index: 0,
+            total: 1,
+            entryId,
+            mediaStatus: phase === 'llm' ? 'QUEUED' : 'GENERATING'
+          })
+        }
       })
 
       if (signal.aborted) {
@@ -393,13 +544,20 @@ export class GenerationService {
     const story = await this.loadStory(storyId)
     const clips = this.mapClips(story)
     const outDir = this.store.exportsDir(storyId)
-    const safeTitle =
-      story.title.replace(/[^\w\u4e00-\u9fff-]+/g, '_').slice(0, 40) || 'story'
-    const outputPath = await this.ffmpeg.exportStoryboard({
+    const safeTitle = safeAsciiExportName(story.title, storyId)
+    const fileName = `${safeTitle}_board_${Date.now()}.mp4`
+    const workPath = await this.ffmpeg.exportStoryboard({
       outDir,
-      fileName: `${safeTitle}_board_${Date.now()}.mp4`,
+      fileName,
       title: story.title,
       clips
+    })
+    const outputPath = publishExportToVideos(workPath, fileName)
+    this.store.recordExportHistory(storyId, {
+      kind: 'board',
+      path: outputPath,
+      workPath,
+      fileName
     })
     await this.prisma.story.update({
       where: { id: storyId },
@@ -412,19 +570,135 @@ export class GenerationService {
     return this.exportFinal(storyId)
   }
 
-  async exportFinal(storyId: string): Promise<{ outputPath: string }> {
+  async listExports(storyId: string): Promise<{
+    items: import('../../domain/exportHistory').ExportHistoryItem[]
+    latestPath: string | null
+  }> {
+    const story = await this.prisma.story.findUnique({
+      where: { id: storyId },
+      select: { id: true, title: true, exportPath: true }
+    })
+    if (!story) {
+      throw new AppError('NOT_FOUND', 'Story not found')
+    }
+    const prefix = safeAsciiExportName(story.title, storyId)
+    const items = this.store.listExportHistory(storyId, {
+      publicDir: resolvePublicExportDir(),
+      latestPath: story.exportPath,
+      fileNamePrefix: prefix
+    })
+    // Keep manifest in sync with disk discovery
+    if (items.length > 0) {
+      this.store.writeExportHistory(storyId, items)
+    }
+    const latestPath =
+      (story.exportPath && existsSync(story.exportPath)
+        ? story.exportPath
+        : null) ||
+      items[0]?.path ||
+      null
+    return { items, latestPath }
+  }
+
+  async deleteExport(
+    storyId: string,
+    exportId: string
+  ): Promise<{
+    ok: boolean
+    items: import('../../domain/exportHistory').ExportHistoryItem[]
+    latestPath: string | null
+  }> {
+    if (!exportId?.trim()) {
+      throw new AppError('VALIDATION', 'exportId is required')
+    }
+    const story = await this.prisma.story.findUnique({
+      where: { id: storyId },
+      select: { id: true, title: true, exportPath: true }
+    })
+    if (!story) {
+      throw new AppError('NOT_FOUND', 'Story not found')
+    }
+    const before = this.store.listExportHistory(storyId, {
+      publicDir: resolvePublicExportDir(),
+      latestPath: story.exportPath,
+      fileNamePrefix: safeAsciiExportName(story.title, storyId)
+    })
+    const target = before.find(
+      (h) =>
+        h.id === exportId ||
+        h.path === exportId ||
+        h.fileName === exportId
+    )
+    const result = this.store.deleteExportHistoryItem(storyId, exportId)
+    let latestPath = story.exportPath
+    if (
+      target &&
+      latestPath &&
+      (latestPath === target.path ||
+        basenameMatch(latestPath, target.fileName))
+    ) {
+      latestPath = result.remaining[0]?.path ?? null
+      await this.prisma.story.update({
+        where: { id: storyId },
+        data: { exportPath: latestPath }
+      })
+    }
+    const listed = await this.listExports(storyId)
+    return {
+      ok: result.deleted,
+      items: listed.items,
+      latestPath: listed.latestPath
+    }
+  }
+
+  async exportFinal(
+    storyId: string,
+    options?: Partial<{
+      exportProfile: 'balanced' | 'fast'
+      burnSubtitles: boolean
+      includeSilentAudio: boolean
+      bgmVolume: number
+      dialogueVolume: number
+    }>
+  ): Promise<{ outputPath: string }> {
     const story = await this.loadStory(storyId)
     const clips = this.mapClips(story)
+    // Work dir under app media (intermediates); final file also copied to ~/Videos
     const outDir = this.store.exportsDir(storyId)
     this.store.ensureStoryDirs(storyId)
-    const safeTitle =
-      story.title.replace(/[^\w\u4e00-\u9fff-]+/g, '_').slice(0, 40) || 'story'
+    // ASCII-only name: Snap VLC cannot open paths under ~/.config, and
+    // some players mishandle CJK filenames when opened via file:// URLs.
+    const safeTitle = safeAsciiExportName(story.title, storyId)
+    const { extractSpokenLines, parseBeatContent } = await import(
+      '../../domain/beatContent'
+    )
+    const { defaultExportFinalOptions } = await import(
+      '../../domain/exportOptions'
+    )
+    const exp = defaultExportFinalOptions({
+      exportProfile: options?.exportProfile ?? this.settings.exportProfile,
+      burnSubtitles: options?.burnSubtitles ?? this.settings.burnSubtitles,
+      includeSilentAudio:
+        options?.includeSilentAudio ?? this.settings.includeSilentAudio,
+      bgmVolume: options?.bgmVolume ?? this.settings.bgmVolume,
+      dialogueVolume: options?.dialogueVolume ?? this.settings.dialogueVolume,
+      openExportFolder: this.settings.openExportFolder
+    })
+
     const srt = buildSrt(
-      story.timeline.map((e) => ({
-        startSeconds: e.startTime,
-        endSeconds: e.endTime,
-        text: e.dialogue ?? ''
-      }))
+      story.timeline.map((e) => {
+        const spoken = extractSpokenLines(
+          parseBeatContent(
+            e.dialogue,
+            (e as { beatContentJson?: string | null }).beatContentJson
+          )
+        )
+        return {
+          startSeconds: e.startTime,
+          endSeconds: e.endTime,
+          text: spoken
+        }
+      })
     )
 
     const dialogueAudioPaths: Array<{
@@ -443,11 +717,17 @@ export class GenerationService {
         )
         if (await tts.available()) {
           for (const e of story.timeline) {
-            if (!e.dialogue?.trim()) continue
+            const spokenText = extractSpokenLines(
+              parseBeatContent(
+                e.dialogue,
+                (e as { beatContentJson?: string | null }).beatContentJson
+              )
+            )
+            if (!spokenText.trim()) continue
             const out = this.store.ttsPath(storyId, e.id)
             try {
               const spoken = await tts.speak({
-                text: e.dialogue,
+                text: spokenText,
                 outputPath: out,
                 voice: this.settings.ttsVoice
               })
@@ -468,23 +748,31 @@ export class GenerationService {
       }
     }
 
-    const outputPath = await this.ffmpeg.exportFinal({
+    const fileName = `${safeTitle}_final_${Date.now()}.mp4`
+    const workPath = await this.ffmpeg.exportFinal({
       outDir,
-      fileName: `${safeTitle}_final_${Date.now()}.mp4`,
+      fileName,
       title: story.title,
       clips,
       srtContent: srt,
-      burnSubtitles: this.settings.burnSubtitles,
-      includeSilentAudio: this.settings.includeSilentAudio,
-      profile: this.settings.exportProfile,
+      burnSubtitles: exp.burnSubtitles,
+      includeSilentAudio: exp.includeSilentAudio,
+      profile: exp.exportProfile,
       bgmPath: this.settings.bgmPath,
-      bgmVolume: this.settings.bgmVolume,
-      dialogueVolume: this.settings.dialogueVolume,
+      bgmVolume: exp.bgmVolume,
+      dialogueVolume: exp.dialogueVolume,
       duckRatio: this.settings.duckRatio,
       dialogueAudioPaths,
       aspectRatio: this.settings.aspectRatio,
       transitionMode: this.settings.transitionMode,
       transitionSec: this.settings.transitionSec
+    })
+    const outputPath = publishExportToVideos(workPath, fileName)
+    this.store.recordExportHistory(storyId, {
+      kind: 'final',
+      path: outputPath,
+      workPath,
+      fileName
     })
     await this.prisma.story.update({
       where: { id: storyId },
@@ -522,18 +810,93 @@ export class GenerationService {
     const story = await this.prisma.story.findUnique({
       where: { id: storyId },
       include: {
-        characters: true,
-        scenes: { orderBy: { sceneNumber: 'asc' } },
-        props: true,
+        storyCharacters: {
+          include: {
+            character: true,
+            costume: true
+          }
+        },
+        storyScenes: {
+          orderBy: { sceneNumber: 'asc' },
+          include: { scene: true }
+        },
+        storyProps: { include: { prop: true } },
         timeline: { orderBy: { order: 'asc' } }
       }
     })
     if (!story) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
-    return story
+    return {
+      ...story,
+      characters: story.storyCharacters.map((l) => {
+        const storyCostumeText =
+          l.costume?.description?.trim() ||
+          l.costume?.name?.trim() ||
+          null
+        return {
+          ...l.character,
+          storyCostumeId: l.costumeId,
+          /** Prefer story wardrobe text for prompts when set. */
+          costume: storyCostumeText || l.character.costume,
+          storyCostumeRefImagePath: l.costume?.refImagePath ?? null
+        }
+      }),
+      scenes: story.storyScenes.map((l) => ({
+        ...l.scene,
+        sceneNumber: l.sceneNumber,
+        script: l.scriptOverride ?? l.scene.script,
+        status: l.statusOverride ?? l.scene.status
+      })),
+      props: story.storyProps.map((l) => l.prop)
+    }
   }
 
   // keep TimelineEntry type referenced for future typed helpers
   static emptyTimeline(): TimelineEntry[] {
     return []
+  }
+}
+
+function basenameMatch(path: string, fileName: string): boolean {
+  const base = path.split(/[/\\]/).pop() || path
+  return base === fileName
+}
+
+/** ASCII filename base so players/shells do not choke on CJK paths. */
+export function safeAsciiExportName(title: string, storyId: string): string {
+  const ascii = title
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 40)
+  return ascii || `story_${storyId.slice(0, 10)}`
+}
+
+/**
+ * Prefer ~/Videos (Snap VLC can read home Videos; not ~/.config).
+ */
+export function resolvePublicExportDir(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { app } = require('electron') as typeof import('electron')
+    if (app?.getPath) {
+      return join(app.getPath('videos'), 'InstantDrama Magician')
+    }
+  } catch {
+    /* unit tests / non-electron */
+  }
+  return join(homedir(), 'Videos', 'InstantDrama Magician')
+}
+
+function publishExportToVideos(workPath: string, fileName: string): string {
+  const publicDir = resolvePublicExportDir()
+  try {
+    mkdirSync(publicDir, { recursive: true })
+    const outputPath = join(publicDir, fileName)
+    copyFileSync(workPath, outputPath)
+    return outputPath
+  } catch {
+    return workPath
   }
 }

@@ -1,145 +1,1298 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { getAiLocale } from '../../lib/aiLocale'
+import {
+  appendSceneGalleryItem,
+  isSceneGalleryCoverPath,
+  listSceneExternalRefs,
+  moveSceneGalleryItem,
+  parseSceneGallery,
+  pickSceneExternalRefPath,
+  primarySceneGalleryPath,
+  removeSceneGalleryItem,
+  serializeSceneGallery,
+  type SceneGalleryItem
+} from '../../domain/sceneGallery'
+import { ExternalRefSection } from '../components/ExternalRefSection'
+import { PlotContextPicker } from '../components/PlotContextPicker'
+import type { StoryWithCounts } from '../../types/domain'
+import {
+  libraryBodyClass,
+  libraryCardClass,
+  libraryGridClass,
+  libraryMediaClass
+} from '../components/libraryCard'
+import {
+  LibraryBrowseBar,
+  LibraryPageBody,
+  LibraryPagination
+} from '../components/LibraryBrowseBar'
+import { LibraryFilterSelect } from '../components/LibraryFilterSelect'
+import { useLibraryBrowse } from '../hooks/useLibraryBrowse'
+import {
+  DEFAULT_PROP_PLATE,
+  PROP_PLATE_VARIANTS,
+  type PropPlateVariantId
+} from '../../domain/propPlateVariants'
+import {
+  artStylesByGroup,
+  DEFAULT_ART_STYLE,
+  isArtStyleId,
+  type ArtStyleId
+} from '../../domain/characterArtStyles'
+import { getApi } from '../../lib/api'
+import { parseIpcError } from '../../lib/ipc'
+import type { CreatePropInput, Prop } from '../../types/domain'
 import { useApp } from '../context/AppContext'
+import { useToast } from '../context/ToastContext'
+import { useDialog } from '../context/DialogContext'
+import { useAiJobs } from '../context/AiJobsContext'
 import { useProps } from '../hooks/useProps'
+import { LocalMediaImage } from '../components/LocalMediaImage'
+import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
+import {
+  EditorField,
+  EditorSelect,
+  EditorShell,
+  editorFormClass
+} from '../components/EditorShell'
 import { PageHeader } from '../components/PageHeader'
-import { Button, Card, EmptyState, Input, Label, Textarea } from '../components/ui'
+import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
+import { translatePropGalleryLabel } from '../../domain/galleryLabelI18n'
+
+type EditorPanel = 'profile' | 'refs'
+
+interface FormState {
+  name: string
+  description: string
+  material: string
+  sizeNotes: string
+  condition: string
+  visualTags: string
+  artStyle: ArtStyleId
+  gallery: SceneGalleryItem[]
+  coverPath: string | null
+}
+
+const emptyForm = (): FormState => ({
+  name: '',
+  description: '',
+  material: '',
+  sizeNotes: '',
+  condition: '',
+  visualTags: '',
+  artStyle: DEFAULT_ART_STYLE,
+  gallery: [],
+  coverPath: null
+})
+
+function galleryFromProp(p: Prop): SceneGalleryItem[] {
+  return parseSceneGallery(p.refGalleryJson, { refImagePath: p.refImagePath })
+}
 
 export function PropsPage(): JSX.Element {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { activeStoryId } = useApp()
-  const { items, loading, error, create, update, remove } = useProps(activeStoryId)
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const toast = useToast()
+  const dialog = useDialog()
+  const {
+    startJob,
+    isBlocked,
+    onPropProfileApply,
+    onPropPlateCommitted,
+    activeJobs
+  } = useAiJobs()
+  const {
+    items,
+    loading,
+    error,
+    create,
+    update,
+    remove,
+    reload
+  } = useProps(activeStoryId)
 
-  const resetForm = (): void => {
-    setName('')
-    setDescription('')
-    setEditingId(null)
-    setShowForm(false)
+  const [propImage, setPropImage] = useState('') // '' | has | none
+  const propBrowse = useLibraryBrowse(
+    items,
+    (p) =>
+      [
+        p.name,
+        p.description,
+        p.material ?? '',
+        p.sizeNotes ?? '',
+        p.condition ?? '',
+        p.visualTags ?? ''
+      ].join(' '),
+    {
+      extraKey: propImage,
+      matchesExtra: (p) => {
+        const hasImg = Boolean(p.refImagePath)
+        if (propImage === 'has' && !hasImg) return false
+        if (propImage === 'none' && hasImg) return false
+        return true
+      }
+    }
+  )
+  const clearPropFilters = (): void => {
+    propBrowse.setQ('')
+    setPropImage('')
+  }
+  const propHasFilters =
+    propBrowse.hasSearch || Boolean(propImage)
+
+  const removeWithFeedback = async (id: string): Promise<void> => {
+    try {
+      await remove(id)
+      toast.success(t('common.deleted'))
+    } catch (e) {
+      toast.error(parseIpcError(e).message)
+    }
   }
 
-  const handleSubmit = async (): Promise<void> => {
-    if (!name.trim()) return
-    if (editingId) {
-      const ok = await update(editingId, {
-        name: name.trim(),
-        description: description.trim()
-      })
-      if (ok) resetForm()
+
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editorPanel, setEditorPanel] = useState<EditorPanel>('refs')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<FormState>(emptyForm)
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
+  const [useIdentityRef, setUseIdentityRef] = useState(false)
+  const [useExternalRef, setUseExternalRef] = useState(true)
+  const [plateVariant, setPlateVariant] =
+    useState<PropPlateVariantId>(DEFAULT_PROP_PLATE)
+  const [plotSuggestOpen, setPlotSuggestOpen] = useState(false)
+  const [plotStoryId, setPlotStoryId] = useState('')
+  const [plotSegmentKey, setPlotSegmentKey] = useState('all')
+  const [stories, setStories] = useState<StoryWithCounts[]>([])
+  const [aiIdea, setAiIdea] = useState('')
+  const [pageBanner, setPageBanner] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const artGroups = useMemo(() => artStylesByGroup(), [])
+
+  useEffect(() => {
+    void getApi()
+      .stories.list()
+      .then((list) => setStories(list as StoryWithCounts[]))
+      .catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    if (plotSuggestOpen && activeStoryId && !plotStoryId) {
+      setPlotStoryId(activeStoryId)
+    }
+  }, [plotSuggestOpen, activeStoryId, plotStoryId])
+
+  const propExternalRefs = useMemo(
+    () => listSceneExternalRefs(form.gallery),
+    [form.gallery]
+  )
+
+  const propLayerOptions = useMemo(() => {
+    const layers = new Set<string>()
+    for (const g of form.gallery) {
+      if (g.layer) layers.add(String(g.layer))
+    }
+    return ['all', ...[...layers].sort()]
+  }, [form.gallery])
+
+  const [propLayerFilter, setPropLayerFilter] = useState('all')
+  const filteredPropGallery = useMemo(() => {
+    if (propLayerFilter === 'all') return form.gallery
+    return form.gallery.filter((g) => String(g.layer ?? '') === propLayerFilter)
+  }, [form.gallery, propLayerFilter])
+
+  const propBusy = (propId?: string | null): boolean =>
+    isBlocked({
+      kind: ['prop-ai-fill', 'prop-plate', 'prop-intro-video'],
+      propId: propId ?? undefined
+    }) ||
+    activeJobs.some(
+      (j) =>
+        (j.kind === 'prop-ai-fill' ||
+          j.kind === 'prop-plate' ||
+          j.kind === 'prop-intro-video') &&
+        (!propId || j.scope.propId === propId)
+    )
+  const editorBusy = propBusy(editingId)
+
+  const selectedImage = useMemo(() => {
+    if (!form.gallery.length) return null
+    return (
+      form.gallery.find((g) => g.id === selectedImageId) ?? form.gallery[0]
+    )
+  }, [form.gallery, selectedImageId])
+
+  useEffect(() => {
+    return onPropProfileApply((draft) => {
+      if (draft.propId && editingId && draft.propId !== editingId) {
+        void reload()
+        return
+      }
+      const p = draft.profile
+      setForm((f) => ({
+        ...f,
+        name: p.name || f.name,
+        description: p.description || f.description,
+        material: p.material ?? f.material,
+        sizeNotes: p.sizeNotes ?? f.sizeNotes,
+        condition: p.condition ?? f.condition,
+        visualTags: p.visualTags ?? f.visualTags,
+        artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle
+      }))
+      setEditorOpen(true)
+      setPageBanner(t('props.aiFillOk')); toast.success(t('props.aiFillOk'))
+      void reload()
+    })
+  }, [onPropProfileApply, editingId, reload, t])
+
+  useEffect(() => {
+    return onPropPlateCommitted(({ propId, path, gallery }) => {
+      if (editingId === propId) {
+        if (gallery && gallery.length > 0) {
+          const g = gallery.map((item) => ({
+            id: item.id,
+            path: item.path,
+            kind: (item.kind === 'sheet' ||
+            item.kind === 'upload' ||
+            item.kind === 'gen'
+              ? item.kind
+              : 'sheet') as 'sheet' | 'upload' | 'gen',
+            label: item.label,
+            createdAt: item.createdAt,
+            ...(item.layer ? { layer: item.layer } : {}),
+            ...((item as { introVideoPath?: string | null }).introVideoPath
+              ? {
+                  introVideoPath: (item as { introVideoPath?: string | null })
+                    .introVideoPath
+                }
+              : {})
+          }))
+          setForm((f) => ({ ...f, gallery: g }))
+          const newest =
+            g.find((item) => item.path === path) ?? g[0] ?? null
+          setSelectedImageId(newest?.id ?? null)
+        } else {
+          void getApi()
+            .props.list()
+            .then((list) => {
+              const p = (list as Prop[]).find((x) => x.id === propId)
+              if (!p) return
+              const g = galleryFromProp(p)
+              setForm((f) => ({
+                ...f,
+                gallery: g,
+                coverPath: primarySceneGalleryPath(g, p.refImagePath)
+              }))
+              const newest =
+                g.find((item) => item.path === path) ?? g[0] ?? null
+              setSelectedImageId(newest?.id ?? null)
+            })
+        }
+      }
+      void reload()
+      toast.success(t('props.plateOkShort'))
+    })
+  }, [onPropPlateCommitted, editingId, reload, t])
+
+  const closeEditor = (): void => {
+    setEditorOpen(false)
+    setEditingId(null)
+    setForm(emptyForm())
+    setSelectedImageId(null)
+    setAiIdea('')
+  }
+
+  const openCreate = (): void => {
+    setEditorPanel('profile')
+    setEditingId(null)
+    setForm(emptyForm())
+    setSelectedImageId(null)
+    setEditorOpen(true)
+  }
+
+  const openEdit = (p: Prop): void => {
+    const gallery = galleryFromProp(p)
+    setEditingId(p.id)
+    setForm({
+      name: p.name,
+      description: p.description,
+      material: p.material ?? '',
+      sizeNotes: p.sizeNotes ?? '',
+      condition: p.condition ?? '',
+      visualTags: p.visualTags ?? '',
+      artStyle: isArtStyleId(p.artStyle) ? p.artStyle : DEFAULT_ART_STYLE,
+      gallery,
+      coverPath: primarySceneGalleryPath(gallery, p.refImagePath)
+    })
+    setSelectedImageId(
+      gallery.find((g) => g.path === p.refImagePath)?.id ??
+        gallery[0]?.id ??
+        null
+    )
+    setAiIdea(p.seedPrompt ?? '')
+    setEditorPanel(gallery.length > 0 ? 'refs' : 'profile')
+    setEditorOpen(true)
+  }
+
+  const payload = (): Omit<CreatePropInput, 'storyId'> => {
+    const primary = primarySceneGalleryPath(form.gallery, form.coverPath)
+    return {
+      name: form.name.trim(),
+      description: form.description.trim() || form.name.trim(),
+      material: form.material || null,
+      sizeNotes: form.sizeNotes || null,
+      condition: form.condition || null,
+      visualTags: form.visualTags || null,
+      artStyle: form.artStyle,
+      refImagePath: primary,
+      refGalleryJson: form.gallery.length
+        ? serializeSceneGallery(form.gallery)
+        : null,
+      seedPrompt: form.description || null
+    }
+  }
+
+  const handleSave = async (): Promise<void> => {
+    if (!form.name.trim()) return
+    setActionError(null)
+    try {
+      if (editingId) {
+        const ok = await update(editingId, payload())
+        if (ok) {
+          toast.success(t('common.saved'))
+          setPageBanner(t('props.saved'))
+        } else {
+          toast.error(t('common.actionFailed'))
+        }
+      } else {
+        const ok = await create(payload())
+        if (ok) {
+          toast.success(t('common.saved'))
+          setPageBanner(t('props.saved'))
+          await reload()
+          if (activeStoryId) {
+            const list = (await getApi().props.list(activeStoryId)) as Prop[]
+            const created = list.find((p) => p.name === form.name.trim())
+            if (created) openEdit(created)
+            else closeEditor()
+          }
+        } else {
+          toast.error(t('common.actionFailed'))
+        }
+      }
+    } catch (e) {
+      const msg = parseIpcError(e).message
+      setActionError(msg)
+      toast.error(msg)
+    }
+  }
+
+  const ensureSavedId = async (): Promise<string | null> => {
+    if (editingId) return editingId
+    const ok = await create(payload())
+    if (!ok || !activeStoryId) return null
+    await reload()
+    const list = (await getApi().props.list(activeStoryId)) as Prop[]
+    const created = list.find((p) => p.name === form.name.trim())
+    if (created) {
+      setEditingId(created.id)
+      return created.id
+    }
+    return null
+  }
+
+  const handleAiFill = (): void => {
+    if (editorBusy) return
+    const idea = aiIdea.trim()
+    const snapshot = {
+      name: form.name.trim() || undefined,
+      description: form.description.trim() || undefined,
+      material: form.material.trim() || undefined,
+      sizeNotes: form.sizeNotes.trim() || undefined,
+      condition: form.condition.trim() || undefined,
+      visualTags: form.visualTags.trim() || undefined,
+      artStyle: form.artStyle || undefined
+    }
+    const hasDraft = Object.values(snapshot).some(
+      (v) => typeof v === 'string' && v.length > 0
+    )
+    if (!idea && !hasDraft) {
+      setActionError(t('props.ideaRequired'))
       return
     }
-    const ok = await create({
-      name: name.trim(),
-      description: description.trim()
+    setPageBanner(t('aiJobs.startedBackground')); toast.info(t('aiJobs.startedBackground'))
+    startJob({
+      kind: 'prop-ai-fill',
+      label: t('props.aiFill'),
+      scope: {
+        propId: editingId ?? undefined,
+        storyId: activeStoryId ?? undefined
+      },
+      run: async ({ setProgress, signal }) => {
+        setProgress(20, 'llm')
+        const r = await getApi().props.aiFill({
+          idea: idea || undefined,
+          storyId: activeStoryId ?? undefined,
+          locale: getAiLocale(i18n.language),
+          existingDraft: hasDraft ? snapshot : undefined
+        })
+        if (signal.cancelled) return
+        setProgress(100, 'done')
+        return {
+          type: 'prop-profile' as const,
+          propId: editingId,
+          storyId: activeStoryId,
+          profile: r.profile,
+          profileJson: r.profileJson,
+          isNew: !editingId
+        }
+      }
     })
-    if (ok) resetForm()
   }
 
-  const startEdit = (id: string): void => {
-    const p = items.find((x) => x.id === id)
-    if (!p) return
-    setEditingId(p.id)
-    setName(p.name)
-    setDescription(p.description)
-    setShowForm(true)
+  const handlePickExternalRef = async (): Promise<void> => {
+    const result = await getApi().media.pickRefImage()
+    if (!result) return
+    const next = appendSceneGalleryItem(form.gallery, {
+      path: result.filePath,
+      kind: 'external',
+      label: t('characters.externalRefLabel')
+    })
+    setForm((f) => ({
+      ...f,
+      gallery: next,
+      coverPath: f.coverPath ?? next[0]?.path ?? null
+    }))
+    setSelectedImageId(next[next.length - 1]?.id ?? null)
+    setUseExternalRef(true)
+    toast.success(t('characters.externalRefAdded'))
   }
 
-  if (!activeStoryId) {
-    return (
-      <div className="flex h-full flex-col">
-        <PageHeader title={t('props.title')} subtitle={t('props.subtitle')} />
-        <div className="p-8">
-          <EmptyState message={t('common.selectStory')} />
-        </div>
-      </div>
-    )
+  /** Animate the selected still into a prop intro video using prop bible. */
+  const handleGenerateIntroVideo = (sourceImagePath: string): void => {
+    if (!editingId) {
+      setActionError(t('props.saveFirstForPlate'))
+      toast.error(t('props.saveFirstForPlate'))
+      return
+    }
+    if (!sourceImagePath?.trim()) {
+      setActionError(t('props.introVideoNeedImage'))
+      return
+    }
+    if (propBusy(editingId)) return
+    setActionError(null)
+    setPageBanner(t('aiJobs.startedBackground'))
+    toast.info(t('aiJobs.startedBackground'))
+    const propId = editingId
+    const sourcePath = sourceImagePath.trim()
+    startJob({
+      kind: 'prop-intro-video',
+      label: t('props.introVideoJob'),
+      scope: {
+        propId,
+        storyId: activeStoryId ?? undefined
+      },
+      run: async ({ setProgress, signal }) => {
+        setProgress(10, 'start')
+        await update(propId, payload())
+        if (signal.cancelled) return
+        setProgress(25, 'llm')
+        const r = await getApi().props.generateIntroVideo({
+          propId,
+          sourceImagePath: sourcePath,
+          durationSeconds: 10,
+          locale: getAiLocale(i18n.language)
+        })
+        if (signal.cancelled) return
+        setProgress(90, 'generate')
+        setProgress(100, 'done')
+        const g = (r.gallery ?? []).map((item) => ({
+          id: item.id,
+          path: item.path,
+          kind: (item.kind === 'sheet' ||
+          item.kind === 'upload' ||
+          item.kind === 'gen' ||
+          item.kind === 'external'
+            ? item.kind
+            : 'gen') as SceneGalleryItem['kind'],
+          label: item.label,
+          createdAt: item.createdAt,
+          ...(item.layer ? { layer: item.layer } : {}),
+          introVideoPath: item.introVideoPath ?? null
+        }))
+        setForm((f) =>
+          editingId === propId
+            ? { ...f, gallery: g.length > 0 ? g : f.gallery }
+            : f
+        )
+        toast.success(t('props.introVideoOk'))
+        return undefined
+      }
+    })
+  }
+
+  const handleGeneratePlate = async (opts?: {
+    useIdentityEdit?: boolean
+    referenceImagePath?: string | null
+    useExternalRef?: boolean
+  }): Promise<void> => {
+    setActionError(null)
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('props.saveFirstForPlate'))
+        return
+      }
+      if (propBusy(id)) return
+      const wantIdentity =
+        opts?.useIdentityEdit !== undefined
+          ? opts.useIdentityEdit === true
+          : useIdentityRef
+      const wantExternal =
+        opts?.useExternalRef !== undefined
+          ? opts.useExternalRef
+          : useExternalRef
+      const externalPath = wantExternal
+        ? pickSceneExternalRefPath(
+            form.gallery,
+            opts?.referenceImagePath ?? selectedImage?.path
+          )
+        : null
+      const preferred = wantIdentity
+        ? (opts?.referenceImagePath ??
+          externalPath ??
+          selectedImage?.path ??
+          null)
+        : externalPath
+      toast.info(t('aiJobs.startedBackground'))
+      startJob({
+        kind: 'prop-plate',
+        label: t('props.generatePlate'),
+        scope: { propId: id, storyId: activeStoryId ?? undefined },
+        run: async ({ setProgress, signal }) => {
+          setProgress(10, 'image')
+          const r = await getApi().props.generatePlate({
+            propId: id,
+            variant: plateVariant,
+            referenceImagePath: preferred,
+            useIdentityEdit: Boolean(preferred),
+            persist: false,
+            artStyle: form.artStyle
+          })
+          if (signal.cancelled) {
+            try {
+              await getApi().media.discardSheetDraft(r.path)
+            } catch {
+              /* ignore */
+            }
+            return
+          }
+          setProgress(100, 'done')
+          return {
+            type: 'prop-plate' as const,
+            propId: id,
+            storyId: activeStoryId ?? '',
+            path: r.path,
+            variant: r.variant ?? plateVariant,
+            label: r.label ?? plateVariant,
+            enhance: r.enhance
+          }
+        }
+      })
+    } catch (e) {
+      setActionError(parseIpcError(e).message)
+    }
+  }
+
+  const handlePickImage = async (): Promise<void> => {
+    const result = await getApi().media.pickRefImage()
+    if (!result) return
+    const next = appendSceneGalleryItem(form.gallery, {
+      path: result.filePath,
+      kind: 'upload',
+      label: t('props.uploadLabel')
+    })
+    setForm((f) => ({
+      ...f,
+      gallery: next,
+      coverPath: f.coverPath ?? next[0]?.path ?? null
+    }))
+    setSelectedImageId(next[0]?.id ?? null)
+  }
+
+  const handleReorderGallery = (fromId: string, toId: string): void => {
+    if (!fromId || !toId || fromId === toId) return
+    setForm((f) => ({
+      ...f,
+      gallery: moveSceneGalleryItem(f.gallery, fromId, toId)
+    }))
+  }
+
+  const handleSetCover = (path: string): void => {
+    setForm((f) => ({ ...f, coverPath: path }))
+    toast.success(t('common.coverSet'))
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
       <PageHeader
         title={t('props.title')}
         subtitle={t('props.subtitle')}
-        actions={
-          <Button
-            onClick={() => {
-              setEditingId(null)
-              setShowForm((v) => !v)
-            }}
-          >
-            {t('props.new')}
-          </Button>
-        }
+        actions={<Button onClick={openCreate}>{t('props.new')}</Button>}
       />
+      {!editorOpen && (
+      <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
+        <LibraryPageBody
+          footer={
+            !loading && items.length > 0 ? (
+              <LibraryPagination
+                page={propBrowse.page}
+                totalPages={propBrowse.totalPages}
+                onPageChange={propBrowse.setPage}
+                filteredCount={propBrowse.filteredCount}
+                totalCount={propBrowse.totalCount}
+              />
+            ) : undefined
+          }
+        >
+          {(error || actionError) && (
+            <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
+              {actionError || error?.message}
+            </div>
+          )}
+          {pageBanner && (
+            <div className="mb-4 rounded-xl border border-brand-800/40 bg-brand-950/50 px-4 py-3 text-sm text-brand-100">
+              {pageBanner}
+              <button
+                type="button"
+                className="ml-3 text-xs text-brand-300 underline"
+                onClick={() => setPageBanner(null)}
+              >
+                {t('common.dismissOk')}
+              </button>
+            </div>
+          )}
+          {loading ? (
+            <p className="text-sm text-ink-400">{t('common.loading')}</p>
+          ) : items.length === 0 ? (
+            <div className="mx-auto max-w-md py-16 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-ink-800 text-2xl">
+                📦
+              </div>
+              <p className="text-ink-300">{t('props.noProps')}</p>
+              <div className="mt-6 flex justify-center">
+                <Button onClick={openCreate}>{t('props.new')}</Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <LibraryBrowseBar
+                q={propBrowse.q}
+                onQueryChange={propBrowse.setQ}
+                placeholder={t('library.searchPlaceholder')}
+                hasActiveFilters={propHasFilters}
+                onClearFilters={clearPropFilters}
+                filters={
+                  <LibraryFilterSelect
+                    label={t('library.filterImage')}
+                    ariaLabel={t('library.filterImage')}
+                    value={propImage}
+                    onChange={setPropImage}
+                    options={[
+                      { value: '', label: t('library.filterAny') },
+                      {
+                        value: 'has',
+                        label: t('library.filterHasImage')
+                      },
+                      {
+                        value: 'none',
+                        label: t('library.filterNoImage')
+                      }
+                    ]}
+                  />
+                }
+              />
+              {propBrowse.filteredCount === 0 ? (
+                <EmptyState message={t('library.noMatch')} />
+              ) : (
+                <div className={libraryGridClass}>
+                  {propBrowse.pageItems.map((p) => {
+                    const g = galleryFromProp(p)
+                    const cover =
+                      primarySceneGalleryPath(g, p.refImagePath) ??
+                      p.refImagePath
+                    const count = g.length
+                    return (
+                      <article key={p.id} className={libraryCardClass}>
+                        <div className={libraryMediaClass}>
+                          {cover ? (
+                            <LocalMediaImage
+                              filePath={cover}
+                              alt={p.name}
+                              maxHeightClass="h-full max-h-none"
+                              objectFit="cover"
+                              className="h-full border-0 rounded-none"
+                              actionsLayout="overlay"
+                              regenerateBusy={propBusy(p.id)}
+                              onImageClick={() => openEdit(p)}
+                              onRegenerate={() => {
+                                toast.info(t('aiJobs.startedBackground'))
+                                startJob({
+                                  kind: 'prop-plate',
+                                  label: t('props.generatePlate'),
+                                  scope: {
+                                    propId: p.id,
+                                    storyId: activeStoryId ?? undefined
+                                  },
+                                  run: async ({ setProgress, signal }) => {
+                                    setProgress(10, 'image')
+                                    const r =
+                                      await getApi().props.generatePlate({
+                                        propId: p.id,
+                                        variant: plateVariant,
+                                        useIdentityEdit: false,
+                                        persist: false,
+                                        artStyle: p.artStyle ?? undefined
+                                      })
+                                    if (signal.cancelled) {
+                                      try {
+                                        await getApi().media.discardSheetDraft(
+                                          r.path
+                                        )
+                                      } catch {
+                                        /* ignore */
+                                      }
+                                      return
+                                    }
+                                    setProgress(100, 'done')
+                                    return {
+                                      type: 'prop-plate' as const,
+                                      propId: p.id,
+                                      storyId: activeStoryId ?? '',
+                                      path: r.path,
+                                      variant: r.variant ?? plateVariant,
+                                      label: r.label ?? plateVariant,
+                                      enhance: r.enhance
+                                    }
+                                  }
+                                })
+                              }}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              className="flex h-full w-full flex-col items-center justify-center gap-2 text-ink-600"
+                              onClick={() => openEdit(p)}
+                            >
+                              <span className="text-3xl opacity-40">📦</span>
+                              <span className="text-xs">
+                                {t('props.noPhotos')}
+                              </span>
+                            </button>
+                          )}
+                          {count > 0 && (
+                            <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-ink-100 backdrop-blur">
+                              {count} {t('characters.photos')}
+                            </span>
+                          )}
+                        </div>
+                        <div className={libraryBodyClass}>
+                          <h2 className="truncate text-base font-semibold tracking-tight text-ink-50">
+                            {p.name}
+                          </h2>
+                          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-400">
+                            {p.description}
+                          </p>
+                          <div className="mt-3 flex min-h-[1.5rem] flex-wrap gap-1">
+                            {p.material && (
+                              <span className="rounded-full bg-ink-800 px-2 py-0.5 text-[10px] text-ink-400">
+                                {p.material}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-auto flex items-center gap-2 pt-4">
+                            <Button
+                              variant="secondary"
+                              className="min-w-0 flex-1 !py-1.5 text-xs"
+                              onClick={() => openEdit(p)}
+                            >
+                              {t('common.edit')}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="min-w-0 flex-1 !py-1.5 text-xs text-rose-300"
+                              onClick={() => {
+                                void (async () => {
+                                  const ok = await dialog.confirm({
+                                    message: t('common.confirmDelete'),
+                                    variant: 'danger'
+                                  })
+                                  if (ok) void removeWithFeedback(p.id)
+                                })()
+                              }}
+                            >
+                              {t('common.delete')}
+                            </Button>
+                          </div>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </LibraryPageBody>
+      </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        {error && (
-          <p className="mb-4 rounded-lg bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
-            {error.message}
-          </p>
-        )}
-
-        {showForm && (
-          <Card className="mb-6 max-w-xl space-y-3">
-            <div>
-              <Label>{t('props.name')}</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('props.namePlaceholder')}
+      {editorOpen && (
+        <EditorShell
+          open={editorOpen}
+          title={editingId ? t('common.edit') : t('props.new')}
+          subtitle={
+            form.name.trim() || t('props.editorHintShort')
+          }
+          onClose={closeEditor}
+          onSave={() => void handleSave()}
+          saveDisabled={!form.name.trim()}
+          saveLabel={editorBusy ? t('common.saving') : t('common.save')}
+          cancelLabel={t('common.cancel')}
+          busy={editorBusy}
+          tabs={[
+            { id: 'profile', label: t('props.tabProfile') },
+            { id: 'refs', label: t('props.tabRefs') }
+          ]}
+          activeTab={editorPanel}
+          onTabChange={(id) => setEditorPanel(id as EditorPanel)}
+          preview={
+            <div className="flex h-full flex-col gap-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                {t('props.gallery')}
+              </h3>
+              <div className="rounded-xl border border-ink-800">
+                {selectedImage ? (
+                  <LocalMediaImage
+                    filePath={selectedImage.path}
+                    alt={translatePropGalleryLabel(selectedImage.label, t)}
+                    maxHeightClass="max-h-[min(36vh,360px)] lg:max-h-[min(48vh,440px)]"
+                    showMeta
+                    className="border-0 rounded-xl"
+                    actionsLayout="bar"
+                    regenerateBusy={editorBusy}
+                    introVideoBusy={editorBusy}
+                    introVideoPath={selectedImage.introVideoPath}
+                    onIntroVideo={
+                      editingId
+                        ? () => handleGenerateIntroVideo(selectedImage.path)
+                        : undefined
+                    }
+                    onRegenerate={() =>
+                      void handleGeneratePlate({
+                        referenceImagePath: selectedImage.path,
+                        useIdentityEdit: useIdentityRef
+                      })
+                    }
+                  />
+                ) : (
+                  <div className="flex h-32 flex-col items-center justify-center gap-2 px-3 text-xs text-ink-600">
+                    <p>{t('props.noPhotos')}</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button
+                        disabled={editorBusy}
+                        onClick={() => {
+                          setEditorPanel('refs')
+                          void handleGeneratePlate()
+                        }}
+                      >
+                        {t('props.generatePlate')}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={editorBusy}
+                        onClick={() => {
+                          setEditorPanel('refs')
+                          void handlePickExternalRef()
+                        }}
+                      >
+                        {t('characters.externalRefTitle')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {propLayerOptions.length > 1 ? (
+                <div className="flex flex-wrap gap-1">
+                  {propLayerOptions.map((layer) => (
+                    <button
+                      key={layer}
+                      type="button"
+                      className={[
+                        'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                        propLayerFilter === layer
+                          ? 'bg-brand-600 text-white'
+                          : 'bg-ink-800 text-ink-400'
+                      ].join(' ')}
+                      onClick={() => setPropLayerFilter(layer)}
+                    >
+                      {layer === 'all' ? t('library.filterAny') : layer}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <GalleryThumbStrip
+                items={filteredPropGallery}
+                selectedId={selectedImageId}
+                coverPath={form.coverPath}
+                fallbackCoverPath={primarySceneGalleryPath(form.gallery)}
+                onSelect={setSelectedImageId}
+                onReorder={handleReorderGallery}
+                labelOf={(g) => translatePropGalleryLabel(g.label, t)}
               />
             </div>
-            <div>
-              <Label>{t('props.description')}</Label>
-              <Textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t('props.descriptionPlaceholder')}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={() => void handleSubmit()} disabled={!name.trim()}>
-                {editingId ? t('common.save') : t('common.create')}
-              </Button>
-              <Button variant="ghost" onClick={resetForm}>
-                {t('common.cancel')}
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {loading ? (
-          <p className="text-sm text-ink-400">{t('common.loading')}</p>
-        ) : items.length === 0 ? (
-          <EmptyState message={t('props.noProps')} />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {items.map((p) => (
-              <Card key={p.id}>
-                <h2 className="font-semibold text-ink-50">{p.name}</h2>
-                <p className="mt-2 text-sm text-ink-400">{p.description}</p>
-                <div className="mt-4 flex gap-2">
-                  <Button variant="secondary" onClick={() => startEdit(p.id)}>
-                    {t('common.edit')}
+          }
+        >
+          {editorPanel === 'profile' && (
+            <div className={editorFormClass}>
+              <section className="rounded-xl border border-brand-800/35 bg-brand-950/20 p-4">
+                <h3 className="text-sm font-semibold">{t('props.aiTitle')}</h3>
+                <p className="mt-1 text-[11px] text-ink-500">
+                  {t('props.aiHintShort')}
+                </p>
+                <Textarea
+                  className="mt-2"
+                  size="md"
+                  value={aiIdea}
+                  onChange={(e) => setAiIdea(e.target.value)}
+                  placeholder={t('props.ideaPlaceholder')}
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button disabled={editorBusy} onClick={handleAiFill}>
+                    {t('props.aiFill')}
                   </Button>
                   <Button
-                    variant="danger"
-                    onClick={() => {
-                      if (confirm(t('common.confirmDelete'))) void remove(p.id)
-                    }}
+                    variant="secondary"
+                    disabled={editorBusy}
+                    onClick={() => setPlotSuggestOpen(true)}
                   >
-                    {t('common.delete')}
+                    {t('props.suggestFromStory')}
                   </Button>
                 </div>
-              </Card>
-            ))}
+              </section>
+              <section className="space-y-3">
+                <div>
+                  <Label>{t('props.name')}</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, name: e.target.value }))
+                    }
+                    placeholder={t('props.namePlaceholder')}
+                  />
+                </div>
+                <div>
+                  <Label>{t('props.description')}</Label>
+                  <Textarea
+                    size="lg"
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, description: e.target.value }))
+                    }
+                    placeholder={t('props.descriptionPlaceholder')}
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>{t('props.material')}</Label>
+                    <Input
+                      value={form.material}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, material: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('props.sizeNotes')}</Label>
+                    <Input
+                      value={form.sizeNotes}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, sizeNotes: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('props.condition')}</Label>
+                    <Input
+                      value={form.condition}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, condition: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('props.visualTags')}</Label>
+                    <Input
+                      value={form.visualTags}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, visualTags: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {editorPanel === 'refs' && (
+            <div className={editorFormClass}>
+              <div>
+                <h3 className="text-sm font-semibold text-ink-100">
+                  {t('props.tabRefs')}
+                </h3>
+                <p className="mt-1 text-[11px] text-ink-500">
+                  {t('props.plateHintShort')}
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <EditorField label={t('props.plateVariant')}>
+                  <EditorSelect
+                    value={plateVariant}
+                    onChange={(e) =>
+                      setPlateVariant(e.target.value as PropPlateVariantId)
+                    }
+                  >
+                    {PROP_PLATE_VARIANTS.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {t(`props.${v.labelKey}`)}
+                      </option>
+                    ))}
+                  </EditorSelect>
+                </EditorField>
+                <EditorField label={t('props.artStyle')}>
+                  <EditorSelect
+                    value={form.artStyle}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        artStyle: e.target.value as ArtStyleId
+                      }))
+                    }
+                  >
+                    {(
+                      [
+                        'artGroupPhoto',
+                        'artGroup3d',
+                        'artGroupAnime',
+                        'artGroupIllust'
+                      ] as const
+                    ).map((gk) => (
+                      <optgroup key={gk} label={t(`characters.${gk}`)}>
+                        {artGroups[gk].map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {t(`characters.${s.labelKey}`)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </EditorSelect>
+                </EditorField>
+              </div>
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 rounded border-ink-600"
+                  checked={useIdentityRef}
+                  onChange={(e) => setUseIdentityRef(e.target.checked)}
+                />
+                <span className="text-[12px] leading-snug text-ink-300">
+                  <span className="font-medium text-ink-100">
+                    {t('common.useIdentityRef')}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-ink-500">
+                    {t('common.useIdentityRefHint')}
+                  </span>
+                </span>
+              </label>
+              <ExternalRefSection
+                items={propExternalRefs.map((g) => ({
+                  id: g.id,
+                  path: g.path,
+                  label: g.label
+                }))}
+                useExternalRef={useExternalRef}
+                onUseExternalChange={setUseExternalRef}
+                onAdd={handlePickExternalRef}
+                onRemove={(id) => {
+                  const next = removeSceneGalleryItem(form.gallery, id)
+                  setForm((f) => ({
+                    ...f,
+                    gallery: next,
+                    coverPath: isSceneGalleryCoverPath(next, f.coverPath)
+                      ? f.coverPath
+                      : primarySceneGalleryPath(next)
+                  }))
+                }}
+                disabled={editorBusy}
+              />
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <Button
+                  className="sm:flex-1"
+                  disabled={editorBusy}
+                  onClick={() => void handleGeneratePlate()}
+                >
+                  {t('props.generatePlate')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => void handlePickImage()}
+                >
+                  {t('props.pickImage')}
+                </Button>
+                {selectedImage && form.coverPath !== selectedImage.path && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleSetCover(selectedImage.path)}
+                  >
+                    {t('common.setAsCover')}
+                  </Button>
+                )}
+                {selectedImage && form.coverPath === selectedImage.path && (
+                  <span className="inline-flex items-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+                    {t('common.isCover')}
+                  </span>
+                )}
+                {selectedImage && (
+                  <Button
+                    variant="ghost"
+                    className="text-rose-300"
+                    onClick={() => {
+                      const next = removeSceneGalleryItem(
+                        form.gallery,
+                        selectedImage.id
+                      )
+                      setForm((f) => ({
+                        ...f,
+                        gallery: next,
+                        coverPath:
+                          f.coverPath === selectedImage.path
+                            ? primarySceneGalleryPath(next)
+                            : isSceneGalleryCoverPath(next, f.coverPath)
+                              ? f.coverPath
+                              : primarySceneGalleryPath(next)
+                      }))
+                      setSelectedImageId(next[0]?.id ?? null)
+                    }}
+                  >
+                    {t('props.removePhoto')}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </EditorShell>
+      )}
+
+      {plotSuggestOpen && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-overlay/70 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPlotSuggestOpen(false)
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl border border-ink-700 bg-ink-900 p-5 shadow-theme-md">
+            <h2 className="text-base font-semibold text-ink-50">
+              {t('props.suggestFromStory')}
+            </h2>
+            <p className="mt-1 text-[12px] text-ink-400">
+              {t('props.suggestPlotPickerHint')}
+            </p>
+            <div className="mt-4">
+              <PlotContextPicker
+                stories={stories}
+                storyId={plotStoryId}
+                segmentKey={plotSegmentKey}
+                onStoryChange={(id) => {
+                  setPlotStoryId(id)
+                  setPlotSegmentKey('all')
+                }}
+                onSegmentChange={setPlotSegmentKey}
+              />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setPlotSuggestOpen(false)}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                disabled={!plotStoryId || editorBusy}
+                onClick={() => {
+                  setPlotSuggestOpen(false)
+                  const ideaBase =
+                    plotSegmentKey && plotSegmentKey !== 'all'
+                      ? t('props.suggestIdeaFromSegment', {
+                          segment: plotSegmentKey
+                        })
+                      : t('props.suggestIdeaFromStory')
+                  setAiIdea((prev) => prev.trim() || ideaBase)
+                  // Run fill with story context
+                  setTimeout(() => {
+                    if (editorBusy) return
+                    const idea = (
+                      aiIdea.trim() || ideaBase
+                    ).trim()
+                    const snapshot = {
+                      name: form.name.trim() || undefined,
+                      description: form.description.trim() || undefined,
+                      material: form.material.trim() || undefined,
+                      sizeNotes: form.sizeNotes.trim() || undefined,
+                      condition: form.condition.trim() || undefined,
+                      visualTags: form.visualTags.trim() || undefined,
+                      artStyle: form.artStyle || undefined
+                    }
+                    const hasDraft = Object.values(snapshot).some(
+                      (v) => typeof v === 'string' && v.length > 0
+                    )
+                    toast.info(t('aiJobs.startedBackground'))
+                    startJob({
+                      kind: 'prop-ai-fill',
+                      label: t('props.suggestFromStory'),
+                      scope: {
+                        propId: editingId ?? undefined,
+                        storyId: plotStoryId
+                      },
+                      run: async ({ setProgress, signal }) => {
+                        setProgress(20, 'llm')
+                        const r = await getApi().props.aiFill({
+                          idea,
+                          storyId: plotStoryId,
+                          locale: getAiLocale(i18n.language),
+                          existingDraft: hasDraft ? snapshot : undefined
+                        })
+                        if (signal.cancelled) return
+                        setProgress(100, 'done')
+                        return {
+                          type: 'prop-profile' as const,
+                          propId: editingId,
+                          storyId: plotStoryId,
+                          profile: r.profile,
+                          profileJson: r.profileJson,
+                          isNew: !editingId
+                        }
+                      }
+                    })
+                  }, 0)
+                }}
+              >
+                {t('props.aiFill')}
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

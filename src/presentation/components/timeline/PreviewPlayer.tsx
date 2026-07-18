@@ -2,32 +2,71 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getApi } from '../../../lib/api'
 import type { TimelineEntry } from '../../../types/domain'
+import { Button } from '../ui'
+import { tMediaStatus } from '../../lib/statusLabels'
 
 interface PreviewPlayerProps {
   entry: TimelineEntry | null
+  /** Global timeline time (seconds) */
   playhead: number
   isPlaying: boolean
+  onGenerate?: () => void
+  generateDisabled?: boolean
+  generateLabel?: string
+  className?: string
+  /**
+   * While this clip is playing, report media clock → global time
+   * so the timeline playhead follows the video (sequential multi-clip).
+   */
+  onMediaClock?: (globalTime: number) => void
+  /** Fired when this clip’s media reaches its end (or last frame). */
+  onClipEnded?: () => void
 }
 
+/**
+ * Timeline-driven preview: no native controls.
+ * - Scrub: parent playhead → seek
+ * - Play: video element is the clock; reports time via onMediaClock
+ */
 export function PreviewPlayer({
   entry,
   playhead,
-  isPlaying
+  isPlaying,
+  onGenerate,
+  generateDisabled,
+  generateLabel,
+  className = '',
+  onMediaClock,
+  onClipEnded
 }: PreviewPlayerProps): JSX.Element {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const [src, setSrc] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Keep last good src briefly so clip switch does not flash empty. */
+  const lastSrcRef = useRef<string | null>(null)
+  const endedGuard = useRef(false)
+  const playReq = useRef(0)
 
+  // Resolve preview URL for READY media
   useEffect(() => {
     let cancelled = false
     setError(null)
-    setSrc(null)
-    if (!entry?.mediaPath || entry.mediaStatus !== 'READY') return
+    endedGuard.current = false
+    if (!entry?.mediaPath || entry.mediaStatus !== 'READY') {
+      setSrc(null)
+      return
+    }
+    const path = entry.mediaPath
     void getApi()
-      .media.toPreviewUrl(entry.mediaPath)
+      .media.toPreviewUrl(path)
       .then((r) => {
-        if (!cancelled) setSrc(r.url)
+        if (cancelled) return
+        const sep = r.url.includes('?') ? '&' : '?'
+        // Stable bust per path so re-gen updates; avoid remount thrash mid-play
+        const url = `${r.url}${sep}p=${encodeURIComponent(path)}`
+        lastSrcRef.current = url
+        setSrc(url)
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e))
@@ -37,29 +76,132 @@ export function PreviewPlayer({
     }
   }, [entry?.id, entry?.mediaPath, entry?.mediaStatus])
 
-  useEffect(() => {
-    const v = videoRef.current
-    if (!v || !entry) return
+  const seekToPlayhead = (v: HTMLVideoElement, force = false): void => {
+    if (!entry) return
     const local = Math.max(0, playhead - entry.startTime)
-    if (Math.abs(v.currentTime - local) > 0.35) {
+    const clipLen = Math.max(0.05, entry.endTime - entry.startTime)
+    const dur =
+      Number.isFinite(v.duration) && v.duration > 0 ? v.duration : clipLen
+    const target = Math.min(local, Math.max(0, Math.min(dur, clipLen) - 0.04))
+    const threshold = force ? 0.02 : isPlaying ? 0.45 : 0.06
+    if (Math.abs(v.currentTime - target) > threshold) {
       try {
-        v.currentTime = local
+        v.currentTime = target
       } catch {
-        // ignore seek errors while loading
+        /* loading */
       }
     }
-  }, [playhead, entry?.id, entry?.startTime])
+  }
 
+  // Scrub / initial align from parent playhead (when paused, always; when playing, soft)
   useEffect(() => {
     const v = videoRef.current
-    if (!v) return
-    if (isPlaying) void v.play().catch(() => undefined)
-    else v.pause()
-  }, [isPlaying, src])
+    if (!v || !src || !entry) return
+    if (isPlaying) return // media clock owns time while playing
+
+    const run = (): void => seekToPlayhead(v, true)
+    if (v.readyState >= 1) run()
+    else {
+      v.addEventListener('loadedmetadata', run, { once: true })
+      return () => v.removeEventListener('loadedmetadata', run)
+    }
+  }, [playhead, entry?.id, entry?.startTime, entry?.endTime, src, isPlaying])
+
+  // Play / pause + re-enter clip while still playing
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v || !src || !entry) return
+
+    if (!isPlaying) {
+      v.pause()
+      seekToPlayhead(v, true)
+      return
+    }
+
+    endedGuard.current = false
+    const req = ++playReq.current
+
+    const start = (): void => {
+      if (playReq.current !== req) return
+      seekToPlayhead(v, true)
+      void v.play().catch(() => undefined)
+    }
+
+    if (v.readyState >= 2) start()
+    else {
+      const onCanPlay = (): void => {
+        v.removeEventListener('canplay', onCanPlay)
+        start()
+      }
+      v.addEventListener('canplay', onCanPlay)
+      v.load()
+      return () => v.removeEventListener('canplay', onCanPlay)
+    }
+  }, [isPlaying, src, entry?.id])
+
+  // Media clock → parent; detect clip end for sequential advance
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v || !entry || !onMediaClock) return
+
+    const clipLen = Math.max(0.05, entry.endTime - entry.startTime)
+
+    const onTime = (): void => {
+      if (!isPlaying) return
+      const local = v.currentTime || 0
+      const global = entry.startTime + local
+      onMediaClock(Math.min(global, entry.endTime - 0.001))
+
+      const nearEnd =
+        local >= clipLen - 0.08 ||
+        (Number.isFinite(v.duration) &&
+          v.duration > 0 &&
+          local >= v.duration - 0.08)
+      if (nearEnd && !endedGuard.current) {
+        endedGuard.current = true
+        v.pause()
+        onClipEnded?.()
+      }
+    }
+
+    const onEnded = (): void => {
+      if (!isPlaying || endedGuard.current) return
+      endedGuard.current = true
+      onMediaClock(entry.endTime - 0.001)
+      onClipEnded?.()
+    }
+
+    v.addEventListener('timeupdate', onTime)
+    v.addEventListener('ended', onEnded)
+    return () => {
+      v.removeEventListener('timeupdate', onTime)
+      v.removeEventListener('ended', onEnded)
+    }
+  }, [
+    entry?.id,
+    entry?.startTime,
+    entry?.endTime,
+    isPlaying,
+    onMediaClock,
+    onClipEnded,
+    src
+  ])
+
+  const shell = [
+    'flex min-h-0 flex-col overflow-hidden rounded-2xl border border-ink-800/80 shadow-lg shadow-black/30',
+    className
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   if (!entry) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-ink-700 text-xs text-ink-500">
+      <div
+        className={[
+          shell,
+          'items-center justify-center border-dashed bg-ink-900/30 text-xs text-ink-500'
+        ].join(' ')}
+      >
         {t('timeline.previewEmpty')}
       </div>
     )
@@ -67,27 +209,52 @@ export function PreviewPlayer({
 
   if (entry.mediaStatus !== 'READY' || !entry.mediaPath) {
     return (
-      <div className="flex h-40 flex-col items-center justify-center rounded-xl border border-ink-800 bg-ink-900/50 text-xs text-ink-400">
-        <span className="font-medium text-ink-200">{t('timeline.previewNoMedia')}</span>
-        <span className="mt-1 uppercase tracking-wide">{entry.mediaStatus}</span>
+      <div
+        className={[
+          shell,
+          'items-center justify-center gap-3 bg-ink-900/40 text-xs text-ink-400'
+        ].join(' ')}
+      >
+        <div className="text-center">
+          <span className="block font-medium text-ink-200">
+            {t('timeline.previewNoMedia')}
+          </span>
+          <span className="mt-1 inline-block rounded-full bg-ink-800 px-2 py-0.5 text-[10px] tracking-wide text-ink-400">
+            {tMediaStatus(t, entry.mediaStatus)}
+          </span>
+        </div>
+        {onGenerate && (
+          <Button
+            variant="secondary"
+            className="!text-xs"
+            disabled={generateDisabled}
+            onClick={onGenerate}
+          >
+            {generateLabel ?? t('timeline.generateClip')}
+          </Button>
+        )}
+        {isPlaying && (
+          <p className="text-[10px] text-ink-500">{t('timeline.skipEmptyHint')}</p>
+        )}
       </div>
     )
   }
 
+  const displaySrc = src ?? lastSrcRef.current
+
   return (
-    <div className="overflow-hidden rounded-xl border border-ink-800 bg-black">
-      {error && <p className="p-2 text-xs text-rose-300">{error}</p>}
-      {src ? (
+    <div className={[shell, 'bg-black'].join(' ')}>
+      {error && <p className="shrink-0 p-2 text-xs text-rose-300">{error}</p>}
+      {displaySrc ? (
         <video
           ref={videoRef}
-          src={src}
-          className="aspect-video w-full"
-          controls
-          muted
+          src={src ?? undefined}
+          className="h-full min-h-0 w-full flex-1 object-contain"
           playsInline
+          preload="auto"
         />
       ) : (
-        <div className="flex h-40 items-center justify-center text-xs text-ink-500">
+        <div className="flex flex-1 items-center justify-center text-xs text-ink-500">
           {t('common.loading')}
         </div>
       )}

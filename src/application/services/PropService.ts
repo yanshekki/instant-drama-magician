@@ -1,33 +1,67 @@
 import type { PrismaClient } from '../../types/prisma'
-import type { CreatePropInput } from '../../types/domain'
+import type { CreatePropInput, UpdatePropInput } from '../../types/domain'
 import { AppError } from '../../types/errors'
+import { StoryCastService } from './StoryCastService'
+
+function trimOrNull(v: string | null | undefined): string | null {
+  if (v === undefined || v === null) return null
+  const t = v.trim()
+  return t.length ? t : null
+}
 
 export class PropService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  list(storyId: string) {
+  list(opts?: { q?: string }) {
+    const q = opts?.q?.trim()
     return this.prisma.prop.findMany({
-      where: { storyId },
+      where: q
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { description: { contains: q } }
+            ]
+          }
+        : undefined,
       orderBy: { name: 'asc' }
     })
   }
 
-  async create(input: CreatePropInput) {
-    await this.ensureStory(input.storyId)
-    if (!input.name.trim()) throw new AppError('VALIDATION', 'name is required')
-    return this.prisma.prop.create({
-      data: {
-        storyId: input.storyId,
-        name: input.name.trim(),
-        description: input.description.trim()
-      }
-    })
+  listForStory(storyId: string) {
+    return new StoryCastService(this.prisma).listPropsForStory(storyId)
   }
 
-  async update(
-    id: string,
-    data: Partial<Pick<CreatePropInput, 'name' | 'description'>>
-  ) {
+  async get(id: string) {
+    const row = await this.prisma.prop.findUnique({ where: { id } })
+    if (!row) throw new AppError('NOT_FOUND', `Prop not found: ${id}`)
+    return row
+  }
+
+  async create(input: CreatePropInput & { linkStoryId?: string | null }) {
+    if (!input.name.trim()) throw new AppError('VALIDATION', 'name is required')
+    const row = await this.prisma.prop.create({
+      data: {
+        name: input.name.trim(),
+        description: input.description.trim(),
+        material: trimOrNull(input.material),
+        sizeNotes: trimOrNull(input.sizeNotes),
+        condition: trimOrNull(input.condition),
+        visualTags: trimOrNull(input.visualTags),
+        artStyle: trimOrNull(input.artStyle),
+        refImagePath: trimOrNull(input.refImagePath),
+        refGalleryJson: trimOrNull(input.refGalleryJson),
+        profileJson: trimOrNull(input.profileJson),
+        seedPrompt: trimOrNull(input.seedPrompt)
+      }
+    })
+    const linkStoryId = input.linkStoryId ?? input.storyId
+    if (linkStoryId) {
+      await new StoryCastService(this.prisma).linkProp(linkStoryId, row.id)
+    }
+    return row
+  }
+
+  async update(id: string, data: UpdatePropInput) {
     await this.ensureExists(id)
     if (data.name !== undefined && !data.name.trim()) {
       throw new AppError('VALIDATION', 'name is required')
@@ -38,6 +72,33 @@ export class PropService {
         ...(data.name !== undefined ? { name: data.name.trim() } : {}),
         ...(data.description !== undefined
           ? { description: data.description.trim() }
+          : {}),
+        ...(data.material !== undefined
+          ? { material: trimOrNull(data.material) }
+          : {}),
+        ...(data.sizeNotes !== undefined
+          ? { sizeNotes: trimOrNull(data.sizeNotes) }
+          : {}),
+        ...(data.condition !== undefined
+          ? { condition: trimOrNull(data.condition) }
+          : {}),
+        ...(data.visualTags !== undefined
+          ? { visualTags: trimOrNull(data.visualTags) }
+          : {}),
+        ...(data.artStyle !== undefined
+          ? { artStyle: trimOrNull(data.artStyle) }
+          : {}),
+        ...(data.refImagePath !== undefined
+          ? { refImagePath: trimOrNull(data.refImagePath) }
+          : {}),
+        ...(data.refGalleryJson !== undefined
+          ? { refGalleryJson: trimOrNull(data.refGalleryJson) }
+          : {}),
+        ...(data.profileJson !== undefined
+          ? { profileJson: trimOrNull(data.profileJson) }
+          : {}),
+        ...(data.seedPrompt !== undefined
+          ? { seedPrompt: trimOrNull(data.seedPrompt) }
           : {})
       }
     })
@@ -47,14 +108,6 @@ export class PropService {
     await this.ensureExists(id)
     await this.prisma.prop.delete({ where: { id } })
     return { ok: true as const }
-  }
-
-  private async ensureStory(storyId: string): Promise<void> {
-    const story = await this.prisma.story.findUnique({
-      where: { id: storyId },
-      select: { id: true }
-    })
-    if (!story) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
   }
 
   private async ensureExists(id: string): Promise<void> {

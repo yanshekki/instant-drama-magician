@@ -51,4 +51,13 @@ describe('chat error mapping (Grok Gateway)', () => {
     expect(m?.code).toBe('AI_FAILED')
     expect(m?.details).toMatch(/strictSampling/i)
   })
+
+  it('maps no_image_in_sandbox (image tool blocked or empty)', () => {
+    const e = mapChatHttpStatus(
+      502,
+      'Grok finished but no image file was found in the sandbox. The image generation or edit tool may have failed or been blocked. (no_image_in_sandbox)'
+    )
+    expect(e.code).toBe('AI_FAILED')
+    expect(e.details).toMatch(/IMAGE_NO_SANDBOX|imagesApi|base-layer|底衫/i)
+  })
 })

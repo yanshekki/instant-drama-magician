@@ -46,7 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
         available: false,
         baseUrl: 'http://127.0.0.1:3847/v1',
         model: 'grok-4.5',
-        message: 'Unable to query AI status'
+        message: 'AI_STATUS_QUERY_FAILED'
       })
     }
   }, [])

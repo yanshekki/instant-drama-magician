@@ -3,8 +3,16 @@ import { DEFAULT_MAX_CLIP_SECONDS } from '../../domain/timeline'
 import { snapVideoSeconds } from '../../domain/videoDuration'
 import {
   buildClipPrompt,
-  previousClipContext
+  previousClipContext,
+  resolveClipRefImage
 } from '../../domain/promptContinuity'
+import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
+import {
+  beatContentToClipPromptBlock,
+  parseBeatContent
+} from '../../domain/beatContent'
+import { buildClipVideoPolishUserPrompt } from '../../domain/videoPromptPolish'
+import { polishThenGenerateVideo } from '../video/polishVideoPrompt'
 import { mapPool } from '../../infrastructure/ai/video/httpUtils'
 
 export class VideoStep implements PipelineStep {
@@ -72,16 +80,62 @@ export class VideoStep implements PipelineStep {
           scenes: sceneMap,
           props: propMap
         })
-        const prompt = buildClipPrompt({
-          storyTitle: story.title,
-          styleNote: story.styleNote,
-          character,
-          scene,
-          prop,
-          dialogue: entry.dialogue,
-          seconds,
-          previousContext: prev
-        })
+        const parseLangs = (c: NonNullable<typeof character>): string[] | undefined => {
+          try {
+            const raw = (c as { spokenLanguages?: string | null }).spokenLanguages
+            if (!raw?.trim()) return undefined
+            const parsed = JSON.parse(raw) as unknown
+            return Array.isArray(parsed)
+              ? parsed.filter((x): x is string => typeof x === 'string')
+              : undefined
+          } catch {
+            return undefined
+          }
+        }
+        const charBlock = character
+          ? characterVideoPromptBlock({
+              name: character.name,
+              description: character.description,
+              ageRange: character.ageRange ?? undefined,
+              gender: character.gender ?? undefined,
+              appearance: character.appearance ?? character.description,
+              costume: character.costume ?? undefined,
+              personality: character.personality ?? undefined,
+              backstory: character.backstory ?? undefined,
+              relationships: character.relationships ?? undefined,
+              mannerisms: character.mannerisms ?? undefined,
+              voiceDesc: character.voiceDesc ?? undefined,
+              visualTags: character.visualTags ?? undefined,
+              artStyle:
+                (character as { artStyle?: string | null }).artStyle ?? undefined,
+              spokenLanguages: parseLangs(character)
+            })
+          : null
+        const beatOrDialogue =
+          beatContentToClipPromptBlock(
+            parseBeatContent(
+              entry.dialogue,
+              (entry as { beatContentJson?: string | null }).beatContentJson
+            ),
+            entry.dialogue
+          ) || entry.dialogue || null
+        const fallbackPrompt = [
+          buildClipPrompt({
+            storyTitle: story.title,
+            styleNote: story.styleNote,
+            character,
+            scene,
+            prop,
+            dialogue: entry.dialogue,
+            beatContentJson: (entry as { beatContentJson?: string | null })
+              .beatContentJson,
+            seconds,
+            previousContext: prev
+          }),
+          charBlock
+        ]
+          .filter(Boolean)
+          .join('\n')
 
         const outputPath =
           media?.clipOutputPath?.(story.id, entry.id) ?? `/tmp/idm-${entry.id}.mp4`
@@ -99,12 +153,41 @@ export class VideoStep implements PipelineStep {
         })
 
         try {
-          const result = await ai.generateVideo!({
-            prompt,
-            durationSeconds: seconds,
-            refImagePath: character?.refImagePath,
-            outputPath,
-            aspectRatio: context.aspectRatio
+          const ref = resolveClipRefImage({ character, scene, prop })
+          const locale = 'zh-HK' as const
+          const result = await polishThenGenerateVideo({
+            ai,
+            locale,
+            fallbackPrompt,
+            polishUserContent: buildClipVideoPolishUserPrompt({
+              locale,
+              seconds,
+              aspectRatio: context.aspectRatio,
+              hasRefImage: Boolean(ref?.path),
+              fallbackPrompt,
+              storyTitle: story.title,
+              styleNote: story.styleNote,
+              characterBlocks: charBlock ? [charBlock] : [],
+              sceneBlock: scene
+                ? [
+                    `#${scene.sceneNumber} ${scene.title || ''}`,
+                    scene.description,
+                    scene.mood ? `mood: ${scene.mood}` : null
+                  ]
+                    .filter(Boolean)
+                    .join('\n')
+                : null,
+              propBlock: prop ? `${prop.name}: ${prop.description}` : null,
+              beatOrDialogue,
+              previousContext: prev
+            }),
+            videoRequest: {
+              durationSeconds: seconds,
+              refImagePath: ref?.path,
+              outputPath,
+              aspectRatio: context.aspectRatio
+            },
+            signal
           })
           await persistence?.updateEntryMedia?.(entry.id, {
             mediaPath: result.outputPath,
@@ -122,7 +205,7 @@ export class VideoStep implements PipelineStep {
           return {
             ok: true as const,
             degraded: Boolean(result.degraded),
-            line: `✓ ${entry.id} ${seconds}s → ${result.outputPath}${result.jobId ? ` job=${result.jobId}` : ''}${result.degraded ? ' (stub)' : ''}`
+            line: `✓ ${entry.id} ${seconds}s → ${result.outputPath}${result.jobId ? ` job=${result.jobId}` : ''}${result.degraded ? ' (stub)' : ''}${result.polished ? ' (llm-prompt)' : ' (template)'}`
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)

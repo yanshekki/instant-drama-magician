@@ -20,16 +20,26 @@ App 用 **同一套** OpenAI-compatible 客戶端（`/v1/models` · `/v1/chat/co
 | `GET` | `/v1/models` | 列模型（Settings 下拉） |
 | `POST` | `/v1/chat/completions` | 劇本／人物／場景等 pipeline |
 
-### 快速接線
+### 快速接線（App 代管閘道）
 
-1. 啟動 Gateway：`gctoac start` → `http://127.0.0.1:3847`  
-2. Admin：`http://127.0.0.1:3847/admin/` → **Keys** 建立 **`gk_live_…`**  
-3. InstantDrama → **設定 → Grok Gateway（LLM 首選）**  
-   - Base URL：`http://127.0.0.1:3847/v1`（可按「套用官方預設」）  
-   - 貼上 API Key  
+InstantDrama **已內建** `grok-cli-to-openai-compatible`（`gctoac`）：
+
+1. 系統需安裝 **Grok Build** CLI（指令 `grok`）。未安裝時設定頁會提示並可開啟安裝說明。  
+2. 選 **Grok 本機閘道** 後，app 會 **自動** `setup`／`start` 閘道（port **3847**），**唔使**人手 `gctoac start`。  
+3. **每次** `ensureRunning`／開閘道，app 會重套 **InstantDrama gateway preset**（`IDM_GATEWAY_PRESET`）：
+   - API features：images / video / vision / tools / chat 全開  
+   - DDoS rate：全域／IP 上限（約 10 萬／分）、auto-ban 關  
+   - 所有 API key → rate **10000**（gctoac 上限；**唔好用 0**，express-rate-limit v7 會擋晒）  
+   - Queue 高並發、settings global-safe off  
+   - 寫入 `~/.gctoac/.env` 開機預設  
+4. Admin：`http://127.0.0.1:3847/admin/`（一般唔使人手改限流）  
+5. InstantDrama → **設定 → 對話模型 → Grok 本機閘道**  
+   - Key 由 app 自動建立／接線  
    - **刷新模型列表** → 選 model  
    - **測試 Chat** 應回 OK  
-4. 時間軸 **開始生成** → Script 等步驟走真 LLM  
+6. 時間軸 **開始生成** → Script 等步驟走真 LLM  
+
+手動除錯仍可用：`npx gctoac doctor` · `npx gctoac status`。
 
 ### Chat body 同 `strictSampling`（重要）
 
@@ -51,7 +61,7 @@ OpenAI preset 仍會送 temperature。
 | AI_UNAVAILABLE / 連線失敗 | `gctoac start`；檢查 port 3847 |
 | AI_UNAUTHORIZED / 401 | 貼正確 `gk_live_` key |
 | AI_KEY_MODE / 403 | Admin 檢查 key 模式 |
-| AI_RATE_LIMIT / 429 | 等一下；查 Gateway 限流／佇列 |
+| AI_RATE_LIMIT / 429 | 先確認 app 已 ensure 閘道（會重套 max preset）；若仍 429 可能是 **xAI 上游** 限流 |
 | Sampling parameters / strictSampling | 用最新 app（Grok 已 omit）；或 Admin 關 strictSampling |
 | timeout | 加大 `chatTimeoutMs`；查 chat 佇列 |
 

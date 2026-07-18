@@ -39,6 +39,11 @@
       "src/types/prisma/**/*",
       "prisma/**/*"
     ],
+    "asarUnpack": [
+      "**/node_modules/ffmpeg-static/**",
+      "**/node_modules/grok-cli-to-openai-compatible/**",
+      "**/node_modules/.bin/gctoac"
+    ],
     "publish": [
       {
         "provider": "github",
@@ -74,6 +79,8 @@
   "dependencies": {
     "@prisma/client": "^6.5.0",
     "electron-updater": "^6.8.9",
+    "ffmpeg-static": "^5.3.0",
+    "grok-cli-to-openai-compatible": "^1.5.2",
     "i18next": "^24.2.2",
     "jszip": "^3.10.1",
     "konva": "^9.3.20",

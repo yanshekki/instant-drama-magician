@@ -15,23 +15,26 @@ model Story {
   exportPath String?
   /** Visual / tone bible for clip prompt continuity */
   styleNote  String?
+  /** Poster / list card cover (same role as Character.refImagePath). */
+  coverPath  String?
+  /** Optional multi cover gallery JSON (same shape as character gallery). */
+  refGalleryJson String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
-  characters Character[]
-  scenes     Scene[]
-  props      Prop[]
-  timeline   TimelineEntry[]
+  timeline        TimelineEntry[]
+  storyCharacters StoryCharacter[]
+  storyScenes     StoryScene[]
+  storyProps      StoryProp[]
 }
 
+/** Global character library asset (not owned by a story). */
 model Character {
-  id           String  @id @default(cuid())
-  storyId      String
-  name         String
-  soulMdPath   String?
-  description  String
-  refImagePath String?
-  /** Detailed profile for short-drama + video consistency */
+  id             String  @id @default(cuid())
+  name           String
+  soulMdPath     String?
+  description    String
+  refImagePath   String?
   appearance     String?
   personality    String?
   backstory      String?
@@ -39,40 +42,147 @@ model Character {
   ageRange       String?
   gender         String?
   voiceDesc      String?
+  /** JSON string array of BCP-47 / ISO language codes the character speaks */
+  spokenLanguages String?
   mannerisms     String?
   relationships  String?
   visualTags     String?
   seedPrompt     String?
   profileJson    String?
   refSheetPath   String?
-  /** JSON array of gallery items: {id,path,kind,label,createdAt} */
   refGalleryJson String?
   soulHubId      Int?
+  artStyle       String?
+  /** @deprecated Prefer CharacterCostume M2M; kept for migration/fallback */
+  costumesJson   String?
 
-  story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyLinks      StoryCharacter[]
   timelineEntries TimelineEntry[]
+  costumeLinks    CharacterCostume[]
 }
 
+/**
+ * Global wardrobe asset (not owned by a single character).
+ * May link to 0..N characters via CharacterCostume.
+ */
+model Costume {
+  id             String   @id @default(cuid())
+  name           String
+  description    String
+  artStyle       String?
+  refImagePath   String?
+  refGalleryJson String?
+  seedPrompt     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  characterLinks CharacterCostume[]
+  storyCasts     StoryCharacter[]
+}
+
+/** Character ↔ Costume many-to-many. */
+model CharacterCostume {
+  characterId      String
+  costumeId        String
+  sortOrder        Int     @default(0)
+  /** Last “character wearing this costume” plate for this pair */
+  dressedImagePath String?
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  costume   Costume   @relation(fields: [costumeId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, costumeId])
+}
+
+/** Global scene / location library asset. */
 model Scene {
-  id          String      @id @default(cuid())
-  storyId     String
-  sceneNumber Int
-  description String
-  script      String?
-  status      SceneStatus @default(PENDING)
+  id             String      @id @default(cuid())
+  description    String
+  script         String?
+  status         SceneStatus @default(PENDING)
+  title          String?
+  locationType   String?
+  timeOfDay      String?
+  weather        String?
+  mood           String?
+  lighting       String?
+  colorPalette   String?
+  setDressing    String?
+  soundscape     String?
+  cameraNotes    String?
+  visualTags     String?
+  artStyle       String?
+  refImagePath   String?
+  refGalleryJson String?
+  looksJson      String?
+  profileJson    String?
+  seedPrompt     String?
+  locationKey    String?
 
-  story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyLinks      StoryScene[]
   timelineEntries TimelineEntry[]
 }
 
+/** Global prop library asset. */
 model Prop {
-  id          String @id @default(cuid())
-  storyId     String
-  name        String
-  description String
+  id             String  @id @default(cuid())
+  name           String
+  description    String
+  material       String?
+  sizeNotes      String?
+  condition      String?
+  visualTags     String?
+  artStyle       String?
+  refImagePath   String?
+  refGalleryJson String?
+  profileJson    String?
+  seedPrompt     String?
 
-  story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyLinks      StoryProp[]
   timelineEntries TimelineEntry[]
+}
+
+/** Story selects characters (cast). */
+model StoryCharacter {
+  storyId     String
+  characterId String
+  sortOrder   Int     @default(0)
+  roleNote    String?
+  /** Optional wardrobe for this character in this story only. */
+  costumeId   String?
+
+  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  costume   Costume?  @relation(fields: [costumeId], references: [id], onDelete: SetNull)
+
+  @@id([storyId, characterId])
+}
+
+/** Story selects scenes; sceneNumber is per-story order. */
+model StoryScene {
+  storyId        String
+  sceneId        String
+  sceneNumber    Int
+  sortOrder      Int          @default(0)
+  scriptOverride String?
+  statusOverride SceneStatus?
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  scene Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, sceneId])
+  @@unique([storyId, sceneNumber])
+}
+
+model StoryProp {
+  storyId   String
+  propId    String
+  sortOrder Int    @default(0)
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  prop  Prop  @relation(fields: [propId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, propId])
 }
 
 model TimelineEntry {
@@ -80,10 +190,18 @@ model TimelineEntry {
   storyId     String
   startTime   Float
   endTime     Float
+  /** Primary character (first of characterIds); kept for FK + back-compat. */
   characterId String?
   sceneId     String?
   propId      String?
+  /** JSON string arrays of linked cast ids, e.g. '["id1","id2"]'. */
+  characterIds String?
+  sceneIds     String?
+  propIds      String?
+  /** Spoken-line cache (TTS/SRT); may be legacy free text. */
   dialogue    String?
+  /** Structured beat screenplay JSON (BeatContent v1). */
+  beatContentJson String?
   order       Int
   mediaPath   String?
   mediaStatus MediaStatus @default(EMPTY)

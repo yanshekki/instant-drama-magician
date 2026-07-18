@@ -9,6 +9,7 @@ import {
   type TransitionMode
 } from '../../domain/exportLayout'
 import { AppError } from '../../types/errors'
+import { resolveFfmpegPath } from './resolveFfmpegPath'
 
 export interface StoryboardClip {
   startTime: number
@@ -20,7 +21,14 @@ export interface StoryboardClip {
 }
 
 export class FfmpegService {
-  constructor(private readonly ffmpegBin = process.env.FFMPEG_PATH ?? 'ffmpeg') {}
+  constructor(
+    private readonly ffmpegBin: string = resolveFfmpegPath()
+  ) {}
+
+  /** Resolved binary path (for diagnostics). */
+  get binaryPath(): string {
+    return this.ffmpegBin
+  }
 
   async ensureAvailable(): Promise<void> {
     try {
@@ -28,12 +36,16 @@ export class FfmpegService {
     } catch {
       throw new AppError(
         'FFMPEG_UNAVAILABLE',
-        'FFmpeg not found. Install ffmpeg or set FFMPEG_PATH.'
+        'Bundled FFmpeg not found. Reinstall the app or set FFMPEG_PATH to a working ffmpeg binary.'
       )
     }
   }
 
-  /** Generate a short solid-color clip (stub / fallback). */
+  /**
+   * Generate a short solid-color clip (stub / fallback).
+   * Does NOT use drawtext — johnvansickle/ffmpeg-static builds omit that filter.
+   * Optional label is burned via ASS + libass when available; otherwise solid only.
+   */
   async makeColorClip(options: {
     outputPath: string
     durationSeconds: number
@@ -45,27 +57,67 @@ export class FfmpegService {
     await this.ensureAvailable()
     mkdirSync(dirname(options.outputPath), { recursive: true })
     const duration = Math.max(0.5, options.durationSeconds)
-    const text = sanitizeDrawText(options.label.slice(0, 80) || 'clip')
     const color = options.color ?? '0x1e1b4b'
     const w = options.width ?? 1280
     const h = options.height ?? 720
-    await this.run([
+    const label = (options.label || 'clip').slice(0, 80).replace(/\n/g, ' ')
+
+    const baseArgs = [
       this.ffmpegBin,
       '-y',
       '-f',
       'lavfi',
       '-i',
       `color=c=${color}:s=${w}x${h}:d=${duration.toFixed(2)}`,
-      '-vf',
-      `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='${text}':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=(h-text_h)/2`,
-      '-c:v',
-      'libx264',
-      '-pix_fmt',
-      'yuv420p',
-      '-t',
-      duration.toFixed(2),
-      options.outputPath
-    ])
+      '-f',
+      'lavfi',
+      '-i',
+      'anullsrc=channel_layout=stereo:sample_rate=44100'
+    ]
+
+    // Prefer ASS (libass) for label — works on builds without drawtext
+    const assPath = options.outputPath.replace(/\.mp4$/i, '') + '_label.ass'
+    let usedAss = false
+    try {
+      writeFileSync(assPath, buildCenteredAss(label, w, h, duration), 'utf-8')
+      const escaped = assPath
+        .replace(/\\/g, '/')
+        .replace(/:/g, '\\:')
+        .replace(/'/g, "\\'")
+      await this.run([
+        ...baseArgs,
+        '-vf',
+        `ass='${escaped}'`,
+        '-c:v',
+        'libx264',
+        '-pix_fmt',
+        'yuv420p',
+        '-c:a',
+        'aac',
+        '-shortest',
+        '-t',
+        duration.toFixed(2),
+        options.outputPath
+      ])
+      usedAss = true
+    } catch {
+      // Solid color only (always works)
+      await this.run([
+        ...baseArgs,
+        '-c:v',
+        'libx264',
+        '-pix_fmt',
+        'yuv420p',
+        '-c:a',
+        'aac',
+        '-shortest',
+        '-t',
+        duration.toFixed(2),
+        options.outputPath
+      ])
+    }
+    void usedAss
+
     if (!existsSync(options.outputPath)) {
       throw new AppError('FFMPEG_FAILED', 'Color clip missing after encode')
     }
@@ -109,10 +161,9 @@ export class FfmpegService {
         continue
       }
       const seg = join(options.outDir, `fallback_${i}.mp4`)
-      const text = sanitizeDrawText(
+      const text =
         [clip.label, clip.dialogue].filter(Boolean).join(' — ').slice(0, 80) ||
-          `Clip ${i + 1}`
-      )
+        `Clip ${i + 1}`
       await this.makeColorClip({
         outputPath: seg,
         durationSeconds: duration,
@@ -192,10 +243,9 @@ export class FfmpegService {
         segmentPaths.push(norm)
       } else {
         const seg = join(options.outDir, `_ffallback_${i}_${Date.now()}.mp4`)
-        const text = sanitizeDrawText(
+        const text =
           [clip.label, clip.dialogue].filter(Boolean).join(' — ').slice(0, 80) ||
-            `Clip ${i + 1}`
-        )
+          `Clip ${i + 1}`
         await this.makeColorClip({
           outputPath: seg,
           durationSeconds: duration,
@@ -287,13 +337,16 @@ export class FfmpegService {
         '[a]',
         '-c:a',
         'aac',
+        '-b:a',
+        '192k',
         '-shortest'
       )
     } else {
       args.push('-an')
     }
 
-    args.push(outputPath)
+    // moov at start — more reliable for VLC / progressive open
+    args.push('-movflags', '+faststart', outputPath)
     await this.run(args)
 
     if (!existsSync(outputPath)) {
@@ -437,11 +490,43 @@ export class FfmpegService {
   }
 }
 
-function sanitizeDrawText(text: string): string {
-  return text
+/** Minimal ASS for centered white title (uses libass, not drawtext). */
+function buildCenteredAss(
+  text: string,
+  w: number,
+  h: number,
+  durationSec: number
+): string {
+  const safe = text
     .replace(/\\/g, '\\\\')
-    .replace(/:/g, '\\:')
-    .replace(/'/g, "\\'")
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
     .replace(/\n/g, ' ')
+  const end = formatAssTime(durationSec)
+  return [
+    '[Script Info]',
+    'ScriptType: v4.00+',
+    `PlayResX: ${w}`,
+    `PlayResY: ${h}`,
+    'WrapStyle: 0',
+    '',
+    '[V4+ Styles]',
+    // Name, Fontname, Fontsize, Primary, Secondary, Outline, Back, Bold, Italic, ... Alignment=5 center
+    'Style: Default,DejaVu Sans,36,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,5,40,40,40,1',
+    '',
+    '[Events]',
+    'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
+    `Dialogue: 0,0:00:00.00,${end},Default,,0,0,0,,${safe}`,
+    ''
+  ].join('\n')
+}
+
+function formatAssTime(sec: number): string {
+  const s = Math.max(0.1, sec)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const whole = Math.floor(s % 60)
+  const cs = Math.floor((s % 1) * 100)
+  return `${h}:${String(m).padStart(2, '0')}:${String(whole).padStart(2, '0')}.${String(cs).padStart(2, '0')}`
 }
 

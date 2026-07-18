@@ -63,34 +63,36 @@ export function toAppError(error: unknown): AppErrorBody {
 
 /** Map chat / models HTTP failures for Grok Gateway. */
 export function mapChatHttpStatus(status: number, bodyText: string): AppError {
-  const mapped = mapChatMessage(`Chat HTTP ${status}: ${bodyText}`)
-  if (mapped) {
-    return new AppError(mapped.code, mapped.message, mapped.details)
-  }
+  // Prefer short, user-facing messages — never dump raw JSON bodies into toasts.
   if (status === 401) {
     return new AppError(
       'AI_UNAUTHORIZED',
-      `Chat HTTP 401`,
-      'Check API key (gk_live_…) in Settings'
+      'API key rejected',
+      'The gateway refused the key. Re-select Grok so the app can issue a new key.'
     )
   }
   if (status === 403) {
     return new AppError(
       'AI_KEY_MODE',
-      `Chat HTTP 403`,
-      'Key mode may be restricted; use a valid key from Gateway Admin'
+      'Key not allowed for this action',
+      'The app key may need agent permissions. Re-select Grok to refresh automatically.'
     )
   }
   if (status === 429) {
     return new AppError(
       'AI_RATE_LIMIT',
-      `Chat HTTP 429`,
-      'Rate limited — wait or check Gateway DDoS / queue settings'
+      'Too many requests',
+      'The gateway rate limit was hit. Wait a few seconds and try again.'
     )
+  }
+  const mapped = mapChatMessage(`Chat HTTP ${status}: ${bodyText.slice(0, 200)}`)
+  if (mapped) {
+    return new AppError(mapped.code, mapped.message, mapped.details)
   }
   return new AppError(
     'AI_FAILED',
-    `Chat HTTP ${status}: ${bodyText.slice(0, 400)}`
+    `Request failed (HTTP ${status})`,
+    bodyText.slice(0, 200) || undefined
   )
 }
 
@@ -99,30 +101,29 @@ export function mapChatMessage(message: string): AppErrorBody | null {
   if (/cannot reach|econnrefused|fetch failed|network|enotfound/.test(m)) {
     return {
       code: 'AI_UNAVAILABLE',
-      message,
-      details:
-        'Start Grok Gateway: gctoac start (default http://127.0.0.1:3847). See docs/grok-gateway.md'
+      message: 'Cannot reach the AI gateway',
+      details: 'Make sure Grok Build is installed and try again.'
     }
   }
   if (/\b401\b|unauthorized|invalid api key|no api key/.test(m)) {
     return {
       code: 'AI_UNAUTHORIZED',
-      message,
-      details: 'Paste gk_live_… from Gateway Admin → Keys'
+      message: 'API key rejected',
+      details: 'Re-select Grok so the app can issue a new key automatically.'
     }
   }
   if (/\b403\b|forbidden|safe.?mode|key mode/.test(m)) {
     return {
       code: 'AI_KEY_MODE',
-      message,
-      details: 'Check key mode (safe/agent/admin) in Gateway Admin'
+      message: 'Key not allowed for this action',
+      details: 'Re-select Grok to refresh access automatically.'
     }
   }
   if (/\b429\b|rate limit/.test(m)) {
     return {
       code: 'AI_RATE_LIMIT',
-      message,
-      details: 'Wait and retry; check Gateway rate limits'
+      message: 'Too many requests',
+      details: 'Wait a few seconds and try again.'
     }
   }
   // Grok-Cli-to-OpenAI-compatible: strictSampling rejects temperature/top_p/stop
@@ -132,6 +133,27 @@ export function mapChatMessage(message: string): AppErrorBody | null {
       message,
       details:
         'Gateway strictSampling is on. App omits temperature for Grok preset; ensure you are on latest build, or disable strictSampling in Admin → API features.'
+    }
+  }
+  // Image gen tool finished without writing a file (policy block, imagesApi off, or tool fail)
+  if (
+    /no_image_in_sandbox|no image file was found in the sandbox|image generation or edit tool may have failed or been blocked/.test(
+      m
+    )
+  ) {
+    return {
+      code: 'AI_FAILED',
+      message,
+      details:
+        'IMAGE_NO_SANDBOX: Gateway imagesApi ran but returned no image. Enable imagesApi in Admin → API features; use agent/admin key. Body/nude plates are often content-filtered — try「底衫褲」or「戲服」packages first, or simplify the character description.'
+    }
+  }
+  if (/imagesapi|image api is disabled|image.?api.?disabled/.test(m)) {
+    return {
+      code: 'AI_FAILED',
+      message,
+      details:
+        'IMAGE_API_OFF: Enable imagesApi in Gateway Admin → API features, then retry.'
     }
   }
   if (/timed out|timeout|aborted/.test(m)) {
