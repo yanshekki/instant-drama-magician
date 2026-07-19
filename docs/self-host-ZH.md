@@ -32,19 +32,19 @@ npm install
 npm run build:web
 npm link   # 可選
 
-export IDM_DATA_DIR=/var/lib/idm
+export IDM_DATA_DIR=/var/lib/instant-drama
 export IDM_AUTH_TOKEN='your-long-secret'
 export IDM_PORT=8787
 export IDM_HOST=0.0.0.0
 export DATABASE_URL="file:${IDM_DATA_DIR}/instant-drama.db"
 npx prisma db push
-idm server start
+instant-drama server start
 # 開啟 http://SERVER:8787/ 並貼上 IDM_AUTH_TOKEN
 
 export IDM_URL=http://127.0.0.1:8787
 export IDM_TOKEN="$IDM_AUTH_TOKEN"
-idm doctor --json
-idm stories list --json
+instant-drama doctor --json
+instant-drama stories list --json
 ```
 
 本機一鍵（建置 + schema + 免權杖）：
@@ -95,12 +95,12 @@ npm run dev:web
 | 系統選單、桌面圖示、electron-updater | **僅桌面** |
 | 與 Electron 同一 userData | 僅方式 A；方式 B 用 `IDM_DATA_DIR` |
 
-若 channel 回 `NOT_FOUND`：用 `GET /api/channels`／`idm channels list` 確認版本——不是「Web 未 port」。
+若 channel 回 `NOT_FOUND`：用 `GET /api/channels`／`instant-drama channels list` 確認版本——不是「Web 未 port」。
 
 ## 反向代理（建議 HTTPS）
 
 ```
-idm.example.com {
+instant-drama.example.com {
   reverse_proxy 127.0.0.1:8787
 }
 ```

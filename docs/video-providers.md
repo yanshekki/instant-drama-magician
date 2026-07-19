@@ -75,7 +75,7 @@ Also: `burnSubtitles`, `ttsEnabled`, `bgmPath`, `duckRatio`, transition `cut`|`f
 ## Diagnostics
 
 - Settings → **Test Chat** / model list  
-- `idm ai status --json` · `idm media check-ffmpeg --json`  
+- `instant-drama ai status --json` · `instant-drama media check-ffmpeg --json`  
 - Support report redacts API keys  
 
 ## Related

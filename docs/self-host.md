@@ -32,19 +32,19 @@ npm install
 npm run build:web
 npm link   # optional
 
-export IDM_DATA_DIR=/var/lib/idm
+export IDM_DATA_DIR=/var/lib/instant-drama
 export IDM_AUTH_TOKEN='your-long-secret'
 export IDM_PORT=8787
 export IDM_HOST=0.0.0.0
 export DATABASE_URL="file:${IDM_DATA_DIR}/instant-drama.db"
 npx prisma db push
-idm server start
+instant-drama server start
 # Open http://SERVER:8787/ and paste IDM_AUTH_TOKEN
 
 export IDM_URL=http://127.0.0.1:8787
 export IDM_TOKEN="$IDM_AUTH_TOKEN"
-idm doctor --json
-idm stories list --json
+instant-drama doctor --json
+instant-drama stories list --json
 ```
 
 Local one-shot (build + schema + auth disabled):
@@ -95,12 +95,12 @@ Business channels use the **same runtime**. Differences are shell UX:
 | System menu, desktop icon, electron-updater | **Desktop only** |
 | Same userData as Electron | Mode A only; Mode B uses `IDM_DATA_DIR` |
 
-If a channel returns `NOT_FOUND`, check version with `GET /api/channels` / `idm channels list` — not “web not ported”.
+If a channel returns `NOT_FOUND`, check version with `GET /api/channels` / `instant-drama channels list` — not “web not ported”.
 
 ## Reverse proxy (HTTPS recommended)
 
 ```
-idm.example.com {
+instant-drama.example.com {
   reverse_proxy 127.0.0.1:8787
 }
 ```

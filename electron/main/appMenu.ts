@@ -29,6 +29,7 @@ export type MenuAction =
 export type MenuLang = 'zh-HK' | 'en'
 
 const YSK_HOME = 'https://ysk.hk/'
+const CREATOR_LINKTREE = 'https://linktr.ee/yanshekki'
 
 const LABELS: Record<MenuLang, Record<string, string>> = {
   'zh-HK': {
@@ -77,6 +78,7 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
     exportSupport: '匯出支援報告…',
     checkUpdates: '檢查更新…',
     yskWebsite: 'YSK 網站',
+    supportDonate: 'Support / Donate…',
     appMenu: '瞬劇魔法師',
     services: '服務',
     hide: '隱藏瞬劇魔法師',
@@ -130,6 +132,7 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
     exportSupport: 'Export Support Report…',
     checkUpdates: 'Check for Updates…',
     yskWebsite: 'YSK Website',
+    supportDonate: 'Support / Donate…',
     appMenu: 'InstantDrama Magician',
     services: 'Services',
     hide: 'Hide InstantDrama Magician',
@@ -356,6 +359,12 @@ export function buildAppMenuTemplate(
         click: () => handlers.checkUpdates()
       },
       { type: 'separator' },
+      {
+        label: t.supportDonate,
+        click: () => {
+          void shell.openExternal(CREATOR_LINKTREE)
+        }
+      },
       {
         label: t.yskWebsite,
         click: () => {

@@ -1499,5 +1499,21 @@
       "s12Title": "12. Изменения, версии и выживание",
       "s12Body": "Поставщик может обновить Политику отказа от ответственности и приемлемого использования. Если версия документа в приложении изменится, вам может потребоваться принять новую версию, прежде чем продолжить. Продолжение использования после принятия означает согласие с версией, представленной на тот момент.\n\nРазделы об ответственности, возмещении ущерба, интеллектуальной собственности и регулирующем законодательстве остаются в силе после прекращения вашего использования. Эти условия не создают партнерских, трудовых или агентских отношений. Вы не можете передавать эти условия без согласия Поставщика; Поставщик может передать права аффилированному лицу или преемнику. Контакт для получения юридических уведомлений, если это необходимо, следует направлять через опубликованную поддержку проекта или каналы компании YSK Limited."
     }
+  },
+  "creator": {
+    "title": "Creator",
+    "name": "Ki (yanshekki)",
+    "bio": "Full-stack developer, quant trader, founder of YSK Limited.",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!",
+    "openLinktree": "Open Linktree",
+    "yskSite": "YSK website",
+    "copy": "Copy",
+    "copied": "Copied {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

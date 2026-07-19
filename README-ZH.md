@@ -5,7 +5,7 @@
 **AI 專業短劇生成桌面工具**
 
 由一個 idea 到完整短劇：故事 → 人物／服裝／場景／道具 → 線性時間軸 → AI 分鏡與影片 → FFmpeg 成片匯出。  
-跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `idm`（約 **137** 個 channel，對齊桌面 IPC）。
+跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `instant-drama`（約 **137** 個 channel，對齊桌面 IPC）。
 
 | | |
 |---|---|
@@ -24,14 +24,15 @@
 3. [桌面應用詳解](#桌面應用詳解)
 4. [推薦工作流](#推薦工作流)
 5. [安裝與啟動](#安裝與啟動)
-6. [命令列 CLI（idm）](#命令列-cliidm)
+6. [命令列 CLI（instant-drama）](#命令列-cliidm)
 7. [網頁遠控與自架](#網頁遠控與自架)
 8. [AI 與媒體供應商](#ai-與媒體供應商)
 9. [多語系](#多語系)
 10. [資料目錄與備份](#資料目錄與備份)
 11. [技術架構](#技術架構)
 12. [文件索引](#文件索引)
-13. [授權與聯絡](#授權與聯絡)
+13. [創作者](#-創作者)
+14. [授權與聯絡](#授權與聯絡)
 
 ---
 
@@ -91,8 +92,8 @@
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
 | **設定** | LLM／影像／影片供應商、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
-| **CLI `idm`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent |
-| **網頁遠控** | 桌面內建 Web Server 或獨立 `idm server`，瀏覽器操作同一份資料 |
+| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent |
+| **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
 | **多語系** | 10 種介面語言（含繁中、簡中、阿語 RTL 等） |
 | **自動更新** | 打包版經 GitHub Releases（electron-updater） |
 
@@ -199,11 +200,20 @@
 ⑦ Export → 成片（可選 TTS／字幕）
 ```
 
-Demo：開發時可載入示範故事；CLI 亦有 `idm stories seed-demo`。
+Demo：開發時可載入示範故事；CLI 亦有 `instant-drama stories seed-demo`。
 
 ---
 
 ## 安裝與啟動
+
+### 只裝 CLI（npm 全域）
+
+```bash
+npm install -g instant-drama-magician
+instant-drama doctor --json
+```
+
+完整指令見 [命令列 CLI（`instant-drama`）](#命令列-cliidm)。npm 套件名：**`instant-drama-magician`**。
 
 ### 安裝包（使用者）
 
@@ -225,8 +235,8 @@ sudo dpkg -i release/instant-drama-magician_1.0.0_amd64.deb
 亦可用 CLI：
 
 ```bash
-idm build --target installer
-idm open
+instant-drama build --target installer
+instant-drama open
 ```
 
 ### 開發者快速開始
@@ -255,23 +265,56 @@ npm run dev
 | `npm run build` | 編譯 main／preload／renderer |
 | `npm test` | Vitest |
 | `npm run dist:linux` / `dist:win` / `dist:mac` | 分平台安裝包 |
-| `npm run idm -- …` | 執行 CLI（無需全域 link） |
+| `npm run instant-drama -- …` | 執行 CLI（無需全域 link） |
 
 ---
 
-## 命令列 CLI（`idm`）
+## 命令列 CLI（`instant-drama`）
 
 用終端控制**整套**能力：本地 headless runtime，或連線已啟動的 Web Server。適合腳本、CI、**OpenClaw／Hermes** 等 agent。
 
-### 安裝
+全域安裝後 PATH 上會有：**`instant-drama`**。
+
+### 全域安裝 CLI（推薦）
+
+需要 **Node.js 20+**。
 
 ```bash
-npm install
-npm link          # 全域：idm  /  instant-drama
-idm --help
+# 從 npm registry（發佈後）
+npm install -g instant-drama-magician
+
+# 驗證
+instant-drama --help
+instant-drama doctor --json
+instant-drama version
 ```
 
-開發可不必 link：`npm run idm -- doctor --json`
+你會得到：
+
+| 指令 | 用途 |
+|------|------|
+| `instant-drama` | CLI（唯一指令名；避免與 npm 上無關套件 `idm` 撞名） |
+
+全域安裝後常見用法：
+
+```bash
+instant-drama --local stories list --json
+instant-drama server start --port 8787
+instant-drama channels list --json          # 約 137 個 channel
+```
+
+> **說明：** 全域安裝提供 **CLI／headless／網頁伺服器** 控制面（故事、角色、生成、匯出輔助、agent 工具）。若要 **建置或開啟 Electron 桌面 GUI**（`instant-drama build`／`instant-drama open`），仍需完整 git clone、`npm install`（含 Electron 等 devDependencies）以及本機 `release/` 產物。
+
+### 從本倉庫安裝
+
+```bash
+git clone https://github.com/yanshekki/instant-drama-magician.git
+cd instant-drama-magician
+npm install
+npm link                 # 將 instant-drama 掛上 PATH
+# 或不 link：
+npm run instant-drama -- doctor --json
+```
 
 ### 模式
 
@@ -284,35 +327,35 @@ idm --help
 
 ```bash
 # 診斷（channel 數應約 137）
-idm doctor --json
-idm channels list --json
+instant-drama doctor --json
+instant-drama channels list --json
 
 # 任意 channel
-idm invoke stories:list --json
-idm invoke generation:run '["storyId"]' --json
+instant-drama invoke stories:list --json
+instant-drama invoke generation:run '["storyId"]' --json
 
 # Domain sugar
-idm stories list --json
-idm stories create --title "我的短劇" --json
-idm characters list --json
-idm characters generate-sheet --args '[{"characterId":"…"}]' --json
-idm generation run <storyId> --json
-idm settings get --json
-idm ai status --json
-idm media check-ffmpeg --json
+instant-drama stories list --json
+instant-drama stories create --title "我的短劇" --json
+instant-drama characters list --json
+instant-drama characters generate-sheet --args '[{"characterId":"…"}]' --json
+instant-drama generation run <storyId> --json
+instant-drama settings get --json
+instant-drama ai status --json
+instant-drama media check-ffmpeg --json
 
 # 桌面生命週期（macOS · Ubuntu · Windows）
-idm build                         # 本機 unpacked
-idm build --target installer      # dmg / AppImage+deb / nsis
-idm open                          # 開已打包 App
-idm open --dev                    # 開發模式
-idm open --build-if-missing
+instant-drama build                         # 本機 unpacked
+instant-drama build --target installer      # dmg / AppImage+deb / nsis
+instant-drama open                          # 開已打包 App
+instant-drama open --dev                    # 開發模式
+instant-drama open --build-if-missing
 
 # 網頁伺服器
-idm server start --port 8787 --data-dir ./data
+instant-drama server start --port 8787 --data-dir ./data
 
 # Agent 工具定義
-idm tools schema --openai > tools.json
+instant-drama tools schema --openai > tools.json
 ```
 
 **Namespaces 示例：**  
@@ -342,7 +385,7 @@ export IDM_AUTH_TOKEN='your-long-secret'
 export IDM_PORT=8787
 export DATABASE_URL="file:${IDM_DATA_DIR}/instant-drama.db"
 npx prisma db push
-idm server start
+instant-drama server start
 # 瀏覽器 → http://127.0.0.1:8787  貼上 token
 ```
 
@@ -440,7 +483,7 @@ rm -rf ~/.config/instant-drama-magician
 | 資料 | SQLite + Prisma |
 | 媒體 | FFmpeg；時間軸 UI |
 | 整合 | OpenAI-compatible HTTP；Grok Gateway |
-| 執行時 | 共用 `registerAllHandlers` → Electron IPC / Web `/api/invoke` / CLI `idm invoke` |
+| 執行時 | 共用 `registerAllHandlers` → Electron IPC / Web `/api/invoke` / CLI `instant-drama invoke` |
 
 架構說明：[docs/architecture-ZH.md](./docs/architecture-ZH.md)
 
@@ -472,6 +515,24 @@ rm -rf ~/.config/instant-drama-magician
 | [docs/rc.md](./docs/rc.md) | [docs/rc-ZH.md](./docs/rc-ZH.md) | 歷史 RC |
 | [skills/idm/SKILL.md](./skills/idm/SKILL.md) | [skills/idm/SKILL-ZH.md](./skills/idm/SKILL-ZH.md) | OpenClaw skill |
 | [resources/README.md](./resources/README.md) | [resources/README-ZH.md](./resources/README-ZH.md) | App 圖示 |
+
+---
+
+## 👤 創作者
+
+**Ki (yanshekki)** — 全端開發者、量化交易者、[YSK Limited](https://ysk.hk/) 創辦人。
+
+🌐 [linktr.ee/yanshekki](https://linktr.ee/yanshekki) · 🏢 [ysk.hk](https://ysk.hk/)
+
+### ☕ Support / Donate
+
+如果「瞬劇魔法師」幫到你的短劇創作與產線，歡迎請我喝杯咖啡支持開發！
+
+| 網路 | 地址 |
+| --- | --- |
+| **EVM** (ETH/BSC/AVAX) | `yanshekki.eth` |
+| **NEAR** | `yanshekki.near` |
+| **ADA** (Cardano) | `$yanshekki` |
 
 ---
 

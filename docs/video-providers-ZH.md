@@ -75,7 +75,7 @@
 ## 診斷
 
 - 設定 → **測試 Chat**／模型列表  
-- `idm ai status --json` · `idm media check-ffmpeg --json`  
+- `instant-drama ai status --json` · `instant-drama media check-ffmpeg --json`  
 - 支援報告會遮罩 API key  
 
 ## 相關

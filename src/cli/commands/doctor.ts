@@ -110,7 +110,7 @@ export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
     return
   }
 
-  printHuman(`idm doctor — ${report.ok ? 'OK' : 'ISSUES'}`)
+  printHuman(`instant-drama doctor — ${report.ok ? 'OK' : 'ISSUES'}`)
   printHuman(`  config: ${report.configPath}`)
   printHuman(`  mode probe: ${globals.url && !globals.local ? 'remote' : 'local'}`)
   if (checks.channels && typeof checks.channels === 'object') {

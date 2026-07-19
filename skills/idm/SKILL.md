@@ -1,12 +1,12 @@
 ---
-name: idm
-description: Control InstantDrama Magician (AI short-drama app) via the idm CLI — stories, cast, timeline, generation, settings, backups. Use when the user wants to create or manage dramas, characters, scenes, exports, or app settings from the terminal.
+name: instant-drama
+description: Control InstantDrama Magician (AI short-drama app) via the instant-drama CLI — stories, cast, timeline, generation, settings, backups. Use when the user wants to create or manage dramas, characters, scenes, exports, or app settings from the terminal.
 metadata:
   {
     "openclaw":
       {
         "emoji": "🎬",
-        "requires": { "bins": ["idm"] },
+        "requires": { "bins": ["instant-drama"] },
         "homepage": "https://github.com/yanshekki/instant-drama-magician"
       }
   }
@@ -14,13 +14,13 @@ metadata:
 
 > **Language:** [English](./SKILL.md) · [中文](./SKILL-ZH.md)
 
-# InstantDrama Magician (`idm`)
+# InstantDrama Magician (`instant-drama`)
 
-You control the **InstantDrama Magician** app through the **`idm`** CLI (not the GUI).
+You control the **InstantDrama Magician** app through the **`instant-drama`** CLI (not the GUI).
 
 ## Setup (once)
 
-- Binary on PATH: `idm` (`npm install -g` / `npm link` in the app repo)
+- Binary on PATH: `instant-drama` (`npm install -g` / `npm link` in the app repo)
 - Prefer **remote** mode against a running server:
 
 ```bash
@@ -33,7 +33,7 @@ export IDM_JSON=1
 
 ```bash
 export IDM_DATA_DIR=~/.local/share/idm
-idm --local doctor --json
+instant-drama --local doctor --json
 ```
 
 **Never** paste API tokens into user-visible chat if avoidable — use env.
@@ -41,8 +41,8 @@ idm --local doctor --json
 ## Always start with discovery
 
 ```bash
-idm doctor --json
-idm channels list --json
+instant-drama doctor --json
+instant-drama channels list --json
 ```
 
 Only call channels that appear in `channels list` (expect **~137**). Desktop, web, and CLI share one registry. If a channel is missing, the binary is likely outdated.
@@ -57,10 +57,10 @@ Only call channels that appear in `channels list` (expect **~137**). Desktop, we
 ## Desktop app build & open
 
 ```bash
-idm build --json
-idm build --target installer --json
-idm open --build-if-missing --json
-idm open --dev
+instant-drama build --json
+instant-drama build --target installer --json
+instant-drama open --build-if-missing --json
+instant-drama open --dev
 ```
 
 Supports **macOS, Ubuntu/Linux, Windows**. Build macOS targets on a Mac.
@@ -68,26 +68,26 @@ Supports **macOS, Ubuntu/Linux, Windows**. Build macOS targets on a Mac.
 ## Full control (137 channels)
 
 ```bash
-idm channels list --json
-idm invoke <channel> --args '[...]' --json
-idm characters list --json
-idm characters generate-sheet --args '[{...}]' --json
-idm generation run STORY_ID --json
-idm media check-ffmpeg --json
+instant-drama channels list --json
+instant-drama invoke <channel> --args '[...]' --json
+instant-drama characters list --json
+instant-drama characters generate-sheet --args '[{...}]' --json
+instant-drama generation run STORY_ID --json
+instant-drama media check-ffmpeg --json
 ```
 
 ## High-frequency commands
 
 ```bash
-idm stories list --json
-idm stories create --title "Title" --json
-idm stories get <id> --json
-idm stories delete <id> --yes --json
-idm stories seed-demo zh-HK --json
-idm settings get --json
-idm settings set locale zh-HK --json
-idm ai status --json
-idm app info --json
+instant-drama stories list --json
+instant-drama stories create --title "Title" --json
+instant-drama stories get <id> --json
+instant-drama stories delete <id> --yes --json
+instant-drama stories seed-demo zh-HK --json
+instant-drama settings get --json
+instant-drama settings set locale zh-HK --json
+instant-drama ai status --json
+instant-drama app info --json
 ```
 
 Destructive channels require `--yes` or `IDM_YES=1`.  
@@ -95,23 +95,23 @@ Headless file dialogs: `IDM_PICK_FILE` / `IDM_SAVE_PATH`.
 
 ## Typical creative flow
 
-1. `idm stories seed-demo zh-HK --json` or `stories create`
+1. `instant-drama stories seed-demo zh-HK --json` or `stories create`
 2. Inspect with `stories get` / `characters list`
 3. Generate sheets / covers / prep via domain sugar
-4. `idm generation run <storyId> --json`
+4. `instant-drama generation run <storyId> --json`
 5. Export via media/export channels or project backup
 
 ## Tool schema
 
 ```bash
-idm tools schema --openai
-idm tools call idm_stories_list --args '[]' --json
+instant-drama tools schema --openai
+instant-drama tools call idm_stories_list --args '[]' --json
 ```
 
 ## Server
 
 ```bash
-idm server start --port 8787 --host 127.0.0.1
+instant-drama server start --port 8787 --host 127.0.0.1
 ```
 
 Foreground — usually started by ops, not mid-agent-turn.

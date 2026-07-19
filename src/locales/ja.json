@@ -1499,5 +1499,21 @@
       "s12Title": "12. 変更、バージョン管理、および存続",
       "s12Body": "プロバイダーは、免責事項および利用規約を更新する場合があります。アプリ内ドキュメントのバージョンが変更されると、続行する前に新しいバージョンに同意することが求められる場合があります。同意後に使用を継続すると、その時点で表示されているバージョンに同意したことになります。\n\n責任、補償、知的財産、および準拠法に関するセクションは、使用終了後も存続します。これらの条件は、パートナーシップ、雇用、代理関係を生み出すものではありません。プロバイダーの同意なしにこれらの条件を割り当てることはできません。プロバイダーは関連会社または後継者に譲渡する場合があります。法的通知が必要な場合は、プロジェクトの公開サポートまたは YSK Limited の企業チャネルを通じて連絡する必要があります。"
     }
+  },
+  "creator": {
+    "title": "Creator",
+    "name": "Ki (yanshekki)",
+    "bio": "Full-stack developer, quant trader, founder of YSK Limited.",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!",
+    "openLinktree": "Open Linktree",
+    "yskSite": "YSK website",
+    "copy": "Copy",
+    "copied": "Copied {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

@@ -5,7 +5,7 @@
 **AI professional short-drama desktop studio**
 
 From one idea to a finished short drama: story → characters / costumes / scenes / props → linear timeline → AI storyboard & video → FFmpeg final export.  
-Cross-platform desktop (Electron) + optional browser remote control + full CLI `idm` (**137** channels, same surface as desktop IPC).
+Cross-platform desktop (Electron) + optional browser remote control + full CLI `instant-drama` (**137** channels, same surface as desktop IPC).
 
 | | |
 |---|---|
@@ -24,14 +24,15 @@ Cross-platform desktop (Electron) + optional browser remote control + full CLI `
 3. [Desktop app details](#desktop-app-details)
 4. [Recommended workflow](#recommended-workflow)
 5. [Install & run](#install--run)
-6. [CLI (`idm`)](#cli-idm)
+6. [CLI (`instant-drama`)](#cli-instant-drama)
 7. [Web remote & self-host](#web-remote--self-host)
 8. [AI & media providers](#ai--media-providers)
 9. [UI languages](#ui-languages)
 10. [Data directories & backup](#data-directories--backup)
 11. [Architecture](#architecture)
 12. [Documentation index](#documentation-index)
-13. [License & contact](#license--contact)
+13. [Creator](#-creator)
+14. [License & contact](#license--contact)
 
 ---
 
@@ -91,8 +92,8 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
 | **Settings** | LLM / image / video providers, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
-| **CLI `idm`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents |
-| **Web remote** | In-app web server or standalone `idm server`; browser uses the same data |
+| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents |
+| **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
 | **i18n** | 10 UI languages (incl. zh-HK, zh-CN, Arabic RTL, etc.) |
 | **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
 
@@ -199,11 +200,20 @@ Best when you want continuity locked before video generation.
 7) Export → final (optional TTS / subtitles)
 ```
 
-Demo: load a sample story in dev; CLI also has `idm stories seed-demo`.
+Demo: load a sample story in dev; CLI also has `instant-drama stories seed-demo`.
 
 ---
 
 ## Install & run
+
+### CLI only (global npm)
+
+```bash
+npm install -g instant-drama-magician
+instant-drama doctor --json
+```
+
+See [CLI (`instant-drama`)](#cli-instant-drama) for full commands. Package name on npm: **`instant-drama-magician`**.
 
 ### Packages (end users)
 
@@ -225,8 +235,8 @@ sudo dpkg -i release/instant-drama-magician_1.0.0_amd64.deb
 Or via CLI:
 
 ```bash
-idm build --target installer
-idm open
+instant-drama build --target installer
+instant-drama open
 ```
 
 ### Developer quick start
@@ -255,23 +265,56 @@ Details: [docs/grok-gateway.md](./docs/grok-gateway.md).
 | `npm run build` | Compile main / preload / renderer |
 | `npm test` | Vitest |
 | `npm run dist:linux` / `dist:win` / `dist:mac` | Platform installers |
-| `npm run idm -- …` | Run CLI without global link |
+| `npm run instant-drama -- …` | Run CLI without global link |
 
 ---
 
-## CLI (`idm`)
+## CLI (`instant-drama`)
 
 Drive the **full** surface from the shell: local headless runtime or a running web server. For scripts, CI, and **OpenClaw / Hermes** agents.
 
-### Install
+Command on PATH after global install: **`instant-drama`**.
+
+### Install CLI globally (recommended)
+
+Requires **Node.js 20+**.
 
 ```bash
-npm install
-npm link          # global: idm / instant-drama
-idm --help
+# From npm registry (after publish)
+npm install -g instant-drama-magician
+
+# Verify
+instant-drama --help
+instant-drama doctor --json
+instant-drama version
 ```
 
-Without link: `npm run idm -- doctor --json`
+What you get:
+
+| Binary | Purpose |
+|--------|---------|
+| `instant-drama` | CLI (only command name; avoids clash with unrelated npm package `idm`) |
+
+Typical usage after global install:
+
+```bash
+instant-drama --local stories list --json
+instant-drama server start --port 8787
+instant-drama channels list --json          # ~137 channels
+```
+
+> **Note:** Global install provides the **CLI / headless / web-server** control plane (stories, cast, generation, export helpers, agent tools). Building or opening the **Electron desktop GUI** (`instant-drama build` / `instant-drama open`) still needs a full git clone with `npm install` (devDependencies such as Electron) and a local `release/` tree.
+
+### Install from this repository
+
+```bash
+git clone https://github.com/yanshekki/instant-drama-magician.git
+cd instant-drama-magician
+npm install
+npm link                 # puts instant-drama on PATH
+# or without link:
+npm run instant-drama -- doctor --json
+```
 
 ### Modes
 
@@ -284,35 +327,35 @@ Without link: `npm run idm -- doctor --json`
 
 ```bash
 # Diagnostics (channel count should be ~137)
-idm doctor --json
-idm channels list --json
+instant-drama doctor --json
+instant-drama channels list --json
 
 # Any channel
-idm invoke stories:list --json
-idm invoke generation:run '["storyId"]' --json
+instant-drama invoke stories:list --json
+instant-drama invoke generation:run '["storyId"]' --json
 
 # Domain sugar
-idm stories list --json
-idm stories create --title "My drama" --json
-idm characters list --json
-idm characters generate-sheet --args '[{"characterId":"…"}]' --json
-idm generation run <storyId> --json
-idm settings get --json
-idm ai status --json
-idm media check-ffmpeg --json
+instant-drama stories list --json
+instant-drama stories create --title "My drama" --json
+instant-drama characters list --json
+instant-drama characters generate-sheet --args '[{"characterId":"…"}]' --json
+instant-drama generation run <storyId> --json
+instant-drama settings get --json
+instant-drama ai status --json
+instant-drama media check-ffmpeg --json
 
 # Desktop lifecycle (macOS · Ubuntu · Windows)
-idm build                         # local unpacked
-idm build --target installer      # dmg / AppImage+deb / nsis
-idm open                          # open packaged app
-idm open --dev                    # development mode
-idm open --build-if-missing
+instant-drama build                         # local unpacked
+instant-drama build --target installer      # dmg / AppImage+deb / nsis
+instant-drama open                          # open packaged app
+instant-drama open --dev                    # development mode
+instant-drama open --build-if-missing
 
 # Web server
-idm server start --port 8787 --data-dir ./data
+instant-drama server start --port 8787 --data-dir ./data
 
 # Agent tool definitions
-idm tools schema --openai > tools.json
+instant-drama tools schema --openai > tools.json
 ```
 
 **Example namespaces:**  
@@ -342,7 +385,7 @@ export IDM_AUTH_TOKEN='your-long-secret'
 export IDM_PORT=8787
 export DATABASE_URL="file:${IDM_DATA_DIR}/instant-drama.db"
 npx prisma db push
-idm server start
+instant-drama server start
 # Browser → http://127.0.0.1:8787  paste token
 ```
 
@@ -440,7 +483,7 @@ rm -rf ~/.config/instant-drama-magician
 | Data | SQLite + Prisma |
 | Media | FFmpeg; timeline UI |
 | Integration | OpenAI-compatible HTTP; Grok Gateway |
-| Runtime | Shared `registerAllHandlers` → Electron IPC / Web `/api/invoke` / CLI `idm invoke` |
+| Runtime | Shared `registerAllHandlers` → Electron IPC / Web `/api/invoke` / CLI `instant-drama invoke` |
 
 Details: [docs/architecture.md](./docs/architecture.md).
 
@@ -472,6 +515,24 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 | [docs/rc.md](./docs/rc.md) | [docs/rc-ZH.md](./docs/rc-ZH.md) | Historical RC |
 | [skills/idm/SKILL.md](./skills/idm/SKILL.md) | [skills/idm/SKILL-ZH.md](./skills/idm/SKILL-ZH.md) | OpenClaw skill |
 | [resources/README.md](./resources/README.md) | [resources/README-ZH.md](./resources/README-ZH.md) | App icons |
+
+---
+
+## 👤 Creator
+
+**Ki (yanshekki)** — Full-stack developer, quant trader, founder of [YSK Limited](https://ysk.hk/).
+
+🌐 [linktr.ee/yanshekki](https://linktr.ee/yanshekki) · 🏢 [ysk.hk](https://ysk.hk/)
+
+### ☕ Support / Donate
+
+If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!
+
+| Network | Address |
+| --- | --- |
+| **EVM** (ETH/BSC/AVAX) | `yanshekki.eth` |
+| **NEAR** | `yanshekki.near` |
+| **ADA** (Cardano) | `$yanshekki` |
 
 ---
 

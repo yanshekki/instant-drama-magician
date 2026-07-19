@@ -479,6 +479,7 @@ function showAboutDialog(): void {
   const lang = loadMenuLang()
   const version = app.getVersion()
   const userData = app.getPath('userData')
+  const en = lang === 'en'
   const detail = [
     `Version ${version}`,
     `Electron ${process.versions.electron ?? '?'}`,
@@ -486,22 +487,35 @@ function showAboutDialog(): void {
     `Node ${process.versions.node ?? '?'}`,
     `Platform ${process.platform}`,
     '',
+    en
+      ? 'Creator: Ki (yanshekki) · YSK Limited'
+      : '創作者：Ki (yanshekki) · YSK Limited',
+    'linktr.ee/yanshekki · ysk.hk',
+    '',
+    en
+      ? 'Support / Donate — if InstantDrama Magician helps your short-drama workflow, consider buying me a coffee!'
+      : 'Support / Donate — 如果「瞬劇魔法師」幫到你的短劇創作，歡迎請我喝杯咖啡！',
+    'EVM: yanshekki.eth',
+    'NEAR: yanshekki.near',
+    'ADA: $yanshekki',
+    '',
     `Data: ${userData}`
   ].join('\n')
   const win = mainWindow
   const opts = {
     type: 'info' as const,
-    title:
-      lang === 'en'
-        ? `About ${APP_DISPLAY_NAME_EN}`
-        : `關於${APP_DISPLAY_NAME_ZH}`,
-    message: lang === 'en' ? APP_DISPLAY_NAME_EN : APP_DISPLAY_NAME,
+    title: en
+      ? `About ${APP_DISPLAY_NAME_EN}`
+      : `關於${APP_DISPLAY_NAME_ZH}`,
+    message: en ? APP_DISPLAY_NAME_EN : APP_DISPLAY_NAME,
     detail,
     buttons: [
-      lang === 'en' ? 'Open data folder' : '開啟資料資料夾',
-      lang === 'en' ? 'OK' : '確定'
+      en ? 'Support / Donate' : 'Support / Donate',
+      en ? 'Open data folder' : '開啟資料資料夾',
+      en ? 'OK' : '確定'
     ],
-    defaultId: 1
+    defaultId: 2,
+    cancelId: 2
   }
   const box =
     win && !win.isDestroyed()
@@ -509,6 +523,8 @@ function showAboutDialog(): void {
       : dialog.showMessageBox(opts)
   void box.then((r) => {
     if (r.response === 0) {
+      void shell.openExternal('https://linktr.ee/yanshekki')
+    } else if (r.response === 1) {
       void shell.openPath(userData)
     }
   })

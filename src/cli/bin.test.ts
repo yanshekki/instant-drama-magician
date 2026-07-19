@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { spawnSync } from 'child_process'
 import { join } from 'path'
 
-describe('idm bin', () => {
+describe('instant-drama bin', () => {
   it('prints help', () => {
     const r = spawnSync(
       process.execPath,
@@ -14,7 +14,7 @@ describe('idm bin', () => {
       { encoding: 'utf8', cwd: join(__dirname, '../..') }
     )
     const out = (r.stdout || '') + (r.stderr || '')
-    expect(out).toMatch(/idm|USAGE|doctor/i)
+    expect(out).toMatch(/instant-drama|USAGE|doctor/i)
   })
 
   it('prints version', () => {

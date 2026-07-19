@@ -1,9 +1,9 @@
 /**
- * idm — InstantDrama Magician CLI entry.
+ * instant-drama — InstantDrama Magician CLI entry.
  *
  *   npx tsx src/cli/bin.ts doctor --json
- *   idm invoke stories:list --json
- *   idm characters generate-sheet --args '[{...}]'
+ *   instant-drama invoke stories:list --json
+ *   instant-drama characters generate-sheet --args '[{...}]'
  */
 import { readFileSync } from 'fs'
 import { join } from 'path'
@@ -24,21 +24,27 @@ import { emitFailure, printHuman } from './output'
 import { EXIT } from './types'
 
 function packageVersion(): string {
-  try {
-    const p = join(process.cwd(), 'package.json')
-    const j = JSON.parse(readFileSync(p, 'utf8')) as { version?: string }
-    if (j.version) return j.version
-  } catch {
-    /* ignore */
+  // Prefer this package's package.json (works for npm -g and local),
+  // not process.cwd() which may be an unrelated project.
+  const candidates = [
+    join(__dirname, '..', '..', 'package.json'),
+    join(__dirname, '..', '..', '..', 'package.json')
+  ]
+  for (const p of candidates) {
+    try {
+      const j = JSON.parse(readFileSync(p, 'utf8')) as {
+        name?: string
+        version?: string
+      }
+      if (j.version && (!j.name || j.name === 'instant-drama-magician')) {
+        return j.version
+      }
+    } catch {
+      /* try next */
+    }
   }
-  try {
-    const root = join(__dirname, '..', '..', 'package.json')
-    const j = JSON.parse(readFileSync(root, 'utf8')) as { version?: string }
-    if (j.version) return j.version
-  } catch {
-    /* ignore */
-  }
-  return process.env.npm_package_version || '1.0.0'
+  if (process.env.npm_package_version) return process.env.npm_package_version
+  return '1.0.0'
 }
 
 async function main(): Promise<void> {
@@ -105,7 +111,7 @@ async function main(): Promise<void> {
       await cmdOpen(globals, pos, flags)
       return
     case 'desktop': {
-      // idm desktop build|open — alias namespace
+      // instant-drama desktop build|open — alias namespace
       const sub = pos[0]
       if (sub === 'build') {
         await cmdBuild(globals, pos.slice(1), flags)
@@ -118,7 +124,7 @@ async function main(): Promise<void> {
       emitFailure(
         globals,
         {
-          message: 'Usage: idm desktop build|open [options]',
+          message: 'Usage: instant-drama desktop build|open [options]',
           code: 'USAGE'
         },
         EXIT.USAGE
@@ -167,7 +173,7 @@ async function main(): Promise<void> {
         await cmdApp(globals, pos)
         return
       }
-      // idm app open → open desktop (not channel sugar)
+      // instant-drama app open → open desktop (not channel sugar)
       if (pos[0] === 'open' || pos[0] === 'launch' || pos[0] === 'build') {
         if (pos[0] === 'build') {
           await cmdBuild(globals, pos.slice(1), flags)
@@ -195,7 +201,7 @@ async function main(): Promise<void> {
       emitFailure(
         globals,
         {
-          message: `Unknown command: ${cmd}. Try: idm help  |  idm channels list`,
+          message: `Unknown command: ${cmd}. Try: instant-drama help  |  instant-drama channels list`,
           code: 'USAGE'
         },
         EXIT.USAGE
@@ -213,7 +219,7 @@ main().catch((err) => {
       }) + '\n'
     )
   } else {
-    process.stderr.write(`idm fatal: ${msg}\n`)
+    process.stderr.write(`instant-drama fatal: ${msg}\n`)
   }
   process.exit(EXIT.ERROR)
 })

@@ -1,12 +1,12 @@
 import { printHuman } from '../output'
 
 export function printHelp(): void {
-  printHuman(`idm — InstantDrama Magician CLI
+  printHuman(`instant-drama — InstantDrama Magician CLI
 
 Control the full app from the shell (humans + OpenClaw/Hermes bots).
 
 USAGE
-  idm [global-options] <command> [args]
+  instant-drama [global-options] <command> [args]
 
 GLOBAL OPTIONS
   --json              Machine-readable JSON on stdout
@@ -42,17 +42,17 @@ COMMANDS
   app open|build      Same as open / build
 
 DOMAIN SUGAR (all ~137 channels)
-  idm <namespace> <action> [jsonArgs…]
+  instant-drama <namespace> <action> [jsonArgs…]
   Namespaces: activity ai app characters costumes diagnostics gateway
     generation media project props scenes settings shell souls stories
     support timeline updates videoPrep webServer
   kebab-case actions map to camelCase (generate-sheet → generateSheet)
 
-  idm characters list --json
-  idm characters generate-sheet --args '[{"characterId":"…"}]'
-  idm generation run STORY_ID --json
-  idm media check-ffmpeg --json
-  idm video-prep create --args '[{…}]'
+  instant-drama characters list --json
+  instant-drama characters generate-sheet --args '[{"characterId":"…"}]'
+  instant-drama generation run STORY_ID --json
+  instant-drama media check-ffmpeg --json
+  instant-drama video-prep create --args '[{…}]'
 
 MODES
   remote   When --url / IDM_URL / config.url is set (default for bots)
@@ -63,24 +63,24 @@ HEADLESS FILE PICKS
   IDM_SAVE_PATH=/path/to/out.zip    # one-shot save dialog substitute
 
 DESKTOP BUILD / OPEN (macOS · Ubuntu · Windows)
-  idm build                         # current OS, unpacked dir (fast)
-  idm build --target installer      # dmg / AppImage+deb / nsis
-  idm build --platform linux --target dir
-  idm build --platform win --force  # cross-build (when supported)
-  idm open                          # launch latest packaged app
-  idm open --build-if-missing       # build dir then open
-  idm open --dev                    # electron-vite dev
-  idm open --app-path /path/to.app
+  instant-drama build                         # current OS, unpacked dir (fast)
+  instant-drama build --target installer      # dmg / AppImage+deb / nsis
+  instant-drama build --platform linux --target dir
+  instant-drama build --platform win --force  # cross-build (when supported)
+  instant-drama open                          # launch latest packaged app
+  instant-drama open --build-if-missing       # build dir then open
+  instant-drama open --dev                    # electron-vite dev
+  instant-drama open --app-path /path/to.app
 
   Cross-build: mac installers need a Mac. See docs/cli.md.
 
 EXAMPLES
-  idm doctor --json
-  idm --local stories list --json
-  idm invoke stories:create '{"title":"Demo"}' --json
-  idm --url http://127.0.0.1:8787 --token $IDM_TOKEN channels list
-  idm tools schema --openai > /tmp/idm-tools.json
-  idm build --json && idm open --json
+  instant-drama doctor --json
+  instant-drama --local stories list --json
+  instant-drama invoke stories:create '{"title":"Demo"}' --json
+  instant-drama --url http://127.0.0.1:8787 --token $IDM_TOKEN channels list
+  instant-drama tools schema --openai > /tmp/idm-tools.json
+  instant-drama build --json && instant-drama open --json
 
 ENV
   IDM_URL  IDM_TOKEN  IDM_AUTH_TOKEN  IDM_DATA_DIR  IDM_YES  IDM_PROFILE

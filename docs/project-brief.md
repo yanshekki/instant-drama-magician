@@ -36,7 +36,7 @@ Build a professional, modular, extensible AI short-drama generator. Users create
 ## Architecture
 
 Clean Architecture + feature layers: Presentation · Application · Domain · Infrastructure.  
-Shared `registerAllHandlers` powers Electron IPC, Web `/api/invoke`, and CLI `idm invoke`.
+Shared `registerAllHandlers` powers Electron IPC, Web `/api/invoke`, and CLI `instant-drama invoke`.
 
 ## Independent creation pages (original + shipped extras)
 

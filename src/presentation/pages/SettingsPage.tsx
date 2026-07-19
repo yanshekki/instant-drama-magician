@@ -6,6 +6,11 @@ import {
   LEGAL_VERSION,
   formatLegalAcceptedAt
 } from '../../domain/legal'
+import {
+  CREATOR_LINKTREE,
+  DONATE_ADDRESSES,
+  YSK_HOME_URL
+} from '../../domain/creatorSupport'
 import { openLegalDocument } from '../components/LegalDocumentModal'
 import { formatIpcError, parseIpcError } from '../../lib/ipc'
 import {
@@ -1406,6 +1411,106 @@ export function SettingsPage(): JSX.Element {
                     </div>
                   </div>
                 )}
+
+                {/* Creator · Support / Donate */}
+                <div className="rounded-xl border border-brand-500/25 bg-brand-950/30 px-3 py-3 shadow-theme-sm">
+                  <p className="text-sm font-semibold text-brand-100">
+                    👤 {t('creator.title')}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-ink-100">
+                    {t('creator.name')}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-ink-400">
+                    {t('creator.bio')}
+                  </p>
+                  <p className="mt-3 text-sm font-semibold text-brand-100">
+                    ☕ {t('creator.supportTitle')}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-300">
+                    {t('creator.supportBlurb')}
+                  </p>
+                  <div className="mt-2 space-y-1.5">
+                    {DONATE_ADDRESSES.map((row) => {
+                      const netKey =
+                        row.id === 'evm'
+                          ? 'creator.networkEvm'
+                          : row.id === 'near'
+                            ? 'creator.networkNear'
+                            : 'creator.networkAda'
+                      return (
+                        <div
+                          key={row.id}
+                          className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-700/80 bg-ink-950/50 px-2 py-1.5"
+                        >
+                          <span className="min-w-[7.5rem] text-[11px] font-medium text-ink-400">
+                            {t(netKey)}
+                          </span>
+                          <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink-200">
+                            {row.address}
+                          </code>
+                          <Button
+                            variant="secondary"
+                            className="!h-7 shrink-0 !px-2 !text-[10px]"
+                            onClick={() => {
+                              void (async () => {
+                                try {
+                                  await navigator.clipboard.writeText(
+                                    row.address
+                                  )
+                                  toast.success(
+                                    t('creator.copied', {
+                                      address: row.address
+                                    })
+                                  )
+                                } catch {
+                                  toast.info(row.address)
+                                }
+                              })()
+                            }}
+                          >
+                            {t('creator.copy')}
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      className="!h-8 !text-[11px]"
+                      onClick={() => {
+                        void getApi()
+                          .shell.openExternal(CREATOR_LINKTREE)
+                          .catch(() => {
+                            window.open(
+                              CREATOR_LINKTREE,
+                              '_blank',
+                              'noopener,noreferrer'
+                            )
+                          })
+                      }}
+                    >
+                      {t('creator.openLinktree')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="!h-8 !text-[11px]"
+                      onClick={() => {
+                        void getApi()
+                          .shell.openExternal(YSK_HOME_URL)
+                          .catch(() => {
+                            window.open(
+                              YSK_HOME_URL,
+                              '_blank',
+                              'noopener,noreferrer'
+                            )
+                          })
+                      }}
+                    >
+                      {t('creator.yskSite')}
+                    </Button>
+                  </div>
+                </div>
 
                 {settings && (
                   <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 shadow-theme-sm">

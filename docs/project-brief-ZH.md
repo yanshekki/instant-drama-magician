@@ -36,7 +36,7 @@
 ## 架構
 
 Clean Architecture + 分層：Presentation · Application · Domain · Infrastructure。  
-共用 `registerAllHandlers` 驅動 Electron IPC、Web `/api/invoke`、CLI `idm invoke`。
+共用 `registerAllHandlers` 驅動 Electron IPC、Web `/api/invoke`、CLI `instant-drama invoke`。
 
 ## 獨立創作頁（原規格 + 已出貨）
 

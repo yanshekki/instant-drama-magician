@@ -9,7 +9,7 @@ describe('printHelp', () => {
       return true
     })
     printHelp()
-    expect(out).toContain('idm')
+    expect(out).toContain('instant-drama')
     expect(out).toMatch(/doctor|invoke|channels/i)
   })
 })

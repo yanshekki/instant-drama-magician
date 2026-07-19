@@ -1,4 +1,4 @@
-# CLI — `idm` (InstantDrama Magician)
+# CLI — `instant-drama` (InstantDrama Magician)
 
 > **Language:** [English](./cli.md) · [中文](./cli-ZH.md)
 
@@ -7,18 +7,31 @@ For scripts, CI, and **OpenClaw / Hermes** agents.
 
 ## Install
 
+### Global from npm (recommended)
+
+```bash
+npm install -g instant-drama-magician
+instant-drama --help
+instant-drama doctor --json
+```
+
+Requires **Node.js 20+**. Installs one command: **`instant-drama`**.  
+Desktop `instant-drama build` / `instant-drama open` still need a full clone with Electron devDependencies.
+
+### From this repository
+
 ```bash
 cd instant-drama-magician
 npm install
 npm link          # or: npm install -g .
-idm --help
+instant-drama --help
 instant-drama --help
 ```
 
 Without global link:
 
 ```bash
-npm run idm -- doctor --json
+npm run instant-drama -- doctor --json
 npx tsx src/cli/bin.ts stories list --json
 ```
 
@@ -30,10 +43,10 @@ npx tsx src/cli/bin.ts stories list --json
 | **remote** | `--url` / `IDM_URL` set | `POST {url}/api/invoke` + Bearer |
 
 ```bash
-idm --local --data-dir ./data doctor --json
-idm --local stories list --json
-idm server start --port 8787 --data-dir ./data
-idm --url http://127.0.0.1:8787 --token "$IDM_TOKEN" channels list --json
+instant-drama --local --data-dir ./data doctor --json
+instant-drama --local stories list --json
+instant-drama server start --port 8787 --data-dir ./data
+instant-drama --url http://127.0.0.1:8787 --token "$IDM_TOKEN" channels list --json
 ```
 
 First-time local/server schema:
@@ -64,16 +77,16 @@ Config file: `~/.config/idm/config.json`
 ## Desktop build / open (macOS · Ubuntu · Windows)
 
 ```bash
-idm build
-idm build --target dir --json
-idm build --target installer   # mac dmg · linux AppImage+deb · win nsis
-idm build --platform linux --target dir
-idm open
-idm open --build-if-missing
-idm open --dev
-idm launch
-idm desktop build|open
-idm app open|build
+instant-drama build
+instant-drama build --target dir --json
+instant-drama build --target installer   # mac dmg · linux AppImage+deb · win nsis
+instant-drama build --platform linux --target dir
+instant-drama open
+instant-drama open --build-if-missing
+instant-drama open --dev
+instant-drama launch
+instant-drama desktop build|open
+instant-drama app open|build
 ```
 
 | Platform | dir artifact | installer |
@@ -89,27 +102,27 @@ Cross-build: mac installers need a Mac. Use `--force` only when you know the too
 Electron, Web, and CLI share **`registerAllHandlers`** — **137** channels.
 
 ```bash
-idm doctor --json
-idm channels list
-idm channels list --filter stories --json
-idm channels describe stories:create
-idm tools schema --openai > tools.json
-idm invoke stories:list --json
-idm invoke stories:create '{"title":"Demo"}' --json
-idm invoke stories:get '["story-id"]' --json
+instant-drama doctor --json
+instant-drama channels list
+instant-drama channels list --filter stories --json
+instant-drama channels describe stories:create
+instant-drama tools schema --openai > tools.json
+instant-drama invoke stories:list --json
+instant-drama invoke stories:create '{"title":"Demo"}' --json
+instant-drama invoke stories:get '["story-id"]' --json
 ```
 
 ## Domain sugar
 
 ```bash
-idm stories list|create|get|delete|seed-demo …
-idm settings get|set
-idm ai status|models|test-chat …
-idm app info
-idm characters list
-idm characters generate-sheet --args '[{...}]' --json
-idm generation run <storyId> --json
-idm media check-ffmpeg --json
+instant-drama stories list|create|get|delete|seed-demo …
+instant-drama settings get|set
+instant-drama ai status|models|test-chat …
+instant-drama app info
+instant-drama characters list
+instant-drama characters generate-sheet --args '[{...}]' --json
+instant-drama generation run <storyId> --json
+instant-drama media check-ffmpeg --json
 ```
 
 Namespaces include: `activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
@@ -117,7 +130,7 @@ Namespaces include: `activity` `ai` `app` `characters` `costumes` `diagnostics` 
 ## Server
 
 ```bash
-idm server start --port 8787 --host 0.0.0.0
+instant-drama server start --port 8787 --host 0.0.0.0
 ```
 
 ## Exit codes
@@ -141,7 +154,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 |------------|--------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
 | Channel count | **137** |
-| `idm invoke` | ✅ any channel |
+| `instant-drama invoke` | ✅ any channel |
 | Domain sugar | ✅ all namespaces |
 | OpenAI tool schema | ✅ |
 | OpenClaw skill | ✅ `skills/idm/SKILL.md` |

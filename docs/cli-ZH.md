@@ -1,4 +1,4 @@
-# CLI — `idm`（InstantDrama Magician）
+# CLI — `instant-drama`（InstantDrama Magician）
 
 > **語言：** [English](./cli.md) · [中文](./cli-ZH.md)
 
@@ -7,18 +7,31 @@
 
 ## 安裝
 
+### 從 npm 全域安裝（推薦）
+
+```bash
+npm install -g instant-drama-magician
+instant-drama --help
+instant-drama doctor --json
+```
+
+需要 **Node.js 20+**。會安裝一個指令：**`instant-drama`**。  
+桌面 `instant-drama build`／`instant-drama open` 仍需完整 clone 並安裝含 Electron 的 devDependencies。
+
+### 從本倉庫安裝
+
 ```bash
 cd instant-drama-magician
 npm install
 npm link          # 或: npm install -g .
-idm --help
+instant-drama --help
 instant-drama --help
 ```
 
 不用全域 link：
 
 ```bash
-npm run idm -- doctor --json
+npm run instant-drama -- doctor --json
 npx tsx src/cli/bin.ts stories list --json
 ```
 
@@ -30,10 +43,10 @@ npx tsx src/cli/bin.ts stories list --json
 | **remote** | 設定了 `--url`／`IDM_URL` | `POST {url}/api/invoke` + Bearer |
 
 ```bash
-idm --local --data-dir ./data doctor --json
-idm --local stories list --json
-idm server start --port 8787 --data-dir ./data
-idm --url http://127.0.0.1:8787 --token "$IDM_TOKEN" channels list --json
+instant-drama --local --data-dir ./data doctor --json
+instant-drama --local stories list --json
+instant-drama server start --port 8787 --data-dir ./data
+instant-drama --url http://127.0.0.1:8787 --token "$IDM_TOKEN" channels list --json
 ```
 
 首次 local／server 需 schema：
@@ -64,16 +77,16 @@ npx prisma db push
 ## 桌面 Build／Open（macOS · Ubuntu · Windows）
 
 ```bash
-idm build
-idm build --target dir --json
-idm build --target installer   # mac dmg · linux AppImage+deb · win nsis
-idm build --platform linux --target dir
-idm open
-idm open --build-if-missing
-idm open --dev
-idm launch
-idm desktop build|open
-idm app open|build
+instant-drama build
+instant-drama build --target dir --json
+instant-drama build --target installer   # mac dmg · linux AppImage+deb · win nsis
+instant-drama build --platform linux --target dir
+instant-drama open
+instant-drama open --build-if-missing
+instant-drama open --dev
+instant-drama launch
+instant-drama desktop build|open
+instant-drama app open|build
 ```
 
 | 平台 | dir 產物 | installer |
@@ -89,27 +102,27 @@ idm app open|build
 Electron、Web、CLI 共用 **`registerAllHandlers`** — **137** 個 channel。
 
 ```bash
-idm doctor --json
-idm channels list
-idm channels list --filter stories --json
-idm channels describe stories:create
-idm tools schema --openai > tools.json
-idm invoke stories:list --json
-idm invoke stories:create '{"title":"Demo"}' --json
-idm invoke stories:get '["story-id"]' --json
+instant-drama doctor --json
+instant-drama channels list
+instant-drama channels list --filter stories --json
+instant-drama channels describe stories:create
+instant-drama tools schema --openai > tools.json
+instant-drama invoke stories:list --json
+instant-drama invoke stories:create '{"title":"Demo"}' --json
+instant-drama invoke stories:get '["story-id"]' --json
 ```
 
 ## Domain sugar
 
 ```bash
-idm stories list|create|get|delete|seed-demo …
-idm settings get|set
-idm ai status|models|test-chat …
-idm app info
-idm characters list
-idm characters generate-sheet --args '[{...}]' --json
-idm generation run <storyId> --json
-idm media check-ffmpeg --json
+instant-drama stories list|create|get|delete|seed-demo …
+instant-drama settings get|set
+instant-drama ai status|models|test-chat …
+instant-drama app info
+instant-drama characters list
+instant-drama characters generate-sheet --args '[{...}]' --json
+instant-drama generation run <storyId> --json
+instant-drama media check-ffmpeg --json
 ```
 
 Namespaces 包括：`activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
@@ -117,7 +130,7 @@ Namespaces 包括：`activity` `ai` `app` `characters` `costumes` `diagnostics` 
 ## 伺服器
 
 ```bash
-idm server start --port 8787 --host 0.0.0.0
+instant-drama server start --port 8787 --host 0.0.0.0
 ```
 
 ## Exit codes
@@ -141,7 +154,7 @@ idm server start --port 8787 --host 0.0.0.0
 |------|------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
 | Channel 數 | **137** |
-| `idm invoke` | ✅ 任意 channel |
+| `instant-drama invoke` | ✅ 任意 channel |
 | Domain sugar | ✅ 全部 namespace |
 | OpenAI tool schema | ✅ |
 | OpenClaw skill | ✅ `skills/idm/SKILL-ZH.md` |

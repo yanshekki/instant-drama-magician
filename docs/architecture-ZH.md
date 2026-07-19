@@ -10,7 +10,7 @@
 Presentation（React 頁面／CLI／瀏覽器 UI）
         │
         ▼
-  IPC  |  HTTP POST /api/invoke  |  idm invoke
+  IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
   registerAllHandlers + HandlerHost   ← 單一真相來源（約 137 channels）

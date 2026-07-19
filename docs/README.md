@@ -14,7 +14,7 @@ Product version **1.0.0** · Vendor **YSK Limited** · Contact **[email@ysk.hk](
 | [README.md](./README.md) | [README-ZH.md](./README-ZH.md) | This index |
 | [project-brief.md](./project-brief.md) | [project-brief-ZH.md](./project-brief-ZH.md) | Product specification |
 | [architecture.md](./architecture.md) | [architecture-ZH.md](./architecture-ZH.md) | Architecture |
-| [cli.md](./cli.md) | [cli-ZH.md](./cli-ZH.md) | CLI `idm` |
+| [cli.md](./cli.md) | [cli-ZH.md](./cli-ZH.md) | CLI `instant-drama` |
 | [agent-cli.md](./agent-cli.md) | [agent-cli-ZH.md](./agent-cli-ZH.md) | Agents |
 | [self-host.md](./self-host.md) | [self-host-ZH.md](./self-host-ZH.md) | Web remote |
 | [grok-gateway.md](./grok-gateway.md) | [grok-gateway-ZH.md](./grok-gateway-ZH.md) | Grok Gateway |

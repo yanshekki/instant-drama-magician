@@ -1499,5 +1499,21 @@
       "s12Title": "12. Mudanças, versionamento e sobrevivência",
       "s12Body": "O Provedor poderá atualizar a Isenção de Responsabilidade e a Política de Uso Aceitável. Quando a versão do documento no aplicativo for alterada, talvez seja necessário aceitar a nova versão antes de continuar. O uso continuado após a aceitação constitui concordância com a versão mostrada naquele momento.\n\nAs seções sobre responsabilidade, indenização, propriedade intelectual e leis aplicáveis ​​sobreviverão ao término do seu uso. Estes termos não criam uma relação de parceria, emprego ou agência. Você não pode ceder estes termos sem o consentimento do Provedor; o Provedor pode atribuir a uma afiliada ou sucessor. O contato para avisos legais, se necessário, deve ser direcionado através do suporte publicado do projeto ou dos canais da empresa da YSK Limited."
     }
+  },
+  "creator": {
+    "title": "Creator",
+    "name": "Ki (yanshekki)",
+    "bio": "Full-stack developer, quant trader, founder of YSK Limited.",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!",
+    "openLinktree": "Open Linktree",
+    "yskSite": "YSK website",
+    "copy": "Copy",
+    "copied": "Copied {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

@@ -1499,5 +1499,21 @@
       "s12Title": "12. परिवर्तन, संस्करणीकरण, और अस्तित्व",
       "s12Body": "प्रदाता अस्वीकरण और स्वीकार्य उपयोग नीति को अद्यतन कर सकता है। जब इन-ऐप दस्तावेज़ संस्करण बदलता है, तो आपको जारी रखने से पहले नए संस्करण को स्वीकार करने की आवश्यकता हो सकती है। स्वीकृति के बाद निरंतर उपयोग उस समय दिखाए गए संस्करण के लिए सहमति का गठन करता है।\n\nदायित्व, क्षतिपूर्ति, आईपी और शासी कानून की धाराएं आपके उपयोग की समाप्ति से बच जाती हैं। ये शर्तें साझेदारी, रोजगार या एजेंसी संबंध नहीं बनाती हैं। आप प्रदाता की सहमति के बिना इन शर्तों को निर्दिष्ट नहीं कर सकते हैं; प्रदाता किसी सहयोगी या उत्तराधिकारी को असाइन कर सकता है। कानूनी नोटिस के लिए संपर्क, यदि आवश्यक हो, वाईएसके लिमिटेड के लिए परियोजना के प्रकाशित समर्थन या कंपनी चैनलों के माध्यम से निर्देशित किया जाना चाहिए।"
     }
+  },
+  "creator": {
+    "title": "Creator",
+    "name": "Ki (yanshekki)",
+    "bio": "Full-stack developer, quant trader, founder of YSK Limited.",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!",
+    "openLinktree": "Open Linktree",
+    "yskSite": "YSK website",
+    "copy": "Copy",
+    "copied": "Copied {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

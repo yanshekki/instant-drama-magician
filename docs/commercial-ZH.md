@@ -61,7 +61,7 @@ Feed：`latest.yml`／`latest-linux.yml`／`latest-mac.yml`。
 
 - 經 **`ffmpeg-static`** 打包（asarUnpack）  
 - 可用 **`FFMPEG_PATH`** 覆寫  
-- `idm media check-ffmpeg --json` 或設定診斷  
+- `instant-drama media check-ffmpeg --json` 或設定診斷  
 
 ## 聯絡
 

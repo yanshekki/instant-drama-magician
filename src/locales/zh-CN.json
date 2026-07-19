@@ -1499,5 +1499,21 @@
       "s12Title": "12. 变更、版本及存续",
       "s12Body": "提供方可更新《免责声明》与《使用守则》。当应用程式内条款版本变更时，你可能需要再次同意后方可继续使用。接受后继续使用，即表示同意当时所显示的版本。\n\n有关责任、弥偿、知识产权及准据法的章节于你停止使用后仍然有效。本条款不构成合伙、雇佣或代理关系。未经提供方同意，你不得转让本条款；提供方可转让予关联方或承继人。如需法律通知，应透过项目公开的支援渠道或 YSK Limited 的公司渠道送达。"
     }
+  },
+  "creator": {
+    "title": "创作者",
+    "name": "Ki (yanshekki)",
+    "bio": "全栈开发者、量化交易者、YSK Limited 创办人。",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "如果「瞬剧魔法师」对你的短剧创作与产线有帮助，欢迎请我喝杯咖啡支持开发！",
+    "openLinktree": "打开 Linktree",
+    "yskSite": "YSK 网站",
+    "copy": "复制",
+    "copied": "已复制 {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

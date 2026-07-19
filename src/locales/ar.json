@@ -1499,5 +1499,21 @@
       "s12Title": "12. التغييرات والإصدارات والبقاء",
       "s12Body": "يجوز للمزود تحديث سياسة إخلاء المسؤولية والاستخدام المقبول. عندما يتغير إصدار المستند داخل التطبيق، قد يُطلب منك قبول الإصدار الجديد قبل المتابعة. ويشكل استمرار الاستخدام بعد القبول موافقة على الإصدار المعروض في ذلك الوقت.\n\nتظل الأقسام المتعلقة بالمسؤولية والتعويض والملكية الفكرية والقانون الحاكم سارية بعد إنهاء استخدامك. لا تنشئ هذه الشروط شراكة أو توظيفًا أو علاقة وكالة. لا يجوز لك تعيين هذه الشروط دون موافقة المزود؛ ويجوز للمزود تعيين شركة تابعة أو خليفة. يجب توجيه جهة الاتصال للحصول على الإشعارات القانونية، إذا لزم الأمر، من خلال الدعم المنشور للمشروع أو قنوات الشركة الخاصة بشركة YSK Limited."
     }
+  },
+  "creator": {
+    "title": "Creator",
+    "name": "Ki (yanshekki)",
+    "bio": "Full-stack developer, quant trader, founder of YSK Limited.",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!",
+    "openLinktree": "Open Linktree",
+    "yskSite": "YSK website",
+    "copy": "Copy",
+    "copied": "Copied {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

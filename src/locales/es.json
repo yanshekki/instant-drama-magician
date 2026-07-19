@@ -1499,5 +1499,21 @@
       "s12Title": "12. Cambios, versiones y supervivencia.",
       "s12Body": "El Proveedor podrá actualizar el Aviso legal y la Política de uso aceptable. Cuando la versión del documento en la aplicación cambia, es posible que deba aceptar la nueva versión antes de continuar. El uso continuado después de la aceptación constituye la aceptación de la versión mostrada en ese momento.\n\nLas secciones sobre responsabilidad, indemnización, propiedad intelectual y leyes vigentes siguen vigentes tras la terminación de su uso. Estos términos no crean una relación de asociación, empleo o agencia. No podrá asignar estos términos sin el consentimiento del Proveedor; el Proveedor puede ceder a un afiliado o sucesor. El contacto para avisos legales, si es necesario, debe dirigirse a través del soporte publicado del proyecto o de los canales de la empresa para YSK Limited."
     }
+  },
+  "creator": {
+    "title": "Creator",
+    "name": "Ki (yanshekki)",
+    "bio": "Full-stack developer, quant trader, founder of YSK Limited.",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!",
+    "openLinktree": "Open Linktree",
+    "yskSite": "YSK website",
+    "copy": "Copy",
+    "copied": "Copied {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

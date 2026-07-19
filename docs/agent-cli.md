@@ -2,34 +2,34 @@
 
 > **Language:** [English](./agent-cli.md) · [中文](./agent-cli-ZH.md)
 
-InstantDrama Magician exposes a stable CLI (`idm`) so agents can drive the app without the GUI.
+InstantDrama Magician exposes a stable CLI (`instant-drama`) so agents can drive the app without the GUI.
 
 ## Desktop build & open
 
 ```bash
-idm build --json
-idm open --build-if-missing --json
-idm open --dev
+instant-drama build --json
+instant-drama open --build-if-missing --json
+instant-drama open --dev
 ```
 
-Platforms: **macOS**, **Ubuntu/Linux**, **Windows**. macOS installers must be built on a Mac. Prefer `idm server` for headless bot control.
+Platforms: **macOS**, **Ubuntu/Linux**, **Windows**. macOS installers must be built on a Mac. Prefer `instant-drama server` for headless bot control.
 
 ## Install on the agent host
 
 ```bash
 npm install -g .   # from clone, or npm link
-which idm
-idm doctor --json
+which instant-drama
+instant-drama doctor --json
 ```
 
 Prefer **remote mode**: one long-lived server, many agent processes.
 
 ```bash
-export IDM_DATA_DIR=/var/lib/idm
+export IDM_DATA_DIR=/var/lib/instant-drama
 export IDM_AUTH_TOKEN='long-random-secret'
 export DATABASE_URL="file:${IDM_DATA_DIR}/instant-drama.db"
 npx prisma db push
-idm server start --host 127.0.0.1 --port 8787
+instant-drama server start --host 127.0.0.1 --port 8787
 ```
 
 Agent env:
@@ -42,15 +42,15 @@ export IDM_JSON=1
 
 ## Discovery loop
 
-1. `idm doctor --json` — connectivity + **~137 channels**
-2. `idm channels list --json` — live capabilities
-3. `idm tools schema --openai` — OpenAI-style tool definitions
-4. Mutate via `idm invoke` / `idm <namespace> <action>`
+1. `instant-drama doctor --json` — connectivity + **~137 channels**
+2. `instant-drama channels list --json` — live capabilities
+3. `instant-drama tools schema --openai` — OpenAI-style tool definitions
+4. Mutate via `instant-drama invoke` / `instant-drama <namespace> <action>`
 
 ```bash
-idm characters list --json
-idm generation run <storyId> --json
-idm media check-ffmpeg --json
+instant-drama characters list --json
+instant-drama generation run <storyId> --json
+instant-drama media check-ffmpeg --json
 ```
 
 ## OpenClaw
@@ -61,25 +61,25 @@ Skill: `skills/idm/SKILL.md` (Chinese: `SKILL-ZH.md`).
 openclaw skills install ./skills/idm
 ```
 
-Requires `idm` on `PATH`. Never put tokens in prompts; use env / config. Use `--json` / `IDM_JSON=1`. Pass `--yes` only after user confirmed destructive ops.
+Requires `instant-drama` on `PATH`. Never put tokens in prompts; use env / config. Use `--json` / `IDM_JSON=1`. Pass `--yes` only after user confirmed destructive ops.
 
 ## Hermes
 
 Use a terminal/shell tool:
 
 ```bash
-idm --url "$IDM_URL" --token "$IDM_TOKEN" stories list --json -q
-idm invoke stories:create '{"title":"Agent demo"}' --json
+instant-drama --url "$IDM_URL" --token "$IDM_TOKEN" stories list --json -q
+instant-drama invoke stories:create '{"title":"Agent demo"}' --json
 ```
 
 ## Example workflow
 
 ```bash
-idm stories seed-demo zh-HK --json
-idm stories list --json
-idm settings set locale zh-HK --json
-idm invoke ai:status --json
-idm invoke media:checkFfmpeg --json
+instant-drama stories seed-demo zh-HK --json
+instant-drama stories list --json
+instant-drama settings set locale zh-HK --json
+instant-drama invoke ai:status --json
+instant-drama invoke media:checkFfmpeg --json
 ```
 
 ## Safety

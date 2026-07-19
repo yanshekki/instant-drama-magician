@@ -1499,5 +1499,21 @@
       "s12Title": "12. Modifications, gestion des versions et survie",
       "s12Body": "Le fournisseur peut mettre à jour la clause de non-responsabilité et la politique d'utilisation acceptable. Lorsque la version du document intégré à l'application change, vous devrez peut-être accepter la nouvelle version avant de continuer. La poursuite de l'utilisation après acceptation constitue un accord sur la version affichée à ce moment-là.\n\nLes sections sur la responsabilité, l'indemnisation, la propriété intellectuelle et la loi applicable survivent à la résiliation de votre utilisation. Ces conditions ne créent pas de relation de partenariat, d’emploi ou d’agence. Vous ne pouvez pas céder ces conditions sans le consentement du fournisseur ; le fournisseur peut céder à une société affiliée ou à un successeur. Le contact pour les mentions légales, si nécessaire, doit être adressé via le support publié du projet ou les canaux de l'entreprise pour YSK Limited."
     }
+  },
+  "creator": {
+    "title": "Creator",
+    "name": "Ki (yanshekki)",
+    "bio": "Full-stack developer, quant trader, founder of YSK Limited.",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!",
+    "openLinktree": "Open Linktree",
+    "yskSite": "YSK website",
+    "copy": "Copy",
+    "copied": "Copied {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 /**
- * Global entry: npm i -g .  →  `idm` on PATH
- * Resolves tsx from package and runs src/cli/bin.ts
+ * Global CLI entry (published as `instant-drama-magician` on npm):
+ *
+ *   npm install -g instant-drama-magician
+ *   instant-drama --help
+ *   instant-drama doctor --json
+ *
+ * Also works from a git clone: npm link  /  npm install -g .
+ * Resolves `tsx` from this package and runs src/cli/bin.ts
+ *
+ * Command name is **instant-drama** only (avoids clash with unrelated npm package `idm`).
  */
 'use strict'
 
@@ -27,13 +35,13 @@ function resolveTsx() {
 const tsxCli = resolveTsx()
 if (!tsxCli) {
   console.error(
-    'idm: missing dependency "tsx". Run: npm install  (or npm i -g tsx)'
+    'instant-drama: missing dependency "tsx". Run: npm install  (or npm i -g tsx)'
   )
   process.exit(1)
 }
 
 if (!fs.existsSync(entry)) {
-  console.error(`idm: entry not found: ${entry}`)
+  console.error(`instant-drama: entry not found: ${entry}`)
   process.exit(1)
 }
 

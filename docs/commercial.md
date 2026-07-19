@@ -61,7 +61,7 @@ Settings → **Export support report**:
 
 - Bundled via **`ffmpeg-static`** (asarUnpack)  
 - Override with **`FFMPEG_PATH`**  
-- `idm media check-ffmpeg --json` or Settings diagnostics  
+- `instant-drama media check-ffmpeg --json` or Settings diagnostics  
 
 ## Contact
 

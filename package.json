@@ -1,27 +1,45 @@
 {
   "name": "instant-drama-magician",
   "version": "1.0.0",
-  "description": "AI 專業短劇生成桌面工具 — InstantDrama Magician",
+  "description": "InstantDrama Magician — AI short-drama desktop studio + idm CLI (OpenClaw/Hermes ready)",
   "main": "./out/main/index.js",
   "bin": {
-    "idm": "./bin/idm.js",
-    "instant-drama": "./bin/idm.js"
+    "instant-drama": "./bin/instant-drama.js"
   },
   "author": {
     "name": "YSK Limited",
     "email": "email@ysk.hk"
   },
   "license": "MIT",
+  "homepage": "https://github.com/yanshekki/instant-drama-magician#readme",
+  "bugs": {
+    "url": "https://github.com/yanshekki/instant-drama-magician/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/yanshekki/instant-drama-magician.git"
   },
+  "keywords": [
+    "instant-drama-magician",
+    "instant-drama",
+    "cli",
+    "short-drama",
+    "ai",
+    "electron",
+    "ffmpeg",
+    "openclaw",
+    "openai-compatible"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "preferGlobal": true,
   "scripts": {
     "dev": "ELECTRON_DISABLE_SANDBOX=1 electron-vite dev -- --no-sandbox --class=instant-drama-magician",
     "build": "electron-vite build",
     "build:web": "electron-vite build",
     "start:server": "tsx server/index.ts",
-    "idm": "tsx src/cli/bin.ts",
+    "instant-drama": "tsx src/cli/bin.ts",
     "dev:web": "npm run build:web && npm run db:push:data && IDM_AUTH_DISABLED=1 IDM_DATA_DIR=./data IDM_PORT=8787 tsx server/index.ts",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
@@ -179,7 +197,12 @@
     "prisma",
     "skills",
     "docs",
+    "resources",
     "package.json",
-    "README.md"
+    "README.md",
+    "README-ZH.md",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!**/__tests__/**"
   ]
 }

@@ -17,8 +17,12 @@ import { AiJobHud } from './AiJobHud'
 import { VideoPrepHost } from './VideoPrepHost'
 import { AiDraftModal } from './AiDraftModal'
 import yskLogo from '../../assets/ysk-logo.svg'
+import {
+  CREATOR_LINKTREE,
+  YSK_HOME_URL
+} from '../../domain/creatorSupport'
 
-const YSK_HOME = 'https://ysk.hk/'
+const YSK_HOME = YSK_HOME_URL
 
 const navItems: { to: string; key: string; end?: boolean }[] = [
   { to: '/', key: 'stories', end: true },
@@ -231,7 +235,26 @@ export function Layout(): JSX.Element {
             )}
           </div>
 
-          {/* Bottom-left: Powered by YSK Limited */}
+          {/* Support / Donate + Powered by YSK */}
+          <button
+            type="button"
+            onClick={() => {
+              void getApi()
+                .shell.openExternal(CREATOR_LINKTREE)
+                .catch(() => {
+                  window.open(CREATOR_LINKTREE, '_blank', 'noopener,noreferrer')
+                })
+            }}
+            className="group flex w-full flex-col gap-0.5 rounded-lg border border-brand-500/30 bg-brand-950/40 px-2.5 py-2 text-left transition hover:border-brand-400/50 hover:bg-brand-950/70"
+            title={CREATOR_LINKTREE}
+          >
+            <span className="text-[10px] font-semibold text-brand-200 group-hover:text-brand-100">
+              ☕ {t('creator.sidebarDonate')}
+            </span>
+            <span className="text-[9px] leading-snug text-ink-400 group-hover:text-ink-300">
+              {t('creator.supportBlurb')}
+            </span>
+          </button>
           <button
             type="button"
             onClick={openYsk}

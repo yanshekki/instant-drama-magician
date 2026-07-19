@@ -1499,5 +1499,21 @@
       "s12Title": "12. Changes, versioning, and survival",
       "s12Body": "The Provider may update the Disclaimer and Acceptable Use Policy. When the in-app document version changes, you may be required to accept the new version before continuing. Continued use after acceptance constitutes agreement to the version shown at that time.\n\nSections on liability, indemnity, IP, and governing law survive termination of your use. These terms do not create a partnership, employment, or agency relationship. You may not assign these terms without the Provider’s consent; the Provider may assign to an affiliate or successor. Contact for legal notices, if required, should be directed through the project’s published support or company channels for YSK Limited."
     }
+  },
+  "creator": {
+    "title": "Creator",
+    "name": "Ki (yanshekki)",
+    "bio": "Full-stack developer, quant trader, founder of YSK Limited.",
+    "supportTitle": "Support / Donate",
+    "supportBlurb": "If InstantDrama Magician helps your short-drama production workflow, consider buying me a coffee!",
+    "openLinktree": "Open Linktree",
+    "yskSite": "YSK website",
+    "copy": "Copy",
+    "copied": "Copied {{address}}",
+    "networkEvm": "EVM (ETH/BSC/AVAX)",
+    "networkNear": "NEAR",
+    "networkAda": "ADA (Cardano)",
+    "menuDonate": "Support / Donate…",
+    "sidebarDonate": "Support / Donate"
   }
 }

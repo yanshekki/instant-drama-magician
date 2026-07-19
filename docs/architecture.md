@@ -10,7 +10,7 @@ Version **1.0.0**. Presentation → Application → Domain → Infrastructure, w
 Presentation (React pages / CLI / browser UI)
         │
         ▼
-  IPC  |  HTTP POST /api/invoke  |  idm invoke
+  IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
   registerAllHandlers + HandlerHost   ← single source of truth (~137 channels)
