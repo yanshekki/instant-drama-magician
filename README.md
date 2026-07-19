@@ -9,7 +9,7 @@ Cross-platform desktop (Electron) + optional browser remote control + full CLI `
 
 | | |
 |---|---|
-| **Version** | 1.1.1 |
+| **Version** | 1.1.2 |
 | **Vendor** | YSK Limited |
 | **Contact** | [email@ysk.hk](mailto:email@ysk.hk) |
 | **License** | MIT |
@@ -227,7 +227,7 @@ Local builds land in `release/`; or download from GitHub Releases.
 
 ```bash
 # Linux example
-sudo dpkg -i release/instant-drama-magician_1.1.1_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.1.2_amd64.deb
 # or
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
