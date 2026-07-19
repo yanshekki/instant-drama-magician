@@ -2,7 +2,7 @@
 
 > **Language:** [English](./README.md) · [中文](./README-ZH.md)
 
-Product version **1.1.0** · Vendor **YSK Limited** · Contact **[email@ysk.hk](mailto:email@ysk.hk)**
+Product version **1.1.1** · Vendor **YSK Limited** · Contact **[email@ysk.hk](mailto:email@ysk.hk)**
 
 **Convention:** files **without** `-ZH` are English; files **with** `-ZH` are Chinese. Each pair must cover the same topics and facts.
 
@@ -35,7 +35,7 @@ Product version **1.1.0** · Vendor **YSK Limited** · Contact **[email@ysk.hk](
 
 | Fact | Value |
 |------|--------|
-| App version | `1.1.0` (`package.json`) |
+| App version | `1.1.1` (`package.json`) |
 | IPC / CLI channels | **138** (shared `registerAllHandlers`) |
 | Legal copy version | `LEGAL_VERSION` **1.0.0** (`src/domain/legal.ts`) |
 | Default LLM | Grok Gateway `http://127.0.0.1:3847/v1` |

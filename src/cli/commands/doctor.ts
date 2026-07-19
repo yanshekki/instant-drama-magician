@@ -12,7 +12,7 @@ export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
   const t0 = Date.now()
   const report: Record<string, unknown> = {
     ok: true,
-    version: process.env.npm_package_version || '1.1.0',
+    version: process.env.npm_package_version || '1.1.1',
     configPath: defaultConfigPath(),
     defaultDataDir: defaultDataDir(),
     globals: {

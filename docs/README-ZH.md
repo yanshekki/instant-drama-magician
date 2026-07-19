@@ -2,7 +2,7 @@
 
 > **語言：** [English](./README.md) · [中文](./README-ZH.md)
 
-產品版本 **1.1.0** · 廠商 **YSK Limited** · 聯絡 **[email@ysk.hk](mailto:email@ysk.hk)**
+產品版本 **1.1.1** · 廠商 **YSK Limited** · 聯絡 **[email@ysk.hk](mailto:email@ysk.hk)**
 
 **命名規則：** 檔名**無** `-ZH` 為英文版；**有** `-ZH` 為中文版。每一對必須涵蓋相同主題與事實。
 
@@ -35,7 +35,7 @@
 
 | 項目 | 值 |
 |------|-----|
-| App 版本 | `1.1.0`（`package.json`） |
+| App 版本 | `1.1.1`（`package.json`） |
 | IPC／CLI channel | **138**（共用 `registerAllHandlers`） |
 | 法律文檔版本 | `LEGAL_VERSION` **1.0.0**（`src/domain/legal.ts`） |
 | 預設 LLM | Grok Gateway `http://127.0.0.1:3847/v1` |
