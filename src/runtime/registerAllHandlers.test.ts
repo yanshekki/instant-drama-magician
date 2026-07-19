@@ -10,7 +10,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 
 describe('registerAllHandlers', () => {
-  it('registers 137 channels onto map', () => {
+  it('registers 138 channels onto map', () => {
     const dir = mkdtempSync(join(tmpdir(), 'idm-reg-'))
     try {
       const handlers = new Map<string, (...a: unknown[]) => unknown>()
@@ -29,7 +29,7 @@ describe('registerAllHandlers', () => {
         getMainWindow: () => null
       }
       registerAllHandlers((ch, fn) => handlers.set(ch, fn), host)
-      expect(handlers.size).toBe(137)
+      expect(handlers.size).toBe(138)
       expect(handlers.has('stories:list')).toBe(true)
       expect(handlers.has('generation:run')).toBe(true)
     } finally {
