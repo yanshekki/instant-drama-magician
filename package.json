@@ -1,6 +1,6 @@
 {
   "name": "instant-drama-magician",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "InstantDrama Magician — AI short-drama desktop studio + idm CLI (OpenClaw/Hermes ready)",
   "main": "./out/main/index.js",
   "bin": {
