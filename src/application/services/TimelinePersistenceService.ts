@@ -7,6 +7,7 @@ import type {
 import { AppError } from '../../types/errors'
 import {
   DEFAULT_MAX_CLIP_SECONDS,
+  clampDuration,
   reindexOrders,
   validateTimeRange
 } from '../../domain/timeline'
@@ -163,10 +164,37 @@ export class TimelinePersistenceService {
     const existing = await this.prisma.timelineEntry.findUnique({ where: { id } })
     if (!existing) throw new AppError('NOT_FOUND', `Timeline entry not found: ${id}`)
 
-    const startTime = data.startTime ?? existing.startTime
-    const endTime = data.endTime ?? existing.endTime
-    const rangeErr = validateTimeRange(startTime, endTime, DEFAULT_MAX_CLIP_SECONDS)
-    if (rangeErr) throw new AppError('VALIDATION', rangeErr)
+    const touchTimes =
+      data.startTime !== undefined || data.endTime !== undefined
+    let startTime = data.startTime ?? existing.startTime
+    let endTime = data.endTime ?? existing.endTime
+
+    if (touchTimes) {
+      const rangeErr = validateTimeRange(
+        startTime,
+        endTime,
+        DEFAULT_MAX_CLIP_SECONDS
+      )
+      if (rangeErr) throw new AppError('VALIDATION', rangeErr)
+    } else {
+      // Bindings / dialogue-only updates must not fail on legacy overlong clips
+      // (e.g. AI script created 20s+ beats). Heal duration so multi-select works.
+      const rangeErr = validateTimeRange(
+        startTime,
+        endTime,
+        DEFAULT_MAX_CLIP_SECONDS
+      )
+      if (rangeErr) {
+        const healed = clampDuration(
+          startTime,
+          endTime,
+          DEFAULT_MAX_CLIP_SECONDS
+        )
+        startTime = healed.startTime
+        endTime = healed.endTime
+        data = { ...data, startTime, endTime }
+      }
+    }
 
     const binds = normalizeBindings({
       characterId: data.characterId,
@@ -201,11 +229,15 @@ export class TimelinePersistenceService {
       })
     }
 
+    const writeStart =
+      data.startTime !== undefined ? data.startTime : undefined
+    const writeEnd = data.endTime !== undefined ? data.endTime : undefined
+
     const row = await this.prisma.timelineEntry.update({
       where: { id },
       data: {
-        ...(data.startTime !== undefined ? { startTime: data.startTime } : {}),
-        ...(data.endTime !== undefined ? { endTime: data.endTime } : {}),
+        ...(writeStart !== undefined ? { startTime: writeStart } : {}),
+        ...(writeEnd !== undefined ? { endTime: writeEnd } : {}),
         ...(touchBinds
           ? {
               characterId: binds.characterId,
@@ -227,7 +259,7 @@ export class TimelinePersistenceService {
         ...(data.videoJobId !== undefined ? { videoJobId: data.videoJobId } : {})
       }
     })
-    if (data.startTime !== undefined || data.endTime !== undefined) {
+    if (writeStart !== undefined || writeEnd !== undefined) {
       await this.syncOrderByStartTime(existing.storyId)
       const fresh = await this.prisma.timelineEntry.findUnique({ where: { id } })
       if (fresh) return this.mapRow(fresh as Parameters<typeof this.mapRow>[0])

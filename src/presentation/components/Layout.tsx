@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getApi } from '../../lib/api'
+import { getApi, isWebRuntime } from '../../lib/api'
 import type { AppSettings } from '../../types/settings'
 import {
   applyColorScheme,
@@ -12,7 +12,9 @@ import {
 import { coerceUiLanguage } from '../../domain/uiLanguages'
 import { changeUiLanguage } from '../../lib/i18n'
 import { useApp } from '../context/AppContext'
+import { useMenuActions } from '../hooks/useMenuActions'
 import { AiJobHud } from './AiJobHud'
+import { VideoPrepHost } from './VideoPrepHost'
 import { AiDraftModal } from './AiDraftModal'
 import yskLogo from '../../assets/ysk-logo.svg'
 
@@ -68,6 +70,9 @@ export function Layout(): JSX.Element {
   const { aiStatus } = useApp()
   const [degraded, setDegraded] = useState(false)
   const [appVersion, setAppVersion] = useState<string | null>(null)
+
+  // Native File / View / Help menu → navigate & app actions
+  useMenuActions()
 
   // Mount-only: applying language on every i18n change would fight Settings
   // and snap the UI back to the last saved language while switching.
@@ -146,11 +151,18 @@ export function Layout(): JSX.Element {
               <p className="mt-0.5 text-[11px] leading-snug text-ink-400">
                 {t('app.tagline')}
               </p>
-              {appVersion ? (
-                <p className="mt-1 font-mono text-[10px] text-ink-500">
-                  v{appVersion}
-                </p>
-              ) : null}
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {appVersion ? (
+                  <p className="font-mono text-[10px] text-ink-500">
+                    v{appVersion}
+                  </p>
+                ) : null}
+                {isWebRuntime() ? (
+                  <span className="rounded-full bg-violet-950/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-violet-200 ring-1 ring-violet-700/50">
+                    Web
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
           <div className="ysk-gradient-bar mt-3 h-0.5 w-full rounded-full opacity-90" />
@@ -246,6 +258,7 @@ export function Layout(): JSX.Element {
         <Outlet />
         <AiJobHud />
         <AiDraftModal />
+        <VideoPrepHost />
       </main>
     </div>
   )

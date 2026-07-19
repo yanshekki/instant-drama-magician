@@ -9,7 +9,10 @@ import {
   type TransitionMode
 } from '../../domain/exportLayout'
 import { AppError } from '../../types/errors'
-import { resolveFfmpegPath } from './resolveFfmpegPath'
+import {
+  resolveFfmpegPath,
+  resolveFfmpegPathFresh
+} from './resolveFfmpegPath'
 
 export interface StoryboardClip {
   startTime: number
@@ -21,9 +24,11 @@ export interface StoryboardClip {
 }
 
 export class FfmpegService {
-  constructor(
-    private readonly ffmpegBin: string = resolveFfmpegPath()
-  ) {}
+  private ffmpegBin: string
+
+  constructor(ffmpegBin?: string) {
+    this.ffmpegBin = ffmpegBin?.trim() || resolveFfmpegPath()
+  }
 
   /** Resolved binary path (for diagnostics). */
   get binaryPath(): string {
@@ -31,14 +36,26 @@ export class FfmpegService {
   }
 
   async ensureAvailable(): Promise<void> {
-    try {
-      await this.run([this.ffmpegBin, '-version'], { ignoreOutput: true })
-    } catch {
-      throw new AppError(
-        'FFMPEG_UNAVAILABLE',
-        'Bundled FFmpeg not found. Reinstall the app or set FFMPEG_PATH to a working ffmpeg binary.'
-      )
+    const tryBin = async (bin: string): Promise<boolean> => {
+      try {
+        await this.run([bin, '-version'], { ignoreOutput: true })
+        this.ffmpegBin = bin
+        return true
+      } catch {
+        return false
+      }
     }
+
+    if (await tryBin(this.ffmpegBin)) return
+
+    // Re-resolve (handles first-probe race / cwd change / bad cache)
+    const fresh = resolveFfmpegPathFresh()
+    if (fresh !== this.ffmpegBin && (await tryBin(fresh))) return
+
+    throw new AppError(
+      'FFMPEG_UNAVAILABLE',
+      'Bundled FFmpeg not found. Reinstall the app or set FFMPEG_PATH to a working ffmpeg binary.'
+    )
   }
 
   /**
@@ -412,6 +429,69 @@ export class FfmpegService {
       // fallback to concat if xfade unsupported
       await this.concatFiles(paths, outputPath)
     }
+  }
+
+  /**
+   * Grab a single still frame from a video (for continuity / storyboard).
+   * Prefers a near-start frame so it matches video-prep keyframe usage.
+   */
+  async extractStillFrame(options: {
+    videoPath: string
+    outputPath: string
+    /** Seek position in seconds (default 0.25). */
+    atSeconds?: number
+  }): Promise<string> {
+    await this.ensureAvailable()
+    if (!existsSync(options.videoPath)) {
+      throw new AppError('NOT_FOUND', `Video not found: ${options.videoPath}`)
+    }
+    mkdirSync(dirname(options.outputPath), { recursive: true })
+    const at = Math.max(0, options.atSeconds ?? 0.25)
+    // -ss before -i is fast; one png frame (-update 1 for modern ffmpeg)
+    const extractArgs = (withSeek: boolean): string[] => [
+      this.ffmpegBin,
+      '-y',
+      ...(withSeek ? (['-ss', at.toFixed(2)] as string[]) : []),
+      '-i',
+      options.videoPath,
+      '-frames:v',
+      '1',
+      '-update',
+      '1',
+      '-q:v',
+      '2',
+      options.outputPath
+    ]
+    try {
+      await this.run(extractArgs(true))
+    } catch {
+      /* retry without seek / without -update below */
+    }
+    if (!existsSync(options.outputPath)) {
+      try {
+        await this.run(extractArgs(false))
+      } catch {
+        /* fallback without -update for older builds */
+        await this.run([
+          this.ffmpegBin,
+          '-y',
+          '-i',
+          options.videoPath,
+          '-frames:v',
+          '1',
+          '-q:v',
+          '2',
+          options.outputPath
+        ])
+      }
+    }
+    if (!existsSync(options.outputPath)) {
+      throw new AppError(
+        'FFMPEG_FAILED',
+        'Could not extract still frame from video'
+      )
+    }
+    return options.outputPath
   }
 
   private async concatFiles(paths: string[], outputPath: string): Promise<string> {

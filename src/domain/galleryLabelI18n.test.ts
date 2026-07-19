@@ -18,6 +18,12 @@ describe('galleryLabelI18n', () => {
     expect(translateCharacterGalleryLabel(undefined, t)).toBe(
       'characters.photoFallback'
     )
+    expect(translateCharacterGalleryLabel('Costume swap · red coat', t)).toBe(
+      'characters.swapCostume · red coat'
+    )
+    expect(translateCharacterGalleryLabel('Generate dressed look', t)).toBe(
+      'costumes.generateDressed'
+    )
   })
 
   it('maps scene and prop labels', () => {

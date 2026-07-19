@@ -25,6 +25,8 @@ export interface PipelineRunOptions {
   media?: PipelineContext['media']
   signal?: AbortSignal
   onlyFailedVideos?: boolean
+  /** Defer video/export to UI video-prep queue (per-clip review). */
+  interactiveVideo?: boolean
   videoConcurrency?: number
   aspectRatio?: string
   onClipProgress?: PipelineContext['onClipProgress']
@@ -65,15 +67,36 @@ export class GenerationPipeline {
       media: options?.media,
       signal: options?.signal,
       onlyFailedVideos: options?.onlyFailedVideos,
+      interactiveVideo: options?.interactiveVideo,
       videoConcurrency: options?.videoConcurrency,
       aspectRatio: options?.aspectRatio,
       onClipProgress: options?.onClipProgress
     }
 
     // Retry-failed path: only re-run video (skip script/export noise).
-    const activeSteps = options?.onlyFailedVideos
+    // Interactive video path: run prep steps but never auto-generate clips.
+    let activeSteps = options?.onlyFailedVideos
       ? this.steps.filter((s) => s.name === 'video')
       : this.steps
+    if (options?.interactiveVideo) {
+      activeSteps = activeSteps.filter(
+        (s) => s.name !== 'video' && s.name !== 'export'
+      )
+      // onlyFailed + interactive → nothing left in pipeline (UI owns clips)
+      if (activeSteps.length === 0) {
+        return {
+          storyId: story.id,
+          steps: [
+            {
+              step: 'video',
+              success: true,
+              output: 'Interactive video prep — deferred to UI queue.'
+            }
+          ],
+          success: true
+        }
+      }
+    }
 
     const results: PipelineStepResult[] = []
     const total = activeSteps.length

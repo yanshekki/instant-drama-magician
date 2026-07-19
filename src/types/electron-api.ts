@@ -15,6 +15,24 @@ import type {
 } from './domain'
 import type { AppSettings } from './settings'
 
+/** Actions pushed from the native application menu to the renderer. */
+export type MenuAction =
+  | { type: 'navigate'; path: string }
+  | { type: 'new-story' }
+  | { type: 'export-full' }
+  | { type: 'import-full' }
+  | { type: 'export-story' }
+  | { type: 'import-story' }
+  | { type: 'export-support' }
+  | { type: 'preferences' }
+  | { type: 'about' }
+  | { type: 'check-updates' }
+  | { type: 'open-user-data' }
+  | { type: 'open-media' }
+  | { type: 'full-backup-exported'; filePath: string }
+  | { type: 'screenshot-saved'; filePath: string }
+  | { type: 'open-legal'; kind: 'disclaimer' | 'terms' }
+
 /** Renderer-facing Electron IPC API (mirrors preload bridge). */
 export interface ElectronApi {
   stories: {
@@ -625,7 +643,19 @@ export interface ElectronApi {
       characterId: string
       baseImagePath?: string | null
       pose?: string | null
-    }) => Promise<{ path: string; costume: unknown; characterId: string }>
+    }) => Promise<{
+      path: string
+      costume: unknown
+      characterId: string
+      gallery?: Array<{
+        id: string
+        path: string
+        kind: string
+        label: string
+        createdAt: string
+        layer?: string
+      }>
+    }>
     /** Animate one costume still into a look intro video. */
     generateIntroVideo: (payload: {
       costumeId: string
@@ -650,6 +680,106 @@ export interface ElectronApi {
       polished?: boolean
     }>
   }
+  /** Shared video prep: materials → LLM prompt → still review → confirm video */
+  videoPrep: {
+    create: (payload: {
+      kind:
+        | 'character-intro'
+        | 'scene-intro'
+        | 'prop-intro'
+        | 'costume-intro'
+        | 'timeline-clip'
+      sourceImagePath?: string | null
+      characterId?: string
+      sceneId?: string
+      propId?: string
+      costumeId?: string
+      storyId?: string
+      entryId?: string
+      durationSeconds?: number
+      locale?: 'zh-HK' | 'en'
+      skipStillIfExists?: boolean
+      stillOnly?: boolean
+    }) => Promise<{
+      kind: string
+      entityIds: Record<string, string | undefined>
+      professionalPrompt: string
+      userExtraPrompt: string
+      stillPath: string
+      sourceImagePath?: string | null
+      durationSeconds: number
+      aspectRatio: string
+      materialsSummary?: string
+      stillPromptUsed?: string
+      polished?: boolean
+      skippedStill?: boolean
+    }>
+    openFromStill: (payload: {
+      storyId: string
+      entryId: string
+      locale?: 'zh-HK' | 'en'
+      forcePolish?: boolean
+    }) => Promise<{
+      kind: string
+      entityIds: Record<string, string | undefined>
+      professionalPrompt: string
+      userExtraPrompt: string
+      stillPath: string
+      sourceImagePath?: string | null
+      durationSeconds: number
+      aspectRatio: string
+      materialsSummary?: string
+      polished?: boolean
+      skippedStill?: boolean
+    }>
+    regenStill: (payload: {
+      professionalPrompt: string
+      improvementNotes: string
+      sourceImagePath?: string | null
+      characterId?: string
+      sceneId?: string
+      propId?: string
+      costumeId?: string
+      storyId?: string
+      entryId?: string
+      durationSeconds?: number
+      aspectRatio?: string
+      locale?: 'zh-HK' | 'en'
+    }) => Promise<{
+      professionalPrompt: string
+      stillPath: string
+      stillPromptUsed?: string
+      polished?: boolean
+    }>
+    confirm: (payload: {
+      kind:
+        | 'character-intro'
+        | 'scene-intro'
+        | 'prop-intro'
+        | 'costume-intro'
+        | 'timeline-clip'
+      professionalPrompt: string
+      userExtraPrompt?: string | null
+      stillPath: string
+      sourceImagePath?: string | null
+      characterId?: string
+      sceneId?: string
+      propId?: string
+      costumeId?: string
+      storyId?: string
+      entryId?: string
+      durationSeconds?: number
+      aspectRatio?: string
+      locale?: 'zh-HK' | 'en'
+    }) => Promise<{
+      path: string
+      gallery?: unknown
+      entity?: unknown
+      polished?: boolean
+      promptUsed?: string
+      degraded?: boolean
+    }>
+  }
   timeline: {
     list: (storyId: string) => Promise<unknown>
     create: (input: CreateTimelineEntryInput) => Promise<unknown>
@@ -664,11 +794,26 @@ export interface ElectronApi {
         mediaError?: string | null
       }
     ) => Promise<unknown>
+    getAdvancedPrep: (storyId: string) => Promise<unknown>
+    setCastPrep: (
+      storyId: string,
+      prep: {
+        version?: number
+        characters: Record<
+          string,
+          { refImagePath: string | null; costumeId: string | null }
+        >
+      }
+    ) => Promise<unknown>
+    clearEntryStill: (
+      storyId: string,
+      entryId: string
+    ) => Promise<{ ok: boolean; stillPath: string }>
   }
   generation: {
     run: (
       storyId: string,
-      opts?: { onlyFailedVideos?: boolean }
+      opts?: { onlyFailedVideos?: boolean; interactiveVideo?: boolean }
     ) => Promise<unknown>
     runClip: (
       storyId: string,
@@ -786,6 +931,46 @@ export interface ElectronApi {
       }
     }>
   }
+  /** Embedded HTTP server for browser remote control (desktop only). */
+  webServer: {
+    status: () => Promise<{
+      running: boolean
+      port: number
+      host: string
+      url: string
+      authToken: string
+      authRequired: boolean
+      authDisabled: boolean
+      staticReady: boolean
+      error: string | null
+      channels: number
+    }>
+    start: () => Promise<{
+      running: boolean
+      port: number
+      host: string
+      url: string
+      authToken: string
+      authRequired: boolean
+      authDisabled: boolean
+      staticReady: boolean
+      error: string | null
+      channels: number
+    }>
+    stop: () => Promise<{
+      running: boolean
+      port: number
+      host: string
+      url: string
+      authToken: string
+      authRequired: boolean
+      authDisabled: boolean
+      staticReady: boolean
+      error: string | null
+      channels: number
+    }>
+    generateToken: () => Promise<{ token: string; settings: AppSettings }>
+  }
   app: {
     getInfo: () => Promise<{
       version: string
@@ -796,6 +981,13 @@ export interface ElectronApi {
       isPackaged: boolean
       platform: string
     }>
+    /** Native File menu / Settings: full DB+media+settings zip */
+    exportFullBackup: () => Promise<{ ok: true } | null>
+    /** Restore full zip (overwrites + relaunches) */
+    importFullBackup: () => Promise<{ ok: true } | null>
+    rebuildMenu: () => Promise<{ ok: true }>
+    /** Subscribe to native menu → renderer actions */
+    onMenuAction: (callback: (action: MenuAction) => void) => () => void
   }
   updates: {
     status: () => Promise<{
@@ -938,7 +1130,12 @@ export interface ElectronApi {
     saveAs: (filePath: string) => Promise<{ filePath: string } | null>
     /** Delete a draft sheet under media/tmp */
     discardSheetDraft: (filePath: string) => Promise<{ ok: boolean }>
-    checkFfmpeg: () => Promise<{ available: boolean; message: string }>
+    checkFfmpeg: () => Promise<{
+      available: boolean
+      message: string
+      /** Resolved binary when available (diagnostics only) */
+      path?: string
+    }>
     exportPreflight: (storyId: string) => Promise<{
       ffmpeg: boolean
       ffmpegMessage: string

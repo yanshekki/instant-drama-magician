@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getApi } from '../../lib/api'
+import { getApi, isElectron } from '../../lib/api'
+import {
+  LEGAL_EFFECTIVE_DATE,
+  LEGAL_VERSION,
+  formatLegalAcceptedAt
+} from '../../domain/legal'
+import { openLegalDocument } from '../components/LegalDocumentModal'
 import { formatIpcError, parseIpcError } from '../../lib/ipc'
 import {
   applyLlmPreset,
@@ -33,7 +39,8 @@ import type { ElectronApi } from '../../types/electron-api'
 import {
   DEFAULT_SETTINGS,
   IMAGE_PIXEL_SIZES,
-  VIDEO_ASPECT_RATIOS
+  VIDEO_ASPECT_RATIOS,
+  mergeSettings
 } from '../../types/settings'
 import {
   applyColorScheme,
@@ -63,7 +70,8 @@ export function SettingsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [clearing, setClearing] = useState(false)
-  const [ffmpegMsg, setFfmpegMsg] = useState<string | null>(null)
+  /** Only set when FFmpeg is missing/broken — app requires FFmpeg always. */
+  const [ffmpegError, setFfmpegError] = useState<string | null>(null)
   const [appInfo, setAppInfo] = useState<{
     version: string
     isPackaged: boolean
@@ -83,6 +91,35 @@ export function SettingsPage(): JSX.Element {
     adminUrl: string
   } | null>(null)
   const [gatewayBusy, setGatewayBusy] = useState(false)
+  const [webBusy, setWebBusy] = useState(false)
+  const [webStatus, setWebStatus] = useState<{
+    running: boolean
+    url: string
+    port: number
+    error: string | null
+    staticReady: boolean
+  } | null>(null)
+
+  const refreshWebStatus = async (): Promise<void> => {
+    if (!isElectron()) return
+    try {
+      const ws = getApi().webServer
+      if (!ws?.status) {
+        setWebStatus(null)
+        return
+      }
+      const st = await ws.status()
+      setWebStatus({
+        running: st.running,
+        url: st.url,
+        port: st.port,
+        error: st.error,
+        staticReady: st.staticReady
+      })
+    } catch {
+      setWebStatus(null)
+    }
+  }
 
   // Load once on mount — do NOT depend on i18n/t or language changes
   // will re-fetch stale uiLanguage and snap the UI back to the previous language.
@@ -90,22 +127,25 @@ export function SettingsPage(): JSX.Element {
     void getApi()
       .settings.get()
       .then((s) => {
-        setSettings(s)
-        if (s.uiLanguage) {
-          const lang = coerceUiLanguage(s.uiLanguage)
+        // Always merge defaults so new fields (webServerPort, etc.) show in UI
+        const merged = mergeSettings(s)
+        setSettings(merged)
+        if (merged.uiLanguage) {
+          const lang = coerceUiLanguage(merged.uiLanguage)
           if (lang !== i18n.language) {
             void changeUiLanguage(lang)
           }
         }
-        applyColorScheme(coerceColorScheme(s.colorScheme))
+        applyColorScheme(coerceColorScheme(merged.colorScheme))
       })
       .catch((e) => setError(parseIpcError(e).message))
     void getApi()
       .media.checkFfmpeg()
-      .then((r) =>
-        setFfmpegMsg(r.available ? t('settings.ffmpegOk') : r.message)
-      )
-      .catch(() => setFfmpegMsg(t('pipeline.needFfmpeg')))
+      .then((r) => {
+        // FFmpeg is mandatory; healthy state is silent (no useless badge).
+        setFfmpegError(r.available ? null : r.message || t('settings.ffmpegRequired'))
+      })
+      .catch(() => setFfmpegError(t('settings.ffmpegRequired')))
     void getApi()
       .app.getInfo()
       .then((info) =>
@@ -118,6 +158,7 @@ export function SettingsPage(): JSX.Element {
       )
       .catch(() => undefined)
     void refreshGatewayStatus()
+    void refreshWebStatus()
     // Grok gateway: prepare (start + auto key) BEFORE listing models
     void (async () => {
       try {
@@ -581,8 +622,8 @@ export function SettingsPage(): JSX.Element {
                   onChange={(p) => void handleLlmPresetChange(p)}
                 />
                 {/*
-                  Grok 本機閘道：全自動（啟動 + 金鑰），用戶唔使睇面板／key／baseUrl。
-                  其他供應商先顯示金鑰與進階。
+                  Grok 本機閘道：全自動（啟動 + 金鑰），使用者無須查看面板／key／baseUrl。
+                  其他供應商才顯示金鑰與進階選項。
                 */}
                 {llmPreset === 'grok-gateway' ? (
                   <div className="space-y-4 border-t border-ink-800/80 pt-3">
@@ -830,6 +871,14 @@ export function SettingsPage(): JSX.Element {
                         if (v === 'same-as-llm') {
                           return
                         }
+                        if (v === 'seedream') {
+                          const defBase = channelPresetBaseUrl('seedream')
+                          if (defBase) patch('imageBaseUrl', defBase)
+                          if (!settings.imageModel?.trim()) {
+                            patch('imageModel', 'doubao-seedream-4-0')
+                          }
+                          return
+                        }
                         if (v === 'custom') {
                           if (!settings.imageBaseUrl?.trim()) {
                             patch('imageBaseUrl', settings.baseUrl)
@@ -864,6 +913,7 @@ export function SettingsPage(): JSX.Element {
                           patch('imageBaseUrl', e.target.value)
                           if (
                             settings.imageProvider !== 'custom' &&
+                            settings.imageProvider !== 'seedream' &&
                             isLlmProviderPreset(
                               String(settings.imageProvider)
                             )
@@ -887,6 +937,22 @@ export function SettingsPage(): JSX.Element {
                         }
                       />
                     </div>
+                    {(settings.imageProvider === 'seedream' ||
+                      settings.imageModel?.trim()) && (
+                      <div>
+                        <Label>{t('settings.imageModel')}</Label>
+                        <Input
+                          value={settings.imageModel}
+                          onChange={(e) =>
+                            patch('imageModel', e.target.value)
+                          }
+                          placeholder="doubao-seedream-4-0"
+                        />
+                        <p className="mt-1 text-[11px] text-ink-500">
+                          {t('settings.imageModelHint')}
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -987,6 +1053,15 @@ export function SettingsPage(): JSX.Element {
                         if (v === 'same-as-llm') {
                           return
                         }
+                        if (v === 'seedance') {
+                          patch('videoMode', 'http')
+                          const defBase = channelPresetBaseUrl('seedance')
+                          if (defBase) patch('videoBaseUrl', defBase)
+                          if (!settings.videoModel?.trim()) {
+                            patch('videoModel', 'doubao-seedance-1-0-pro')
+                          }
+                          return
+                        }
                         if (v === 'grok-gateway') {
                           patch('videoMode', 'auto')
                           patch(
@@ -1042,7 +1117,28 @@ export function SettingsPage(): JSX.Element {
                           ) || settings.baseUrl
                         }
                       />
+                      {settings.videoProvider === 'seedance' && (
+                        <p className="mt-1 text-[11px] text-ink-500">
+                          {t('settings.seedanceBaseHint')}
+                        </p>
+                      )}
                     </div>
+                    {(settings.videoProvider === 'seedance' ||
+                      settings.videoModel?.trim()) && (
+                      <div>
+                        <Label>{t('settings.videoModel')}</Label>
+                        <Input
+                          value={settings.videoModel}
+                          onChange={(e) =>
+                            patch('videoModel', e.target.value)
+                          }
+                          placeholder="doubao-seedance-1-0-pro"
+                        />
+                        <p className="mt-1 text-[11px] text-ink-500">
+                          {t('settings.videoModelHint')}
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1243,97 +1339,529 @@ export function SettingsPage(): JSX.Element {
                     })}
                   </div>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-ink-200">
-                  <input
-                    type="checkbox"
-                    checked={settings.snapEnabled}
-                    onChange={(e) =>
-                      patch('snapEnabled', e.target.checked)
-                    }
-                  />
-                  {t('settings.snapEnabled')}
-                </label>
-                <div>
-                  <Label>{t('settings.snapGridSec')}</Label>
-                  <Input
-                    type="number"
-                    min={0.1}
-                    step={0.1}
-                    value={settings.snapGridSec}
-                    onChange={(e) =>
-                      patch(
-                        'snapGridSec',
-                        Number(e.target.value) || 0.5
-                      )
-                    }
-                  />
-                </div>
-                {ffmpegMsg && (
-                  <p className="rounded-lg border border-ink-800 bg-ink-950/50 px-3 py-2 text-xs text-ink-300">
-                    {t('settings.ffmpegStatus', { msg: ffmpegMsg })}
-                  </p>
-                )}
-                {appInfo && (
-                  <div className="rounded-xl border border-ink-800 bg-ink-950/40 px-3 py-2 font-mono text-[11px] text-ink-400">
-                    <p>
-                      v{appInfo.version} ·{' '}
-                      {appInfo.isPackaged
-                        ? t('app.packaged')
-                        : t('app.dev')}
+                {ffmpegError && (
+                  <div
+                    className="rounded-xl border border-rose-600/40 bg-rose-950/40 px-3 py-2.5 text-xs text-rose-100 shadow-theme-sm"
+                    role="alert"
+                  >
+                    <p className="font-semibold">{t('settings.ffmpegRequiredTitle')}</p>
+                    <p className="mt-1 leading-relaxed text-rose-100/90">
+                      {t('settings.ffmpegRequired')}
                     </p>
-                    <p className="mt-1 truncate">{appInfo.userData}</p>
+                    <p className="mt-1.5 font-mono text-[10px] text-rose-200/70 break-all">
+                      {ffmpegError}
+                    </p>
                   </div>
                 )}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      void getApi()
-                        .support.exportReport()
-                        .then((r) => {
-                          if (r) {
-                            toast.success(
-                              t('settings.supportExported', {
-                                path: r.filePath
-                              })
-                            )
-                            void getApi().shell.showItemInFolder(r.filePath)
+                {appInfo && (
+                  <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-2.5 shadow-theme-sm">
+                    <p className="font-mono text-[11px] text-ink-400">
+                      v{appInfo.version}
+                    </p>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <p
+                        className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink-500"
+                        title={appInfo.userData}
+                      >
+                        {appInfo.userData}
+                      </p>
+                      <Button
+                        variant="secondary"
+                        className="!h-8 shrink-0 !px-2.5 !text-[11px]"
+                        onClick={() => {
+                          void (async () => {
+                            try {
+                              const r = (await getApi().shell.openPath(
+                                appInfo.userData
+                              )) as {
+                                ok?: boolean
+                                path?: string
+                                isDirectory?: boolean
+                                message?: string
+                              }
+                              if (r?.isDirectory || r?.path) {
+                                const p = r.path || appInfo.userData
+                                try {
+                                  await navigator.clipboard.writeText(p)
+                                  toast.success(
+                                    t('settings.dataPathCopied', { path: p })
+                                  )
+                                } catch {
+                                  toast.info(p)
+                                }
+                                return
+                              }
+                              toast.error(t('settings.openDataFolderFail'))
+                            } catch (e) {
+                              toast.error(
+                                parseIpcError(e).message ||
+                                  t('settings.openDataFolderFail')
+                              )
+                            }
+                          })()
+                        }}
+                      >
+                        {t('settings.openDataFolder')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {settings && (
+                  <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 shadow-theme-sm">
+                    <p className="text-sm font-medium text-ink-100">
+                      {t('legal.viewInSettings')}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-400">
+                      {t('legal.viewInSettingsHint')}
+                    </p>
+                    <p className="mt-2 font-mono text-[11px] text-ink-400">
+                      {t('legal.versionLabel', {
+                        version: LEGAL_VERSION,
+                        date: LEGAL_EFFECTIVE_DATE
+                      })}
+                    </p>
+                    {settings.legalAcceptedVersion ? (
+                      <p
+                        className={[
+                          'mt-1 text-[11px]',
+                          settings.legalAcceptedVersion === LEGAL_VERSION
+                            ? 'text-ink-500'
+                            : 'text-amber-200'
+                        ].join(' ')}
+                      >
+                        {t('legal.lastAccepted', {
+                          version: settings.legalAcceptedVersion,
+                          date: formatLegalAcceptedAt(settings.legalAcceptedAt)
+                        })}
+                        {settings.legalAcceptedVersion !== LEGAL_VERSION
+                          ? ` · ${t('legal.outdatedAccept')}`
+                          : ''}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-amber-200">
+                        {t('legal.notYetAccepted')}
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        variant="secondary"
+                        className="!h-9 !text-xs"
+                        onClick={() => openLegalDocument('disclaimer')}
+                      >
+                        {t('legal.openDisclaimer')}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="!h-9 !text-xs"
+                        onClick={() => openLegalDocument('terms')}
+                      >
+                        {t('legal.openTerms')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {isElectron() && settings && (
+                  <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 shadow-theme-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-ink-100">
+                          {t('settings.webServerTitle')}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-ink-400">
+                          {t('settings.webServerHint')}
+                        </p>
+                      </div>
+                      <span
+                        className={[
+                          'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                          webStatus?.running
+                            ? 'bg-emerald-950/80 text-emerald-200 ring-1 ring-emerald-700/40'
+                            : 'bg-ink-800 text-ink-400 ring-1 ring-ink-700'
+                        ].join(' ')}
+                      >
+                        {webStatus?.running
+                          ? t('settings.webServerOn')
+                          : t('settings.webServerOff')}
+                      </span>
+                    </div>
+
+                    <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-ink-200">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-ink-600"
+                        checked={Boolean(settings.webServerEnabled)}
+                        disabled={webBusy}
+                        onChange={(e) => {
+                          const on = e.target.checked
+                          setWebBusy(true)
+                          void (async () => {
+                            try {
+                              const ws = getApi().webServer
+                              if (
+                                !ws?.start ||
+                                !ws?.stop ||
+                                !ws?.generateToken
+                              ) {
+                                toast.error(t('settings.webServerApiMissing'))
+                                return
+                              }
+                              if (on) {
+                                if (!settings.webServerAuthToken?.trim()) {
+                                  const g = await ws.generateToken()
+                                  setSettings(mergeSettings(g.settings))
+                                }
+                                const st = await ws.start()
+                                setWebStatus({
+                                  running: st.running,
+                                  url: st.url,
+                                  port: st.port,
+                                  error: st.error,
+                                  staticReady: st.staticReady
+                                })
+                                const s = await getApi().settings.get()
+                                setSettings(mergeSettings(s))
+                                toast.success(t('settings.webServerStarted'))
+                              } else {
+                                const st = await ws.stop()
+                                setWebStatus({
+                                  running: st.running,
+                                  url: st.url,
+                                  port: st.port,
+                                  error: st.error,
+                                  staticReady: st.staticReady
+                                })
+                                const s = await getApi().settings.set({
+                                  webServerEnabled: false
+                                })
+                                setSettings(mergeSettings(s))
+                                toast.info(t('settings.webServerStopped'))
+                              }
+                            } catch (err) {
+                              toast.error(parseIpcError(err).message)
+                              await refreshWebStatus()
+                              const s = await getApi().settings.get()
+                              setSettings(mergeSettings(s))
+                            } finally {
+                              setWebBusy(false)
+                            }
+                          })()
+                        }}
+                      />
+                      {t('settings.webServerEnable')}
+                    </label>
+
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <Label>{t('settings.webServerPort')}</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={65535}
+                          placeholder={String(DEFAULT_SETTINGS.webServerPort)}
+                          value={
+                            settings.webServerPort &&
+                            settings.webServerPort > 0
+                              ? settings.webServerPort
+                              : DEFAULT_SETTINGS.webServerPort
                           }
-                        })
-                        .catch((e) =>
-                          toast.error(parseIpcError(e).message)
-                        )
-                    }
-                  >
-                    {t('settings.supportReport')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      void getApi()
-                        .diagnostics.full()
-                        .then((d) => {
-                          toast.info(
-                            t('settings.probeResult', {
-                              chat: d.chat.available
-                                ? t('settings.statusOk')
-                                : t('settings.statusOff'),
-                              video: d.video.available
-                                ? t('settings.statusOk')
-                                : t('settings.statusOff'),
-                              ffmpeg: d.ffmpeg.available
-                                ? t('settings.statusOk')
-                                : t('settings.statusOff')
-                            })
+                          onChange={(e) => {
+                            const raw = e.target.value.trim()
+                            if (raw === '') {
+                              // Keep field controlled; empty → default port
+                              patch(
+                                'webServerPort',
+                                DEFAULT_SETTINGS.webServerPort
+                              )
+                              return
+                            }
+                            const n = Number(raw)
+                            patch(
+                              'webServerPort',
+                              Number.isFinite(n) && n > 0
+                                ? Math.min(65535, Math.floor(n))
+                                : DEFAULT_SETTINGS.webServerPort
+                            )
+                          }}
+                          onBlur={() => {
+                            const port =
+                              settings.webServerPort &&
+                              settings.webServerPort > 0
+                                ? settings.webServerPort
+                                : DEFAULT_SETTINGS.webServerPort
+                            patch('webServerPort', port)
+                            setWebBusy(true)
+                            void getApi()
+                              .settings.set({
+                                webServerPort: port,
+                                webServerHost:
+                                  settings.webServerHost ||
+                                  DEFAULT_SETTINGS.webServerHost
+                              })
+                              .then((s) => {
+                                setSettings(mergeSettings(s))
+                                if (!s.webServerEnabled) return null
+                                return getApi().webServer.start()
+                              })
+                              .then((st) => {
+                                if (!st) return
+                                setWebStatus({
+                                  running: st.running,
+                                  url: st.url,
+                                  port: st.port,
+                                  error: st.error,
+                                  staticReady: st.staticReady
+                                })
+                              })
+                              .catch((err) =>
+                                toast.error(parseIpcError(err).message)
+                              )
+                              .finally(() => setWebBusy(false))
+                          }}
+                        />
+                        <p className="mt-1 text-[11px] text-ink-500">
+                          {t('settings.webServerPortHint', {
+                            port: DEFAULT_SETTINGS.webServerPort
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <Label>{t('settings.webServerHost')}</Label>
+                        <Select
+                          value={
+                            (settings.webServerHost ||
+                              DEFAULT_SETTINGS.webServerHost) === '127.0.0.1'
+                              ? '127.0.0.1'
+                              : '0.0.0.0'
+                          }
+                          onChange={(e) => {
+                            const host = e.target.value
+                            patch('webServerHost', host)
+                            setWebBusy(true)
+                            void getApi()
+                              .settings.set({
+                                webServerHost: host,
+                                webServerPort:
+                                  settings.webServerPort ||
+                                  DEFAULT_SETTINGS.webServerPort
+                              })
+                              .then((s) => {
+                                setSettings(mergeSettings(s))
+                                if (!s.webServerEnabled) return null
+                                return getApi().webServer.start()
+                              })
+                              .then((st) => {
+                                if (!st) return
+                                setWebStatus({
+                                  running: st.running,
+                                  url: st.url,
+                                  port: st.port,
+                                  error: st.error,
+                                  staticReady: st.staticReady
+                                })
+                              })
+                              .catch((err) =>
+                                toast.error(parseIpcError(err).message)
+                              )
+                              .finally(() => setWebBusy(false))
+                          }}
+                        >
+                          <option value="0.0.0.0">
+                            {t('settings.webServerHostLan')}
+                          </option>
+                          <option value="127.0.0.1">
+                            {t('settings.webServerHostLocal')}
+                          </option>
+                        </Select>
+                        <p className="mt-1 text-[11px] text-ink-500">
+                          {t('settings.webServerHostHint')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-2">
+                      <Label>{t('settings.webServerToken')}</Label>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <Input
+                          className="min-w-0 flex-1 font-mono text-xs"
+                          type="text"
+                          readOnly
+                          value={settings.webServerAuthToken || ''}
+                          placeholder={t('settings.webServerTokenEmpty')}
+                        />
+                        <Button
+                          variant="secondary"
+                          className="!h-9 !text-xs"
+                          disabled={webBusy}
+                          onClick={() => {
+                            const ws = getApi().webServer
+                            if (!ws?.generateToken) {
+                              toast.error(t('settings.webServerApiMissing'))
+                              return
+                            }
+                            setWebBusy(true)
+                            void ws
+                              .generateToken()
+                              .then(async (r) => {
+                                setSettings(mergeSettings(r.settings))
+                                await refreshWebStatus()
+                                toast.success(t('settings.webServerTokenNew'))
+                              })
+                              .catch((err) =>
+                                toast.error(parseIpcError(err).message)
+                              )
+                              .finally(() => setWebBusy(false))
+                          }}
+                        >
+                          {t('settings.webServerTokenRegen')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="!h-9 !text-xs"
+                          disabled={!settings.webServerAuthToken}
+                          onClick={() => {
+                            void navigator.clipboard
+                              .writeText(settings.webServerAuthToken)
+                              .then(() =>
+                                toast.success(t('settings.webServerTokenCopied'))
+                              )
+                              .catch(() =>
+                                toast.info(settings.webServerAuthToken)
+                              )
+                          }}
+                        >
+                          {t('settings.webServerTokenCopy')}
+                        </Button>
+                      </div>
+                      <p className="mt-1 text-[11px] text-ink-500">
+                        {t('settings.webServerTokenHint')}
+                      </p>
+                    </div>
+
+                    {webStatus?.running && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-800/40 bg-emerald-950/30 px-2.5 py-2">
+                        <p
+                          className="min-w-0 flex-1 truncate font-mono text-[11px] text-emerald-100"
+                          title={webStatus.url}
+                        >
+                          {webStatus.url}
+                        </p>
+                        <Button
+                          variant="secondary"
+                          className="!h-8 !px-2.5 !text-[11px]"
+                          onClick={() => {
+                            void navigator.clipboard
+                              .writeText(webStatus.url)
+                              .then(() =>
+                                toast.success(t('settings.webServerUrlCopied'))
+                              )
+                          }}
+                        >
+                          {t('settings.webServerCopyUrl')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="!h-8 !px-2.5 !text-[11px]"
+                          onClick={() => {
+                            void getApi()
+                              .shell.openExternal(webStatus.url)
+                              .catch(() =>
+                                window.open(
+                                  webStatus.url,
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                )
+                              )
+                          }}
+                        >
+                          {t('settings.webServerOpen')}
+                        </Button>
+                      </div>
+                    )}
+                    {webStatus?.error && (
+                      <p className="mt-2 text-xs text-rose-300" role="alert">
+                        {webStatus.error}
+                      </p>
+                    )}
+                    {webStatus?.running && !webStatus.staticReady && (
+                      <p className="mt-2 text-[11px] text-amber-200">
+                        {t('settings.webServerNoSpa')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 shadow-theme-sm">
+                  <p className="text-sm font-medium text-ink-100">
+                    {t('backup.fullTitle')}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-400">
+                    {t('backup.fullHint')}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      className="!h-9 !text-xs"
+                      onClick={() => {
+                        void getApi()
+                          .app.exportFullBackup()
+                          .then((r) => {
+                            const x = r as {
+                              downloadUrl?: string
+                              fileName?: string
+                              filePath?: string
+                            } | null
+                            if (x?.downloadUrl || x?.filePath || x) {
+                              toast.success(
+                                t('backup.fullExported', {
+                                  path:
+                                    x?.fileName ||
+                                    x?.filePath ||
+                                    t('backup.exportFull')
+                                })
+                              )
+                            }
+                          })
+                          .catch((e) =>
+                            toast.error(parseIpcError(e).message)
                           )
-                        })
-                        .catch((e) =>
-                          toast.error(parseIpcError(e).message)
-                        )
-                    }
-                  >
-                    {t('settings.probeAll')}
-                  </Button>
+                      }}
+                    >
+                      {t('backup.exportFull')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="!h-9 !text-xs !text-amber-200"
+                      onClick={() => {
+                        void (async () => {
+                          const ok = await dialog.confirm({
+                            title: t('backup.importFullTitle'),
+                            message: t('backup.importFullConfirm'),
+                            variant: 'danger',
+                            confirmLabel: t('backup.importFullAction')
+                          })
+                          if (!ok) return
+                          try {
+                            const r = (await getApi().app.importFullBackup()) as {
+                              requiresReload?: boolean
+                            } | null
+                            toast.success(t('backup.importFullOk'))
+                            if (r?.requiresReload) {
+                              toast.info(t('backup.importFullReload'))
+                            }
+                          } catch (e) {
+                            toast.error(parseIpcError(e).message)
+                          }
+                        })()
+                      }}
+                    >
+                      {t('backup.importFull')}
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-ink-500">
+                    {t('backup.storyVsFull')}
+                  </p>
                 </div>
               </Card>
             )}

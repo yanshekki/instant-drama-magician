@@ -114,7 +114,7 @@ export function Card({
   return (
     <div
       className={[
-        'rounded-xl border border-ink-800 bg-ink-900/80 p-4 shadow-theme-sm',
+        'rounded-xl border border-ink-700 bg-ink-900 p-4 shadow-theme-sm',
         className
       ].join(' ')}
     >

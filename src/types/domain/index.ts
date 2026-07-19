@@ -11,6 +11,8 @@ export interface Story {
   exportPath?: string | null
   /** Visual / tone bible for clip prompt continuity */
   styleNote?: string | null
+  /** Art medium id (same catalog as Character.artStyle). */
+  artStyle?: string | null
   /** List-card poster (like Character.refImagePath). */
   coverPath?: string | null
   refGalleryJson?: string | null
@@ -187,12 +189,14 @@ export interface TimelineEntry {
 export interface CreateStoryInput {
   title: string
   styleNote?: string | null
+  artStyle?: string | null
 }
 
 export interface UpdateStoryInput {
   title?: string
   status?: StoryStatus | string
   styleNote?: string | null
+  artStyle?: string | null
   coverPath?: string | null
   refGalleryJson?: string | null
 }
@@ -459,9 +463,16 @@ export interface PipelineContext {
     exportStoryboard?: (storyId: string) => Promise<string>
     exportConcat?: (storyId: string) => Promise<string>
     clipOutputPath?: (storyId: string, entryId: string) => string
+    /** Previous-beat keyframe for clip-to-clip visual continuity. */
+    clipContinuityStillPath?: (storyId: string, entryId: string) => string
   }
   signal?: AbortSignal
   onlyFailedVideos?: boolean
+  /**
+   * Skip automatic Video (+ Export) steps — UI will run per-clip video-prep.
+   * Used by Timeline interactive queue.
+   */
+  interactiveVideo?: boolean
   videoConcurrency?: number
   onClipProgress?: (payload: {
     entryId: string

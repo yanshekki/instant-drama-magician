@@ -1,122 +1,489 @@
-# 瞬劇魔法師 · InstantDrama Magician
+# InstantDrama Magician · 瞬劇魔法師
 
-AI 專業短劇生成桌面工具（Electron + React + TypeScript + Prisma/SQLite）。
+> **Language:** [English](./README.md) · [中文](./README-ZH.md)
 
-**LLM**：統一 **OpenAI-compatible**（preset：Grok CLI Gateway 預設 / OpenAI / Custom）— 見 [docs/grok-gateway.md](./docs/grok-gateway.md)。
+**AI professional short-drama desktop studio**
 
-## 進度（誠實）
+From one idea to a finished short drama: story → characters / costumes / scenes / props → linear timeline → AI storyboard & video → FFmpeg final export.  
+Cross-platform desktop (Electron) + optional browser remote control + full CLI `idm` (**137** channels, same surface as desktop IPC).
 
-| 範圍 | 完成度 |
-|------|--------|
-| **Project Brief MVP** | **100%** |
-| **Beta 試用層**（Round 7） | **100%** |
-| **Production UX**（Round 8） | **100%** |
-| **Release Candidate**（Round 9） | **100%** |
-| **商業發行路徑**（Round 10 · 分發／更新／支援） | **100%** |
-| **商店簽章上架**（Apple/MS 憑證＋審核） | **未做**（需你方帳號／憑證） |
-
-版本：**1.0.0**
+| | |
+|---|---|
+| **Version** | 1.0.0 |
+| **Vendor** | YSK Limited |
+| **Contact** | [email@ysk.hk](mailto:email@ysk.hk) |
+| **License** | MIT |
+| **中文** | [README-ZH.md](./README-ZH.md) |
 
 ---
 
-## MVP checklist
+## Table of contents
 
-- [x] Electron + React + TS strict + Prisma  
-- [x] 五頁創作 + soul.md + 時間軸引用  
-- [x] Grok chat + `/v1/videos` 客戶端  
-- [x] Pipeline + Demo + i18n  
-
-## Beta checklist（Round 7）
-
-- [x] Live 錯誤碼映射 + Settings 完整診斷  
-- [x] 單 clip 生成／重試  
-- [x] Export 預檢  
-- [x] [docs/beta.md](./docs/beta.md)  
-
-## Production UX checklist（Round 8）
-
-- [x] 取消生成 + 只重試失敗  
-- [x] TTS 混音 + 人物參考圖 + styleNote  
-- [x] [docs/production-ux.md](./docs/production-ux.md)  
-
-## Release Candidate checklist（Round 9）
-
-- [x] xfade / ducking / 比例感知 export  
-- [x] About + 版本  
-- [x] [docs/rc.md](./docs/rc.md)  
-
-## 商業發行路徑 checklist（Round 10）
-
-- [x] **electron-updater**（檢查／下載／重啟安裝）  
-- [x] GitHub Release **Linux + Windows + macOS** workflow  
-- [x] 活動日誌 + **支援報告**（密鑰遮罩）  
-- [x] `v1.0.0` + [docs/commercial.md](./docs/commercial.md)  
-- [ ] 商店簽章／Notarize／Store 上架（需憑證）  
-
-## Grok Gateway LLM checklist（Round 11）
-
-- [x] 預設 **:3847** + 舊 39281 自動遷移  
-- [x] `listModels` / **測試 Chat** / 錯誤映射  
-- [x] Settings **Grok Gateway（LLM 首選）**  
-- [x] [docs/grok-gateway.md](./docs/grok-gateway.md)  
-
-## 人物頁（Round 12）
-
-- [x] SoulMD Hub 選 soul + 50 頁索引建議  
-- [x] 萬能角色 Prompt（聲音／小習慣等）  
-- [x] 多角度參考圖 sheet（A/B/C/D）  
-- [x] [docs/soulmd-hub.md](./docs/soulmd-hub.md)  
+1. [UI screenshots](#ui-screenshots)
+2. [Feature overview](#feature-overview)
+3. [Desktop app details](#desktop-app-details)
+4. [Recommended workflow](#recommended-workflow)
+5. [Install & run](#install--run)
+6. [CLI (`idm`)](#cli-idm)
+7. [Web remote & self-host](#web-remote--self-host)
+8. [AI & media providers](#ai--media-providers)
+9. [UI languages](#ui-languages)
+10. [Data directories & backup](#data-directories--backup)
+11. [Architecture](#architecture)
+12. [Documentation index](#documentation-index)
+13. [License & contact](#license--contact)
 
 ---
 
-## Quick start
+## UI screenshots
 
-```bash
-# 1) Gateway（另開終端）
-# gctoac start   → http://127.0.0.1:3847
-# Admin 建 gk_live_… key
+Screenshots from the real app (`src/assets/screen/`).
 
-cd "/home/ki/文件/instant-drama-magician"
-npm install && npx prisma db push && npm run dev
+### 1. Story management
+
+Multi-project list: covers, status (Draft, etc.), character / scene / prop / clip counts, search & filters, **export backup** / **import story backup**, new story.
+
+![Story management](./src/assets/screen/1.png)
+
+### 2. Story editor (Basics)
+
+Story cover, AI quick create (**AI generate style note** / **AI generate beats**), title & status, art style, **Style bible**, external reference images and identity-lock options.
+
+![Story editor](./src/assets/screen/2.png)
+
+### 3. Character library
+
+Global cast library: multi-image reference sheets, filters (gender / art style / has image / soul / language), zoom / regenerate / save as, edit & delete. Sidebar shows Grok CLI connection status.
+
+![Character library](./src/assets/screen/3.png)
+
+### 4. Character references
+
+Professional reference flow: Identity / Body / Base / Costume / Detail gallery, multi-angle **Character bible**, art-style lock, external refs, **Lock identity**, Intro video, set as cover.
+
+![Character references](./src/assets/screen/4.png)
+
+### 5. Timeline production desk
+
+Core pipeline: timeline snap, clip list, preview, **Clip editor** (bound assets, 6s/10s AI duration, beat screenplay), per-clip generate/retry, **Generate** / **Export** / Export history, **Advanced** prep entry.
+
+![Timeline](./src/assets/screen/5.png)
+
+### 6. Advanced prep
+
+Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyframe stills, continuity lock, per-cell re-gen / To video, video queue.
+
+![Advanced prep](./src/assets/screen/6.png)
+
+---
+
+## Feature overview
+
+| Area | What you can do |
+|------|-----------------|
+| **Stories** | Multi-story management, cover AI, style bible, script beats, cast/set/props binding, `.idm.zip` backup import/export |
+| **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle reference sheets, identity lock, external refs, intro video |
+| **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, linked to character galleries |
+| **Scenes** | Scene copy, plates / looks / atmosphere, scene gallery |
+| **Props** | Prop descriptions, master prompts, plate variants |
+| **Timeline** | Linear layout, snap/pack, per-clip generate, cancel, retry-failed-only, 6s/10s duration, dialogue & camera tags |
+| **Advanced prep** | Cast lock → storyboard stills (continuity) → video from stills |
+| **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
+| **Activity log** | Generation / export / update events (JSONL) for debugging |
+| **Settings** | LLM / image / video providers, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
+| **CLI `idm`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents |
+| **Web remote** | In-app web server or standalone `idm server`; browser uses the same data |
+| **i18n** | 10 UI languages (incl. zh-HK, zh-CN, Arabic RTL, etc.) |
+| **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
+
+---
+
+## Desktop app details
+
+Sidebar: **Stories · Characters · Costumes · Scenes · Props · Timeline · Activity · Settings**.
+
+### Stories
+
+- Create / edit / delete multiple independent short-drama projects  
+- Status, cover presence, sort (e.g. recently updated)  
+- Cover: Zoom / Regenerate / Save As  
+- **Import story backup** / **Export backup** (story-level `.idm.zip`)  
+- Edit tabs:  
+  - **Basics**: cover, AI quick create, title, status, art style, style bible  
+  - **Cast / set / props**: link characters, scenes, props  
+  - **Script beats**: scene/dialogue beats for the timeline  
+
+### Characters
+
+- **Global cast library** (stories can share cast)  
+- Search and filters: gender, art style, has image, soul, language  
+- Multi-image cards; Edit / Delete  
+- Edit tabs:  
+  - **Profile**: name, description, age, gender, language, voice, etc.  
+  - **References**: multi-angle bible (front / ¾ / close-up…), body/base/costume pipeline, external refs, identity lock, generate professional refs, Intro video  
+  - **Costume**: bind wardrobe  
+- **SoulMD Hub** (soulmd-hub.ysk.hk): index suggestions, import soul.md as character soul  
+- Details: [docs/soulmd-hub.md](./docs/soulmd-hub.md) · [docs/soulmd-hub-ZH.md](./docs/soulmd-hub-ZH.md)
+
+### Costumes
+
+- Wardrobe asset library  
+- Linked to character costume swap / wardrobe suggest  
+- Generation and gallery labels (Identity / Costume, etc.)  
+
+### Scenes
+
+- Scene description and script fields  
+- Scene plates, looks, atmosphere  
+- Scene gallery and variants  
+
+### Props
+
+- Prop name and description  
+- Prop master prompt, plate variants  
+- Bound on timeline clips  
+
+### Timeline (main production desk)
+
+- Select current story; **Play** / **Undo** / **Redo**  
+- **Generate** batch; **Export** final; **Export history**  
+- Total duration, ready count, video mode, AI clips **6s or 10s only**  
+- Zoom, **Timeline snap**, snap grid, **Pack clips**  
+- **Clip editor**: bind scene/character/prop, duration, beat screenplay (`[MOOD]` / `[ATMO]` / `[DIALOGUE]`, etc.)  
+- Per clip: **Generate this clip** / **Regenerate** / **Continue video**  
+- Retry failures; cancel generation; retry-failed-only  
+- Export options: TTS, burn-in subtitles, xfade, BGM ducking, aspect ratio  
+
+### Advanced prep
+
+Opened from Timeline **Advanced**:
+
+1. **Cast lock** — lock on-screen character looks  
+2. **Storyboard stills** — batch keyframes per beat with **continuity** to previous cell  
+3. **Video** — queue video when stills are ready (can skip existing video)  
+
+Best when you want continuity locked before video generation.
+
+### Activity
+
+- View local `activity.jsonl`-style events  
+- Generation, export, update, support-report trails  
+- Helps diagnose API / pipeline issues  
+
+### Settings
+
+| Block | Contents |
+|-------|----------|
+| **LLM** | OpenAI-compatible; default **Grok Gateway** (e.g. `http://127.0.0.1:3847`); also OpenAI / Custom / **Kimi (Moonshot)**, etc. |
+| **Image** | Same as LLM or independent base URL / key / model (incl. Ark **Seedream**) |
+| **Video** | `auto` / `http` / `stub`; **Seedance (Volcengine Ark)**, Grok `/v1/videos`, etc.; 6/10s; poll & timeout |
+| **Diagnostics** | Test Chat, list models, connection status |
+| **FFmpeg** | Hard dependency; optional `FFMPEG_PATH` |
+| **Web server** | Enable browser remote, port, token, localhost / LAN |
+| **Auto-update** | Check / download / restart (packaged only; skipped in dev) |
+| **Support report** | Export diagnostics JSON (**API keys redacted**) |
+| **UI language** | See languages below |
+| **Legal** | Disclaimer & Acceptable Use Policy (AUP); re-accept when version changes |
+
+---
+
+## Recommended workflow
+
+```text
+1) Settings → paste API key → Test Chat
+2) Stories → create / AI style note + beats
+3) Characters → multi-angle sheet → lock identity
+4) Scenes / Props / Costumes → complete assets
+5) Timeline → lay out clips, write beat screenplay
+6) Advanced prep → stills (continuity) → video
+7) Export → final (optional TTS / subtitles)
 ```
 
-1. **設定** → 貼 API key → **測試 Chat**  
-2. 載入 Demo → 時間軸生成  
-3. 匯出成片（可選真 video）  
-
-詳見 [docs/grok-gateway.md](./docs/grok-gateway.md)
-
-### 發佈 v1.0.0
-
-```bash
-git tag v1.0.0 && git push origin v1.0.0
-```
+Demo: load a sample story in dev; CLI also has `idm stories seed-demo`.
 
 ---
 
-## Docs
+## Install & run
 
-- [docs/project-brief.md](./docs/project-brief.md)  
-- [docs/beta.md](./docs/beta.md)  
-- [docs/production-ux.md](./docs/production-ux.md)  
-- [docs/rc.md](./docs/rc.md)  
-- [docs/commercial.md](./docs/commercial.md)  
-- [docs/architecture.md](./docs/architecture.md)  
-- [docs/video-providers.md](./docs/video-providers.md)  
-- [docs/grok-gateway.md](./docs/grok-gateway.md)  
-- [docs/release.md](./docs/release.md)  
+### Packages (end users)
 
-## Scripts
+| Platform | Artifacts |
+|----------|-----------|
+| **Linux / Ubuntu** | `.AppImage`, `.deb` |
+| **Windows** | NSIS installer |
+| **macOS** | `.dmg` |
+
+Local builds land in `release/`; or download from GitHub Releases.
+
+```bash
+# Linux example
+sudo dpkg -i release/instant-drama-magician_1.0.0_amd64.deb
+# or
+./release/InstantDrama\ Magician-1.0.0.AppImage
+```
+
+Or via CLI:
+
+```bash
+idm build --target installer
+idm open
+```
+
+### Developer quick start
+
+```bash
+# (Recommended) Grok OpenAI-compatible gateway in another terminal
+# gctoac start  →  http://127.0.0.1:3847
+
+cd instant-drama-magician
+npm install
+npx prisma db push
+npm run dev
+```
+
+1. **Settings** → API key → **Test Chat**  
+2. Create or open a story → timeline generate  
+3. Export final  
+
+Details: [docs/grok-gateway.md](./docs/grok-gateway.md).
+
+### Common npm scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | 開發 |
-| `npm run build` | 建置 |
-| `npm test` | 測試 |
-| `npm run pack` | 目錄包 |
-| `npm run dist` | 當前平台安裝包 |
-| `npm run dist:linux` / `dist:win` / `dist:mac` | 分平台 |
+| `npm run dev` | Electron development |
+| `npm run build` | Compile main / preload / renderer |
+| `npm test` | Vitest |
+| `npm run dist:linux` / `dist:win` / `dist:mac` | Platform installers |
+| `npm run idm -- …` | Run CLI without global link |
 
-## i18n
+---
 
-zh-HK（預設）+ en
+## CLI (`idm`)
+
+Drive the **full** surface from the shell: local headless runtime or a running web server. For scripts, CI, and **OpenClaw / Hermes** agents.
+
+### Install
+
+```bash
+npm install
+npm link          # global: idm / instant-drama
+idm --help
+```
+
+Without link: `npm run idm -- doctor --json`
+
+### Modes
+
+| Mode | When | Behavior |
+|------|------|----------|
+| **local** | `--local` or no URL | Operate on `IDM_DATA_DIR` (default `~/.local/share/idm`) |
+| **remote** | `--url` / `IDM_URL` | `POST {url}/api/invoke` + Bearer |
+
+### Common commands
+
+```bash
+# Diagnostics (channel count should be ~137)
+idm doctor --json
+idm channels list --json
+
+# Any channel
+idm invoke stories:list --json
+idm invoke generation:run '["storyId"]' --json
+
+# Domain sugar
+idm stories list --json
+idm stories create --title "My drama" --json
+idm characters list --json
+idm characters generate-sheet --args '[{"characterId":"…"}]' --json
+idm generation run <storyId> --json
+idm settings get --json
+idm ai status --json
+idm media check-ffmpeg --json
+
+# Desktop lifecycle (macOS · Ubuntu · Windows)
+idm build                         # local unpacked
+idm build --target installer      # dmg / AppImage+deb / nsis
+idm open                          # open packaged app
+idm open --dev                    # development mode
+idm open --build-if-missing
+
+# Web server
+idm server start --port 8787 --data-dir ./data
+
+# Agent tool definitions
+idm tools schema --openai > tools.json
+```
+
+**Example namespaces:**  
+`activity` · `ai` · `app` · `characters` · `costumes` · `diagnostics` · `gateway` · `generation` · `media` · `project` · `props` · `scenes` · `settings` · `shell` · `souls` · `stories` · `support` · `timeline` · `updates` · `videoPrep` · `webServer`
+
+Headless file-dialog substitutes: `IDM_PICK_FILE`, `IDM_SAVE_PATH`.
+
+Full docs: [docs/cli.md](./docs/cli.md) · Agent: [docs/agent-cli.md](./docs/agent-cli.md) · OpenClaw: [`skills/idm/SKILL.md`](./skills/idm/SKILL.md)
+
+---
+
+## Web remote & self-host
+
+### Mode A — built into the desktop app (recommended)
+
+1. Open the Electron desktop app  
+2. **Settings → Web server (browser control)**  
+3. Enable, copy URL and token  
+4. Open in a browser; **shares the same userData** as desktop  
+
+### Mode B — standalone process
+
+```bash
+npm run build:web
+export IDM_DATA_DIR=./data
+export IDM_AUTH_TOKEN='your-long-secret'
+export IDM_PORT=8787
+export DATABASE_URL="file:${IDM_DATA_DIR}/instant-drama.db"
+npx prisma db push
+idm server start
+# Browser → http://127.0.0.1:8787  paste token
+```
+
+Details: [docs/self-host.md](./docs/self-host.md).
+
+---
+
+## AI & media providers
+
+### LLM (chat / script / style)
+
+- Unified **OpenAI-compatible** Chat Completions  
+- Default: **Grok CLI Gateway** (port `3847`; legacy port can migrate)  
+- Also: OpenAI, custom base URL, **Kimi (Moonshot)**, etc.  
+
+### Image
+
+- Share with LLM or configure independently  
+- Gateway images API, Ark **Seedream**, etc. (per settings)  
+
+### Video
+
+| Mode | Behavior |
+|------|----------|
+| `auto` | Prefer real video API; fall back to stub on failure |
+| `http` | Always OpenAI-style `/v1/videos` (or configured provider) |
+| `stub` | Color placeholders (no real model) |
+
+- Duration aligned to providers: **6 or 10 seconds only** (Grok-style video)  
+- **Seedance (Volcengine Ark)** as a dedicated video provider  
+- Settings: poll interval, timeout, retries, concurrency, aspect ratio  
+
+Details: [docs/video-providers.md](./docs/video-providers.md), [docs/grok-gateway.md](./docs/grok-gateway.md).
+
+### FFmpeg
+
+- **Hard dependency**: concat, transitions, mix, burn-in subtitles, export  
+- Bundled via **`ffmpeg-static`**; override with `FFMPEG_PATH`  
+
+> **Honest limits:** Look depends on your models and prompts. This tool owns workflow, continuity, and export—not guaranteed “cinema-grade” auto film. Store signing / Notarize needs your certificates.
+
+---
+
+## UI languages
+
+Switch in Settings:
+
+| Code | Language |
+|------|----------|
+| `zh-HK` | Traditional Chinese (Hong Kong) |
+| `zh-CN` | Simplified Chinese |
+| `en` | English |
+| `es` | Español |
+| `hi` | हिन्दी |
+| `ar` | العربية (RTL) |
+| `pt-BR` | Português (Brasil) |
+| `fr` | Français |
+| `ja` | 日本語 |
+| `ru` | Русский |
+
+---
+
+## Data directories & backup
+
+| Context | Typical path (Linux) |
+|---------|----------------------|
+| **Packaged desktop** | `~/.config/instant-drama-magician/` |
+| **Dev `npm run dev`** | `~/.config/instant-drama-magician-dev/` (isolated from install) |
+| **CLI local default** | `~/.local/share/idm` or `IDM_DATA_DIR` |
+| **Dev DB (isDev)** | Project `prisma/dev.db` (DB only); media/settings still under userData |
+
+Usually contains: `instant-drama.db`, `settings.json`, `media/`, `logs/`, `exports/`, etc.
+
+**Backup:**
+
+- Story-level: Stories page **Export backup** (`.idm.zip`)  
+- Full / diagnostics: app backup + support report (Settings / CLI `support`)  
+
+Wipe packaged user data (**deletes stories and media**):
+
+```bash
+rm -rf ~/.config/instant-drama-magician
+```
+
+> Installers **do not** ship your test data. Old stories after install usually mean existing local userData on the same machine.
+
+---
+
+## Architecture
+
+| Layer | Tech |
+|-------|------|
+| Desktop | Electron + electron-vite |
+| UI | React 18 + TypeScript + Tailwind |
+| Data | SQLite + Prisma |
+| Media | FFmpeg; timeline UI |
+| Integration | OpenAI-compatible HTTP; Grok Gateway |
+| Runtime | Shared `registerAllHandlers` → Electron IPC / Web `/api/invoke` / CLI `idm invoke` |
+
+Details: [docs/architecture.md](./docs/architecture.md).
+
+---
+
+## Documentation index
+
+**Rule:** files **without** `-ZH` are English; files **with** `-ZH` are Chinese. Pairs must match in content.
+
+Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/README-ZH.md](./docs/README-ZH.md)**
+
+| English | Chinese | Topic |
+|---------|---------|--------|
+| [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | Docs index + facts |
+| [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | Product spec |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (137 channels) |
+| [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agents / OpenClaw |
+| [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | Web remote |
+| [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |
+| [docs/video-providers.md](./docs/video-providers.md) | [docs/video-providers-ZH.md](./docs/video-providers-ZH.md) | Video / image providers |
+| [docs/soulmd-hub.md](./docs/soulmd-hub.md) | [docs/soulmd-hub-ZH.md](./docs/soulmd-hub-ZH.md) | SoulMD Hub |
+| [docs/commercial.md](./docs/commercial.md) | [docs/commercial-ZH.md](./docs/commercial-ZH.md) | Releases & updater |
+| [docs/release.md](./docs/release.md) | [docs/release-ZH.md](./docs/release-ZH.md) | Release checklist |
+| [docs/legal.md](./docs/legal.md) | [docs/legal-ZH.md](./docs/legal-ZH.md) | Legal versioning |
+| [docs/testing.md](./docs/testing.md) | [docs/testing-ZH.md](./docs/testing-ZH.md) | Testing |
+| [docs/architecture.md](./docs/architecture.md) | [docs/architecture-ZH.md](./docs/architecture-ZH.md) | Architecture |
+| [docs/beta.md](./docs/beta.md) | [docs/beta-ZH.md](./docs/beta-ZH.md) | Historical beta |
+| [docs/production-ux.md](./docs/production-ux.md) | [docs/production-ux-ZH.md](./docs/production-ux-ZH.md) | Historical UX |
+| [docs/rc.md](./docs/rc.md) | [docs/rc-ZH.md](./docs/rc-ZH.md) | Historical RC |
+| [skills/idm/SKILL.md](./skills/idm/SKILL.md) | [skills/idm/SKILL-ZH.md](./skills/idm/SKILL-ZH.md) | OpenClaw skill |
+| [resources/README.md](./resources/README.md) | [resources/README-ZH.md](./resources/README-ZH.md) | App icons |
+
+---
+
+## License & contact
+
+- **License:** MIT  
+- **Vendor:** YSK Limited  
+- **Email:** [email@ysk.hk](mailto:email@ysk.hk)  
+- **Repository:** see `package.json` → `repository.url`  
+
+Please attach a **support report** when filing issues (Settings; keys redacted).
+
+---
+
+**InstantDrama Magician** — turn AI short-drama ideas into an editable, exportable, iterable professional workflow.

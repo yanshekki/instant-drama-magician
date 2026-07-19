@@ -34,12 +34,16 @@ export {
   isColorSchemePref
 } from '../domain/colorScheme'
 
-/** Image channel may share LLM endpoint or use its own. */
-export type ImageProviderMode = 'same-as-llm' | LlmProviderPreset
+/** Image channel may share LLM endpoint or use its own (incl. Seedream / 方舟). */
+export type ImageProviderMode = 'same-as-llm' | LlmProviderPreset | 'seedream'
 /**
- * Video channel: inherit chat, stub placeholders, or any OpenAI-compatible preset.
+ * Video channel: inherit chat, stub placeholders, OpenAI-compatible preset, or Seedance.
  */
-export type VideoProviderMode = 'same-as-llm' | 'stub' | LlmProviderPreset
+export type VideoProviderMode =
+  | 'same-as-llm'
+  | 'stub'
+  | LlmProviderPreset
+  | 'seedance'
 
 export interface AppSettings {
   videoMode: VideoMode
@@ -59,11 +63,15 @@ export interface AppSettings {
   imageProvider: ImageProviderMode
   imageBaseUrl: string
   imageApiKey: string
+  /** Channel model id when image ≠ chat (e.g. Seedream). Empty → provider default. */
+  imageModel: string
 
   /** Video generation endpoint */
   videoProvider: VideoProviderMode
   videoBaseUrl: string
   videoApiKey: string
+  /** Channel model id when video ≠ chat (e.g. Seedance). Empty → provider default. */
+  videoModel: string
 
   defaultMaxClipSeconds: number
   burnSubtitles: boolean
@@ -117,6 +125,23 @@ export interface AppSettings {
   imageEnhanceScale: number
   /** Image gen / edit HTTP timeout (ms) */
   imageTimeoutMs: number
+
+  // ── Embedded web server (browser remote control) ───────────
+  /** When true, desktop app starts HTTP server for browser clients */
+  webServerEnabled: boolean
+  webServerPort: number
+  /** 0.0.0.0 = LAN; 127.0.0.1 = this machine only */
+  webServerHost: string
+  /** Bearer token for browser login; empty = loopback-only */
+  webServerAuthToken: string
+
+  /**
+   * Version of Disclaimer + Acceptable Use the user last accepted
+   * (must match LEGAL_VERSION in domain/legal.ts).
+   */
+  legalAcceptedVersion: string | null
+  /** ISO timestamp of last legal acceptance */
+  legalAcceptedAt: string | null
 }
 
 /** Gateway-allowed OpenAI-style sizes (pixel request; Grok maps to aspect). */
@@ -140,9 +165,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   imageProvider: 'same-as-llm',
   imageBaseUrl: '',
   imageApiKey: '',
+  imageModel: '',
   videoProvider: 'same-as-llm',
   videoBaseUrl: '',
   videoApiKey: '',
+  videoModel: '',
   defaultMaxClipSeconds: 6,
   burnSubtitles: true,
   includeSilentAudio: true,
@@ -175,7 +202,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   imageEnhance: true,
   imageEnhanceMaxEdge: 1600,
   imageEnhanceScale: 2,
-  imageTimeoutMs: 180_000
+  imageTimeoutMs: 180_000,
+  webServerEnabled: false,
+  webServerPort: 8787,
+  webServerHost: '0.0.0.0',
+  webServerAuthToken: '',
+  legalAcceptedVersion: null,
+  legalAcceptedAt: null
 }
 
 /** Keys that belong to the Video settings card (for “reset defaults”). */
@@ -246,12 +279,14 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
   }
   if (merged.imageBaseUrl == null) merged.imageBaseUrl = ''
   if (merged.imageApiKey == null) merged.imageApiKey = ''
+  if (merged.imageModel == null) merged.imageModel = ''
   if (!merged.videoProvider || !isVideoCapableProvider(String(merged.videoProvider))) {
     // Empty, unknown, or no OpenAI-style /videos for this app’s video client
     merged.videoProvider = DEFAULT_SETTINGS.videoProvider
   }
   if (merged.videoBaseUrl == null) merged.videoBaseUrl = ''
   if (merged.videoApiKey == null) merged.videoApiKey = ''
+  if (merged.videoModel == null) merged.videoModel = ''
   merged.uiLanguage = coerceUiLanguage(
     merged.uiLanguage,
     DEFAULT_SETTINGS.uiLanguage
@@ -317,6 +352,28 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
   }
   if (!merged.imageTimeoutMs || merged.imageTimeoutMs < 10_000) {
     merged.imageTimeoutMs = DEFAULT_SETTINGS.imageTimeoutMs
+  }
+  if (typeof merged.webServerEnabled !== 'boolean') {
+    merged.webServerEnabled = DEFAULT_SETTINGS.webServerEnabled
+  }
+  if (
+    !merged.webServerPort ||
+    merged.webServerPort < 1 ||
+    merged.webServerPort > 65535
+  ) {
+    merged.webServerPort = DEFAULT_SETTINGS.webServerPort
+  }
+  if (!merged.webServerHost?.trim()) {
+    merged.webServerHost = DEFAULT_SETTINGS.webServerHost
+  }
+  if (merged.webServerAuthToken == null) {
+    merged.webServerAuthToken = ''
+  }
+  if (merged.legalAcceptedVersion === undefined) {
+    merged.legalAcceptedVersion = null
+  }
+  if (merged.legalAcceptedAt === undefined) {
+    merged.legalAcceptedAt = null
   }
   return merged
 }

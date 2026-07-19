@@ -7,11 +7,15 @@ import {
 } from './gatewayDefaults'
 import {
   applyLlmPreset,
+  BYTEPLUS_ARK_BASE_URL,
   coerceLlmProviderPreset,
+  DEFAULT_SEEDANCE_MODEL,
+  DEFAULT_SEEDREAM_MODEL,
   getLlmPresetDef,
   imageCapablePresets,
   isLlmProviderPreset,
   videoCapablePresets,
+  VOLC_ARK_BASE_URL,
   type LlmProviderPreset
 } from './openaiCompatible'
 import type {
@@ -58,6 +62,19 @@ export function resolveImageEndpoint(s: AppSettings): ResolvedEndpoint {
   if (!s.imageProvider || s.imageProvider === 'same-as-llm') {
     return chat
   }
+  if (s.imageProvider === 'seedream') {
+    return {
+      baseUrl: stripSlash(
+        s.imageBaseUrl?.trim() || VOLC_ARK_BASE_URL
+      ),
+      apiKey: s.imageApiKey?.trim() || s.apiKey || '',
+      model:
+        s.imageModel?.trim() ||
+        (s.model?.toLowerCase().includes('seedream')
+          ? s.model
+          : DEFAULT_SEEDREAM_MODEL)
+    }
+  }
   const preset = coerceLlmProviderPreset(s.imageProvider)
   const def = getLlmPresetDef(preset)
   const applied = applyLlmPreset(
@@ -81,7 +98,7 @@ export function resolveImageEndpoint(s: AppSettings): ResolvedEndpoint {
   return {
     baseUrl: stripSlash(base),
     apiKey: key ?? '',
-    model: chat.model
+    model: s.imageModel?.trim() || chat.model
   }
 }
 
@@ -133,6 +150,21 @@ export function resolveVideoEndpoint(s: AppSettings): ResolvedVideoEndpoint {
     }
   }
 
+  if (vp === 'seedance') {
+    return {
+      baseUrl: stripSlash(s.videoBaseUrl?.trim() || VOLC_ARK_BASE_URL),
+      apiKey: s.videoApiKey?.trim() || s.apiKey || '',
+      model:
+        s.videoModel?.trim() ||
+        (s.model?.toLowerCase().includes('seedance')
+          ? s.model
+          : DEFAULT_SEEDANCE_MODEL),
+      mode: 'http',
+      // Marker path — SeedanceVideoProvider ignores OpenAI /videos shape
+      videoPath: 'seedance://contents/generations/tasks'
+    }
+  }
+
   if (vp === 'same-as-llm') {
     const mode: VideoMode =
       s.llmProvider === 'grok-gateway'
@@ -181,7 +213,7 @@ export function resolveVideoEndpoint(s: AppSettings): ResolvedVideoEndpoint {
   return {
     baseUrl: base,
     apiKey: s.videoApiKey?.trim() || s.apiKey || '',
-    model: chat.model,
+    model: s.videoModel?.trim() || chat.model,
     mode,
     videoPath: videoPathForPreset(preset, base, s.videoPath)
   }
@@ -192,16 +224,32 @@ export function channelPresetBaseUrl(
   id: ImageProviderMode | VideoProviderMode
 ): string {
   if (id === 'same-as-llm' || id === 'stub') return ''
+  if (id === 'seedance' || id === 'seedream') return VOLC_ARK_BASE_URL
   if (!isLlmProviderPreset(id)) return ''
   return getLlmPresetDef(id)?.baseUrl ?? ''
 }
 
-/** Image tab: same-as-llm + only providers with caps.image. */
+/** Prefer China Ark; intl users can switch base to BYTEPLUS. */
+export function arkDefaultBaseUrl(): string {
+  return VOLC_ARK_BASE_URL
+}
+
+export function arkIntlBaseUrl(): string {
+  return BYTEPLUS_ARK_BASE_URL
+}
+
+/** Image tab: same-as-llm + Seedream + only providers with caps.image. */
 export function imageProviderOptions(): ChannelOption[] {
   return [
     {
       id: 'same-as-llm',
       labelKey: 'sameAsLlm',
+      channelLabel: true,
+      group: 'channel'
+    },
+    {
+      id: 'seedream',
+      labelKey: 'seedream',
       channelLabel: true,
       group: 'channel'
     },
@@ -213,7 +261,7 @@ export function imageProviderOptions(): ChannelOption[] {
   ]
 }
 
-/** Video tab: same-as-llm + stub + only providers with caps.video. */
+/** Video tab: same-as-llm + stub + Seedance + OpenAI-style /videos. */
 export function videoProviderOptions(): ChannelOption[] {
   return [
     {
@@ -225,6 +273,12 @@ export function videoProviderOptions(): ChannelOption[] {
     {
       id: 'stub',
       labelKey: 'stub',
+      channelLabel: true,
+      group: 'channel'
+    },
+    {
+      id: 'seedance',
+      labelKey: 'seedance',
       channelLabel: true,
       group: 'channel'
     },

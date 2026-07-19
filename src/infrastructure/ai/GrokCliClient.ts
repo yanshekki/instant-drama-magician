@@ -29,6 +29,8 @@ import {
 import { healthUrlFromBase } from '../../domain/gatewayDefaults'
 import type { LlmProviderPreset } from '../../domain/openaiCompatible'
 import { CompositeVideoProvider } from './video/CompositeVideoProvider'
+import { SeedanceVideoProvider } from './video/SeedanceVideoProvider'
+import type { VideoProvider } from './video/types'
 import {
   resolveChatEndpoint,
   resolveImageEndpoint,
@@ -65,10 +67,11 @@ export class GrokCliClient implements AIProvider {
   private readonly chatTimeoutMs: number
   private readonly imageTimeoutMs: number
   private readonly omitSampling: boolean
-  private readonly video: CompositeVideoProvider
+  private readonly video: VideoProvider
 
   private readonly imageBaseUrl: string
   private readonly imageApiKey: string
+  private readonly imageModel: string
   private readonly imageProvider: string
   private readonly videoProviderMode: string
 
@@ -82,6 +85,7 @@ export class GrokCliClient implements AIProvider {
     this.apiKey = chat.apiKey
     this.imageBaseUrl = image.baseUrl.replace(/\/$/, '')
     this.imageApiKey = image.apiKey
+    this.imageModel = image.model || chat.model
     this.imageProvider = s.imageProvider || 'same-as-llm'
     this.videoProviderMode = s.videoProvider || 'same-as-llm'
     this.chatTimeoutMs = s.chatTimeoutMs ?? 120_000
@@ -90,22 +94,34 @@ export class GrokCliClient implements AIProvider {
       s.llmProvider as LlmProviderPreset | undefined,
       chat.baseUrl
     )
-    this.video = new CompositeVideoProvider(
-      videoEp.mode,
-      videoEp.baseUrl,
-      videoEp.apiKey,
-      videoEp.model,
-      {
-        videoPollMs: s.videoPollMs,
-        videoTimeoutSec: s.videoTimeoutSec,
-        videoMaxRetries: s.videoMaxRetries,
-        videoPath: videoEp.videoPath,
+    if (s.videoProvider === 'seedance') {
+      this.video = new SeedanceVideoProvider({
+        baseUrl: videoEp.baseUrl,
+        apiKey: videoEp.apiKey,
+        model: videoEp.model,
+        pollMs: s.videoPollMs,
+        timeoutSec: s.videoTimeoutSec,
+        maxRetries: s.videoMaxRetries,
         aspectRatio: s.aspectRatio
-      }
-    )
+      })
+    } else {
+      this.video = new CompositeVideoProvider(
+        videoEp.mode,
+        videoEp.baseUrl,
+        videoEp.apiKey,
+        videoEp.model,
+        {
+          videoPollMs: s.videoPollMs,
+          videoTimeoutSec: s.videoTimeoutSec,
+          videoMaxRetries: s.videoMaxRetries,
+          videoPath: videoEp.videoPath,
+          aspectRatio: s.aspectRatio
+        }
+      )
+    }
   }
 
-  get videoProvider(): CompositeVideoProvider {
+  get videoProvider(): VideoProvider {
     return this.video
   }
 
@@ -115,6 +131,15 @@ export class GrokCliClient implements AIProvider {
       return {
         available: false,
         message: 'No image API key'
+      }
+    }
+    // Seedream / Ark: key configured is enough (models list may 404)
+    if (this.imageProvider === 'seedream') {
+      return {
+        available: Boolean(this.imageApiKey.trim()),
+        message: this.imageApiKey.trim()
+          ? `Seedream · ${this.imageBaseUrl} · ${this.imageModel}`
+          : 'No Seedream / Ark API key'
       }
     }
     try {
@@ -412,7 +437,7 @@ export class GrokCliClient implements AIProvider {
 
     const body: Record<string, unknown> = {
       prompt: options.prompt,
-      model: this.model,
+      model: this.imageModel || this.model,
       n: options.n ?? 1,
       response_format: 'b64_json',
       size,
@@ -459,7 +484,7 @@ export class GrokCliClient implements AIProvider {
     const buf = readFileSync(options.imagePath)
     const form = new FormData()
     form.append('prompt', options.prompt)
-    form.append('model', this.model)
+    form.append('model', this.imageModel || this.model)
     form.append('n', String(options.n ?? 1))
     form.append('response_format', 'b64_json')
     form.append('size', size)

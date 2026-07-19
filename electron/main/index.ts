@@ -1,10 +1,44 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, protocol } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  shell,
+  protocol,
+  nativeImage
+} from 'electron'
 import { extname, join, resolve as pathResolve, sep } from 'path'
-import { createReadStream, existsSync, readFileSync, statSync } from 'fs'
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync
+} from 'fs'
 import { Readable } from 'stream'
+import { execFileSync } from 'child_process'
 import { PrismaClient } from '../../src/types/prisma'
 import { appUpdateService } from '../../src/infrastructure/update/AppUpdateService'
 import { registerIpcHandlers } from './ipc'
+import {
+  coerceMenuLang,
+  installAppMenu,
+  sendMenuActionToRenderer,
+  type AppMenuHandlers,
+  type MenuLang
+} from './appMenu'
+import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
+import {
+  AppDataBackupService,
+  defaultFullBackupFileName
+} from '../../src/application/services/AppDataBackupService'
+import { ActivityLog } from '../../src/infrastructure/activity/ActivityLog'
+import {
+  redactSettings,
+  supportReportPath,
+  writeSupportReportJson
+} from '../../src/infrastructure/support/SupportReport'
 
 /** MIME for idm-media responses (video needs correct type + Range). */
 function mimeForMediaPath(filePath: string): string {
@@ -105,6 +139,63 @@ function serveLocalMediaFile(
 
 const isDev = !app.isPackaged
 
+/**
+ * Keep packaged installs separate from local `npm run dev` sessions.
+ * Both previously used ~/.config/instant-drama-magician (package.json name),
+ * so opening a freshly installed .deb on the same machine showed test media,
+ * settings, and API keys from development.
+ *
+ * Must run before the first app.getPath('userData').
+ */
+if (!app.isPackaged) {
+  app.setPath(
+    'userData',
+    join(app.getPath('appData'), 'instant-drama-magician-dev')
+  )
+}
+
+/**
+ * Dev under electron-vite can leave stdout/stderr closed when the parent
+ * reloads or a second instance dies. Writing then throws write EPIPE and
+ * Electron shows a fatal "JavaScript error in the main process" dialog.
+ * Swallow pipe errors only — real crashes still surface.
+ */
+function isBenignPipeError(err: unknown): boolean {
+  const code =
+    err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: unknown }).code)
+      : ''
+  return code === 'EPIPE' || code === 'EIO' || code === 'ERR_STREAM_DESTROYED'
+}
+
+for (const stream of [process.stdout, process.stderr]) {
+  stream?.on?.('error', (err: Error) => {
+    if (isBenignPipeError(err)) return
+    // Leave other stream errors for uncaughtException
+  })
+}
+
+process.on('uncaughtException', (err) => {
+  if (isBenignPipeError(err)) return
+  // Keep Electron default for genuine bugs (log; dialog may still show)
+  try {
+    // eslint-disable-next-line no-console
+    console.error('[main] uncaughtException', err)
+  } catch {
+    /* pipe already dead */
+  }
+})
+
+process.on('unhandledRejection', (reason) => {
+  if (isBenignPipeError(reason)) return
+  try {
+    // eslint-disable-next-line no-console
+    console.error('[main] unhandledRejection', reason)
+  } catch {
+    /* pipe already dead */
+  }
+})
+
 // Resolve SQLite path relative to project root (dev) or userData (prod)
 function resolveDatabaseUrl(): string {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL
@@ -142,21 +233,579 @@ function getPrisma(): PrismaClient {
   return prisma
 }
 
+function resolveDbFilePath(): string {
+  const url = process.env.DATABASE_URL ?? resolveDatabaseUrl()
+  if (!url.startsWith('file:')) return url
+  // Prisma: file:/abs, file:./rel, file:///abs
+  let rest = url.slice('file:'.length)
+  if (rest.startsWith('///')) rest = rest.slice(2)
+  else if (rest.startsWith('//')) {
+    // file://host/path → drop host
+    rest = rest.replace(/^\/\/[^/]*/, '') || rest
+  }
+  return rest
+}
+
+function loadMenuLang(): MenuLang {
+  try {
+    const store = new SettingsStore(
+      join(app.getPath('userData'), 'settings.json')
+    )
+    return coerceMenuLang(store.load().uiLanguage)
+  } catch {
+    return 'zh-HK'
+  }
+}
+
+function fullBackupService(): AppDataBackupService {
+  const userData = app.getPath('userData')
+  return new AppDataBackupService({
+    userData,
+    databasePath: resolveDbFilePath(),
+    settingsPath: join(userData, 'settings.json'),
+    mediaRoot: join(userData, 'media'),
+    activityLogPath: ActivityLog.defaultPath(userData),
+    appVersion: app.getVersion(),
+    platform: process.platform
+  })
+}
+
+async function runExportFullBackup(): Promise<void> {
+  const win = mainWindow
+  const lang = loadMenuLang()
+  const title =
+    lang === 'en' ? 'Export all app data' : '匯出全部應用資料'
+  const result = win
+    ? await dialog.showSaveDialog(win, {
+        title,
+        defaultPath: defaultFullBackupFileName(),
+        filters: [{ name: 'IDM Full Backup', extensions: ['zip'] }]
+      })
+    : await dialog.showSaveDialog({
+        title,
+        defaultPath: defaultFullBackupFileName(),
+        filters: [{ name: 'IDM Full Backup', extensions: ['zip'] }]
+      })
+  if (result.canceled || !result.filePath) return
+  try {
+    // Best-effort checkpoint: disconnect briefly so WAL is flushable
+    if (prisma) {
+      try {
+        await prisma.$disconnect()
+      } catch {
+        /* ignore */
+      }
+      prisma = null
+    }
+    const { filePath } = await fullBackupService().exportToZip(result.filePath, {
+      includeSecrets: false,
+      includeLogs: true
+    })
+    // Recreate prisma for continued use
+    getPrisma()
+    const msg =
+      lang === 'en'
+        ? `Full backup saved:\n${filePath}`
+        : `已匯出全部應用資料：\n${filePath}`
+    if (win && !win.isDestroyed()) {
+      await dialog.showMessageBox(win, {
+        type: 'info',
+        title: lang === 'en' ? 'Export complete' : '匯出完成',
+        message: msg,
+        buttons: [lang === 'en' ? 'Show in folder' : '在資料夾中顯示', lang === 'en' ? 'OK' : '確定'],
+        defaultId: 0
+      }).then((r) => {
+        if (r.response === 0) shell.showItemInFolder(filePath)
+      })
+    }
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('menu:action', {
+        type: 'full-backup-exported',
+        filePath
+      })
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (win && !win.isDestroyed()) {
+      await dialog.showMessageBox(win, {
+        type: 'error',
+        title: lang === 'en' ? 'Export failed' : '匯出失敗',
+        message
+      })
+    }
+    getPrisma()
+  }
+}
+
+async function runImportFullBackup(): Promise<void> {
+  const win = mainWindow
+  const lang = loadMenuLang()
+  const openTitle =
+    lang === 'en' ? 'Restore from full backup' : '從全部資料還原'
+  const open = win
+    ? await dialog.showOpenDialog(win, {
+        title: openTitle,
+        filters: [{ name: 'IDM Full Backup', extensions: ['zip'] }],
+        properties: ['openFile']
+      })
+    : await dialog.showOpenDialog({
+        title: openTitle,
+        filters: [{ name: 'IDM Full Backup', extensions: ['zip'] }],
+        properties: ['openFile']
+      })
+  if (open.canceled || open.filePaths.length === 0) return
+
+  const confirm = win
+    ? await dialog.showMessageBox(win, {
+        type: 'warning',
+        title: lang === 'en' ? 'Overwrite all local data?' : '覆寫本機全部資料？',
+        message:
+          lang === 'en'
+            ? 'This will replace the database, media library, and settings on this computer, then restart the app.'
+            : '此操作會覆寫本機資料庫、媒體庫與設定，然後重新啟動應用程式。',
+        detail:
+          lang === 'en'
+            ? 'Export a full backup first if you need to keep the current data.'
+            : '如需保留現有資料，請先「匯出全部應用資料」。',
+        buttons: [
+          lang === 'en' ? 'Cancel' : '取消',
+          lang === 'en' ? 'Restore and Restart' : '還原並重新啟動'
+        ],
+        defaultId: 0,
+        cancelId: 0
+      })
+    : await dialog.showMessageBox({
+        type: 'warning',
+        title: lang === 'en' ? 'Overwrite all local data?' : '覆寫本機全部資料？',
+        message:
+          lang === 'en'
+            ? 'This will replace the database, media library, and settings, then restart.'
+            : '此操作會覆寫本機資料庫、媒體庫與設定，然後重新啟動。',
+        buttons: [
+          lang === 'en' ? 'Cancel' : '取消',
+          lang === 'en' ? 'Restore and Restart' : '還原並重新啟動'
+        ],
+        defaultId: 0,
+        cancelId: 0
+      })
+  if (confirm.response !== 1) return
+
+  try {
+    if (prisma) {
+      try {
+        await prisma.$disconnect()
+      } catch {
+        /* ignore */
+      }
+      prisma = null
+    }
+    await fullBackupService().importFromZip(open.filePaths[0])
+    app.relaunch()
+    app.exit(0)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    getPrisma()
+    if (win && !win.isDestroyed()) {
+      await dialog.showMessageBox(win, {
+        type: 'error',
+        title: lang === 'en' ? 'Restore failed' : '還原失敗',
+        message
+      })
+    }
+  }
+}
+
+async function runExportSupportFromMenu(): Promise<void> {
+  const win = mainWindow
+  const lang = loadMenuLang()
+  try {
+    const store = new SettingsStore(
+      join(app.getPath('userData'), 'settings.json')
+    )
+    const settings = store.load()
+    const activity = new ActivityLog(
+      ActivityLog.defaultPath(app.getPath('userData'))
+    )
+    const defaultPath = supportReportPath(app.getPath('userData'))
+    const result = win
+      ? await dialog.showSaveDialog(win, {
+          title: lang === 'en' ? 'Export support report' : '匯出支援報告',
+          defaultPath,
+          filters: [{ name: 'JSON', extensions: ['json'] }]
+        })
+      : await dialog.showSaveDialog({
+          title: lang === 'en' ? 'Export support report' : '匯出支援報告',
+          defaultPath,
+          filters: [{ name: 'JSON', extensions: ['json'] }]
+        })
+    if (result.canceled || !result.filePath) return
+    writeSupportReportJson(result.filePath, {
+      generatedAt: new Date().toISOString(),
+      app: {
+        version: app.getVersion(),
+        name: app.getName(),
+        isPackaged: app.isPackaged,
+        platform: process.platform,
+        electron: process.versions.electron ?? 'unknown',
+        userData: app.getPath('userData'),
+        mediaRoot: join(app.getPath('userData'), 'media')
+      },
+      diagnostics: {
+        chat: { available: false, message: 'see in-app probe' },
+        video: { available: false, message: 'see in-app probe' },
+        ffmpeg: { available: false, message: 'see in-app probe' },
+        videoMode: settings.videoMode ?? 'auto',
+        tips: []
+      },
+      settings: redactSettings(settings),
+      activity: activity.readRecent(200)
+    })
+    if (win && !win.isDestroyed()) {
+      shell.showItemInFolder(result.filePath)
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (win && !win.isDestroyed()) {
+      await dialog.showMessageBox(win, {
+        type: 'error',
+        title: lang === 'en' ? 'Export failed' : '匯出失敗',
+        message
+      })
+    }
+  }
+}
+
+function showAboutDialog(): void {
+  const lang = loadMenuLang()
+  const version = app.getVersion()
+  const userData = app.getPath('userData')
+  const detail = [
+    `Version ${version}`,
+    `Electron ${process.versions.electron ?? '?'}`,
+    `Chrome ${process.versions.chrome ?? '?'}`,
+    `Node ${process.versions.node ?? '?'}`,
+    `Platform ${process.platform}`,
+    '',
+    `Data: ${userData}`
+  ].join('\n')
+  const win = mainWindow
+  const opts = {
+    type: 'info' as const,
+    title:
+      lang === 'en'
+        ? `About ${APP_DISPLAY_NAME_EN}`
+        : `關於${APP_DISPLAY_NAME_ZH}`,
+    message: lang === 'en' ? APP_DISPLAY_NAME_EN : APP_DISPLAY_NAME,
+    detail,
+    buttons: [
+      lang === 'en' ? 'Open data folder' : '開啟資料資料夾',
+      lang === 'en' ? 'OK' : '確定'
+    ],
+    defaultId: 1
+  }
+  const box =
+    win && !win.isDestroyed()
+      ? dialog.showMessageBox(win, opts)
+      : dialog.showMessageBox(opts)
+  void box.then((r) => {
+    if (r.response === 0) {
+      void shell.openPath(userData)
+    }
+  })
+}
+
+async function runCaptureScreenshot(): Promise<void> {
+  const win = mainWindow
+  if (!win || win.isDestroyed()) return
+  const lang = loadMenuLang()
+  try {
+    const image = await win.webContents.capturePage()
+    const png = image.toPNG()
+    if (!png.length) {
+      await dialog.showMessageBox(win, {
+        type: 'error',
+        title: lang === 'en' ? 'Screenshot failed' : '截圖失敗',
+        message:
+          lang === 'en'
+            ? 'Could not capture the window.'
+            : '無法擷取視窗畫面。'
+      })
+      return
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    let defaultDir = app.getPath('pictures')
+    try {
+      if (!existsSync(defaultDir)) defaultDir = app.getPath('desktop')
+    } catch {
+      defaultDir = app.getPath('userData')
+    }
+    const defaultPath = join(defaultDir, `idm-screenshot-${stamp}.png`)
+    const result = await dialog.showSaveDialog(win, {
+      title: lang === 'en' ? 'Save screenshot' : '儲存截圖',
+      defaultPath,
+      filters: [{ name: 'PNG', extensions: ['png'] }]
+    })
+    if (result.canceled || !result.filePath) return
+    writeFileSync(result.filePath, png)
+    shell.showItemInFolder(result.filePath)
+    if (!win.isDestroyed()) {
+      win.webContents.send('menu:action', {
+        type: 'screenshot-saved',
+        filePath: result.filePath
+      })
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (!win.isDestroyed()) {
+      await dialog.showMessageBox(win, {
+        type: 'error',
+        title: lang === 'en' ? 'Screenshot failed' : '截圖失敗',
+        message
+      })
+    }
+  }
+}
+
+function setupApplicationMenu(): void {
+  const handlers: AppMenuHandlers = {
+    sendAction: (action) => sendMenuActionToRenderer(action),
+    showAbout: () => showAboutDialog(),
+    exportFullBackup: () => {
+      void runExportFullBackup()
+    },
+    importFullBackup: () => {
+      void runImportFullBackup()
+    },
+    openUserData: () => {
+      void shell.openPath(app.getPath('userData'))
+    },
+    openMedia: () => {
+      const media = join(app.getPath('userData'), 'media')
+      try {
+        if (!existsSync(media)) mkdirSync(media, { recursive: true })
+      } catch {
+        /* ignore */
+      }
+      void shell.openPath(media)
+    },
+    exportSupportReport: () => {
+      void runExportSupportFromMenu()
+    },
+    checkUpdates: () => {
+      void appUpdateService.check().then((state) => {
+        const lang = loadMenuLang()
+        const win = mainWindow
+        if (!win || win.isDestroyed()) return
+        void dialog.showMessageBox(win, {
+          type: 'info',
+          title: lang === 'en' ? 'Updates' : '更新',
+          message:
+            lang === 'en'
+              ? `Status: ${state.status}`
+              : `狀態：${state.status}`,
+          detail:
+            state.latestVersion != null
+              ? `Latest: ${state.latestVersion}\nCurrent: ${state.currentVersion}`
+              : `Current: ${state.currentVersion}${state.message ? `\n${state.message}` : ''}`
+        })
+      })
+    },
+    captureScreenshot: () => {
+      void runCaptureScreenshot()
+    },
+    isDev
+  }
+  installAppMenu(loadMenuLang(), handlers)
+}
+
+/** Rebuild menu after UI language change. */
+export function rebuildApplicationMenu(): void {
+  setupApplicationMenu()
+}
+
+/** Official display names (UI / window / menus). */
+export const APP_DISPLAY_NAME_ZH = '瞬劇魔法師'
+export const APP_DISPLAY_NAME_EN = 'InstantDrama Magician'
+export const APP_DISPLAY_NAME = `${APP_DISPLAY_NAME_ZH} · ${APP_DISPLAY_NAME_EN}`
+
+/**
+ * Linux desktop Icon= / hicolor name / StartupWMClass / Chromium --class.
+ * Must stay in sync with package.json build.linux.desktop + executableName.
+ */
+const APP_ICON_NAME = 'instant-drama-magician'
+
+// Must run before app ready — otherwise panel cannot match themed icons.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('class', APP_ICON_NAME)
+}
+
+/** Resolve packaged or dev app icon (pure YSK mark). */
+function resolveAppIconPath(): string | undefined {
+  const candidates = [
+    join(process.resourcesPath || '', 'icon.png'),
+    join(app.getAppPath(), 'resources', 'icon.png'),
+    join(__dirname, '../../resources/icon.png'),
+    join(__dirname, '../../../resources/icon.png'),
+    join(process.cwd(), 'resources', 'icon.png'),
+    join(process.cwd(), 'build', 'icon.png'),
+    join(process.cwd(), 'build', 'icons', '512x512.png'),
+    join(process.cwd(), 'src', 'assets', 'app-icon.png')
+  ]
+  for (const p of candidates) {
+    if (p && existsSync(p)) return p
+  }
+  return undefined
+}
+
+/**
+ * Linux taskbars ignore BrowserWindow.icon unless a themed icon + .desktop
+ * exist with matching StartupWMClass. Install user-local icons in dev/runtime.
+ */
+function installLinuxDesktopIcon(iconPath: string): void {
+  if (process.platform !== 'linux') return
+  try {
+    const home = process.env.HOME || app.getPath('home')
+    const hicolor = join(home, '.local', 'share', 'icons', 'hicolor')
+    const sizes = [16, 32, 48, 64, 128, 256, 512, 1024]
+    // Prefer build/icons sizes; fall back to packaged resources next to iconPath
+    const iconsRootCandidates = [
+      join(process.cwd(), 'build', 'icons'),
+      join(process.resourcesPath || '', 'icons'),
+      join(app.getAppPath(), 'build', 'icons')
+    ]
+    const iconsRoot =
+      iconsRootCandidates.find((d) => existsSync(d)) || iconsRootCandidates[0]
+    for (const s of sizes) {
+      const sized = join(iconsRoot, `${s}x${s}.png`)
+      const src = existsSync(sized) ? sized : iconPath
+      const destDir = join(hicolor, `${s}x${s}`, 'apps')
+      mkdirSync(destDir, { recursive: true })
+      const dest = join(destDir, `${APP_ICON_NAME}.png`)
+      writeFileSync(dest, readFileSync(src))
+    }
+    // Pixmap fallback (some DEs only look here)
+    const pixmaps = join(home, '.local', 'share', 'pixmaps')
+    mkdirSync(pixmaps, { recursive: true })
+    writeFileSync(
+      join(pixmaps, `${APP_ICON_NAME}.png`),
+      readFileSync(
+        existsSync(join(iconsRoot, '256x256.png'))
+          ? join(iconsRoot, '256x256.png')
+          : iconPath
+      )
+    )
+
+    const appsDir = join(home, '.local', 'share', 'applications')
+    mkdirSync(appsDir, { recursive: true })
+    const execPath = process.execPath
+    // electron-vite: process.execPath is electron binary; pass project entry
+    // Force --class so WM_CLASS matches StartupWMClass / Icon theme name
+    const extraArgs = process.argv.slice(1)
+    const hasClass = extraArgs.some(
+      (a) => a === `--class=${APP_ICON_NAME}` || a === '--class'
+    )
+    const classArgs = hasClass ? [] : [`--class=${APP_ICON_NAME}`]
+    const allArgs = [...classArgs, ...extraArgs]
+    const desktop = [
+      '[Desktop Entry]',
+      'Type=Application',
+      `Name=${APP_DISPLAY_NAME_EN}`,
+      `Name[zh_HK]=${APP_DISPLAY_NAME_ZH}`,
+      `Name[zh_CN]=瞬剧魔法师`,
+      `Comment=AI professional short-drama generation tool`,
+      `Comment[zh_HK]=AI 專業短劇生成桌面工具`,
+      `Icon=${APP_ICON_NAME}`,
+      `Exec=${JSON.stringify(execPath)} ${allArgs
+        .map((a) => JSON.stringify(a))
+        .join(' ')}`,
+      'Terminal=false',
+      'Categories=AudioVideo;Video;',
+      `StartupWMClass=${APP_ICON_NAME}`,
+      'StartupNotify=true'
+    ].join('\n')
+    writeFileSync(
+      join(appsDir, `${APP_ICON_NAME}.desktop`),
+      desktop + '\n',
+      'utf8'
+    )
+    // Best-effort icon cache refresh
+    try {
+      execFileSync('gtk-update-icon-cache', ['-f', '-t', hicolor], {
+        stdio: 'ignore'
+      })
+    } catch {
+      /* optional */
+    }
+    try {
+      execFileSync('update-desktop-database', [appsDir], { stdio: 'ignore' })
+    } catch {
+      /* optional */
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[icon] linux desktop install failed', e)
+  }
+}
+
+function applyWindowIcon(win: BrowserWindow, iconPath: string): void {
+  try {
+    const icon = nativeImage.createFromPath(iconPath)
+    if (icon.isEmpty()) {
+      // eslint-disable-next-line no-console
+      console.warn('[icon] nativeImage empty:', iconPath)
+      return
+    }
+    win.setIcon(icon)
+    // Also set via path for some WMs
+    if (process.platform === 'linux') {
+      win.setIcon(iconPath)
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[icon] setIcon failed', e)
+  }
+}
+
 function createWindow(): void {
   const version = app.getVersion()
+  const iconPath = resolveAppIconPath()
+  // eslint-disable-next-line no-console
+  console.log('[icon] path=', iconPath || '(none)')
+  const icon =
+    iconPath && existsSync(iconPath)
+      ? nativeImage.createFromPath(iconPath)
+      : undefined
+  if (iconPath && icon?.isEmpty()) {
+    // eslint-disable-next-line no-console
+    console.warn('[icon] loaded empty nativeImage from', iconPath)
+  }
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    title: `瞬劇魔法師 · InstantDrama Magician v${version}`,
+    show: false,
+    title: `${APP_DISPLAY_NAME} v${version}`,
     backgroundColor: '#020617',
+    ...(icon && !icon.isEmpty() ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
     }
+  })
+
+  if (iconPath) {
+    applyWindowIcon(mainWindow, iconPath)
+  }
+
+  mainWindow.once('ready-to-show', () => {
+    if (iconPath && mainWindow && !mainWindow.isDestroyed()) {
+      applyWindowIcon(mainWindow, iconPath)
+    }
+    mainWindow?.show()
   })
 
   if (isDev && process.env['ELECTRON_RENDERER_URL']) {
@@ -172,6 +821,26 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // App name shown in taskbar / Alt-Tab / dock (not package.json "name")
+  app.setName(APP_DISPLAY_NAME_EN)
+  process.title = APP_DISPLAY_NAME_EN
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('hk.ysk.instant-drama-magician')
+  } else if (process.platform === 'linux') {
+    // Match .desktop StartupWMClass (executableName) for panel icons
+    app.setAppUserModelId(APP_ICON_NAME)
+  }
+
+  const iconPath = resolveAppIconPath()
+  if (iconPath) {
+    // eslint-disable-next-line no-console
+    console.log('[icon] installing', iconPath)
+    installLinuxDesktopIcon(iconPath)
+  } else {
+    // eslint-disable-next-line no-console
+    console.warn('[icon] no icon file found')
+  }
+
   const mediaRoot = join(app.getPath('userData'), 'media')
   protocol.handle('idm-media', (request) => {
     try {
@@ -199,11 +868,66 @@ app.whenReady().then(() => {
     dialog,
     shell,
     getPrisma,
-    getMainWindow: () => mainWindow
+    getMainWindow: () => mainWindow,
+    rebuildApplicationMenu,
+    resolveDatabasePath: resolveDbFilePath,
+    exportFullBackup: () => runExportFullBackup(),
+    importFullBackup: () => runImportFullBackup()
   })
 
+  setupApplicationMenu()
   appUpdateService.bindWindow(() => mainWindow)
   createWindow()
+
+  // Auto-start embedded web server if enabled in settings
+  setTimeout(() => {
+    void (async () => {
+      try {
+        const { SettingsStore } = await import(
+          '../../src/infrastructure/settings/SettingsStore'
+        )
+        const {
+          getEmbeddedWebServer,
+          generateWebServerToken
+        } = await import(
+          '../../src/infrastructure/webserver/EmbeddedWebServer'
+        )
+        const store = new SettingsStore(
+          join(app.getPath('userData'), 'settings.json')
+        )
+        let s = store.load()
+        if (!s.webServerEnabled) return
+        let token = s.webServerAuthToken?.trim() || ''
+        if (!token) {
+          token = generateWebServerToken()
+          s = store.save({ webServerAuthToken: token })
+        }
+        const staticCandidates = [
+          join(__dirname, '../renderer'),
+          join(process.cwd(), 'out', 'renderer')
+        ]
+        let staticDir = staticCandidates[0]
+        for (const c of staticCandidates) {
+          if (existsSync(join(c, 'index.html'))) {
+            staticDir = c
+            break
+          }
+        }
+        await getEmbeddedWebServer().start({
+          dataDir: app.getPath('userData'),
+          port: s.webServerPort || 8787,
+          host: s.webServerHost || '0.0.0.0',
+          authToken: token,
+          authDisabled: false,
+          staticDir,
+          appVersion: app.getVersion(),
+          isPackaged: app.isPackaged
+        })
+      } catch {
+        /* non-fatal — Settings can retry */
+      }
+    })()
+  }, 1200)
 
   // Auto-start local Grok Gateway when using grok-gateway preset (no manual gctoac start)
   setTimeout(() => {
@@ -267,6 +991,14 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', async () => {
+  try {
+    const { getEmbeddedWebServer } = await import(
+      '../../src/infrastructure/webserver/EmbeddedWebServer'
+    )
+    await getEmbeddedWebServer().stop()
+  } catch {
+    /* ignore */
+  }
   if (prisma) {
     await prisma.$disconnect()
   }

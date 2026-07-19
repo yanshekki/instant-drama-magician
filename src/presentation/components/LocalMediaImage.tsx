@@ -27,6 +27,8 @@ interface LocalMediaImageProps {
   /** Turn this still into a self-intro video (uses character bible on parent). */
   onIntroVideo?: () => void | Promise<void>
   introVideoBusy?: boolean
+  /** When true, intro button shows「繼續影片」for a saved video-prep draft. */
+  introVideoHasDraft?: boolean
   /** Existing intro video path for this still — play + open buttons. */
   introVideoPath?: string | null
   /** Optional: click image body (e.g. open editor). Zoom uses double-click / Zoom btn. */
@@ -54,6 +56,7 @@ export function LocalMediaImage({
   regenerateBusy = false,
   onIntroVideo,
   introVideoBusy = false,
+  introVideoHasDraft = false,
   introVideoPath = null,
   onImageClick,
   enableZoom = true,
@@ -131,8 +134,11 @@ export function LocalMediaImage({
     setSaveBusy(true)
     setActionMsg(null)
     try {
-      const r = await getApi().media.saveAs(filePath)
-      if (r?.filePath) {
+      const r = (await getApi().media.saveAs(filePath)) as {
+        filePath?: string
+        downloadUrl?: string
+      } | null
+      if (r?.filePath || r?.downloadUrl) {
         setActionMsg(t('media.savedAs'))
         toast.success(t('media.savedAs'))
       }
@@ -221,22 +227,6 @@ export function LocalMediaImage({
     if (enableZoom) setZoomOpen(true)
   }
 
-  // Count bar buttons so grid columns stay even (avoids uneven wrap / 走位).
-  const barButtonCount =
-    (enableZoom ? 1 : 0) +
-    1 /* regenerate */ +
-    (onIntroVideo ? 1 : 0) +
-    (introVideoPath ? 2 : 0) /* play + open */ +
-    1 /* save as */
-  const barColsClass =
-    barButtonCount <= 2
-      ? 'grid-cols-2'
-      : barButtonCount === 3
-        ? 'grid-cols-3'
-        : barButtonCount === 4
-          ? 'grid-cols-2 sm:grid-cols-4'
-          : 'grid-cols-2 sm:grid-cols-3'
-
   const actions = showActions ? (
     <div
       className={
@@ -244,7 +234,8 @@ export function LocalMediaImage({
           ? 'absolute inset-x-0 bottom-0 z-10 flex flex-wrap gap-1 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 pt-6'
           : actionsLayout === 'compact'
             ? 'absolute inset-x-0 bottom-0 z-10 flex gap-0.5 bg-black/75 p-0.5'
-            : `grid w-full ${barColsClass} gap-1.5 border-t border-ink-800 bg-ink-950/90 p-2`
+            : // Flex-wrap bar: never clip labels; wrap to next row when narrow (preview column).
+              'flex w-full shrink-0 flex-wrap gap-1.5 border-t border-ink-800 bg-ink-950/95 p-2'
       }
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -278,15 +269,28 @@ export function LocalMediaImage({
         <button
           type="button"
           disabled={busy}
-          title={t('media.introVideo')}
+          title={
+            introVideoHasDraft
+              ? t('videoPrep.continueVideo')
+              : introVideoPath
+                ? t('media.introVideoRegen')
+                : t('media.introVideo')
+          }
           onClick={(e) => void handleIntroVideo(e)}
-          className={actionBtnClass(actionsLayout, false)}
+          className={[
+            actionBtnClass(actionsLayout, false),
+            introVideoHasDraft
+              ? 'ring-1 ring-amber-500/60 text-amber-100'
+              : ''
+          ].join(' ')}
         >
           {introBusyLocal || introVideoBusy
             ? t('common.loading')
-            : introVideoPath
-              ? t('media.introVideoRegen')
-              : t('media.introVideo')}
+            : introVideoHasDraft
+              ? t('videoPrep.continueVideo')
+              : introVideoPath
+                ? t('media.introVideoRegen')
+                : t('media.introVideo')}
         </button>
       )}
       {introVideoPath ? (
@@ -327,7 +331,7 @@ export function LocalMediaImage({
     return (
       <div
         className={[
-          'relative flex flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-950/60',
+          'relative flex flex-col rounded-xl border border-ink-800 bg-ink-950/60',
           className
         ].join(' ')}
       >
@@ -359,7 +363,7 @@ export function LocalMediaImage({
     return (
       <div
         className={[
-          'relative flex flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-950/60',
+          'relative flex flex-col rounded-xl border border-ink-800 bg-ink-950/60',
           className
         ].join(' ')}
       >
@@ -431,33 +435,37 @@ export function LocalMediaImage({
     <>
       <div
         className={[
-          'relative overflow-hidden rounded-xl border border-ink-800 bg-black/40',
+          // Do not overflow-hide the whole card — that clips the action bar in
+          // narrow editor previews. Only the image region clips.
+          'relative flex flex-col rounded-xl border border-ink-800 bg-black/40',
           className
         ].join(' ')}
       >
         {actionsLayout === 'bar' ? (
           <>
-            {imageBody}
+            <div className="min-h-0 overflow-hidden rounded-t-xl">
+              {imageBody}
+            </div>
             {showMeta && dims && (
-              <p className="border-t border-ink-800 px-2 py-1 text-center text-[10px] text-ink-500">
+              <p className="shrink-0 border-t border-ink-800 px-2 py-1 text-center text-[10px] text-ink-500">
                 {dims}
               </p>
             )}
             {actions}
           </>
         ) : (
-          <div className="relative h-full">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl">
             {imageBody}
             {actions}
             {showMeta && dims && (
-              <p className="absolute left-1 top-1 z-[5] rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-ink-200">
+              <p className="absolute left-1 top-1 z-[5] rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/90">
                 {dims}
               </p>
             )}
           </div>
         )}
         {actionMsg && (
-          <p className="border-t border-ink-800 px-2 py-1 text-center text-[10px] text-ink-400">
+          <p className="shrink-0 border-t border-ink-800 px-2 py-1 text-center text-[10px] text-ink-400">
             {actionMsg}
           </p>
         )}
@@ -523,7 +531,8 @@ function actionBtnClass(
   if (layout === 'compact') {
     return [
       base,
-      'flex-1 px-0.5 py-0.5 text-[8px] leading-tight text-ink-50 hover:bg-white/15',
+      // Always white on dark photo chrome (theme-independent)
+      'flex-1 px-0.5 py-0.5 text-[8px] leading-tight text-white hover:bg-white/15',
       muted ? 'opacity-50' : ''
     ].join(' ')
   }
@@ -536,8 +545,8 @@ function actionBtnClass(
   }
   return [
     base,
-    // Full-cell width so bar grid stays aligned; truncate long labels with title tooltip.
-    'flex min-h-[2.25rem] w-full items-center justify-center border border-ink-600 bg-ink-800 px-1.5 py-1.5 text-center text-[11px] leading-tight text-ink-100 hover:border-ink-500 hover:bg-ink-700 sm:text-xs',
+    // Grow + wrap: each control keeps readable min width so labels are not clipped.
+    'inline-flex min-h-10 min-w-[5.25rem] flex-1 items-center justify-center whitespace-normal break-words border border-ink-600 bg-ink-800 px-2 py-2 text-center text-[11px] leading-snug text-ink-100 hover:border-ink-500 hover:bg-ink-700 sm:min-w-[6rem] sm:text-xs',
     muted ? 'opacity-50' : ''
   ].join(' ')
 }

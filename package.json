@@ -3,22 +3,41 @@
   "version": "1.0.0",
   "description": "AI 專業短劇生成桌面工具 — InstantDrama Magician",
   "main": "./out/main/index.js",
-  "author": "yanshekki",
+  "bin": {
+    "idm": "./bin/idm.js",
+    "instant-drama": "./bin/idm.js"
+  },
+  "author": {
+    "name": "YSK Limited",
+    "email": "email@ysk.hk"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/yanshekki/instant-drama-magician.git"
   },
   "scripts": {
-    "dev": "ELECTRON_DISABLE_SANDBOX=1 electron-vite dev -- --no-sandbox",
+    "dev": "ELECTRON_DISABLE_SANDBOX=1 electron-vite dev -- --no-sandbox --class=instant-drama-magician",
     "build": "electron-vite build",
+    "build:web": "electron-vite build",
+    "start:server": "tsx server/index.ts",
+    "idm": "tsx src/cli/bin.ts",
+    "dev:web": "npm run build:web && npm run db:push:data && IDM_AUTH_DISABLED=1 IDM_DATA_DIR=./data IDM_PORT=8787 tsx server/index.ts",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run src/**/*.integration.test.ts",
+    "test:ci": "vitest run --coverage",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
+    "db:push:data": "DATABASE_URL=file:./data/instant-drama.db prisma db push --skip-generate",
     "db:studio": "prisma studio",
+    "locales:verify": "node scripts/verify-locales.mjs",
+    "locales:generate": "node scripts/generate-locales.mjs",
+    "locales:align": "node scripts/align-locales.mjs",
+    "locales:zh-cn": "node scripts/generate-locales.mjs --zh-cn-only",
     "postinstall": "prisma generate",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
@@ -29,15 +48,33 @@
   "build": {
     "appId": "hk.ysk.instant-drama-magician",
     "productName": "InstantDrama Magician",
+    "executableName": "instant-drama-magician",
+    "copyright": "Copyright © YSK Limited",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
+    "icon": "build/icon.png",
     "files": [
       "out/**/*",
       "package.json",
       "node_modules/**/*",
       "src/types/prisma/**/*",
-      "prisma/**/*"
+      "prisma/**/*",
+      "resources/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/icon.png",
+        "to": "icon.png"
+      },
+      {
+        "from": "build/icons",
+        "to": "icons",
+        "filter": [
+          "*.png"
+        ]
+      }
     ],
     "asarUnpack": [
       "**/node_modules/ffmpeg-static/**",
@@ -56,24 +93,44 @@
         "AppImage",
         "deb"
       ],
-      "category": "AudioVideo"
+      "category": "AudioVideo",
+      "icon": "build/icons",
+      "maintainer": "YSK Limited <email@ysk.hk>",
+      "synopsis": "AI 專業短劇生成桌面工具",
+      "description": "InstantDrama Magician — AI short-drama studio by YSK Limited",
+      "executableArgs": [
+        "--class=instant-drama-magician"
+      ],
+      "desktop": {
+        "Name": "InstantDrama Magician",
+        "Name[zh_HK]": "瞬劇魔法師",
+        "Name[zh_CN]": "瞬剧魔法师",
+        "Comment": "AI professional short-drama generation tool",
+        "Comment[zh_HK]": "AI 專業短劇生成桌面工具",
+        "GenericName": "AI Drama Studio",
+        "Icon": "instant-drama-magician",
+        "StartupWMClass": "instant-drama-magician"
+      }
     },
     "mac": {
       "target": [
         "dmg"
       ],
       "category": "public.app-category.video",
+      "icon": "build/icon.png",
       "identity": null
     },
     "win": {
       "target": [
         "nsis"
       ],
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "InstantDrama Magician"
     }
   },
   "dependencies": {
@@ -84,27 +141,45 @@
     "i18next": "^24.2.2",
     "jszip": "^3.10.1",
     "konva": "^9.3.20",
+    "prisma": "^6.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^15.4.1",
     "react-konva": "^18.2.10",
-    "react-router-dom": "^7.2.0"
+    "react-router-dom": "^7.2.0",
+    "tsx": "^4.23.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/jszip": "^3.4.0",
     "@types/node": "^22.13.10",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^3.2.7",
     "autoprefixer": "^10.4.20",
     "electron": "^34.3.0",
     "electron-builder": "^25.1.8",
     "electron-vite": "^3.0.0",
+    "happy-dom": "^20.11.0",
+    "jsdom": "^27.0.1",
+    "opencc-js": "^1.4.1",
     "postcss": "^8.5.3",
-    "prisma": "^6.5.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
     "vite": "^6.2.0",
     "vitest": "^3.0.8"
-  }
+  },
+  "files": [
+    "bin",
+    "src",
+    "server",
+    "prisma",
+    "skills",
+    "docs",
+    "package.json",
+    "README.md"
+  ]
 }

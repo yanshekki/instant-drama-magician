@@ -100,6 +100,8 @@ export function pickBestBaseImage(
 
   if (preferredPath) {
     const pref = gallery.find((g) => g.path === preferredPath)
+    // If preferred is not in this gallery list (e.g. filtered to existing files
+    // only and the pick was a deleted path), fall through to auto.
     if (pref) {
       const layer = inferGalleryLayer(pref)
       if (minor && layer === 'nude') {

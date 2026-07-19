@@ -15,5 +15,12 @@ export const libraryCardClass =
 export const libraryMediaClass =
   'relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-ink-950'
 
+/**
+ * Count / status pill on photo (always light-on-dark — sits on imagery).
+ * Do not use text-ink-* here: light theme ink-100 is dark and becomes unreadable.
+ */
+export const libraryMediaBadgeClass =
+  'pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur-sm'
+
 /** Text + actions body under the media. */
 export const libraryBodyClass = 'flex min-h-0 flex-1 flex-col p-4'

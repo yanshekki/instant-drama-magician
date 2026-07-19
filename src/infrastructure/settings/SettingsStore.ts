@@ -47,11 +47,16 @@ export class SettingsStore {
         }
         this.lastLoadMigrated = migrated
         this.cache = merged
+        // Persist when new default fields were backfilled (e.g. webServerPort 8787)
         const shouldPersist =
           migrated ||
           raw.llmProvider === undefined ||
           raw.model === 'grok-cli' ||
-          !raw.model
+          !raw.model ||
+          raw.webServerPort === undefined ||
+          raw.webServerHost === undefined ||
+          raw.webServerEnabled === undefined ||
+          raw.webServerAuthToken === undefined
         if (shouldPersist) {
           mkdirSync(dirname(this.filePath), { recursive: true })
           writeFileSync(this.filePath, JSON.stringify(merged, null, 2), 'utf-8')

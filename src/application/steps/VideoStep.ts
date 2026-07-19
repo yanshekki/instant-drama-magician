@@ -4,8 +4,12 @@ import { snapVideoSeconds } from '../../domain/videoDuration'
 import {
   buildClipPrompt,
   previousClipContext,
-  resolveClipRefImage
+  resolveClipRefImage,
+  getPreviousTimelineEntry,
+  buildContinuityLockPrompt,
+  timelineBeatDisplayIndex
 } from '../../domain/promptContinuity'
+import { existsSync } from 'fs'
 import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
 import {
   beatContentToClipPromptBlock,
@@ -80,6 +84,35 @@ export class VideoStep implements PipelineStep {
           scenes: sceneMap,
           props: propMap
         })
+        const prevEntry = getPreviousTimelineEntry(entries, entry.id)
+        let previousContinuityPath: string | null = null
+        let prevBeatIndex = 0
+        if (prevEntry) {
+          prevBeatIndex = timelineBeatDisplayIndex(entries, prevEntry.id)
+          const contPath =
+            media?.clipContinuityStillPath?.(story.id, prevEntry.id) ?? null
+          if (contPath && existsSync(contPath)) {
+            previousContinuityPath = contPath
+          }
+        }
+        const sameCharacter = Boolean(
+          character &&
+            prevEntry?.characterId &&
+            character.id === prevEntry.characterId
+        )
+        const sameScene = Boolean(
+          scene && prevEntry?.sceneId && scene.id === prevEntry.sceneId
+        )
+        const continuityLock = prevEntry
+          ? buildContinuityLockPrompt({
+              previousBeatIndex: prevBeatIndex,
+              previousDialogueSnippet: prev,
+              sameCharacter,
+              sameScene,
+              hasContinuityImage: Boolean(previousContinuityPath)
+            })
+          : null
+        const prevWithLock = [prev, continuityLock].filter(Boolean).join('\n')
         const parseLangs = (c: NonNullable<typeof character>): string[] | undefined => {
           try {
             const raw = (c as { spokenLanguages?: string | null }).spokenLanguages
@@ -130,7 +163,7 @@ export class VideoStep implements PipelineStep {
             beatContentJson: (entry as { beatContentJson?: string | null })
               .beatContentJson,
             seconds,
-            previousContext: prev
+            previousContext: prevWithLock || prev
           }),
           charBlock
         ]
@@ -153,7 +186,12 @@ export class VideoStep implements PipelineStep {
         })
 
         try {
-          const ref = resolveClipRefImage({ character, scene, prop })
+          const ref = resolveClipRefImage({
+            character,
+            scene,
+            prop,
+            previousContinuityPath
+          })
           const locale = 'zh-HK' as const
           const result = await polishThenGenerateVideo({
             ai,
@@ -179,7 +217,7 @@ export class VideoStep implements PipelineStep {
                 : null,
               propBlock: prop ? `${prop.name}: ${prop.description}` : null,
               beatOrDialogue,
-              previousContext: prev
+              previousContext: prevWithLock || prev
             }),
             videoRequest: {
               durationSeconds: seconds,

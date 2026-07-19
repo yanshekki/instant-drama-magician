@@ -13,7 +13,11 @@ import {
   type LlmProviderPreset
 } from '../../domain/openaiCompatible'
 
-export type ChannelExtraId = 'same-as-llm' | 'stub'
+export type ChannelExtraId =
+  | 'same-as-llm'
+  | 'stub'
+  | 'seedance'
+  | 'seedream'
 
 export type ChannelPickerValue = ChannelExtraId | LlmProviderPreset
 
@@ -25,12 +29,13 @@ interface ProviderChannelPickerProps {
   disabled?: boolean
 }
 
+/** Theme-aware badges: use CSS-variable colors (work in light + dark). */
 const GROUP_BADGE: Record<LlmProviderGroup | 'channel', string> = {
-  channel: 'bg-violet-950/40 text-violet-200 border-violet-800/40',
-  recommended: 'bg-brand-950/50 text-brand-200 border-brand-700/40',
-  cloud: 'bg-sky-950/40 text-sky-200 border-sky-800/40',
-  local: 'bg-emerald-950/40 text-emerald-200 border-emerald-800/40',
-  advanced: 'bg-ink-800/80 text-ink-300 border-ink-600/50'
+  channel: 'bg-violet-950/80 text-violet-200 border-violet-800/60',
+  recommended: 'bg-brand-950/80 text-brand-200 border-brand-800/50',
+  cloud: 'bg-sky-950/80 text-sky-200 border-sky-800/60',
+  local: 'bg-emerald-950/80 text-emerald-200 border-emerald-800/50',
+  advanced: 'bg-ink-800 text-ink-300 border-ink-700'
 }
 
 function CapPill({ on, label }: { on: boolean; label: string }): JSX.Element {
@@ -39,8 +44,8 @@ function CapPill({ on, label }: { on: boolean; label: string }): JSX.Element {
       className={[
         'rounded-full px-2 py-0.5 text-[10px] font-medium',
         on
-          ? 'bg-emerald-950/60 text-emerald-300'
-          : 'bg-ink-800/80 text-ink-500 line-through decoration-ink-600'
+          ? 'bg-emerald-950/80 text-emerald-200 ring-1 ring-emerald-700/40'
+          : 'bg-ink-800 text-ink-500 line-through decoration-ink-600 ring-1 ring-ink-700/60'
       ].join(' ')}
     >
       {label}
@@ -67,11 +72,11 @@ function OptionCard({
       disabled={disabled}
       onClick={onClick}
       className={[
-        'rounded-xl border px-3 py-2.5 text-left transition',
+        'rounded-xl border px-3 py-2.5 text-left transition shadow-theme-sm',
         'disabled:cursor-not-allowed disabled:opacity-50',
         active
-          ? 'border-brand-500 bg-brand-950/40 shadow-md shadow-brand-950/20 ring-1 ring-brand-500/40'
-          : 'border-ink-700/80 bg-ink-950/40 hover:border-ink-500 hover:bg-ink-900/60'
+          ? 'border-brand-500 bg-brand-950 ring-1 ring-brand-500/50'
+          : 'border-ink-700 bg-ink-900 hover:border-brand-400/50 hover:bg-ink-900'
       ].join(' ')}
     >
       <div className="flex items-start justify-between gap-2">
@@ -84,12 +89,12 @@ function OptionCard({
           {title}
         </span>
         {active && (
-          <span className="shrink-0 text-[10px] font-medium text-brand-300">
+          <span className="shrink-0 text-[10px] font-medium text-brand-400">
             ✓
           </span>
         )}
       </div>
-      <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-ink-500">
+      <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-ink-400">
         {hint}
       </p>
     </button>
@@ -111,7 +116,11 @@ export function ProviderChannelPicker({
     ? providerCaps(value)
     : value === 'stub'
       ? { chat: false, image: false, video: true }
-      : { chat: true, image: true, video: true }
+      : value === 'seedance'
+        ? { chat: false, image: false, video: true }
+        : value === 'seedream'
+          ? { chat: false, image: true, video: false }
+          : { chat: true, image: true, video: true }
 
   const extras: Array<{ id: ChannelExtraId; title: string; hint: string }> = [
     {
@@ -121,10 +130,24 @@ export function ProviderChannelPicker({
     }
   ]
   if (channel === 'video') {
+    extras.push(
+      {
+        id: 'stub',
+        title: t('settings.channelPreset.stub'),
+        hint: t('settings.channelPresetHint.stub')
+      },
+      {
+        id: 'seedance',
+        title: t('settings.channelPreset.seedance'),
+        hint: t('settings.channelPresetHint.seedance')
+      }
+    )
+  }
+  if (channel === 'image') {
     extras.push({
-      id: 'stub',
-      title: t('settings.channelPreset.stub'),
-      hint: t('settings.channelPresetHint.stub')
+      id: 'seedream',
+      title: t('settings.channelPreset.seedream'),
+      hint: t('settings.channelPresetHint.seedream')
     })
   }
 
@@ -186,8 +209,8 @@ export function ProviderChannelPicker({
         )
       })}
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-800/80 bg-ink-950/50 px-3 py-2">
-        <span className="text-[11px] text-ink-500">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 px-3 py-2 shadow-theme-sm">
+        <span className="text-[11px] text-ink-400">
           {t('settings.capabilities')}:
         </span>
         <CapPill on={caps.chat} label={t('settings.capChat')} />

@@ -20,17 +20,47 @@ export function translateCharacterGalleryLabel(
   t: (key: string) => string
 ): string {
   if (!label?.trim()) return t('characters.photoFallback')
-  const key = CHAR_LABEL_TO_KEY.get(label.trim().toLowerCase())
+  const raw = label.trim()
+  const key = CHAR_LABEL_TO_KEY.get(raw.toLowerCase())
   if (key) return t(`characters.${key}`)
+  // Partial: "Bible sheet · rain" / stored with suffix
+  for (const [enLabel, labelKey] of CHAR_LABEL_TO_KEY) {
+    if (
+      raw.toLowerCase() === enLabel ||
+      raw.toLowerCase().startsWith(`${enLabel} `) ||
+      raw.toLowerCase().startsWith(`${enLabel}·`) ||
+      raw.toLowerCase().startsWith(`${enLabel} ·`)
+    ) {
+      return t(`characters.${labelKey}`)
+    }
+  }
   // costume swap / freeform labels
-  if (/^costume swap/i.test(label)) return t('characters.swapCostume')
+  if (/^costume swap/i.test(raw)) {
+    const rest = raw
+      .replace(/^costume\s+swap\s*[·•\-—:]?\s*/i, '')
+      .trim()
+    return rest
+      ? `${t('characters.swapCostume')} · ${rest}`
+      : t('characters.swapCostume')
+  }
+  // Dressed look from costumes page (any UI language stored as that locale's string)
   if (
-    /^external ref/i.test(label) ||
-    label === t('characters.externalRefLabel')
+    /^generate dressed/i.test(raw) ||
+    raw === t('costumes.generateDressed')
+  ) {
+    return t('costumes.generateDressed')
+  }
+  if (
+    /^external ref/i.test(raw) ||
+    raw === t('characters.externalRefLabel')
   ) {
     return t('characters.externalRefLabel')
   }
-  return label
+  // Legacy single-image fallback label
+  if (/^reference$/i.test(raw)) {
+    return t('characters.photoFallback')
+  }
+  return raw
 }
 
 export function translateSceneGalleryLabel(

@@ -170,7 +170,7 @@ export function GalleryThumbStrip({
                   {t('common.coverBadge')}
                 </span>
               )}
-              <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] truncate bg-black/65 px-0.5 py-0.5 text-center text-[9px] text-ink-100">
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] truncate bg-black/65 px-0.5 py-0.5 text-center text-[9px] text-white">
                 {label}
               </span>
             </div>

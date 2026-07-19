@@ -1,38 +1,40 @@
-# Beta 試用說明
+# Beta trial notes (Round 7)
 
-## 系統要求
+> **Language:** [English](./beta.md) · [中文](./beta-ZH.md)
 
-- Node 20+（開發）
-- 系統 **ffmpeg**（匯出）
-- 可選：本機 [Grok-Cli-to-OpenAI-compatible](./grok-gateway.md)（真 video）
+## System requirements
 
-## 5 分鐘路徑
+- Node 20+ (development)  
+- **FFmpeg:** `ffmpeg-static` or `FFMPEG_PATH`  
+- Optional: local [Grok gateway](./grok-gateway.md) for real video  
 
-1. `npm run dev`
-2. 首次彈窗或故事頁 → **載入 Demo 故事**
-3. 時間軸右側選 **6s / 10s**
-4. 對單一 clip 按 **生成此段**，或整條 **開始生成**
-5. **匯出成片**（預檢會提示 fallback）
+## 5-minute path
+
+1. `npm run dev`  
+2. First dialog or Stories → **Load demo story**  
+3. Timeline: pick **6s / 10s**  
+4. **Generate this clip** or full **Generate**  
+5. **Export** (preflight may warn about fallback)  
 
 ## stub vs live
 
-| 模式 | 結果 |
-|------|------|
-| `stub` / auto 降級 | 紫色色塊占位 mp4 |
+| Mode | Result |
+|------|--------|
+| `stub` / auto degrade | Purple placeholder mp4 |
 | `http` + gateway videoApi | `/v1/videos` job → content |
 
-側欄顯示 `Video: stub|http|auto`；上次 stub 會標示。
+Sidebar shows `Video: stub|http|auto`.
 
-## 已知限制（Beta）
+## Known limits (Beta era)
 
-- 非商店簽章安裝包
-- TTS / BGM 品質有限（Round 8 已接混音路徑，品質仍依賴本機 TTS）
-- 單軌時間軸
-- 真片品質取決於 gateway `MEDIA_PROVIDER`
+- Non-store-signed packages  
+- TTS / BGM quality limited (Round 8 added mix path)  
+- Single-track timeline  
+- Real film quality depends on gateway `MEDIA_PROVIDER`  
 
-Production UX 深化見 [production-ux.md](./production-ux.md)。
+Production UX: [production-ux.md](./production-ux.md). Current shipping: [commercial.md](./commercial.md).
 
-## 打包
+## Packaging
 
 ```bash
 npm run pack

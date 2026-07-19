@@ -20,6 +20,7 @@ import {
   libraryBodyClass,
   libraryCardClass,
   libraryGridClass,
+  libraryMediaBadgeClass,
   libraryMediaClass
 } from '../components/libraryCard'
 import {
@@ -55,6 +56,7 @@ import {
   isArtStyleId,
   type ArtStyleId
 } from '../../domain/characterArtStyles'
+import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type {
@@ -81,6 +83,7 @@ import {
 import { PageHeader } from '../components/PageHeader'
 import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
 import { translateSceneGalleryLabel } from '../../domain/galleryLabelI18n'
+import { tSceneLocationType } from '../lib/statusLabels'
 
 type EditorPanel = 'profile' | 'refs' | 'atmosphere'
 
@@ -161,7 +164,10 @@ export function ScenesPage(): JSX.Element {
     isBlocked,
     onSceneProfileApply,
     onScenePlateCommitted,
-    activeJobs
+    activeJobs,
+    startVideoPrep,
+    hasVideoPrepDraft,
+    continueVideoPrepDraft
   } = useAiJobs()
   const {
     items,
@@ -393,11 +399,16 @@ export function ScenesPage(): JSX.Element {
   const openCreate = (): void => {
     setEditorPanel('profile')
     setEditingId(null)
-    setForm(emptyForm(nextSceneNumber(items.map((s) => s.sceneNumber))))
+    // Prefer story-linked scene numbers when available (global list often lacks them)
+    const nums = items
+      .map((s) => s.sceneNumber)
+      .filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
+    setForm(emptyForm(nextSceneNumber(nums)))
     setSelectedImageId(null)
     setAiIdea('')
     setAtmoText('')
     setLayerFilter('all')
+    setActionError(null)
     setEditorOpen(true)
   }
 
@@ -450,8 +461,14 @@ export function ScenesPage(): JSX.Element {
     const looks = ensureLookInLibrary(form.looks, atmoText || form.mood, {
       artStyle: form.artStyle
     })
+    const sceneNumber =
+      typeof form.sceneNumber === 'number' &&
+      Number.isFinite(form.sceneNumber) &&
+      form.sceneNumber >= 1
+        ? Math.floor(form.sceneNumber)
+        : nextSceneNumber(items.map((s) => s.sceneNumber))
     return {
-      sceneNumber: form.sceneNumber,
+      sceneNumber,
       description: form.description.trim() || form.title || 'Scene',
       script: form.script.trim() || null,
       status: form.status,
@@ -679,60 +696,78 @@ export function ScenesPage(): JSX.Element {
     }
     if (sceneBusy(editingId)) return
     setActionError(null)
-    setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(t('aiJobs.startedBackground'))
     const sceneId = editingId
     const sourcePath = sourceImagePath.trim()
-    startJob({
-      kind: 'scene-intro-video',
-      label: t('scenes.introVideoJob'),
-      scope: {
-        sceneId,
-        storyId: activeStoryId ?? undefined
-      },
-      run: async ({ setProgress, signal }) => {
-        setProgress(10, 'start')
-        // Persist profile first so video prompt uses full location bible
+    const draftKey = buildVideoPrepDraftKey(
+      'scene-intro',
+      { sceneId },
+      sourcePath
+    )
+    if (hasVideoPrepDraft(draftKey)) {
+      continueVideoPrepDraft(draftKey)
+      return
+    }
+    void (async () => {
+      try {
         await update(sceneId, payload())
-        if (signal.cancelled) return
-        setProgress(25, 'llm')
-        const r = await getApi().scenes.generateIntroVideo({
-          sceneId,
-          sourceImagePath: sourcePath,
-          durationSeconds: 10,
-          locale: getAiLocale(i18n.language)
-        })
-        if (signal.cancelled) return
-        setProgress(90, 'generate')
-        setProgress(100, 'done')
-        const g = (r.gallery ?? []).map((item) => ({
-          id: item.id,
-          path: item.path,
-          kind: (item.kind === 'sheet' ||
-          item.kind === 'upload' ||
-          item.kind === 'gen' ||
-          item.kind === 'external'
-            ? item.kind
-            : 'gen') as SceneGalleryItem['kind'],
-          label: item.label,
-          createdAt: item.createdAt,
-          ...(item.layer ? { layer: item.layer } : {}),
-          introVideoPath: item.introVideoPath ?? null
-        }))
-        setForm((f) =>
-          editingId === sceneId
-            ? {
-                ...f,
-                gallery: g.length > 0 ? g : f.gallery
-              }
-            : f
-        )
-        // Do not auto-open player — user presses「播放介紹片」to watch in-app.
-        toast.success(t('scenes.introVideoOk'))
-        return undefined
+      } catch (e) {
+        toast.error(parseIpcError(e).message)
+        return
       }
-    })
+      startVideoPrep({
+        kind: 'scene-intro',
+        entityIds: { sceneId, storyId: activeStoryId ?? undefined },
+        sourceImagePath: sourcePath,
+        durationSeconds: 10,
+        locale: getAiLocale(i18n.language)
+      })
+    })()
   }
+
+  // After video confirm, reload gallery introVideoPath
+  useEffect(() => {
+    const onDone = (ev: Event): void => {
+      const d = (ev as CustomEvent).detail as {
+        kind?: string
+        entityIds?: { sceneId?: string }
+        gallery?: Array<{
+          id: string
+          path: string
+          kind: string
+          label: string
+          createdAt: string
+          layer?: string
+          introVideoPath?: string | null
+        }>
+      }
+      if (d?.kind !== 'scene-intro') return
+      if (!editingId || d.entityIds?.sceneId !== editingId) return
+      if (d.gallery?.length) {
+        setForm((f) => ({
+          ...f,
+          gallery: d.gallery!.map((item) => ({
+            id: item.id,
+            path: item.path,
+            kind: (item.kind === 'sheet' ||
+            item.kind === 'upload' ||
+            item.kind === 'gen'
+              ? item.kind
+              : 'sheet') as 'sheet' | 'upload' | 'gen',
+            label: item.label,
+            createdAt: item.createdAt,
+            ...(item.layer ? { layer: item.layer } : {}),
+            ...(item.introVideoPath
+              ? { introVideoPath: item.introVideoPath }
+              : {})
+          }))
+        }))
+      } else {
+        void reload()
+      }
+    }
+    window.addEventListener('idm:video-prep-done', onDone)
+    return () => window.removeEventListener('idm:video-prep-done', onDone)
+  }, [editingId, reload])
 
   const handleGeneratePlate = async (opts?: {
     referenceImagePath?: string | null
@@ -1144,7 +1179,7 @@ export function ScenesPage(): JSX.Element {
                             </button>
                           )}
                           {count > 0 && (
-                            <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-ink-100 backdrop-blur">
+                            <span className={libraryMediaBadgeClass}>
                               {count} {t('characters.photos')}
                             </span>
                           )}
@@ -1163,7 +1198,7 @@ export function ScenesPage(): JSX.Element {
                             </span>
                             {s.locationType && (
                               <span className="rounded-full bg-ink-800 px-2 py-0.5 text-[10px] text-ink-400">
-                                {s.locationType}
+                                {tSceneLocationType(t, s.locationType)}
                               </span>
                             )}
                           </div>
@@ -1282,6 +1317,16 @@ export function ScenesPage(): JSX.Element {
                     regenerateBusy={editorBusy}
                     introVideoBusy={editorBusy}
                     introVideoPath={selectedImage.introVideoPath}
+                    introVideoHasDraft={
+                      Boolean(editingId) &&
+                      hasVideoPrepDraft(
+                        buildVideoPrepDraftKey(
+                          'scene-intro',
+                          { sceneId: editingId! },
+                          selectedImage.path
+                        )
+                      )
+                    }
                     onIntroVideo={
                       editingId
                         ? () => handleGenerateIntroVideo(selectedImage.path)
@@ -1441,9 +1486,49 @@ export function ScenesPage(): JSX.Element {
                   />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>{t('scenes.locationType')}</Label>
+                    <EditorSelect
+                      value={form.locationType}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          locationType: e.target.value
+                        }))
+                      }
+                      aria-label={t('scenes.locationType')}
+                    >
+                      <option value="">{t('library.filterAny')}</option>
+                      {(
+                        [
+                          'interior',
+                          'exterior',
+                          'mixed',
+                          'vehicle',
+                          'virtual'
+                        ] as const
+                      ).map((v) => (
+                        <option key={v} value={v}>
+                          {tSceneLocationType(t, v)}
+                        </option>
+                      ))}
+                      {form.locationType &&
+                      ![
+                        'interior',
+                        'exterior',
+                        'mixed',
+                        'vehicle',
+                        'virtual',
+                        ''
+                      ].includes(form.locationType.toLowerCase()) ? (
+                        <option value={form.locationType}>
+                          {form.locationType}
+                        </option>
+                      ) : null}
+                    </EditorSelect>
+                  </div>
                   {(
                     [
-                      ['locationType', 'locationType'],
                       ['timeOfDay', 'timeOfDay'],
                       ['weather', 'weather'],
                       ['mood', 'mood'],

@@ -95,7 +95,7 @@ export function ToastHost(): JSX.Element | null {
 
   return (
     <div
-      className="pointer-events-none fixed right-4 top-4 z-[80] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2"
+      className="pointer-events-none fixed right-4 top-4 z-[90] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2"
       aria-live="polite"
     >
       {toasts.map((item) => {

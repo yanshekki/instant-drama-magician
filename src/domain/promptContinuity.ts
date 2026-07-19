@@ -5,15 +5,45 @@ import {
   parseBeatContent
 } from './beatContent'
 
+export type ClipRefSource =
+  | 'prev-clip'
+  | 'cast'
+  | 'character'
+  | 'scene'
+  | 'prop'
+
 /**
  * Pick a single still for video image-conditioning.
- * Priority: character sheet/cover → scene location plate → prop hero.
+ * Priority: previous continuity → advanced cast look → character sheet → scene → prop.
  */
 export function resolveClipRefImage(options: {
   character?: Character | null
   scene?: Scene | null
   prop?: Prop | null
-}): { path: string; source: 'character' | 'scene' | 'prop' } | null {
+  /** Path to previous beat's continuity keyframe (if file exists). */
+  previousContinuityPath?: string | null
+  /** When false, skip previous-clip lock (library assets only). Default true. */
+  usePreviousContinuity?: boolean
+  /**
+   * Advanced prep cast/costume image for primary character.
+   * Used when no previous continuity, or when preferCastOverContinuity.
+   */
+  castRefPath?: string | null
+  /** Prefer cast look over previous continuity (rare; default false). */
+  preferCastOverContinuity?: boolean
+}): { path: string; source: ClipRefSource } | null {
+  const usePrev = options.usePreviousContinuity !== false
+  const prev = options.previousContinuityPath?.trim() || null
+  const cast = options.castRefPath?.trim() || null
+  if (options.preferCastOverContinuity && cast) {
+    return { path: cast, source: 'cast' }
+  }
+  if (usePrev && prev) {
+    return { path: prev, source: 'prev-clip' }
+  }
+  if (cast) {
+    return { path: cast, source: 'cast' }
+  }
   const c =
     options.character?.refSheetPath || options.character?.refImagePath || null
   if (c) return { path: c, source: 'character' }
@@ -22,6 +52,57 @@ export function resolveClipRefImage(options: {
   const p = options.prop?.refImagePath || null
   if (p) return { path: p, source: 'prop' }
   return null
+}
+
+/** Ordered previous entry (by order), or null if first clip. */
+export function getPreviousTimelineEntry(
+  entries: TimelineEntry[],
+  currentId: string
+): TimelineEntry | null {
+  const ordered = [...entries].sort((a, b) => a.order - b.order)
+  const idx = ordered.findIndex((e) => e.id === currentId)
+  if (idx <= 0) return null
+  return ordered[idx - 1] ?? null
+}
+
+/** 1-based beat index for UI labels. */
+export function timelineBeatDisplayIndex(
+  entries: TimelineEntry[],
+  entryId: string
+): number {
+  const ordered = [...entries].sort((a, b) => a.order - b.order)
+  const idx = ordered.findIndex((e) => e.id === entryId)
+  return idx >= 0 ? idx + 1 : 0
+}
+
+/**
+ * CONTINUITY LOCK block for polish / still prompts when previous frame is used.
+ */
+export function buildContinuityLockPrompt(options: {
+  previousBeatIndex: number
+  previousDialogueSnippet?: string | null
+  sameCharacter?: boolean
+  sameScene?: boolean
+  hasContinuityImage: boolean
+}): string {
+  const lines = [
+    'CONTINUITY LOCK (must obey for short-drama sequence):',
+    options.hasContinuityImage
+      ? `The attached image is the END FRAME / KEYFRAME of beat #${options.previousBeatIndex}. This new shot continues from that exact visual state.`
+      : `Continue from beat #${options.previousBeatIndex} (no still available — match dossier only).`,
+    options.sameCharacter
+      ? 'IDENTITY: same person — face, hair, body proportions, wardrobe colors, accessories. No restyle, no age shift.'
+      : null,
+    options.sameScene
+      ? 'SPACE: same location — architecture, materials, layout, light direction. Only subtle time-of-day drift if the beat requires it.'
+      : null,
+    'ACTION: pick up motion/pose/gaze from the previous frame; do not hard-cut to a different setup.',
+    options.previousDialogueSnippet
+      ? `Previous beat context: ${options.previousDialogueSnippet.slice(0, 120)}`
+      : null,
+    'No text overlays, logos, watermarks.'
+  ]
+  return lines.filter(Boolean).join('\n')
 }
 
 /** Previous-clip summary for visual continuity in video prompts. */
@@ -34,32 +115,35 @@ export function previousClipContext(
     props: Map<string, Prop>
   }
 ): string | null {
+  const prev = getPreviousTimelineEntry(entries, currentId)
+  if (!prev) return null
   const ordered = [...entries].sort((a, b) => a.order - b.order)
-  const idx = ordered.findIndex((e) => e.id === currentId)
-  if (idx <= 0) return null
-  const prev = ordered[idx - 1]
-  const char = prev.characterId ? maps.characters.get(prev.characterId) : undefined
+  const prevIndex = ordered.findIndex((e) => e.id === prev.id) + 1
+  const char = prev.characterId
+    ? maps.characters.get(prev.characterId)
+    : undefined
   const scene = prev.sceneId ? maps.scenes.get(prev.sceneId) : undefined
   const prop = prev.propId ? maps.props.get(prev.propId) : undefined
+  const spoken = extractSpokenLines(
+    parseBeatContent(
+      prev.dialogue,
+      (prev as { beatContentJson?: string | null }).beatContentJson
+    )
+  )
+  const snip = (spoken || prev.dialogue || '').slice(0, 100)
   const bits = [
+    `beat #${prevIndex}`,
     char ? `character ${char.name}` : null,
     scene
       ? `scene #${scene.sceneNumber}${scene.title ? ` ${scene.title}` : ''}${scene.mood ? ` (${scene.mood})` : ''}`
       : null,
     prop ? `prop ${prop.name}` : null,
-    (() => {
-      const spoken = extractSpokenLines(
-        parseBeatContent(
-          prev.dialogue,
-          (prev as { beatContentJson?: string | null }).beatContentJson
-        )
-      )
-      const snip = (spoken || prev.dialogue || '').slice(0, 80)
-      return snip ? `said “${snip}”` : null
-    })()
+    snip ? `last line “${snip}”` : null
   ].filter(Boolean)
-  if (bits.length === 0) return null
-  return `Continue visually from previous clip (${bits.join(', ')}).`
+  return [
+    `Continue visually from previous clip (${bits.join(', ')}).`,
+    'Match wardrobe, hair, face identity, location geometry, and lighting continuity from the prior keyframe when provided.'
+  ].join(' ')
 }
 
 export function buildClipPrompt(options: {

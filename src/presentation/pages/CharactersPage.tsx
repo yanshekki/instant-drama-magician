@@ -11,6 +11,7 @@ import {
   libraryBodyClass,
   libraryCardClass,
   libraryGridClass,
+  libraryMediaBadgeClass,
   libraryMediaClass
 } from '../components/libraryCard'
 import {
@@ -42,6 +43,7 @@ import {
   extractNameFromSoulMd,
   parseSoulMd
 } from '../../domain/character'
+import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type { Character, CreateCharacterInput } from '../../types/domain'
@@ -175,7 +177,10 @@ export function CharactersPage(): JSX.Element {
     onProfileApply,
     onSheetCommitted,
     onWardrobeApply,
-    activeJobs
+    activeJobs,
+    startVideoPrep,
+    hasVideoPrepDraft,
+    continueVideoPrepDraft
   } = useAiJobs()
   const {
     items,
@@ -1325,54 +1330,109 @@ export function CharactersPage(): JSX.Element {
     }
     if (characterAiBusy(editingId)) return
     setActionError(null)
-    setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(t('aiJobs.startedBackground'))
     const characterId = editingId
     const sourcePath = sourceImagePath.trim()
-    startJob({
-      kind: 'character-intro-video',
-      label: t('characters.introVideoJob'),
-      scope: {
-        characterId,
-        storyId: activeStoryId ?? undefined
-      },
-      run: async ({ setProgress, signal }) => {
-        setProgress(10, 'start')
-        // Persist profile first so video prompt uses full 人設 + soul
+    const draftKey = buildVideoPrepDraftKey(
+      'character-intro',
+      { characterId },
+      sourcePath
+    )
+    if (hasVideoPrepDraft(draftKey)) {
+      continueVideoPrepDraft(draftKey)
+      return
+    }
+    void (async () => {
+      try {
         await update(characterId, payload())
-        if (signal.cancelled) return
-        setProgress(25, 'llm')
-        const r = await getApi().characters.generateIntroVideo({
+      } catch (e) {
+        toast.error(parseIpcError(e).message)
+        return
+      }
+      startVideoPrep({
+        kind: 'character-intro',
+        entityIds: {
           characterId,
-          sourceImagePath: sourcePath,
-          durationSeconds: 10,
-          locale: getAiLocale(i18n.language)
-        })
-        if (signal.cancelled) return
-        setProgress(90, 'generate')
-        setProgress(100, 'done')
-        const g = (r.gallery ?? []).map((item) => ({
+          storyId: activeStoryId ?? undefined
+        },
+        sourceImagePath: sourcePath,
+        durationSeconds: 10,
+        locale: getAiLocale(i18n.language)
+      })
+    })()
+  }
+
+  // After video confirm, reload gallery introVideoPath on the source still
+  useEffect(() => {
+    const onDone = (ev: Event): void => {
+      const d = (ev as CustomEvent).detail as {
+        kind?: string
+        entityIds?: { characterId?: string }
+        gallery?: Array<{
+          id: string
+          path: string
+          kind: string
+          label: string
+          createdAt: string
+          layer?: string
+          introVideoPath?: string | null
+        }>
+      }
+      if (d?.kind !== 'character-intro') return
+      if (!editingId || d.entityIds?.characterId !== editingId) return
+      const applyGallery = (
+        items: Array<{
+          id: string
+          path: string
+          kind: string
+          label: string
+          createdAt: string
+          layer?: string
+          introVideoPath?: string | null
+        }>
+      ): void => {
+        const mapped = items.map((item) => ({
           id: item.id,
           path: item.path,
-          kind: item.kind as 'sheet' | 'upload' | 'gen',
+          kind: (item.kind === 'sheet' ||
+          item.kind === 'upload' ||
+          item.kind === 'gen' ||
+          item.kind === 'external'
+            ? item.kind
+            : 'gen') as CharacterGalleryItem['kind'],
           label: item.label,
           createdAt: item.createdAt,
+          ...(item.layer ? { layer: item.layer } : {}),
           introVideoPath: item.introVideoPath ?? null
         }))
-        setForm((f) =>
-          editingId === characterId
-            ? {
-                ...f,
-                gallery: g.length > 0 ? g : f.gallery
-              }
-            : f
-        )
-        // Do not auto-open player — user presses「播放介紹片」to watch in-app.
-        toast.success(t('characters.introVideoOk'))
-        return undefined
+        setForm((f) => ({ ...f, gallery: mapped }))
+        // Keep current selection if possible; prefer item that now has video
+        setSelectedImageId((prev) => {
+          if (prev && mapped.some((g) => g.id === prev)) return prev
+          const withVideo = mapped.find((g) => g.introVideoPath)
+          return withVideo?.id ?? mapped[0]?.id ?? prev
+        })
       }
-    })
-  }
+      if (d.gallery?.length) {
+        applyGallery(d.gallery)
+      } else {
+        void getApi()
+          .characters.get(editingId)
+          .then((row) => {
+            const g = parseCharacterGallery(
+              (row as Character).refGalleryJson,
+              {
+                refImagePath: (row as Character).refImagePath,
+                refSheetPath: (row as Character).refSheetPath
+              }
+            )
+            applyGallery(g)
+          })
+          .catch(() => void reload())
+      }
+    }
+    window.addEventListener('idm:video-prep-done', onDone)
+    return () => window.removeEventListener('idm:video-prep-done', onDone)
+  }, [editingId, reload])
 
   /** Import a still from disk as an external AI reference. */
   const handlePickExternalRef = async (): Promise<void> => {
@@ -1890,7 +1950,7 @@ export function CharactersPage(): JSX.Element {
                               </button>
                             )}
                             {count > 0 && (
-                              <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-ink-100 backdrop-blur">
+                              <span className={libraryMediaBadgeClass}>
                                 {count} {t('characters.photos')}
                               </span>
                             )}
@@ -2038,6 +2098,16 @@ export function CharactersPage(): JSX.Element {
                       regenerateBusy={editorAiBusy}
                       introVideoBusy={editorAiBusy}
                       introVideoPath={selectedImage.introVideoPath}
+                      introVideoHasDraft={
+                        Boolean(editingId) &&
+                        hasVideoPrepDraft(
+                          buildVideoPrepDraftKey(
+                            'character-intro',
+                            { characterId: editingId! },
+                            selectedImage.path
+                          )
+                        )
+                      }
                       onIntroVideo={
                         editingId
                           ? () =>
@@ -2864,16 +2934,11 @@ export function CharactersPage(): JSX.Element {
                                         editingId
                                       )
                                     setLinkedGlobalCostumes(list)
+                                    // Reload character so gallery includes the new dressed still
+                                    // (already committed on main — no character-sheet draft).
+                                    await reload()
                                     toast.success(t('costumes.dressedOk'))
-                                    return {
-                                      type: 'character-sheet' as const,
-                                      characterId: editingId,
-                                      storyId: '',
-                                      path: r.path,
-                                      variant: 'costume_swap',
-                                      label: t('costumes.generateDressed'),
-                                      layer: 'costume'
-                                    }
+                                    return undefined
                                   }
                                 })
                               }}

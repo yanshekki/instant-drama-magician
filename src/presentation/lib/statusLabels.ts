@@ -39,3 +39,35 @@ export function tSceneStatus(
   }
   return status
 }
+
+/** AI / form locationType codes (interior, exterior, mixed, …). */
+const LOCATION_TYPES = [
+  'interior',
+  'exterior',
+  'mixed',
+  'vehicle',
+  'virtual'
+] as const
+
+/**
+ * Translate scene locationType for badges/UI.
+ * Unknown free-text values are returned as-is.
+ */
+export function tSceneLocationType(
+  t: TFunction,
+  locationType: string | null | undefined
+): string {
+  if (!locationType?.trim()) return ''
+  const raw = locationType.trim()
+  const key = raw.toLowerCase().replace(/\s+/g, '_')
+  if ((LOCATION_TYPES as readonly string[]).includes(key)) {
+    const translated = t(`scenes.locationTypeValue.${key}`)
+    if (translated !== `scenes.locationTypeValue.${key}`) return translated
+  }
+  // Also try common variants
+  const slug = key.replace(/-/g, '_')
+  const translated = t(`scenes.locationTypeValue.${slug}`, {
+    defaultValue: ''
+  })
+  return translated || raw
+}

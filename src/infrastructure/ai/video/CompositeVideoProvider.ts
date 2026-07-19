@@ -76,20 +76,40 @@ export class CompositeVideoProvider implements VideoProvider {
       return this.http.generate(request)
     }
 
+    // auto: use real HTTP when available. If HTTP is up but generation fails,
+    // rethrow — do NOT silently write a purple ffmpeg placeholder (that looks
+    // like a "successful" clip with the prompt burned as text).
+    let probeAvailable = false
+    let probeMessage = ''
     try {
       const probe = await this.http.probe()
+      probeAvailable = probe.available
+      probeMessage = probe.message ?? ''
       if (probe.available) {
-        try {
-          this.lastProviderId = this.http.id
-          return await this.http.generate(request)
-        } catch {
-          // fall through
-        }
+        this.lastProviderId = this.http.id
+        return await this.http.generate(request)
       }
-    } catch {
-      // fall through
+    } catch (err) {
+      // probe or generate failed while we thought HTTP was reachable
+      if (probeAvailable) throw err
+      // probe itself failed — fall through to stub only if ffmpeg works
     }
-    this.lastProviderId = this.stub.id
-    return this.stub.generate(request)
+
+    try {
+      this.lastProviderId = this.stub.id
+      const stub = await this.stub.generate(request)
+      return {
+        ...stub,
+        degraded: true,
+        // Surface why we stubbed so UI/logs can explain purple clips
+        jobId: stub.jobId ?? `stub-fallback:${probeMessage || 'http-unavailable'}`
+      }
+    } catch (stubErr) {
+      throw new Error(
+        `Video HTTP unavailable (${probeMessage || 'probe failed'}) and stub failed: ${
+          stubErr instanceof Error ? stubErr.message : String(stubErr)
+        }`
+      )
+    }
   }
 }

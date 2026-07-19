@@ -11,7 +11,17 @@ import type {
 } from '../../src/types/domain'
 import type { ElectronApi } from '../../src/types/electron-api'
 
-const api: ElectronApi = {
+/** Escape hatch for renderer polyfills when a namespace is missing after hot reload. */
+function invokeChannel(channel: string, args: unknown[] = []): Promise<unknown> {
+  return ipcRenderer.invoke(channel, ...args)
+}
+
+const api: ElectronApi & {
+  /** @internal */
+  _invoke?: (channel: string, args?: unknown[]) => Promise<unknown>
+} = {
+  _invoke: (channel: string, args: unknown[] = []) =>
+    invokeChannel(channel, args),
   stories: {
     list: () => ipcRenderer.invoke('stories:list'),
     get: (id: string) => ipcRenderer.invoke('stories:get', id),
@@ -252,6 +262,16 @@ const api: ElectronApi = {
       locale?: 'zh-HK' | 'en'
     }) => ipcRenderer.invoke('costumes:generateIntroVideo', payload)
   },
+  videoPrep: {
+    create: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('videoPrep:create', payload),
+    openFromStill: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('videoPrep:openFromStill', payload),
+    regenStill: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('videoPrep:regenStill', payload),
+    confirm: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('videoPrep:confirm', payload)
+  },
   timeline: {
     list: (storyId: string) => ipcRenderer.invoke('timeline:list', storyId),
     create: (input: CreateTimelineEntryInput) => ipcRenderer.invoke('timeline:create', input),
@@ -267,11 +287,19 @@ const api: ElectronApi = {
         mediaStatus: MediaStatus
         mediaError?: string | null
       }
-    ) => ipcRenderer.invoke('timeline:setMedia', id, data)
+    ) => ipcRenderer.invoke('timeline:setMedia', id, data),
+    getAdvancedPrep: (storyId: string) =>
+      ipcRenderer.invoke('timeline:getAdvancedPrep', storyId),
+    setCastPrep: (storyId: string, prep: Record<string, unknown>) =>
+      ipcRenderer.invoke('timeline:setCastPrep', storyId, prep),
+    clearEntryStill: (storyId: string, entryId: string) =>
+      ipcRenderer.invoke('timeline:clearEntryStill', storyId, entryId)
   },
   generation: {
-    run: (storyId: string, opts?: { onlyFailedVideos?: boolean }) =>
-      ipcRenderer.invoke('generation:run', storyId, opts),
+    run: (
+      storyId: string,
+      opts?: { onlyFailedVideos?: boolean; interactiveVideo?: boolean }
+    ) => ipcRenderer.invoke('generation:run', storyId, opts),
     runClip: (
       storyId: string,
       entryId: string,
@@ -318,8 +346,33 @@ const api: ElectronApi = {
   diagnostics: {
     full: () => ipcRenderer.invoke('diagnostics:full')
   },
+  webServer: {
+    status: () => ipcRenderer.invoke('webServer:status'),
+    start: () => ipcRenderer.invoke('webServer:start'),
+    stop: () => ipcRenderer.invoke('webServer:stop'),
+    generateToken: () => ipcRenderer.invoke('webServer:generateToken')
+  },
   app: {
-    getInfo: () => ipcRenderer.invoke('app:getInfo')
+    getInfo: () => ipcRenderer.invoke('app:getInfo'),
+    exportFullBackup: () => ipcRenderer.invoke('app:exportFullBackup'),
+    importFullBackup: () => ipcRenderer.invoke('app:importFullBackup'),
+    rebuildMenu: () => ipcRenderer.invoke('app:rebuildMenu'),
+    onMenuAction: (callback) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        action: {
+          type: string
+          path?: string
+          filePath?: string
+        }
+      ): void => {
+        callback(action as import('../../src/types/electron-api').MenuAction)
+      }
+      ipcRenderer.on('menu:action', listener)
+      return () => {
+        ipcRenderer.removeListener('menu:action', listener)
+      }
+    }
   },
   updates: {
     status: () => ipcRenderer.invoke('updates:status'),

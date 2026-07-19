@@ -20,6 +20,7 @@ import {
   libraryBodyClass,
   libraryCardClass,
   libraryGridClass,
+  libraryMediaBadgeClass,
   libraryMediaClass
 } from '../components/libraryCard'
 import {
@@ -40,6 +41,7 @@ import {
   isArtStyleId,
   type ArtStyleId
 } from '../../domain/characterArtStyles'
+import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type { CreatePropInput, Prop } from '../../types/domain'
@@ -100,7 +102,10 @@ export function PropsPage(): JSX.Element {
     isBlocked,
     onPropProfileApply,
     onPropPlateCommitted,
-    activeJobs
+    activeJobs,
+    startVideoPrep,
+    hasVideoPrepDraft,
+    continueVideoPrepDraft
   } = useAiJobs()
   const {
     items,
@@ -481,55 +486,78 @@ export function PropsPage(): JSX.Element {
     }
     if (propBusy(editingId)) return
     setActionError(null)
-    setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(t('aiJobs.startedBackground'))
     const propId = editingId
     const sourcePath = sourceImagePath.trim()
-    startJob({
-      kind: 'prop-intro-video',
-      label: t('props.introVideoJob'),
-      scope: {
-        propId,
-        storyId: activeStoryId ?? undefined
-      },
-      run: async ({ setProgress, signal }) => {
-        setProgress(10, 'start')
+    const draftKey = buildVideoPrepDraftKey(
+      'prop-intro',
+      { propId },
+      sourcePath
+    )
+    if (hasVideoPrepDraft(draftKey)) {
+      continueVideoPrepDraft(draftKey)
+      return
+    }
+    void (async () => {
+      try {
         await update(propId, payload())
-        if (signal.cancelled) return
-        setProgress(25, 'llm')
-        const r = await getApi().props.generateIntroVideo({
-          propId,
-          sourceImagePath: sourcePath,
-          durationSeconds: 10,
-          locale: getAiLocale(i18n.language)
-        })
-        if (signal.cancelled) return
-        setProgress(90, 'generate')
-        setProgress(100, 'done')
-        const g = (r.gallery ?? []).map((item) => ({
-          id: item.id,
-          path: item.path,
-          kind: (item.kind === 'sheet' ||
-          item.kind === 'upload' ||
-          item.kind === 'gen' ||
-          item.kind === 'external'
-            ? item.kind
-            : 'gen') as SceneGalleryItem['kind'],
-          label: item.label,
-          createdAt: item.createdAt,
-          ...(item.layer ? { layer: item.layer } : {}),
-          introVideoPath: item.introVideoPath ?? null
-        }))
-        setForm((f) =>
-          editingId === propId
-            ? { ...f, gallery: g.length > 0 ? g : f.gallery }
-            : f
-        )
-        toast.success(t('props.introVideoOk'))
-        return undefined
+      } catch (e) {
+        toast.error(parseIpcError(e).message)
+        return
       }
-    })
+      startVideoPrep({
+        kind: 'prop-intro',
+        entityIds: { propId, storyId: activeStoryId ?? undefined },
+        sourceImagePath: sourcePath,
+        durationSeconds: 10,
+        locale: getAiLocale(i18n.language)
+      })
+    })()
   }
+
+  // After video confirm, reload gallery introVideoPath
+  useEffect(() => {
+    const onDone = (ev: Event): void => {
+      const d = (ev as CustomEvent).detail as {
+        kind?: string
+        entityIds?: { propId?: string }
+        gallery?: Array<{
+          id: string
+          path: string
+          kind: string
+          label: string
+          createdAt: string
+          layer?: string
+          introVideoPath?: string | null
+        }>
+      }
+      if (d?.kind !== 'prop-intro') return
+      if (!editingId || d.entityIds?.propId !== editingId) return
+      if (d.gallery?.length) {
+        setForm((f) => ({
+          ...f,
+          gallery: d.gallery!.map((item) => ({
+            id: item.id,
+            path: item.path,
+            kind: (item.kind === 'sheet' ||
+            item.kind === 'upload' ||
+            item.kind === 'gen'
+              ? item.kind
+              : 'sheet') as 'sheet' | 'upload' | 'gen',
+            label: item.label,
+            createdAt: item.createdAt,
+            ...(item.layer ? { layer: item.layer } : {}),
+            ...(item.introVideoPath
+              ? { introVideoPath: item.introVideoPath }
+              : {})
+          }))
+        }))
+      } else {
+        void reload()
+      }
+    }
+    window.addEventListener('idm:video-prep-done', onDone)
+    return () => window.removeEventListener('idm:video-prep-done', onDone)
+  }, [editingId, reload])
 
   const handleGeneratePlate = async (opts?: {
     useIdentityEdit?: boolean
@@ -791,7 +819,7 @@ export function PropsPage(): JSX.Element {
                             </button>
                           )}
                           {count > 0 && (
-                            <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-ink-100 backdrop-blur">
+                            <span className={libraryMediaBadgeClass}>
                               {count} {t('characters.photos')}
                             </span>
                           )}
@@ -882,6 +910,16 @@ export function PropsPage(): JSX.Element {
                     regenerateBusy={editorBusy}
                     introVideoBusy={editorBusy}
                     introVideoPath={selectedImage.introVideoPath}
+                    introVideoHasDraft={
+                      Boolean(editingId) &&
+                      hasVideoPrepDraft(
+                        buildVideoPrepDraftKey(
+                          'prop-intro',
+                          { propId: editingId! },
+                          selectedImage.path
+                        )
+                      )
+                    }
                     onIntroVideo={
                       editingId
                         ? () => handleGenerateIntroVideo(selectedImage.path)

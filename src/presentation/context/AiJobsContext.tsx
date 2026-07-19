@@ -16,6 +16,21 @@ import {
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type {
+  PersistedVideoPrepDraft,
+  StartVideoPrepInput,
+  VideoPrepDraftPayload,
+  VideoPrepDraftStore,
+  VideoPrepSession
+} from '../../domain/videoPrep'
+import {
+  VIDEO_PREP_DRAFT_STORAGE_KEY,
+  VIDEO_PREP_DRAFTS_STORAGE_KEY,
+  loadVideoPrepDraftStore,
+  removeVideoPrepDraft,
+  serializeVideoPrepDraftStore,
+  upsertVideoPrepDraft
+} from '../../domain/videoPrep'
+import type {
   CharacterProfileFields,
   PropProfileFields,
   SceneProfileFields
@@ -29,6 +44,7 @@ export type AiJobKind =
   | 'character-ai-fill'
   | 'character-sheet'
   | 'character-intro-video'
+  | 'costume-ai-fill'
   | 'costume-swap'
   | 'costume-intro-video'
   | 'wardrobe-suggest'
@@ -44,6 +60,10 @@ export type AiJobKind =
   | 'story-ai-script'
   | 'pipeline'
   | 'clip'
+  | 'video-prep'
+  | 'video-confirm'
+  /** Advanced prep storyboard still (single or batch) */
+  | 'storyboard-still'
 
 export type AiJobStatus =
   | 'queued'
@@ -205,6 +225,36 @@ interface AiJobsContextValue {
   pendingDrafts: AiJob[]
   reviewingJobId: string | null
   setReviewingJobId: (id: string | null) => void
+  /**
+   * @deprecated Prefer startVideoPrep — kept for rare direct draft patches.
+   */
+  videoPrepDraft: VideoPrepDraftPayload | null
+  setVideoPrepDraft: (d: VideoPrepDraftPayload | null) => void
+  /** Full wizard session (null = closed). */
+  videoPrepSession: VideoPrepSession | null
+  setVideoPrepSession: (
+    s:
+      | VideoPrepSession
+      | null
+      | ((prev: VideoPrepSession | null) => VideoPrepSession | null)
+  ) => void
+  /** Open video-prep wizard immediately (locked loading until still ready). */
+  startVideoPrep: (input: StartVideoPrepInput) => void
+  /** Host registers the real start implementation. */
+  registerStartVideoPrep: (
+    fn: ((input: StartVideoPrepInput) => void) | null
+  ) => void
+  /** Multi-draft map keyed by buildVideoPrepDraftKey(...). */
+  savedVideoPrepDrafts: VideoPrepDraftStore
+  hasVideoPrepDraft: (key: string) => boolean
+  getVideoPrepDraft: (key: string) => PersistedVideoPrepDraft | null
+  upsertSavedVideoPrepDraft: (
+    key: string,
+    draft: VideoPrepDraftPayload,
+    queueRemaining?: string[]
+  ) => void
+  removeSavedVideoPrepDraft: (key: string) => void
+  continueVideoPrepDraft: (key: string) => boolean
   startJob: (input: StartJobInput) => string
   cancelJob: (id: string) => Promise<void>
   isBlocked: (query: {
@@ -345,6 +395,35 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
     )
     return pending?.id ?? null
   })
+  const [videoPrepDraft, setVideoPrepDraft] =
+    useState<VideoPrepDraftPayload | null>(null)
+  const [videoPrepSession, setVideoPrepSession] =
+    useState<VideoPrepSession | null>(null)
+  const [savedVideoPrepDrafts, setSavedVideoPrepDrafts] =
+    useState<VideoPrepDraftStore>(() => {
+      try {
+        return loadVideoPrepDraftStore({
+          v2Raw: localStorage.getItem(VIDEO_PREP_DRAFTS_STORAGE_KEY),
+          v1Raw: localStorage.getItem(VIDEO_PREP_DRAFT_STORAGE_KEY)
+        })
+      } catch {
+        return {}
+      }
+    })
+  const startVideoPrepImpl = useRef<
+    ((input: StartVideoPrepInput) => void) | null
+  >(null)
+
+  const persistDraftStore = useCallback((store: VideoPrepDraftStore) => {
+    try {
+      localStorage.setItem(
+        VIDEO_PREP_DRAFTS_STORAGE_KEY,
+        serializeVideoPrepDraftStore(store)
+      )
+    } catch {
+      /* ignore quota */
+    }
+  }, [])
   const cancelFlags = useRef(new Map<string, { cancelled: boolean }>())
   const profileHandlers = useRef(
     new Set<(d: Extract<AiDraft, { type: 'character-profile' }>) => void>()
@@ -657,6 +736,19 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
         ) {
           return true
         }
+        if (
+          query.costumeId === null &&
+          !j.scope.costumeId &&
+          kinds &&
+          kinds.some(
+            (k) =>
+              k === 'costume-ai-fill' ||
+              k === 'costume-intro-video' ||
+              k === 'costume-swap'
+          )
+        ) {
+          return true
+        }
         return false
       })
     },
@@ -931,6 +1023,79 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
     }
   }, [])
 
+  const registerStartVideoPrep = useCallback(
+    (fn: ((input: StartVideoPrepInput) => void) | null) => {
+      startVideoPrepImpl.current = fn
+    },
+    []
+  )
+
+  const startVideoPrep = useCallback((input: StartVideoPrepInput) => {
+    if (startVideoPrepImpl.current) {
+      startVideoPrepImpl.current(input)
+      return
+    }
+    // Host not mounted yet — queue as session shell (Host will pick up)
+    console.warn('[aiJobs] startVideoPrep: host not registered')
+  }, [])
+
+  const hasVideoPrepDraft = useCallback(
+    (key: string): boolean => Boolean(key && savedVideoPrepDrafts[key]),
+    [savedVideoPrepDrafts]
+  )
+
+  const getVideoPrepDraft = useCallback(
+    (key: string): PersistedVideoPrepDraft | null =>
+      (key && savedVideoPrepDrafts[key]) || null,
+    [savedVideoPrepDrafts]
+  )
+
+  const upsertSavedVideoPrepDraft = useCallback(
+    (
+      key: string,
+      draft: VideoPrepDraftPayload,
+      queueRemaining: string[] = []
+    ) => {
+      setSavedVideoPrepDrafts((prev) => {
+        const next = upsertVideoPrepDraft(prev, key, draft, queueRemaining)
+        persistDraftStore(next)
+        return next
+      })
+    },
+    [persistDraftStore]
+  )
+
+  const removeSavedVideoPrepDraft = useCallback(
+    (key: string) => {
+      setSavedVideoPrepDrafts((prev) => {
+        const next = removeVideoPrepDraft(prev, key)
+        persistDraftStore(next)
+        return next
+      })
+    },
+    [persistDraftStore]
+  )
+
+  const continueVideoPrepDraft = useCallback(
+    (key: string): boolean => {
+      const saved = savedVideoPrepDrafts[key]
+      if (!saved?.draft) return false
+      startVideoPrep({
+        kind: saved.draft.kind,
+        entityIds: saved.draft.entityIds,
+        sourceImagePath: saved.draft.sourceImagePath,
+        durationSeconds: saved.draft.durationSeconds,
+        userExtraPrompt: saved.draft.userExtraPrompt,
+        queueIndex: saved.draft.queueIndex,
+        queueTotal: saved.draft.queueTotal,
+        queueRemaining: saved.queueRemaining,
+        resumeDraft: saved.draft
+      })
+      return true
+    },
+    [savedVideoPrepDrafts, startVideoPrep]
+  )
+
   const onWardrobeApply = useCallback(
     (
       handler: (draft: Extract<AiDraft, { type: 'wardrobe-suggest' }>) => void
@@ -1043,6 +1208,18 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
       pendingDrafts,
       reviewingJobId,
       setReviewingJobId,
+      videoPrepDraft,
+      setVideoPrepDraft,
+      videoPrepSession,
+      setVideoPrepSession,
+      startVideoPrep,
+      registerStartVideoPrep,
+      savedVideoPrepDrafts,
+      hasVideoPrepDraft,
+      getVideoPrepDraft,
+      upsertSavedVideoPrepDraft,
+      removeSavedVideoPrepDraft,
+      continueVideoPrepDraft,
       startJob,
       cancelJob,
       isBlocked,
@@ -1062,8 +1239,18 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
     [
       jobs,
       activeJobs,
+      videoPrepDraft,
+      videoPrepSession,
+      savedVideoPrepDrafts,
       pendingDrafts,
       reviewingJobId,
+      startVideoPrep,
+      registerStartVideoPrep,
+      hasVideoPrepDraft,
+      getVideoPrepDraft,
+      upsertSavedVideoPrepDraft,
+      removeSavedVideoPrepDraft,
+      continueVideoPrepDraft,
       startJob,
       cancelJob,
       isBlocked,

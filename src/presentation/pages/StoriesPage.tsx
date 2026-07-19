@@ -36,6 +36,7 @@ import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
 import { ExternalRefSection } from '../components/ExternalRefSection'
 import {
   EditorField,
+  EditorSelect,
   EditorShell,
   editorFormClass,
   editorFormWideClass
@@ -43,12 +44,22 @@ import {
 import { MultiIdPick } from '../components/MultiIdPick'
 import {
   appendGalleryItem,
+  isGalleryCoverPath,
   listExternalRefs,
   parseCharacterGallery,
   pickExternalRefPath,
+  primaryGalleryPath,
+  removeGalleryItem,
   serializeCharacterGallery,
   type CharacterGalleryItem
 } from '../../domain/characterGallery'
+import { translateCharacterGalleryLabel } from '../../domain/galleryLabelI18n'
+import {
+  artStylesByGroup,
+  DEFAULT_ART_STYLE,
+  isArtStyleId,
+  type ArtStyleId
+} from '../../domain/characterArtStyles'
 import {
   MAX_BEAT_CHARACTERS,
   MAX_BEAT_PROPS,
@@ -61,7 +72,11 @@ import {
   extractSpokenLines,
   parseBeatContent
 } from '../../domain/beatContent'
-import { Button, Card, EmptyState, Input, Label, Textarea } from '../components/ui'
+import { Button, EmptyState, Input, Textarea } from '../components/ui'
+import {
+  MENU_IMPORT_STORY_EVENT,
+  MENU_NEW_STORY_EVENT
+} from '../hooks/useMenuActions'
 
 
 
@@ -200,20 +215,29 @@ export function StoriesPage(): JSX.Element {
     Boolean(storyStatus) ||
     Boolean(storyCover) ||
     storySort !== 'updated'
-  const [title, setTitle] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [showForm, setShowForm] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorTab, setEditorTab] = useState<EditorTab>('meta')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editStatus, setEditStatus] = useState<StoryStatus>('DRAFT')
   const [styleNote, setStyleNote] = useState('')
+  const [storyArtStyle, setStoryArtStyle] =
+    useState<ArtStyleId>(DEFAULT_ART_STYLE)
   const [coverPath, setCoverPath] = useState<string | null>(null)
   const [coverGallery, setCoverGallery] = useState<CharacterGalleryItem[]>([])
   const [selectedCoverId, setSelectedCoverId] = useState<string | null>(null)
   const [useIdentityRef, setUseIdentityRef] = useState(false)
   const [useExternalRef, setUseExternalRef] = useState(true)
+  const artGroups = useMemo(() => artStylesByGroup(), [])
+  const selectedCoverImage = useMemo(() => {
+    if (!coverGallery.length) return null
+    return (
+      coverGallery.find((g) => g.id === selectedCoverId) ??
+      coverGallery.find((g) => g.path === coverPath) ??
+      coverGallery[0] ??
+      null
+    )
+  }, [coverGallery, selectedCoverId, coverPath])
   const [detail, setDetail] = useState<StoryDetail | null>(null)
   const [allChars, setAllChars] = useState<Character[]>([])
   const [allScenes, setAllScenes] = useState<Scene[]>([])
@@ -257,6 +281,11 @@ export function StoriesPage(): JSX.Element {
           : 'DRAFT') as StoryStatus
       )
       setStyleNote(d.styleNote ?? '')
+      setStoryArtStyle(
+        isArtStyleId((d as { artStyle?: string | null }).artStyle)
+          ? ((d as { artStyle: string }).artStyle as ArtStyleId)
+          : DEFAULT_ART_STYLE
+      )
       setCoverPath(d.coverPath ?? null)
       const cg = parseCharacterGallery(
         (d as { refGalleryJson?: string | null }).refGalleryJson,
@@ -327,6 +356,32 @@ export function StoriesPage(): JSX.Element {
     }
   }
 
+  const resetEditorForm = (): void => {
+    setEditTitle('')
+    setEditStatus('DRAFT')
+    setStyleNote('')
+    setStoryArtStyle(DEFAULT_ART_STYLE)
+    setCoverPath(null)
+    setCoverGallery([])
+    setSelectedCoverId(null)
+    setBeats([])
+    setAllChars([])
+    setAllScenes([])
+    setAllProps([])
+    setDetail(null)
+    setAiIdea('')
+    setUseIdentityRef(false)
+    setUseExternalRef(true)
+    setActionError(null)
+  }
+
+  const openCreate = (): void => {
+    setEditingId(null)
+    resetEditorForm()
+    setEditorTab('meta')
+    setEditorOpen(true)
+  }
+
   const openEditor = (id: string): void => {
     setEditingId(id)
     setEditorTab('meta')
@@ -339,21 +394,7 @@ export function StoriesPage(): JSX.Element {
     setEditingId(null)
     setDetail(null)
     setBeats([])
-  }
-
-  const handleCreate = async (): Promise<void> => {
-    if (!title.trim()) return
-    setCreating(true)
-    try {
-      const story = await getApi().stories.create({ title: title.trim() })
-      setTitle('')
-      setShowForm(false)
-      await refreshStories()
-      setActiveStoryId(story.id as string)
-      openEditor(story.id as string)
-    } finally {
-      setCreating(false)
-    }
+    resetEditorForm()
   }
 
   const handleDelete = async (id: string): Promise<void> => {
@@ -372,18 +413,28 @@ export function StoriesPage(): JSX.Element {
   }
 
   const handleSaveMeta = async (): Promise<void> => {
-    if (!editingId || !editTitle.trim()) return
+    if (!editTitle.trim()) return
     setBusy(true)
     try {
-      await getApi().stories.update(editingId, {
+      let id = editingId
+      if (!id) {
+        const created = await getApi().stories.create({
+          title: editTitle.trim()
+        })
+        id = created.id as string
+        setEditingId(id)
+        setActiveStoryId(id)
+      }
+      await getApi().stories.update(id, {
         title: editTitle.trim(),
         status: editStatus,
         styleNote: styleNote.trim() || null,
+        artStyle: storyArtStyle,
         coverPath: coverPath,
         refGalleryJson: serializeCharacterGallery(coverGallery)
       })
       await refreshStories()
-      await loadDetail(editingId)
+      await loadDetail(id)
       toast.success(t('common.saved'))
     } catch (e) {
       const msg = parseIpcError(e).message
@@ -403,11 +454,12 @@ export function StoriesPage(): JSX.Element {
     return onStoryCoverCommitted(({ storyId, path }) => {
       if (editingId === storyId) {
         setCoverPath(path)
+        void loadDetail(storyId)
       }
       void refreshStories()
       toast.success(t('stories.coverOk'))
     })
-  }, [onStoryCoverCommitted, editingId, refreshStories, t, toast])
+  }, [onStoryCoverCommitted, editingId, loadDetail, refreshStories, t, toast])
 
   const storyCoverBusy = Boolean(
     editingId && isBlocked({ storyId: editingId, kind: ['story-cover'] })
@@ -501,15 +553,16 @@ export function StoriesPage(): JSX.Element {
     if (!editingId) return
     const result = await getApi().media.pickRefImage()
     if (!result) return
-    setCoverPath(result.filePath)
     const next = appendGalleryItem(coverGallery, {
       path: result.filePath,
       kind: 'upload',
-      label: t('stories.pickCover')
+      label: t('characters.externalRefLabel')
     })
     setCoverGallery(next)
     setSelectedCoverId(next[next.length - 1]?.id ?? null)
-    toast.success(t('common.coverSet'))
+    // First image becomes cover if none set
+    if (!coverPath) setCoverPath(result.filePath)
+    toast.success(t('characters.externalRefAdded'))
   }
 
   const handlePickStoryExternal = async (): Promise<void> => {
@@ -524,7 +577,33 @@ export function StoriesPage(): JSX.Element {
     setCoverGallery(next)
     setSelectedCoverId(next[next.length - 1]?.id ?? null)
     setUseExternalRef(true)
+    if (!coverPath) setCoverPath(result.filePath)
     toast.success(t('characters.externalRefAdded'))
+  }
+
+  const handleSetStoryCover = (path: string): void => {
+    setCoverPath(path)
+    const hit = coverGallery.find((g) => g.path === path)
+    if (hit) setSelectedCoverId(hit.id)
+    toast.success(t('common.coverSet'))
+  }
+
+  const handleRemoveCoverImage = (id: string): void => {
+    const removed = coverGallery.find((g) => g.id === id)
+    const next = removeGalleryItem(coverGallery, id)
+    setCoverGallery(next)
+    if (removed && coverPath === removed.path) {
+      const primary = primaryGalleryPath(next)
+      setCoverPath(primary)
+      setSelectedCoverId(
+        next.find((g) => g.path === primary)?.id ?? next[0]?.id ?? null
+      )
+    } else if (!isGalleryCoverPath(next, coverPath)) {
+      setCoverPath(primaryGalleryPath(next))
+      setSelectedCoverId(next[0]?.id ?? null)
+    } else {
+      setSelectedCoverId((cur) => (cur === id ? next[0]?.id ?? null : cur))
+    }
   }
 
   const handleAiMeta = (): void => {
@@ -615,16 +694,65 @@ export function StoriesPage(): JSX.Element {
   }
 
   const handleExportBackup = async (id: string): Promise<void> => {
-    await getApi().project.exportBackup(id)
+    const ok = await dialog.confirm({
+      title: t('stories.exportBackupConfirmTitle'),
+      message: t('stories.exportBackupConfirm'),
+      confirmLabel: t('stories.exportBackup')
+    })
+    if (!ok) return
+    try {
+      const r = (await getApi().project.exportBackup(id)) as {
+        filePath?: string
+        downloadUrl?: string
+        fileName?: string
+      } | null
+      if (r?.downloadUrl || r?.filePath) {
+        toast.success(
+          t('menu.storyBackupExported', {
+            path: r.fileName || r.filePath || ''
+          })
+        )
+      }
+    } catch (e) {
+      toast.error(parseIpcError(e).message)
+    }
   }
 
   const handleImportBackup = async (): Promise<void> => {
-    const result = await getApi().project.importBackup()
-    if (result) {
-      await refreshStories()
-      setActiveStoryId(result.storyId)
+    try {
+      const result = await getApi().project.importBackup()
+      if (result) {
+        await refreshStories()
+        setActiveStoryId(
+          (result as { storyId: string }).storyId
+        )
+        toast.success(
+          t('stories.importBackupOk', {
+            title: (result as { title?: string }).title || ''
+          })
+        )
+      }
+    } catch (e) {
+      toast.error(parseIpcError(e).message)
     }
   }
+
+  // Native File menu → New Story / Import story backup
+  useEffect(() => {
+    const onNew = (): void => {
+      openCreate()
+    }
+    const onImport = (): void => {
+      void handleImportBackup()
+    }
+    window.addEventListener(MENU_NEW_STORY_EVENT, onNew)
+    window.addEventListener(MENU_IMPORT_STORY_EVENT, onImport)
+    return () => {
+      window.removeEventListener(MENU_NEW_STORY_EVENT, onNew)
+      window.removeEventListener(MENU_IMPORT_STORY_EVENT, onImport)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount listeners
+  }, [])
 
   const linkedCharIds = useMemo(
     () => new Set((detail?.characters ?? []).map((c) => c.id)),
@@ -825,14 +953,45 @@ export function StoriesPage(): JSX.Element {
       propIds?: string[] | null
     }
   ): Promise<void> => {
+    // Optimistic multi-select so chips feel instant
+    if (
+      patch.characterIds !== undefined ||
+      patch.sceneIds !== undefined ||
+      patch.propIds !== undefined
+    ) {
+      setBeats((prev) =>
+        prev.map((b) => {
+          if (b.id !== id) return b
+          const next = { ...b }
+          if (patch.characterIds !== undefined) {
+            next.characterIds = patch.characterIds ?? []
+            next.characterId = patch.characterIds?.[0] ?? null
+          }
+          if (patch.sceneIds !== undefined) {
+            next.sceneIds = patch.sceneIds ?? []
+            next.sceneId = patch.sceneIds?.[0] ?? null
+          }
+          if (patch.propIds !== undefined) {
+            next.propIds = patch.propIds ?? []
+            next.propId = patch.propIds?.[0] ?? null
+          }
+          return next
+        })
+      )
+    }
     try {
       const updated = (await getApi().timeline.update(
         id,
         patch
       )) as TimelineEntry
-      setBeats((prev) => prev.map((b) => (b.id === id ? { ...b, ...updated } : b)))
+      setBeats((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, ...updated } : b))
+      )
     } catch (e) {
-      setActionError(parseIpcError(e).message)
+      const msg = parseIpcError(e).message
+      setActionError(msg)
+      toast.error(msg)
+      if (editingId) await loadDetail(editingId)
     }
   }
 
@@ -880,7 +1039,7 @@ export function StoriesPage(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
       <PageHeader
         title={t('stories.title')}
         subtitle={t('stories.subtitle')}
@@ -892,15 +1051,13 @@ export function StoriesPage(): JSX.Element {
             >
               {t('stories.importBackup')}
             </Button>
-            <Button onClick={() => setShowForm((v) => !v)}>
-              {t('stories.new')}
-            </Button>
+            <Button onClick={openCreate}>{t('stories.new')}</Button>
           </>
         }
       />
 
       {!editorOpen && (
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
         <LibraryPageBody
           footer={
             !loading && stories.length > 0 ? (
@@ -914,54 +1071,20 @@ export function StoriesPage(): JSX.Element {
             ) : undefined
           }
         >
-          {showForm && (
-            <Card className="mb-6 max-w-lg">
-              <Label>{t('stories.titleLabel')}</Label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={t('stories.titlePlaceholder')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleCreate()
-                }}
-              />
-              <div className="mt-3 flex gap-2">
-                <Button
-                  onClick={() => void handleCreate()}
-                  disabled={creating || !title.trim()}
-                >
-                  {t('common.create')}
-                </Button>
-                <Button variant="ghost" onClick={() => setShowForm(false)}>
-                  {t('common.cancel')}
-                </Button>
-              </div>
-            </Card>
-          )}
-
           {loading ? (
             <p className="text-sm text-ink-400">{t('common.loading')}</p>
           ) : stories.length === 0 ? (
-            <div className="mx-auto max-w-lg space-y-4">
-              <EmptyState message={t('stories.noStories')} />
-              <Card className="space-y-3">
-                <h2 className="text-sm font-semibold text-ink-100">
-                  {t('stories.onboardingTitle')}
-                </h2>
-                <ol className="list-decimal space-y-1 pl-5 text-sm text-ink-300">
-                  <li>{t('stories.step1')}</li>
-                  <li>{t('stories.step2')}</li>
-                  <li>{t('stories.step3')}</li>
-                </ol>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => setShowForm(true)}>
-                    {t('stories.new')}
-                  </Button>
-                </div>
-                <p className="text-xs text-ink-500">
-                  {t('stories.prototypeNote')}
-                </p>
-              </Card>
+            <div className="mx-auto max-w-md py-16 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-ink-800 text-2xl">
+                📖
+              </div>
+              <p className="text-ink-300">{t('stories.noStories')}</p>
+              <p className="mt-2 text-xs text-ink-500">
+                {t('stories.prototypeNote')}
+              </p>
+              <div className="mt-6 flex justify-center">
+                <Button onClick={openCreate}>{t('stories.new')}</Button>
+              </div>
             </div>
           ) : (
             <>
@@ -1118,8 +1241,8 @@ export function StoriesPage(): JSX.Element {
 
       <EditorShell
         open={editorOpen}
-        title={t('stories.editorTitle')}
-        subtitle={editTitle || t('stories.editorHint')}
+        title={editingId ? t('common.edit') : t('stories.new')}
+        subtitle={editTitle.trim() || t('stories.editorHint')}
         onClose={closeEditor}
         onSave={() => void handleSaveMeta()}
         saveDisabled={!editTitle.trim()}
@@ -1133,10 +1256,156 @@ export function StoriesPage(): JSX.Element {
         ]}
         activeTab={editorTab}
         onTabChange={(id) => setEditorTab(id as EditorTab)}
+        preview={
+          <div className="flex h-full flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                {t('stories.coverTitle')}
+              </h3>
+              <span className="text-[11px] text-ink-500">
+                {coverGallery.length}
+              </span>
+            </div>
+            <div className="rounded-xl border border-ink-800 bg-ink-900/60">
+              {(selectedCoverImage?.path ?? coverPath) ? (
+                <LocalMediaImage
+                  filePath={selectedCoverImage?.path ?? coverPath}
+                  alt={editTitle || t('stories.coverTitle')}
+                  maxHeightClass="max-h-[min(36vh,420px)] lg:max-h-[min(48vh,520px)]"
+                  showMeta
+                  objectFit="cover"
+                  className="border-0 rounded-xl"
+                  actionsLayout="bar"
+                  regenerateBusy={storyCoverBusy}
+                  onRegenerate={
+                    editingId ? () => handleGenerateCover() : undefined
+                  }
+                />
+              ) : (
+                <div className="flex h-40 flex-col items-center justify-center gap-2 px-3 text-xs text-ink-500">
+                  <span className="text-2xl opacity-40">🖼</span>
+                  <p>{t('stories.coverMissing')}</p>
+                  {!editingId ? (
+                    <p className="text-center text-[11px] text-ink-600">
+                      {t('stories.metaHint')}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            {coverGallery.length > 0 ? (
+              <GalleryThumbStrip
+                items={coverGallery}
+                selectedId={selectedCoverId}
+                coverPath={coverPath}
+                onSelect={(id) => setSelectedCoverId(id)}
+                onReorder={(fromId, toId) => {
+                  const from = coverGallery.findIndex((g) => g.id === fromId)
+                  const to = coverGallery.findIndex((g) => g.id === toId)
+                  if (from < 0 || to < 0) return
+                  const next = [...coverGallery]
+                  const [item] = next.splice(from, 1)
+                  next.splice(to, 0, item)
+                  setCoverGallery(next)
+                }}
+                labelOf={(g) => translateCharacterGalleryLabel(g.label, t)}
+              />
+            ) : null}
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-950/40 px-3 py-2.5">
+              <input
+                type="checkbox"
+                className="mt-0.5 rounded border-ink-600"
+                checked={useIdentityRef}
+                onChange={(e) => setUseIdentityRef(e.target.checked)}
+                disabled={!coverPath && !selectedCoverImage}
+              />
+              <span className="text-[12px] leading-snug text-ink-300">
+                <span className="font-medium text-ink-100">
+                  {t('common.useIdentityRef')}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-ink-500">
+                  {t('common.useIdentityRefHint')}
+                </span>
+              </span>
+            </label>
+            <ExternalRefSection
+              items={storyExternalRefs.map((g) => ({
+                id: g.id,
+                path: g.path,
+                label: g.label
+              }))}
+              useExternalRef={useExternalRef}
+              onUseExternalChange={setUseExternalRef}
+              onAdd={handlePickStoryExternal}
+              onRemove={(id) => handleRemoveCoverImage(id)}
+              disabled={!editingId || storyCoverBusy}
+            />
+            <div className="flex flex-col gap-2">
+              <Button
+                disabled={!editingId || storyCoverBusy}
+                onClick={() => handleGenerateCover()}
+              >
+                {storyCoverBusy
+                  ? t('common.generating')
+                  : t('stories.generateCover')}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={!editingId}
+                onClick={() => void handlePickCover()}
+              >
+                {t('scenes.pickImage')}
+              </Button>
+              {selectedCoverImage &&
+                coverPath !== selectedCoverImage.path && (
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      handleSetStoryCover(selectedCoverImage.path)
+                    }
+                  >
+                    {t('common.setAsCover')}
+                  </Button>
+                )}
+              {selectedCoverImage &&
+                coverPath === selectedCoverImage.path && (
+                  <span className="inline-flex items-center justify-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+                    {t('common.isCover')}
+                  </span>
+                )}
+              {selectedCoverImage && (
+                <Button
+                  variant="ghost"
+                  className="text-rose-300"
+                  onClick={() =>
+                    handleRemoveCoverImage(selectedCoverImage.id)
+                  }
+                >
+                  {t('characters.removePhoto')}
+                </Button>
+              )}
+            </div>
+            <p className="text-[11px] text-ink-500">
+              {t('common.galleryReorderHint')}
+            </p>
+          </div>
+        }
       >
         {actionError && (
-          <div className="mb-4 rounded-lg border border-rose-900/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+          <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
             {actionError}
+          </div>
+        )}
+        {pageBanner && (
+          <div className="mb-4 rounded-xl border border-brand-800/40 bg-brand-950/50 px-4 py-3 text-sm text-brand-100">
+            {pageBanner}
+            <button
+              type="button"
+              className="ml-3 text-xs text-brand-300 underline"
+              onClick={() => setPageBanner(null)}
+            >
+              {t('common.dismissOk')}
+            </button>
           </div>
         )}
 
@@ -1173,32 +1442,20 @@ export function StoriesPage(): JSX.Element {
                   {t('stories.aiFillScript')}
                 </Button>
               </div>
-              {pageBanner && (
-                <div className="mt-2 rounded-lg border border-brand-800/40 bg-brand-950/40 px-3 py-2 text-[11px] text-brand-100">
-                  {pageBanner}
-                  <button
-                    type="button"
-                    className="ml-2 underline"
-                    onClick={() => setPageBanner(null)}
-                  >
-                    {t('aiJobs.dismiss')}
-                  </button>
-                </div>
-              )}
             </section>
             <div className="grid gap-4 sm:grid-cols-[1fr_minmax(9rem,12rem)]">
               <EditorField label={t('stories.titleLabel')}>
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder={t('stories.titlePlaceholder')}
                 />
               </EditorField>
               <EditorField
                 label={t('stories.status')}
                 hint={t('stories.statusHint')}
               >
-                <select
-                  className="h-10 w-full cursor-pointer appearance-none rounded-xl border border-ink-700 bg-ink-950/90 py-0 pl-3 pr-8 text-sm text-ink-100 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                <EditorSelect
                   value={editStatus}
                   onChange={(e) =>
                     setEditStatus(e.target.value as StoryStatus)
@@ -1210,9 +1467,38 @@ export function StoriesPage(): JSX.Element {
                       {o.label}
                     </option>
                   ))}
-                </select>
+                </EditorSelect>
               </EditorField>
             </div>
+            <EditorField
+              label={t('characters.artStyle')}
+              hint={t('characters.artStyleHintShort')}
+            >
+              <EditorSelect
+                value={storyArtStyle}
+                onChange={(e) =>
+                  setStoryArtStyle(e.target.value as ArtStyleId)
+                }
+                aria-label={t('characters.artStyle')}
+              >
+                {(
+                  [
+                    'artGroupPhoto',
+                    'artGroup3d',
+                    'artGroupAnime',
+                    'artGroupIllust'
+                  ] as const
+                ).map((gk) => (
+                  <optgroup key={gk} label={t(`characters.${gk}`)}>
+                    {artGroups[gk].map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {t(`characters.${s.labelKey}`)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </EditorSelect>
+            </EditorField>
             <EditorField
               label={t('stories.styleNote')}
               hint={t('stories.styleNotePlaceholder')}
@@ -1224,120 +1510,6 @@ export function StoriesPage(): JSX.Element {
                 placeholder={t('stories.styleNotePlaceholder')}
               />
             </EditorField>
-
-            <section className="space-y-3 rounded-xl border border-ink-800 bg-ink-900/40 p-4">
-              <div>
-                <h3 className="text-sm font-semibold text-ink-100">
-                  {t('stories.coverTitle')}
-                </h3>
-                <p className="mt-0.5 text-[11px] text-ink-500">
-                  {t('stories.coverHint')}
-                </p>
-              </div>
-              <div className="overflow-hidden rounded-xl border border-ink-800 bg-black/40">
-                {coverPath ? (
-                  <LocalMediaImage
-                    filePath={coverPath}
-                    alt={editTitle}
-                    maxHeightClass="max-h-[min(36vh,320px)]"
-                    objectFit="cover"
-                    className="border-0 rounded-none"
-                    regenerateBusy={storyCoverBusy}
-                    onRegenerate={() => handleGenerateCover()}
-                  />
-                ) : (
-                  <div className="flex h-40 flex-col items-center justify-center gap-2 text-xs text-ink-600">
-                    <p>{t('stories.coverMissing')}</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Button
-                        disabled={!editingId || storyCoverBusy}
-                        onClick={() => handleGenerateCover()}
-                      >
-                        {t('stories.generateCover')}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={!editingId}
-                        onClick={() => void handlePickStoryExternal()}
-                      >
-                        {t('characters.externalRefTitle')}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {coverGallery.length > 0 ? (
-                <GalleryThumbStrip
-                  items={coverGallery}
-                  selectedId={selectedCoverId}
-                  coverPath={coverPath}
-                  onSelect={(id) => {
-                    setSelectedCoverId(id)
-                    const hit = coverGallery.find((g) => g.id === id)
-                    if (hit) setCoverPath(hit.path)
-                  }}
-                  onReorder={(fromId, toId) => {
-                    const from = coverGallery.findIndex((g) => g.id === fromId)
-                    const to = coverGallery.findIndex((g) => g.id === toId)
-                    if (from < 0 || to < 0) return
-                    const next = [...coverGallery]
-                    const [item] = next.splice(from, 1)
-                    next.splice(to, 0, item)
-                    setCoverGallery(next)
-                  }}
-                  labelOf={(g) => g.label}
-                />
-              ) : null}
-              <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-950/40 px-3 py-2.5">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 rounded border-ink-600"
-                  checked={useIdentityRef}
-                  onChange={(e) => setUseIdentityRef(e.target.checked)}
-                  disabled={!coverPath}
-                />
-                <span className="text-[12px] leading-snug text-ink-300">
-                  <span className="font-medium text-ink-100">
-                    {t('common.useIdentityRef')}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] text-ink-500">
-                    {t('common.useIdentityRefHint')}
-                  </span>
-                </span>
-              </label>
-              <ExternalRefSection
-                items={storyExternalRefs.map((g) => ({
-                  id: g.id,
-                  path: g.path,
-                  label: g.label
-                }))}
-                useExternalRef={useExternalRef}
-                onUseExternalChange={setUseExternalRef}
-                onAdd={handlePickStoryExternal}
-                onRemove={(id) => {
-                  setCoverGallery((prev) => prev.filter((g) => g.id !== id))
-                }}
-                disabled={!editingId || storyCoverBusy}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  disabled={!editingId || storyCoverBusy}
-                  onClick={() => handleGenerateCover()}
-                >
-                  {storyCoverBusy
-                    ? t('common.generating')
-                    : t('stories.generateCover')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={!editingId}
-                  onClick={() => void handlePickCover()}
-                >
-                  {t('stories.pickCover')}
-                </Button>
-              </div>
-            </section>
-
             <p className="text-[11px] text-ink-500">{t('stories.metaHint')}</p>
           </div>
         )}
@@ -1345,6 +1517,11 @@ export function StoriesPage(): JSX.Element {
         {editorTab === 'cast' && (
           <div className={`${editorFormWideClass} flex flex-col gap-3`}>
             <p className="text-[11px] text-ink-500">{t('stories.castHint')}</p>
+            {!editingId ? (
+              <p className="rounded-xl border border-ink-800 bg-ink-900/40 px-4 py-3 text-sm text-ink-400">
+                {t('stories.metaHint')}
+              </p>
+            ) : null}
 
             {/* Kind tabs */}
             <div className="flex flex-wrap gap-1 rounded-xl border border-ink-800 bg-ink-950/50 p-1">
@@ -1578,6 +1755,11 @@ export function StoriesPage(): JSX.Element {
 
         {editorTab === 'script' && (
           <div className={editorFormWideClass}>
+            {!editingId ? (
+              <p className="mb-4 rounded-xl border border-ink-800 bg-ink-900/40 px-4 py-3 text-sm text-ink-400">
+                {t('stories.metaHint')}
+              </p>
+            ) : null}
             <section className="rounded-xl border border-brand-800/35 bg-brand-950/15 p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">

@@ -153,14 +153,14 @@ export function MediaZoomLightbox({
       aria-label={t('media.zoomTitle')}
       onClick={onClose}
     >
-      {/* Toolbar */}
+      {/* Toolbar — always light-on-dark (ignore app light/dark ink tokens) */}
       <div
-        className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-black/60 px-4 py-2"
+        className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/15 bg-zinc-950/90 px-4 py-2"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="min-w-0 truncate text-sm text-ink-200">
+        <div className="min-w-0 truncate text-sm font-medium text-white">
           {alt || t('media.zoomTitle')}
-          <span className="ml-2 font-mono text-xs text-ink-500">
+          <span className="ml-2 font-mono text-xs font-normal text-white/70">
             {Math.round(scale * 100)}%
           </span>
         </div>
@@ -182,7 +182,7 @@ export function MediaZoomLightbox({
           </ToolbarBtn>
           <button
             type="button"
-            className="ml-2 rounded-lg border border-white/20 px-3 py-1.5 text-sm text-ink-100 hover:bg-white/10"
+            className="ml-2 rounded-lg border border-white/35 bg-white/10 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-white/20"
             onClick={onClose}
           >
             {t('common.cancel')} ✕
@@ -214,10 +214,10 @@ export function MediaZoomLightbox({
               }}
             />
           ) : (
-            <span className="text-ink-500">{t('common.loading')}</span>
+            <span className="text-white/60">{t('common.loading')}</span>
           )}
         </div>
-        <p className="pointer-events-none absolute bottom-3 left-0 right-0 text-center text-[11px] text-ink-500">
+        <p className="pointer-events-none absolute bottom-3 left-0 right-0 text-center text-[11px] text-white/55">
           {t('media.zoomHint')}
         </p>
       </div>
@@ -240,7 +240,7 @@ function ToolbarBtn({
       title={label}
       aria-label={label}
       onClick={onClick}
-      className="min-w-[2.25rem] rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-white/15"
+      className="min-w-[2.25rem] rounded-lg border border-white/35 bg-white/10 px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm hover:border-white/50 hover:bg-white/20"
     >
       {children}
     </button>

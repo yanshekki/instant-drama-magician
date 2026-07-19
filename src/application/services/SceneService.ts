@@ -78,8 +78,15 @@ export class SceneService {
     })
     const linkStoryId = input.linkStoryId ?? input.storyId
     if (linkStoryId) {
+      const n =
+        typeof input.sceneNumber === 'number' &&
+        Number.isFinite(input.sceneNumber) &&
+        Number.isInteger(input.sceneNumber) &&
+        input.sceneNumber >= 1
+          ? input.sceneNumber
+          : undefined
       await new StoryCastService(this.prisma).linkScene(linkStoryId, row.id, {
-        sceneNumber: input.sceneNumber
+        sceneNumber: n
       })
     }
     return row

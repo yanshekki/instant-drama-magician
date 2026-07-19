@@ -30,7 +30,10 @@ export function redactSettings(settings: AppSettings): Record<string, unknown> {
   return {
     ...settings,
     apiKey: settings.apiKey ? '[redacted]' : '',
-    ttsHttpUrl: settings.ttsHttpUrl ? '[set]' : ''
+    ttsHttpUrl: settings.ttsHttpUrl ? '[set]' : '',
+    webServerAuthToken: settings.webServerAuthToken ? '[redacted]' : '',
+    imageApiKey: settings.imageApiKey ? '[redacted]' : '',
+    videoApiKey: settings.videoApiKey ? '[redacted]' : ''
   }
 }
 

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useAiJobs, type AiJob } from '../context/AiJobsContext'
+import { formatUserError } from '../lib/formatUserError'
 import { tMediaStatus, tSceneStatus } from '../lib/statusLabels'
 
 /**
@@ -13,7 +14,8 @@ export function AiJobHud(): JSX.Element | null {
     cancelJob,
     setReviewingJobId,
     dismissJob,
-    jobs
+    jobs,
+    videoPrepSession
   } = useAiJobs()
 
   const failed = jobs.filter((j) => j.status === 'failed').slice(0, 2)
@@ -22,26 +24,11 @@ export function AiJobHud(): JSX.Element | null {
     4
   )
 
+  // Hide job cards under video-prep wizard (session locks the UI)
+  if (videoPrepSession) return null
   if (visible.length === 0) return null
 
-  const formatError = (err?: string): string => {
-    if (!err) return t('aiJobs.failed')
-    if (err === 'interrupted_on_reload' || err.includes('interrupted')) {
-      return t('aiJobs.interruptedReload')
-    }
-    const lower = err.toLowerCase()
-    if (
-      /no_image_in_sandbox|no image file was found in the sandbox|image_no_sandbox/.test(
-        lower
-      )
-    ) {
-      return t('aiJobs.errImageNoSandbox')
-    }
-    if (/imagesapi|image api is disabled|image_api_off/.test(lower)) {
-      return t('aiJobs.errImageApiOff')
-    }
-    return err
-  }
+  const formatError = (err?: string): string => formatUserError(err, t)
 
   /**
    * Progress tokens → locale.
@@ -66,7 +53,7 @@ export function AiJobHud(): JSX.Element | null {
 
   return (
     <div
-      className="pointer-events-auto fixed bottom-4 left-4 z-[60] w-[min(22rem,calc(100vw-2rem))] space-y-2"
+      className="pointer-events-auto fixed bottom-4 left-4 z-[90] w-[min(22rem,calc(100vw-2rem))] space-y-2"
       aria-live="polite"
     >
       {visible.map((job) => (

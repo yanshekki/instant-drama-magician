@@ -1,15 +1,15 @@
 /**
- * Post-process Grok Imagine outputs.
+ * Post-process Grok Imagine outputs (Node + FFmpeg only — no Python/Pillow).
  *
- * Grok native canvas is often ~1280×720 / 720×1280 / 1024×1024 (aspect only;
- * OpenAI-style 1792×1024 is mapped to 16:9 and does NOT raise native pixels).
- * A mild 2× Lanczos + unsharp mask makes multi-panel character sheets less soft
- * when displayed large, without inventing new identity detail.
+ * Grok native canvas is often ~1280×720 / 720×1280 / 1024×1024. A mild 2×
+ * scale + unsharp makes multi-panel character sheets less soft when displayed
+ * large, without inventing new identity detail.
  */
 
 import { spawnSync } from 'child_process'
 import { copyFileSync, existsSync, renameSync, unlinkSync } from 'fs'
 import { dirname, join } from 'path'
+import { resolveFfmpegPath } from '../ffmpeg/resolveFfmpegPath'
 
 /** Upscale if the longest edge is below this (Grok class resolutions). */
 export const ENHANCE_MAX_EDGE_BEFORE = 1600
@@ -22,11 +22,35 @@ export interface EnhanceImageOptions {
   scale?: number
   /** When false, no-op */
   enabled?: boolean
+  /** Override ffmpeg binary */
+  ffmpegBin?: string
+}
+
+function probeImageSize(
+  ffmpegBin: string,
+  filePath: string
+): { w: number; h: number } | null {
+  // ffmpeg prints stream info to stderr when probing with -i
+  const r = spawnSync(ffmpegBin, ['-hide_banner', '-i', filePath], {
+    encoding: 'utf8',
+    timeout: 30_000
+  })
+  const err = `${r.stderr || ''}${r.stdout || ''}`
+  const m = err.match(
+    /Stream\s+#\d+:\d+(?:\([^)]*\))?:\s+Video:.*?(\d{1,5})x(\d{1,5})/
+  )
+  if (!m) {
+    // broader fallback (avoid matching e.g. "25 fps")
+    const m2 = err.match(/\b(\d{1,5})x(\d{1,5})\b/)
+    if (!m2) return null
+    return { w: Number(m2[1]), h: Number(m2[2]) }
+  }
+  return { w: Number(m[1]), h: Number(m[2]) }
 }
 
 /**
- * In-place enhance of a PNG/JPEG on disk. Safe no-op if Pillow missing or file large.
- * Returns final path (same as input on success / skip).
+ * In-place enhance of a PNG/JPEG on disk via FFmpeg.
+ * Safe no-op if ffmpeg missing, file missing, or already large.
  */
 export function enhanceCharacterImage(
   filePath: string,
@@ -46,58 +70,62 @@ export function enhanceCharacterImage(
   }
 
   const maxEdge = options?.maxEdge ?? ENHANCE_MAX_EDGE_BEFORE
-  const scale = Math.max(1, Math.min(4, Math.round(options?.scale ?? ENHANCE_SCALE)))
+  const scale = Math.max(
+    1,
+    Math.min(4, Math.round(options?.scale ?? ENHANCE_SCALE))
+  )
 
+  let ffmpegBin: string
+  try {
+    ffmpegBin = options?.ffmpegBin?.trim() || resolveFfmpegPath()
+  } catch {
+    return { path: filePath, enhanced: false, reason: 'no_ffmpeg' }
+  }
+  if (!ffmpegBin || !existsSync(ffmpegBin)) {
+    // resolveFfmpegPath may return bare "ffmpeg" on PATH
+    if (ffmpegBin !== 'ffmpeg' && ffmpegBin !== 'ffmpeg.exe') {
+      return { path: filePath, enhanced: false, reason: 'no_ffmpeg' }
+    }
+  }
+
+  const size = probeImageSize(ffmpegBin, filePath)
+  if (!size) {
+    return { path: filePath, enhanced: false, reason: 'probe_failed' }
+  }
+  const before = `${size.w}x${size.h}`
+  if (Math.max(size.w, size.h) >= maxEdge) {
+    return {
+      path: filePath,
+      enhanced: false,
+      reason: 'already_large',
+      before
+    }
+  }
+
+  const nw = size.w * scale
+  const nh = size.h * scale
   const tmp = join(dirname(filePath), `.enhance_${Date.now()}.png`)
-  const script = `
-import sys
-from pathlib import Path
-try:
-    from PIL import Image, ImageFilter
-except Exception as e:
-    print("NO_PIL", e)
-    sys.exit(2)
 
-src = Path(sys.argv[1])
-dst = Path(sys.argv[2])
-max_edge = int(sys.argv[3])
-scale = int(sys.argv[4])
-
-im = Image.open(src)
-if im.mode not in ("RGB", "RGBA"):
-    im = im.convert("RGBA" if "A" in im.getbands() else "RGB")
-w, h = im.size
-print(f"BEFORE {w}x{h}")
-if max(w, h) >= max_edge:
-    print("SKIP already large")
-    sys.exit(3)
-
-nw, nh = w * scale, h * scale
-im = im.resize((nw, nh), Image.Resampling.LANCZOS)
-# Mild unsharp — improves perceived clarity on character sheets
-im = im.filter(ImageFilter.UnsharpMask(radius=1.15, percent=125, threshold=2))
-im.save(dst, "PNG", optimize=True)
-print(f"AFTER {nw}x{nh}")
-`
-
+  // scale + mild unsharp (FFmpeg unsharp filter)
+  const vf = `scale=${nw}:${nh}:flags=lanczos,unsharp=5:5:0.8:5:5:0.0`
   const r = spawnSync(
-    'python3',
-    ['-c', script, filePath, tmp, String(maxEdge), String(scale)],
+    ffmpegBin,
+    [
+      '-y',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      filePath,
+      '-vf',
+      vf,
+      '-frames:v',
+      '1',
+      tmp
+    ],
     { encoding: 'utf8', timeout: 60_000 }
   )
 
-  const out = `${r.stdout || ''}${r.stderr || ''}`
-  if (r.status === 3) {
-    // already large
-    if (existsSync(tmp)) {
-      try {
-        unlinkSync(tmp)
-      } catch {
-        /* ignore */
-      }
-    }
-    return { path: filePath, enhanced: false, reason: 'already_large', before: out.trim() }
-  }
   if (r.status !== 0 || !existsSync(tmp)) {
     if (existsSync(tmp)) {
       try {
@@ -109,25 +137,27 @@ print(f"AFTER {nw}x{nh}")
     return {
       path: filePath,
       enhanced: false,
-      reason: r.status === 2 ? 'no_pillow' : `exit_${r.status}`,
-      before: out.trim()
+      reason: `ffmpeg_exit_${r.status}`,
+      before,
+      after: (r.stderr || r.stdout || '').trim().slice(0, 200)
     }
   }
 
   try {
     renameSync(tmp, filePath)
   } catch {
-    // cross-device fallback
     copyFileSync(tmp, filePath)
-    unlinkSync(tmp)
+    try {
+      unlinkSync(tmp)
+    } catch {
+      /* ignore */
+    }
   }
 
-  const m = out.match(/BEFORE\s+(\d+x\d+)/)
-  const a = out.match(/AFTER\s+(\d+x\d+)/)
   return {
     path: filePath,
     enhanced: true,
-    before: m?.[1],
-    after: a?.[1]
+    before,
+    after: `${nw}x${nh}`
   }
 }

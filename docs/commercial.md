@@ -1,62 +1,75 @@
-# 商業發行路徑（Round 10）· v1.0.0
+# Commercial distribution path · v1.0.0
 
-本輪完成 **可商業分發的發行路徑**（GitHub Releases + 自動更新 + 支援報告）。  
-**商店上架與付費憑證簽章** 仍需你方 Apple/Microsoft/代碼簽名憑證——本倉庫已預留設定，但唔會替你申請帳號。
+> **Language:** [English](./commercial.md) · [中文](./commercial-ZH.md)
 
-## 誠實進度
+Ship path for **commercial distribution** (GitHub Releases + auto-update + support report).  
+**Store listing and paid code-signing** still need your Apple/Microsoft certificates — the repo is prepared but does not obtain accounts for you.
 
-| 項目 | 狀態 |
-|------|------|
-| GitHub 多平台安裝包（Linux / Windows / mac unsigned） | **已做** |
-| `electron-updater` 檢查／下載／重啟安裝 | **已做**（打包版） |
-| 活動日誌 + 支援報告（遮罩 API key） | **已做** |
-| publish → GitHub Releases | **已做** |
-| Apple/Windows **正式簽章 + 商店** | **需憑證（未做）** |
-| 真人級 AI 成片品質 | **模型邊界（未做）** |
+## Honest status
 
-## 自動更新
+| Item | Status |
+|------|--------|
+| GitHub multi-platform packages (Linux / Windows / mac, unsigned by default) | **Done** |
+| `electron-updater` check / download / restart | **Done** (packaged) |
+| Activity log + support report (redacted API keys) | **Done** |
+| publish → GitHub Releases | **Done** |
+| Apple/Windows **store-grade signing** | **Needs certs (not done)** |
+| Cinema-grade automatic film quality | **Model-bound** |
 
-- 依賴 `electron-updater` + `build.publish` → `github:yanshekki/instant-drama-magician`  
-- Settings → **檢查更新 / 下載 / 重啟安裝**  
-- 開發模式（`!app.isPackaged`）會回 `dev-skipped`，唔打外網  
+## Auto-update
 
-### 發版
+- `electron-updater` + `build.publish` → `github:yanshekki/instant-drama-magician`  
+- Settings → **Check / Download / Restart**  
+- Dev (`!app.isPackaged`) returns `dev-skipped` (no outbound check)  
+
+### Ship a release
 
 ```bash
-# 1. bump package.json version（現 1.0.0）
+# 1. bump package.json version (currently 1.0.0)
 # 2. commit + tag
 git tag v1.0.0
 git push origin v1.0.0
-# 3. Release workflow 產出 linux/win/mac 產物並上傳 GitHub Release
+# 3. Release workflow uploads linux/win/mac assets
 ```
 
-`latest.yml` / `latest-linux.yml` / `latest-mac.yml` 供 updater 讀取。
+Feeds: `latest.yml` / `latest-linux.yml` / `latest-mac.yml`.
 
-## 簽章（可選，需你方 secrets）
+## Signing (optional secrets)
 
-| 平台 | 變數 | 說明 |
-|------|------|------|
-| Windows | `CSC_LINK` / `CSC_KEY_PASSWORD` | 代碼簽名 PFX |
-| macOS | `CSC_LINK` / Apple ID / team | Notarize 另需 |
-| 無 secrets | `CSC_IDENTITY_AUTO_DISCOVERY=false` | 本 repo CI 預設 |
+| Platform | Variables |
+|----------|-----------|
+| Windows | `CSC_LINK` / `CSC_KEY_PASSWORD` |
+| macOS | `CSC_LINK` / Apple ID / team (+ notarize) |
+| None | `CSC_IDENTITY_AUTO_DISCOVERY=false` (CI default) |
 
-見 [release.md](./release.md)。
+See [release.md](./release.md).
 
-## 支援報告
+## Support report
 
-Settings → **匯出支援報告**：
+Settings → **Export support report**:
 
-- app 版本／platform／packaged  
-- chat / video / ffmpeg 診斷  
-- settings（**apiKey 已 redacted**）  
-- 最近 activity.jsonl  
+- app version / platform / packaged  
+- chat / video / ffmpeg diagnostics  
+- settings (**apiKey redacted**)  
+- recent activity.jsonl  
 
-## 活動日誌
+## Activity log
 
-`userData/logs/activity.jsonl`：generation / export / update / support 事件。
+`userData/logs/activity.jsonl`: generation / export / update / support events.
 
-## 刻意不做
+## FFmpeg
 
-- App Store / Microsoft Store 審核提交  
-- 付費授權伺服器  
-- 內嵌 ffmpeg 二進位（體積／授權複雜）  
+- Bundled via **`ffmpeg-static`** (asarUnpack)  
+- Override with **`FFMPEG_PATH`**  
+- `idm media check-ffmpeg --json` or Settings diagnostics  
+
+## Contact
+
+- **YSK Limited** · [email@ysk.hk](mailto:email@ysk.hk)  
+- Chinese product guide: [../README-ZH.md](../README-ZH.md)
+
+## Intentionally out of scope
+
+- App Store / Microsoft Store submission  
+- Paid license servers  
+- Store-grade signing without your certs

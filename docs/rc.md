@@ -1,64 +1,65 @@
-# Release Candidate（Round 9）
+# Release Candidate (Round 9)
 
-在 Production UX 之上：**成片更像片** + **可下載 Linux 包**（無商店簽章）。
+> **Language:** [English](./rc.md) · [中文](./rc-ZH.md)
 
-## 版本
+On top of Production UX: **more film-like finals** + **downloadable Linux packages** (no store signing).
 
-- App：見 `package.json`（商業路徑後為 `1.0.0`）  
-- 進度標示：README **Release Candidate 100%**；分發／更新見 [commercial.md](./commercial.md)
+## Version
 
-## 成片能力（本輪）
+- App: see `package.json` (commercial path → `1.0.0`)  
+- Shipping/updater: [commercial.md](./commercial.md)
 
-| 能力 | 說明 |
-|------|------|
-| 轉場 | Settings → `fade`（xfade）或 `cut` |
-| 比例 | 16:9 → 1280×720；9:16 → 720×1280；1:1 → 1080² |
-| BGM ducking | 有 TTS 對白時段自動壓低 BGM（`duckRatio`） |
-| About | Settings 顯示 version / packaged / userData / media |
+## Film capabilities (this round)
 
-## 下載 RC 包
+| Capability | Description |
+|------------|-------------|
+| Transitions | Settings → `fade` (xfade) or `cut` |
+| Aspect | 16:9 → 1280×720; 9:16 → 720×1280; 1:1 → 1080² |
+| BGM ducking | Lower BGM during TTS dialogue (`duckRatio`) |
+| About | Settings shows version / packaged / userData / media |
 
-### 由 GitHub Actions
+## Download RC packages
 
-1. 推 tag：`git tag v0.3.0 && git push origin v0.3.0`  
-2. Workflow **Release** 產出 AppImage + deb  
-3. 在 GitHub Releases 下載  
+### GitHub Actions
 
-或手動：
+1. Push tag: `git tag v0.3.0 && git push origin v0.3.0` (historical example)  
+2. **Release** workflow produces AppImage + deb  
+3. Download from GitHub Releases  
+
+Or:
 
 ```bash
 npm run typecheck && npm test && npm run build
 CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --linux AppImage deb
-# → release/*.AppImage, release/*.deb
 ```
 
-### 本機目錄包
+### Local dir pack
 
 ```bash
 npm run pack
 # → release/linux-unpacked
 ```
 
-## 系統要求
+## System requirements
 
-- Linux x64（AppImage / deb）  
-- **FFmpeg** 已內嵌（`ffmpeg-static`）；可用環境變數 `FFMPEG_PATH` 覆寫  
+- Linux x64 (AppImage / deb)  
+- **FFmpeg** via `ffmpeg-static`; override with `FFMPEG_PATH`  
+- Optional local Grok gateway for real video  
 
-- 可選：本機 Grok gateway 真 video  
+## Known limits
 
-## 已知限制（RC）
+> **Today (v1.0.0 commercial path):** GitHub Releases include **Linux + Windows + macOS**; **electron-updater** is wired; FFmpeg via `ffmpeg-static`. See [commercial.md](./commercial.md), [release.md](./release.md).
 
-- **無** 代碼簽章 / Notarization  
-- **無** Windows / mac 自動 Release（可後加）  
-- **無** 自動更新 channel  
-- TTS 品質取決於本機 espeak / HTTP TTS  
-- 多軌 NLE 未做  
+Still true:
 
-商業商店層見 [release.md](./release.md)。
+- No store code-signing / Notarization without your certs  
+- TTS quality depends on HTTP TTS config  
+- No multi-track NLE  
+- Film quality is model-bound  
 
-## 建議試用
+## Suggested trial
 
-1. 載入 Demo  
-2. Settings：aspect 9:16 或 16:9、transition fade  
-3. 生成 → 匯出成片  
-4. 核對轉場與（若開 TTS）BGM ducking  
+1. Load Demo  
+2. Settings: aspect 9:16 or 16:9, transition fade  
+3. Generate → export  
+4. Check transitions and (if TTS on) BGM ducking

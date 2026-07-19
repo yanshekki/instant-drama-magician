@@ -152,7 +152,15 @@ export class StoryCastService {
   ) {
     await this.ensureStory(storyId)
     await this.ensureScene(sceneId)
-    let sceneNumber = opts?.sceneNumber
+    // Treat NaN / non-integer as missing (UI can send NaN after bad form state)
+    const requested =
+      typeof opts?.sceneNumber === 'number' &&
+      Number.isFinite(opts.sceneNumber) &&
+      Number.isInteger(opts.sceneNumber) &&
+      opts.sceneNumber >= 1
+        ? opts.sceneNumber
+        : undefined
+    let sceneNumber = requested
     if (sceneNumber === undefined) {
       const max = await this.prisma.storyScene.aggregate({
         where: { storyId },
@@ -173,9 +181,7 @@ export class StoryCastService {
         sortOrder: opts?.sortOrder ?? (maxSort._max.sortOrder ?? -1) + 1
       },
       update: {
-        ...(opts?.sceneNumber !== undefined
-          ? { sceneNumber: opts.sceneNumber }
-          : {}),
+        ...(requested !== undefined ? { sceneNumber: requested } : {}),
         ...(opts?.sortOrder !== undefined ? { sortOrder: opts.sortOrder } : {})
       }
     })

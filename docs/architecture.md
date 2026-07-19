@@ -1,65 +1,74 @@
 # Architecture — InstantDrama Magician
 
+> **Language:** [English](./architecture.md) · [中文](./architecture-ZH.md)
+
+Version **1.0.0**. Presentation → Application → Domain → Infrastructure, with a **shared handler runtime** used by Electron, Web, and CLI.
+
 ## Layers
 
-Presentation → IPC / `idm-media://` → Application → Domain → Infrastructure
+```text
+Presentation (React pages / CLI / browser UI)
+        │
+        ▼
+  IPC  |  HTTP POST /api/invoke  |  idm invoke
+        │
+        ▼
+  registerAllHandlers + HandlerHost   ← single source of truth (~137 channels)
+        │
+        ▼
+  Application services (Generation, Timeline, Export, Backup, …)
+        │
+        ▼
+  Domain (pure TS: prompts, snap, layout, legal, providers, …)
+        │
+        ▼
+  Infrastructure (Prisma/SQLite, AI HTTP, FFmpeg, settings, media, gateway, updater)
+```
 
-## Round 5
+Media in the desktop app is served via privileged scheme **`idm-media://`** (range requests for video).
 
-| Module | Role |
-|--------|------|
-| GrokHttpVideoProvider | OpenAI `/v1/videos` create/poll/content + document upload for ref |
-| snapVideoSeconds | Map clip length → 6 \| 10 |
-| videoJobId | TimelineEntry + progress UI |
-| useTimelineHistory | Persistent undo/redo via IPC |
+## Shared runtime
 
-## Round 8 — Production UX
+| Entry | Path | Notes |
+|-------|------|--------|
+| Electron | `electron/main/ipc.ts` → handlers | `userData` under Electron paths |
+| CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR` (default `~/.local/share/idm`) |
+| Web / server | `server/index.ts` + `EmbeddedWebServer` | Same handlers; SPA from `out/renderer` |
 
-| Module | Role |
-|--------|------|
-| generateClip + cancel | AbortController for single-clip jobs |
-| onlyFailedVideos | Pipeline runs **video** step only |
-| buildAudioMixFilter | BGM + timed dialogue TTS stems |
-| buildClipPrompt / previousClipContext | Style bible + continuity |
-| Story.styleNote | Per-story visual tone note |
-| openExportFolder | Reveal export after save |
+Channel catalog: `src/runtime/channelManifest.ts` (**137** unique ids).
 
-## Round 9 — Release Candidate
+## Desktop pages
 
-| Module | Role |
-|--------|------|
-| exportLayout | aspect → frame size, xfade chain, duck expression |
-| exportFinal | fade/cut transitions, aspect-aware, BGM ducking |
-| app:getInfo | version / packaged / userData / mediaRoot |
-| release.yml | tag `v*` → AppImage + deb (unsigned RC) |
+| Route | Page |
+|-------|------|
+| `/` | Stories |
+| `/characters` | Characters (+ SoulMD Hub, reference sheets) |
+| `/costumes` | Costumes |
+| `/scenes` | Scenes |
+| `/props` | Props |
+| `/timeline` | Timeline + Advanced prep |
+| `/audit` | Activity log |
+| `/settings` | Settings |
 
-## Round 10 — Commercial path
+## Generation pipeline
 
-| Module | Role |
-|--------|------|
-| AppUpdateService | electron-updater → GitHub Releases |
-| ActivityLog | userData JSONL for support |
-| SupportReport | redacted diagnostics export |
-| release.yml | linux + windows + macos matrix |
+```text
+Script → Character → Scene → Props → Timeline → Video (6|10s) → Export
+```
 
-## Round 11 — Grok Gateway LLM first
+- Full run: `generation:run`
+- Retry failures only: video step
+- Cancel: `generation:cancel`
+- Advanced prep: cast lock → stills → video queue
 
-| Module | Role |
-|--------|------|
-| gatewayDefaults | :3847 base + migrate :39281 |
-| GrokCliClient | listModels, probeChat, testChat |
-| Settings | Grok Gateway card (primary LLM) |
+## Data paths (Linux)
 
-## Pipeline
+| Mode | Path |
+|------|------|
+| Packaged Electron | `~/.config/instant-drama-magician/` |
+| Dev (`!app.isPackaged`) | `~/.config/instant-drama-magician-dev/` |
+| CLI / server | `IDM_DATA_DIR` |
 
-Script → Character → Scene → Props → Timeline → **Video** (6/10s jobs) → Export  
+## Related
 
-Retry-failed path: **Video only**.
-
-## Docs
-
-- [grok-gateway.md](./grok-gateway.md)  
-- [video-providers.md](./video-providers.md)  
-- [production-ux.md](./production-ux.md)  
-- [beta.md](./beta.md)  
-- [release.md](./release.md)  
+- [cli.md](./cli.md) · [self-host.md](./self-host.md) · [video-providers.md](./video-providers.md) · [testing.md](./testing.md)

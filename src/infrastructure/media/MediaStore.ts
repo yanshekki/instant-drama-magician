@@ -58,6 +58,93 @@ export class MediaStore {
     return join(this.clipsDir(storyId), `${entryId}${ext}`)
   }
 
+  /**
+   * Keyframe still for clip-to-clip continuity (feeds next beat as image ref).
+   * Written after video-prep still / confirm.
+   */
+  clipContinuityStillPath(storyId: string, entryId: string, ext = '.png'): string {
+    return join(this.clipsDir(storyId), `${entryId}_continuity${ext}`)
+  }
+
+  /** Story-level cast prep (ref image + costume look per character). */
+  storyCastPrepPath(storyId: string): string {
+    return join(this.storyDir(storyId), 'cast-prep.json')
+  }
+
+  /** Cached video-prep prompt/still metadata per timeline entry. */
+  entryStillPromptPath(storyId: string, entryId: string): string {
+    return join(this.clipsDir(storyId), `${entryId}_still_prompt.json`)
+  }
+
+  /**
+   * Marker: user explicitly removed the continuity still.
+   * Prevents auto re-extract from video on the next Advanced Prep load.
+   */
+  entryStillClearedPath(storyId: string, entryId: string): string {
+    return join(this.clipsDir(storyId), `${entryId}_still_cleared`)
+  }
+
+  isEntryStillUserCleared(storyId: string, entryId: string): boolean {
+    return existsSync(this.entryStillClearedPath(storyId, entryId))
+  }
+
+  markEntryStillUserCleared(storyId: string, entryId: string): void {
+    this.ensureStoryDirs(storyId)
+    mkdirSync(this.clipsDir(storyId), { recursive: true })
+    writeFileSync(
+      this.entryStillClearedPath(storyId, entryId),
+      JSON.stringify({ clearedAt: new Date().toISOString() }),
+      'utf-8'
+    )
+  }
+
+  clearEntryStillUserCleared(storyId: string, entryId: string): void {
+    const p = this.entryStillClearedPath(storyId, entryId)
+    try {
+      if (existsSync(p)) unlinkSync(p)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  readStoryCastPrepJson(storyId: string): string | null {
+    const p = this.storyCastPrepPath(storyId)
+    if (!existsSync(p)) return null
+    try {
+      return readFileSync(p, 'utf-8')
+    } catch {
+      return null
+    }
+  }
+
+  writeStoryCastPrepJson(storyId: string, json: string): void {
+    this.ensureStoryDirs(storyId)
+    writeFileSync(this.storyCastPrepPath(storyId), json, 'utf-8')
+  }
+
+  readEntryStillPromptJson(
+    storyId: string,
+    entryId: string
+  ): string | null {
+    const p = this.entryStillPromptPath(storyId, entryId)
+    if (!existsSync(p)) return null
+    try {
+      return readFileSync(p, 'utf-8')
+    } catch {
+      return null
+    }
+  }
+
+  writeEntryStillPromptJson(
+    storyId: string,
+    entryId: string,
+    json: string
+  ): void {
+    this.ensureStoryDirs(storyId)
+    mkdirSync(this.clipsDir(storyId), { recursive: true })
+    writeFileSync(this.entryStillPromptPath(storyId, entryId), json, 'utf-8')
+  }
+
   ttsPath(storyId: string, entryId: string, ext = '.wav'): string {
     return join(this.ttsDir(storyId), `${entryId}${ext}`)
   }
@@ -209,11 +296,20 @@ export class MediaStore {
     }
     this.ensureLibraryDirs()
     mkdirSync(dirname(dest), { recursive: true })
+    const src = resolve(tmpPath)
+    const out = resolve(dest)
+    // Already the permanent file (e.g. re-commit after dress gen) — no-op.
+    if (src === out) return dest
     copyFileSync(tmpPath, dest)
-    try {
-      unlinkSync(tmpPath)
-    } catch {
-      /* keep dest */
+    // Only delete drafts from tmp/; never unlink permanent library assets.
+    const tmpRoot = resolve(this.tmpDir())
+    const isTmp = src === tmpRoot || src.startsWith(tmpRoot + sep)
+    if (isTmp) {
+      try {
+        unlinkSync(src)
+      } catch {
+        /* keep dest */
+      }
     }
     return dest
   }

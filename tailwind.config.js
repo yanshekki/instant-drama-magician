@@ -22,6 +22,9 @@ module.exports = {
         emerald: cssScale('emerald'),
         amber: cssScale('amber'),
         rose: cssScale('rose'),
+        /** Theme-aware (inverted in light) — group badges, caps */
+        sky: cssScale('sky'),
+        violet: cssScale('violet'),
         /** Theme-aware dimmer for modals */
         overlay: 'rgb(var(--overlay) / <alpha-value>)'
       },

@@ -17,6 +17,7 @@ export type LlmProviderPreset =
   | 'openai'
   | 'openrouter'
   | 'xai'
+  | 'kimi'
   | 'groq'
   | 'deepseek'
   | 'mistral'
@@ -25,6 +26,17 @@ export type LlmProviderPreset =
   | 'ollama'
   | 'lmstudio'
   | 'custom'
+
+/** Image/video channel-only providers (not chat presets). */
+export type SpecialChannelProvider = 'seedance' | 'seedream'
+
+/** Volcengine Ark (China) — Seedance / Seedream */
+export const VOLC_ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+/** BytePlus ModelArk (intl) — alternate base users may paste */
+export const BYTEPLUS_ARK_BASE_URL =
+  'https://ark.ap-southeast.bytepluses.com/api/v3'
+export const DEFAULT_SEEDANCE_MODEL = 'doubao-seedance-1-0-pro'
+export const DEFAULT_SEEDREAM_MODEL = 'doubao-seedream-4-0'
 
 export type LlmProviderGroup = 'recommended' | 'cloud' | 'local' | 'advanced'
 
@@ -113,6 +125,17 @@ export const LLM_PRESET_CATALOG: readonly LlmPresetDef[] = [
     docsUrl: 'https://docs.x.ai/docs',
     caps: { chat: true, image: true, video: false },
     match: ['api.x.ai']
+  },
+  {
+    id: 'kimi',
+    group: 'cloud',
+    labelKey: 'kimi',
+    hintKey: 'kimi',
+    baseUrl: 'https://api.moonshot.ai/v1',
+    defaultModel: 'kimi-k3',
+    docsUrl: 'https://platform.kimi.ai/docs/overview',
+    caps: { chat: true, image: false, video: false },
+    match: ['api.moonshot.ai', 'api.moonshot.cn', 'platform.moonshot']
   },
   {
     id: 'groq',
@@ -273,13 +296,31 @@ export function applyLlmPreset<T extends LlmEndpointFields>(
 function modelLooksForeign(model: string, preset: LlmProviderPreset): boolean {
   const m = model.trim().toLowerCase()
   if (preset === 'grok-gateway' || preset === 'xai') {
-    return m.startsWith('gpt-') || m.includes('claude') || m.includes('gemini')
+    return (
+      m.startsWith('gpt-') ||
+      m.includes('claude') ||
+      m.includes('gemini') ||
+      m.startsWith('kimi-')
+    )
+  }
+  if (preset === 'kimi') {
+    return (
+      m.startsWith('gpt-') ||
+      m.startsWith('grok-') ||
+      m.includes('claude') ||
+      m.includes('llama')
+    )
   }
   if (preset === 'openai') {
-    return m.startsWith('grok-') || m === 'grok-cli' || m.includes('llama')
+    return (
+      m.startsWith('grok-') ||
+      m === 'grok-cli' ||
+      m.includes('llama') ||
+      m.startsWith('kimi-')
+    )
   }
   if (preset === 'ollama' || preset === 'lmstudio') {
-    return m.startsWith('gpt-') || m.startsWith('grok-')
+    return m.startsWith('gpt-') || m.startsWith('grok-') || m.startsWith('kimi-')
   }
   return false
 }
@@ -335,10 +376,17 @@ export function videoCapablePresets(): LlmPresetDef[] {
   return LLM_PRESET_CATALOG.filter((p) => p.caps.video)
 }
 
+export function isSpecialChannelProvider(
+  id: string | null | undefined
+): id is SpecialChannelProvider {
+  return id === 'seedance' || id === 'seedream'
+}
+
 export function isImageCapableProvider(
   id: string | null | undefined
 ): boolean {
   if (!id || id === 'same-as-llm') return true
+  if (id === 'seedream') return true
   return isLlmProviderPreset(id) && providerCaps(id).image
 }
 
@@ -346,6 +394,7 @@ export function isVideoCapableProvider(
   id: string | null | undefined
 ): boolean {
   if (!id || id === 'same-as-llm' || id === 'stub') return true
+  if (id === 'seedance') return true
   return isLlmProviderPreset(id) && providerCaps(id).video
 }
 

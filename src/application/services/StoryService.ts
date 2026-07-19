@@ -84,7 +84,8 @@ export class StoryService {
     return this.prisma.story.create({
       data: {
         title,
-        styleNote: input.styleNote?.trim() || null
+        styleNote: input.styleNote?.trim() || null,
+        artStyle: input.artStyle?.trim() || null
       }
     })
   }
@@ -95,6 +96,7 @@ export class StoryService {
       title?: string
       status?: StoryStatus
       styleNote?: string | null
+      artStyle?: string | null
       coverPath?: string | null
       refGalleryJson?: string | null
     } = {}
@@ -112,6 +114,9 @@ export class StoryService {
     }
     if (data.styleNote !== undefined) {
       patch.styleNote = data.styleNote?.trim() || null
+    }
+    if (data.artStyle !== undefined) {
+      patch.artStyle = data.artStyle?.trim() || null
     }
     if (data.coverPath !== undefined) {
       patch.coverPath = data.coverPath?.trim() || null

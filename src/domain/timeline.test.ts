@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   clampDuration,
   DEFAULT_MAX_CLIP_SECONDS,
+  isTimelineAlreadyPacked,
+  packTimelineEntriesAbutting,
   reindexOrders,
   sortTimelineEntries,
   suggestNextSlot,
@@ -72,5 +74,23 @@ describe('timeline domain', () => {
   it('reindexes orders', () => {
     const map = reindexOrders(['x', 'y', 'z'])
     expect(map.get('y')).toBe(1)
+  })
+
+  it('packs clips end-to-end preserving duration', () => {
+    const entries = [
+      entry({ id: 'a', order: 0, startTime: 0, endTime: 6 }),
+      entry({ id: 'b', order: 1, startTime: 10, endTime: 16 }),
+      entry({ id: 'c', order: 2, startTime: 20, endTime: 30 })
+    ]
+    expect(packTimelineEntriesAbutting(entries)).toEqual([
+      { id: 'a', startTime: 0, endTime: 6, order: 0 },
+      { id: 'b', startTime: 6, endTime: 12, order: 1 },
+      { id: 'c', startTime: 12, endTime: 22, order: 2 }
+    ])
+    expect(isTimelineAlreadyPacked(entries)).toBe(false)
+    const packed = packTimelineEntriesAbutting(entries).map((p) =>
+      entry({ ...p, storyId: 's1' })
+    )
+    expect(isTimelineAlreadyPacked(packed)).toBe(true)
   })
 })

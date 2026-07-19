@@ -17,10 +17,10 @@ interface LlmProviderPickerProps {
 }
 
 const GROUP_BADGE: Record<LlmProviderGroup, string> = {
-  recommended: 'bg-brand-950/50 text-brand-200 border-brand-700/40',
-  cloud: 'bg-sky-950/40 text-sky-200 border-sky-800/40',
-  local: 'bg-emerald-950/40 text-emerald-200 border-emerald-800/40',
-  advanced: 'bg-ink-800/80 text-ink-300 border-ink-600/50'
+  recommended: 'bg-brand-950/80 text-brand-200 border-brand-800/50',
+  cloud: 'bg-sky-950/80 text-sky-200 border-sky-800/60',
+  local: 'bg-emerald-950/80 text-emerald-200 border-emerald-800/50',
+  advanced: 'bg-ink-800 text-ink-300 border-ink-700'
 }
 
 export function LlmProviderPicker({
@@ -58,11 +58,11 @@ export function LlmProviderPicker({
                     disabled={disabled}
                     onClick={() => onChange(p.id)}
                     className={[
-                      'rounded-xl border px-3 py-2.5 text-left transition',
+                      'rounded-xl border px-3 py-2.5 text-left transition shadow-theme-sm',
                       'disabled:cursor-not-allowed disabled:opacity-50',
                       active
-                        ? 'border-brand-500 bg-brand-950/40 shadow-md shadow-brand-950/20 ring-1 ring-brand-500/40'
-                        : 'border-ink-700/80 bg-ink-950/40 hover:border-ink-500 hover:bg-ink-900/60'
+                        ? 'border-brand-500 bg-brand-950 ring-1 ring-brand-500/50'
+                        : 'border-ink-700 bg-ink-900 hover:border-brand-400/50 hover:bg-ink-900'
                     ].join(' ')}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -75,12 +75,12 @@ export function LlmProviderPicker({
                         {t(`settings.llmPreset.${p.labelKey}`)}
                       </span>
                       {active && (
-                        <span className="shrink-0 text-[10px] font-medium text-brand-300">
+                        <span className="shrink-0 text-[10px] font-medium text-brand-400">
                           ✓
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-ink-500">
+                    <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-ink-400">
                       {t(`settings.llmPresetHint.${p.hintKey}`)}
                     </p>
                   </button>
@@ -91,8 +91,8 @@ export function LlmProviderPicker({
         )
       })}
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-800/80 bg-ink-950/50 px-3 py-2">
-        <span className="text-[11px] text-ink-500">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 px-3 py-2 shadow-theme-sm">
+        <span className="text-[11px] text-ink-400">
           {t('settings.capabilities')}:
         </span>
         <CapPill on={caps.chat} label={t('settings.capChat')} />
@@ -109,8 +109,8 @@ function CapPill({ on, label }: { on: boolean; label: string }): JSX.Element {
       className={[
         'rounded-full px-2 py-0.5 text-[10px] font-medium',
         on
-          ? 'bg-emerald-950/60 text-emerald-200 ring-1 ring-emerald-700/40'
-          : 'bg-ink-900 text-ink-600 ring-1 ring-ink-700/50'
+          ? 'bg-emerald-950/80 text-emerald-200 ring-1 ring-emerald-700/40'
+          : 'bg-ink-800 text-ink-500 ring-1 ring-ink-700/60'
       ].join(' ')}
     >
       {on ? '✓ ' : '— '}

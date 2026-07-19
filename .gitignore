@@ -1,22 +1,83 @@
-coverage
-dist
-.DS_Store
+# =============================================================================
+# InstantDrama Magician — what must NOT go to git
+# =============================================================================
+# Rule of thumb:
+#   KEEP:  source, locales, icons, prisma schema, docs, CI, package-lock
+#   DROP:  deps, build output, installers, secrets, local runtime data
+# =============================================================================
+
+# --- Secrets / local env (API keys, tokens) ---
 .env
 .env.*
 !.env.example
-# Generated Prisma Client (brief: src/types/prisma)
-.idea
-*.local
-.locale-cache/
-*.log
-.media
-node_modules
-out
+
+# --- Dependencies (npm install) ---
+node_modules/
+
+# --- Build / compile output (npm run build / idm build) ---
+out/
+dist/
+coverage/
+*.tsbuildinfo
+
+# --- Desktop installers & packaged apps (very large) ---
+release/
+*.AppImage
+*.deb
+*.dmg
+*.exe
+*.AppImage.zsync
+# AppImage extract leftovers (never commit)
+squashfs-root/
+
+# --- Local runtime data (DB, media, settings, exports) ---
+data/
+.media/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 prisma/*.db
 prisma/dev.db
 prisma/dev.db-journal
-release
-src/types/prisma
-*.tsbuildinfo
+
+# Story / project / full backups (export from app or CLI — never source)
+*.idm.zip
+story-*.zip
+idm-support-*.json
+full-cli-test.zip
+cli-test-story.zip
+
+# --- Generated Prisma Client (prisma generate / postinstall) ---
+src/types/prisma/
+
+# --- Locale machine-translation cache (src/locales/*.json IS tracked) ---
+.locale-cache/
+
+# --- Logs / OS / editor noise ---
+*.log
+.DS_Store
+Thumbs.db
+.idea/
 .vscode/*
 !.vscode/extensions.json
+*.local
+
+# --- Tool caches ---
+.cache/
+.turbo/
+test-results/
+playwright-report/
+
+# --- Intermediate Imagine raster (optional) ---
+build/icons/ysk-logo-ref.png
+
+# =============================================================================
+# DO NOT IGNORE (must stay tracked):
+#   resources/icon.png
+#   build/icon.png  build/icon.ico  build/icons/*.png  (except ysk-logo-ref)
+#   src/locales/*.json
+#   package-lock.json
+#   prisma/schema.prisma
+#   docs/  skills/  scripts/  bin/
+# =============================================================================

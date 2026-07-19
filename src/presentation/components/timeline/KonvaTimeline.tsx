@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Stage, Layer, Rect, Text, Line, Group } from 'react-konva'
 import type Konva from 'konva'
 import type { TimelineEntry } from '../../../types/domain'
@@ -29,9 +30,14 @@ interface KonvaTimelineProps {
   onSelect: (id: string | null) => void
   onMove: (id: string, startTime: number, endTime: number) => void
   onDropAsset: (payload: AssetDropPayload, atTime: number) => void
+  /** Pack all clips end-to-end (no gaps), preserving duration. */
+  onPackAbut?: () => void
+  packAbutBusy?: boolean
   width: number
   snapEnabled?: boolean
   snapGridSec?: number
+  onSnapEnabledChange?: (v: boolean) => void
+  onSnapGridSecChange?: (v: number) => void
 }
 
 function clipFill(entry: TimelineEntry): string {
@@ -55,15 +61,24 @@ export function KonvaTimeline({
   onSelect,
   onMove,
   onDropAsset,
+  onPackAbut,
+  packAbutBusy = false,
   width,
   snapEnabled = true,
-  snapGridSec = 0.5
+  snapGridSec = 0.5,
+  onSnapEnabledChange,
+  onSnapGridSecChange
 }: KonvaTimelineProps): JSX.Element {
+  const { t } = useTranslation()
   const stageRef = useRef<Konva.Stage>(null)
   const total = Math.max(TimelineService.totalDuration(entries), 12)
   const contentW = Math.max(width - 16, timeToX(total, pxPerSec, PAD) + 80)
   const height = RULER_H + TRACK_H + 28
   const ticks = useMemo(() => tickTimes(total), [total])
+  const alreadyPacked = useMemo(
+    () => TimelineService.isAlreadyPacked(entries),
+    [entries]
+  )
 
   const [dragPreview, setDragPreview] = useState<Record<
     string,
@@ -77,9 +92,9 @@ export function KonvaTimeline({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-3 text-xs text-ink-400">
+      <div className="flex flex-wrap items-center gap-3 text-xs text-ink-400">
         <label className="flex items-center gap-2">
-          Zoom
+          <span>{t('timeline.zoom')}</span>
           <input
             type="range"
             min={12}
@@ -88,10 +103,66 @@ export function KonvaTimeline({
             onChange={(e) =>
               onPxPerSecChange(clampPxPerSec(Number(e.target.value)))
             }
+            aria-label={t('timeline.zoom')}
           />
-          <span className="font-mono">{pxPerSec}px/s</span>
+          <span className="font-mono">
+            {t('timeline.pxPerSec', { n: pxPerSec })}
+          </span>
         </label>
-        <span className="font-mono">▶ {playhead.toFixed(1)}s</span>
+        <span className="font-mono">
+          {t('timeline.playhead', { time: playhead.toFixed(1) })}
+        </span>
+        <div
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-700 bg-ink-900/80 px-2 py-1"
+          title={t('timeline.snapHint')}
+        >
+          <label className="flex items-center gap-1.5 text-[11px] text-ink-200">
+            <input
+              type="checkbox"
+              className="rounded border-ink-600"
+              checked={snapEnabled}
+              onChange={(e) => onSnapEnabledChange?.(e.target.checked)}
+              disabled={!onSnapEnabledChange}
+            />
+            <span>{t('timeline.snapEnabled')}</span>
+          </label>
+          {snapEnabled ? (
+            <label className="flex items-center gap-1 border-l border-ink-700 pl-2 text-[11px] text-ink-300">
+              <span className="text-ink-500">{t('timeline.snapGridSec')}</span>
+              <input
+                type="number"
+                min={0.1}
+                max={5}
+                step={0.1}
+                className="w-14 rounded-md border border-ink-700 bg-ink-950 px-1.5 py-0.5 font-mono text-[11px] text-ink-100 focus:border-brand-500 focus:outline-none"
+                value={snapGridSec}
+                disabled={!onSnapGridSecChange}
+                onChange={(e) => {
+                  const n = Number(e.target.value)
+                  if (Number.isFinite(n) && n > 0) {
+                    onSnapGridSecChange?.(Math.min(5, Math.max(0.1, n)))
+                  }
+                }}
+                aria-label={t('timeline.snapGridSec')}
+              />
+            </label>
+          ) : null}
+        </div>
+        {onPackAbut ? (
+          <button
+            type="button"
+            className="rounded-lg border border-ink-700 bg-ink-900 px-2.5 py-1 text-[11px] font-medium text-ink-200 transition hover:border-brand-600 hover:bg-ink-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => onPackAbut()}
+            disabled={
+              packAbutBusy || entries.length < 2 || alreadyPacked
+            }
+            title={t('timeline.packAbutHint')}
+          >
+            {packAbutBusy
+              ? t('timeline.packAbutBusy')
+              : t('timeline.packAbut')}
+          </button>
+        ) : null}
       </div>
 
       <div

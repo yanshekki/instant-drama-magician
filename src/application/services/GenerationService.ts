@@ -17,7 +17,10 @@ import { canStartGeneration } from '../../domain/story'
 import { buildSrt } from '../../domain/subtitle'
 import {
   buildClipPrompt,
-  previousClipContext
+  previousClipContext,
+  getPreviousTimelineEntry,
+  buildContinuityLockPrompt,
+  timelineBeatDisplayIndex
 } from '../../domain/promptContinuity'
 import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
 import { GenerationPipeline } from '../GenerationPipeline'
@@ -208,6 +211,38 @@ export class GenerationService {
       const { beatContentToClipPromptBlock, parseBeatContent } = await import(
         '../../domain/beatContent'
       )
+      // Chain from previous beat's continuity keyframe when available.
+      const prevEntry = getPreviousTimelineEntry(story.timeline, entryId)
+      let previousContinuityPath: string | null = null
+      let prevBeatIndex = 0
+      if (prevEntry) {
+        prevBeatIndex = timelineBeatDisplayIndex(story.timeline, prevEntry.id)
+        const contPath = this.store.clipContinuityStillPath(
+          storyId,
+          prevEntry.id
+        )
+        if (existsSync(contPath)) {
+          previousContinuityPath = contPath
+        }
+      }
+      const sameCharacter = Boolean(
+        char &&
+          prevEntry?.characterId &&
+          char.id === prevEntry.characterId
+      )
+      const sameScene = Boolean(
+        scene && prevEntry?.sceneId && scene.id === prevEntry.sceneId
+      )
+      const continuityLock = prevEntry
+        ? buildContinuityLockPrompt({
+            previousBeatIndex: prevBeatIndex,
+            previousDialogueSnippet: prev,
+            sameCharacter,
+            sameScene,
+            hasContinuityImage: Boolean(previousContinuityPath)
+          })
+        : null
+      const prevWithLock = [prev, continuityLock].filter(Boolean).join('\n')
       const beatOrDialogue =
         beatContentToClipPromptBlock(
           parseBeatContent(
@@ -228,7 +263,7 @@ export class GenerationService {
             beatContentJson:
               (entry as { beatContentJson?: string | null }).beatContentJson,
             seconds,
-            previousContext: prev
+            previousContext: prevWithLock || prev
           }),
           multiCastNote,
           ...charBlocks
@@ -240,7 +275,8 @@ export class GenerationService {
       const ref = resolveClipRefImage({
         character: char,
         scene,
-        prop
+        prop,
+        previousContinuityPath
       })
       const locale: 'zh-HK' | 'en' =
         String(this.settings.uiLanguage || '').startsWith('en')
@@ -282,7 +318,7 @@ export class GenerationService {
             ? `${prop.name}: ${prop.description}`
             : null,
           beatOrDialogue,
-          previousContext: prev,
+          previousContext: prevWithLock || prev,
           multiCastNote,
           revisionPrompt: opts?.revisionPrompt
         }),
@@ -413,7 +449,7 @@ export class GenerationService {
   async run(
     storyId: string,
     onProgress?: GenerationProgressHandler,
-    opts?: { onlyFailedVideos?: boolean }
+    opts?: { onlyFailedVideos?: boolean; interactiveVideo?: boolean }
   ): Promise<GenerationResult> {
     const story = await this.loadStory(storyId)
     if (!canStartGeneration(story.status) && !opts?.onlyFailedVideos) {
@@ -436,6 +472,7 @@ export class GenerationService {
       const result = await this.pipeline.run(detail, {
         signal: this.abort.signal,
         onlyFailedVideos: opts?.onlyFailedVideos,
+        interactiveVideo: opts?.interactiveVideo,
         videoConcurrency: this.settings.videoConcurrency,
         aspectRatio: this.settings.aspectRatio,
         onStepComplete: (stepResult, index, total) => {
@@ -509,6 +546,8 @@ export class GenerationService {
         },
         media: {
           clipOutputPath: (sid, entryId) => this.store.clipPath(sid, entryId),
+          clipContinuityStillPath: (sid, entryId) =>
+            this.store.clipContinuityStillPath(sid, entryId),
           exportStoryboard: async (sid) => {
             const { outputPath } = await this.exportStoryboard(sid)
             return outputPath

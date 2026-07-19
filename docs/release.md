@@ -1,14 +1,17 @@
 # Release checklist
 
-1. `npm run typecheck && npm test && npm run build`
-2. `npm run pack` → inspect `release/linux-unpacked`
-3. Optional: `npm run dist` for installers (linux AppImage/deb)
-4. Configure Settings → video mode if real API available
-5. Ensure `ffmpeg` is installed on target machine
-6. Never commit `userData` secrets; settings stay local
-7. Version is **`1.0.0`** (commercial distribution path). Store signing still optional.
+> **Language:** [English](./release.md) · [中文](./release-ZH.md)
 
-## Ship a release from git tag
+1. `npm run typecheck && npm test && npm run build`  
+2. `npm run pack` → inspect `release/linux-unpacked`  
+3. Optional: `npm run dist` / `idm build --target installer` (linux AppImage+deb, win NSIS, mac dmg)  
+4. Configure Settings → LLM / video provider if using a real API  
+5. FFmpeg: bundled via **`ffmpeg-static`**; optional `FFMPEG_PATH`  
+6. Never commit `userData` secrets  
+7. Version **`1.0.0`**. Contact **email@ysk.hk**. Store signing optional.  
+8. Linux icons: pure YSK mark; `StartupWMClass=instant-drama-magician`  
+
+## Ship from a git tag
 
 ```bash
 git tag v1.0.0
@@ -26,12 +29,9 @@ Auto-update feed: GitHub Releases (`build.publish`). See [commercial.md](./comme
 
 ## Optional code signing
 
-Set repo secrets when you have certificates:
-
-- `CSC_LINK` / `CSC_KEY_PASSWORD` (Windows / generic)
-- Apple notarization secrets for macOS store-grade builds
-
-Without secrets, CI sets `CSC_IDENTITY_AUTO_DISCOVERY=false`.
+- `CSC_LINK` / `CSC_KEY_PASSWORD`  
+- Apple notarization secrets for macOS store-grade builds  
+- Without secrets, CI sets `CSC_IDENTITY_AUTO_DISCOVERY=false`  
 
 ## CI
 

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   appendRevisionToClipPrompt,
   buildClipPrompt,
+  buildContinuityLockPrompt,
   charactersMissingRef,
+  getPreviousTimelineEntry,
   previousClipContext,
   resolveClipRefImage
 } from './promptContinuity'
@@ -82,7 +84,48 @@ describe('promptContinuity', () => {
     expect(ctx).toContain('Hi')
   })
 
-  it('resolves clip ref priority character → scene → prop', () => {
+  it('resolves clip ref priority prev-clip → cast → character → scene → prop', () => {
+    expect(
+      resolveClipRefImage({
+        previousContinuityPath: '/prev.png',
+        castRefPath: '/cast.png',
+        character: {
+          id: 'c',
+          storyId: 's',
+          name: 'A',
+          description: 'd',
+          soulMdPath: null,
+          refImagePath: '/c.png'
+        }
+      })
+    ).toEqual({ path: '/prev.png', source: 'prev-clip' })
+    expect(
+      resolveClipRefImage({
+        castRefPath: '/cast.png',
+        character: {
+          id: 'c',
+          storyId: 's',
+          name: 'A',
+          description: 'd',
+          soulMdPath: null,
+          refImagePath: '/c.png'
+        }
+      })
+    ).toEqual({ path: '/cast.png', source: 'cast' })
+    expect(
+      resolveClipRefImage({
+        previousContinuityPath: '/prev.png',
+        usePreviousContinuity: false,
+        character: {
+          id: 'c',
+          storyId: 's',
+          name: 'A',
+          description: 'd',
+          soulMdPath: null,
+          refImagePath: '/c.png'
+        }
+      })?.source
+    ).toBe('character')
     expect(
       resolveClipRefImage({
         character: {
@@ -142,6 +185,23 @@ describe('promptContinuity', () => {
         }
       })
     ).toEqual({ path: '/p.png', source: 'prop' })
+  })
+
+  it('finds previous timeline entry and builds continuity lock', () => {
+    const entries = [
+      baseEntry({ id: 'e0', order: 0, characterId: 'c1' }),
+      baseEntry({ id: 'e1', order: 1, startTime: 6, endTime: 12 })
+    ]
+    expect(getPreviousTimelineEntry(entries, 'e1')?.id).toBe('e0')
+    expect(getPreviousTimelineEntry(entries, 'e0')).toBeNull()
+    const lock = buildContinuityLockPrompt({
+      previousBeatIndex: 1,
+      sameCharacter: true,
+      sameScene: true,
+      hasContinuityImage: true
+    })
+    expect(lock).toMatch(/CONTINUITY LOCK/)
+    expect(lock).toMatch(/IDENTITY/)
   })
 
   it('appends director revision notes for re-generate', () => {

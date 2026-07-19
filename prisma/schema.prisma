@@ -5,7 +5,8 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  // Overridable via DATABASE_URL (Electron / web server dataDir)
+  url      = env("DATABASE_URL")
 }
 
 model Story {
@@ -15,6 +16,8 @@ model Story {
   exportPath String?
   /** Visual / tone bible for clip prompt continuity */
   styleNote  String?
+  /** Art medium id (same catalog as Character.artStyle). */
+  artStyle   String?
   /** Poster / list card cover (same role as Character.refImagePath). */
   coverPath  String?
   /** Optional multi cover gallery JSON (same shape as character gallery). */

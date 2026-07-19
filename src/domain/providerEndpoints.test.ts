@@ -145,20 +145,23 @@ describe('resolveVideoEndpoint', () => {
 })
 
 describe('provider option catalogs (capability-filtered)', () => {
-  it('image tab only lists same-as-llm + image-capable presets', () => {
+  it('image tab lists same-as-llm + Seedream + image-capable presets', () => {
     const ids = imageProviderOptions().map((o) => o.id)
     expect(ids[0]).toBe('same-as-llm')
     expect(ids).toEqual([
       'same-as-llm',
+      'seedream',
       ...imageCapablePresets().map((p) => p.id)
     ])
     // Chat-only must not appear
     expect(ids).not.toContain('openrouter')
     expect(ids).not.toContain('groq')
     expect(ids).not.toContain('deepseek')
+    expect(ids).not.toContain('kimi')
     expect(ids).not.toContain('ollama')
     expect(ids).not.toContain('lmstudio')
     // Known image-capable
+    expect(ids).toContain('seedream')
     expect(ids).toContain('grok-gateway')
     expect(ids).toContain('openai')
     expect(ids).toContain('xai')
@@ -166,19 +169,22 @@ describe('provider option catalogs (capability-filtered)', () => {
     expect(ids).toContain('custom')
   })
 
-  it('video tab only lists same-as-llm + stub + video-capable presets', () => {
+  it('video tab lists same-as-llm + stub + Seedance + video-capable presets', () => {
     const ids = videoProviderOptions().map((o) => o.id)
     expect(ids).toEqual([
       'same-as-llm',
       'stub',
+      'seedance',
       ...videoCapablePresets().map((p) => p.id)
     ])
     // xAI video uses /videos/generations — not our client
     expect(ids).not.toContain('xai')
     expect(ids).not.toContain('together')
     expect(ids).not.toContain('openrouter')
+    expect(ids).not.toContain('kimi')
     expect(ids).not.toContain('ollama')
     // Known video-capable for this app
+    expect(ids).toContain('seedance')
     expect(ids).toContain('grok-gateway')
     expect(ids).toContain('openai')
     expect(ids).toContain('custom')
@@ -190,5 +196,7 @@ describe('provider option catalogs (capability-filtered)', () => {
     expect(channelPresetBaseUrl('stub')).toBe('')
     expect(channelPresetBaseUrl('openai')).toBe('https://api.openai.com/v1')
     expect(channelPresetBaseUrl('grok-gateway')).toBe(GROK_GATEWAY_BASE_URL)
+    expect(channelPresetBaseUrl('seedance')).toContain('ark')
+    expect(channelPresetBaseUrl('seedream')).toContain('ark')
   })
 })

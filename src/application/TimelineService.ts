@@ -2,13 +2,16 @@ import type { TimelineEntry } from '../types/domain'
 import {
   DEFAULT_MAX_CLIP_SECONDS,
   clampDuration,
+  isTimelineAlreadyPacked,
   moveClip,
+  packTimelineEntriesAbutting,
   reindexOrders,
   resizeClipEnd,
   sortTimelineEntries,
   suggestNextSlot,
   totalDuration,
   validateTimeRange,
+  type PackedTimelineSlot,
   type TimeRange,
   type TimeSlot
 } from '../domain/timeline'
@@ -71,5 +74,15 @@ export class TimelineService {
 
   static reindexOrders(orderedIds: readonly string[]): Map<string, number> {
     return reindexOrders(orderedIds)
+  }
+
+  static packAbutting(
+    entries: readonly TimelineEntry[]
+  ): PackedTimelineSlot[] {
+    return packTimelineEntriesAbutting(entries)
+  }
+
+  static isAlreadyPacked(entries: readonly TimelineEntry[]): boolean {
+    return isTimelineAlreadyPacked(entries)
   }
 }

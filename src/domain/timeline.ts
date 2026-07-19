@@ -101,3 +101,46 @@ export function reindexOrders(orderedIds: readonly string[]): Map<string, number
   })
   return map
 }
+
+export interface PackedTimelineSlot {
+  id: string
+  startTime: number
+  endTime: number
+  order: number
+}
+
+/**
+ * Pack clips end-to-end with no gaps, preserving each clip's duration.
+ * Sort: order, then startTime. First clip starts at 0.
+ */
+export function packTimelineEntriesAbutting(
+  entries: readonly TimelineEntry[]
+): PackedTimelineSlot[] {
+  const sorted = sortTimelineEntries(entries)
+  let t = 0
+  return sorted.map((e, i) => {
+    const dur = Math.max(0, e.endTime - e.startTime)
+    const startTime = t
+    const endTime = t + dur
+    t = endTime
+    return { id: e.id, startTime, endTime, order: i }
+  })
+}
+
+/** True if already packed (order + times match abutting plan within epsilon). */
+export function isTimelineAlreadyPacked(
+  entries: readonly TimelineEntry[],
+  epsilon = 1e-6
+): boolean {
+  const plan = packTimelineEntriesAbutting(entries)
+  if (plan.length !== entries.length) return false
+  const byId = new Map(entries.map((e) => [e.id, e]))
+  for (const p of plan) {
+    const e = byId.get(p.id)
+    if (!e) return false
+    if (e.order !== p.order) return false
+    if (Math.abs(e.startTime - p.startTime) > epsilon) return false
+    if (Math.abs(e.endTime - p.endTime) > epsilon) return false
+  }
+  return true
+}

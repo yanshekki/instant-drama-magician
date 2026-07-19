@@ -10,6 +10,7 @@ import {
   parseBeatContent
 } from '../../domain/beatContent'
 import { getAiLocale } from '../../lib/aiLocale'
+import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import {
   snapClipRange,
   snapVideoSeconds,
@@ -36,6 +37,7 @@ import {
 } from '../components/timeline/timelineLabels'
 import type { AssetDropPayload } from '../components/timeline/TimelineCanvas'
 import { KonvaTimeline } from '../components/timeline/KonvaTimeline'
+import { TimelineAdvancedStudio } from '../components/timeline/TimelineAdvancedStudio'
 import { PreviewPlayer } from '../components/timeline/PreviewPlayer'
 import { useTimelineHistory } from '../hooks/useTimelineHistory'
 import { Button, EmptyState, Label, Select, Textarea } from '../components/ui'
@@ -76,8 +78,17 @@ export function TimelinePage(): JSX.Element {
     refreshStories,
     refreshAiStatus
   } = useApp()
-  const { startJob, isBlocked, onPipelineDone, cancelJob, activeJobs } =
-    useAiJobs()
+  const {
+    startJob,
+    isBlocked,
+    onPipelineDone,
+    cancelJob,
+    activeJobs,
+    startVideoPrep,
+    setVideoPrepSession,
+    hasVideoPrepDraft,
+    continueVideoPrepDraft
+  } = useAiJobs()
   const {
     entries,
     loading,
@@ -105,7 +116,11 @@ export function TimelinePage(): JSX.Element {
   const [actionError, setActionError] = useState<string | null>(null)
   const [playhead, setPlayhead] = useState(0)
   const [pxPerSec, setPxPerSec] = useState(40)
+  const [snapEnabled, setSnapEnabled] = useState(true)
+  const [snapGridSec, setSnapGridSec] = useState(0.5)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [packAbutBusy, setPackAbutBusy] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const history = useTimelineHistory()
   const [clipSeconds, setClipSeconds] = useState<6 | 10>(6)
   const [videoMode, setVideoMode] = useState<string>('auto')
@@ -142,14 +157,16 @@ export function TimelinePage(): JSX.Element {
     activeStoryId &&
       isBlocked({
         storyId: activeStoryId,
-        kind: ['pipeline', 'clip']
+        kind: ['pipeline', 'clip', 'video-prep', 'video-confirm']
       })
   )
   const clipBusyId =
     activeJobs.find(
       (j) =>
-        j.kind === 'clip' &&
-        j.status === 'running' &&
+        (j.kind === 'clip' ||
+          j.kind === 'video-prep' ||
+          j.kind === 'video-confirm') &&
+        (j.status === 'running' || j.status === 'queued') &&
         j.scope.storyId === activeStoryId
     )?.scope.entryId ?? null
   const busy = storyGenBusy
@@ -206,6 +223,12 @@ export function TimelinePage(): JSX.Element {
       .settings.get()
       .then((s: AppSettings) => {
         setVideoMode(s.videoMode)
+        setSnapEnabled(s.snapEnabled !== false)
+        setSnapGridSec(
+          typeof s.snapGridSec === 'number' && s.snapGridSec > 0
+            ? s.snapGridSec
+            : 0.5
+        )
         setExportInitial({
           exportProfile: s.exportProfile,
           burnSubtitles: s.burnSubtitles,
@@ -217,6 +240,26 @@ export function TimelinePage(): JSX.Element {
       })
       .catch(() => undefined)
   }, [])
+
+  const persistSnapSettings = useCallback(
+    async (next: { snapEnabled?: boolean; snapGridSec?: number }) => {
+      if (next.snapEnabled !== undefined) setSnapEnabled(next.snapEnabled)
+      if (next.snapGridSec !== undefined) setSnapGridSec(next.snapGridSec)
+      try {
+        await getApi().settings.set({
+          ...(next.snapEnabled !== undefined
+            ? { snapEnabled: next.snapEnabled }
+            : {}),
+          ...(next.snapGridSec !== undefined
+            ? { snapGridSec: next.snapGridSec }
+            : {})
+        })
+      } catch {
+        /* non-fatal */
+      }
+    },
+    []
+  )
 
   const refreshExportHistory = useCallback(async (): Promise<void> => {
     if (!activeStoryId) {
@@ -534,6 +577,61 @@ export function TimelinePage(): JSX.Element {
     await update(id, { startTime, endTime })
   }
 
+  /** Pack all clips end-to-end (no gaps), keep each duration & relative order. */
+  const handlePackAbut = async (): Promise<void> => {
+    if (entries.length < 2) {
+      toast.info(t('timeline.packAbutNeedClips'))
+      return
+    }
+    if (TimelineService.isAlreadyPacked(entries)) {
+      toast.info(t('timeline.packAbutAlready'))
+      return
+    }
+    const plan = TimelineService.packAbutting(entries)
+    setPackAbutBusy(true)
+    setActionError(null)
+    try {
+      const byId = new Map(entries.map((e) => [e.id, e]))
+      const api = getApi()
+      for (const slot of plan) {
+        const prev = byId.get(slot.id)
+        if (!prev) continue
+        const changed =
+          prev.startTime !== slot.startTime ||
+          prev.endTime !== slot.endTime ||
+          prev.order !== slot.order
+        if (!changed) continue
+        history.recordUpdate(
+          slot.id,
+          {
+            startTime: prev.startTime,
+            endTime: prev.endTime,
+            order: prev.order
+          },
+          {
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            order: slot.order
+          }
+        )
+        await api.timeline.update(slot.id, {
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          order: slot.order
+        })
+      }
+      await reload()
+      setPlayhead(0)
+      setIsPlaying(false)
+      toast.success(t('timeline.packAbutDone'))
+    } catch (e) {
+      setActionError(parseIpcError(e).message)
+      toast.error(parseIpcError(e).message)
+    } finally {
+      setPackAbutBusy(false)
+    }
+  }
+
   const handleUndoLocal = async (): Promise<void> => {
     if (await history.undo()) {
       toast.success(t('timeline.undoDone'))
@@ -609,19 +707,75 @@ export function TimelinePage(): JSX.Element {
     }
   }
 
+  /**
+   * Open wizard for first clip; remaining ids passed as queueRemaining.
+   * Host shows「下一格」after each success — never silent auto-video.
+   */
+  const revisionByEntryRef = useRef(revisionByEntry)
+  revisionByEntryRef.current = revisionByEntry
+
+  const startClipPrepQueue = useCallback(
+    (
+      storyId: string,
+      entryIds: string[],
+      opts?: { skipStillIfExists?: boolean }
+    ): void => {
+      const ids = entryIds.filter(Boolean)
+      if (ids.length === 0) {
+        toast.info(t('pipeline.noFailedClips'))
+        return
+      }
+      const [first, ...rest] = ids
+      const entry = entriesRef.current.find((e) => e.id === first)
+      const revisionPrompt =
+        revisionByEntryRef.current[first]?.trim() || ''
+      const durationSeconds = snapVideoSeconds(
+        entry ? entry.endTime - entry.startTime : clipSeconds
+      )
+      setSelectedId(first)
+      setCurrentStepLabel(
+        ids.length > 1
+          ? t('videoPrep.queueProgress', { current: 1, total: ids.length })
+          : t('timeline.generateClip')
+      )
+      startVideoPrep({
+        kind: 'timeline-clip',
+        entityIds: { storyId, entryId: first },
+        durationSeconds,
+        locale: getAiLocale(i18n.language),
+        userExtraPrompt: revisionPrompt,
+        queueIndex: 1,
+        queueTotal: ids.length,
+        queueRemaining: rest,
+        skipStillIfExists: opts?.skipStillIfExists
+      })
+    },
+    [clipSeconds, i18n.language, startVideoPrep, t, toast]
+  )
+
   const handleGenerate = async (onlyFailed = false): Promise<void> => {
     if (!activeStoryId || busy) return
-    if (onlyFailed && failedCount === 0) {
-      toast.info(t('pipeline.noFailedClips'))
+    if (onlyFailed) {
+      const need = [...entries]
+        .filter(
+          (e) => e.mediaStatus === 'FAILED' || e.mediaStatus === 'EMPTY'
+        )
+        .sort((a, b) => a.order - b.order)
+      if (need.length === 0) {
+        toast.info(t('pipeline.noFailedClips'))
+        return
+      }
+    } else if (entries.length === 0) {
+      toast.info(t('timeline.noEntries'))
       return
     }
-    const modeHint =
-      videoMode === 'stub'
-        ? t('pipeline.confirmStub')
-        : videoMode === 'http'
-          ? t('pipeline.confirmHttp')
-          : t('pipeline.confirmAuto')
-    if (!(await dialog.confirm({ message: modeHint, confirmLabel: t('common.ok') }))) {
+    const modeHint = t('videoPrep.timelineBatchHint')
+    if (
+      !(await dialog.confirm({
+        message: modeHint,
+        confirmLabel: t('common.ok')
+      }))
+    ) {
       return
     }
     if (videoMode !== 'stub' && missingRefs.length > 0) {
@@ -637,19 +791,32 @@ export function TimelinePage(): JSX.Element {
     setActionError(null)
     setLiveClipStatus({})
     setStepIndex(0)
-    setCurrentStepLabel(
-      onlyFailed ? t('common.retryFailed') : t('common.generate')
-    )
-    toast.info(t('aiJobs.startedBackground'))
 
+    // Retry failed / empty: interactive video-prep only (no auto pipeline video).
+    if (onlyFailed) {
+      const need = [...entries]
+        .filter(
+          (e) => e.mediaStatus === 'FAILED' || e.mediaStatus === 'EMPTY'
+        )
+        .sort((a, b) => a.order - b.order)
+        .map((e) => e.id)
+      setCurrentStepLabel(t('common.retryFailed'))
+      startClipPrepQueue(storyId, need)
+      return
+    }
+
+    // Full generate: prep pipeline (script…timeline) without auto video, then
+    // sequential video-prep for every clip.
+    setCurrentStepLabel(t('common.generate'))
+    toast.info(t('aiJobs.startedBackground'))
     startJob({
       kind: 'pipeline',
-      label: onlyFailed ? t('common.retryFailed') : t('common.generate'),
+      label: t('common.generate'),
       scope: { storyId },
       run: async ({ setProgress, signal }) => {
         setProgress(5, 'start')
         const result = (await getApi().generation.run(storyId, {
-          onlyFailedVideos: onlyFailed
+          interactiveVideo: true
         })) as GenerationResult
         if (signal.cancelled) return
         const summary = result.steps
@@ -661,19 +828,46 @@ export function TimelinePage(): JSX.Element {
           })
           .join('\n')
         const anyDegraded = result.steps.some((s) => s.degraded)
-        setProgress(100, 'done')
-        if (result.success) {
-          toast.success(
-            anyDegraded ? t('pipeline.degraded') : t('aiJobs.pipelineOk')
-          )
-        } else {
+        setProgress(85, 'video-queue')
+        if (!result.success) {
+          setProgress(100, 'done')
           toast.error(t('aiJobs.pipelineFail'))
+          return {
+            type: 'pipeline' as const,
+            storyId,
+            success: false,
+            summary,
+            degraded: anyDegraded
+          }
         }
+        // Reload timeline ids after pipeline may have rewritten entries
+        let entryIds: string[] = []
+        try {
+          const list = (await getApi().timeline.list(storyId)) as Array<{
+            id: string
+            order: number
+          }>
+          entryIds = [...list]
+            .sort((a, b) => a.order - b.order)
+            .map((e) => e.id)
+        } catch {
+          entryIds = [...entriesRef.current]
+            .sort((a, b) => a.order - b.order)
+            .map((e) => e.id)
+        }
+        setProgress(100, 'done')
+        toast.success(
+          anyDegraded ? t('pipeline.degraded') : t('aiJobs.pipelineOk')
+        )
+        // Kick interactive per-clip video-prep queue on main thread
+        queueMicrotask(() => {
+          startClipPrepQueue(storyId, entryIds)
+        })
         return {
           type: 'pipeline' as const,
           storyId,
-          success: result.success,
-          summary,
+          success: true,
+          summary: `${summary}\n→ ${t('videoPrep.queueStart', { count: entryIds.length })}`,
           degraded: anyDegraded
         }
       }
@@ -681,10 +875,14 @@ export function TimelinePage(): JSX.Element {
   }
 
   const handleCancel = async (): Promise<void> => {
+    setVideoPrepSession(null)
     const running = activeJobs.filter(
       (j) =>
         j.scope.storyId === activeStoryId &&
-        (j.kind === 'pipeline' || j.kind === 'clip')
+        (j.kind === 'pipeline' ||
+          j.kind === 'clip' ||
+          j.kind === 'video-prep' ||
+          j.kind === 'video-confirm')
     )
     for (const j of running) {
       await cancelJob(j.id)
@@ -702,8 +900,14 @@ export function TimelinePage(): JSX.Element {
     try {
       const pre = await getApi().media.exportPreflight(activeStoryId)
       if (!pre.canExport) {
-        setActionError(pre.ffmpegMessage || t('pipeline.needFfmpeg'))
-        toast.error(pre.ffmpegMessage || t('pipeline.needFfmpeg'))
+        const msg =
+          pre.ffmpegMessage && !/ffmpeg OK/i.test(pre.ffmpegMessage)
+            ? `${t('pipeline.needFfmpeg')}${
+                pre.ffmpegMessage ? `（${pre.ffmpegMessage}）` : ''
+              }`
+            : t('pipeline.needFfmpeg')
+        setActionError(msg)
+        toast.error(msg)
         return
       }
       if (pre.willUseFallback) {
@@ -788,37 +992,56 @@ export function TimelinePage(): JSX.Element {
       })
       if (!ok) return
     }
-    const storyId = activeStoryId
-    const revisionPrompt = revisionByEntry[entryId]?.trim() || null
     setActionError(null)
-    setCurrentStepLabel(t('timeline.generateClip'))
-    setLiveClipStatus((prev) => ({ ...prev, [entryId]: 'GENERATING' }))
-    toast.info(t('aiJobs.startedBackground'))
-
-    startJob({
-      kind: 'clip',
-      label: t('timeline.generateClip'),
-      scope: { storyId, entryId },
-      run: async ({ setProgress, signal }) => {
-        setProgress(10, 'clip')
-        const r = await getApi().generation.runClip(storyId, entryId, {
-          revisionPrompt
-        })
-        if (signal.cancelled) return
-        setProgress(100, 'done')
-        return {
-          type: 'clip' as const,
-          storyId,
-          entryId,
-          success: true,
-          summary: r.degraded
-            ? t('pipeline.clipDoneStub')
-            : t('pipeline.clipDoneOk'),
-          degraded: r.degraded
-        }
-      }
+    const draftKey = buildVideoPrepDraftKey('timeline-clip', {
+      storyId: activeStoryId,
+      entryId
+    })
+    if (hasVideoPrepDraft(draftKey)) {
+      continueVideoPrepDraft(draftKey)
+      return
+    }
+    // Prefer reusing advanced-prep / continuity still when present
+    startClipPrepQueue(activeStoryId, [entryId], {
+      skipStillIfExists: true
     })
   }
+
+  const clipGenerateLabel = (entryId: string, status: MediaStatus): string => {
+    const draftKey = buildVideoPrepDraftKey('timeline-clip', {
+      storyId: activeStoryId ?? '',
+      entryId
+    })
+    if (activeStoryId && hasVideoPrepDraft(draftKey)) {
+      return t('videoPrep.continueVideo')
+    }
+    return status === 'FAILED' || status === 'EMPTY'
+      ? t('timeline.generateClip')
+      : t('timeline.regenClip')
+  }
+
+  // After timeline-clip video confirm — refresh media (wizard owns「下一格」)
+  useEffect(() => {
+    const onDone = (ev: Event): void => {
+      const d = (ev as CustomEvent).detail as {
+        kind?: string
+        entityIds?: { storyId?: string; entryId?: string }
+        path?: string
+      }
+      if (d?.kind !== 'timeline-clip') return
+      if (!activeStoryId || d.entityIds?.storyId !== activeStoryId) return
+      void reload()
+      if (d.entityIds?.entryId) {
+        setLiveClipStatus((prev) => ({
+          ...prev,
+          [d.entityIds!.entryId!]: 'READY'
+        }))
+        setSelectedId(d.entityIds.entryId)
+      }
+    }
+    window.addEventListener('idm:video-prep-done', onDone)
+    return () => window.removeEventListener('idm:video-prep-done', onDone)
+  }, [activeStoryId, reload])
 
   /** Timeline play for whole story (sequential clips). Wrap to 0 when at end. */
   const handleTogglePlay = (): void => {
@@ -1105,6 +1328,16 @@ export function TimelinePage(): JSX.Element {
                 onSelect={selectClip}
                 onMove={(id, s, e) => void persistMove(id, s, e)}
                 onDropAsset={(payload, at) => void addAsset(payload, at)}
+                onPackAbut={() => void handlePackAbut()}
+                packAbutBusy={packAbutBusy}
+                snapEnabled={snapEnabled}
+                snapGridSec={snapGridSec}
+                onSnapEnabledChange={(v) =>
+                  void persistSnapSettings({ snapEnabled: v })
+                }
+                onSnapGridSecChange={(v) =>
+                  void persistSnapSettings({ snapGridSec: v })
+                }
                 width={900}
               />
             </div>
@@ -1133,11 +1366,9 @@ export function TimelinePage(): JSX.Element {
                 }
                 generateDisabled={busy}
                 generateLabel={
-                  selected &&
-                  (selected.mediaStatus === 'FAILED' ||
-                    selected.mediaStatus === 'EMPTY')
-                    ? t('timeline.generateClip')
-                    : t('timeline.regenClip')
+                  selected
+                    ? clipGenerateLabel(selected.id, selected.mediaStatus)
+                    : t('timeline.generateClip')
                 }
               />
             </div>
@@ -1280,10 +1511,10 @@ export function TimelinePage(): JSX.Element {
                       >
                         {clipBusyId === selected.id
                           ? t('common.generating')
-                          : selected.mediaStatus === 'FAILED' ||
-                              selected.mediaStatus === 'EMPTY'
-                            ? t('timeline.generateClip')
-                            : t('timeline.regenClip')}
+                          : clipGenerateLabel(
+                              selected.id,
+                              selected.mediaStatus
+                            )}
                       </Button>
                       <Button
                         variant="secondary"
@@ -1321,13 +1552,24 @@ export function TimelinePage(): JSX.Element {
               </div>
 
               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-ink-800/80 bg-ink-900/30 xl:flex-1">
-                <div className="flex shrink-0 items-center justify-between border-b border-ink-800/60 px-3 py-2">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-ink-800/60 px-3 py-2">
                   <h3 className="text-sm font-semibold text-ink-100">
                     {t('timeline.clipList')}
                   </h3>
-                  <span className="text-[11px] text-ink-500">
-                    {entries.length}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-ink-500">
+                      {entries.length}
+                    </span>
+                    <Button
+                      variant="secondary"
+                      className="!px-2 !py-0.5 !text-[10px]"
+                      disabled={!activeStoryId || entries.length === 0 || busy}
+                      title={t('timeline.advanced.openHint')}
+                      onClick={() => setAdvancedOpen(true)}
+                    >
+                      {t('timeline.advanced.open')}
+                    </Button>
+                  </div>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto p-2">
                   {loading ? (
@@ -1400,10 +1642,7 @@ export function TimelinePage(): JSX.Element {
                               >
                                 {clipBusyId === e.id
                                   ? t('common.generating')
-                                  : e.mediaStatus === 'FAILED' ||
-                                      e.mediaStatus === 'EMPTY'
-                                    ? t('timeline.generateClip')
-                                    : t('timeline.regenClip')}
+                                  : clipGenerateLabel(e.id, e.mediaStatus)}
                               </Button>
                             </div>
                             {live && live !== e.mediaStatus && (
@@ -1567,6 +1806,20 @@ export function TimelinePage(): JSX.Element {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {activeStoryId ? (
+        <TimelineAdvancedStudio
+          storyId={activeStoryId}
+          open={advancedOpen}
+          onClose={() => setAdvancedOpen(false)}
+          onRefreshTimeline={() => void reload()}
+          onStartVideoQueue={(entryIds, opts) => {
+            startClipPrepQueue(activeStoryId, entryIds, {
+              skipStillIfExists: opts?.skipStill !== false
+            })
+          }}
+        />
       ) : null}
     </div>
   )

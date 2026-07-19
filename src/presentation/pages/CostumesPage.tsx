@@ -29,15 +29,20 @@ import {
 } from '../../domain/characterArtStyles'
 import {
   appendGalleryItem,
+  isGalleryCoverPath,
   parseCharacterGallery,
+  primaryGalleryPath,
+  removeGalleryItem,
   serializeCharacterGallery,
   type CharacterGalleryItem
 } from '../../domain/characterGallery'
+import { translateCharacterGalleryLabel } from '../../domain/galleryLabelI18n'
 import {
   COSTUME_SWAP_POSES,
   type CostumeSwapPose
 } from '../../domain/costumeSwap'
 import { getAiLocale } from '../../lib/aiLocale'
+import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type { Character } from '../../types/domain'
@@ -82,7 +87,7 @@ export function CostumesPage(): JSX.Element {
   const { t, i18n } = useTranslation()
   const toast = useToast()
   const dialog = useDialog()
-  const { startJob, isBlocked, activeJobs } = useAiJobs()
+  const { startJob, isBlocked, activeJobs, startVideoPrep, hasVideoPrepDraft, continueVideoPrepDraft } = useAiJobs()
   const [items, setItems] = useState<CostumeRow[]>([])
   const [characters, setCharacters] = useState<Character[]>([])
   const [loading, setLoading] = useState(true)
@@ -244,40 +249,79 @@ export function CostumesPage(): JSX.Element {
     if (g.length === 0 && c.refImagePath) {
       return [{ path: c.refImagePath, label: c.name }]
     }
-    return g.map((i) => ({ path: i.path, label: i.label || i.path }))
-  }, [characters, dressCharId])
+    // Prefer identity sheets over old costume-swap gens (stale dress paths
+    // are filtered on main; labels still help user pick a real bible sheet).
+    return g.map((i) => ({
+      path: i.path,
+      label: translateCharacterGalleryLabel(i.label || i.path, t)
+    }))
+  }, [characters, dressCharId, t])
+
+  // Default base pick to auto when character changes or selected path vanished from list.
+  useEffect(() => {
+    if (!dressBasePath) return
+    if (!dressCharBaseOptions.some((o) => o.path === dressBasePath)) {
+      setDressBasePath('')
+    }
+  }, [dressCharBaseOptions, dressBasePath])
 
   const closeEditor = (): void => {
     setEditorOpen(false)
     setEditId(null)
   }
 
-  const handleAiFill = async (): Promise<void> => {
+  const handleAiFill = (): void => {
     if (!aiIdea.trim() && !lookDesc.trim() && !lookName.trim()) {
       toast.info(t('costumes.aiNeedIdea'))
       return
     }
-    setBusy(true)
-    try {
-      const r = await getApi().costumes.aiFill({
-        idea: aiIdea.trim() || undefined,
-        locale: getAiLocale(i18n.language),
-        existingDraft: {
-          name: lookName,
-          description: lookDesc,
-          artStyle: lookStyle
-        }
-      })
-      if (r.name) setLookName(r.name)
-      if (r.description) setLookDesc(r.description)
-      if (r.artStyle && isArtStyleId(r.artStyle)) setLookStyle(r.artStyle)
-      setPageBanner(t('costumes.aiFillOk'))
-      toast.success(t('costumes.aiFillOk'))
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    } finally {
-      setBusy(false)
+    if (
+      isBlocked({
+        kind: ['costume-ai-fill', 'costume-intro-video', 'costume-swap'],
+        costumeId: editId ?? undefined
+      }) ||
+      busy
+    ) {
+      toast.info(t('aiJobs.running'))
+      return
     }
+    setPageBanner(t('aiJobs.startedBackground'))
+    toast.info(t('aiJobs.startedBackground'))
+    const idea = aiIdea.trim()
+    const snapshot = {
+      name: lookName,
+      description: lookDesc,
+      artStyle: lookStyle
+    }
+    const costumeId = editId
+    startJob({
+      kind: 'costume-ai-fill',
+      label: t('costumes.aiFill'),
+      scope: { costumeId: costumeId ?? undefined },
+      run: async ({ setProgress, signal }) => {
+        setProgress(20, 'llm')
+        const r = await getApi().costumes.aiFill({
+          idea: idea || undefined,
+          locale: getAiLocale(i18n.language),
+          existingDraft: {
+            name: snapshot.name,
+            description: snapshot.description,
+            artStyle: snapshot.artStyle
+          }
+        })
+        if (signal.cancelled) return
+        setProgress(100, 'done')
+        // Apply into open editor (same costume / new draft)
+        if (!costumeId || editId === costumeId) {
+          if (r.name) setLookName(r.name)
+          if (r.description) setLookDesc(r.description)
+          if (r.artStyle && isArtStyleId(r.artStyle)) setLookStyle(r.artStyle)
+        }
+        setPageBanner(t('costumes.aiFillOk'))
+        toast.success(t('costumes.aiFillOk'))
+        return undefined
+      }
+    })
   }
 
   const handleSave = async (): Promise<void> => {
@@ -354,23 +398,47 @@ export function CostumesPage(): JSX.Element {
     const next = appendGalleryItem(gallery, {
       path: r.filePath,
       kind: 'upload',
-      label: t('costumes.pickImage')
+      label: t('characters.externalRefLabel')
     })
     setGallery(next)
     setSelectedGalId(next[next.length - 1]?.id ?? null)
+    toast.success(t('characters.externalRefAdded'))
+  }
+
+  const handleSetCover = (path: string): void => {
+    setLookImagePath(path)
+    const hit = gallery.find((g) => g.path === path)
+    if (hit) setSelectedGalId(hit.id)
+    toast.success(t('common.coverSet'))
+  }
+
+  const handleRemoveImage = (id: string): void => {
+    const removed = gallery.find((g) => g.id === id)
+    const next = removeGalleryItem(gallery, id)
+    setGallery(next)
+    if (removed && lookImagePath === removed.path) {
+      const primary = primaryGalleryPath(next)
+      setLookImagePath(primary)
+      setSelectedGalId(next.find((g) => g.path === primary)?.id ?? next[0]?.id ?? null)
+    } else if (!isGalleryCoverPath(next, lookImagePath)) {
+      const primary = primaryGalleryPath(next)
+      setLookImagePath(primary)
+      setSelectedGalId(next[0]?.id ?? null)
+    }
   }
 
   const costumeBusy = (costumeId?: string | null): boolean =>
-    Boolean(costumeId) &&
-    (isBlocked({
-      kind: ['costume-intro-video', 'costume-swap'],
+    isBlocked({
+      kind: ['costume-ai-fill', 'costume-intro-video', 'costume-swap'],
       costumeId: costumeId ?? undefined
     }) ||
-      activeJobs.some(
-        (j) =>
-          (j.kind === 'costume-intro-video' || j.kind === 'costume-swap') &&
-          j.scope.costumeId === costumeId
-      ))
+    activeJobs.some(
+      (j) =>
+        (j.kind === 'costume-ai-fill' ||
+          j.kind === 'costume-intro-video' ||
+          j.kind === 'costume-swap') &&
+        (!costumeId || j.scope.costumeId === costumeId)
+    )
 
   const selectedGalItem = useMemo(() => {
     if (!gallery.length) return null
@@ -395,15 +463,17 @@ export function CostumesPage(): JSX.Element {
     if (costumeBusy(editId) || busy) return
     const costumeId = editId
     const sourcePath = sourceImagePath.trim()
-    setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(t('aiJobs.startedBackground'))
-    startJob({
-      kind: 'costume-intro-video',
-      label: t('costumes.introVideoJob'),
-      scope: { costumeId },
-      run: async ({ setProgress, signal }) => {
-        setProgress(10, 'start')
-        // Persist look first so prompt uses current description
+    const draftKey = buildVideoPrepDraftKey(
+      'costume-intro',
+      { costumeId },
+      sourcePath
+    )
+    if (hasVideoPrepDraft(draftKey)) {
+      continueVideoPrepDraft(draftKey)
+      return
+    }
+    void (async () => {
+      try {
         await getApi().costumes.update(costumeId, {
           name: lookName.trim() || lookDesc.trim().slice(0, 32),
           description: lookDesc.trim() || lookName.trim(),
@@ -411,38 +481,61 @@ export function CostumesPage(): JSX.Element {
           refImagePath: lookImagePath,
           refGalleryJson: serializeCharacterGallery(gallery)
         })
-        if (signal.cancelled) return
-        setProgress(25, 'llm')
-        const r = await getApi().costumes.generateIntroVideo({
-          costumeId,
-          sourceImagePath: sourcePath,
-          durationSeconds: 10,
-          locale: getAiLocale(i18n.language)
-        })
-        if (signal.cancelled) return
-        setProgress(90, 'generate')
-        setProgress(100, 'done')
-        const g = (r.gallery ?? []).map((item) => ({
-          id: item.id,
-          path: item.path,
-          kind: (item.kind === 'sheet' ||
-          item.kind === 'upload' ||
-          item.kind === 'gen'
-            ? item.kind
-            : 'gen') as CharacterGalleryItem['kind'],
-          label: item.label,
-          createdAt: item.createdAt,
-          ...(item.layer ? { layer: item.layer } : {}),
-          introVideoPath: item.introVideoPath ?? null
-        }))
-        if (editId === costumeId) {
-          setGallery(g.length > 0 ? g : gallery)
-        }
-        toast.success(t('costumes.introVideoOk'))
-        return undefined
+      } catch (e) {
+        toast.error(parseIpcError(e).message)
+        return
       }
-    })
+      startVideoPrep({
+        kind: 'costume-intro',
+        entityIds: { costumeId },
+        sourceImagePath: sourcePath,
+        durationSeconds: 10,
+        locale: getAiLocale(i18n.language)
+      })
+    })()
   }
+
+  // After video confirm, reload gallery introVideoPath
+  useEffect(() => {
+    const onDone = (ev: Event): void => {
+      const d = (ev as CustomEvent).detail as {
+        kind?: string
+        entityIds?: { costumeId?: string }
+        gallery?: Array<{
+          id: string
+          path: string
+          kind: string
+          label: string
+          createdAt: string
+          layer?: string
+          introVideoPath?: string | null
+        }>
+      }
+      if (d?.kind !== 'costume-intro') return
+      if (!editId || d.entityIds?.costumeId !== editId) return
+      if (d.gallery?.length) {
+        setGallery(
+          d.gallery.map((item) => ({
+            id: item.id,
+            path: item.path,
+            kind: (item.kind === 'sheet' ||
+            item.kind === 'upload' ||
+            item.kind === 'gen'
+              ? item.kind
+              : 'gen') as 'sheet' | 'upload' | 'gen',
+            label: item.label,
+            createdAt: item.createdAt,
+            ...(item.layer ? { layer: item.layer } : {}),
+            introVideoPath: item.introVideoPath ?? null
+          }))
+        )
+      } else {
+        void reload()
+      }
+    }
+    window.addEventListener('idm:video-prep-done', onDone)
+    return () => window.removeEventListener('idm:video-prep-done', onDone)
+  }, [editId, reload])
 
   const handleGenerateDressed = (): void => {
     if (!editId) {
@@ -453,6 +546,12 @@ export function CostumesPage(): JSX.Element {
       toast.info(t('costumes.pickCharacterForDress'))
       return
     }
+    // UI pre-check: character must have at least one gallery still (paths may still be stale on disk).
+    if (dressCharBaseOptions.length === 0) {
+      toast.error(t('errors.costumeNoBaseImage'))
+      setPageBanner(t('errors.costumeNoBaseImage'))
+      return
+    }
     if (isBlocked({ kind: ['costume-swap'], characterId: dressCharId })) {
       toast.info(t('aiJobs.running'))
       return
@@ -461,11 +560,12 @@ export function CostumesPage(): JSX.Element {
     const characterId = dressCharId
     const base = dressBasePath || null
     const pose = dressPose
+    setPageBanner(t('aiJobs.startedBackground'))
     toast.info(t('aiJobs.startedBackground'))
     startJob({
       kind: 'costume-swap',
       label: t('costumes.generateDressed'),
-      scope: { characterId, storyId: undefined },
+      scope: { characterId, costumeId, storyId: undefined },
       run: async ({ setProgress, signal }) => {
         setProgress(20, 'image')
         const r = await getApi().costumes.generateDressed({
@@ -476,35 +576,28 @@ export function CostumesPage(): JSX.Element {
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
-        setLookImagePath(r.path)
-        setGallery((prev) => {
-          const next = appendGalleryItem(prev, {
-            path: r.path,
-            kind: 'gen',
-            label: t('costumes.generateDressed'),
-            layer: 'costume'
-          })
-          setSelectedGalId(next[next.length - 1]?.id ?? null)
-          // Persist gallery when possible
-          void getApi()
-            .costumes.update(costumeId, {
-              refImagePath: r.path,
-              refGalleryJson: serializeCharacterGallery(next)
-            })
-            .catch(() => undefined)
-          return next
+        // Already committed on main (costume + character galleries).
+        // Do NOT return a character-sheet draft — acceptDraft would
+        // promoteTmp and delete the permanent file, breaking costume paths.
+        const cos = r.costume as {
+          refImagePath?: string | null
+          refGalleryJson?: string | null
+        } | null
+        const nextGal = parseCharacterGallery(cos?.refGalleryJson, {
+          refImagePath: cos?.refImagePath ?? r.path
         })
+        if (editId === costumeId) {
+          setLookImagePath(r.path)
+          setGallery(nextGal.length > 0 ? nextGal : gallery)
+          setSelectedGalId(
+            nextGal.find((g) => g.path === r.path)?.id ??
+              nextGal[0]?.id ??
+              null
+          )
+        }
         await reload()
         toast.success(t('costumes.dressedOk'))
-        return {
-          type: 'character-sheet' as const,
-          characterId,
-          storyId: '',
-          path: r.path,
-          variant: 'costume_swap',
-          label: t('costumes.generateDressed'),
-          layer: 'costume'
-        }
+        return undefined
       }
     })
   }
@@ -753,20 +846,34 @@ export function CostumesPage(): JSX.Element {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
               {t('costumes.galleryTitle')}
             </h3>
-            <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-950/40">
-              {lookImagePath ? (
+            <div className="rounded-xl border border-ink-800 bg-ink-950/40">
+              {(selectedGalItem?.path ?? lookImagePath) ? (
                 <LocalMediaImage
-                  filePath={lookImagePath}
+                  filePath={selectedGalItem?.path ?? lookImagePath}
                   alt={lookName}
-                  maxHeightClass="max-h-[min(42vh,400px)]"
+                  maxHeightClass="max-h-[min(36vh,320px)]"
                   objectFit="cover"
-                  className="border-0 rounded-none"
+                  className="border-0 rounded-xl"
                   actionsLayout="bar"
                   introVideoBusy={busy || costumeBusy(editId)}
                   introVideoPath={selectedGalItem?.introVideoPath}
+                  introVideoHasDraft={
+                    Boolean(editId) &&
+                    Boolean(selectedGalItem?.path ?? lookImagePath) &&
+                    hasVideoPrepDraft(
+                      buildVideoPrepDraftKey(
+                        'costume-intro',
+                        { costumeId: editId! },
+                        selectedGalItem?.path ?? lookImagePath
+                      )
+                    )
+                  }
                   onIntroVideo={
-                    editId && lookImagePath
-                      ? () => handleGenerateIntroVideo(lookImagePath)
+                    editId && (selectedGalItem?.path ?? lookImagePath)
+                      ? () =>
+                          handleGenerateIntroVideo(
+                            (selectedGalItem?.path ?? lookImagePath)!
+                          )
                       : undefined
                   }
                 />
@@ -779,7 +886,7 @@ export function CostumesPage(): JSX.Element {
                     className="!text-xs"
                     onClick={() => void handlePickImage()}
                   >
-                    {t('costumes.pickImage')}
+                    {t('scenes.pickImage')}
                   </Button>
                 </div>
               )}
@@ -789,13 +896,8 @@ export function CostumesPage(): JSX.Element {
                 items={gallery}
                 selectedId={selectedGalId}
                 coverPath={lookImagePath}
-                onSelect={(id) => {
-                  setSelectedGalId(id)
-                  const hit = gallery.find((g) => g.id === id)
-                  if (hit) setLookImagePath(hit.path)
-                }}
+                onSelect={(id) => setSelectedGalId(id)}
                 onReorder={(fromId, toId) => {
-                  // simple swap order via move - re-parse if needed
                   const from = gallery.findIndex((g) => g.id === fromId)
                   const to = gallery.findIndex((g) => g.id === toId)
                   if (from < 0 || to < 0) return
@@ -804,12 +906,42 @@ export function CostumesPage(): JSX.Element {
                   next.splice(to, 0, item)
                   setGallery(next)
                 }}
-                labelOf={(g) => g.label}
+                labelOf={(g) => translateCharacterGalleryLabel(g.label, t)}
               />
             ) : null}
-            <Button variant="secondary" onClick={() => void handlePickImage()}>
-              {t('costumes.pickImage')}
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button
+                variant="secondary"
+                className="sm:flex-1"
+                disabled={busy || costumeBusy(editId)}
+                onClick={() => void handlePickImage()}
+              >
+                {t('scenes.pickImage')}
+              </Button>
+              {selectedGalItem && lookImagePath !== selectedGalItem.path && (
+                <Button
+                  variant="secondary"
+                  onClick={() => handleSetCover(selectedGalItem.path)}
+                >
+                  {t('common.setAsCover')}
+                </Button>
+              )}
+              {selectedGalItem && lookImagePath === selectedGalItem.path && (
+                <span className="inline-flex items-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+                  {t('common.isCover')}
+                </span>
+              )}
+              {selectedGalItem && (
+                <Button
+                  variant="ghost"
+                  className="text-rose-300"
+                  onClick={() => handleRemoveImage(selectedGalItem.id)}
+                >
+                  {t('characters.removePhoto')}
+                </Button>
+              )}
+            </div>
+            <p className="text-[11px] text-ink-500">{t('common.galleryReorderHint')}</p>
           </div>
         }
       >
@@ -843,10 +975,12 @@ export function CostumesPage(): JSX.Element {
               />
               <div className="mt-3">
                 <Button
-                  disabled={busy}
-                  onClick={() => void handleAiFill()}
+                  disabled={busy || costumeBusy(editId)}
+                  onClick={() => handleAiFill()}
                 >
-                  {busy ? t('common.generating') : t('costumes.aiFill')}
+                  {costumeBusy(editId)
+                    ? t('common.generating')
+                    : t('costumes.aiFill')}
                 </Button>
               </div>
             </section>
@@ -966,10 +1100,18 @@ export function CostumesPage(): JSX.Element {
                 </EditorSelect>
               </EditorField>
               <Button
-                disabled={!editId || !dressCharId || !lookDesc.trim() || busy}
+                disabled={
+                  !editId ||
+                  !dressCharId ||
+                  !lookDesc.trim() ||
+                  busy ||
+                  costumeBusy(editId)
+                }
                 onClick={() => handleGenerateDressed()}
               >
-                {t('costumes.generateDressed')}
+                {costumeBusy(editId)
+                  ? t('common.generating')
+                  : t('costumes.generateDressed')}
               </Button>
               {!editId && (
                 <p className="text-[10px] text-ink-500">
