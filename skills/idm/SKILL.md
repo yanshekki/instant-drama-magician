@@ -45,7 +45,7 @@ instant-drama doctor --json
 instant-drama channels list --json
 ```
 
-Only call channels that appear in `channels list` (expect **~137**). Desktop, web, and CLI share one registry. If a channel is missing, the binary is likely outdated.
+Only call channels that appear in `channels list` (expect **~138**). Desktop, web, and CLI share one registry. If a channel is missing, the binary is likely outdated.
 
 ## Output contract
 
@@ -65,7 +65,7 @@ instant-drama open --dev
 
 Supports **macOS, Ubuntu/Linux, Windows**. Build macOS targets on a Mac.
 
-## Full control (137 channels)
+## Full control (138 channels)
 
 ```bash
 instant-drama channels list --json

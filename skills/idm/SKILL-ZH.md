@@ -45,7 +45,7 @@ instant-drama doctor --json
 instant-drama channels list --json
 ```
 
-只呼叫 `channels list` 出現的 channel（應約 **137**）。桌面／web／CLI 同一 registry。若缺少 channel，多半是二進位過舊。
+只呼叫 `channels list` 出現的 channel（應約 **138**）。桌面／web／CLI 同一 registry。若缺少 channel，多半是二進位過舊。
 
 ## 輸出契約
 
@@ -65,7 +65,7 @@ instant-drama open --dev
 
 支援 **macOS、Ubuntu/Linux、Windows**。macOS 目標在 Mac 上建。
 
-## 全控制（137 channels）
+## 全控制（138 channels）
 
 ```bash
 instant-drama channels list --json

@@ -13,7 +13,7 @@ Presentation (React pages / CLI / browser UI)
   IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
-  registerAllHandlers + HandlerHost   ← single source of truth (~137 channels)
+  registerAllHandlers + HandlerHost   ← single source of truth (~138 channels)
         │
         ▼
   Application services (Generation, Timeline, Export, Backup, …)
@@ -35,7 +35,7 @@ Media in the desktop app is served via privileged scheme **`idm-media://`** (ran
 | CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR` (default `~/.local/share/idm`) |
 | Web / server | `server/index.ts` + `EmbeddedWebServer` | Same handlers; SPA from `out/renderer` |
 
-Channel catalog: `src/runtime/channelManifest.ts` (**137** unique ids).
+Channel catalog: `src/runtime/channelManifest.ts` (**138** unique ids).
 
 ## Desktop pages
 

@@ -5,7 +5,7 @@
 **AI professional short-drama desktop studio**
 
 From one idea to a finished short drama: story → characters / costumes / scenes / props → linear timeline → AI storyboard & video → FFmpeg final export.  
-Cross-platform desktop (Electron) + optional browser remote control + full CLI `instant-drama` (**137** channels, same surface as desktop IPC).
+Cross-platform desktop (Electron) + optional browser remote control + full CLI `instant-drama` (**138** channels, same surface as desktop IPC).
 
 | | |
 |---|---|
@@ -300,7 +300,7 @@ Typical usage after global install:
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # ~137 channels
+instant-drama channels list --json          # ~138 channels
 ```
 
 > **Note:** Global install provides the **CLI / headless / web-server** control plane (stories, cast, generation, export helpers, agent tools). Building or opening the **Electron desktop GUI** (`instant-drama build` / `instant-drama open`) still needs a full git clone with `npm install` (devDependencies such as Electron) and a local `release/` tree.
@@ -326,7 +326,7 @@ npm run instant-drama -- doctor --json
 ### Common commands
 
 ```bash
-# Diagnostics (channel count should be ~137)
+# Diagnostics (channel count should be ~138)
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -499,7 +499,7 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 |---------|---------|--------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | Docs index + facts |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | Product spec |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (137 channels) |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (138 channels) |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agents / OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | Web remote |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

@@ -38,6 +38,11 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   },
   { channel: 'characters:list', description: 'List characters', argsHint: '[{}]' },
   {
+    channel: 'characters:get',
+    description: 'Get character by id',
+    argsHint: '["id"]'
+  },
+  {
     channel: 'characters:create',
     description: 'Create character',
     argsHint: '[{"name":"..."}]'
@@ -198,6 +203,7 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'characters:generateIntroVideo',
   'characters:generateSheet',
   'characters:generateSoul',
+  'characters:get',
   'characters:importSoulMd',
   'characters:importSoulMdUrl',
   'characters:list',

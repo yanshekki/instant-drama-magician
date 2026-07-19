@@ -608,6 +608,10 @@ export function registerAllHandlers(
     )
   )
   reg(
+    'characters:get',
+    (async (id: string) => characters().get(id))
+  )
+  reg(
     'characters:create',
     (async ( input: CreateCharacterInput) => characters().create(input))
   )

@@ -99,7 +99,7 @@ instant-drama app open|build
 
 ## 探索與 invoke
 
-Electron、Web、CLI 共用 **`registerAllHandlers`** — **137** 個 channel。
+Electron、Web、CLI 共用 **`registerAllHandlers`** — **138** 個 channel。
 
 ```bash
 instant-drama doctor --json
@@ -153,7 +153,7 @@ instant-drama server start --port 8787 --host 0.0.0.0
 | 能力 | 狀態 |
 |------|------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel 數 | **137** |
+| Channel 數 | **138** |
 | `instant-drama invoke` | ✅ 任意 channel |
 | Domain sugar | ✅ 全部 namespace |
 | OpenAI tool schema | ✅ |

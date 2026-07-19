@@ -99,7 +99,7 @@ Cross-build: mac installers need a Mac. Use `--force` only when you know the too
 
 ## Discovery & invoke
 
-Electron, Web, and CLI share **`registerAllHandlers`** — **137** channels.
+Electron, Web, and CLI share **`registerAllHandlers`** — **138** channels.
 
 ```bash
 instant-drama doctor --json
@@ -153,7 +153,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 | Capability | Status |
 |------------|--------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel count | **137** |
+| Channel count | **138** |
 | `instant-drama invoke` | ✅ any channel |
 | Domain sugar | ✅ all namespaces |
 | OpenAI tool schema | ✅ |

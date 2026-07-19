@@ -3,7 +3,7 @@
 > **語言：** [English](./self-host.md) · [中文](./self-host-ZH.md)
 
 把 InstantDrama Magician 裝成 **server**，用瀏覽器操作。  
-桌面 Electron 版繼續可用；Web 與桌面共用同一套業務 handlers（**137** channels）。
+桌面 Electron 版繼續可用；Web 與桌面共用同一套業務 handlers（**138** channels）。
 
 ## 需求
 
@@ -78,7 +78,7 @@ npm run dev:web
 | GET | `/api/media?p=` | 媒體預覽（需 auth；server 絕對路徑） |
 | GET | `/api/download?p=` | 附件下載 |
 | POST | `/api/upload?name=` | 原始 body 上載 → `media/uploads/` |
-| GET | `/api/channels` | 已註冊 channel 列表（約 137） |
+| GET | `/api/channels` | 已註冊 channel 列表（約 138） |
 
 瀏覽器 UI 經 `HttpAppClient` 把 API 轉成 channel invoke。
 
@@ -126,7 +126,7 @@ $IDM_DATA_DIR/
 
 - **503 SPA not built** → `npm run build:web`  
 - **401** → token／`IDM_AUTH_TOKEN` 不對  
-- **NOT_FOUND channel** → 升級 server；應約 137 channels  
+- **NOT_FOUND channel** → 升級 server；應約 138 channels  
 - **FFmpeg** → `ffmpeg-static` 或 `FFMPEG_PATH`  
 
 ## 相關

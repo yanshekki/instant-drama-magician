@@ -3,7 +3,7 @@
 > **Language:** [English](./self-host.md) · [中文](./self-host-ZH.md)
 
 Run InstantDrama Magician as a **server** and control it from a browser.  
-The Electron desktop app remains available; Web and desktop share the same business handlers (**137** channels).
+The Electron desktop app remains available; Web and desktop share the same business handlers (**138** channels).
 
 ## Requirements
 
@@ -78,7 +78,7 @@ Without token and without disable: only **loopback** clients allowed.
 | GET | `/api/media?p=` | Media preview (auth; absolute path on server) |
 | GET | `/api/download?p=` | Attachment download |
 | POST | `/api/upload?name=` | Raw body upload → `media/uploads/` |
-| GET | `/api/channels` | Registered channel list (~137) |
+| GET | `/api/channels` | Registered channel list (~138) |
 
 Browser UI maps `getApi().…` to channel invokes via `HttpAppClient`.
 
@@ -126,7 +126,7 @@ $IDM_DATA_DIR/
 
 - **503 SPA not built** → `npm run build:web`  
 - **401** → correct token / `IDM_AUTH_TOKEN`  
-- **NOT_FOUND channel** → upgrade server; expect ~137 channels  
+- **NOT_FOUND channel** → upgrade server; expect ~138 channels  
 - **FFmpeg** → `ffmpeg-static` or `FFMPEG_PATH`  
 
 ## Related

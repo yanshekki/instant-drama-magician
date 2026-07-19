@@ -5,7 +5,7 @@
 **AI 專業短劇生成桌面工具**
 
 由一個 idea 到完整短劇：故事 → 人物／服裝／場景／道具 → 線性時間軸 → AI 分鏡與影片 → FFmpeg 成片匯出。  
-跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `instant-drama`（約 **137** 個 channel，對齊桌面 IPC）。
+跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `instant-drama`（約 **138** 個 channel，對齊桌面 IPC）。
 
 | | |
 |---|---|
@@ -300,7 +300,7 @@ instant-drama version
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # 約 137 個 channel
+instant-drama channels list --json          # 約 138 個 channel
 ```
 
 > **說明：** 全域安裝提供 **CLI／headless／網頁伺服器** 控制面（故事、角色、生成、匯出輔助、agent 工具）。若要 **建置或開啟 Electron 桌面 GUI**（`instant-drama build`／`instant-drama open`），仍需完整 git clone、`npm install`（含 Electron 等 devDependencies）以及本機 `release/` 產物。
@@ -326,7 +326,7 @@ npm run instant-drama -- doctor --json
 ### 常用指令
 
 ```bash
-# 診斷（channel 數應約 137）
+# 診斷（channel 數應約 138）
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -499,7 +499,7 @@ rm -rf ~/.config/instant-drama-magician
 |------|------|------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | 文件總覽 + 準則 |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | 產品規格 |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（137 channels） |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（138 channels） |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agent／OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | 網頁遠控 |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

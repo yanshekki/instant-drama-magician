@@ -36,11 +36,11 @@ npm run test:ci          # CI entry (coverage)
 |--------|--------|
 | Module companion tests | **100%** of production modules (+ electron/server entries) |
 | Line coverage (overall) | Progressive (~22% overall; UI/handlers smoke-tested) |
-| Channel register count | **137/137** contract + safe invoke matrix |
+| Channel register count | **138/138** contract + safe invoke matrix |
 
 ## Channel parity
 
-`src/contract/channels.contract.test.ts` + `channelParity.test.ts` ensure **137** IPC channels stay registered in headless runtime.  
+`src/contract/channels.contract.test.ts` + `channelParity.test.ts` ensure **138** IPC channels stay registered in headless runtime.  
 `channelInvoke.matrix.test.ts` exercises safe no-arg channels without `NOT_FOUND`.
 
 ## Related

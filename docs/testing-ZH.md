@@ -36,11 +36,11 @@ npm run test:ci          # CI 入口（coverage）
 |------|------|
 | 模組 companion 測試 | 生產模組 **100%**（+ electron／server 入口） |
 | 行覆蓋（整體） | 漸進（整體約 22%；UI／handlers 為 smoke） |
-| Channel 註冊數 | **137/137** 契約 + 安全 invoke 矩陣 |
+| Channel 註冊數 | **138/138** 契約 + 安全 invoke 矩陣 |
 
 ## Channel 對齊
 
-`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **137** 個 IPC channel。  
+`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **138** 個 IPC channel。  
 `channelInvoke.matrix.test.ts` 對安全無參 channel 做 invoke，不應 `NOT_FOUND`。
 
 ## 相關
