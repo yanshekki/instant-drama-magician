@@ -105,7 +105,15 @@ export function mapChatMessage(message: string): AppErrorBody | null {
       details: 'Make sure Grok Build is installed and try again.'
     }
   }
-  if (/\b401\b|unauthorized|invalid api key|no api key/.test(m)) {
+  if (/\bno api key\b/.test(m)) {
+    return {
+      code: 'AI_UNAUTHORIZED',
+      message: 'No API key',
+      details:
+        'Open Settings → re-select Grok so the app can auto-create a gateway key.'
+    }
+  }
+  if (/\b401\b|unauthorized|invalid api key/.test(m)) {
     return {
       code: 'AI_UNAUTHORIZED',
       message: 'API key rejected',

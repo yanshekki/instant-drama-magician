@@ -5456,24 +5456,22 @@ export function registerAllHandlers(
     const {
       getGrokGatewayService
     } = await import('../infrastructure/gateway/GrokGatewayService')
-    const { SettingsStore } = await import(
-      '../infrastructure/settings/SettingsStore'
-    )
-    const { join } = await import('path')
     const gw = getGrokGatewayService()
-    const store = new SettingsStore(join(host.userData, 'settings.json'))
-    const current = store.load()
+    // Must use host settingsStore (cached) — a separate SettingsStore would
+    // write disk while leaving in-memory settings + aiClient on a stale empty key.
+    const current = settingsStore.load()
     const { status, apiKey, keyCreated } = await gw.ensureRunningWithApiKey(
       current.apiKey
     )
-    // Auto-wire base URL + key; never surface key to UI
-    if (apiKey || status.healthOk) {
-      store.save({
-        ...current,
+    // Auto-wire base URL + key into the live store and rebind AI client
+    const keyReady = Boolean(apiKey?.trim())
+    if (keyReady || status.healthOk) {
+      const next = settingsStore.save({
         llmProvider: current.llmProvider || 'grok-gateway',
         baseUrl: gw.baseUrl,
-        ...(apiKey ? { apiKey } : {})
+        ...(keyReady ? { apiKey: apiKey!.trim() } : {})
       })
+      rebindAi(next)
     }
     activity.append({
       kind: 'settings',
@@ -5483,12 +5481,12 @@ export function registerAllHandlers(
         grok: Boolean(status.grokPath),
         gctoac: Boolean(status.gctoacPath),
         keyCreated,
-        keyReady: Boolean(apiKey)
+        keyReady
       }
     })
     return {
       ...status,
-      keyReady: Boolean(apiKey),
+      keyReady,
       keyCreated,
       // Never return the plaintext key to the renderer
       baseUrl: gw.baseUrl

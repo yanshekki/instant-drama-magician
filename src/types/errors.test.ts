@@ -34,6 +34,12 @@ describe('chat error mapping (Grok Gateway)', () => {
     expect(e.code).toBe('AI_UNAUTHORIZED')
   })
 
+  it('maps missing key distinctly from rejected key', () => {
+    const m = mapChatMessage('No API key — create gk_live_…')
+    expect(m?.code).toBe('AI_UNAUTHORIZED')
+    expect(m?.message).toBe('No API key')
+  })
+
   it('maps rate limit', () => {
     const e = mapChatHttpStatus(429, 'too many')
     expect(e.code).toBe('AI_RATE_LIMIT')

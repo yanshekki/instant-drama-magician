@@ -445,10 +445,6 @@ export function SettingsPage(): JSX.Element {
           model: patched.model
         })
       }
-      if (preset === 'grok-gateway') {
-        // Auto start gateway + generate/store API key (never shown)
-        void ensureGateway({ silent: false })
-      }
       setSettings((s) =>
         s
           ? {
@@ -465,7 +461,12 @@ export function SettingsPage(): JSX.Element {
       )
       setModelIds([])
       toast.success(t('settings.presetApplied', { preset }))
-      await refreshAiStatus()
+      // Await ensure so key is stored + AI rebound before status probe (avoids AI_UNAUTHORIZED race)
+      if (preset === 'grok-gateway') {
+        await ensureGateway({ silent: false })
+      } else {
+        await refreshAiStatus()
+      }
     } catch (e) {
       setError(parseIpcError(e).message)
     }

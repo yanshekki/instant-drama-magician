@@ -257,13 +257,14 @@ export class GrokGatewayService {
     return this.starting
   }
 
-  /** Probe whether a gateway API key is accepted. */
+  /** Probe whether a gateway API key is accepted (GET /v1/models). */
   async validateApiKey(apiKey: string | null | undefined): Promise<boolean> {
     const key = apiKey?.trim()
     if (!key) return false
     try {
       const ctrl = new AbortController()
       const t = setTimeout(() => ctrl.abort(), 4000)
+      // baseUrl already includes /v1 → /v1/models
       const res = await fetch(`${this.baseUrl}/models`, {
         headers: { Authorization: `Bearer ${key}` },
         signal: ctrl.signal
@@ -273,6 +274,19 @@ export class GrokGatewayService {
     } catch {
       return false
     }
+  }
+
+  /** Extract plaintext gk_live_… key from gctoac key create output. */
+  static parseCreatedApiKey(text: string): string | null {
+    if (!text) return null
+    const labeled = text.match(/^\s*key:\s+(gk_live_[A-Za-z0-9_-]+)\s*$/im)
+    if (labeled?.[1]) return labeled[1]
+    // Fallback: longest gk_live_ token (prefix lines are shorter)
+    const all = [...text.matchAll(/\b(gk_live_[A-Za-z0-9_-]{16,})\b/g)].map(
+      (m) => m[1]
+    )
+    if (all.length === 0) return null
+    return all.sort((a, b) => b.length - a.length)[0] ?? null
   }
 
   /** Name used for the app-managed API key (findable via `gctoac key list`). */
@@ -551,17 +565,36 @@ export class GrokGatewayService {
         30_000
       )
       const text = `${stdout}\n${stderr}`
-      const m = text.match(/key:\s+(gk_live_[A-Za-z0-9_-]+)/)
-      return m?.[1] ?? null
+      return GrokGatewayService.parseCreatedApiKey(text)
     } catch {
       return null
     }
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((r) => setTimeout(r, ms))
+  }
+
+  /**
+   * Validate with a few short retries (key registry / gateway warm-up races).
+   */
+  private async validateApiKeyWithRetry(
+    apiKey: string,
+    attempts = 4,
+    delayMs = 250
+  ): Promise<boolean> {
+    for (let i = 0; i < attempts; i++) {
+      if (await this.validateApiKey(apiKey)) return true
+      if (i < attempts - 1) await this.sleep(delayMs)
+    }
+    return false
   }
 
   /**
    * Start gateway (if needed), apply full InstantDrama preset,
    * and ensure a working API key for the app.
    * Never requires the user to paste a key.
+   * Only returns apiKey when it actually validates against /v1/models.
    */
   async ensureRunningWithApiKey(
     existingKey?: string | null
@@ -572,14 +605,15 @@ export class GrokGatewayService {
       status.state === 'gateway_missing' ||
       status.state === 'grok_build_missing'
     ) {
-      return { status, apiKey: existingKey?.trim() || null, keyCreated: false }
+      // Do not claim key ready when gateway cannot serve it
+      return { status, apiKey: null, keyCreated: false }
     }
 
     // Force one more pass after boot races (CLI policy TTL / mid-start)
     await this.applyIdmGatewayPreset({ force: true })
 
     const existing = existingKey?.trim() || ''
-    if (existing && (await this.validateApiKey(existing))) {
+    if (existing && (await this.validateApiKeyWithRetry(existing))) {
       return {
         status: await this.getStatus(),
         apiKey: existing,
@@ -587,19 +621,24 @@ export class GrokGatewayService {
       }
     }
 
-    const created = await this.createAppApiKey()
-    if (created && (await this.validateApiKey(created))) {
-      return {
-        status: await this.getStatus(),
-        apiKey: created,
-        keyCreated: true
+    // Create up to 2 keys if parse/validate races (fresh install)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const created = await this.createAppApiKey()
+      if (!created) continue
+      if (await this.validateApiKeyWithRetry(created)) {
+        return {
+          status: await this.getStatus(),
+          apiKey: created,
+          keyCreated: true
+        }
       }
     }
 
+    // Never hand back a non-working key as "ready"
     return {
       status: await this.getStatus(),
-      apiKey: existing || created,
-      keyCreated: Boolean(created)
+      apiKey: null,
+      keyCreated: false
     }
   }
 

@@ -945,40 +945,21 @@ app.whenReady().then(() => {
     })()
   }, 1200)
 
-  // Auto-start local Grok Gateway when using grok-gateway preset (no manual gctoac start)
+  // Auto-start local Grok Gateway + provision key via runtime (rebinds aiClient).
+  // Must NOT use a separate SettingsStore — that left disk key ready while AI stayed offline.
   setTimeout(() => {
     void (async () => {
       try {
-        const { SettingsStore } = await import(
-          '../../src/infrastructure/settings/SettingsStore'
-        )
-        const { getGrokGatewayService } = await import(
-          '../../src/infrastructure/gateway/GrokGatewayService'
-        )
-        const store = new SettingsStore(
-          join(app.getPath('userData'), 'settings.json')
-        )
-        const s = store.load()
+        const { getIpcRuntime } = await import('./ipc')
+        const runtime = getIpcRuntime()
+        if (!runtime) return
+        const s = runtime.settingsStore.load()
         const needsGw =
           s.llmProvider === 'grok-gateway' ||
           s.imageProvider === 'grok-gateway' ||
           s.videoProvider === 'grok-gateway'
         if (needsGw) {
-          const gw = getGrokGatewayService()
-          const { status, apiKey } = await gw.ensureRunningWithApiKey(s.apiKey)
-          if (apiKey && apiKey !== s.apiKey) {
-            store.save({
-              ...s,
-              apiKey,
-              baseUrl: gw.baseUrl,
-              llmProvider:
-                s.llmProvider === 'grok-gateway' || !s.llmProvider
-                  ? 'grok-gateway'
-                  : s.llmProvider
-            })
-          } else if (status.healthOk && !s.baseUrl?.includes('3847')) {
-            store.save({ ...s, baseUrl: gw.baseUrl })
-          }
+          await runtime.invoke('gateway:ensure')
         }
       } catch {
         /* non-fatal — UI will surface gateway status */
