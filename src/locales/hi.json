@@ -1203,7 +1203,18 @@
     "modelsRateLimited": "बहुत सारे अनुरोध. अभी अंतर्निर्मित मॉडल दिखाए जा रहे हैं - कुछ सेकंड प्रतीक्षा करें।",
     "clearAll": "सब साफ़ करें",
     "clearAllConfirm": "सभी सेटिंग्स डिफ़ॉल्ट पर रीसेट करें? API कुंजियाँ और कस्टम endpoint हट जाएँगे। UI भाषा रहेगी।",
-    "clearAllOk": "सेटिंग्स रीसेट हो गईं"
+    "clearAllOk": "सेटिंग्स रीसेट हो गईं",
+    "updateStatus": "Status",
+    "updateAvailableToast": "Update {{version}} is available",
+    "updateDownloadedToast": "Update downloaded — restart to install",
+    "updateUpToDate": "You are on the latest version",
+    "updateDevSkipped": "Installers only auto-update in packaged builds (GitHub Releases)",
+    "updateCheckFail": "Could not check for updates",
+    "updateDownloadFail": "Could not download update",
+    "updateAvailableBanner": "New version {{latest}} available (you have {{current}})",
+    "updateDownloadedBanner": "Version {{version}} is ready — restart to install",
+    "openUpdateSettings": "Settings",
+    "cliUpdateHint": "CLI (npm): run  instant-drama update  or  npm install -g instant-drama-magician@latest"
   },
   "ai": {
     "status": "एआई स्थिति",

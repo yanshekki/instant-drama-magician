@@ -6,12 +6,13 @@ import { defaultConfigPath, defaultDataDir } from '../config'
 import { toAppError } from '../../types/errors'
 import { isAuthError, isNetworkError } from '../client/remote'
 import { createRemoteClient } from '../client/remote'
+import { probeNpmUpdate } from './update'
 
 export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
   const t0 = Date.now()
   const report: Record<string, unknown> = {
     ok: true,
-    version: process.env.npm_package_version || '1.0.0',
+    version: process.env.npm_package_version || '1.1.0',
     configPath: defaultConfigPath(),
     defaultDataDir: defaultDataDir(),
     globals: {
@@ -102,6 +103,24 @@ export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
     }
   }
 
+  // npm CLI package update probe (non-fatal)
+  if (process.env.IDM_SKIP_UPDATE !== '1') {
+    try {
+      const npmUpdate = await probeNpmUpdate(String(report.version))
+      checks.npmUpdate = npmUpdate
+      if (npmUpdate.updateAvailable) {
+        report.updateAvailable = true
+      }
+    } catch (e) {
+      checks.npmUpdate = {
+        ok: false,
+        error: e instanceof Error ? e.message : String(e)
+      }
+    }
+  } else {
+    checks.npmUpdate = { skipped: true }
+  }
+
   report.ms = Date.now() - t0
 
   if (globals.json) {
@@ -120,6 +139,30 @@ export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
   }
   if (checks.ffmpeg) {
     printHuman(`  ffmpeg: ${JSON.stringify(checks.ffmpeg)}`)
+  }
+  if (checks.npmUpdate && typeof checks.npmUpdate === 'object') {
+    const u = checks.npmUpdate as {
+      updateAvailable?: boolean
+      latestVersion?: string | null
+      currentVersion?: string
+      installCommand?: string
+      error?: string
+      skipped?: boolean
+    }
+    if (u.skipped) {
+      printHuman('  npm update: skipped (IDM_SKIP_UPDATE=1)')
+    } else if (u.error) {
+      printHuman(`  npm update: check failed (${u.error})`)
+    } else if (u.updateAvailable) {
+      printErr(
+        `  npm update: ${u.currentVersion} → ${u.latestVersion} available`
+      )
+      if (u.installCommand) printHuman(`    ${u.installCommand}`)
+    } else {
+      printHuman(
+        `  npm update: up to date (${u.currentVersion ?? report.version})`
+      )
+    }
   }
   if (!report.ok) process.exit(EXIT.ERROR)
 }

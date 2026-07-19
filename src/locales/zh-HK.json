@@ -1203,7 +1203,18 @@
     "modelsRateLimited": "請求太密。暫時顯示內建模型——請等幾秒再試。",
     "clearAll": "全部清除",
     "clearAllConfirm": "將所有設定重設為預設值？API 金鑰與自訂端點會被清除。介面語言會保留。",
-    "clearAllOk": "已全部清除並還原預設設定"
+    "clearAllOk": "已全部清除並還原預設設定",
+    "updateStatus": "狀態",
+    "updateAvailableToast": "有新版本 {{version}} 可用",
+    "updateDownloadedToast": "更新已下載 — 請重啟安裝",
+    "updateUpToDate": "已是最新版本",
+    "updateDevSkipped": "安裝包自動更新僅在打包版生效（GitHub Releases）",
+    "updateCheckFail": "無法檢查更新",
+    "updateDownloadFail": "無法下載更新",
+    "updateAvailableBanner": "有新版本 {{latest}}（目前 {{current}}）",
+    "updateDownloadedBanner": "版本 {{version}} 已就緒 — 重啟即可安裝",
+    "openUpdateSettings": "設定",
+    "cliUpdateHint": "CLI（npm）：執行  instant-drama update  或  npm install -g instant-drama-magician@latest"
   },
   "ai": {
     "status": "人工智能狀態",

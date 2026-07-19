@@ -25,6 +25,7 @@ COMMANDS
   help                This message
   version             Print version
   doctor              Health / connectivity check
+  update [check|install]  Check npm for CLI updates (install needs --yes)
   config path|get|set Manage ~/.config/idm/config.json
   server start        Start web control server (foreground)
   build               Build desktop app (mac / linux / win)
@@ -76,6 +77,8 @@ DESKTOP BUILD / OPEN (macOS · Ubuntu · Windows)
 
 EXAMPLES
   instant-drama doctor --json
+  instant-drama update
+  instant-drama update install --yes
   instant-drama --local stories list --json
   instant-drama invoke stories:create '{"title":"Demo"}' --json
   instant-drama --url http://127.0.0.1:8787 --token $IDM_TOKEN channels list
@@ -84,7 +87,7 @@ EXAMPLES
 
 ENV
   IDM_URL  IDM_TOKEN  IDM_AUTH_TOKEN  IDM_DATA_DIR  IDM_YES  IDM_PROFILE
-  IDM_JSON=1  IDM_PICK_FILE  IDM_SAVE_PATH
+  IDM_JSON=1  IDM_PICK_FILE  IDM_SAVE_PATH  IDM_SKIP_UPDATE=1
 
 Agent docs: docs/agent-cli.md · OpenClaw skill: skills/idm/SKILL.md
 `)

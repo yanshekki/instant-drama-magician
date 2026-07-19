@@ -13,10 +13,14 @@ For scripts, CI, and **OpenClaw / Hermes** agents.
 npm install -g instant-drama-magician
 instant-drama --help
 instant-drama doctor --json
+instant-drama update
+instant-drama update install --yes   # npm install -g instant-drama-magician@latest
 ```
 
 Requires **Node.js 20+**. Installs one command: **`instant-drama`**.  
-Desktop `instant-drama build` / `instant-drama open` still need a full clone with Electron devDependencies.
+CLI updates use the **npm registry**. Desktop installer updates use **GitHub Releases** (in-app Settings).  
+Desktop `instant-drama build` / `instant-drama open` still need a full clone with Electron devDependencies.  
+Skip CLI update probes: `IDM_SKIP_UPDATE=1`.
 
 ### From this repository
 

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getApi, isWebRuntime } from '../../lib/api'
 import type { AppSettings } from '../../types/settings'
@@ -12,6 +12,7 @@ import {
 import { coerceUiLanguage } from '../../domain/uiLanguages'
 import { changeUiLanguage } from '../../lib/i18n'
 import { useApp } from '../context/AppContext'
+import { useToast } from '../context/ToastContext'
 import { useMenuActions } from '../hooks/useMenuActions'
 import { AiJobHud } from './AiJobHud'
 import { VideoPrepHost } from './VideoPrepHost'
@@ -72,8 +73,16 @@ function ChannelLine({
 export function Layout(): JSX.Element {
   const { t, i18n } = useTranslation()
   const { aiStatus } = useApp()
+  const toast = useToast()
+  const navigate = useNavigate()
   const [degraded, setDegraded] = useState(false)
   const [appVersion, setAppVersion] = useState<string | null>(null)
+  const [updateBanner, setUpdateBanner] = useState<{
+    latest: string
+    current: string
+    downloaded?: boolean
+  } | null>(null)
+  const promptedUpdate = useRef(false)
 
   // Native File / View / Help menu → navigate & app actions
   useMenuActions()
@@ -105,10 +114,54 @@ export function Layout(): JSX.Element {
         setAppVersion(info.version)
       })
       .catch(() => undefined)
+
+    const handleUpdateState = (s: {
+      status: string
+      currentVersion: string
+      latestVersion?: string
+      message?: string
+    }): void => {
+      if (s.status === 'available' && s.latestVersion) {
+        setUpdateBanner({
+          latest: s.latestVersion,
+          current: s.currentVersion
+        })
+        if (!promptedUpdate.current) {
+          promptedUpdate.current = true
+          toast.info(
+            t('settings.updateAvailableToast', {
+              version: s.latestVersion
+            }),
+            8000
+          )
+        }
+      } else if (s.status === 'downloaded' && s.latestVersion) {
+        setUpdateBanner({
+          latest: s.latestVersion,
+          current: s.currentVersion,
+          downloaded: true
+        })
+        if (!promptedUpdate.current) {
+          promptedUpdate.current = true
+          toast.success(t('settings.updateDownloadedToast'), 8000)
+        }
+      }
+    }
+
+    void getApi()
+      .updates.status()
+      .then(handleUpdateState)
+      .catch(() => undefined)
+    const unsubUpdate =
+      getApi().updates.onState?.(handleUpdateState) ?? (() => undefined)
+
     const unwatch = watchSystemColorScheme(() => {
       if (pref === 'system') syncTheme()
     })
-    return unwatch
+    return () => {
+      unwatch()
+      unsubUpdate()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
   }, [])
 
@@ -278,6 +331,82 @@ export function Layout(): JSX.Element {
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        {updateBanner ? (
+          <div
+            className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-brand-500/40 bg-brand-950/90 px-4 py-2 text-sm text-brand-50"
+            role="status"
+          >
+            <p className="min-w-0 flex-1 text-xs leading-snug sm:text-sm">
+              {updateBanner.downloaded
+                ? t('settings.updateDownloadedBanner', {
+                    version: updateBanner.latest
+                  })
+                : t('settings.updateAvailableBanner', {
+                    latest: updateBanner.latest,
+                    current: updateBanner.current
+                  })}
+            </p>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {!updateBanner.downloaded ? (
+                <button
+                  type="button"
+                  className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-brand-500"
+                  onClick={() => {
+                    void getApi()
+                      .updates.download()
+                      .then((s) => {
+                        if (s.status === 'downloaded') {
+                          setUpdateBanner({
+                            latest: s.latestVersion || updateBanner.latest,
+                            current: s.currentVersion,
+                            downloaded: true
+                          })
+                          toast.success(t('settings.updateDownloadedToast'))
+                        }
+                      })
+                      .catch(() => toast.error(t('settings.updateDownloadFail')))
+                  }}
+                >
+                  {t('settings.downloadUpdate')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-brand-500"
+                  onClick={() => {
+                    void getApi()
+                      .updates.install()
+                      .then((r) => {
+                        if (!r.ok) {
+                          toast.error(
+                            r.message || t('settings.updateInstallFail')
+                          )
+                        }
+                      })
+                      .catch(() => toast.error(t('settings.updateInstallFail')))
+                  }}
+                >
+                  {t('settings.installUpdate')}
+                </button>
+              )}
+              <button
+                type="button"
+                className="rounded-lg border border-brand-400/40 px-2.5 py-1 text-[11px] text-brand-100 hover:bg-brand-900"
+                onClick={() => navigate('/settings')}
+              >
+                {t('settings.openUpdateSettings')}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg px-2 py-1 text-[11px] text-brand-200/80 hover:text-white"
+                onClick={() => setUpdateBanner(null)}
+                aria-label={t('common.close')}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ) : null}
         <Outlet />
         <AiJobHud />
         <AiDraftModal />

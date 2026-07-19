@@ -277,10 +277,9 @@ Command on PATH after global install: **`instant-drama`**.
 
 ### Install CLI globally (recommended)
 
-Requires **Node.js 20+**.
+Requires **Node.js 20+**. Package on npm: [instant-drama-magician](https://www.npmjs.com/package/instant-drama-magician).
 
 ```bash
-# From npm registry (after publish)
 npm install -g instant-drama-magician
 
 # Verify
@@ -288,6 +287,20 @@ instant-drama --help
 instant-drama doctor --json
 instant-drama version
 ```
+
+#### CLI updates (npm)
+
+```bash
+instant-drama update              # check registry for a newer version
+instant-drama update install --yes   # run: npm install -g instant-drama-magician@latest
+```
+
+`instant-drama doctor` also reports npm update status (skip with `IDM_SKIP_UPDATE=1`).
+
+#### Desktop app updates (GitHub Releases)
+
+Packaged installers use **electron-updater**. On launch the app quietly checks for a newer GitHub Release; if one is available you get a **banner + toast**.  
+**Settings → App → Updates**: check / download / restart to install.
 
 What you get:
 

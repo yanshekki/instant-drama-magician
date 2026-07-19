@@ -277,10 +277,9 @@ npm run dev
 
 ### 全域安裝 CLI（推薦）
 
-需要 **Node.js 20+**。
+需要 **Node.js 20+**。npm 套件：[instant-drama-magician](https://www.npmjs.com/package/instant-drama-magician)。
 
 ```bash
-# 從 npm registry（發佈後）
 npm install -g instant-drama-magician
 
 # 驗證
@@ -288,6 +287,20 @@ instant-drama --help
 instant-drama doctor --json
 instant-drama version
 ```
+
+#### CLI 更新（npm）
+
+```bash
+instant-drama update              # 檢查 registry 是否有新版
+instant-drama update install --yes   # 執行：npm install -g instant-drama-magician@latest
+```
+
+`instant-drama doctor` 亦會報告 npm 更新狀態（可用 `IDM_SKIP_UPDATE=1` 略過）。
+
+#### 桌面 App 更新（GitHub Releases）
+
+打包安裝版使用 **electron-updater**。啟動後會安靜檢查 GitHub Release；若有新版會顯示 **頂部橫幅 + Toast**。  
+**設定 → 應用程式 → 更新**：檢查／下載／重啟安裝。
 
 你會得到：
 

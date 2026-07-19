@@ -18,6 +18,7 @@ import { cmdServer } from './commands/server'
 import { cmdTools } from './commands/tools'
 import { cmdBuild } from './commands/build'
 import { cmdOpen } from './commands/open'
+import { cmdUpdate } from './commands/update'
 import { cmdAi, cmdApp, cmdSettings, cmdStories } from './commands/sugar'
 import { cmdDomain, DOMAIN_NAMESPACES } from './commands/domain'
 import { emitFailure, printHuman } from './output'
@@ -105,6 +106,9 @@ async function main(): Promise<void> {
       return
     case 'build':
       await cmdBuild(globals, pos, flags)
+      return
+    case 'update':
+      await cmdUpdate(globals, pos, flags)
       return
     case 'open':
     case 'launch':

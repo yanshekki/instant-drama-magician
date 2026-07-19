@@ -104,6 +104,14 @@ export function SettingsPage(): JSX.Element {
     error: string | null
     staticReady: boolean
   } | null>(null)
+  const [updateState, setUpdateState] = useState<{
+    status: string
+    currentVersion: string
+    latestVersion?: string
+    progress?: number
+    message?: string
+  } | null>(null)
+  const [updateBusy, setUpdateBusy] = useState(false)
 
   const refreshWebStatus = async (): Promise<void> => {
     if (!isElectron()) return
@@ -164,6 +172,14 @@ export function SettingsPage(): JSX.Element {
       .catch(() => undefined)
     void refreshGatewayStatus()
     void refreshWebStatus()
+    void getApi()
+      .updates.status()
+      .then((s) => setUpdateState(s))
+      .catch(() => undefined)
+    const unsub =
+      getApi().updates.onState?.((s) => {
+        setUpdateState(s)
+      }) ?? (() => undefined)
     // Grok gateway: prepare (start + auto key) BEFORE listing models
     void (async () => {
       try {
@@ -178,6 +194,9 @@ export function SettingsPage(): JSX.Element {
         /* models optional until gateway/key ready */
       }
     })()
+    return () => {
+      unsub()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only load
   }, [])
 
@@ -1362,6 +1381,9 @@ export function SettingsPage(): JSX.Element {
                   <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-2.5 shadow-theme-sm">
                     <p className="font-mono text-[11px] text-ink-400">
                       v{appInfo.version}
+                      {appInfo.isPackaged
+                        ? ` · ${t('app.packaged')}`
+                        : ` · ${t('app.dev')}`}
                     </p>
                     <div className="mt-1.5 flex items-center gap-2">
                       <p
@@ -1411,6 +1433,129 @@ export function SettingsPage(): JSX.Element {
                     </div>
                   </div>
                 )}
+
+                {/* Desktop auto-update (GitHub Releases via electron-updater) */}
+                <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 shadow-theme-sm">
+                  <p className="text-sm font-semibold text-ink-100">
+                    {t('settings.updates')}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-400">
+                    {t('settings.updateHint')}
+                  </p>
+                  <p className="mt-2 font-mono text-[11px] text-ink-400">
+                    {t('settings.version')}:{' '}
+                    {updateState?.currentVersion ?? appInfo?.version ?? '—'}
+                    {updateState?.latestVersion
+                      ? ` → ${updateState.latestVersion}`
+                      : ''}
+                  </p>
+                  <p className="mt-1 text-[11px] text-ink-500">
+                    {updateState?.message ||
+                      (updateState?.status
+                        ? `${t('settings.updateStatus')}: ${updateState.status}`
+                        : t('settings.updateIdle'))}
+                    {typeof updateState?.progress === 'number' &&
+                    updateState.status === 'downloading'
+                      ? ` (${updateState.progress}%)`
+                      : ''}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      className="!h-8 !text-[11px]"
+                      disabled={updateBusy}
+                      onClick={() => {
+                        setUpdateBusy(true)
+                        void getApi()
+                          .updates.check()
+                          .then((s) => {
+                            setUpdateState(s)
+                            if (s.status === 'available') {
+                              toast.info(
+                                t('settings.updateAvailableToast', {
+                                  version: s.latestVersion ?? ''
+                                })
+                              )
+                            } else if (s.status === 'not-available') {
+                              toast.success(t('settings.updateUpToDate'))
+                            } else if (s.status === 'dev-skipped') {
+                              toast.info(t('settings.updateDevSkipped'))
+                            } else if (s.status === 'error') {
+                              toast.error(
+                                s.message || t('settings.updateCheckFail')
+                              )
+                            }
+                          })
+                          .catch((e) =>
+                            toast.error(
+                              parseIpcError(e).message ||
+                                t('settings.updateCheckFail')
+                            )
+                          )
+                          .finally(() => setUpdateBusy(false))
+                      }}
+                    >
+                      {t('settings.checkUpdate')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="!h-8 !text-[11px]"
+                      disabled={
+                        updateBusy ||
+                        (updateState?.status !== 'available' &&
+                          updateState?.status !== 'downloaded')
+                      }
+                      onClick={() => {
+                        setUpdateBusy(true)
+                        void getApi()
+                          .updates.download()
+                          .then((s) => {
+                            setUpdateState(s)
+                            if (s.status === 'downloaded') {
+                              toast.success(t('settings.updateDownloadedToast'))
+                            }
+                          })
+                          .catch((e) =>
+                            toast.error(
+                              parseIpcError(e).message ||
+                                t('settings.updateDownloadFail')
+                            )
+                          )
+                          .finally(() => setUpdateBusy(false))
+                      }}
+                    >
+                      {t('settings.downloadUpdate')}
+                    </Button>
+                    <Button
+                      className="!h-8 !text-[11px]"
+                      disabled={
+                        updateBusy || updateState?.status !== 'downloaded'
+                      }
+                      onClick={() => {
+                        void getApi()
+                          .updates.install()
+                          .then((r) => {
+                            if (!r.ok) {
+                              toast.error(
+                                r.message || t('settings.updateInstallFail')
+                              )
+                            }
+                          })
+                          .catch((e) =>
+                            toast.error(
+                              parseIpcError(e).message ||
+                                t('settings.updateInstallFail')
+                            )
+                          )
+                      }}
+                    >
+                      {t('settings.installUpdate')}
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
+                    {t('settings.cliUpdateHint')}
+                  </p>
+                </div>
 
                 {/* Creator · Support / Donate */}
                 <div className="rounded-xl border border-brand-500/25 bg-brand-950/30 px-3 py-3 shadow-theme-sm">

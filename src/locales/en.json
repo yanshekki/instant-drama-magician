@@ -1203,7 +1203,18 @@
     "modelsRateLimited": "Too many requests. Showing built-in models for now — wait a few seconds.",
     "clearAll": "Clear all",
     "clearAllConfirm": "Reset all settings to defaults? API keys and custom endpoints will be cleared. Your interface language is kept.",
-    "clearAllOk": "All settings cleared to defaults"
+    "clearAllOk": "All settings cleared to defaults",
+    "updateStatus": "Status",
+    "updateAvailableToast": "Update {{version}} is available",
+    "updateDownloadedToast": "Update downloaded — restart to install",
+    "updateUpToDate": "You are on the latest version",
+    "updateDevSkipped": "Installers only auto-update in packaged builds (GitHub Releases)",
+    "updateCheckFail": "Could not check for updates",
+    "updateDownloadFail": "Could not download update",
+    "updateAvailableBanner": "New version {{latest}} available (you have {{current}})",
+    "updateDownloadedBanner": "Version {{version}} is ready — restart to install",
+    "openUpdateSettings": "Settings",
+    "cliUpdateHint": "CLI (npm): run  instant-drama update  or  npm install -g instant-drama-magician@latest"
   },
   "ai": {
     "status": "AI status",

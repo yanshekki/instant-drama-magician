@@ -13,10 +13,14 @@
 npm install -g instant-drama-magician
 instant-drama --help
 instant-drama doctor --json
+instant-drama update
+instant-drama update install --yes   # npm install -g instant-drama-magician@latest
 ```
 
 需要 **Node.js 20+**。會安裝一個指令：**`instant-drama`**。  
-桌面 `instant-drama build`／`instant-drama open` 仍需完整 clone 並安裝含 Electron 的 devDependencies。
+CLI 更新走 **npm registry**；桌面安裝包更新走 **GitHub Releases**（App 內設定）。  
+桌面 `instant-drama build`／`instant-drama open` 仍需完整 clone 並安裝含 Electron 的 devDependencies。  
+略過 CLI 更新探測：`IDM_SKIP_UPDATE=1`。
 
 ### 從本倉庫安裝
 
