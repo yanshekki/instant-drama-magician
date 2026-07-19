@@ -55,6 +55,7 @@ describe('StoryService', () => {
         }
       ],
       storyProps: [{ prop: { id: 'p1', name: 'Cup' } }],
+      storyActions: [{ action: { id: 'a1', name: 'Draw' } }],
       timeline: []
     })
     const svc = new StoryService(prisma as never)
@@ -62,10 +63,12 @@ describe('StoryService', () => {
       characters: unknown[]
       scenes: unknown[]
       props: unknown[]
+      actions: unknown[]
     }
     expect(row.characters).toHaveLength(1)
     expect(row.scenes).toHaveLength(1)
     expect(row.props).toHaveLength(1)
+    expect(row.actions).toHaveLength(1)
   })
 
   it('list uses orderBy updatedAt', () => {

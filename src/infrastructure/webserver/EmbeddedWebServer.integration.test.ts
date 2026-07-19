@@ -8,7 +8,8 @@ import { execSync } from 'child_process'
 describe('EmbeddedWebServer integration', () => {
   it('serves health + authenticated invoke', async () => {
     const dataDir = mkdtempSync(join(tmpdir(), 'idm-ws-'))
-    const dbPath = join(dataDir, 'db.sqlite')
+    // Must match EmbeddedWebServer → createRuntime default: dataDir/instant-drama.db
+    const dbPath = join(dataDir, 'instant-drama.db')
     execSync('npx prisma db push --skip-generate', {
       cwd: join(__dirname, '../../..'),
       env: { ...process.env, DATABASE_URL: `file:${dbPath}` },

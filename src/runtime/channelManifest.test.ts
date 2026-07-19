@@ -7,7 +7,7 @@ import {
 } from './channelManifest'
 
 describe('channelManifest', () => {
-  it('has 149 desktop channels unique', () => {
+  it('has 151 desktop channels unique', () => {
     expect(DESKTOP_CHANNEL_NAMES.length).toBe(151)
     expect(new Set(DESKTOP_CHANNEL_NAMES).size).toBe(151)
   })

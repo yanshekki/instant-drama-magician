@@ -51,9 +51,19 @@ export class StoryService {
     })
     if (!story) throw new AppError('NOT_FOUND', `Story not found: ${id}`)
     // Flatten for consumers expecting characters/scenes/props/actions arrays
+    const storyCharacters = story.storyCharacters ?? []
+    const storyScenes = story.storyScenes ?? []
+    const storyProps = story.storyProps ?? []
+    const storyActions =
+      (
+        story as {
+          storyActions?: Array<{ action: unknown }>
+        }
+      ).storyActions ?? []
+    const timeline = story.timeline ?? []
     return {
       ...story,
-      characters: story.storyCharacters.map((l) => ({
+      characters: storyCharacters.map((l) => ({
         ...l.character,
         /** Story-level wardrobe pick (null = character default costume text). */
         storyCostumeId: l.costumeId,
@@ -66,20 +76,20 @@ export class StoryService {
             }
           : null
       })),
-      scenes: story.storyScenes.map((l) => ({
+      scenes: storyScenes.map((l) => ({
         ...l.scene,
         sceneNumber: l.sceneNumber,
         script: l.scriptOverride ?? l.scene.script,
         status: l.statusOverride ?? l.scene.status
       })),
-      props: story.storyProps.map((l) => l.prop),
-      actions: story.storyActions.map((l) => l.action),
+      props: storyProps.map((l) => l.prop),
+      actions: storyActions.map((l) => l.action),
       _count: {
-        characters: story.storyCharacters.length,
-        scenes: story.storyScenes.length,
-        props: story.storyProps.length,
-        actions: story.storyActions.length,
-        timeline: story.timeline.length
+        characters: storyCharacters.length,
+        scenes: storyScenes.length,
+        props: storyProps.length,
+        actions: storyActions.length,
+        timeline: timeline.length
       }
     }
   }
