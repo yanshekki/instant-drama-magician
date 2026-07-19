@@ -4,8 +4,8 @@
 
 **AI 專業短劇生成桌面工具**
 
-由一個 idea 到完整短劇：故事 → 人物／服裝／場景／道具 → 線性時間軸 → AI 分鏡與影片 → FFmpeg 成片匯出。  
-跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `instant-drama`（約 **138** 個 channel，對齊桌面 IPC）。
+由一個 idea 到完整短劇：故事 → 人物／服裝／場景／道具／**動作** → 線性時間軸 → AI 分鏡與影片 → FFmpeg 成片匯出。  
+跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `instant-drama`（**151** 個 channel，對齊桌面 IPC）。
 
 | | |
 |---|---|
@@ -42,7 +42,7 @@
 
 ### 1. 故事管理
 
-多專案列表：封面、狀態（Draft 等）、角色／場景／道具／clip 數量、搜尋與篩選、**匯出備份**／**匯入故事備份**、新建故事。
+多專案列表：封面、狀態（Draft 等）、角色／場景／道具／動作／clip 數量、搜尋與篩選、**匯出備份**／**匯入故事備份**、新建故事。
 
 ![故事管理](./src/assets/screen/1.png)
 
@@ -82,26 +82,27 @@
 
 | 領域 | 你能做什麼 |
 |------|------------|
-| **故事 Stories** | 多故事管理、封面 AI、風格聖經、腳本 beats、cast／set／props 綁定、`.idm.zip` 備份匯入匯出 |
-| **人物 Characters** | 全域角色庫、soul.md／SoulMD Hub、多角度參考 sheet、身份鎖定、外部 ref、intro video |
-| **服裝 Costumes** | 服裝庫、換裝、wardrobe 建議，與角色 gallery 聯動 |
-| **場景 Scenes** | 場景文案、plate／looks／atmosphere、場景圖庫 |
-| **道具 Props** | 道具描述、master prompt、plate 變體 |
-| **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、取消、只重試失敗、6s／10s 時長、對白與鏡頭標記 |
+| **故事 Stories** | 多故事管理、封面 AI、風格聖經、腳本 beats、cast 綁定（角色／場景／道具／**動作**）、`.idm.zip` 備份匯入匯出 |
+| **人物 Characters** | 全域角色庫、soul.md／SoulMD Hub、多角度 sheet、身份鎖定、外部 ref、intro video、**僅憑靜圖 AI 填充**（vision） |
+| **服裝 Costumes** | 服裝庫、換裝、wardrobe 建議、**僅憑參考圖 AI 填充**、多圖 gallery |
+| **場景 Scenes** | 場景文案、plate／looks／atmosphere、場景圖庫、**vision AI 填充** |
+| **道具 Props** | 道具描述、master prompt、plate 變體、**vision AI 填充** |
+| **動作 Actions** | 全域**動作指導**庫：多格指示圖（2–6 格）、藝術風格、外部參考、cast 參考、**vision AI 填充**、多圖累積 |
+| **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、綁定角色／場景／道具／**動作**、6s／10s 時長、對白與鏡頭標記 |
 | **進階預備** | Cast 鎖定 → 分鏡 stills（連貫性）→ 由 still 出片 |
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
 | **設定** | LLM／影像／影片供應商、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
-| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent |
+| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**151** 個 IPC channel） |
 | **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
-| **多語系** | 10 種介面語言（含繁中、簡中、阿語 RTL 等） |
+| **多語系** | 10 種介面語言（含繁中、簡中、阿語 RTL）；圖庫標籤、網絡錯誤與使用者錯誤訊息已本地化 |
 | **自動更新** | 打包版經 GitHub Releases（electron-updater） |
 
 ---
 
 ## 桌面應用詳解
 
-側欄導航：**Stories · Characters · Costumes · Scenes · Props · Timeline · Activity · Settings**。
+側欄導航：**Stories · Characters · Costumes · Scenes · Props · Actions · Timeline · Activity · Settings**。
 
 ### Stories（故事）
 
@@ -111,8 +112,8 @@
 - **Import story backup**／**Export backup**（故事級 `.idm.zip`）  
 - 編輯分頁：  
   - **Basics**：封面、AI quick create、title、status、art style、style bible  
-  - **Cast / set / props**：連結角色、場景、道具  
-  - **Script beats**：分場／對白 beats（供時間軸引用）  
+  - **Cast（選角）**：連結**角色、場景、道具、動作**（搜尋 + 已加入／未加入篩選）  
+  - **Script beats（劇情段落）**：每段可多選角色／場景／道具／**動作**，並寫 beat screenplay  
 
 ### Characters（人物）
 
@@ -120,7 +121,7 @@
 - 搜尋、性別、藝術風格、有無圖片、Soul、語言等篩選  
 - 每卡多張參考圖；Edit／Delete  
 - 編輯分頁：  
-  - **Profile**：名稱、描述、年齡、性別、語言、聲音等  
+  - **Profile**：名稱、描述、年齡、性別、語言、聲音等；**AI 填充**可用構思、草稿、soul，或**只憑上載靜圖**（vision）  
   - **References**：多角度 bible（front／¾／close-up 等）、body／base／costume 管線、外部參考、身份鎖定、生成專業參考、Intro video  
   - **Costume**：綁定服裝  
 - **SoulMD Hub**（soulmd-hub.ysk.hk）：索引建議、匯入 soul.md 作為人物靈魂設定  
@@ -128,21 +129,32 @@
 
 ### Costumes（服裝）
 
-- 服裝資產庫管理  
-- 與人物換裝／wardrobe 建議聯動  
-- 生成與圖庫標籤（Identity／Costume 等）  
+- 全域服裝庫（可連結 0…N 個角色）  
+- **只憑參考圖 AI 填充**（構思可留空）  
+- 多圖 gallery、封面、介紹片  
+- 以角色參考圖試穿／換裝（身份鎖定）  
 
 ### Scenes（場景）
 
 - 場景描述與腳本欄位  
 - 場景 plate、looks、atmosphere  
 - 場景圖庫與變體生成  
+- **vision AI 填充**（依選中／封面靜圖）  
 
 ### Props（道具）
 
 - 道具名稱與描述  
 - Prop master prompt、plate 變體  
 - 供時間軸 clip 綁定  
+- **vision AI 填充**（依參考靜圖）  
+
+### Actions（動作指導）
+
+- **全域動作庫** — 可重用的肢體／走位／場面調度指示（先建庫，再掛入故事）  
+- **多格指示圖**：2／3／4／5／6 格（橫向 strip 或 2×2／2×3）；第 1 格＝第一動作，第 N 格＝最後動作  
+- 藝術風格、外部參考圖、由角色／服裝／場景／道具引入 cast 參考  
+- **vision AI 填充**；多圖累積（append 指示板、排序、封面）  
+- 可掛入故事 cast、劇情段落與時間軸 clip；出片時注入節奏／意圖／鏡頭備註，並可使用指示圖作 image-to-video 參考  
 
 ### Timeline（時間軸 · 主製作台）
 
@@ -150,7 +162,7 @@
 - **Generate** 批次生成；**Export** 成片；**Export history**  
 - 總時長、ready 數、Video 模式、AI clip 僅 6s 或 10s  
 - 時間軸縮放、**Timeline snap**、snap grid、**Pack clips**  
-- **Clip editor**：綁定場景／角色／道具、時長、beat screenplay（`[MOOD]`／`[ATMO]`／`[DIALOGUE]` 等標記）  
+- **Clip editor**：綁定角色／場景／道具／**動作**、時長、beat screenplay（`[MOOD]`／`[ATMO]`／`[DIALOGUE]` 等標記）  
 - 單 clip：**Generate this clip**／**Regenerate**／**Continue video**  
 - 失敗可重試；支援取消生成、只重試失敗片段  
 - 匯出可選：TTS、燒錄字幕、轉場 xfade、音量 ducking、畫面比例  
@@ -194,10 +206,14 @@
 ① 設定 → 貼上 API Key → 測試 Chat
 ② Stories → 新建／AI style note + beats
 ③ Characters → 生成多角度 sheet → 鎖定身份
-④ Scenes / Props / Costumes → 補齊資產
-⑤ Timeline → 排 clip、寫 beat screenplay
-⑥ Advanced prep → stills（連貫）→ 出片
-⑦ Export → 成片（可選 TTS／字幕）
+   （或上載靜圖 → 只憑圖 AI 填充角色資料）
+④ Scenes / Props / Costumes / Actions → 補齊資產
+   （Actions：生成多格指示圖）
+⑤ 故事 Cast → 連結角色、場景、道具、動作
+⑥ 劇情段落 → 每段綁定資產（含動作）
+⑦ Timeline → 排 clip、寫 beat screenplay
+⑧ Advanced prep → stills（連貫）→ 出片
+⑨ Export → 成片（可選 TTS／字幕）
 ```
 
 Demo：開發時可載入示範故事；CLI 亦有 `instant-drama stories seed-demo`。
@@ -313,7 +329,7 @@ instant-drama update install --yes   # 執行：npm install -g instant-drama-mag
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # 約 138 個 channel
+instant-drama channels list --json          # 約 151 個 channel
 ```
 
 > **說明：** 全域安裝提供 **CLI／headless／網頁伺服器** 控制面（故事、角色、生成、匯出輔助、agent 工具）。若要 **建置或開啟 Electron 桌面 GUI**（`instant-drama build`／`instant-drama open`），仍需完整 git clone、`npm install`（含 Electron 等 devDependencies）以及本機 `release/` 產物。
@@ -339,7 +355,7 @@ npm run instant-drama -- doctor --json
 ### 常用指令
 
 ```bash
-# 診斷（channel 數應約 138）
+# 診斷（channel 數應約 151）
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -352,6 +368,7 @@ instant-drama stories list --json
 instant-drama stories create --title "我的短劇" --json
 instant-drama characters list --json
 instant-drama characters generate-sheet --args '[{"characterId":"…"}]' --json
+instant-drama invoke actions:list --json
 instant-drama generation run <storyId> --json
 instant-drama settings get --json
 instant-drama ai status --json
@@ -512,7 +529,7 @@ rm -rf ~/.config/instant-drama-magician
 |------|------|------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | 文件總覽 + 準則 |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | 產品規格 |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（138 channels） |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（151 channels） |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agent／OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | 網頁遠控 |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

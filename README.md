@@ -4,8 +4,8 @@
 
 **AI professional short-drama desktop studio**
 
-From one idea to a finished short drama: story → characters / costumes / scenes / props → linear timeline → AI storyboard & video → FFmpeg final export.  
-Cross-platform desktop (Electron) + optional browser remote control + full CLI `instant-drama` (**138** channels, same surface as desktop IPC).
+From one idea to a finished short drama: story → characters / costumes / scenes / props / **actions** → linear timeline → AI storyboard & video → FFmpeg final export.  
+Cross-platform desktop (Electron) + optional browser remote control + full CLI `instant-drama` (**151** channels, same surface as desktop IPC).
 
 | | |
 |---|---|
@@ -42,7 +42,7 @@ Screenshots from the real app (`src/assets/screen/`).
 
 ### 1. Story management
 
-Multi-project list: covers, status (Draft, etc.), character / scene / prop / clip counts, search & filters, **export backup** / **import story backup**, new story.
+Multi-project list: covers, status (Draft, etc.), character / scene / prop / action / clip counts, search & filters, **export backup** / **import story backup**, new story.
 
 ![Story management](./src/assets/screen/1.png)
 
@@ -82,26 +82,27 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 
 | Area | What you can do |
 |------|-----------------|
-| **Stories** | Multi-story management, cover AI, style bible, script beats, cast/set/props binding, `.idm.zip` backup import/export |
-| **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle reference sheets, identity lock, external refs, intro video |
-| **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, linked to character galleries |
-| **Scenes** | Scene copy, plates / looks / atmosphere, scene gallery |
-| **Props** | Prop descriptions, master prompts, plate variants |
-| **Timeline** | Linear layout, snap/pack, per-clip generate, cancel, retry-failed-only, 6s/10s duration, dialogue & camera tags |
+| **Stories** | Multi-story management, cover AI, style bible, script beats, cast binding (characters / scenes / props / **actions**), `.idm.zip` backup import/export |
+| **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle sheets, identity lock, external refs, intro video, **vision AI fill** from a still |
+| **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, **AI fill from reference photo only**, multi-still gallery |
+| **Scenes** | Scene copy, plates / looks / atmosphere, scene gallery, **vision AI fill** from a plate still |
+| **Props** | Prop descriptions, master prompts, plate variants, **vision AI fill** from a still |
+| **Actions** | Global **motion-direction** library: multi-panel instruction boards (2–6 panels), art styles, external refs, cast refs, **vision AI fill**, multi-gallery |
+| **Timeline** | Linear layout, snap/pack, per-clip generate, bind character / scene / prop / **action**, 6s/10s duration, dialogue & camera tags |
 | **Advanced prep** | Cast lock → storyboard stills (continuity) → video from stills |
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
 | **Settings** | LLM / image / video providers, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
-| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents |
+| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**151** IPC channels) |
 | **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
-| **i18n** | 10 UI languages (incl. zh-HK, zh-CN, Arabic RTL, etc.) |
+| **i18n** | 10 UI languages (incl. zh-HK, zh-CN, Arabic RTL); gallery labels, network errors, and user-facing errors localized |
 | **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
 
 ---
 
 ## Desktop app details
 
-Sidebar: **Stories · Characters · Costumes · Scenes · Props · Timeline · Activity · Settings**.
+Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Timeline · Activity · Settings**.
 
 ### Stories
 
@@ -111,8 +112,8 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Timeline · A
 - **Import story backup** / **Export backup** (story-level `.idm.zip`)  
 - Edit tabs:  
   - **Basics**: cover, AI quick create, title, status, art style, style bible  
-  - **Cast / set / props**: link characters, scenes, props  
-  - **Script beats**: scene/dialogue beats for the timeline  
+  - **Cast**: link **characters, scenes, props, and actions** (search + linked/unlinked filters)  
+  - **Script beats**: per-beat multi-bind of characters / scenes / props / **actions**, plus beat screenplay  
 
 ### Characters
 
@@ -120,7 +121,7 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Timeline · A
 - Search and filters: gender, art style, has image, soul, language  
 - Multi-image cards; Edit / Delete  
 - Edit tabs:  
-  - **Profile**: name, description, age, gender, language, voice, etc.  
+  - **Profile**: name, description, age, gender, language, voice, etc.; **AI fill** from idea, draft, soul, or **uploaded still only** (vision)  
   - **References**: multi-angle bible (front / ¾ / close-up…), body/base/costume pipeline, external refs, identity lock, generate professional refs, Intro video  
   - **Costume**: bind wardrobe  
 - **SoulMD Hub** (soulmd-hub.ysk.hk): index suggestions, import soul.md as character soul  
@@ -128,21 +129,32 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Timeline · A
 
 ### Costumes
 
-- Wardrobe asset library  
-- Linked to character costume swap / wardrobe suggest  
-- Generation and gallery labels (Identity / Costume, etc.)  
+- Global wardrobe library (link 0…N characters)  
+- **AI fill from reference photo only** (no idea text required)  
+- Multi-still gallery, cover, intro video  
+- Dress / swap onto a character with identity lock  
 
 ### Scenes
 
 - Scene description and script fields  
 - Scene plates, looks, atmosphere  
 - Scene gallery and variants  
+- **Vision AI fill** from a selected / cover plate still  
 
 ### Props
 
 - Prop name and description  
 - Prop master prompt, plate variants  
 - Bound on timeline clips  
+- **Vision AI fill** from a reference still  
+
+### Actions (motion direction)
+
+- **Global motion library** — reusable action / blocking guides (not tied to one story until cast-linked)  
+- **Multi-panel instruction boards**: 2 / 3 / 4 / 5 / 6 panels (strips or 2×2 / 2×3 grids); panel 1 = first beat, panel N = last  
+- Art style, external reference stills, cast refs from character / costume / scene / prop libraries  
+- **Vision AI fill** from a still; multi-gallery accumulate (append plates, reorder, cover)  
+- Linked into story cast, script beats, and timeline clips; video gen injects motion notes / can use the instruction still as image ref  
 
 ### Timeline (main production desk)
 
@@ -150,7 +162,7 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Timeline · A
 - **Generate** batch; **Export** final; **Export history**  
 - Total duration, ready count, video mode, AI clips **6s or 10s only**  
 - Zoom, **Timeline snap**, snap grid, **Pack clips**  
-- **Clip editor**: bind scene/character/prop, duration, beat screenplay (`[MOOD]` / `[ATMO]` / `[DIALOGUE]`, etc.)  
+- **Clip editor**: bind character / scene / prop / **action**, duration, beat screenplay (`[MOOD]` / `[ATMO]` / `[DIALOGUE]`, etc.)  
 - Per clip: **Generate this clip** / **Regenerate** / **Continue video**  
 - Retry failures; cancel generation; retry-failed-only  
 - Export options: TTS, burn-in subtitles, xfade, BGM ducking, aspect ratio  
@@ -194,10 +206,14 @@ Best when you want continuity locked before video generation.
 1) Settings → paste API key → Test Chat
 2) Stories → create / AI style note + beats
 3) Characters → multi-angle sheet → lock identity
-4) Scenes / Props / Costumes → complete assets
-5) Timeline → lay out clips, write beat screenplay
-6) Advanced prep → stills (continuity) → video
-7) Export → final (optional TTS / subtitles)
+   (or upload a still → AI fill profile with vision only)
+4) Scenes / Props / Costumes / Actions → complete assets
+   (Actions: generate multi-panel instruction boards)
+5) Story Cast → link characters, scenes, props, actions
+6) Script beats → bind assets per beat (incl. actions)
+7) Timeline → lay out clips, write beat screenplay
+8) Advanced prep → stills (continuity) → video
+9) Export → final (optional TTS / subtitles)
 ```
 
 Demo: load a sample story in dev; CLI also has `instant-drama stories seed-demo`.
@@ -313,7 +329,7 @@ Typical usage after global install:
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # ~138 channels
+instant-drama channels list --json          # ~151 channels
 ```
 
 > **Note:** Global install provides the **CLI / headless / web-server** control plane (stories, cast, generation, export helpers, agent tools). Building or opening the **Electron desktop GUI** (`instant-drama build` / `instant-drama open`) still needs a full git clone with `npm install` (devDependencies such as Electron) and a local `release/` tree.
@@ -339,7 +355,7 @@ npm run instant-drama -- doctor --json
 ### Common commands
 
 ```bash
-# Diagnostics (channel count should be ~138)
+# Diagnostics (channel count should be ~151)
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -352,6 +368,7 @@ instant-drama stories list --json
 instant-drama stories create --title "My drama" --json
 instant-drama characters list --json
 instant-drama characters generate-sheet --args '[{"characterId":"…"}]' --json
+instant-drama invoke actions:list --json
 instant-drama generation run <storyId> --json
 instant-drama settings get --json
 instant-drama ai status --json
@@ -512,7 +529,7 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 |---------|---------|--------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | Docs index + facts |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | Product spec |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (138 channels) |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (151 channels) |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agents / OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | Web remote |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |
