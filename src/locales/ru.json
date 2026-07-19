@@ -1421,10 +1421,13 @@
   },
   "web": {
     "authTitle": "InstantDrama Magician · Вход на сервер",
-    "authHint": "Введите сервер IDM_AUTH_TOKEN (токен доступа на предъявителя).",
+    "authHint": "Войдите в self-hosted веб-интерфейс с помощью Bearer-токена.",
+    "authHintDetail": "Укажите то же значение, что и переменная окружения сервера IDM_AUTH_TOKEN (или токен в «Настройки → Веб-сервер» настольного приложения).",
     "authToken": "Токен доступа",
-    "authSubmit": "Войти в приложение",
-    "authFail": "Неверный токен или сервер отказал в соединении."
+    "authTokenPlaceholder": "Вставьте IDM_AUTH_TOKEN",
+    "authSubmit": "Войти",
+    "authFail": "Неверный токен или сервер отклонил подключение.",
+    "language": "Язык"
   },
   "backup": {
     "fullTitle": "Все данные приложения",

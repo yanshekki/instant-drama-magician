@@ -1420,11 +1420,14 @@
     "screenshotSaved": "Captura de pantalla guardada: {{path}}"
   },
   "web": {
-    "authTitle": "Mago de Drama Instantáneo · Inicio de sesión en el servidor",
-    "authHint": "Ingrese al servidor IDM_AUTH_TOKEN (token de acceso al portador).",
-    "authToken": "token de acceso",
-    "authSubmit": "Ingresar a la aplicación",
-    "authFail": "El token no válido o el servidor rechazó la conexión."
+    "authTitle": "InstantDrama Magician · Acceso al servidor",
+    "authHint": "Inicie sesión en la interfaz web autoalojada con un token Bearer.",
+    "authHintDetail": "Use el mismo valor que la variable de entorno del servidor IDM_AUTH_TOKEN (o el token en Ajustes → Servidor web de la app de escritorio).",
+    "authToken": "Token de acceso",
+    "authTokenPlaceholder": "Pegue IDM_AUTH_TOKEN",
+    "authSubmit": "Iniciar sesión",
+    "authFail": "Token no válido o el servidor rechazó la conexión.",
+    "language": "Idioma"
   },
   "backup": {
     "fullTitle": "Todos los datos de la aplicación",

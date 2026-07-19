@@ -1420,11 +1420,14 @@
     "screenshotSaved": "Captura de tela salva: {{path}}"
   },
   "web": {
-    "authTitle": "InstantDrama Magician · Login do servidor",
-    "authHint": "Insira o servidor IDM_AUTH_TOKEN (token de acesso ao portador).",
+    "authTitle": "InstantDrama Magician · Login no servidor",
+    "authHint": "Entre na interface web auto-hospedada com um token Bearer.",
+    "authHintDetail": "Use o mesmo valor da variável de ambiente IDM_AUTH_TOKEN do servidor (ou o token em Configurações → Servidor web do app desktop).",
     "authToken": "Token de acesso",
-    "authSubmit": "Entrar no aplicativo",
-    "authFail": "Token inválido ou servidor recusou a conexão."
+    "authTokenPlaceholder": "Cole IDM_AUTH_TOKEN",
+    "authSubmit": "Entrar",
+    "authFail": "Token inválido ou o servidor recusou a conexão.",
+    "language": "Idioma"
   },
   "backup": {
     "fullTitle": "Todos os dados do aplicativo",

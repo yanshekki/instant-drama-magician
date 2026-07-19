@@ -46,8 +46,9 @@ export function coerceUiLanguage(
   if (id && isUiLanguage(id)) return id
   // Common aliases
   const l = (id ?? '').toLowerCase().replace(/_/g, '-')
-  if (l === 'zh' || l === 'zh-tw' || l === 'zh-hant') return 'zh-HK'
-  if (l === 'zh-hans' || l.startsWith('zh-cn')) return 'zh-CN'
+  if (l === 'zh' || l === 'zh-tw' || l === 'zh-hant' || l === 'zh-hk')
+    return 'zh-HK'
+  if (l === 'zh-hans' || l.startsWith('zh-cn') || l === 'zh-sg') return 'zh-CN'
   if (l.startsWith('en')) return 'en'
   if (l.startsWith('es')) return 'es'
   if (l.startsWith('hi')) return 'hi'
@@ -57,6 +58,66 @@ export function coerceUiLanguage(
   if (l.startsWith('ja')) return 'ja'
   if (l.startsWith('ru')) return 'ru'
   return fallback
+}
+
+/** localStorage key for web login language (before settings load). */
+export const UI_LANGUAGE_STORAGE_KEY = 'idm.uiLanguage'
+
+/**
+ * Best UI language from browser / navigator (web). Safe for SSR / Node.
+ */
+export function detectBrowserUiLanguage(
+  fallback: UiLanguage = 'en'
+): UiLanguage {
+  if (typeof navigator === 'undefined') return fallback
+  const candidates: string[] = []
+  if (Array.isArray(navigator.languages)) {
+    candidates.push(...navigator.languages)
+  }
+  if (navigator.language) candidates.push(navigator.language)
+  for (const c of candidates) {
+    const code = coerceUiLanguage(c, fallback)
+    // Only accept if coerce actually mapped (not pure fallback unless input empty)
+    if (c && isUiLanguage(code)) {
+      // Prefer first navigator entry that maps to a known language
+      const l = c.toLowerCase().replace(/_/g, '-')
+      if (
+        isUiLanguage(c) ||
+        l.startsWith('zh') ||
+        l.startsWith('en') ||
+        l.startsWith('es') ||
+        l.startsWith('hi') ||
+        l.startsWith('ar') ||
+        l.startsWith('pt') ||
+        l.startsWith('fr') ||
+        l.startsWith('ja') ||
+        l.startsWith('ru')
+      ) {
+        return coerceUiLanguage(c, fallback)
+      }
+    }
+  }
+  return fallback
+}
+
+/** Read persisted web UI language if valid. */
+export function readStoredUiLanguage(): UiLanguage | null {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(UI_LANGUAGE_STORAGE_KEY)
+    return isUiLanguage(raw) ? raw : null
+  } catch {
+    return null
+  }
+}
+
+export function writeStoredUiLanguage(lang: UiLanguage): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, lang)
+  } catch {
+    /* ignore quota */
+  }
 }
 
 export function uiLanguageMeta(id: string | null | undefined) {

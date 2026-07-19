@@ -1420,11 +1420,14 @@
     "screenshotSaved": "Capture d'écran enregistrée : {{path}}"
   },
   "web": {
-    "authTitle": "Magicien InstantDrama · Connexion au serveur",
-    "authHint": "Saisissez le serveur IDM_AUTH_TOKEN (jeton d'accès au porteur).",
-    "authToken": "Jeton d'accès",
-    "authSubmit": "Entrez dans l'application",
-    "authFail": "Jeton invalide ou serveur refusé la connexion."
+    "authTitle": "InstantDrama Magician · Connexion serveur",
+    "authHint": "Connectez-vous à l’interface web auto-hébergée avec un jeton Bearer.",
+    "authHintDetail": "Utilisez la même valeur que la variable d’environnement serveur IDM_AUTH_TOKEN (ou le jeton dans Paramètres → Serveur web de l’app bureau).",
+    "authToken": "Jeton d’accès",
+    "authTokenPlaceholder": "Coller IDM_AUTH_TOKEN",
+    "authSubmit": "Se connecter",
+    "authFail": "Jeton invalide, ou le serveur a refusé la connexion.",
+    "language": "Langue"
   },
   "backup": {
     "fullTitle": "Toutes les données de l'application",

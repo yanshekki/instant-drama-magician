@@ -1420,11 +1420,14 @@
     "screenshotSaved": "Screenshot saved: {{path}}"
   },
   "web": {
-    "authTitle": "InstantDrama Magician · Server login",
-    "authHint": "Enter the server IDM_AUTH_TOKEN (Bearer access token).",
+    "authTitle": "InstantDrama Magician · Server sign-in",
+    "authHint": "Sign in to the self-hosted web UI with a bearer token.",
+    "authHintDetail": "Use the same value as the server environment variable IDM_AUTH_TOKEN (or the token shown in the desktop app Settings → Web server).",
     "authToken": "Access token",
-    "authSubmit": "Enter app",
-    "authFail": "Invalid token or server refused the connection."
+    "authTokenPlaceholder": "Paste IDM_AUTH_TOKEN",
+    "authSubmit": "Sign in",
+    "authFail": "Invalid token, or the server refused the connection.",
+    "language": "Language"
   },
   "backup": {
     "fullTitle": "All app data",

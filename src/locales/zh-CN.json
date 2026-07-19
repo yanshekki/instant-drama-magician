@@ -1420,11 +1420,14 @@
     "screenshotSaved": "已储存截图：{{path}}"
   },
   "web": {
-    "authTitle": "瞬剧魔法师 · 伺服器登入",
-    "authHint": "请输入伺服器环境变数 IDM_AUTH_TOKEN（Bearer 权杖）。",
-    "authToken": "存取权杖",
-    "authSubmit": "进入应用",
-    "authFail": "权杖无效或伺服器拒绝连线。"
+    "authTitle": "瞬剧魔法师 · 服务器登录",
+    "authHint": "使用 Bearer 令牌登录自托管网页界面。",
+    "authHintDetail": "请填写与服务器环境变量 IDM_AUTH_TOKEN 相同的值（或桌面版「设置 → 网页服务器」显示的令牌）。",
+    "authToken": "访问令牌",
+    "authTokenPlaceholder": "粘贴 IDM_AUTH_TOKEN",
+    "authSubmit": "登录",
+    "authFail": "令牌无效，或服务器拒绝连接。",
+    "language": "语言"
   },
   "backup": {
     "fullTitle": "全部应用资料",

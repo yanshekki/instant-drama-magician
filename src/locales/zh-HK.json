@@ -1421,10 +1421,13 @@
   },
   "web": {
     "authTitle": "瞬劇魔法師 · 伺服器登入",
-    "authHint": "請輸入伺服器環境變數 IDM_AUTH_TOKEN（Bearer 權杖）。",
+    "authHint": "使用 Bearer 權杖登入自架網頁介面。",
+    "authHintDetail": "請填寫與伺服器環境變數 IDM_AUTH_TOKEN 相同的值（或桌面版「設定 → 網頁伺服器」顯示的權杖）。",
     "authToken": "存取權杖",
-    "authSubmit": "進入應用",
-    "authFail": "權杖無效或伺服器拒絕連線。"
+    "authTokenPlaceholder": "貼上 IDM_AUTH_TOKEN",
+    "authSubmit": "登入",
+    "authFail": "權杖無效，或伺服器拒絕連線。",
+    "language": "語言"
   },
   "backup": {
     "fullTitle": "全部應用資料",

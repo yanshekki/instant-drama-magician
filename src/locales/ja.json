@@ -1421,10 +1421,13 @@
   },
   "web": {
     "authTitle": "InstantDrama Magician · サーバーログイン",
-    "authHint": "サーバー IDM_AUTH_TOKEN (ベアラー アクセス トークン) を入力します。",
+    "authHint": "Bearer トークンでセルフホスト Web UI にサインインします。",
+    "authHintDetail": "サーバー環境変数 IDM_AUTH_TOKEN と同じ値を入力してください（またはデスクトップ版「設定 → Web サーバー」のトークン）。",
     "authToken": "アクセストークン",
-    "authSubmit": "アプリを入力してください",
-    "authFail": "無効なトークンまたはサーバーが接続を拒否しました。"
+    "authTokenPlaceholder": "IDM_AUTH_TOKEN を貼り付け",
+    "authSubmit": "サインイン",
+    "authFail": "トークンが無効か、サーバーが接続を拒否しました。",
+    "language": "言語"
   },
   "backup": {
     "fullTitle": "すべてのアプリデータ",

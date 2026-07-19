@@ -9,7 +9,10 @@ import {
   watchSystemColorScheme,
   type ColorSchemePref
 } from '../../domain/colorScheme'
-import { coerceUiLanguage } from '../../domain/uiLanguages'
+import {
+  coerceUiLanguage,
+  readStoredUiLanguage
+} from '../../domain/uiLanguages'
 import { changeUiLanguage } from '../../lib/i18n'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
@@ -98,7 +101,11 @@ export function Layout(): JSX.Element {
       .settings.get()
       .then((s: AppSettings) => {
         setDegraded(s.lastGenerationDegraded)
-        const lang = coerceUiLanguage(s.uiLanguage)
+        // Web login language (localStorage) wins over default settings until user
+        // changes language in Settings (which also writes storage).
+        const lang = coerceUiLanguage(
+          readStoredUiLanguage() || s.uiLanguage
+        )
         if (lang !== i18n.language) {
           void changeUiLanguage(lang)
         }

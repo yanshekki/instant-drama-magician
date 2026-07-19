@@ -1421,10 +1421,13 @@
   },
   "web": {
     "authTitle": "InstantDrama Magician · تسجيل الدخول للخادم",
-    "authHint": "أدخل IDM_AUTH_TOKEN للخادم (رمز وصول الحامل).",
+    "authHint": "سجّل الدخول إلى واجهة الويب المستضافة ذاتيًا باستخدام رمز Bearer.",
+    "authHintDetail": "استخدم نفس قيمة متغير البيئة IDM_AUTH_TOKEN على الخادم (أو الرمز من إعدادات تطبيق سطح المكتب ← خادم الويب).",
     "authToken": "رمز الوصول",
-    "authSubmit": "أدخل التطبيق",
-    "authFail": "رمز مميز غير صالح أو رفض الخادم الاتصال."
+    "authTokenPlaceholder": "الصق IDM_AUTH_TOKEN",
+    "authSubmit": "تسجيل الدخول",
+    "authFail": "رمز غير صالح أو رفض الخادم الاتصال.",
+    "language": "اللغة"
   },
   "backup": {
     "fullTitle": "جميع بيانات التطبيق",

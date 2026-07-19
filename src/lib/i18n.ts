@@ -10,6 +10,9 @@ import { initReactI18next } from 'react-i18next'
 import {
   applyDocumentDirection,
   coerceUiLanguage,
+  detectBrowserUiLanguage,
+  readStoredUiLanguage,
+  writeStoredUiLanguage,
   type UiLanguage
 } from '../domain/uiLanguages'
 
@@ -37,9 +40,21 @@ const resources = {
   ru: { translation: ru }
 } as const
 
+function initialUiLanguage(): UiLanguage {
+  // 1) User choice from previous web session / login screen
+  const stored = readStoredUiLanguage()
+  if (stored) return stored
+  // 2) Browser language (web remote login before Settings load)
+  if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+    return detectBrowserUiLanguage('zh-HK')
+  }
+  // 3) Desktop default
+  return 'zh-HK'
+}
+
 void i18n.use(initReactI18next).init({
   resources,
-  lng: 'zh-HK',
+  lng: initialUiLanguage(),
   fallbackLng: 'en',
   // Exact regional codes (zh-HK, pt-BR). Do NOT use nonExplicitSupportedLngs:
   // with it true, i18next resolves zh-HK → en and all UI stays English.
@@ -70,6 +85,8 @@ applyDocumentDirection(i18n.language)
 
 export function changeUiLanguage(lang: string): Promise<UiLanguage> {
   const code = coerceUiLanguage(lang)
+  // Persist for web login gate + reloads (Settings will also save uiLanguage)
+  writeStoredUiLanguage(code)
   if (i18n.language === code && i18n.resolvedLanguage === code) {
     applyDocumentDirection(code)
     return Promise.resolve(code)
