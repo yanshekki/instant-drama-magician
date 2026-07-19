@@ -312,6 +312,8 @@ export interface ClipVideoPolishContext {
   characterBlocks?: string[]
   sceneBlock?: string | null
   propBlock?: string | null
+  /** Motion-library action guide(s) for performance / blocking */
+  actionBlock?: string | null
   beatOrDialogue?: string | null
   previousContext?: string | null
   multiCastNote?: string | null
@@ -344,6 +346,11 @@ export function buildClipVideoPolishUserPrompt(
       : null,
     ctx.sceneBlock ? (en ? `Scene:\n${ctx.sceneBlock}` : `場景：\n${ctx.sceneBlock}`) : null,
     ctx.propBlock ? (en ? `Prop:\n${ctx.propBlock}` : `道具：\n${ctx.propBlock}`) : null,
+    ctx.actionBlock
+      ? en
+        ? `Action / motion guide:\n${ctx.actionBlock}`
+        : `動作指導：\n${ctx.actionBlock}`
+      : null,
     ctx.beatOrDialogue
       ? en
         ? `Beat / dialogue:\n${ctx.beatOrDialogue}`

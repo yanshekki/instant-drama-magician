@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  translateActionGalleryLabel,
   translateCharacterGalleryLabel,
   translatePropGalleryLabel,
   translateSceneGalleryLabel
@@ -32,6 +33,21 @@ describe('galleryLabelI18n', () => {
     )
     expect(translatePropGalleryLabel('Prop hero', t)).toBe(
       'props.propPlateHero'
+    )
+  })
+
+  it('maps action instruction board labels', () => {
+    expect(translateActionGalleryLabel('Instruction board 2×2', t)).toBe(
+      'actions.panelLayout_grid-2x2'
+    )
+    expect(translateActionGalleryLabel('Instruction strip ×3', t)).toBe(
+      'actions.panelLayout_strip-3'
+    )
+    expect(translateActionGalleryLabel('Instruction board', t)).toBe(
+      'actions.galleryFallback'
+    )
+    expect(translateActionGalleryLabel(undefined, t)).toBe(
+      'actions.galleryFallback'
     )
   })
 })

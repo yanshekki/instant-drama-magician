@@ -1,4 +1,5 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
+import { chatContentText } from '../../types/domain'
 
 export class PropsStep implements PipelineStep {
   readonly name = 'props' as const
@@ -45,7 +46,8 @@ export class PropsStep implements PipelineStep {
       return {
         step: this.name,
         success: true,
-        output: completion.choices[0]?.message.content ?? inventory
+        output:
+          chatContentText(completion.choices[0]?.message.content) || inventory
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

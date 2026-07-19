@@ -10,6 +10,7 @@ export type AssetDropPayload =
   | { kind: 'character'; id: string; label: string }
   | { kind: 'scene'; id: string; label: string }
   | { kind: 'prop'; id: string; label: string }
+  | { kind: 'action'; id: string; label: string }
 
 interface TimelineCanvasProps {
   entries: TimelineEntry[]
@@ -25,6 +26,7 @@ function clipColor(entry: TimelineEntry): string {
   if (entry.characterId) return '#7c3aed'
   if (entry.sceneId) return '#0891b2'
   if (entry.propId) return '#ca8a04'
+  if (entry.actionId) return '#db2777'
   return '#475569'
 }
 

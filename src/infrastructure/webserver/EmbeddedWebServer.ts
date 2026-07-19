@@ -146,8 +146,10 @@ export class EmbeddedWebServer {
     mkdirSync(dataDir, { recursive: true })
 
     try {
+      // Prefer dataDir DB — do not inherit process.env.DATABASE_URL (e.g. ./prisma/dev.db)
       this.runtime = createRuntime({
         dataDir,
+        databaseUrl: `file:${join(dataDir, 'instant-drama.db')}`,
         appVersion: this.appVersion,
         isPackaged: opts.isPackaged,
         platform: process.platform

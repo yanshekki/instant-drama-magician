@@ -15,6 +15,7 @@ export class StoryService {
             storyCharacters: true,
             storyScenes: true,
             storyProps: true,
+            storyActions: true,
             timeline: true
           }
         }
@@ -41,11 +42,15 @@ export class StoryService {
           orderBy: { sortOrder: 'asc' },
           include: { prop: true }
         },
+        storyActions: {
+          orderBy: { sortOrder: 'asc' },
+          include: { action: true }
+        },
         timeline: { orderBy: { order: 'asc' } }
       }
     })
     if (!story) throw new AppError('NOT_FOUND', `Story not found: ${id}`)
-    // Flatten for consumers expecting characters/scenes/props arrays
+    // Flatten for consumers expecting characters/scenes/props/actions arrays
     return {
       ...story,
       characters: story.storyCharacters.map((l) => ({
@@ -68,10 +73,12 @@ export class StoryService {
         status: l.statusOverride ?? l.scene.status
       })),
       props: story.storyProps.map((l) => l.prop),
+      actions: story.storyActions.map((l) => l.action),
       _count: {
         characters: story.storyCharacters.length,
         scenes: story.storyScenes.length,
         props: story.storyProps.length,
+        actions: story.storyActions.length,
         timeline: story.timeline.length
       }
     }

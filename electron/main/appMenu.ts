@@ -56,6 +56,7 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
     navCostumes: '戲服',
     navScenes: '場景',
     navProps: '道具',
+    navActions: '動作',
     navTimeline: '時間軸',
     navAudit: '活動紀錄',
     navSettings: '設定',
@@ -110,6 +111,7 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
     navCostumes: 'Costumes',
     navScenes: 'Scenes',
     navProps: 'Props',
+    navActions: 'Actions',
     navTimeline: 'Timeline',
     navAudit: 'Activity Log',
     navSettings: 'Settings',
@@ -270,18 +272,23 @@ export function buildAppMenuTemplate(
       click: () => handlers.sendAction({ type: 'navigate', path: '/props' })
     },
     {
-      label: t.navTimeline,
+      label: t.navActions,
       accelerator: accel('Cmd+6', 'Ctrl+6'),
+      click: () => handlers.sendAction({ type: 'navigate', path: '/actions' })
+    },
+    {
+      label: t.navTimeline,
+      accelerator: accel('Cmd+7', 'Ctrl+7'),
       click: () => handlers.sendAction({ type: 'navigate', path: '/timeline' })
     },
     {
       label: t.navAudit,
-      accelerator: accel('Cmd+7', 'Ctrl+7'),
+      accelerator: accel('Cmd+8', 'Ctrl+8'),
       click: () => handlers.sendAction({ type: 'navigate', path: '/audit' })
     },
     {
       label: t.navSettings,
-      accelerator: accel('Cmd+8', 'Ctrl+8'),
+      accelerator: accel('Cmd+9', 'Ctrl+9'),
       click: () => handlers.sendAction({ type: 'navigate', path: '/settings' })
     },
     { type: 'separator' },

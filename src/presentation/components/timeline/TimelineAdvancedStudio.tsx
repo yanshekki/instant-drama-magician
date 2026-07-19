@@ -603,12 +603,13 @@ export function TimelineAdvancedStudio({
                         className="rounded-xl border border-ink-800 bg-ink-900/80 p-4 shadow-theme-sm"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl border border-ink-700 bg-ink-950 pointer-events-none">
+                          <div className="relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl border border-ink-700 bg-ink-950 pointer-events-none">
                             {selectedPath ? (
                               <LocalMediaImage
                                 filePath={selectedPath}
                                 alt={card.name}
-                                maxHeightClass="h-[4.5rem]"
+                                variant="thumb"
+                                maxHeightClass="h-full max-h-none"
                                 objectFit="cover"
                                 showActions={false}
                                 enableZoom={false}
@@ -690,11 +691,12 @@ export function TimelineAdvancedStudio({
                                       )
                                     }
                                   >
-                                    <div className="pointer-events-none h-full w-full">
+                                    <div className="pointer-events-none absolute inset-0">
                                       <LocalMediaImage
                                         filePath={g.path}
                                         alt={g.label}
-                                        maxHeightClass="h-16"
+                                        variant="thumb"
+                                        maxHeightClass="h-full max-h-none"
                                         objectFit="cover"
                                         showActions={false}
                                         enableZoom={false}

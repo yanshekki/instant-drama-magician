@@ -1,4 +1,5 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
+import { chatContentText } from '../../types/domain'
 
 export class ScriptStep implements PipelineStep {
   readonly name = 'script' as const
@@ -53,7 +54,7 @@ export class ScriptStep implements PipelineStep {
         max_tokens: 3000
       })
 
-      const output = completion.choices[0]?.message.content ?? ''
+      const output = chatContentText(completion.choices[0]?.message.content)
 
       // Write back per-scene scripts when ids are present
       for (const scene of story.scenes) {

@@ -99,6 +99,8 @@ export class GenerationService {
       characterIds?: string | string[] | null
       sceneIds?: string | string[] | null
       propIds?: string | string[] | null
+      actionIds?: string | string[] | null
+      actionId?: string | null
     }
     const asList = (
       multi: string | string[] | null | undefined,
@@ -111,6 +113,10 @@ export class GenerationService {
     const charIdList = asList(raw.characterIds, entry.characterId)
     const sceneIdList = asList(raw.sceneIds, entry.sceneId)
     const propIdList = asList(raw.propIds, entry.propId)
+    const actionIdList = asList(
+      raw.actionIds,
+      raw.actionId ?? entry.actionId ?? null
+    )
     const chars = charIdList
       .map((id) => story.characters.find((c) => c.id === id))
       .filter(Boolean) as typeof story.characters
@@ -120,9 +126,13 @@ export class GenerationService {
     const propsBound = propIdList
       .map((id) => story.props.find((p) => p.id === id))
       .filter(Boolean) as typeof story.props
+    const actionsBound = actionIdList
+      .map((id) => story.actions.find((a) => a.id === id))
+      .filter(Boolean) as typeof story.actions
     const char = chars[0]
     const scene = scenesBound[0]
     const prop = propsBound[0]
+    const action = actionsBound[0]
     const charMap = new Map(story.characters.map((c) => [c.id, c]))
     const sceneMap = new Map(story.scenes.map((s) => [s.id, s]))
     const propMap = new Map(story.props.map((p) => [p.id, p]))
@@ -186,7 +196,10 @@ export class GenerationService {
         })
       )
       const multiCastNote =
-        chars.length > 1 || scenesBound.length > 1 || propsBound.length > 1
+        chars.length > 1 ||
+        scenesBound.length > 1 ||
+        propsBound.length > 1 ||
+        actionsBound.length > 0
           ? [
               'MULTI-SUBJECT CLIP:',
               chars.length
@@ -197,6 +210,9 @@ export class GenerationService {
                 : null,
               propsBound.length > 1
                 ? `Props: ${propsBound.map((p) => p.name).join(', ')}.`
+                : null,
+              actionsBound.length
+                ? `Motion / action library (perform as instructed): ${actionsBound.map((a) => a.name).join(', ')}.`
                 : null,
               'Keep all listed subjects visible/consistent; primary character is the action focus.'
             ]
@@ -283,6 +299,9 @@ export class GenerationService {
         character: char,
         scene,
         prop,
+        action: action
+          ? { refImagePath: action.refImagePath ?? null }
+          : null,
         previousContinuityPath
       })
       const locale: 'zh-HK' | 'en' =
@@ -324,6 +343,25 @@ export class GenerationService {
           propBlock: prop
             ? `${prop.name}: ${prop.description}`
             : null,
+          actionBlock: action
+            ? [
+                `Motion guide "${action.name}": ${action.description || ''}`,
+                action.motionNotes ? `Body/tempo: ${action.motionNotes}` : null,
+                action.intention ? `Intention: ${action.intention}` : null,
+                action.cameraNotes ? `Camera: ${action.cameraNotes}` : null
+              ]
+                .filter(Boolean)
+                .join('\n')
+            : actionsBound.length > 1
+              ? actionsBound
+                  .map(
+                    (a) =>
+                      `${a.name}: ${(a.description || '').slice(0, 120)}${
+                        a.motionNotes ? ` | motion: ${a.motionNotes}` : ''
+                      }`
+                  )
+                  .join('\n')
+              : null,
           beatOrDialogue,
           previousContext: prevWithLock || prev,
           multiCastNote,
@@ -837,19 +875,25 @@ export class GenerationService {
       story.scenes.map((s) => [s.id, `Scene ${s.sceneNumber}`])
     )
     const propMap = new Map(story.props.map((p) => [p.id, p.name]))
+    const actionMap = new Map(story.actions.map((a) => [a.id, a.name]))
 
-    return story.timeline.map((e) => ({
-      startTime: e.startTime,
-      endTime: e.endTime,
-      label:
-        (e.characterId && charMap.get(e.characterId)) ||
-        (e.sceneId && sceneMap.get(e.sceneId)) ||
-        (e.propId && propMap.get(e.propId)) ||
-        `Clip ${e.order + 1}`,
-      dialogue: e.dialogue,
-      mediaPath: e.mediaPath,
-      imagePath: null as string | null
-    }))
+    return story.timeline.map((e) => {
+      const actionId =
+        (e as { actionId?: string | null }).actionId ?? null
+      return {
+        startTime: e.startTime,
+        endTime: e.endTime,
+        label:
+          (e.characterId && charMap.get(e.characterId)) ||
+          (e.sceneId && sceneMap.get(e.sceneId)) ||
+          (e.propId && propMap.get(e.propId)) ||
+          (actionId && actionMap.get(actionId)) ||
+          `Clip ${e.order + 1}`,
+        dialogue: e.dialogue,
+        mediaPath: e.mediaPath,
+        imagePath: null as string | null
+      }
+    })
   }
 
   private async loadStory(storyId: string) {
@@ -867,6 +911,7 @@ export class GenerationService {
           include: { scene: true }
         },
         storyProps: { include: { prop: true } },
+        storyActions: { include: { action: true } },
         timeline: { orderBy: { order: 'asc' } }
       }
     })
@@ -892,7 +937,8 @@ export class GenerationService {
         script: l.scriptOverride ?? l.scene.script,
         status: l.statusOverride ?? l.scene.status
       })),
-      props: story.storyProps.map((l) => l.prop)
+      props: story.storyProps.map((l) => l.prop),
+      actions: story.storyActions.map((l) => l.action)
     }
   }
 

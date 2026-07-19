@@ -8,6 +8,7 @@ import {
   type ReactNode
 } from 'react'
 import { useTranslation } from 'react-i18next'
+import { formatUserError } from '../lib/formatUserError'
 
 export type ToastKind = 'success' | 'error' | 'info'
 
@@ -128,7 +129,9 @@ export function ToastHost(): JSX.Element | null {
             >
               {icon}
             </span>
-            <p className="min-w-0 flex-1 leading-snug">{item.message}</p>
+            <p className="min-w-0 flex-1 leading-snug">
+              {formatUserError(item.message, tr)}
+            </p>
             <button
               type="button"
               className="shrink-0 rounded px-1.5 py-0.5 text-xs opacity-70 hover:opacity-100"

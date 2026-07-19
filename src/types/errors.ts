@@ -98,11 +98,15 @@ export function mapChatHttpStatus(status: number, bodyText: string): AppError {
 
 export function mapChatMessage(message: string): AppErrorBody | null {
   const m = message.toLowerCase()
-  if (/cannot reach|econnrefused|fetch failed|network|enotfound/.test(m)) {
+  if (
+    /cannot reach|econnrefused|fetch failed|failed to fetch|networkerror|network|enotfound|net::err_/.test(
+      m
+    )
+  ) {
     return {
       code: 'AI_UNAVAILABLE',
-      message: 'Cannot reach the AI gateway',
-      details: 'Make sure Grok Build is installed and try again.'
+      message: 'errors.networkFailed',
+      details: 'errors.aiUnavailable'
     }
   }
   if (/\bno api key\b/.test(m)) {

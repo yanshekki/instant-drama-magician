@@ -59,6 +59,7 @@ import {
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import type {
   CreateSceneInput,
   Scene,
@@ -586,8 +587,14 @@ export function ScenesPage(): JSX.Element {
     const hasDraft = Object.values(snapshot).some(
       (v) => typeof v === 'string' && v.length > 0
     )
-    if (!idea && !hasDraft && !opts?.suggestFromStory) {
-      setActionError(t('scenes.ideaRequired'))
+    const refPath =
+      selectedImage?.path?.trim() ||
+      form.coverPath?.trim() ||
+      form.gallery[0]?.path?.trim() ||
+      ''
+    const hasImage = Boolean(refPath) && !opts?.suggestFromStory
+    if (!idea && !hasDraft && !opts?.suggestFromStory && !hasImage) {
+      setActionError(t('common.aiNeedIdeaOrImage'))
       return
     }
     const storyIdForJob =
@@ -599,7 +606,11 @@ export function ScenesPage(): JSX.Element {
       return
     }
     setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(t('aiJobs.startedBackground'))
+    toast.info(
+      hasImage && !idea && !hasDraft
+        ? t('common.aiFillFromImage')
+        : t('aiJobs.startedBackground')
+    )
     startJob({
       kind: 'scene-ai-fill',
       label: opts?.suggestFromStory
@@ -612,7 +623,7 @@ export function ScenesPage(): JSX.Element {
         storyId: storyIdForJob
       },
       run: async ({ setProgress, signal }) => {
-        setProgress(20, 'llm')
+        setProgress(20, hasImage ? 'image' : 'llm')
         const r = await getApi().scenes.aiFill({
           idea: opts?.suggestFromStory ? undefined : idea || undefined,
           storyId: storyIdForJob,
@@ -624,7 +635,8 @@ export function ScenesPage(): JSX.Element {
           sceneNumber: form.sceneNumber,
           // Plot-suggest invents a location from the chosen segment — don't mix form draft
           existingDraft:
-            opts?.suggestFromStory || !hasDraft ? undefined : snapshot
+            opts?.suggestFromStory || !hasDraft ? undefined : snapshot,
+          referenceImagePath: hasImage ? refPath : null
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
@@ -1037,7 +1049,7 @@ export function ScenesPage(): JSX.Element {
         >
           {(error || actionError) && (
             <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
-              {actionError || error?.message}
+              {formatUserError(actionError || error?.message, t)}
             </div>
           )}
           {pageBanner && (
@@ -1116,6 +1128,7 @@ export function ScenesPage(): JSX.Element {
                             <LocalMediaImage
                               filePath={cover}
                               alt={s.title || s.description}
+                              variant="fill"
                               maxHeightClass="h-full max-h-none"
                               objectFit="cover"
                               className="h-full border-0 rounded-none"
@@ -1385,8 +1398,13 @@ export function ScenesPage(): JSX.Element {
                   {t('scenes.aiTitle')}
                 </h3>
                 <p className="mt-1 text-[11px] text-ink-500">
-                  {t('scenes.aiHintShort')}
+                  {t('common.aiHintWithImage')}
                 </p>
+                {(selectedImage?.path || form.coverPath) && (
+                  <p className="mt-2 rounded-lg border border-brand-800/40 bg-brand-950/30 px-2.5 py-1.5 text-[11px] text-brand-100/90">
+                    {t('common.aiUsingImage')}
+                  </p>
+                )}
                 <Textarea
                   className="mt-2"
                   size="md"

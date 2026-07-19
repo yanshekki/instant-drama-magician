@@ -43,16 +43,18 @@ export function ExternalRefSection({
           {items.map((g) => (
             <div
               key={g.id}
-              className="relative w-16 overflow-hidden rounded-lg border border-ink-700"
+              className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-ink-700"
             >
               <LocalMediaImage
                 filePath={g.path}
                 alt={g.label ?? t('characters.externalRefLabel')}
-                maxHeightClass="h-16 max-h-16"
+                variant="thumb"
+                maxHeightClass="h-full max-h-none"
                 objectFit="cover"
                 className="border-0 rounded-none"
                 showActions={false}
                 enableZoom={false}
+                hoverZoom={false}
               />
               {onRemove ? (
                 <button

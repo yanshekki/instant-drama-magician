@@ -21,7 +21,7 @@ describe('createRuntime integration', () => {
       const info = (await runtime.invoke('app:getInfo', [])) as {
         channels: number
       }
-      expect(info.channels).toBe(138)
+      expect(info.channels).toBe(149)
 
       await runtime.invoke('stories:delete', [created.id])
     } finally {

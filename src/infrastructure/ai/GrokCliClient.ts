@@ -19,6 +19,7 @@ import type {
   VideoGenRequest,
   VideoGenResult
 } from '../../types/domain'
+import { chatContentText } from '../../types/domain'
 import type { AppSettings } from '../../types/settings'
 import { DEFAULT_SETTINGS } from '../../types/settings'
 import { AppError, mapChatHttpStatus, mapChatMessage } from '../../types/errors'
@@ -343,7 +344,8 @@ export class GrokCliClient implements AIProvider {
         max_tokens: 32
       })
       const reply =
-        completion.choices[0]?.message.content?.trim() ?? '(empty)'
+        chatContentText(completion.choices[0]?.message.content).trim() ||
+        '(empty)'
       const latencyMs = Date.now() - started
       return {
         ok: true,

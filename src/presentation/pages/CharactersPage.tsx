@@ -46,6 +46,7 @@ import {
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import type { Character, CreateCharacterInput } from '../../types/domain'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
@@ -892,8 +893,14 @@ export function CharactersPage(): JSX.Element {
     const soulContent =
       form.soulPreview?.trim() || catalogPickBody?.trim() || ''
     const hasSoul = soulContent.length > 0
-    if (!idea && !hasDraft && !hasSoul) {
-      const msg = t('characters.ideaRequired')
+    const refPath =
+      selectedImage?.path?.trim() ||
+      form.coverPath?.trim() ||
+      form.gallery[0]?.path?.trim() ||
+      ''
+    const hasImage = Boolean(refPath)
+    if (!idea && !hasDraft && !hasSoul && !hasImage) {
+      const msg = t('common.aiNeedIdeaOrImage')
       setActionError(msg)
       toast.error(msg)
       return
@@ -911,7 +918,11 @@ export function CharactersPage(): JSX.Element {
       setEditorPanel('profile')
     }
     setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(t('aiJobs.startedBackground'))
+    toast.info(
+      hasImage && !idea && !hasDraft && !hasSoul
+        ? t('common.aiFillFromImage')
+        : t('aiJobs.startedBackground')
+    )
 
     const characterId = editingId
     const locale = getAiLocale(i18n.language)
@@ -927,7 +938,7 @@ export function CharactersPage(): JSX.Element {
         storyId: activeStoryId ?? undefined
       },
       run: async ({ setProgress, signal }) => {
-        setProgress(15, 'chat')
+        setProgress(15, hasImage ? 'image' : 'chat')
         // If soul is linked but preview not loaded yet, try fetch once
         let soul = soulContent
         if (
@@ -951,7 +962,8 @@ export function CharactersPage(): JSX.Element {
           storyId: activeStoryId ?? undefined,
           locale,
           existingDraft: hasDraft ? snapshot : undefined,
-          soulContent: soul || undefined
+          soulContent: soul || undefined,
+          referenceImagePath: hasImage ? refPath : null
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
@@ -1788,7 +1800,7 @@ export function CharactersPage(): JSX.Element {
       <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
         {(error || actionError) && (
           <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
-            {error?.message ?? actionError}
+            {formatUserError(error?.message ?? actionError, t)}
           </div>
         )}
         {pageBanner && (
@@ -1913,6 +1925,7 @@ export function CharactersPage(): JSX.Element {
                               <LocalMediaImage
                                 filePath={cover}
                                 alt={c.name}
+                                variant="fill"
                                 maxHeightClass="h-full max-h-none"
                                 objectFit="cover"
                                 className="h-full border-0 rounded-none"
@@ -2179,10 +2192,13 @@ export function CharactersPage(): JSX.Element {
                       : t('characters.aiCreate')}
                   </h3>
                   <p className="mt-1 text-[11px] text-ink-400">
-                    {editingId
-                      ? t('characters.aiImproveHintShort')
-                      : t('characters.aiCreateHintShort')}
+                    {t('common.aiHintWithImage')}
                   </p>
+                  {(selectedImage?.path || form.coverPath) && (
+                    <p className="mt-2 rounded-lg border border-brand-800/40 bg-brand-950/30 px-2.5 py-1.5 text-[11px] text-brand-100/90">
+                      {t('common.aiUsingImage')}
+                    </p>
+                  )}
                   <Textarea
                     className="mt-3"
                     size="md"

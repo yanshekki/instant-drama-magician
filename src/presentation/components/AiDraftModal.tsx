@@ -210,6 +210,44 @@ export function AiDraftModal(): JSX.Element | null {
               </p>
             </div>
           )}
+
+          {draft.type === 'action-profile' && (
+            <div className="space-y-2 rounded-xl border border-ink-800 bg-ink-900/50 p-3 text-sm text-ink-200">
+              <Row k={t('actions.name')} v={draft.profile.name} />
+              <Row
+                k={t('actions.description')}
+                v={draft.profile.description}
+              />
+              {draft.profile.motionNotes && (
+                <Row
+                  k={t('actions.motionNotes')}
+                  v={draft.profile.motionNotes}
+                />
+              )}
+              {draft.profile.intention && (
+                <Row k={t('actions.intention')} v={draft.profile.intention} />
+              )}
+              <p className="pt-1 text-[11px] text-ink-500">
+                {t('aiJobs.actionProfileDraftHint')}
+              </p>
+            </div>
+          )}
+
+          {draft.type === 'action-plate' && (
+            <div className="overflow-hidden rounded-xl border border-ink-800">
+              <LocalMediaImage
+                filePath={draft.path}
+                alt={draft.label}
+                maxHeightClass="max-h-[40vh]"
+                showActions={false}
+                enableZoom
+                showMeta
+              />
+              <p className="border-t border-ink-800 px-3 py-2 text-[11px] text-ink-500">
+                {t('aiJobs.actionPlateDraftHint')}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -219,7 +257,9 @@ export function AiDraftModal(): JSX.Element | null {
           draft.type === 'scene-profile' ||
           draft.type === 'scene-plate' ||
           draft.type === 'prop-profile' ||
-          draft.type === 'prop-plate' ? (
+          draft.type === 'prop-plate' ||
+          draft.type === 'action-profile' ||
+          draft.type === 'action-plate' ? (
             <>
               <Button
                 variant="ghost"
@@ -230,7 +270,8 @@ export function AiDraftModal(): JSX.Element | null {
               <Button onClick={() => void acceptDraft(job.id)}>
                 {draft.type === 'character-sheet' ||
                 draft.type === 'scene-plate' ||
-                draft.type === 'prop-plate'
+                draft.type === 'prop-plate' ||
+                draft.type === 'action-plate'
                   ? t('aiJobs.saveToGallery')
                   : draft.type === 'wardrobe-suggest'
                     ? t('aiJobs.applyWardrobe')

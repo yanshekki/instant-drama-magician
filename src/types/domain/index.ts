@@ -25,10 +25,12 @@ export interface StoryWithCounts extends Story {
     characters?: number
     scenes?: number
     props?: number
+    actions?: number
     timeline?: number
     storyCharacters?: number
     storyScenes?: number
     storyProps?: number
+    storyActions?: number
   }
 }
 
@@ -36,6 +38,7 @@ export interface StoryDetail extends Story {
   characters: Character[]
   scenes: Scene[]
   props: Prop[]
+  actions: Action[]
   timeline: TimelineEntry[]
 }
 
@@ -162,6 +165,34 @@ export interface PropProfileFields {
   visualTags?: string
 }
 
+export interface Action {
+  id: string
+  name: string
+  description: string
+  motionNotes?: string | null
+  intention?: string | null
+  cameraNotes?: string | null
+  panelLayout?: string | null
+  visualTags?: string | null
+  artStyle?: string | null
+  refImagePath?: string | null
+  refGalleryJson?: string | null
+  castRefsJson?: string | null
+  profileJson?: string | null
+  seedPrompt?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ActionProfileFields {
+  name: string
+  description: string
+  motionNotes?: string
+  intention?: string
+  cameraNotes?: string
+  visualTags?: string
+}
+
 export interface TimelineEntry {
   id: string
   storyId: string
@@ -171,10 +202,12 @@ export interface TimelineEntry {
   characterId: string | null
   sceneId: string | null
   propId: string | null
+  actionId: string | null
   /** Multi-bind lists (hydrated on list/create/update responses). */
   characterIds: string[]
   sceneIds: string[]
   propIds: string[]
+  actionIds: string[]
   /** Spoken-line cache / legacy free text */
   dialogue: string | null
   /** Structured beat screenplay (BeatContent JSON) */
@@ -288,6 +321,29 @@ export type UpdatePropInput = Partial<
   Omit<CreatePropInput, 'storyId' | 'linkStoryId'>
 >
 
+export interface CreateActionInput {
+  /** When set, auto-link to this story after create (M2M). */
+  storyId?: string
+  linkStoryId?: string | null
+  name: string
+  description?: string
+  motionNotes?: string | null
+  intention?: string | null
+  cameraNotes?: string | null
+  panelLayout?: string | null
+  visualTags?: string | null
+  artStyle?: string | null
+  refImagePath?: string | null
+  refGalleryJson?: string | null
+  castRefsJson?: string | null
+  profileJson?: string | null
+  seedPrompt?: string | null
+}
+
+export type UpdateActionInput = Partial<
+  Omit<CreateActionInput, 'storyId' | 'linkStoryId'>
+>
+
 export interface CreateTimelineEntryInput {
   storyId: string
   startTime: number
@@ -295,9 +351,11 @@ export interface CreateTimelineEntryInput {
   characterId?: string | null
   sceneId?: string | null
   propId?: string | null
+  actionId?: string | null
   characterIds?: string[] | null
   sceneIds?: string[] | null
   propIds?: string[] | null
+  actionIds?: string[] | null
   dialogue?: string | null
   beatContentJson?: string | null
   order: number
@@ -309,9 +367,11 @@ export interface UpdateTimelineEntryInput {
   characterId?: string | null
   sceneId?: string | null
   propId?: string | null
+  actionId?: string | null
   characterIds?: string[] | null
   sceneIds?: string[] | null
   propIds?: string[] | null
+  actionIds?: string[] | null
   dialogue?: string | null
   beatContentJson?: string | null
   order?: number
@@ -337,10 +397,35 @@ export interface VideoGenResult {
   jobId?: string
 }
 
+/** OpenAI-compatible multimodal content parts (vision). */
+export type ChatContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+
+/**
+ * Flatten assistant/user content to plain text (ignores image parts).
+ * Use when reading LLM replies that may be string or multimodal parts.
+ */
+export function chatContentText(
+  content: string | ChatContentPart[] | null | undefined
+): string {
+  if (content == null) return ''
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map((p) => {
+      if (!p || typeof p !== 'object') return ''
+      if (p.type === 'text' && 'text' in p) return String(p.text ?? '')
+      return ''
+    })
+    .join('')
+}
+
 /** AI provider contract */
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
-  content: string
+  /** Plain string or multimodal parts (vision user messages). */
+  content: string | ChatContentPart[]
 }
 
 export interface ChatCompletionRequest {

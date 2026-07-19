@@ -173,12 +173,17 @@ export class MediaStore {
     return join(this.libraryDir(), 'stories')
   }
 
+  libraryActionsDir(): string {
+    return join(this.libraryDir(), 'actions')
+  }
+
   ensureLibraryDirs(): void {
     mkdirSync(this.libraryCharsDir(), { recursive: true })
     mkdirSync(this.libraryScenesDir(), { recursive: true })
     mkdirSync(this.libraryPropsDir(), { recursive: true })
     mkdirSync(this.libraryCostumesDir(), { recursive: true })
     mkdirSync(this.libraryStoriesDir(), { recursive: true })
+    mkdirSync(this.libraryActionsDir(), { recursive: true })
   }
 
   characterImagePath(characterId: string, kind: string, ext = '.png'): string {
@@ -254,6 +259,25 @@ export class MediaStore {
     return join(
       this.libraryCostumesDir(),
       `${costumeId}_${kind}_${stamp}_${rand}${ext}`
+    )
+  }
+
+  actionImagePath(actionId: string, kind: string, ext = '.png'): string {
+    const stamp = Date.now()
+    const rand = Math.random().toString(36).slice(2, 8)
+    return join(
+      this.libraryActionsDir(),
+      `${actionId}_${kind}_${stamp}_${rand}${ext}`
+    )
+  }
+
+  /** Motion demo video derived from an instruction plate. */
+  actionVideoPath(actionId: string, kind = 'intro', ext = '.mp4'): string {
+    const stamp = Date.now()
+    const rand = Math.random().toString(36).slice(2, 8)
+    return join(
+      this.libraryActionsDir(),
+      `${actionId}_${kind}_${stamp}_${rand}${ext}`
     )
   }
 

@@ -29,6 +29,7 @@ model Story {
   storyCharacters StoryCharacter[]
   storyScenes     StoryScene[]
   storyProps      StoryProp[]
+  storyActions    StoryAction[]
 }
 
 /** Global character library asset (not owned by a story). */
@@ -188,6 +189,49 @@ model StoryProp {
   @@id([storyId, propId])
 }
 
+/**
+ * Global action / motion-direction library.
+ * Multi-panel instruction plates + demo video; cast refs from other libraries.
+ */
+model Action {
+  id             String   @id @default(cuid())
+  name           String
+  description    String
+  /** Tempo, weight, body parts, effort */
+  motionNotes    String?
+  /** Intention / emotion / goal of the move */
+  intention      String?
+  /** Camera / blocking / staging */
+  cameraNotes    String?
+  /** grid-2x2 | strip-3 | strip-4 */
+  panelLayout    String?
+  visualTags     String?
+  artStyle       String?
+  refImagePath   String?
+  refGalleryJson String?
+  /** JSON: ActionCastRef[] from characters/costumes/scenes/props */
+  castRefsJson   String?
+  profileJson    String?
+  seedPrompt     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  storyLinks      StoryAction[]
+  timelineEntries TimelineEntry[]
+}
+
+/** Story selects actions (motion library links). */
+model StoryAction {
+  storyId   String
+  actionId  String
+  sortOrder Int    @default(0)
+
+  story  Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, actionId])
+}
+
 model TimelineEntry {
   id          String      @id @default(cuid())
   storyId     String
@@ -197,10 +241,12 @@ model TimelineEntry {
   characterId String?
   sceneId     String?
   propId      String?
+  actionId    String?
   /** JSON string arrays of linked cast ids, e.g. '["id1","id2"]'. */
   characterIds String?
   sceneIds     String?
   propIds      String?
+  actionIds    String?
   /** Spoken-line cache (TTS/SRT); may be legacy free text. */
   dialogue    String?
   /** Structured beat screenplay JSON (BeatContent v1). */
@@ -215,6 +261,7 @@ model TimelineEntry {
   character Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
   scene     Scene?     @relation(fields: [sceneId], references: [id], onDelete: SetNull)
   prop      Prop?      @relation(fields: [propId], references: [id], onDelete: SetNull)
+  action    Action?    @relation(fields: [actionId], references: [id], onDelete: SetNull)
 }
 
 enum StoryStatus {

@@ -21,6 +21,7 @@ import {
   GenerationService,
   ProjectBackupService,
   PropService,
+  ActionService,
   SceneService,
   StoryCastService,
   StoryService,
@@ -36,17 +37,20 @@ import {
 // appUpdateService is electron-only — dynamic import in updates:* handlers
 import type {
   CreateCharacterInput,
+  CreateActionInput,
   CreatePropInput,
   CreateSceneInput,
   CreateStoryInput,
   CreateTimelineEntryInput,
   PropProfileFields,
   SceneProfileFields,
+  UpdateActionInput,
   UpdateCharacterInput,
   UpdatePropInput,
   UpdateSceneInput,
   UpdateTimelineEntryInput
 } from '../types/domain'
+import { chatContentText } from '../types/domain'
 import { SoulMdHubClient } from '../infrastructure/soulmd/SoulMdHubClient'
 import {
   buildCharacterIntroVideoPrompt,
@@ -105,6 +109,7 @@ export function registerAllHandlers(
   const characters = (): CharacterService => new CharacterService(host.getPrisma())
   const scenes = (): SceneService => new SceneService(host.getPrisma())
   const props = (): PropService => new PropService(host.getPrisma())
+  const actions = (): ActionService => new ActionService(host.getPrisma())
   const costumes = (): CostumeService => new CostumeService(host.getPrisma())
   const timeline = (): TimelinePersistenceService =>
     new TimelinePersistenceService(host.getPrisma())
@@ -399,7 +404,7 @@ export function registerAllHandlers(
           ],
           max_tokens: 800
         })
-        const raw = completion.choices[0]?.message.content ?? ''
+        const raw = chatContentText(completion.choices[0]?.message.content)
         const styleNote = extractStyleNoteJson(raw)
         activity.append({
           kind: 'story',
@@ -481,7 +486,7 @@ export function registerAllHandlers(
           ],
           max_tokens: 3500
         })
-        const raw = completion.choices[0]?.message.content ?? ''
+        const raw = chatContentText(completion.choices[0]?.message.content)
         const drafts = extractStoryBeatsJson(raw, locale)
         const cast = {
           characters: story.characters.map((c) => ({
@@ -839,7 +844,7 @@ export function registerAllHandlers(
           ],
           max_tokens: 1200
         })
-        const text = completion.choices[0]?.message.content ?? ''
+        const text = chatContentText(completion.choices[0]?.message.content)
         const suggestion = extractWardrobeSuggestionJson(text)
         activity.append({
           kind: 'character',
@@ -869,6 +874,8 @@ export function registerAllHandlers(
           existingDraft?: Record<string, unknown>
           /** Full soul.md / hub markdown for identity merge */
           soulContent?: string | null
+          /** Gallery / external still — vision fill from image alone is allowed */
+          referenceImagePath?: string | null
         }
       ) => {
         const idea = payload.idea?.trim() ?? ''
@@ -883,10 +890,17 @@ export function registerAllHandlers(
             })
         )
         const hasSoul = soulContent.length > 0
-        if (!idea && !hasDraft && !hasSoul) {
+        const {
+          buildVisionUserContent,
+          resolveReadableImagePath,
+          visionFillUserPreamble
+        } = await import('../domain/chatVision')
+        const refPath = resolveReadableImagePath(payload.referenceImagePath)
+        const hasImage = Boolean(refPath)
+        if (!idea && !hasDraft && !hasSoul && !hasImage) {
           throw new AppError(
             'VALIDATION',
-            'Idea, profile draft, or soul content is required'
+            'Idea, profile draft, soul content, or reference image is required'
           )
         }
         // Character invent uses only idea + form + soul (not the open story’s style).
@@ -935,6 +949,28 @@ export function registerAllHandlers(
               visualTags: str('visualTags')
             }
           : null
+        const ideaForPrompt =
+          idea ||
+          (hasImage
+            ? locale === 'en'
+              ? 'Describe and invent a full character profile from the attached reference photo.'
+              : '請根據附上的參考圖，完整填寫角色資料。'
+            : locale === 'en'
+              ? 'Polish and merge all fields'
+              : '全面潤飾並合併所有欄位')
+        const textPrompt = [
+          hasImage ? visionFillUserPreamble(locale, 'character') : null,
+          buildCharacterMasterUserPrompt({
+            idea: ideaForPrompt,
+            storyTitle,
+            styleNote,
+            locale,
+            existingDraft,
+            soulContent: hasSoul ? soulContent : null
+          })
+        ]
+          .filter(Boolean)
+          .join('\n\n')
         const completion = await aiClient.chat({
           messages: [
             {
@@ -943,32 +979,26 @@ export function registerAllHandlers(
             },
             {
               role: 'user',
-              content: buildCharacterMasterUserPrompt({
-                idea:
-                  idea ||
-                  (locale === 'en'
-                    ? 'Polish and merge all fields'
-                    : '全面潤飾並合併所有欄位'),
-                storyTitle,
-                styleNote,
-                locale,
-                existingDraft,
-                soulContent: hasSoul ? soulContent : null
-              })
+              content: buildVisionUserContent(textPrompt, refPath)
             }
           ],
           max_tokens: 3000
         })
-        const text = completion.choices[0]?.message.content ?? ''
+        const text = chatContentText(completion.choices[0]?.message.content)
         const profile = extractCharacterProfileJson(text)
         activity.append({
           kind: 'character',
-          message: hasDraft || hasSoul ? 'aiRefine' : 'aiFill',
+          message: hasImage
+            ? 'aiFillFromImage'
+            : hasDraft || hasSoul
+              ? 'aiRefine'
+              : 'aiFill',
           storyId: payload.storyId,
           meta: {
             name: profile.name,
             usedSoul: hasSoul,
-            usedDraft: hasDraft
+            usedDraft: hasDraft,
+            usedImage: hasImage
           }
         })
         return {
@@ -1046,7 +1076,7 @@ export function registerAllHandlers(
           ],
           max_tokens: 4000
         })
-        const raw = completion.choices[0]?.message.content ?? ''
+        const raw = chatContentText(completion.choices[0]?.message.content)
         const content = normalizeSoulMarkdown(raw)
         if (!content || content.length < 40) {
           throw new AppError(
@@ -2127,6 +2157,8 @@ export function registerAllHandlers(
           existingDraft?: Record<string, string | undefined | null>
           suggestFromStory?: boolean
           sceneNumber?: number
+          /** Gallery / external still — vision fill from image alone is allowed */
+          referenceImagePath?: string | null
         }
       ) => {
         const {
@@ -2135,6 +2167,11 @@ export function registerAllHandlers(
           buildSceneSuggestFromStoryUserPrompt,
           extractSceneProfileJson
         } = await import('../domain/sceneMasterPrompt')
+        const {
+          buildVisionUserContent,
+          resolveReadableImagePath,
+          visionFillUserPreamble
+        } = await import('../domain/chatVision')
         const locale = payload.locale ?? 'zh-HK'
         let storyTitle: string | undefined
         let styleNote: string | null | undefined
@@ -2150,10 +2187,17 @@ export function registerAllHandlers(
             Object.values(draft).some((v) => typeof v === 'string' && v.trim())
         )
         const idea = payload.idea?.trim() ?? ''
-        if (!idea && !hasDraft && !payload.suggestFromStory) {
+        const refPath = resolveReadableImagePath(payload.referenceImagePath)
+        const hasImage = Boolean(refPath)
+        if (
+          !idea &&
+          !hasDraft &&
+          !payload.suggestFromStory &&
+          !hasImage
+        ) {
           throw new AppError(
             'VALIDATION',
-            'Idea, draft, or suggestFromStory is required'
+            'Idea, draft, reference image, or suggestFromStory is required'
           )
         }
         if (payload.suggestFromStory && !payload.storyId?.trim()) {
@@ -2308,7 +2352,16 @@ export function registerAllHandlers(
             }
           }
         }
-        const userContent = payload.suggestFromStory
+        const ideaForPrompt =
+          idea ||
+          (hasImage
+            ? locale === 'en'
+              ? 'Describe and invent a full location profile from the attached reference photo.'
+              : '請根據附上的參考圖，完整填寫場景資料。'
+            : locale === 'en'
+              ? 'Polish'
+              : '全面潤飾')
+        const textPrompt = payload.suggestFromStory
           ? buildSceneSuggestFromStoryUserPrompt({
               storyTitle: storyTitle || 'Untitled',
               styleNote,
@@ -2321,56 +2374,69 @@ export function registerAllHandlers(
               segmentLabel,
               focusSnippets
             })
-          : buildSceneMasterUserPrompt({
-              idea: idea || (locale === 'en' ? 'Polish' : '全面潤飾'),
-              storyTitle,
-              styleNote,
-              locale,
-              characterSnippets,
-              propSnippets,
-              priorSceneSnippets,
-              existingDraft: (hasDraft
-                ? {
-                    title: draft?.title ?? undefined,
-                    description: draft?.description ?? undefined,
-                    script: draft?.script ?? undefined,
-                    locationType: draft?.locationType ?? undefined,
-                    timeOfDay: draft?.timeOfDay ?? undefined,
-                    weather: draft?.weather ?? undefined,
-                    mood: draft?.mood ?? undefined,
-                    lighting: draft?.lighting ?? undefined,
-                    colorPalette: draft?.colorPalette ?? undefined,
-                    setDressing: draft?.setDressing ?? undefined,
-                    soundscape: draft?.soundscape ?? undefined,
-                    cameraNotes: draft?.cameraNotes ?? undefined,
-                    visualTags: draft?.visualTags ?? undefined,
-                    artStyle: draft?.artStyle ?? undefined
-                  }
-                : null) as Partial<SceneProfileFields> | null
-            })
+          : [
+              hasImage ? visionFillUserPreamble(locale, 'scene') : null,
+              buildSceneMasterUserPrompt({
+                idea: ideaForPrompt,
+                storyTitle,
+                styleNote,
+                locale,
+                characterSnippets,
+                propSnippets,
+                priorSceneSnippets,
+                existingDraft: (hasDraft
+                  ? {
+                      title: draft?.title ?? undefined,
+                      description: draft?.description ?? undefined,
+                      script: draft?.script ?? undefined,
+                      locationType: draft?.locationType ?? undefined,
+                      timeOfDay: draft?.timeOfDay ?? undefined,
+                      weather: draft?.weather ?? undefined,
+                      mood: draft?.mood ?? undefined,
+                      lighting: draft?.lighting ?? undefined,
+                      colorPalette: draft?.colorPalette ?? undefined,
+                      setDressing: draft?.setDressing ?? undefined,
+                      soundscape: draft?.soundscape ?? undefined,
+                      cameraNotes: draft?.cameraNotes ?? undefined,
+                      visualTags: draft?.visualTags ?? undefined,
+                      artStyle: draft?.artStyle ?? undefined
+                    }
+                  : null) as Partial<SceneProfileFields> | null
+              })
+            ]
+              .filter(Boolean)
+              .join('\n\n')
         const completion = await aiClient.chat({
           messages: [
             {
               role: 'system',
               content: buildSceneMasterSystemPrompt(locale)
             },
-            { role: 'user', content: userContent }
+            {
+              role: 'user',
+              content: payload.suggestFromStory
+                ? textPrompt
+                : buildVisionUserContent(textPrompt, refPath)
+            }
           ],
           max_tokens: 2500
         })
-        const text = completion.choices[0]?.message.content ?? ''
+        const text = chatContentText(completion.choices[0]?.message.content)
         const profile = extractSceneProfileJson(text)
         activity.append({
           kind: 'scene',
           message: payload.suggestFromStory
             ? 'suggestScene'
-            : hasDraft
-              ? 'aiRefineScene'
-              : 'aiFillScene',
+            : hasImage
+              ? 'aiFillSceneFromImage'
+              : hasDraft
+                ? 'aiRefineScene'
+                : 'aiFillScene',
           storyId: payload.storyId,
           meta: {
             title: profile.title,
-            segmentKey: payload.segmentKey ?? null
+            segmentKey: payload.segmentKey ?? null,
+            usedImage: hasImage
           }
         })
         return {
@@ -3080,13 +3146,28 @@ export function registerAllHandlers(
     )
   )
   reg(
+    'stories:linkAction',
+    (
+      async (payload: { storyId: string; actionId: string }) =>
+        cast().linkAction(payload.storyId, payload.actionId)
+    )
+  )
+  reg(
+    'stories:unlinkAction',
+    (
+      async (payload: { storyId: string; actionId: string }) =>
+        cast().unlinkAction(payload.storyId, payload.actionId)
+    )
+  )
+  reg(
     'stories:listCast',
     (async ( storyId: string) => {
       const c = cast()
       return {
         characters: await c.listCharactersForStory(storyId),
         scenes: await c.listScenesForStory(storyId),
-        props: await c.listPropsForStory(storyId)
+        props: await c.listPropsForStory(storyId),
+        actions: await c.listActionsForStory(storyId)
       }
     })
   )
@@ -3139,6 +3220,8 @@ export function registerAllHandlers(
           storyId?: string
           locale?: 'zh-HK' | 'en'
           existingDraft?: Record<string, string | undefined | null>
+          /** Gallery / external still — vision fill from image alone is allowed */
+          referenceImagePath?: string | null
         }
       ) => {
         const {
@@ -3146,6 +3229,11 @@ export function registerAllHandlers(
           buildPropMasterUserPrompt,
           extractPropProfileJson
         } = await import('../domain/propMasterPrompt')
+        const {
+          buildVisionUserContent,
+          resolveReadableImagePath,
+          visionFillUserPreamble
+        } = await import('../domain/chatVision')
         const locale = payload.locale ?? 'zh-HK'
         const draft = payload.existingDraft
         const hasDraft = Boolean(
@@ -3153,8 +3241,13 @@ export function registerAllHandlers(
             Object.values(draft).some((v) => typeof v === 'string' && v.trim())
         )
         const idea = payload.idea?.trim() ?? ''
-        if (!idea && !hasDraft) {
-          throw new AppError('VALIDATION', 'Idea or draft required')
+        const refPath = resolveReadableImagePath(payload.referenceImagePath)
+        const hasImage = Boolean(refPath)
+        if (!idea && !hasDraft && !hasImage) {
+          throw new AppError(
+            'VALIDATION',
+            'Idea, draft, or reference image is required'
+          )
         }
         // Pure invent-from-idea: skip active story style (Demo rain etc.)
         const { shouldInjectStoryContext } = await import(
@@ -3172,6 +3265,37 @@ export function registerAllHandlers(
           storyTitle = story?.title
           styleNote = story?.styleNote
         }
+        const ideaForPrompt =
+          idea ||
+          (hasImage
+            ? locale === 'en'
+              ? 'Describe and invent a full prop profile from the attached reference photo.'
+              : '請根據附上的參考圖，完整填寫道具資料。'
+            : locale === 'en'
+              ? 'Polish'
+              : '全面潤飾')
+        const textPrompt = [
+          hasImage ? visionFillUserPreamble(locale, 'prop') : null,
+          buildPropMasterUserPrompt({
+            idea: ideaForPrompt,
+            storyTitle,
+            styleNote,
+            locale,
+            existingDraft: (hasDraft
+              ? {
+                  name: draft?.name ?? undefined,
+                  description: draft?.description ?? undefined,
+                  material: draft?.material ?? undefined,
+                  sizeNotes: draft?.sizeNotes ?? undefined,
+                  condition: draft?.condition ?? undefined,
+                  visualTags: draft?.visualTags ?? undefined,
+                  artStyle: draft?.artStyle ?? undefined
+                }
+              : null) as Partial<PropProfileFields> | null
+          })
+        ]
+          .filter(Boolean)
+          .join('\n\n')
         const completion = await aiClient.chat({
           messages: [
             {
@@ -3180,34 +3304,22 @@ export function registerAllHandlers(
             },
             {
               role: 'user',
-              content: buildPropMasterUserPrompt({
-                idea: idea || (locale === 'en' ? 'Polish' : '全面潤飾'),
-                storyTitle,
-                styleNote,
-                locale,
-                existingDraft: (hasDraft
-                  ? {
-                      name: draft?.name ?? undefined,
-                      description: draft?.description ?? undefined,
-                      material: draft?.material ?? undefined,
-                      sizeNotes: draft?.sizeNotes ?? undefined,
-                      condition: draft?.condition ?? undefined,
-                      visualTags: draft?.visualTags ?? undefined,
-                      artStyle: draft?.artStyle ?? undefined
-                    }
-                  : null) as Partial<PropProfileFields> | null
-              })
+              content: buildVisionUserContent(textPrompt, refPath)
             }
           ],
           max_tokens: 1500
         })
-        const text = completion.choices[0]?.message.content ?? ''
+        const text = chatContentText(completion.choices[0]?.message.content)
         const profile = extractPropProfileJson(text)
         activity.append({
           kind: 'prop',
-          message: hasDraft ? 'aiRefineProp' : 'aiFillProp',
+          message: hasImage
+            ? 'aiFillPropFromImage'
+            : hasDraft
+              ? 'aiRefineProp'
+              : 'aiFillProp',
           storyId: payload.storyId,
-          meta: { name: profile.name }
+          meta: { name: profile.name, usedImage: hasImage }
         })
         return {
           profile,
@@ -3558,6 +3670,500 @@ export function registerAllHandlers(
     )
   )
 
+  // ─── Actions (motion direction library) ────────────────────
+  reg(
+    'actions:list',
+    (
+      async (
+        storyIdOrOpts?: string | { storyId?: string; q?: string; forStory?: boolean }
+      ) => {
+        if (typeof storyIdOrOpts === 'string' && storyIdOrOpts) {
+          return actions().listForStory(storyIdOrOpts)
+        }
+        if (
+          storyIdOrOpts &&
+          typeof storyIdOrOpts === 'object' &&
+          storyIdOrOpts.forStory &&
+          storyIdOrOpts.storyId
+        ) {
+          return actions().listForStory(storyIdOrOpts.storyId)
+        }
+        const q =
+          storyIdOrOpts && typeof storyIdOrOpts === 'object'
+            ? storyIdOrOpts.q
+            : undefined
+        return actions().list({ q })
+      }
+    )
+  )
+  reg('actions:get', async (id: string) => actions().get(id))
+  reg(
+    'actions:create',
+    (async (input: CreateActionInput) => actions().create(input))
+  )
+  reg(
+    'actions:update',
+    (async (id: string, data: UpdateActionInput) =>
+      actions().update(id, data))
+  )
+  reg(
+    'actions:delete',
+    (async (id: string) => actions().delete(id))
+  )
+  reg(
+    'actions:linkStory',
+    (async (storyId: string, actionId: string) =>
+      actions().linkStory(storyId, actionId))
+  )
+  reg(
+    'actions:unlinkStory',
+    (async (storyId: string, actionId: string) =>
+      actions().unlinkStory(storyId, actionId))
+  )
+
+  reg(
+    'actions:aiFill',
+    (
+      async (
+        payload: {
+          idea?: string
+          storyId?: string
+          locale?: 'zh-HK' | 'en'
+          existingDraft?: Record<string, string | undefined | null>
+          /** Gallery / external still — vision fill from image alone is allowed */
+          referenceImagePath?: string | null
+        }
+      ) => {
+        const {
+          buildActionMasterSystemPrompt,
+          buildActionMasterUserPrompt,
+          extractActionProfileJson
+        } = await import('../domain/actionMasterPrompt')
+        const {
+          buildVisionUserContent,
+          resolveReadableImagePath,
+          visionFillUserPreamble
+        } = await import('../domain/chatVision')
+        const locale = payload.locale ?? 'zh-HK'
+        const draft = payload.existingDraft
+        const hasDraft = Boolean(
+          draft &&
+            Object.values(draft).some((v) => typeof v === 'string' && v.trim())
+        )
+        const idea = payload.idea?.trim() ?? ''
+        const refPath = resolveReadableImagePath(payload.referenceImagePath)
+        const hasImage = Boolean(refPath)
+        if (!idea && !hasDraft && !hasImage) {
+          throw new AppError(
+            'VALIDATION',
+            'Idea, draft, or reference image is required'
+          )
+        }
+        const { shouldInjectStoryContext } = await import(
+          '../domain/storyContextPolicy'
+        )
+        let storyTitle: string | undefined
+        let styleNote: string | null | undefined
+        if (payload.storyId && shouldInjectStoryContext({ hasDraft })) {
+          const story = await host.getPrisma().story.findUnique({
+            where: { id: payload.storyId }
+          })
+          storyTitle = story?.title
+          styleNote = story?.styleNote
+        }
+        const ideaForPrompt =
+          idea ||
+          (hasImage
+            ? locale === 'en'
+              ? 'Describe and invent a full action profile from the attached instruction / reference still.'
+              : '請根據附上的參考／指示圖，完整填寫動作資料。'
+            : locale === 'en'
+              ? 'Polish'
+              : '全面潤飾')
+        const textPrompt = [
+          hasImage ? visionFillUserPreamble(locale, 'action') : null,
+          buildActionMasterUserPrompt({
+            idea: ideaForPrompt,
+            storyTitle,
+            styleNote,
+            locale,
+            existingDraft: hasDraft
+              ? {
+                  name: draft?.name ?? undefined,
+                  description: draft?.description ?? undefined,
+                  motionNotes: draft?.motionNotes ?? undefined,
+                  intention: draft?.intention ?? undefined,
+                  cameraNotes: draft?.cameraNotes ?? undefined,
+                  visualTags: draft?.visualTags ?? undefined,
+                  artStyle: draft?.artStyle ?? undefined
+                }
+              : null
+          })
+        ]
+          .filter(Boolean)
+          .join('\n\n')
+        const completion = await aiClient.chat({
+          messages: [
+            {
+              role: 'system',
+              content: buildActionMasterSystemPrompt(locale)
+            },
+            {
+              role: 'user',
+              content: buildVisionUserContent(textPrompt, refPath)
+            }
+          ],
+          max_tokens: 1600
+        })
+        const text = chatContentText(completion.choices[0]?.message.content)
+        const profile = extractActionProfileJson(text)
+        activity.append({
+          kind: 'action',
+          message: hasImage
+            ? 'aiFillActionFromImage'
+            : hasDraft
+              ? 'aiRefineAction'
+              : 'aiFillAction',
+          storyId: payload.storyId,
+          meta: { name: profile.name, usedImage: hasImage }
+        })
+        return {
+          profile,
+          profileJson: JSON.stringify(profile, null, 2),
+          raw: text
+        }
+      }
+    )
+  )
+
+  reg(
+    'actions:generatePlate',
+    (
+      async (
+        payload: {
+          actionId: string
+          panelLayout?: string | null
+          referenceImagePath?: string | null
+          useIdentityEdit?: boolean
+          persist?: boolean
+          artStyle?: string | null
+        }
+      ) => {
+        const row = await actions().get(payload.actionId)
+        const {
+          buildActionPlateEditPrompt,
+          buildActionPlateImagePrompt
+        } = await import('../domain/actionMasterPrompt')
+        const { getActionPanelLayout } = await import(
+          '../domain/actionPlateVariants'
+        )
+        const { parseActionCastRefs } = await import(
+          '../domain/actionCastRefs'
+        )
+        const { getArtStyle } = await import('../domain/characterArtStyles')
+        const { resolveSheetGenMode } = await import(
+          '../domain/characterMasterPrompt'
+        )
+        const {
+          appendActionGalleryItem,
+          parseActionGallery,
+          primaryActionGalleryPath,
+          serializeActionGallery
+        } = await import('../domain/actionGallery')
+        const { aspectFromImageSize } = await import('../types/settings')
+
+        const layout = getActionPanelLayout(
+          payload.panelLayout ?? row.panelLayout
+        )
+        const artStyle = getArtStyle(
+          payload.artStyle ?? row.artStyle ?? undefined
+        ).id
+        // Match canvas aspect to layout: 2×3 / strips need wide so models
+        // don't collapse to a square 2×2 four-panel board.
+        const size =
+          layout.sizeClass === 'tall'
+            ? settings.imageSizeTall
+            : layout.sizeClass === 'square'
+              ? settings.imageSizeSquare
+              : settings.imageSizeWide
+        const aspectRatio = aspectFromImageSize(size)
+        const profile = {
+          name: row.name,
+          description: row.description,
+          motionNotes: row.motionNotes ?? undefined,
+          intention: row.intention ?? undefined,
+          cameraNotes: row.cameraNotes ?? undefined,
+          visualTags: row.visualTags ?? undefined
+        }
+        const castRefs = parseActionCastRefs(row.castRefsJson)
+        const gallery = parseActionGallery(row.refGalleryJson, {
+          refImagePath: row.refImagePath
+        })
+        const explicitRef =
+          typeof payload.referenceImagePath === 'string' &&
+          payload.referenceImagePath.trim()
+            ? payload.referenceImagePath.trim()
+            : castRefs[0]?.imagePath || null
+        const refPath =
+          explicitRef && existsSync(explicitRef) ? explicitRef : null
+        const usedEdit =
+          resolveSheetGenMode({
+            useIdentityEdit: payload.useIdentityEdit ?? Boolean(refPath),
+            hasValidRef: Boolean(refPath)
+          }) === 'edit'
+        const prompt = usedEdit
+          ? buildActionPlateEditPrompt(profile, layout.id, artStyle)
+          : buildActionPlateImagePrompt(
+              profile,
+              layout.id,
+              artStyle,
+              castRefs
+            )
+        if (payload.artStyle || row.artStyle !== artStyle) {
+          await actions().update(row.id, { artStyle })
+        }
+        if (payload.panelLayout && payload.panelLayout !== row.panelLayout) {
+          await actions().update(row.id, { panelLayout: layout.id })
+        }
+        const img = usedEdit
+          ? await aiClient.editImage({
+              prompt,
+              imagePath: refPath!,
+              size,
+              aspectRatio
+            })
+          : await aiClient.generateImage({ prompt, size, aspectRatio })
+        const store = generation().getMediaStore()
+        const persist = payload.persist === true
+        let outPath: string
+        if (persist) {
+          store.ensureLibraryDirs()
+          outPath = store.actionImagePath(
+            row.id,
+            `plate_${layout.id}`,
+            '.png'
+          )
+        } else {
+          store.ensureTmpDir()
+          outPath = store.tmpImagePath(`action_${layout.id}`, '.png')
+        }
+        writeFileSync(outPath, Buffer.from(img.b64, 'base64'))
+        const { enhanceCharacterImage } = await import(
+          '../infrastructure/media/imageEnhance'
+        )
+        const enhanced = enhanceCharacterImage(outPath, {
+          enabled: settings.imageEnhance,
+          maxEdge: settings.imageEnhanceMaxEdge,
+          scale: settings.imageEnhanceScale
+        })
+        const label = layout.galleryLabel
+        if (!persist) {
+          activity.append({
+            kind: 'action',
+            message: 'generateActionPlateDraft',
+            meta: { actionId: row.id, path: outPath, layout: layout.id }
+          })
+          return {
+            action: row,
+            path: outPath,
+            draft: true,
+            label,
+            panelLayout: layout.id,
+            artStyle,
+            usedEdit,
+            enhance: enhanced,
+            gallery
+          }
+        }
+        const nextGallery = appendActionGalleryItem(gallery, {
+          path: outPath,
+          kind: 'sheet',
+          label,
+          layer: 'detail'
+        })
+        const primary = primaryActionGalleryPath(nextGallery)
+        const updated = await actions().update(row.id, {
+          refImagePath: primary,
+          refGalleryJson: serializeActionGallery(nextGallery),
+          artStyle,
+          panelLayout: layout.id
+        })
+        activity.append({
+          kind: 'action',
+          message: 'generateActionPlate',
+          meta: { actionId: row.id, path: outPath, layout: layout.id }
+        })
+        return {
+          action: updated,
+          path: outPath,
+          draft: false,
+          label,
+          panelLayout: layout.id,
+          artStyle,
+          usedEdit,
+          enhance: enhanced,
+          gallery: nextGallery
+        }
+      }
+    )
+  )
+
+  reg(
+    'actions:commitPlate',
+    (
+      async (
+        payload: {
+          actionId: string
+          path: string
+          panelLayout?: string
+          label?: string
+        }
+      ) => {
+        const row = await actions().get(payload.actionId)
+        if (!payload.path || !existsSync(payload.path)) {
+          throw new AppError('NOT_FOUND', 'Draft action plate not found')
+        }
+        const store = generation().getMediaStore()
+        store.ensureLibraryDirs()
+        const finalPath = store.actionImagePath(
+          row.id,
+          `plate_${payload.panelLayout ?? row.panelLayout ?? 'grid'}`,
+          extname(payload.path) || '.png'
+        )
+        copyFileSync(payload.path, finalPath)
+        const {
+          appendActionGalleryItem,
+          parseActionGallery,
+          primaryActionGalleryPath,
+          serializeActionGallery
+        } = await import('../domain/actionGallery')
+        const gallery = parseActionGallery(row.refGalleryJson, {
+          refImagePath: row.refImagePath
+        })
+        const nextGallery = appendActionGalleryItem(gallery, {
+          path: finalPath,
+          kind: 'sheet',
+          label: payload.label ?? 'Instruction board',
+          layer: 'detail'
+        })
+        const primary = primaryActionGalleryPath(nextGallery)
+        const updated = await actions().update(row.id, {
+          refImagePath: primary,
+          refGalleryJson: serializeActionGallery(nextGallery)
+        })
+        activity.append({
+          kind: 'action',
+          message: 'commitActionPlate',
+          meta: { actionId: row.id, path: finalPath }
+        })
+        return { action: updated, path: finalPath, gallery: nextGallery }
+      }
+    )
+  )
+
+  reg(
+    'actions:generateIntroVideo',
+    (
+      async (
+        payload: {
+          actionId: string
+          sourceImagePath: string
+          durationSeconds?: number
+          locale?: 'zh-HK' | 'en'
+        }
+      ) => {
+        const row = await actions().get(payload.actionId)
+        const sourceImagePath = payload.sourceImagePath?.trim()
+        if (!sourceImagePath || !existsSync(sourceImagePath)) {
+          throw new AppError(
+            'VALIDATION',
+            'Source image is required',
+            'Select an instruction still first'
+          )
+        }
+        if (!aiClient.generateVideo) {
+          throw new AppError(
+            'AI_UNAVAILABLE',
+            'Video generation is not available',
+            'Enable Grok gateway videoApi'
+          )
+        }
+        const profile = {
+          name: row.name,
+          description: row.description || row.name,
+          motionNotes: row.motionNotes ?? undefined,
+          intention: row.intention ?? undefined,
+          cameraNotes: row.cameraNotes ?? undefined,
+          visualTags: row.visualTags ?? undefined,
+          artStyle: row.artStyle ?? undefined
+        }
+        const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+        const { buildActionIntroVideoPrompt } = await import(
+          '../domain/actionMasterPrompt'
+        )
+        const fallbackPrompt = buildActionIntroVideoPrompt(profile, locale)
+        const store = generation().getMediaStore()
+        store.ensureLibraryDirs()
+        const outPath = store.actionVideoPath(row.id, 'intro', '.mp4')
+        const seconds =
+          typeof payload.durationSeconds === 'number'
+            ? payload.durationSeconds
+            : 10
+        const aspectRatio =
+          settings.aspectRatio === '9:16' || settings.aspectRatio === '16:9'
+            ? settings.aspectRatio
+            : '16:9'
+        const {
+          polishThenGenerateVideo
+        } = await import('../application/video/polishVideoPrompt')
+        const result = await polishThenGenerateVideo({
+          ai: aiClient,
+          locale,
+          fallbackPrompt,
+          polishUserContent: fallbackPrompt,
+          videoRequest: {
+            durationSeconds: seconds,
+            refImagePath: sourceImagePath,
+            outputPath: outPath,
+            aspectRatio
+          }
+        })
+        const {
+          parseActionGallery,
+          serializeActionGallery,
+          setActionGalleryIntroVideo
+        } = await import('../domain/actionGallery')
+        const gallery = parseActionGallery(row.refGalleryJson, {
+          refImagePath: row.refImagePath
+        })
+        const nextGallery = setActionGalleryIntroVideo(
+          gallery,
+          sourceImagePath,
+          result.outputPath
+        )
+        const updated = await actions().update(row.id, {
+          refGalleryJson: serializeActionGallery(nextGallery)
+        })
+        activity.append({
+          kind: 'action',
+          message: 'generateIntroVideo',
+          meta: {
+            actionId: row.id,
+            sourceImagePath,
+            path: result.outputPath
+          }
+        })
+        return {
+          action: updated,
+          path: result.outputPath,
+          sourceImagePath,
+          gallery: nextGallery,
+          polished: result.polished
+        }
+      }
+    )
+  )
+
   // ─── Costumes (global wardrobe) ─────────────────────────────
   reg(
     'costumes:list',
@@ -3655,6 +4261,8 @@ export function registerAllHandlers(
             description?: string | null
             artStyle?: string | null
           }
+          /** External / gallery still — vision fill from image alone is allowed */
+          referenceImagePath?: string | null
         }
       ) => {
         const locale = payload.locale ?? 'zh-HK'
@@ -3665,33 +4273,50 @@ export function registerAllHandlers(
               (draft.description && draft.description.trim()))
         )
         const idea = payload.idea?.trim() ?? ''
-        if (!idea && !hasDraft) {
-          throw new AppError('VALIDATION', 'Idea or draft required')
+        const {
+          buildVisionUserContent,
+          resolveReadableImagePath,
+          visionFillUserPreamble
+        } = await import('../domain/chatVision')
+        const refPath = resolveReadableImagePath(payload.referenceImagePath)
+        const hasImage = Boolean(refPath)
+        if (!idea && !hasDraft && !hasImage) {
+          throw new AppError(
+            'VALIDATION',
+            'Idea, draft, or reference image is required'
+          )
         }
         const system =
           locale === 'en'
-            ? 'You are a film wardrobe designer. Reply with ONLY compact JSON: {"name":"short label","description":"full wardrobe description for image gen (layers, fabric, colors, accessories; no brand logos)","artStyle":"optional style id or null"}. No markdown.'
-            : '你是影視造型指導。只回覆緊湊 JSON：{"name":"短名稱","description":"完整戲服描述（分層、布料、顏色、配飾；無品牌 Logo）","artStyle":"可選風格 id 或 null"}。不要 markdown。'
+            ? 'You are a film wardrobe designer. Reply with ONLY compact JSON: {"name":"short label","description":"full wardrobe description for image gen (layers, fabric, colors, accessories; no brand logos)","artStyle":"optional style id or null"}. No markdown. If an image is provided, describe THAT outfit faithfully for short-drama generation.'
+            : '你是影視造型指導。只回覆緊湊 JSON：{"name":"短名稱","description":"完整戲服描述（分層、布料、顏色、配飾；無品牌 Logo）","artStyle":"可選風格 id 或 null"}。不要 markdown。若有參考圖，請按圖如實描述該造型，供短劇出圖使用。'
         const userParts = [
+          hasImage ? visionFillUserPreamble(locale, 'costume') : null,
           idea
             ? locale === 'en'
               ? `Idea: ${idea}`
               : `構思：${idea}`
-            : locale === 'en'
-              ? 'Polish the draft wardrobe.'
-              : '潤飾以下戲服草稿。',
+            : !hasImage
+              ? locale === 'en'
+                ? 'Polish the draft wardrobe.'
+                : '潤飾以下戲服草稿。'
+              : null,
           hasDraft
             ? `Draft:\nname: ${draft?.name ?? ''}\ndescription: ${draft?.description ?? ''}\nartStyle: ${draft?.artStyle ?? ''}`
             : null
         ].filter(Boolean)
+        const textPrompt = userParts.join('\n\n')
         const completion = await aiClient.chat({
           messages: [
             { role: 'system', content: system },
-            { role: 'user', content: userParts.join('\n\n') }
+            {
+              role: 'user',
+              content: buildVisionUserContent(textPrompt, refPath)
+            }
           ],
           max_tokens: 900
         })
-        const text = completion.choices[0]?.message.content ?? ''
+        const text = chatContentText(completion.choices[0]?.message.content)
         let name = ''
         let description = ''
         let artStyle: string | null = null
@@ -3718,8 +4343,12 @@ export function registerAllHandlers(
         }
         activity.append({
           kind: 'costume',
-          message: hasDraft ? 'aiRefineCostume' : 'aiFillCostume',
-          meta: { name }
+          message: hasImage
+            ? 'aiFillCostumeFromImage'
+            : hasDraft
+              ? 'aiRefineCostume'
+              : 'aiFillCostume',
+          meta: { name, usedImage: hasImage }
         })
         return { name, description, artStyle, raw: text }
       }
@@ -4007,12 +4636,14 @@ export function registerAllHandlers(
             | 'scene-intro'
             | 'prop-intro'
             | 'costume-intro'
+            | 'action-intro'
             | 'timeline-clip'
           sourceImagePath?: string | null
           characterId?: string
           sceneId?: string
           propId?: string
           costumeId?: string
+          actionId?: string
           storyId?: string
           entryId?: string
           durationSeconds?: number
@@ -4063,6 +4694,7 @@ export function registerAllHandlers(
           sceneId?: string
           propId?: string
           costumeId?: string
+          actionId?: string
           storyId?: string
           entryId?: string
         } = {}
@@ -4222,6 +4854,33 @@ export function registerAllHandlers(
             profile.material ? `material: ${profile.material}` : null
           ])
           stillOut = store.propImagePath(row.id, 'video_prep_still', '.png')
+        } else if (payload.kind === 'action-intro') {
+          if (!payload.actionId) {
+            throw new AppError('VALIDATION', 'actionId is required')
+          }
+          const row = await actions().get(payload.actionId)
+          entityIds.actionId = row.id
+          const profile = {
+            name: row.name,
+            description: row.description || row.name,
+            motionNotes: row.motionNotes ?? undefined,
+            intention: row.intention ?? undefined,
+            cameraNotes: row.cameraNotes ?? undefined,
+            visualTags: row.visualTags ?? undefined,
+            artStyle: row.artStyle ?? undefined
+          }
+          const { buildActionIntroVideoPrompt } = await import(
+            '../domain/actionMasterPrompt'
+          )
+          fallbackPrompt = buildActionIntroVideoPrompt(profile, locale)
+          polishUserContent = fallbackPrompt
+          materialsSummary = materialsSummaryLines([
+            `name: ${profile.name}`,
+            `description: ${profile.description}`,
+            profile.motionNotes ? `motion: ${profile.motionNotes}` : null,
+            profile.intention ? `intention: ${profile.intention}` : null
+          ])
+          stillOut = store.actionImagePath(row.id, 'video_prep_still', '.png')
         } else if (payload.kind === 'costume-intro') {
           if (!payload.costumeId) {
             throw new AppError('VALIDATION', 'costumeId is required')
@@ -4914,6 +5573,7 @@ export function registerAllHandlers(
             | 'scene-intro'
             | 'prop-intro'
             | 'costume-intro'
+            | 'action-intro'
             | 'timeline-clip'
           professionalPrompt: string
           userExtraPrompt?: string | null
@@ -4923,6 +5583,7 @@ export function registerAllHandlers(
           sceneId?: string
           propId?: string
           costumeId?: string
+          actionId?: string
           storyId?: string
           entryId?: string
           durationSeconds?: number
@@ -4977,6 +5638,8 @@ export function registerAllHandlers(
           outPath = store.propVideoPath(payload.propId, 'intro', '.mp4')
         } else if (payload.kind === 'costume-intro' && payload.costumeId) {
           outPath = store.costumeVideoPath(payload.costumeId, 'intro', '.mp4')
+        } else if (payload.kind === 'action-intro' && payload.actionId) {
+          outPath = store.actionVideoPath(payload.actionId, 'intro', '.mp4')
         } else if (
           payload.kind === 'timeline-clip' &&
           payload.storyId &&
@@ -5178,6 +5841,42 @@ export function registerAllHandlers(
           next = setGalleryIntroVideo(next, stillPath, result.outputPath)
           const updated = await costumes().update(payload.costumeId, {
             refGalleryJson: serializeCharacterGallery(next),
+            refImagePath: row.refImagePath || source || stillPath
+          })
+          return {
+            path: result.outputPath,
+            gallery: next,
+            entity: updated,
+            polished: result.polished,
+            promptUsed: result.promptUsed
+          }
+        }
+
+        if (payload.kind === 'action-intro' && payload.actionId) {
+          const row = await actions().get(payload.actionId)
+          const {
+            parseActionGallery,
+            serializeActionGallery,
+            setActionGalleryIntroVideo,
+            appendActionGalleryItem
+          } = await import('../domain/actionGallery')
+          let next = parseActionGallery(row.refGalleryJson, {
+            refImagePath: row.refImagePath
+          })
+          const source = payload.sourceImagePath?.trim() || null
+          if (!next.some((g) => g.path === stillPath)) {
+            next = appendActionGalleryItem(next, {
+              path: stillPath,
+              kind: 'gen',
+              label: 'Video still'
+            })
+          }
+          if (source && next.some((g) => g.path === source)) {
+            next = setActionGalleryIntroVideo(next, source, result.outputPath)
+          }
+          next = setActionGalleryIntroVideo(next, stillPath, result.outputPath)
+          const updated = await actions().update(payload.actionId, {
+            refGalleryJson: serializeActionGallery(next),
             refImagePath: row.refImagePath || source || stillPath
           })
           return {
@@ -5954,37 +6653,45 @@ export function registerAllHandlers(
     })
   )
 
-  /** Save a copy of any local media file (Save as…). Optional destPath for CLI. */
+  /**
+   * Save / download local media.
+   * - Electron: native Save dialog + copy
+   * - Web/headless (no dest): return downloadUrl for /api/download (no server-side copy)
+   * - CLI: pass destPath or IDM_SAVE_PATH
+   */
   reg(
     'media:saveAs',
     (async (filePath: string, destPath?: string) => {
       if (!filePath || !existsSync(filePath)) {
         throw new AppError('NOT_FOUND', 'Media file not found')
       }
+      const {
+        buildMediaDownloadResult,
+        mediaSaveAsKind,
+        saveAsDialogFilters
+      } = await import('../domain/mediaSaveAs')
+
       let to =
         typeof destPath === 'string' && destPath.trim()
           ? destPath.trim()
           : process.env.IDM_SAVE_PATH || ''
+
       if (!to) {
+        // Web / CLI headless: browser attachment via /api/download (never write cwd)
+        if (host.mode === 'headless') {
+          const dl = buildMediaDownloadResult(filePath)
+          activity.append({
+            kind: 'media',
+            message: 'saveAs-download',
+            meta: { from: filePath, fileName: dl.fileName, kind: dl.kind }
+          })
+          return dl
+        }
         const win = host.getMainWindow()
-        const ext = extname(filePath).replace(/^\./, '') || 'png'
-        const filters =
-          ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext.toLowerCase())
-            ? [
-                {
-                  name: 'Images',
-                  extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif']
-                },
-                { name: 'All files', extensions: ['*'] }
-              ]
-            : [
-                { name: 'Media', extensions: [ext] },
-                { name: 'All files', extensions: ['*'] }
-              ]
         const options = {
           title: 'Save as',
           defaultPath: basename(filePath),
-          filters
+          filters: saveAsDialogFilters(filePath)
         }
         const result = win
           ? await host.dialog.showSaveDialog(win, options)
@@ -5992,13 +6699,18 @@ export function registerAllHandlers(
         if (result.canceled || !result.filePath) return null
         to = result.filePath
       }
+
       copyFileSync(filePath, to)
       activity.append({
         kind: 'media',
         message: 'saveAs',
         meta: { from: filePath, to }
       })
-      return { filePath: to }
+      return {
+        filePath: to,
+        fileName: basename(to),
+        kind: mediaSaveAsKind(filePath)
+      }
     })
   )
 

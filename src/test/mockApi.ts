@@ -67,6 +67,19 @@ export function createMockApi(
       commitPlate: vi.fn().mockResolvedValue({}),
       generateIntroVideo: vi.fn().mockResolvedValue({})
     },
+    actions: {
+      list: vi.fn().mockResolvedValue([]),
+      get: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: 'a1' }),
+      update: vi.fn().mockResolvedValue({}),
+      delete: vi.fn().mockResolvedValue({ ok: true }),
+      linkStory: vi.fn().mockResolvedValue({ ok: true }),
+      unlinkStory: vi.fn().mockResolvedValue({ ok: true }),
+      aiFill: vi.fn().mockResolvedValue({ profile: {}, profileJson: '{}', raw: '' }),
+      generatePlate: vi.fn().mockResolvedValue({ path: '/tmp/a.png' }),
+      commitPlate: vi.fn().mockResolvedValue({}),
+      generateIntroVideo: vi.fn().mockResolvedValue({})
+    },
     costumes: {
       list: vi.fn().mockResolvedValue([]),
       get: vi.fn().mockResolvedValue(null),

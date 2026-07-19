@@ -22,4 +22,32 @@ describe('formatUserError', () => {
   it('uses fallback when empty', () => {
     expect(formatUserError('', t)).toBe('T:aiJobs.failed')
   })
+
+  it('maps legacy English timeline unlink errors', () => {
+    expect(
+      formatUserError('Cannot remove scene: still used on the timeline', t)
+    ).toBe('T:errors.cannotRemoveSceneOnTimeline')
+    expect(
+      formatUserError('Cannot remove character: still used on the timeline', t)
+    ).toBe('T:errors.cannotRemoveCharacterOnTimeline')
+    expect(
+      formatUserError('Cannot remove prop: still used on the timeline', t)
+    ).toBe('T:errors.cannotRemovePropOnTimeline')
+  })
+
+  it('translates cannot-remove keys', () => {
+    expect(formatUserError('errors.cannotRemoveSceneOnTimeline', t)).toBe(
+      'T:errors.cannotRemoveSceneOnTimeline'
+    )
+  })
+
+  it('maps Failed to fetch network errors', () => {
+    expect(formatUserError('Failed to fetch', t)).toBe('T:errors.networkFailed')
+    expect(formatUserError('TypeError: Failed to fetch', t)).toBe(
+      'T:errors.networkFailed'
+    )
+    expect(formatUserError('fetch failed: ECONNREFUSED', t)).toBe(
+      'T:errors.networkFailed'
+    )
+  })
 })

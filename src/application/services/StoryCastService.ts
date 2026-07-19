@@ -62,6 +62,20 @@ export class StoryCastService {
     }))
   }
 
+  async listActionsForStory(storyId: string) {
+    await this.ensureStory(storyId)
+    const links = await this.prisma.storyAction.findMany({
+      where: { storyId },
+      orderBy: { sortOrder: 'asc' },
+      include: { action: true }
+    })
+    return links.map((l) => ({
+      ...l.action,
+      sortOrder: l.sortOrder,
+      linked: true as const
+    }))
+  }
+
   async linkCharacter(
     storyId: string,
     characterId: string,
@@ -136,7 +150,7 @@ export class StoryCastService {
     if (inUse > 0) {
       throw new AppError(
         'VALIDATION',
-        'Cannot remove character: still used on the timeline'
+        'errors.cannotRemoveCharacterOnTimeline'
       )
     }
     await this.prisma.storyCharacter.deleteMany({
@@ -195,7 +209,7 @@ export class StoryCastService {
     if (inUse > 0) {
       throw new AppError(
         'VALIDATION',
-        'Cannot remove scene: still used on the timeline'
+        'errors.cannotRemoveSceneOnTimeline'
       )
     }
     await this.prisma.storyScene.deleteMany({ where: { storyId, sceneId } })
@@ -230,11 +244,57 @@ export class StoryCastService {
     if (inUse > 0) {
       throw new AppError(
         'VALIDATION',
-        'Cannot remove prop: still used on the timeline'
+        'errors.cannotRemovePropOnTimeline'
       )
     }
     await this.prisma.storyProp.deleteMany({ where: { storyId, propId } })
     return { ok: true as const }
+  }
+
+  async linkAction(
+    storyId: string,
+    actionId: string,
+    opts?: { sortOrder?: number }
+  ) {
+    await this.ensureStory(storyId)
+    await this.ensureAction(actionId)
+    const max = await this.prisma.storyAction.aggregate({
+      where: { storyId },
+      _max: { sortOrder: true }
+    })
+    return this.prisma.storyAction.upsert({
+      where: { storyId_actionId: { storyId, actionId } },
+      create: {
+        storyId,
+        actionId,
+        sortOrder: opts?.sortOrder ?? (max._max.sortOrder ?? -1) + 1
+      },
+      update: {
+        ...(opts?.sortOrder !== undefined ? { sortOrder: opts.sortOrder } : {})
+      }
+    })
+  }
+
+  async unlinkAction(storyId: string, actionId: string) {
+    await this.ensureStory(storyId)
+    const inUse = await this.prisma.timelineEntry.count({
+      where: { storyId, actionId }
+    })
+    if (inUse > 0) {
+      throw new AppError(
+        'VALIDATION',
+        'errors.cannotRemoveActionOnTimeline'
+      )
+    }
+    await this.prisma.storyAction.deleteMany({ where: { storyId, actionId } })
+    return { ok: true as const }
+  }
+
+  async isActionLinked(storyId: string, actionId: string): Promise<boolean> {
+    const row = await this.prisma.storyAction.findUnique({
+      where: { storyId_actionId: { storyId, actionId } }
+    })
+    return Boolean(row)
   }
 
   async isCharacterLinked(storyId: string, characterId: string): Promise<boolean> {
@@ -287,9 +347,11 @@ export class StoryCastService {
       characterId?: string | null
       sceneId?: string | null
       propId?: string | null
+      actionId?: string | null
       characterIds?: string[] | null
       sceneIds?: string[] | null
       propIds?: string[] | null
+      actionIds?: string[] | null
     }
   ): Promise<void> {
     const charIds = [
@@ -320,6 +382,15 @@ export class StoryCastService {
     for (const id of [...new Set(propIds)]) {
       if (!(await this.isPropLinked(storyId, id))) {
         throw new AppError('VALIDATION', 'Prop is not linked to this story')
+      }
+    }
+    const actionIds = [
+      ...(refs.actionIds ?? []),
+      ...(refs.actionId ? [refs.actionId] : [])
+    ]
+    for (const id of [...new Set(actionIds)]) {
+      if (!(await this.isActionLinked(storyId, id))) {
+        throw new AppError('VALIDATION', 'Action is not linked to this story')
       }
     }
   }
@@ -354,5 +425,13 @@ export class StoryCastService {
       select: { id: true }
     })
     if (!r) throw new AppError('NOT_FOUND', `Prop not found: ${id}`)
+  }
+
+  private async ensureAction(id: string): Promise<void> {
+    const r = await this.prisma.action.findUnique({
+      where: { id },
+      select: { id: true }
+    })
+    if (!r) throw new AppError('NOT_FOUND', `Action not found: ${id}`)
   }
 }

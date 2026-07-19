@@ -12,6 +12,7 @@ import { CharactersPage } from './presentation/pages/CharactersPage'
 import { CostumesPage } from './presentation/pages/CostumesPage'
 import { ScenesPage } from './presentation/pages/ScenesPage'
 import { PropsPage } from './presentation/pages/PropsPage'
+import { ActionsPage } from './presentation/pages/ActionsPage'
 import { TimelinePage } from './presentation/pages/TimelinePage'
 import { SettingsPage } from './presentation/pages/SettingsPage'
 import { AuditLogPage } from './presentation/pages/AuditLogPage'
@@ -39,6 +40,7 @@ export default function App(): JSX.Element {
                     <Route path="costumes" element={<CostumesPage />} />
                     <Route path="scenes" element={<ScenesPage />} />
                     <Route path="props" element={<PropsPage />} />
+                    <Route path="actions" element={<ActionsPage />} />
                     <Route path="timeline" element={<TimelinePage />} />
                     <Route path="audit" element={<AuditLogPage />} />
                     <Route path="settings" element={<SettingsPage />} />

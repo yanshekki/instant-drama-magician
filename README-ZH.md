@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| **版本** | 1.1.2 |
+| **版本** | 1.2.0 |
 | **作者** | YSK Limited |
 | **聯絡** | [email@ysk.hk](mailto:email@ysk.hk) |
 | **授權** | MIT |
@@ -227,7 +227,7 @@ instant-drama doctor --json
 
 ```bash
 # Linux 範例
-sudo dpkg -i release/instant-drama-magician_1.1.2_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.2.0_amd64.deb
 # 或
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```

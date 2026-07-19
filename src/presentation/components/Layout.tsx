@@ -34,6 +34,7 @@ const navItems: { to: string; key: string; end?: boolean }[] = [
   { to: '/costumes', key: 'costumes' },
   { to: '/scenes', key: 'scenes' },
   { to: '/props', key: 'props' },
+  { to: '/actions', key: 'actions' },
   { to: '/timeline', key: 'timeline' },
   { to: '/audit', key: 'audit' },
   { to: '/settings', key: 'settings' }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import { LibraryFilterSelect } from '../components/LibraryFilterSelect'
 import { libraryToolbar } from '../components/libraryToolbar'
 import { PageHeader } from '../components/PageHeader'
@@ -542,7 +543,7 @@ export function AuditLogPage(): JSX.Element {
 
           {error && (
             <p className="shrink-0 rounded-xl border border-rose-900/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
-              {error}
+              {formatUserError(error, t)}
             </p>
           )}
 

@@ -1,4 +1,4 @@
-import type { Character, Prop, Scene, TimelineEntry } from '../types/domain'
+import type { Action, Character, Prop, Scene, TimelineEntry } from '../types/domain'
 import {
   beatContentToClipPromptBlock,
   extractSpokenLines,
@@ -11,15 +11,17 @@ export type ClipRefSource =
   | 'character'
   | 'scene'
   | 'prop'
+  | 'action'
 
 /**
  * Pick a single still for video image-conditioning.
- * Priority: previous continuity → advanced cast look → character sheet → scene → prop.
+ * Priority: previous continuity → advanced cast look → character → scene → prop → action plate.
  */
 export function resolveClipRefImage(options: {
   character?: Character | null
   scene?: Scene | null
   prop?: Prop | null
+  action?: Pick<Action, 'refImagePath'> | null
   /** Path to previous beat's continuity keyframe (if file exists). */
   previousContinuityPath?: string | null
   /** When false, skip previous-clip lock (library assets only). Default true. */
@@ -51,6 +53,8 @@ export function resolveClipRefImage(options: {
   if (s) return { path: s, source: 'scene' }
   const p = options.prop?.refImagePath || null
   if (p) return { path: p, source: 'prop' }
+  const a = options.action?.refImagePath || null
+  if (a) return { path: a, source: 'action' }
   return null
 }
 

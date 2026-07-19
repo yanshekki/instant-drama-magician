@@ -44,6 +44,7 @@ import {
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import type { CreatePropInput, Prop } from '../../types/domain'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
@@ -111,7 +112,6 @@ export function PropsPage(): JSX.Element {
     items,
     loading,
     error,
-    create,
     update,
     remove,
     reload
@@ -358,10 +358,14 @@ export function PropsPage(): JSX.Element {
   }
 
   const handleSave = async (): Promise<void> => {
-    if (!form.name.trim()) return
+    if (!form.name.trim()) {
+      toast.error(t('props.saveFirstForPlate'))
+      return
+    }
     setActionError(null)
     try {
       if (editingId) {
+        // Always update existing — never create again
         const ok = await update(editingId, payload())
         if (ok) {
           toast.success(t('common.saved'))
@@ -369,22 +373,17 @@ export function PropsPage(): JSX.Element {
         } else {
           toast.error(t('common.actionFailed'))
         }
-      } else {
-        const ok = await create(payload())
-        if (ok) {
-          toast.success(t('common.saved'))
-          setPageBanner(t('props.saved'))
-          await reload()
-          if (activeStoryId) {
-            const list = (await getApi().props.list(activeStoryId)) as Prop[]
-            const created = list.find((p) => p.name === form.name.trim())
-            if (created) openEdit(created)
-            else closeEditor()
-          }
-        } else {
-          toast.error(t('common.actionFailed'))
-        }
+        return
       }
+      // First save: create once, lock editingId so further saves are updates
+      const row = (await getApi().props.create({
+        ...payload(),
+        linkStoryId: activeStoryId ?? undefined
+      })) as Prop
+      await reload()
+      setEditingId(row.id)
+      toast.success(t('common.saved'))
+      setPageBanner(t('props.saved'))
     } catch (e) {
       const msg = parseIpcError(e).message
       setActionError(msg)
@@ -392,18 +391,39 @@ export function PropsPage(): JSX.Element {
     }
   }
 
+  /**
+   * Ensure prop exists in DB before generate (same idea as characters.ensureSavedId).
+   * Global library: does NOT require activeStoryId. Returns created id from API.
+   */
   const ensureSavedId = async (): Promise<string | null> => {
-    if (editingId) return editingId
-    const ok = await create(payload())
-    if (!ok || !activeStoryId) return null
-    await reload()
-    const list = (await getApi().props.list(activeStoryId)) as Prop[]
-    const created = list.find((p) => p.name === form.name.trim())
-    if (created) {
-      setEditingId(created.id)
-      return created.id
+    if (editingId) {
+      const ok = await update(editingId, payload())
+      if (!ok) {
+        toast.error(t('common.actionFailed'))
+        return null
+      }
+      return editingId
     }
-    return null
+    if (!form.name.trim()) {
+      const msg = t('props.saveFirstForPlate')
+      setActionError(msg)
+      toast.error(msg)
+      return null
+    }
+    try {
+      const row = (await getApi().props.create({
+        ...payload(),
+        linkStoryId: activeStoryId ?? undefined
+      })) as Prop
+      await reload()
+      setEditingId(row.id)
+      return row.id
+    } catch (e) {
+      const msg = parseIpcError(e).message
+      setActionError(msg)
+      toast.error(msg)
+      return null
+    }
   }
 
   const handleAiFill = (): void => {
@@ -421,11 +441,22 @@ export function PropsPage(): JSX.Element {
     const hasDraft = Object.values(snapshot).some(
       (v) => typeof v === 'string' && v.length > 0
     )
-    if (!idea && !hasDraft) {
-      setActionError(t('props.ideaRequired'))
+    const refPath =
+      selectedImage?.path?.trim() ||
+      form.coverPath?.trim() ||
+      form.gallery[0]?.path?.trim() ||
+      ''
+    const hasImage = Boolean(refPath)
+    if (!idea && !hasDraft && !hasImage) {
+      setActionError(t('common.aiNeedIdeaOrImage'))
       return
     }
-    setPageBanner(t('aiJobs.startedBackground')); toast.info(t('aiJobs.startedBackground'))
+    setPageBanner(t('aiJobs.startedBackground'))
+    toast.info(
+      hasImage && !idea && !hasDraft
+        ? t('common.aiFillFromImage')
+        : t('aiJobs.startedBackground')
+    )
     startJob({
       kind: 'prop-ai-fill',
       label: t('props.aiFill'),
@@ -434,12 +465,13 @@ export function PropsPage(): JSX.Element {
         storyId: activeStoryId ?? undefined
       },
       run: async ({ setProgress, signal }) => {
-        setProgress(20, 'llm')
+        setProgress(20, hasImage ? 'image' : 'llm')
         const r = await getApi().props.aiFill({
           idea: idea || undefined,
           storyId: activeStoryId ?? undefined,
           locale: getAiLocale(i18n.language),
-          existingDraft: hasDraft ? snapshot : undefined
+          existingDraft: hasDraft ? snapshot : undefined,
+          referenceImagePath: hasImage ? refPath : null
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
@@ -482,9 +514,13 @@ export function PropsPage(): JSX.Element {
     }
     if (!sourceImagePath?.trim()) {
       setActionError(t('props.introVideoNeedImage'))
+      toast.error(t('props.introVideoNeedImage'))
       return
     }
-    if (propBusy(editingId)) return
+    if (propBusy(editingId)) {
+      toast.info(t('common.loading'))
+      return
+    }
     setActionError(null)
     const propId = editingId
     const sourcePath = sourceImagePath.trim()
@@ -568,10 +604,14 @@ export function PropsPage(): JSX.Element {
     try {
       const id = await ensureSavedId()
       if (!id) {
-        setActionError(t('props.saveFirstForPlate'))
+        // ensureSavedId already toasts on failure
         return
       }
-      if (propBusy(id)) return
+      if (propBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      // Pure generate unless identity lock / external ref is on (characters parity).
       const wantIdentity =
         opts?.useIdentityEdit !== undefined
           ? opts.useIdentityEdit === true
@@ -592,7 +632,12 @@ export function PropsPage(): JSX.Element {
           selectedImage?.path ??
           null)
         : externalPath
-      toast.info(t('aiJobs.startedBackground'))
+      // Prefer external still for identity when checkbox on (same as character external ref toast)
+      toast.info(
+        preferred
+          ? t('characters.genWithExternalRef')
+          : t('aiJobs.startedBackground')
+      )
       startJob({
         kind: 'prop-plate',
         label: t('props.generatePlate'),
@@ -603,7 +648,7 @@ export function PropsPage(): JSX.Element {
             propId: id,
             variant: plateVariant,
             referenceImagePath: preferred,
-            useIdentityEdit: Boolean(preferred),
+            useIdentityEdit: Boolean(wantIdentity && preferred),
             persist: false,
             artStyle: form.artStyle
           })
@@ -628,7 +673,10 @@ export function PropsPage(): JSX.Element {
         }
       })
     } catch (e) {
-      setActionError(parseIpcError(e).message)
+      const err = parseIpcError(e)
+      const msg = `${err.message}${err.details ? ` — ${err.details}` : ''}`
+      setActionError(msg)
+      toast.error(msg)
     }
   }
 
@@ -685,7 +733,7 @@ export function PropsPage(): JSX.Element {
         >
           {(error || actionError) && (
             <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
-              {actionError || error?.message}
+              {formatUserError(actionError || error?.message, t)}
             </div>
           )}
           {pageBanner && (
@@ -757,6 +805,7 @@ export function PropsPage(): JSX.Element {
                             <LocalMediaImage
                               filePath={cover}
                               alt={p.name}
+                              variant="fill"
                               maxHeightClass="h-full max-h-none"
                               objectFit="cover"
                               className="h-full border-0 rounded-none"
@@ -992,11 +1041,21 @@ export function PropsPage(): JSX.Element {
         >
           {editorPanel === 'profile' && (
             <div className={editorFormClass}>
+              {actionError && (
+                <div className="rounded-xl border border-rose-900/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+                  {actionError}
+                </div>
+              )}
               <section className="rounded-xl border border-brand-800/35 bg-brand-950/20 p-4">
                 <h3 className="text-sm font-semibold">{t('props.aiTitle')}</h3>
                 <p className="mt-1 text-[11px] text-ink-500">
-                  {t('props.aiHintShort')}
+                  {t('common.aiHintWithImage')}
                 </p>
+                {(selectedImage?.path || form.coverPath) && (
+                  <p className="mt-2 rounded-lg border border-brand-800/40 bg-brand-950/30 px-2.5 py-1.5 text-[11px] text-brand-100/90">
+                    {t('common.aiUsingImage')}
+                  </p>
+                )}
                 <Textarea
                   className="mt-2"
                   size="md"
@@ -1083,6 +1142,11 @@ export function PropsPage(): JSX.Element {
 
           {editorPanel === 'refs' && (
             <div className={editorFormClass}>
+              {actionError && (
+                <div className="rounded-xl border border-rose-900/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+                  {actionError}
+                </div>
+              )}
               <div>
                 <h3 className="text-sm font-semibold text-ink-100">
                   {t('props.tabRefs')}

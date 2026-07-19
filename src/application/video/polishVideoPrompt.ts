@@ -6,6 +6,7 @@ import type {
   VideoGenRequest,
   VideoGenResult
 } from '../../types/domain'
+import { chatContentText } from '../../types/domain'
 import {
   buildVideoPromptPolishSystemPrompt,
   extractPolishedVideoPrompt
@@ -70,7 +71,7 @@ export async function polishThenGenerateVideo(
       max_tokens: options.maxTokens ?? 900
     })
     assertNotAborted(options.signal)
-    const raw = completion.choices[0]?.message?.content ?? ''
+    const raw = chatContentText(completion.choices[0]?.message?.content)
     const extracted = extractPolishedVideoPrompt(raw)
     if (extracted.length >= 40) {
       promptUsed = extracted

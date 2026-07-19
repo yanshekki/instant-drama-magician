@@ -32,9 +32,11 @@ export class TimelinePersistenceService {
     characterId: string | null
     sceneId: string | null
     propId: string | null
+    actionId?: string | null
     characterIds?: string | null
     sceneIds?: string | null
     propIds?: string | null
+    actionIds?: string | null
     dialogue: string | null
     beatContentJson?: string | null
     order: number
@@ -52,9 +54,11 @@ export class TimelinePersistenceService {
       characterId: h.characterId,
       sceneId: h.sceneId,
       propId: h.propId,
+      actionId: h.actionId ?? null,
       characterIds: h.characterIds,
       sceneIds: h.sceneIds,
       propIds: h.propIds,
+      actionIds: h.actionIds,
       dialogue: h.dialogue,
       beatContentJson:
         (row as { beatContentJson?: string | null }).beatContentJson ?? null,
@@ -128,15 +132,18 @@ export class TimelinePersistenceService {
       characterId: input.characterId,
       sceneId: input.sceneId,
       propId: input.propId,
+      actionId: input.actionId,
       characterIds: input.characterIds,
       sceneIds: input.sceneIds,
-      propIds: input.propIds
+      propIds: input.propIds,
+      actionIds: input.actionIds
     })
 
     await this.cast().assertCastMember(input.storyId, {
       characterIds: binds.characterIdList,
       sceneIds: binds.sceneIdList,
-      propIds: binds.propIdList
+      propIds: binds.propIdList,
+      actionIds: binds.actionIdList
     })
 
     const row = await this.prisma.timelineEntry.create({
@@ -147,9 +154,11 @@ export class TimelinePersistenceService {
         characterId: binds.characterId,
         sceneId: binds.sceneId,
         propId: binds.propId,
+        actionId: binds.actionId,
         characterIds: binds.characterIds,
         sceneIds: binds.sceneIds,
         propIds: binds.propIds,
+        actionIds: binds.actionIds,
         dialogue: input.dialogue ?? null,
         beatContentJson: input.beatContentJson ?? null,
         order: input.order
@@ -200,16 +209,20 @@ export class TimelinePersistenceService {
       characterId: data.characterId,
       sceneId: data.sceneId,
       propId: data.propId,
+      actionId: data.actionId,
       characterIds: data.characterIds,
       sceneIds: data.sceneIds,
       propIds: data.propIds,
+      actionIds: data.actionIds,
       existing: {
         characterId: existing.characterId,
         sceneId: existing.sceneId,
         propId: existing.propId,
+        actionId: (existing as { actionId?: string | null }).actionId,
         characterIds: (existing as { characterIds?: string | null }).characterIds,
         sceneIds: (existing as { sceneIds?: string | null }).sceneIds,
-        propIds: (existing as { propIds?: string | null }).propIds
+        propIds: (existing as { propIds?: string | null }).propIds,
+        actionIds: (existing as { actionIds?: string | null }).actionIds
       }
     })
 
@@ -217,15 +230,18 @@ export class TimelinePersistenceService {
       data.characterId !== undefined ||
       data.sceneId !== undefined ||
       data.propId !== undefined ||
+      data.actionId !== undefined ||
       data.characterIds !== undefined ||
       data.sceneIds !== undefined ||
-      data.propIds !== undefined
+      data.propIds !== undefined ||
+      data.actionIds !== undefined
 
     if (touchBinds) {
       await this.cast().assertCastMember(existing.storyId, {
         characterIds: binds.characterIdList,
         sceneIds: binds.sceneIdList,
-        propIds: binds.propIdList
+        propIds: binds.propIdList,
+        actionIds: binds.actionIdList
       })
     }
 
@@ -243,9 +259,11 @@ export class TimelinePersistenceService {
               characterId: binds.characterId,
               sceneId: binds.sceneId,
               propId: binds.propId,
+              actionId: binds.actionId,
               characterIds: binds.characterIds,
               sceneIds: binds.sceneIds,
-              propIds: binds.propIds
+              propIds: binds.propIds,
+              actionIds: binds.actionIds
             }
           : {}),
         ...(data.dialogue !== undefined ? { dialogue: data.dialogue } : {}),

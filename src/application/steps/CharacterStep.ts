@@ -1,4 +1,5 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
+import { chatContentText } from '../../types/domain'
 
 export class CharacterStep implements PipelineStep {
   readonly name = 'character' as const
@@ -45,7 +46,8 @@ export class CharacterStep implements PipelineStep {
         ]
       })
 
-      const output = completion.choices[0]?.message.content ?? bible
+      const output =
+        chatContentText(completion.choices[0]?.message.content) || bible
       return { step: this.name, success: true, output }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

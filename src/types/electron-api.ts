@@ -1,6 +1,7 @@
 import type {
   CharacterProfileFields,
   CreateCharacterInput,
+  CreateActionInput,
   CreatePropInput,
   CreateSceneInput,
   CreateStoryInput,
@@ -8,6 +9,7 @@ import type {
   MediaStatus,
   PropProfileFields,
   SceneProfileFields,
+  UpdateActionInput,
   UpdateCharacterInput,
   UpdatePropInput,
   UpdateSceneInput,
@@ -129,10 +131,19 @@ export interface ElectronApi {
       storyId: string
       propId: string
     }) => Promise<{ ok: boolean }>
+    linkAction: (payload: {
+      storyId: string
+      actionId: string
+    }) => Promise<unknown>
+    unlinkAction: (payload: {
+      storyId: string
+      actionId: string
+    }) => Promise<{ ok: boolean }>
     listCast: (storyId: string) => Promise<{
       characters: unknown[]
       scenes: unknown[]
       props: unknown[]
+      actions?: unknown[]
     }>
   }
   characters: {
@@ -175,6 +186,8 @@ export interface ElectronApi {
       existingDraft?: Record<string, unknown>
       /** Full soul.md / hub markdown for identity merge */
       soulContent?: string | null
+      /** Gallery / external still — vision fill allowed with image alone */
+      referenceImagePath?: string | null
     }) => Promise<{
       profile: CharacterProfileFields
       profileJson: string
@@ -407,6 +420,8 @@ export interface ElectronApi {
       existingDraft?: Record<string, string | undefined | null>
       suggestFromStory?: boolean
       sceneNumber?: number
+      /** Gallery / external still — vision fill allowed with image alone */
+      referenceImagePath?: string | null
     }) => Promise<{
       profile: SceneProfileFields & { artStyle?: string }
       profileJson: string
@@ -503,6 +518,8 @@ export interface ElectronApi {
       storyId?: string
       locale?: 'zh-HK' | 'en'
       existingDraft?: Record<string, string | undefined | null>
+      /** Gallery / external still — vision fill allowed with image alone */
+      referenceImagePath?: string | null
     }) => Promise<{
       profile: PropProfileFields & { artStyle?: string }
       profileJson: string
@@ -556,6 +573,64 @@ export interface ElectronApi {
       variant?: string
       label?: string
     }) => Promise<{ prop: unknown; path: string; gallery?: unknown }>
+  }
+  actions: {
+    list: (
+      opts?: string | { storyId?: string; q?: string; forStory?: boolean }
+    ) => Promise<unknown>
+    get: (id: string) => Promise<unknown>
+    create: (input: CreateActionInput) => Promise<unknown>
+    update: (id: string, data: UpdateActionInput) => Promise<unknown>
+    delete: (id: string) => Promise<{ ok: boolean }>
+    linkStory: (storyId: string, actionId: string) => Promise<{ ok: boolean }>
+    unlinkStory: (storyId: string, actionId: string) => Promise<{ ok: boolean }>
+    aiFill: (payload: {
+      idea?: string
+      storyId?: string
+      locale?: 'zh-HK' | 'en'
+      existingDraft?: Record<string, string | undefined | null>
+      /** Gallery / external still — vision fill allowed with image alone */
+      referenceImagePath?: string | null
+    }) => Promise<{
+      profile: Record<string, string | undefined>
+      profileJson: string
+      raw: string
+    }>
+    generatePlate: (payload: {
+      actionId: string
+      panelLayout?: string | null
+      referenceImagePath?: string | null
+      useIdentityEdit?: boolean
+      persist?: boolean
+      artStyle?: string | null
+    }) => Promise<{
+      action: unknown
+      path: string
+      draft?: boolean
+      label?: string
+      panelLayout?: string
+      artStyle?: string
+      usedEdit?: boolean
+      gallery?: unknown
+    }>
+    generateIntroVideo: (payload: {
+      actionId: string
+      sourceImagePath: string
+      durationSeconds?: number
+      locale?: 'zh-HK' | 'en'
+    }) => Promise<{
+      action: unknown
+      path: string
+      sourceImagePath: string
+      gallery?: unknown
+      polished?: boolean
+    }>
+    commitPlate: (payload: {
+      actionId: string
+      path: string
+      panelLayout?: string
+      label?: string
+    }) => Promise<{ action: unknown; path: string; gallery?: unknown }>
   }
   costumes: {
     list: (opts?: {
@@ -634,6 +709,8 @@ export interface ElectronApi {
         description?: string | null
         artStyle?: string | null
       }
+      /** Gallery / external still — vision fill allowed with image alone */
+      referenceImagePath?: string | null
     }) => Promise<{
       name: string
       description: string
@@ -690,12 +767,14 @@ export interface ElectronApi {
         | 'scene-intro'
         | 'prop-intro'
         | 'costume-intro'
+        | 'action-intro'
         | 'timeline-clip'
       sourceImagePath?: string | null
       characterId?: string
       sceneId?: string
       propId?: string
       costumeId?: string
+      actionId?: string
       storyId?: string
       entryId?: string
       durationSeconds?: number
@@ -759,6 +838,7 @@ export interface ElectronApi {
         | 'scene-intro'
         | 'prop-intro'
         | 'costume-intro'
+        | 'action-intro'
         | 'timeline-clip'
       professionalPrompt: string
       userExtraPrompt?: string | null
@@ -768,6 +848,7 @@ export interface ElectronApi {
       sceneId?: string
       propId?: string
       costumeId?: string
+      actionId?: string
       storyId?: string
       entryId?: string
       durationSeconds?: number
@@ -1128,8 +1209,19 @@ export interface ElectronApi {
     ) => Promise<{ filePath: string } | null>
     openClip: (filePath: string) => Promise<{ ok: boolean }>
     toPreviewUrl: (filePath: string) => Promise<{ url: string; filePath: string }>
-    /** Save a copy via native Save dialog */
-    saveAs: (filePath: string) => Promise<{ filePath: string } | null>
+    /**
+     * Save / download media.
+     * Electron: native Save dialog → { filePath }.
+     * Web: { downloadUrl, fileName } for browser attachment download.
+     */
+    saveAs: (
+      filePath: string
+    ) => Promise<{
+      filePath?: string
+      downloadUrl?: string
+      fileName?: string
+      kind?: 'image' | 'video' | 'file'
+    } | null>
     /** Delete a draft sheet under media/tmp */
     discardSheetDraft: (filePath: string) => Promise<{ ok: boolean }>
     checkFfmpeg: () => Promise<{

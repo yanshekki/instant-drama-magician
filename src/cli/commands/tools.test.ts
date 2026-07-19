@@ -4,8 +4,8 @@ import { DESKTOP_CHANNEL_NAMES, toOpenAiTools } from '../../runtime/channelManif
 describe('tools schema source', () => {
   it('openai tools cover all desktop channels', () => {
     const tools = toOpenAiTools(DESKTOP_CHANNEL_NAMES)
-    expect(tools.length).toBe(138)
+    expect(tools.length).toBe(149)
     const names = new Set(tools.map((t) => t.function.name))
-    expect(names.size).toBe(138)
+    expect(names.size).toBe(149)
   })
 })

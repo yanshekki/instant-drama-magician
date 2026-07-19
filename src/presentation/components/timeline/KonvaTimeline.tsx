@@ -47,6 +47,7 @@ function clipFill(entry: TimelineEntry): string {
   if (entry.characterId) return '#7c3aed'
   if (entry.sceneId) return '#0891b2'
   if (entry.propId) return '#ca8a04'
+  if (entry.actionId) return '#db2777'
   return '#475569'
 }
 

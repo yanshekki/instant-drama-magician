@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Character, Prop } from '../../../types/domain'
+import type { Action, Character, Prop } from '../../../types/domain'
 import { matchesSearchQuery } from '../../lib/searchQuery'
 import { Button, EmptyState, Input } from '../ui'
 import { makeAssetDragData, type AssetDropPayload } from './TimelineCanvas'
@@ -16,11 +16,12 @@ interface AssetLibraryProps {
   characters: Character[]
   scenes: StoryCastScene[]
   props: Prop[]
+  actions?: Action[]
   onAdd: (payload: AssetDropPayload) => void
   onOpenStoryEditor?: () => void
 }
 
-type CastTab = 'character' | 'scene' | 'prop'
+type CastTab = 'character' | 'scene' | 'prop' | 'action'
 
 function DraggableChip({
   payload,
@@ -49,6 +50,7 @@ export function AssetLibrary({
   characters,
   scenes,
   props,
+  actions = [],
   onAdd,
   onOpenStoryEditor
 }: AssetLibraryProps): JSX.Element {
@@ -77,10 +79,17 @@ export function AssetLibrary({
     )
   }, [props, q])
 
+  const filteredActions = useMemo(() => {
+    return actions.filter((a) =>
+      matchesSearchQuery([a.name, a.description ?? ''].join(' '), q)
+    )
+  }, [actions, q])
+
   const tabs: { id: CastTab; label: string; count: number }[] = [
     { id: 'character', label: t('timeline.character'), count: characters.length },
     { id: 'scene', label: t('timeline.scene'), count: scenes.length },
-    { id: 'prop', label: t('timeline.prop'), count: props.length }
+    { id: 'prop', label: t('timeline.prop'), count: props.length },
+    { id: 'action', label: t('timeline.action'), count: actions.length }
   ]
 
   const emptyKindKey =
@@ -88,21 +97,27 @@ export function AssetLibrary({
       ? 'timeline.castEmptyCharacters'
       : tab === 'scene'
         ? 'timeline.castEmptyScenes'
-        : 'timeline.castEmptyProps'
+        : tab === 'prop'
+          ? 'timeline.castEmptyProps'
+          : 'timeline.castEmptyActions'
 
   const listEmpty =
     tab === 'character'
       ? characters.length === 0
       : tab === 'scene'
         ? scenes.length === 0
-        : props.length === 0
+        : tab === 'prop'
+          ? props.length === 0
+          : actions.length === 0
 
   const filteredEmpty =
     tab === 'character'
       ? filteredCharacters.length === 0
       : tab === 'scene'
         ? filteredScenes.length === 0
-        : filteredProps.length === 0
+        : tab === 'prop'
+          ? filteredProps.length === 0
+          : filteredActions.length === 0
 
   return (
     <div className="flex h-full min-h-0 flex-col text-sm">
@@ -113,14 +128,14 @@ export function AssetLibrary({
         </p>
       </div>
 
-      <div className="mb-3 flex gap-1 rounded-xl border border-ink-800/80 bg-ink-950/50 p-1">
+      <div className="mb-3 flex flex-wrap gap-1 rounded-xl border border-ink-800/80 bg-ink-950/50 p-1">
         {tabs.map((tb) => (
           <button
             key={tb.id}
             type="button"
             onClick={() => setTab(tb.id)}
             className={[
-              'flex-1 rounded-lg px-1.5 py-1.5 text-[11px] font-medium transition',
+              'min-w-[4.5rem] flex-1 rounded-lg px-1.5 py-1.5 text-[11px] font-medium transition',
               tab === tb.id
                 ? 'bg-brand-600/90 text-white shadow-sm'
                 : 'text-ink-400 hover:bg-ink-800/60 hover:text-ink-200'
@@ -177,11 +192,19 @@ export function AssetLibrary({
               onAdd={onAdd}
             />
           ))
-        ) : (
+        ) : tab === 'prop' ? (
           filteredProps.map((p) => (
             <DraggableChip
               key={p.id}
               payload={{ kind: 'prop', id: p.id, label: p.name }}
+              onAdd={onAdd}
+            />
+          ))
+        ) : (
+          filteredActions.map((a) => (
+            <DraggableChip
+              key={a.id}
+              payload={{ kind: 'action', id: a.id, label: a.name }}
               onAdd={onAdd}
             />
           ))

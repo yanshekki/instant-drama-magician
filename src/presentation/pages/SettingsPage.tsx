@@ -13,6 +13,7 @@ import {
 } from '../../domain/creatorSupport'
 import { openLegalDocument } from '../components/LegalDocumentModal'
 import { formatIpcError, parseIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import {
   applyLlmPreset,
   coerceLlmProviderPreset,
@@ -622,7 +623,7 @@ export function SettingsPage(): JSX.Element {
       <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
         {error && (
           <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
-            {error}
+            {formatUserError(error, t)}
           </div>
         )}
 

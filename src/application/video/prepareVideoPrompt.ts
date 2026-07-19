@@ -2,6 +2,7 @@
  * LLM polish for video-prep professional director prompt (no video call yet).
  */
 import type { AIProvider } from '../../types/domain'
+import { chatContentText } from '../../types/domain'
 import {
   buildVideoPromptPolishSystemPrompt,
   extractPolishedVideoPrompt
@@ -32,7 +33,7 @@ export async function polishProfessionalVideoPrompt(options: {
       max_tokens: options.maxTokens ?? 900
     })
     if (options.signal?.aborted) throw new Error('Cancelled')
-    const raw = completion.choices[0]?.message?.content ?? ''
+    const raw = chatContentText(completion.choices[0]?.message?.content)
     const extracted = extractPolishedVideoPrompt(raw)
     if (extracted.length >= 40) {
       return { prompt: extracted, polished: true }

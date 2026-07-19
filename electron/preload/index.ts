@@ -80,6 +80,10 @@ const api: ElectronApi & {
       ipcRenderer.invoke('stories:linkProp', payload),
     unlinkProp: (payload: { storyId: string; propId: string }) =>
       ipcRenderer.invoke('stories:unlinkProp', payload),
+    linkAction: (payload: { storyId: string; actionId: string }) =>
+      ipcRenderer.invoke('stories:linkAction', payload),
+    unlinkAction: (payload: { storyId: string; actionId: string }) =>
+      ipcRenderer.invoke('stories:unlinkAction', payload),
     listCast: (storyId: string) => ipcRenderer.invoke('stories:listCast', storyId)
   },
   characters: {
@@ -111,6 +115,7 @@ const api: ElectronApi & {
       locale?: 'zh-HK' | 'en'
       existingDraft?: Record<string, unknown>
       soulContent?: string | null
+      referenceImagePath?: string | null
     }) => ipcRenderer.invoke('characters:aiFill', payload),
     generateSoul: (payload: {
       storyId?: string
@@ -224,6 +229,35 @@ const api: ElectronApi & {
     commitPlate: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('props:commitPlate', payload)
   },
+  actions: {
+    list: (
+      opts?: string | { storyId?: string; q?: string; forStory?: boolean }
+    ) => ipcRenderer.invoke('actions:list', opts),
+    get: (id: string) => ipcRenderer.invoke('actions:get', id),
+    create: (input: import('../../src/types/domain').CreateActionInput) =>
+      ipcRenderer.invoke('actions:create', input),
+    update: (
+      id: string,
+      data: import('../../src/types/domain').UpdateActionInput
+    ) => ipcRenderer.invoke('actions:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('actions:delete', id),
+    linkStory: (storyId: string, actionId: string) =>
+      ipcRenderer.invoke('actions:linkStory', storyId, actionId),
+    unlinkStory: (storyId: string, actionId: string) =>
+      ipcRenderer.invoke('actions:unlinkStory', storyId, actionId),
+    aiFill: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('actions:aiFill', payload),
+    generatePlate: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('actions:generatePlate', payload),
+    generateIntroVideo: (payload: {
+      actionId: string
+      sourceImagePath: string
+      durationSeconds?: number
+      locale?: 'zh-HK' | 'en'
+    }) => ipcRenderer.invoke('actions:generateIntroVideo', payload),
+    commitPlate: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('actions:commitPlate', payload)
+  },
   costumes: {
     list: (opts?: {
       q?: string
@@ -252,6 +286,8 @@ const api: ElectronApi & {
         description?: string | null
         artStyle?: string | null
       }
+      /** Gallery / external still — vision fill allowed with image alone */
+      referenceImagePath?: string | null
     }) => ipcRenderer.invoke('costumes:aiFill', payload),
     generateDressed: (payload: {
       costumeId: string

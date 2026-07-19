@@ -4,6 +4,7 @@ import { getAiLocale } from '../../lib/aiLocale'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type {
+  Action,
   Character,
   Prop,
   Scene,
@@ -60,6 +61,7 @@ import {
   type ArtStyleId
 } from '../../domain/characterArtStyles'
 import {
+  MAX_BEAT_ACTIONS,
   MAX_BEAT_CHARACTERS,
   MAX_BEAT_PROPS,
   MAX_BEAT_SCENES
@@ -85,19 +87,22 @@ function castCount(
         characters?: number
         scenes?: number
         props?: number
+        actions?: number
         timeline?: number
         storyCharacters?: number
         storyScenes?: number
         storyProps?: number
+        storyActions?: number
       }
     | undefined,
-  kind: 'characters' | 'scenes' | 'props'
+  kind: 'characters' | 'scenes' | 'props' | 'actions'
 ): number {
   if (!count) return 0
   if (kind === 'characters') {
     return count.storyCharacters ?? count.characters ?? 0
   }
   if (kind === 'scenes') return count.storyScenes ?? count.scenes ?? 0
+  if (kind === 'actions') return count.storyActions ?? count.actions ?? 0
   return count.storyProps ?? count.props ?? 0
 }
 
@@ -133,6 +138,7 @@ type StoryDetail = StoryWithCounts & {
   characters: StoryCastCharacter[]
   scenes: Array<Scene & { sceneNumber?: number }>
   props: Prop[]
+  actions?: Action[]
   timeline: TimelineEntry[]
   styleNote?: string | null
 }
@@ -240,6 +246,7 @@ export function StoriesPage(): JSX.Element {
   const [allChars, setAllChars] = useState<Character[]>([])
   const [allScenes, setAllScenes] = useState<Scene[]>([])
   const [allProps, setAllProps] = useState<Prop[]>([])
+  const [allActions, setAllActions] = useState<Action[]>([])
   const [beats, setBeats] = useState<TimelineEntry[]>([])
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -247,7 +254,7 @@ export function StoriesPage(): JSX.Element {
   const [aiBusy, _setAiBusy] = useState(false)
   const [pageBanner, setPageBanner] = useState<string | null>(null)
   /** Cast browser: kind tab + search + linked filter + page */
-  const [castKind, setCastKind] = useState<'characters' | 'scenes' | 'props'>(
+  const [castKind, setCastKind] = useState<'characters' | 'scenes' | 'props' | 'actions'>(
     'characters'
   )
   const [castQ, setCastQ] = useState('')
@@ -263,11 +270,12 @@ export function StoriesPage(): JSX.Element {
     setBusy(true)
     setActionError(null)
     try {
-      const [d, chars, scenes, props, timeline, costumes] = await Promise.all([
+      const [d, chars, scenes, props, actions, timeline, costumes] = await Promise.all([
         getApi().stories.get(id) as Promise<StoryDetail>,
         getApi().characters.list() as Promise<Character[]>,
         getApi().scenes.list() as Promise<Scene[]>,
         getApi().props.list() as Promise<Prop[]>,
+        getApi().actions.list() as Promise<Action[]>,
         getApi().timeline.list(id) as Promise<TimelineEntry[]>,
         getApi().costumes.list() as Promise<CostumeLibRow[]>
       ])
@@ -294,6 +302,7 @@ export function StoriesPage(): JSX.Element {
       setAllChars(chars)
       setAllScenes(scenes)
       setAllProps(props)
+      setAllActions(actions)
       setBeats(timeline)
       setCostumeLib(Array.isArray(costumes) ? costumes : [])
     } catch (e) {
@@ -366,6 +375,7 @@ export function StoriesPage(): JSX.Element {
     setAllChars([])
     setAllScenes([])
     setAllProps([])
+    setAllActions([])
     setDetail(null)
     setAiIdea('')
     setUseIdentityRef(false)
@@ -764,6 +774,10 @@ export function StoriesPage(): JSX.Element {
     () => new Set((detail?.props ?? []).map((p) => p.id)),
     [detail?.props]
   )
+  const linkedActionIds = useMemo(
+    () => new Set((detail?.actions ?? []).map((a) => a.id)),
+    [detail?.actions]
+  )
 
   const toggleCharacter = async (
     characterId: string,
@@ -831,6 +845,27 @@ export function StoriesPage(): JSX.Element {
     }
   }
 
+  const toggleAction = async (
+    actionId: string,
+    linked: boolean
+  ): Promise<void> => {
+    if (!editingId) return
+    try {
+      if (linked) {
+        await getApi().stories.unlinkAction({ storyId: editingId, actionId })
+      } else {
+        await getApi().stories.linkAction({ storyId: editingId, actionId })
+      }
+      await loadDetail(editingId)
+      await refreshStories()
+      toast.success(linked ? t('common.unlinked') : t('common.linked'))
+    } catch (e) {
+      const msg = parseIpcError(e).message
+      setActionError(msg)
+      toast.error(msg)
+    }
+  }
+
   useEffect(() => {
     setCastPage(1)
   }, [castKind, castQ, castLinkFilter, editingId])
@@ -857,7 +892,7 @@ export function StoriesPage(): JSX.Element {
       }))
       linkedIds = linkedSceneIds
       empty = t('stories.castEmptyScenes')
-    } else {
+    } else if (castKind === 'props') {
       items = allProps.map((p) => ({
         id: p.id,
         label: p.name,
@@ -865,6 +900,14 @@ export function StoriesPage(): JSX.Element {
       }))
       linkedIds = linkedPropIds
       empty = t('stories.castEmptyProps')
+    } else {
+      items = allActions.map((a) => ({
+        id: a.id,
+        label: a.name,
+        sub: a.description
+      }))
+      linkedIds = linkedActionIds
+      empty = t('stories.castEmptyActions')
     }
 
     const filtered = items.filter((it) => {
@@ -902,16 +945,19 @@ export function StoriesPage(): JSX.Element {
     allChars,
     allScenes,
     allProps,
+    allActions,
     linkedCharIds,
     linkedSceneIds,
     linkedPropIds,
+    linkedActionIds,
     t
   ])
 
   const handleCastToggle = (id: string, linked: boolean): void => {
     if (castKind === 'characters') void toggleCharacter(id, linked)
     else if (castKind === 'scenes') void toggleScene(id, linked)
-    else void toggleProp(id, linked)
+    else if (castKind === 'props') void toggleProp(id, linked)
+    else void toggleAction(id, linked)
   }
 
   const addBeat = async (): Promise<void> => {
@@ -929,7 +975,8 @@ export function StoriesPage(): JSX.Element {
         dialogue: '',
         characterIds: firstChar ? [firstChar] : [],
         sceneIds: firstScene ? [firstScene] : [],
-        propIds: []
+        propIds: [],
+        actionIds: []
       })
       await loadDetail(editingId)
       await refreshStories()
@@ -946,16 +993,19 @@ export function StoriesPage(): JSX.Element {
       characterId?: string | null
       sceneId?: string | null
       propId?: string | null
+      actionId?: string | null
       characterIds?: string[] | null
       sceneIds?: string[] | null
       propIds?: string[] | null
+      actionIds?: string[] | null
     }
   ): Promise<void> => {
     // Optimistic multi-select so chips feel instant
     if (
       patch.characterIds !== undefined ||
       patch.sceneIds !== undefined ||
-      patch.propIds !== undefined
+      patch.propIds !== undefined ||
+      patch.actionIds !== undefined
     ) {
       setBeats((prev) =>
         prev.map((b) => {
@@ -968,6 +1018,10 @@ export function StoriesPage(): JSX.Element {
           if (patch.sceneIds !== undefined) {
             next.sceneIds = patch.sceneIds ?? []
             next.sceneId = patch.sceneIds?.[0] ?? null
+          }
+          if (patch.actionIds !== undefined) {
+            next.actionIds = patch.actionIds ?? []
+            next.actionId = patch.actionIds?.[0] ?? null
           }
           if (patch.propIds !== undefined) {
             next.propIds = patch.propIds ?? []
@@ -1148,6 +1202,7 @@ export function StoriesPage(): JSX.Element {
                           <LocalMediaImage
                             filePath={story.coverPath}
                             alt={story.title}
+                            variant="fill"
                             maxHeightClass="h-full max-h-none"
                             objectFit="cover"
                             className="h-full border-0 rounded-none"
@@ -1542,6 +1597,12 @@ export function StoriesPage(): JSX.Element {
                     label: t('nav.props'),
                     count: allProps.length,
                     linked: linkedPropIds.size
+                  },
+                  {
+                    id: 'actions' as const,
+                    label: t('nav.actions'),
+                    count: allActions.length,
+                    linked: linkedActionIds.size
                   }
                 ] as const
               ).map((tab) => {
@@ -1880,6 +1941,22 @@ export function StoriesPage(): JSX.Element {
                         value={beat.propIds ?? (beat.propId ? [beat.propId] : [])}
                         onChange={(ids) =>
                           void updateBeat(beat.id, { propIds: ids })
+                        }
+                      />
+                      <MultiIdPick
+                        label={t('stories.beatActions')}
+                        max={MAX_BEAT_ACTIONS}
+                        emptyLabel={t('stories.castEmptyHint')}
+                        options={(detail?.actions ?? []).map((a) => ({
+                          id: a.id,
+                          label: a.name
+                        }))}
+                        value={
+                          beat.actionIds ??
+                          (beat.actionId ? [beat.actionId] : [])
+                        }
+                        onChange={(ids) =>
+                          void updateBeat(beat.id, { actionIds: ids })
                         }
                       />
                     </div>

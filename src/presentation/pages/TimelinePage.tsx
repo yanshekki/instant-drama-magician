@@ -18,7 +18,9 @@ import {
 } from '../../domain/videoDuration'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import type {
+  Action,
   Character,
   GenerationResult,
   MediaStatus,
@@ -103,6 +105,7 @@ export function TimelinePage(): JSX.Element {
   const [castCharacters, setCastCharacters] = useState<Character[]>([])
   const [castScenes, setCastScenes] = useState<StoryCastScene[]>([])
   const [castProps, setCastProps] = useState<Prop[]>([])
+  const [castActions, setCastActions] = useState<Action[]>([])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dialogue, setDialogue] = useState('')
@@ -176,10 +179,11 @@ export function TimelinePage(): JSX.Element {
       setCastCharacters([])
       setCastScenes([])
       setCastProps([])
+      setCastActions([])
       return
     }
     try {
-      const [chars, scns, prps] = await Promise.all([
+      const [chars, scns, prps, acts] = await Promise.all([
         getApi().characters.list({
           storyId: activeStoryId,
           forStory: true
@@ -191,11 +195,16 @@ export function TimelinePage(): JSX.Element {
         getApi().props.list({
           storyId: activeStoryId,
           forStory: true
-        }) as Promise<Prop[]>
+        }) as Promise<Prop[]>,
+        getApi().actions.list({
+          storyId: activeStoryId,
+          forStory: true
+        }) as Promise<Action[]>
       ])
       setCastCharacters(chars)
       setCastScenes(scns)
       setCastProps(prps)
+      setCastActions(acts)
     } catch (e) {
       toast.error(parseIpcError(e).message)
     }
@@ -463,6 +472,7 @@ export function TimelinePage(): JSX.Element {
       castScenes.map((s) => [s.id, sceneCastLabel(s)])
     )
     const propMap = new Map(castProps.map((p) => [p.id, p.name]))
+    const actionMap = new Map(castActions.map((a) => [a.id, a.name]))
     for (const e of entries) {
       const charIds =
         e.characterIds?.length
@@ -474,10 +484,17 @@ export function TimelinePage(): JSX.Element {
         e.sceneIds?.length ? e.sceneIds : e.sceneId ? [e.sceneId] : []
       const propIds =
         e.propIds?.length ? e.propIds : e.propId ? [e.propId] : []
+      const actionIds =
+        e.actionIds?.length
+          ? e.actionIds
+          : e.actionId
+            ? [e.actionId]
+            : []
       const names = [
         ...charIds.map((id) => charMap.get(id)).filter(Boolean),
         ...sceneIds.map((id) => sceneMap.get(id)).filter(Boolean),
-        ...propIds.map((id) => propMap.get(id)).filter(Boolean)
+        ...propIds.map((id) => propMap.get(id)).filter(Boolean),
+        ...actionIds.map((id) => actionMap.get(id)).filter(Boolean)
       ]
       map[e.id] =
         (e.dialogue && e.dialogue.trim()) ||
@@ -485,7 +502,7 @@ export function TimelinePage(): JSX.Element {
         `#${e.order + 1}`
     }
     return map
-  }, [entries, castCharacters, castScenes, castProps])
+  }, [entries, castCharacters, castScenes, castProps, castActions])
 
   const selectedBindings = useMemo(() => {
     if (!selected) return [] as string[]
@@ -508,6 +525,12 @@ export function TimelinePage(): JSX.Element {
         : selected.propId
           ? [selected.propId]
           : []
+    const actionIds =
+      selected.actionIds?.length
+        ? selected.actionIds
+        : selected.actionId
+          ? [selected.actionId]
+          : []
     for (const id of charIds) {
       const c = castCharacters.find((x) => x.id === id)
       if (c) chips.push(c.name)
@@ -520,8 +543,12 @@ export function TimelinePage(): JSX.Element {
       const p = castProps.find((x) => x.id === id)
       if (p) chips.push(p.name)
     }
+    for (const id of actionIds) {
+      const a = castActions.find((x) => x.id === id)
+      if (a) chips.push(a.name)
+    }
     return chips
-  }, [selected, castCharacters, castScenes, castProps])
+  }, [selected, castCharacters, castScenes, castProps, castActions])
 
   const openStoryEditor = (): void => {
     navigate('/')
@@ -555,6 +582,7 @@ export function TimelinePage(): JSX.Element {
       characterId: payload.kind === 'character' ? payload.id : null,
       sceneId: payload.kind === 'scene' ? payload.id : null,
       propId: payload.kind === 'prop' ? payload.id : null,
+      actionId: payload.kind === 'action' ? payload.id : null,
       dialogue: null
     })
     await refreshStories()
@@ -1353,7 +1381,7 @@ export function TimelinePage(): JSX.Element {
             <div className="flex min-h-[200px] min-w-0 flex-1 flex-col lg:min-h-0">
               {(error || actionError) && (
                 <p className="mb-2 shrink-0 rounded-xl border border-rose-900/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">
-                  {error?.message ?? actionError}
+                  {formatUserError(error?.message ?? actionError, t)}
                 </p>
               )}
               <PreviewPlayer

@@ -45,6 +45,7 @@ import { getAiLocale } from '../../lib/aiLocale'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import type { Character } from '../../types/domain'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
@@ -271,8 +272,12 @@ export function CostumesPage(): JSX.Element {
   }
 
   const handleAiFill = (): void => {
-    if (!aiIdea.trim() && !lookDesc.trim() && !lookName.trim()) {
-      toast.info(t('costumes.aiNeedIdea'))
+    const idea = aiIdea.trim()
+    const refPath =
+      selectedGalItem?.path?.trim() || lookImagePath?.trim() || ''
+    const hasImage = Boolean(refPath)
+    if (!idea && !lookDesc.trim() && !lookName.trim() && !hasImage) {
+      toast.info(t('common.aiNeedIdeaOrImage'))
       return
     }
     if (
@@ -286,8 +291,11 @@ export function CostumesPage(): JSX.Element {
       return
     }
     setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(t('aiJobs.startedBackground'))
-    const idea = aiIdea.trim()
+    toast.info(
+      hasImage && !idea
+        ? t('common.aiFillFromImage')
+        : t('aiJobs.startedBackground')
+    )
     const snapshot = {
       name: lookName,
       description: lookDesc,
@@ -299,7 +307,7 @@ export function CostumesPage(): JSX.Element {
       label: t('costumes.aiFill'),
       scope: { costumeId: costumeId ?? undefined },
       run: async ({ setProgress, signal }) => {
-        setProgress(20, 'llm')
+        setProgress(20, hasImage ? 'image' : 'llm')
         const r = await getApi().costumes.aiFill({
           idea: idea || undefined,
           locale: getAiLocale(i18n.language),
@@ -307,7 +315,8 @@ export function CostumesPage(): JSX.Element {
             name: snapshot.name,
             description: snapshot.description,
             artStyle: snapshot.artStyle
-          }
+          },
+          referenceImagePath: hasImage ? refPath : null
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
@@ -397,7 +406,7 @@ export function CostumesPage(): JSX.Element {
     setLookImagePath(r.filePath)
     const next = appendGalleryItem(gallery, {
       path: r.filePath,
-      kind: 'upload',
+      kind: 'external',
       label: t('characters.externalRefLabel')
     })
     setGallery(next)
@@ -636,7 +645,7 @@ export function CostumesPage(): JSX.Element {
         >
           {error && (
             <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
-              {error}
+              {formatUserError(error, t)}
             </div>
           )}
           {pageBanner && (
@@ -756,11 +765,13 @@ export function CostumesPage(): JSX.Element {
                         <LocalMediaImage
                           filePath={c.refImagePath}
                           alt={c.name}
+                          variant="fill"
                           maxHeightClass="h-full max-h-none"
                           objectFit="cover"
                           className="h-full border-0 rounded-none"
                           actionsLayout="overlay"
                           showActions={false}
+                          enableZoom={false}
                           onImageClick={() => openEdit(c)}
                         />
                       ) : (
@@ -891,7 +902,7 @@ export function CostumesPage(): JSX.Element {
                     className="!text-xs"
                     onClick={() => void handlePickImage()}
                   >
-                    {t('scenes.pickImage')}
+                    {t('characters.addExternalRef')}
                   </Button>
                 </div>
               )}
@@ -921,7 +932,7 @@ export function CostumesPage(): JSX.Element {
                 disabled={busy || costumeBusy(editId)}
                 onClick={() => void handlePickImage()}
               >
-                {t('scenes.pickImage')}
+                {t('characters.addExternalRef')}
               </Button>
               {selectedGalItem && lookImagePath !== selectedGalItem.path && (
                 <Button
@@ -964,87 +975,98 @@ export function CostumesPage(): JSX.Element {
         )}
         {editorTab === 'profile' && (
           <div className={editorFormClass}>
-            <section className="rounded-xl border border-brand-800/35 bg-brand-950/20 p-4">
+            {/* AI fill — character-page style brand card */}
+            <section className="rounded-xl border border-brand-800/35 bg-gradient-to-br from-brand-950/40 via-ink-900/50 to-ink-950 p-4">
               <h3 className="text-sm font-semibold text-brand-100">
                 {t('costumes.aiTitle')}
               </h3>
-              <p className="mt-1 text-[11px] text-ink-500">
-                {t('costumes.aiHint')}
+              <p className="mt-1 text-[11px] text-ink-400">
+                {t('common.aiHintWithImage')}
               </p>
+              {(selectedGalItem?.path || lookImagePath) && (
+                <p className="mt-2 rounded-lg border border-brand-800/40 bg-brand-950/30 px-2.5 py-1.5 text-[11px] text-brand-100/90">
+                  {t('common.aiUsingImage')}
+                </p>
+              )}
               <Textarea
-                className="mt-2"
+                className="mt-3"
                 size="md"
                 value={aiIdea}
                 onChange={(e) => setAiIdea(e.target.value)}
                 placeholder={t('costumes.aiIdeaPlaceholder')}
               />
-              <div className="mt-3">
-                <Button
-                  disabled={busy || costumeBusy(editId)}
-                  onClick={() => handleAiFill()}
-                >
-                  {costumeBusy(editId)
-                    ? t('common.generating')
-                    : t('costumes.aiFill')}
-                </Button>
-              </div>
-            </section>
-            <EditorField label={t('costumes.linkedCharacters')}>
-              <MultiIdPick
-                options={charOptions}
-                value={linkedCharIds}
-                onChange={setLinkedCharIds}
-                max={50}
-                emptyLabel={t('costumes.noLinkedCharacters')}
-              />
-              <p className="mt-1 text-[10px] text-ink-500">
-                {t('costumes.linkedCharactersHint')}
-              </p>
-            </EditorField>
-            <EditorField label={t('characters.costumeLibName')}>
-              <Input
-                value={lookName}
-                onChange={(e) => setLookName(e.target.value)}
-                placeholder={t('characters.costumeLibNamePh')}
-              />
-            </EditorField>
-            <EditorField label={t('characters.swapCostumeDesc')}>
-              <Textarea
-                size="lg"
-                value={lookDesc}
-                onChange={(e) => setLookDesc(e.target.value)}
-                placeholder={t('characters.swapCostumePlaceholder')}
-              />
-            </EditorField>
-            <EditorField label={t('characters.artStyle')}>
-              <EditorSelect
-                value={lookStyle}
-                onChange={(e) =>
-                  setLookStyle(
-                    isArtStyleId(e.target.value)
-                      ? e.target.value
-                      : DEFAULT_ART_STYLE
-                  )
-                }
+              <Button
+                className="mt-3 w-full sm:w-auto"
+                disabled={busy || costumeBusy(editId)}
+                onClick={() => handleAiFill()}
               >
-                {(
-                  [
-                    'artGroupPhoto',
-                    'artGroup3d',
-                    'artGroupAnime',
-                    'artGroupIllust'
-                  ] as const
-                ).map((gk) => (
-                  <optgroup key={gk} label={t(`characters.${gk}`)}>
-                    {artGroups[gk].map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {t(`characters.${s.labelKey}`)}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </EditorSelect>
-            </EditorField>
+                {costumeBusy(editId)
+                  ? t('common.generating')
+                  : t('costumes.aiFill')}
+              </Button>
+            </section>
+
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-ink-200">
+                {t('costumes.profileSection')}
+              </h3>
+              <EditorField label={t('characters.costumeLibName')}>
+                <Input
+                  value={lookName}
+                  onChange={(e) => setLookName(e.target.value)}
+                  placeholder={t('characters.costumeLibNamePh')}
+                />
+              </EditorField>
+              <EditorField label={t('characters.swapCostumeDesc')}>
+                <Textarea
+                  size="lg"
+                  value={lookDesc}
+                  onChange={(e) => setLookDesc(e.target.value)}
+                  placeholder={t('characters.swapCostumePlaceholder')}
+                />
+              </EditorField>
+              <EditorField label={t('characters.artStyle')}>
+                <EditorSelect
+                  value={lookStyle}
+                  onChange={(e) =>
+                    setLookStyle(
+                      isArtStyleId(e.target.value)
+                        ? e.target.value
+                        : DEFAULT_ART_STYLE
+                    )
+                  }
+                >
+                  {(
+                    [
+                      'artGroupPhoto',
+                      'artGroup3d',
+                      'artGroupAnime',
+                      'artGroupIllust'
+                    ] as const
+                  ).map((gk) => (
+                    <optgroup key={gk} label={t(`characters.${gk}`)}>
+                      {artGroups[gk].map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {t(`characters.${s.labelKey}`)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </EditorSelect>
+              </EditorField>
+              <EditorField label={t('costumes.linkedCharacters')}>
+                <MultiIdPick
+                  options={charOptions}
+                  value={linkedCharIds}
+                  onChange={setLinkedCharIds}
+                  max={50}
+                  emptyLabel={t('costumes.noLinkedCharacters')}
+                />
+                <p className="mt-1 text-[10px] text-ink-500">
+                  {t('costumes.linkedCharactersHint')}
+                </p>
+              </EditorField>
+            </section>
           </div>
         )}
         {editorTab === 'dress' && (

@@ -8,6 +8,7 @@ export type VideoPrepKind =
   | 'scene-intro'
   | 'prop-intro'
   | 'costume-intro'
+  | 'action-intro'
   | 'timeline-clip'
 
 export interface VideoPrepEntityIds {
@@ -15,6 +16,7 @@ export interface VideoPrepEntityIds {
   sceneId?: string
   propId?: string
   costumeId?: string
+  actionId?: string
   storyId?: string
   entryId?: string
 }

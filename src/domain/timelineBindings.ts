@@ -1,11 +1,12 @@
 /**
- * Multi-bind helpers for timeline entries (characters / scenes / props).
+ * Multi-bind helpers for timeline entries (characters / scenes / props / actions).
  * Primary id = first element of the list (also stored on legacy FK columns).
  */
 
 export const MAX_BEAT_CHARACTERS = 4
 export const MAX_BEAT_SCENES = 2
 export const MAX_BEAT_PROPS = 4
+export const MAX_BEAT_ACTIONS = 4
 
 /** Parse JSON id list; if empty, fall back to single legacy id. */
 export function parseIdList(
@@ -70,28 +71,35 @@ export function normalizeBindings(input: {
   characterId?: string | null
   sceneId?: string | null
   propId?: string | null
+  actionId?: string | null
   characterIds?: string[] | null
   sceneIds?: string[] | null
   propIds?: string[] | null
+  actionIds?: string[] | null
   /** Existing DB row for partial updates */
   existing?: {
     characterId?: string | null
     sceneId?: string | null
     propId?: string | null
+    actionId?: string | null
     characterIds?: string | null
     sceneIds?: string | null
     propIds?: string | null
+    actionIds?: string | null
   }
 }): {
   characterId: string | null
   sceneId: string | null
   propId: string | null
+  actionId: string | null
   characterIds: string | null
   sceneIds: string | null
   propIds: string | null
+  actionIds: string | null
   characterIdList: string[]
   sceneIdList: string[]
   propIdList: string[]
+  actionIdList: string[]
 } {
   const ex = input.existing
   const charList = clampIdList(
@@ -124,17 +132,30 @@ export function normalizeBindings(input: {
         : parseIdList(ex?.propIds, ex?.propId),
     MAX_BEAT_PROPS
   )
+  const actionList = clampIdList(
+    input.actionIds !== undefined && input.actionIds !== null
+      ? input.actionIds
+      : input.actionId !== undefined
+        ? input.actionId
+          ? [input.actionId]
+          : []
+        : parseIdList(ex?.actionIds, ex?.actionId),
+    MAX_BEAT_ACTIONS
+  )
 
   return {
     characterId: primaryId(charList),
     sceneId: primaryId(sceneList),
     propId: primaryId(propList),
+    actionId: primaryId(actionList),
     characterIds: serializeIdList(charList),
     sceneIds: serializeIdList(sceneList),
     propIds: serializeIdList(propList),
+    actionIds: serializeIdList(actionList),
     characterIdList: charList,
     sceneIdList: sceneList,
-    propIdList: propList
+    propIdList: propList,
+    actionIdList: actionList
   }
 }
 
@@ -143,20 +164,24 @@ export function hydrateTimelineBindings<T extends {
   characterId?: string | null
   sceneId?: string | null
   propId?: string | null
+  actionId?: string | null
   characterIds?: string | null
   sceneIds?: string | null
   propIds?: string | null
+  actionIds?: string | null
 }>(
   row: T
 ): T & {
   characterIds: string[]
   sceneIds: string[]
   propIds: string[]
+  actionIds: string[]
 } {
   return {
     ...row,
     characterIds: parseIdList(row.characterIds, row.characterId),
     sceneIds: parseIdList(row.sceneIds, row.sceneId),
-    propIds: parseIdList(row.propIds, row.propId)
+    propIds: parseIdList(row.propIds, row.propId),
+    actionIds: parseIdList(row.actionIds, row.actionId)
   }
 }

@@ -23,7 +23,8 @@ interface GalleryThumbStripProps {
 }
 
 /**
- * Shared gallery thumbnail strip: drag-reorder (Electron-safe) + ← → on selection.
+ * Shared gallery thumbnail strip: fixed 80×80 cells (no layout jump),
+ * drag-reorder (Electron-safe) + ← → on selection.
  */
 export function GalleryThumbStrip({
   items,
@@ -77,105 +78,109 @@ export function GalleryThumbStrip({
             e.dataTransfer.dropEffect = 'move'
           }}
         >
-        {items.map((g) => {
-          const active = effectiveSelected === g.id
-          const isCover =
-            coverPath === g.path ||
-            (!coverPath && fallbackCoverPath === g.path)
-          const isDropTarget = dragOverId === g.id
-          const label = labelOf ? labelOf(g) : g.label
-          return (
-            <div
-              key={g.id}
-              role="button"
-              tabIndex={0}
-              draggable
-              className={[
-                'relative h-20 w-20 shrink-0 cursor-grab overflow-hidden rounded-lg border-2 transition active:cursor-grabbing',
-                isDropTarget
-                  ? 'border-brand-400 ring-2 ring-brand-500/50'
-                  : active
-                    ? 'border-brand-500'
-                    : isCover
-                      ? 'border-amber-500/80'
-                      : 'border-ink-700 opacity-85 hover:opacity-100'
-              ].join(' ')}
-              onClick={() => {
-                if (movedRef.current) {
-                  movedRef.current = false
-                  return
-                }
-                onSelect(g.id)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
+          {items.map((g) => {
+            const active = effectiveSelected === g.id
+            const isCover =
+              coverPath === g.path ||
+              (!coverPath && fallbackCoverPath === g.path)
+            const isDropTarget = dragOverId === g.id
+            const label = labelOf ? labelOf(g) : g.label
+            return (
+              <div
+                key={g.id}
+                role="button"
+                tabIndex={0}
+                draggable
+                className={[
+                  // Fixed square: height/width never depend on image aspect ratio
+                  'relative h-20 w-20 shrink-0 cursor-grab overflow-hidden rounded-lg border-2 transition active:cursor-grabbing',
+                  isDropTarget
+                    ? 'border-brand-400 ring-2 ring-brand-500/50'
+                    : active
+                      ? 'border-brand-500'
+                      : isCover
+                        ? 'border-amber-500/80'
+                        : 'border-ink-700 opacity-85 hover:opacity-100'
+                ].join(' ')}
+                onClick={() => {
+                  if (movedRef.current) {
+                    movedRef.current = false
+                    return
+                  }
                   onSelect(g.id)
-                }
-              }}
-              onDragStart={(e) => {
-                dragIdRef.current = g.id
-                movedRef.current = false
-                e.dataTransfer.setData('text/plain', g.id)
-                e.dataTransfer.effectAllowed = 'move'
-                try {
-                  e.dataTransfer.setDragImage(e.currentTarget, 40, 40)
-                } catch {
-                  /* ignore */
-                }
-              }}
-              onDragEnd={() => {
-                dragIdRef.current = null
-                setDragOverId(null)
-              }}
-              onDragEnter={(e) => {
-                e.preventDefault()
-                setDragOverId(g.id)
-              }}
-              onDragOver={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                e.dataTransfer.dropEffect = 'move'
-                if (dragOverId !== g.id) setDragOverId(g.id)
-              }}
-              onDragLeave={() => {
-                setDragOverId((cur) => (cur === g.id ? null : cur))
-              }}
-              onDrop={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                const fromId =
-                  dragIdRef.current || e.dataTransfer.getData('text/plain')
-                setDragOverId(null)
-                dragIdRef.current = null
-                if (fromId && fromId !== g.id) {
-                  movedRef.current = true
-                  onReorder(fromId, g.id)
-                }
-              }}
-              title={label}
-            >
-              <LocalMediaImage
-                filePath={g.path}
-                alt={label}
-                maxHeightClass="h-full max-h-none"
-                objectFit="cover"
-                className="pointer-events-none h-full border-0 rounded-none"
-                showActions={false}
-                enableZoom={false}
-                hoverZoom={false}
-              />
-              {isCover && (
-                <span className="pointer-events-none absolute left-0.5 top-0.5 z-[6] rounded bg-amber-600/95 px-1 py-0.5 text-[8px] font-semibold text-white">
-                  {t('common.coverBadge')}
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelect(g.id)
+                  }
+                }}
+                onDragStart={(e) => {
+                  dragIdRef.current = g.id
+                  movedRef.current = false
+                  e.dataTransfer.setData('text/plain', g.id)
+                  e.dataTransfer.effectAllowed = 'move'
+                  try {
+                    e.dataTransfer.setDragImage(e.currentTarget, 40, 40)
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+                onDragEnd={() => {
+                  dragIdRef.current = null
+                  setDragOverId(null)
+                }}
+                onDragEnter={(e) => {
+                  e.preventDefault()
+                  setDragOverId(g.id)
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  e.dataTransfer.dropEffect = 'move'
+                  if (dragOverId !== g.id) setDragOverId(g.id)
+                }}
+                onDragLeave={() => {
+                  setDragOverId((cur) => (cur === g.id ? null : cur))
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const fromId =
+                    dragIdRef.current || e.dataTransfer.getData('text/plain')
+                  setDragOverId(null)
+                  dragIdRef.current = null
+                  if (fromId && fromId !== g.id) {
+                    movedRef.current = true
+                    onReorder(fromId, g.id)
+                  }
+                }}
+                title={label}
+              >
+                {/* Media fills cell; badges overlay without affecting layout */}
+                <div className="pointer-events-none absolute inset-0">
+                  <LocalMediaImage
+                    filePath={g.path}
+                    alt={label}
+                    variant="thumb"
+                    objectFit="cover"
+                    className="border-0"
+                    showActions={false}
+                    enableZoom={false}
+                    hoverZoom={false}
+                  />
+                </div>
+                {isCover && (
+                  <span className="pointer-events-none absolute left-0.5 top-0.5 z-[6] rounded bg-amber-600/95 px-1 py-0.5 text-[8px] font-semibold text-white">
+                    {t('common.coverBadge')}
+                  </span>
+                )}
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] truncate bg-black/65 px-0.5 py-0.5 text-center text-[9px] text-white">
+                  {label}
                 </span>
-              )}
-              <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] truncate bg-black/65 px-0.5 py-0.5 text-center text-[9px] text-white">
-                {label}
-              </span>
-            </div>
-          )
-        })}
+              </div>
+            )
+          })}
         </div>
         {effectiveSelected && items.length > 1 ? (
           <button

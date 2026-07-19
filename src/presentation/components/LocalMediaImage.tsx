@@ -1,6 +1,11 @@
-import { useEffect, useState, type MouseEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent
+} from 'react'
 import { useTranslation } from 'react-i18next'
-import { getApi } from '../../lib/api'
+import { getApi, isWebRuntime } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import { useToast } from '../context/ToastContext'
 import { MediaZoomLightbox } from './MediaZoomLightbox'
@@ -15,12 +20,19 @@ interface LocalMediaImageProps {
   showMeta?: boolean
   objectFit?: 'contain' | 'cover'
   /**
-   * Always show 重新 gen + Save as when a path exists (default true).
+   * Always show regenerate + save when a path exists (default true).
    * Pass false only for pure decorative thumbnails that must stay clickable-only.
    */
   showActions?: boolean
   /** bar under image | overlay on image | compact icon row */
   actionsLayout?: 'bar' | 'overlay' | 'compact'
+  /**
+   * - `thumb`: absolute fill (gallery strip cells)
+   * - `fill`: fill parent (library cards aspect box) — no min-height jump
+   * - `default`: free-flow editor preview
+   * Also auto-fills when maxHeightClass contains `h-full`.
+   */
+  variant?: 'default' | 'thumb' | 'fill'
   /** Re-generate this image. Required for the button to work. */
   onRegenerate?: () => void | Promise<void>
   regenerateBusy?: boolean
@@ -29,7 +41,7 @@ interface LocalMediaImageProps {
   introVideoBusy?: boolean
   /** When true, intro button shows「繼續影片」for a saved video-prep draft. */
   introVideoHasDraft?: boolean
-  /** Existing intro video path for this still — play + open buttons. */
+  /** Existing intro video path for this still — play + open + download choice. */
   introVideoPath?: string | null
   /** Optional: click image body (e.g. open editor). Zoom uses double-click / Zoom btn. */
   onImageClick?: () => void
@@ -39,9 +51,11 @@ interface LocalMediaImageProps {
   hoverZoom?: boolean
 }
 
+type SaveTarget = 'still' | 'video' | 'both'
+
 /**
  * Preview a local media path via idm-media:// with standard image actions:
- * 重新 gen + Save as + Zoom on every image display.
+ * regenerate + save/download + zoom. Web uses browser download; Electron Save dialog.
  */
 export function LocalMediaImage({
   filePath,
@@ -52,6 +66,7 @@ export function LocalMediaImage({
   objectFit = 'contain',
   showActions = true,
   actionsLayout = 'bar',
+  variant = 'default',
   onRegenerate,
   regenerateBusy = false,
   onIntroVideo,
@@ -64,13 +79,20 @@ export function LocalMediaImage({
 }: LocalMediaImageProps): JSX.Element | null {
   const { t } = useTranslation()
   const toast = useToast()
+  const web = isWebRuntime()
+  /** Fill a fixed parent box (library card / strip) without min-height layout jump. */
+  const fillParent =
+    variant === 'thumb' ||
+    variant === 'fill' ||
+    /\bh-full\b/.test(maxHeightClass)
+  const isThumb = variant === 'thumb'
   const [url, setUrl] = useState<string | null>(null)
   /** User-facing load error; missing files use a soft placeholder instead of raw IPC text. */
   const [error, setError] = useState<string | null>(null)
   const [missingFile, setMissingFile] = useState(false)
   const [dims, setDims] = useState<string | null>(null)
-  const [actionMsg, setActionMsg] = useState<string | null>(null)
   const [saveBusy, setSaveBusy] = useState(false)
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   const [regenBusyLocal, setRegenBusyLocal] = useState(false)
   const [introBusyLocal, setIntroBusyLocal] = useState(false)
   const [zoomOpen, setZoomOpen] = useState(false)
@@ -78,8 +100,12 @@ export function LocalMediaImage({
   const [introPlayOpen, setIntroPlayOpen] = useState(false)
   const [introPlayUrl, setIntroPlayUrl] = useState<string | null>(null)
   const [introPlayBusy, setIntroPlayBusy] = useState(false)
+  const saveMenuRef = useRef<HTMLDivElement | null>(null)
 
   const useHoverZoom = hoverZoom ?? enableZoom
+  const hasIntroVideo = Boolean(introVideoPath?.trim())
+  const saveLabel = web ? t('media.download') : t('media.saveAs')
+  const savedLabel = web ? t('media.downloaded') : t('media.savedAs')
 
   useEffect(() => {
     let cancelled = false
@@ -87,7 +113,7 @@ export function LocalMediaImage({
     setError(null)
     setMissingFile(false)
     setDims(null)
-    setActionMsg(null)
+    setSaveMenuOpen(false)
     if (!filePath) return
     void getApi()
       .media.toPreviewUrl(filePath)
@@ -119,6 +145,25 @@ export function LocalMediaImage({
     setIntroPlayUrl(null)
   }, [filePath])
 
+  useEffect(() => {
+    if (!saveMenuOpen) return
+    const onDoc = (ev: Event): void => {
+      const el = saveMenuRef.current
+      if (el && ev.target instanceof Node && !el.contains(ev.target)) {
+        setSaveMenuOpen(false)
+      }
+    }
+    const onKey = (ev: KeyboardEvent): void => {
+      if (ev.key === 'Escape') setSaveMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [saveMenuOpen])
+
   if (!filePath) return null
 
   const busy =
@@ -128,27 +173,55 @@ export function LocalMediaImage({
     introVideoBusy ||
     introBusyLocal
 
-  const handleSaveAs = async (e: MouseEvent): Promise<void> => {
-    e.preventDefault()
-    e.stopPropagation()
+  const saveOne = async (path: string): Promise<boolean> => {
+    const r = await getApi().media.saveAs(path)
+    return Boolean(r?.filePath || r?.downloadUrl)
+  }
+
+  const runSave = async (target: SaveTarget): Promise<void> => {
     setSaveBusy(true)
-    setActionMsg(null)
+    setSaveMenuOpen(false)
     try {
-      const r = (await getApi().media.saveAs(filePath)) as {
-        filePath?: string
-        downloadUrl?: string
-      } | null
-      if (r?.filePath || r?.downloadUrl) {
-        setActionMsg(t('media.savedAs'))
-        toast.success(t('media.savedAs'))
+      let ok = false
+      if (target === 'still') {
+        ok = await saveOne(filePath)
+      } else if (target === 'video') {
+        const vp = introVideoPath?.trim()
+        if (!vp) {
+          toast.error(t('media.noIntroVideo'))
+          return
+        }
+        ok = await saveOne(vp)
+      } else {
+        ok = await saveOne(filePath)
+        const vp = introVideoPath?.trim()
+        if (vp) {
+          // Stagger second browser download so popup blockers allow both
+          await new Promise((r) => setTimeout(r, 280))
+          const ok2 = await saveOne(vp)
+          ok = ok || ok2
+        }
+      }
+      if (ok) {
+        toast.success(savedLabel)
       }
     } catch (err) {
       const body = parseIpcError(err)
-      setActionMsg(body.message)
       toast.error(body.message)
     } finally {
       setSaveBusy(false)
     }
+  }
+
+  const handleSaveClick = (e: MouseEvent): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (busy) return
+    if (hasIntroVideo) {
+      setSaveMenuOpen((o) => !o)
+      return
+    }
+    void runSave('still')
   }
 
   const handleRegenerate = async (e: MouseEvent): Promise<void> => {
@@ -156,14 +229,10 @@ export function LocalMediaImage({
     e.stopPropagation()
     if (!onRegenerate || busy) return
     setRegenBusyLocal(true)
-    setActionMsg(null)
     try {
-      // Parent handler owns start toasts (avoid duplicate top-right alerts).
       await onRegenerate()
     } catch (err) {
-      const body = parseIpcError(err)
-      setActionMsg(body.message)
-      toast.error(body.message)
+      toast.error(parseIpcError(err).message)
     } finally {
       setRegenBusyLocal(false)
     }
@@ -174,13 +243,10 @@ export function LocalMediaImage({
     e.stopPropagation()
     if (!onIntroVideo || busy) return
     setIntroBusyLocal(true)
-    setActionMsg(null)
     try {
       await onIntroVideo()
     } catch (err) {
-      const body = parseIpcError(err)
-      setActionMsg(body.message)
-      toast.error(body.message)
+      toast.error(parseIpcError(err).message)
     } finally {
       setIntroBusyLocal(false)
     }
@@ -212,7 +278,6 @@ export function LocalMediaImage({
   const handleOpenIntroVideo = async (e: MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
-    // Same as play: only open when user clicks (never auto on editor mount).
     await openIntroPlayer()
   }
 
@@ -227,15 +292,74 @@ export function LocalMediaImage({
     if (enableZoom) setZoomOpen(true)
   }
 
+  const saveButton = (
+    <div className="relative min-w-0 w-full" ref={saveMenuRef}>
+      <button
+        type="button"
+        disabled={busy}
+        title={saveLabel}
+        aria-haspopup={hasIntroVideo ? 'menu' : undefined}
+        aria-expanded={hasIntroVideo ? saveMenuOpen : undefined}
+        onClick={handleSaveClick}
+        className={actionBtnClass(actionsLayout, false)}
+      >
+        {saveBusy ? t('common.loading') : saveLabel}
+      </button>
+      {hasIntroVideo && saveMenuOpen ? (
+        <div
+          role="menu"
+          className="absolute bottom-full left-0 z-30 mb-1 min-w-[10.5rem] overflow-hidden rounded-lg border border-ink-600 bg-ink-900 py-1 shadow-xl"
+        >
+          <p className="border-b border-ink-800 px-2.5 py-1 text-[10px] text-ink-500">
+            {t('media.saveMenuTitle')}
+          </p>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-2.5 py-1.5 text-left text-[11px] text-ink-100 hover:bg-ink-800"
+            onClick={(e) => {
+              e.stopPropagation()
+              void runSave('still')
+            }}
+          >
+            {web ? t('media.downloadStill') : t('media.saveStill')}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-2.5 py-1.5 text-left text-[11px] text-ink-100 hover:bg-ink-800"
+            onClick={(e) => {
+              e.stopPropagation()
+              void runSave('video')
+            }}
+          >
+            {web ? t('media.downloadVideo') : t('media.saveVideo')}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-2.5 py-1.5 text-left text-[11px] text-ink-100 hover:bg-ink-800"
+            onClick={(e) => {
+              e.stopPropagation()
+              void runSave('both')
+            }}
+          >
+            {web ? t('media.downloadBoth') : t('media.saveBoth')}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+
   const actions = showActions ? (
     <div
       className={
         actionsLayout === 'overlay'
-          ? 'absolute inset-x-0 bottom-0 z-10 flex flex-wrap gap-1 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 pt-6'
+          ? 'absolute inset-x-0 bottom-0 z-10 grid grid-cols-2 gap-1.5 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 pt-6 sm:grid-cols-3'
           : actionsLayout === 'compact'
-            ? 'absolute inset-x-0 bottom-0 z-10 flex gap-0.5 bg-black/75 p-0.5'
-            : // Flex-wrap bar: never clip labels; wrap to next row when narrow (preview column).
-              'flex w-full shrink-0 flex-wrap gap-1.5 border-t border-ink-800 bg-ink-950/95 p-2'
+            ? 'absolute inset-x-0 bottom-0 z-10 grid grid-cols-3 gap-0.5 bg-black/75 p-0.5'
+            : // Even grid: equal-size buttons, no orphan half-row stretch
+              'grid w-full shrink-0 grid-cols-2 gap-1.5 border-t border-ink-800 bg-ink-950/95 p-2 sm:grid-cols-3'
       }
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -315,23 +439,69 @@ export function LocalMediaImage({
           {t('media.openIntroVideo')}
         </button>
       ) : null}
-      <button
-        type="button"
-        disabled={busy}
-        title={t('media.saveAs')}
-        onClick={(e) => void handleSaveAs(e)}
-        className={actionBtnClass(actionsLayout, false)}
-      >
-        {saveBusy ? t('common.loading') : t('media.saveAs')}
-      </button>
+      {saveButton}
     </div>
   ) : null
+
+  // ─── Thumb: fixed fill, never min-height jump ─────────────────
+  if (isThumb) {
+    if (missingFile || error) {
+      return (
+        <div
+          className={[
+            'absolute inset-0 flex items-center justify-center bg-ink-950/80',
+            className
+          ].join(' ')}
+        >
+          <span className="text-sm opacity-40" aria-hidden>
+            {missingFile ? '🖼' : '!'}
+          </span>
+        </div>
+      )
+    }
+    if (!url) {
+      return (
+        <div
+          className={[
+            'absolute inset-0 flex items-center justify-center bg-ink-950/60 text-[10px] text-ink-500',
+            className
+          ].join(' ')}
+        >
+          …
+        </div>
+      )
+    }
+    return (
+      <div
+        className={[
+          'absolute inset-0 overflow-hidden bg-black/40',
+          className
+        ].join(' ')}
+      >
+        <img
+          src={url}
+          alt={alt}
+          draggable={false}
+          className={[
+            'h-full w-full object-cover',
+            useHoverZoom ? 'transition-transform duration-300 group-hover:scale-105' : ''
+          ].join(' ')}
+          onError={() => {
+            setUrl(null)
+            setMissingFile(true)
+          }}
+        />
+      </div>
+    )
+  }
 
   if (missingFile || error) {
     return (
       <div
         className={[
-          'relative flex flex-col rounded-xl border border-ink-800 bg-ink-950/60',
+          fillParent
+            ? 'relative flex h-full w-full min-h-0 flex-col overflow-hidden bg-ink-950/60'
+            : 'relative flex flex-col rounded-xl border border-ink-800 bg-ink-950/60',
           className
         ].join(' ')}
       >
@@ -339,20 +509,22 @@ export function LocalMediaImage({
           className={[
             'flex flex-col items-center justify-center gap-1.5 px-3 text-center',
             maxHeightClass,
-            'min-h-[8rem] w-full'
+            fillParent ? 'h-full w-full min-h-0' : 'min-h-[8rem] w-full'
           ].join(' ')}
         >
           <span className="text-2xl opacity-40" aria-hidden>
             {missingFile ? '🖼' : '!'}
           </span>
-          <p
-            className={[
-              'max-w-full text-[11px] leading-snug',
-              missingFile ? 'text-ink-500' : 'text-rose-200'
-            ].join(' ')}
-          >
-            {missingFile ? t('media.fileMissing') : error}
-          </p>
+          {!fillParent ? (
+            <p
+              className={[
+                'max-w-full text-[11px] leading-snug',
+                missingFile ? 'text-ink-500' : 'text-rose-200'
+              ].join(' ')}
+            >
+              {missingFile ? t('media.fileMissing') : error}
+            </p>
+          ) : null}
         </div>
         {actions}
       </div>
@@ -363,7 +535,9 @@ export function LocalMediaImage({
     return (
       <div
         className={[
-          'relative flex flex-col rounded-xl border border-ink-800 bg-ink-950/60',
+          fillParent
+            ? 'relative flex h-full w-full min-h-0 flex-col overflow-hidden bg-ink-950/60'
+            : 'relative flex flex-col rounded-xl border border-ink-800 bg-ink-950/60',
           className
         ].join(' ')}
       >
@@ -371,7 +545,7 @@ export function LocalMediaImage({
           className={[
             'flex items-center justify-center text-xs text-ink-500',
             maxHeightClass,
-            'min-h-[12rem] w-full'
+            fillParent ? 'h-full w-full min-h-0' : 'min-h-[12rem] w-full'
           ].join(' ')}
         >
           …
@@ -400,8 +574,6 @@ export function LocalMediaImage({
           enableZoom || onImageClick ? 'cursor-zoom-in' : ''
         ].join(' ')}
         onClick={(e) => {
-          // Only consume the event when we handle it — otherwise parent
-          // controls (e.g. gallery thumbnail buttons) must receive the click.
           if (onImageClick) {
             e.stopPropagation()
             onImageClick()
@@ -435,18 +607,23 @@ export function LocalMediaImage({
     <>
       <div
         className={[
-          // Do not overflow-hide the whole card — that clips the action bar in
-          // narrow editor previews. Only the image region clips.
-          'relative flex flex-col rounded-xl border border-ink-800 bg-black/40',
+          fillParent
+            ? 'relative flex h-full w-full min-h-0 flex-col overflow-hidden bg-black/40'
+            : 'relative flex flex-col rounded-xl border border-ink-800 bg-black/40',
           className
         ].join(' ')}
       >
         {actionsLayout === 'bar' ? (
           <>
-            <div className="min-h-0 overflow-hidden rounded-t-xl">
+            <div
+              className={[
+                'min-h-0 overflow-hidden',
+                fillParent ? 'flex-1' : 'rounded-t-xl'
+              ].join(' ')}
+            >
               {imageBody}
             </div>
-            {showMeta && dims && (
+            {showMeta && dims && !fillParent && (
               <p className="shrink-0 border-t border-ink-800 px-2 py-1 text-center text-[10px] text-ink-500">
                 {dims}
               </p>
@@ -454,7 +631,12 @@ export function LocalMediaImage({
             {actions}
           </>
         ) : (
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl">
+          <div
+            className={[
+              'relative min-h-0 flex-1 overflow-hidden',
+              fillParent ? 'h-full' : 'rounded-xl'
+            ].join(' ')}
+          >
             {imageBody}
             {actions}
             {showMeta && dims && (
@@ -463,11 +645,6 @@ export function LocalMediaImage({
               </p>
             )}
           </div>
-        )}
-        {actionMsg && (
-          <p className="shrink-0 border-t border-ink-800 px-2 py-1 text-center text-[10px] text-ink-400">
-            {actionMsg}
-          </p>
         )}
       </div>
       {enableZoom && (
@@ -509,7 +686,6 @@ export function LocalMediaImage({
               autoPlay
               playsInline
               preload="auto"
-              // Avoid accidental pause if parent re-renders focus; stream needs Range (main).
               onError={() => {
                 toast.error(t('media.introPlayError'))
               }}
@@ -527,26 +703,25 @@ function actionBtnClass(
   muted: boolean
 ): string {
   const base =
-    'rounded font-medium transition disabled:cursor-not-allowed disabled:opacity-40'
+    'box-border w-full rounded-lg font-medium transition disabled:cursor-not-allowed disabled:opacity-40'
   if (layout === 'compact') {
     return [
       base,
-      // Always white on dark photo chrome (theme-independent)
-      'flex-1 px-0.5 py-0.5 text-[8px] leading-tight text-white hover:bg-white/15',
+      'inline-flex h-7 items-center justify-center px-0.5 text-[8px] leading-tight text-white hover:bg-white/15',
       muted ? 'opacity-50' : ''
     ].join(' ')
   }
   if (layout === 'overlay') {
     return [
       base,
-      'bg-white/15 px-2.5 py-1 text-[11px] text-white backdrop-blur hover:bg-white/25',
+      'inline-flex h-9 items-center justify-center bg-white/15 px-2 text-[11px] text-white backdrop-blur hover:bg-white/25',
       muted ? 'opacity-50' : ''
     ].join(' ')
   }
+  // Bar: fixed height + full grid cell width → equal neat buttons
   return [
     base,
-    // Grow + wrap: each control keeps readable min width so labels are not clipped.
-    'inline-flex min-h-10 min-w-[5.25rem] flex-1 items-center justify-center whitespace-normal break-words border border-ink-600 bg-ink-800 px-2 py-2 text-center text-[11px] leading-snug text-ink-100 hover:border-ink-500 hover:bg-ink-700 sm:min-w-[6rem] sm:text-xs',
+    'inline-flex h-10 items-center justify-center border border-ink-600 bg-ink-800 px-2 text-center text-[11px] leading-none text-ink-100 hover:border-ink-500 hover:bg-ink-700 sm:text-xs',
     muted ? 'opacity-50' : ''
   ].join(' ')
 }

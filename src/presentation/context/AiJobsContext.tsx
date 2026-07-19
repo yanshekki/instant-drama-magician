@@ -55,6 +55,9 @@ export type AiJobKind =
   | 'prop-ai-fill'
   | 'prop-plate'
   | 'prop-intro-video'
+  | 'action-ai-fill'
+  | 'action-plate'
+  | 'action-intro-video'
   | 'story-cover'
   | 'story-ai-meta'
   | 'story-ai-script'
@@ -78,6 +81,7 @@ export interface AiJobScope {
   sceneId?: string
   propId?: string
   costumeId?: string
+  actionId?: string
   entryId?: string
 }
 
@@ -163,6 +167,31 @@ export type AiDraft =
       storyId: string
       path: string
       variant: string
+      label: string
+      enhance?: unknown
+    }
+  | {
+      type: 'action-profile'
+      actionId: string | null
+      storyId: string | null
+      profile: {
+        name: string
+        description: string
+        motionNotes?: string
+        intention?: string
+        cameraNotes?: string
+        visualTags?: string
+        artStyle?: string
+      }
+      profileJson: string
+      isNew: boolean
+    }
+  | {
+      type: 'action-plate'
+      actionId: string
+      storyId: string
+      path: string
+      panelLayout: string
       label: string
       enhance?: unknown
     }
@@ -264,6 +293,7 @@ interface AiJobsContextValue {
     sceneId?: string | null
     propId?: string | null
     costumeId?: string | null
+    actionId?: string | null
     storyId?: string
     entryId?: string
   }) => boolean
@@ -328,6 +358,24 @@ interface AiJobsContextValue {
         label: string
         createdAt: string
         layer?: string
+      }>
+    }) => void
+  ) => () => void
+  onActionProfileApply: (
+    handler: (draft: Extract<AiDraft, { type: 'action-profile' }>) => void
+  ) => () => void
+  onActionPlateCommitted: (
+    handler: (payload: {
+      actionId: string
+      path: string
+      gallery?: Array<{
+        id: string
+        path: string
+        kind: string
+        label: string
+        createdAt: string
+        layer?: string
+        introVideoPath?: string | null
       }>
     }) => void
   ) => () => void
@@ -484,6 +532,26 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
           label: string
           createdAt: string
           layer?: string
+        }>
+      }) => void
+    >()
+  )
+  const actionProfileHandlers = useRef(
+    new Set<(d: Extract<AiDraft, { type: 'action-profile' }>) => void>()
+  )
+  const actionPlateHandlers = useRef(
+    new Set<
+      (p: {
+        actionId: string
+        path: string
+        gallery?: Array<{
+          id: string
+          path: string
+          kind: string
+          label: string
+          createdAt: string
+          layer?: string
+          introVideoPath?: string | null
         }>
       }) => void
     >()
@@ -652,6 +720,7 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
       sceneId?: string | null
       propId?: string | null
       costumeId?: string | null
+      actionId?: string | null
       storyId?: string
       entryId?: string
     }): boolean => {
@@ -681,6 +750,13 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
           query.propId &&
           j.scope.propId &&
           j.scope.propId === query.propId
+        ) {
+          return true
+        }
+        if (
+          query.actionId &&
+          j.scope.actionId &&
+          j.scope.actionId === query.actionId
         ) {
           return true
         }
@@ -966,6 +1042,52 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
         dismissJob(jobId)
         return
       }
+      if (d.type === 'action-profile') {
+        if (d.actionId) {
+          const p = d.profile
+          await getApi().actions.update(d.actionId, {
+            name: p.name,
+            description: p.description,
+            motionNotes: p.motionNotes ?? null,
+            intention: p.intention ?? null,
+            cameraNotes: p.cameraNotes ?? null,
+            visualTags: p.visualTags ?? null,
+            artStyle: p.artStyle ?? null,
+            profileJson: d.profileJson,
+            seedPrompt: p.description
+          })
+        }
+        for (const h of actionProfileHandlers.current) h(d)
+        dismissJob(jobId)
+        return
+      }
+      if (d.type === 'action-plate') {
+        const committed = await getApi().actions.commitPlate({
+          actionId: d.actionId,
+          path: d.path,
+          panelLayout: d.panelLayout,
+          label: d.label
+        })
+        for (const h of actionPlateHandlers.current) {
+          h({
+            actionId: d.actionId,
+            path: committed.path,
+            gallery: committed.gallery as
+              | Array<{
+                  id: string
+                  path: string
+                  kind: string
+                  label: string
+                  createdAt: string
+                  layer?: string
+                  introVideoPath?: string | null
+                }>
+              | undefined
+          })
+        }
+        dismissJob(jobId)
+        return
+      }
       if (d.type === 'story-cover') {
         const committed = await getApi().stories.commitCover({
           storyId: d.storyId,
@@ -1180,6 +1302,42 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
     []
   )
 
+  const onActionProfileApply = useCallback(
+    (
+      handler: (draft: Extract<AiDraft, { type: 'action-profile' }>) => void
+    ) => {
+      actionProfileHandlers.current.add(handler)
+      return () => {
+        actionProfileHandlers.current.delete(handler)
+      }
+    },
+    []
+  )
+
+  const onActionPlateCommitted = useCallback(
+    (
+      handler: (payload: {
+        actionId: string
+        path: string
+        gallery?: Array<{
+          id: string
+          path: string
+          kind: string
+          label: string
+          createdAt: string
+          layer?: string
+          introVideoPath?: string | null
+        }>
+      }) => void
+    ) => {
+      actionPlateHandlers.current.add(handler)
+      return () => {
+        actionPlateHandlers.current.delete(handler)
+      }
+    },
+    []
+  )
+
   const onStoryCoverCommitted = useCallback(
     (handler: (payload: { storyId: string; path: string }) => void) => {
       storyCoverHandlers.current.add(handler)
@@ -1235,6 +1393,8 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
       onScenePlateCommitted,
       onPropProfileApply,
       onPropPlateCommitted,
+      onActionProfileApply,
+      onActionPlateCommitted,
       onStoryCoverCommitted
     }),
     [
@@ -1266,6 +1426,8 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
       onScenePlateCommitted,
       onPropProfileApply,
       onPropPlateCommitted,
+      onActionProfileApply,
+      onActionPlateCommitted,
       onStoryCoverCommitted
     ]
   )

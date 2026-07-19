@@ -156,6 +156,7 @@ export function VideoPrepHost(): JSX.Element | null {
             sceneId: req.entityIds.sceneId,
             propId: req.entityIds.propId,
             costumeId: req.entityIds.costumeId,
+            actionId: req.entityIds.actionId,
             storyId: req.entityIds.storyId,
             entryId: req.entityIds.entryId,
             sourceImagePath: req.sourceImagePath,
@@ -185,6 +186,7 @@ export function VideoPrepHost(): JSX.Element | null {
             sceneId: r.entityIds?.sceneId ?? req.entityIds.sceneId,
             propId: r.entityIds?.propId ?? req.entityIds.propId,
             costumeId: r.entityIds?.costumeId ?? req.entityIds.costumeId,
+            actionId: r.entityIds?.actionId ?? req.entityIds.actionId,
             storyId: r.entityIds?.storyId ?? req.entityIds.storyId,
             entryId: r.entityIds?.entryId ?? req.entityIds.entryId
           },
@@ -265,6 +267,7 @@ export function VideoPrepHost(): JSX.Element | null {
         sceneId: draft.entityIds.sceneId,
         propId: draft.entityIds.propId,
         costumeId: draft.entityIds.costumeId,
+        actionId: draft.entityIds.actionId,
         storyId: draft.entityIds.storyId,
         entryId: draft.entityIds.entryId,
         durationSeconds: draft.durationSeconds,
