@@ -11,9 +11,7 @@ import {
   writeFileSync
 } from 'fs'
 import { basename, dirname, extname, join } from 'path'
-import type { PrismaClient } from '../types/prisma'
 import { GrokCliClient } from '../infrastructure/ai/GrokCliClient'
-import { SettingsStore } from '../infrastructure/settings/SettingsStore'
 import {
   AppDataBackupService,
   CharacterService,
@@ -42,6 +40,8 @@ import type {
   CreateSceneInput,
   CreateStoryInput,
   CreateTimelineEntryInput,
+  PropProfileFields,
+  SceneProfileFields,
   UpdateCharacterInput,
   UpdatePropInput,
   UpdateSceneInput,
@@ -69,13 +69,12 @@ import {
   appendGalleryItem,
   MAX_IMAGE_EDIT_REFERENCES,
   parseCharacterGallery,
-  pickGalleryReferencePaths,
   primaryGalleryPath,
   serializeCharacterGallery,
   setGalleryIntroVideo
 } from '../domain/characterGallery'
 import type { AppSettings } from '../types/settings'
-import { AppError, toAppError } from '../types/errors'
+import { AppError } from '../types/errors'
 import {
   extractDescriptionFromSoulMd,
   extractNameFromSoulMd,
@@ -83,7 +82,7 @@ import {
   parseSoulMd
 } from '../domain/character'
 import type { RuntimeHandler } from './createRuntime'
-import type { HandlerHost } from './HandlerHost'
+import type { HandlerHost, OpenDialogOptionsLike } from './HandlerHost'
 
 export function registerAllHandlers(
   reg: (channel: string, fn: RuntimeHandler) => void,
@@ -1755,7 +1754,7 @@ export function registerAllHandlers(
               characterId: row.id,
               path: outPath,
               basePath,
-              pickReason: picked.reason,
+              pickReason: pickedExisting.reason,
               costume: costumeDescription.slice(0, 120),
               artStyle,
               pose: pose.id,
@@ -1769,7 +1768,7 @@ export function registerAllHandlers(
             aspect: img.aspectUsed,
             gallery,
             basePath,
-            pickReason: picked.reason,
+            pickReason: pickedExisting.reason,
             enhance: enhanced,
             draft: true,
             label,
@@ -1805,7 +1804,7 @@ export function registerAllHandlers(
             characterId: row.id,
             path: outPath,
             basePath,
-            pickReason: picked.reason,
+            pickReason: pickedExisting.reason,
             costume: costumeDescription.slice(0, 120),
             artStyle,
             pose: pose.id,
@@ -1819,7 +1818,7 @@ export function registerAllHandlers(
           aspect: img.aspectUsed,
           gallery: nextGallery,
           basePath,
-          pickReason: picked.reason,
+          pickReason: pickedExisting.reason,
           enhance: enhanced,
           draft: false,
           label,
@@ -1928,7 +1927,7 @@ export function registerAllHandlers(
     'characters:importSoulMd',
     (async () => {
       const win = host.getMainWindow()
-      const options: OpenDialogOptions = {
+      const options: OpenDialogOptionsLike = {
         title: 'Import soul.md',
         filters: [{ name: 'Markdown', extensions: ['md'] }],
         properties: ['openFile']
@@ -2326,7 +2325,7 @@ export function registerAllHandlers(
               characterSnippets,
               propSnippets,
               priorSceneSnippets,
-              existingDraft: hasDraft
+              existingDraft: (hasDraft
                 ? {
                     title: draft?.title ?? undefined,
                     description: draft?.description ?? undefined,
@@ -2343,7 +2342,7 @@ export function registerAllHandlers(
                     visualTags: draft?.visualTags ?? undefined,
                     artStyle: draft?.artStyle ?? undefined
                   }
-                : null
+                : null) as Partial<SceneProfileFields> | null
             })
         const completion = await aiClient.chat({
           messages: [
@@ -2404,9 +2403,7 @@ export function registerAllHandlers(
         )
         const {
           appendSceneGalleryItem,
-          MAX_SCENE_IMAGE_EDIT_REFERENCES,
           parseSceneGallery,
-          pickSceneReferencePaths,
           primarySceneGalleryPath,
           serializeSceneGallery
         } = await import('../domain/sceneGallery')
@@ -3184,7 +3181,7 @@ export function registerAllHandlers(
                 storyTitle,
                 styleNote,
                 locale,
-                existingDraft: hasDraft
+                existingDraft: (hasDraft
                   ? {
                       name: draft?.name ?? undefined,
                       description: draft?.description ?? undefined,
@@ -3194,7 +3191,7 @@ export function registerAllHandlers(
                       visualTags: draft?.visualTags ?? undefined,
                       artStyle: draft?.artStyle ?? undefined
                     }
-                  : null
+                  : null) as Partial<PropProfileFields> | null
               })
             }
           ],
@@ -5715,7 +5712,6 @@ export function registerAllHandlers(
   reg(
     'webServer:start',
     (async () => {
-      const s = settingsStore.load()
       const next = settingsStore.save({ webServerEnabled: true })
       try {
         return await syncEmbeddedWebServer(next)
@@ -5830,7 +5826,7 @@ export function registerAllHandlers(
         typeof filePath === 'string' && filePath.trim() ? filePath.trim() : ''
       if (!src) {
         const win = host.getMainWindow()
-        const options: OpenDialogOptions = {
+        const options: OpenDialogOptionsLike = {
           title: 'Select reference image',
           filters: [
             { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }
@@ -6318,7 +6314,7 @@ export function registerAllHandlers(
         typeof filePath === 'string' && filePath.trim() ? filePath.trim() : ''
       if (!src) {
         const win = host.getMainWindow()
-        const options: OpenDialogOptions = {
+        const options: OpenDialogOptionsLike = {
           title: 'Select BGM',
           filters: [
             { name: 'Audio', extensions: ['mp3', 'wav', 'm4a', 'aac', 'ogg'] }
@@ -6383,7 +6379,7 @@ export function registerAllHandlers(
         typeof zipPath === 'string' && zipPath.trim() ? zipPath.trim() : ''
       if (!src) {
         const win = host.getMainWindow()
-        const options: OpenDialogOptions = {
+        const options: OpenDialogOptionsLike = {
           title: 'Import story backup',
           filters: [{ name: 'IDM Backup', extensions: ['zip'] }],
           properties: ['openFile']
@@ -6486,7 +6482,7 @@ export function registerAllHandlers(
           : process.env.IDM_PICK_FILE || ''
       if (!src) {
         const win = host.getMainWindow()
-        const options: OpenDialogOptions = {
+        const options: OpenDialogOptionsLike = {
           title: 'Restore full app backup',
           filters: [{ name: 'IDM Backup', extensions: ['zip'] }],
           properties: ['openFile']
@@ -6538,7 +6534,7 @@ export function registerAllHandlers(
         typeof filePath === 'string' && filePath.trim() ? filePath.trim() : ''
       if (!src) {
         const win = host.getMainWindow()
-        const options: OpenDialogOptions = {
+        const options: OpenDialogOptionsLike = {
           title: 'Import video clip',
           filters: [
             { name: 'Video', extensions: ['mp4', 'webm', 'mov', 'mkv'] }

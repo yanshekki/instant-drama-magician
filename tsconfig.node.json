@@ -14,7 +14,7 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "target": "ESNext",
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM"],
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
@@ -26,9 +26,21 @@
     "electron/**/*",
     "electron.vite.config.ts",
     "prisma/**/*",
+    "server/**/*",
     "src/types/**/*",
     "src/application/**/*",
     "src/infrastructure/**/*",
-    "src/domain/**/*"
+    "src/domain/**/*",
+    "src/runtime/**/*",
+    "src/cli/**/*",
+    "src/lib/**/*",
+    "src/contract/**/*"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/__tests__/**",
+    "src/presentation/**/*",
+    "src/test/**/*"
   ]
 }

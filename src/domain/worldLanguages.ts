@@ -419,10 +419,12 @@ export function normalizeLanguageCodes(input: unknown): string[] {
   const seen = new Set<string>()
   for (const r of raw) {
     const lower = r.toLowerCase()
-    let code =
+    let code: string | null =
       alias[lower] ??
       alias[r] ??
-      (known.has(lower) ? WORLD_LANGUAGE_CODES.find((c) => c.toLowerCase() === lower)! : null)
+      (known.has(lower)
+        ? (WORLD_LANGUAGE_CODES.find((c) => c.toLowerCase() === lower) ?? null)
+        : null)
     if (!code) {
       // Try direct code match case-insensitive for zh-Hant etc.
       const found = WORLD_LANGUAGE_CODES.find(
@@ -430,7 +432,7 @@ export function normalizeLanguageCodes(input: unknown): string[] {
       )
       code = found ?? null
     }
-    if (!code) continue
+    if (code == null) continue
     if (seen.has(code)) continue
     seen.add(code)
     out.push(code)

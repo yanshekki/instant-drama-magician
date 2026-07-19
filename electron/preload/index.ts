@@ -83,6 +83,7 @@ const api: ElectronApi & {
     listCast: (storyId: string) => ipcRenderer.invoke('stories:listCast', storyId)
   },
   characters: {
+    get: (id: string) => ipcRenderer.invoke('characters:get', id),
     list: (opts?: string | { storyId?: string; q?: string; forStory?: boolean }) =>
       ipcRenderer.invoke('characters:list', opts),
     create: (input: CreateCharacterInput) => ipcRenderer.invoke('characters:create', input),
@@ -108,12 +109,15 @@ const api: ElectronApi & {
       idea?: string
       storyId?: string
       locale?: 'zh-HK' | 'en'
-      existingDraft?: Record<string, string | undefined | null>
+      existingDraft?: Record<string, unknown>
+      soulContent?: string | null
     }) => ipcRenderer.invoke('characters:aiFill', payload),
     generateSoul: (payload: {
       storyId?: string
       locale?: 'zh-HK' | 'en'
-      profile: Record<string, string | undefined | null>
+      profile: Record<string, unknown>
+      existingSoul?: string | null
+      userRequest?: string | null
     }) => ipcRenderer.invoke('characters:generateSoul', payload),
     generateSheet: (payload: {
       characterId: string

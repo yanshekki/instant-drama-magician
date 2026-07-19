@@ -279,7 +279,7 @@ export function filterGalleryByLayer(
   }
   if (layer === 'all') return list.slice()
   return list.filter((it) => {
-    const l = it.layer ?? opts.inferLayer?.(it) ?? null
+    const l = it.layer ?? opts?.inferLayer?.(it) ?? null
     return l === layer
   })
 }

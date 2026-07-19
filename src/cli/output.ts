@@ -45,7 +45,7 @@ export function emitSuccess(
 export function emitFailure(
   opts: CliGlobalOptions,
   err: InvokeErrorBody | { message: string; code?: string },
-  exitCode = EXIT.ERROR
+  exitCode: number = EXIT.ERROR
 ): never {
   const body: InvokeErrorBody =
     'ok' in err && err.ok === false

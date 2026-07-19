@@ -45,6 +45,7 @@ export interface ElectronApi {
         title?: string
         status?: string
         styleNote?: string | null
+        artStyle?: string | null
         coverPath?: string | null
         refGalleryJson?: string | null
       }
@@ -138,6 +139,7 @@ export interface ElectronApi {
     list: (
       opts?: string | { storyId?: string; q?: string; forStory?: boolean }
     ) => Promise<unknown>
+    get: (id: string) => Promise<unknown>
     create: (input: CreateCharacterInput) => Promise<unknown>
     update: (id: string, data: UpdateCharacterInput) => Promise<unknown>
     delete: (id: string) => Promise<{ ok: boolean }>

@@ -77,8 +77,8 @@ export async function cmdChannels(
       result: {
         count: names.length,
         channels: names.map((c) => ({
-          channel: c,
-          ...specFor(c)
+          ...specFor(c),
+          channel: c
         }))
       },
       meta: { ms: 0, mode }

@@ -14,9 +14,13 @@ import { registerAllHandlers } from './registerAllHandlers'
 import type { HandlerHost } from './HandlerHost'
 import { createHeadlessDialog, createHeadlessShell } from './adapters'
 
-export type RuntimeHandler = (
-  ...args: unknown[]
-) => Promise<unknown> | unknown
+/**
+ * Channel handlers are registered with concrete parameter types; IPC always
+ * passes a loosely typed arg list. Use `any[]` so typed handlers assign cleanly
+ * under strictFunctionTypes (unknown[] would reject every typed callback).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RuntimeHandler = (...args: any[]) => Promise<unknown> | unknown
 
 export interface RuntimeOptions {
   dataDir: string

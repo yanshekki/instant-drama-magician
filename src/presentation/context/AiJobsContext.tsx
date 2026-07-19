@@ -263,6 +263,7 @@ interface AiJobsContextValue {
     characterId?: string | null
     sceneId?: string | null
     propId?: string | null
+    costumeId?: string | null
     storyId?: string
     entryId?: string
   }) => boolean

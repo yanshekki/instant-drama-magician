@@ -2,15 +2,14 @@
  * idm open | launch — start desktop GUI (packaged or --dev).
  * Platforms: macOS, Linux (Ubuntu), Windows.
  */
-import { chmodSync, existsSync } from 'fs'
-import { join } from 'path'
+import { chmodSync } from 'fs'
 import type { CliGlobalOptions } from '../types'
 import { EXIT } from '../types'
-import { emitFailure, emitSuccess, printErr, printHuman } from '../output'
+import { emitFailure, emitSuccess, printHuman } from '../output'
 import { findRepoRoot } from '../lib/repoRoot'
 import { hostPlatform } from '../lib/platform'
 import { resolveLaunchTarget } from '../lib/desktopPaths'
-import { localBin, resolveNpm, runCommand, spawnDetached } from '../lib/runProcess'
+import { resolveNpm, runCommand, spawnDetached } from '../lib/runProcess'
 import { cmdBuild } from './build'
 
 export async function cmdOpen(

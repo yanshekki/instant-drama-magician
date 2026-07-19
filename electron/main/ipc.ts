@@ -54,7 +54,6 @@ function summarizeArgs(channel: string, args: unknown[]): unknown {
 }
 
 let _runtime: AppRuntime | null = null
-let _activity: ActivityLog | null = null
 
 export function getIpcRuntime(): AppRuntime | null {
   return _runtime
@@ -117,7 +116,6 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   const mediaRoot = join(userData, 'media')
   const settingsStore = new SettingsStore(SettingsStore.defaultPath(userData))
   const activity = new ActivityLog(ActivityLog.defaultPath(userData))
-  _activity = activity
 
   let lastProgress: unknown = null
   let adminWindow: BrowserWindow | null = null

@@ -525,7 +525,12 @@ export function CostumesPage(): JSX.Element {
               : 'gen') as 'sheet' | 'upload' | 'gen',
             label: item.label,
             createdAt: item.createdAt,
-            ...(item.layer ? { layer: item.layer } : {}),
+            ...(item.layer
+              ? {
+                  layer:
+                    item.layer as import('../../domain/characterSheetVariants').WardrobeLayer
+                }
+              : {}),
             introVideoPath: item.introVideoPath ?? null
           }))
         )

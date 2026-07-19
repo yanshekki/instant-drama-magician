@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
 import { nextSceneNumber } from '../../domain/scene'
@@ -419,7 +419,7 @@ export function ScenesPage(): JSX.Element {
       : DEFAULT_ART_STYLE
     setEditingId(s.id)
     setForm({
-      sceneNumber: s.sceneNumber,
+      sceneNumber: s.sceneNumber ?? 1,
       title: s.title ?? '',
       description: s.description,
       script: s.script ?? '',

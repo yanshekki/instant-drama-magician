@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
-import { useNavigate } from 'react-router-dom'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type {
@@ -144,7 +143,6 @@ type StoryDetail = StoryWithCounts & {
  */
 export function StoriesPage(): JSX.Element {
   const { t, i18n } = useTranslation()
-  const navigate = useNavigate()
   const { stories, setActiveStoryId, refreshStories, loading } = useApp()
   const toast = useToast()
   const dialog = useDialog()
@@ -246,7 +244,7 @@ export function StoriesPage(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [aiIdea, setAiIdea] = useState('')
-  const [aiBusy, setAiBusy] = useState(false)
+  const [aiBusy, _setAiBusy] = useState(false)
   const [pageBanner, setPageBanner] = useState<string | null>(null)
   /** Cast browser: kind tab + search + linked filter + page */
   const [castKind, setCastKind] = useState<'characters' | 'scenes' | 'props'>(

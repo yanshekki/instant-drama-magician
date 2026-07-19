@@ -1086,7 +1086,11 @@ export function TimelinePage(): JSX.Element {
   }, [advanceToNextClip, playhead])
 
   /** Select a clip and keep playhead inside it so the preview shows that media. */
-  const selectClip = (id: string): void => {
+  const selectClip = (id: string | null): void => {
+    if (id == null) {
+      setSelectedId(null)
+      return
+    }
     setSelectedId(id)
     setIsPlaying(false)
     const clip = entries.find((e) => e.id === id)

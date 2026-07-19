@@ -67,9 +67,9 @@ export function createRemoteClient(opts: RemoteClientOptions): IdmClient {
         message: obj.message || `HTTP ${res.status}`
       }
       throw new AppError(
-        (err.code as never) || 'ERROR',
-        err.message || 'Request failed',
-        err.details
+        (typeof err.code === 'string' ? err.code : 'ERROR') as never,
+        String(err.message || 'Request failed'),
+        typeof err.details === 'string' ? err.details : undefined
       )
     }
     return obj.result

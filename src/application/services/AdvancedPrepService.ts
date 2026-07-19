@@ -11,7 +11,6 @@ import {
   buildClipPrepHash,
   clipStillStatus,
   collectTimelineCharacterIds,
-  emptyStoryCastPrep,
   parseEntryStillPromptCache,
   parseStoryCastPrep,
   resolveCastRefFromPrep,
@@ -23,10 +22,7 @@ import {
 } from '../../domain/advancedPrep'
 import { parseIdList } from '../../domain/timelineBindings'
 import { sortTimelineEntries } from '../../domain/timeline'
-import {
-  getPreviousTimelineEntry,
-  timelineBeatDisplayIndex
-} from '../../domain/promptContinuity'
+import { getPreviousTimelineEntry } from '../../domain/promptContinuity'
 import { snapVideoSeconds } from '../../domain/videoDuration'
 import { AppError } from '../../types/errors'
 
@@ -84,7 +80,8 @@ export class AdvancedPrepService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly store: MediaStore,
-    private readonly getAi: () => ImageAi,
+    /** Reserved for still image generation; wired by registerAllHandlers. */
+    getAi: () => ImageAi,
     private readonly getSettings: () => {
       aspectRatio?: string
       imageSizeTall?: string
@@ -93,7 +90,9 @@ export class AdvancedPrepService {
       uiLanguage?: string
     },
     private readonly ffmpeg: FfmpegService = new FfmpegService()
-  ) {}
+  ) {
+    void getAi
+  }
 
   private asList(
     multi: string | string[] | null | undefined,

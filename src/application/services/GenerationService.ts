@@ -26,6 +26,7 @@ import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
 import { GenerationPipeline } from '../GenerationPipeline'
 import { FfmpegService } from '../../infrastructure/ffmpeg/FfmpegService'
 import { MediaStore } from '../../infrastructure/media/MediaStore'
+import { hydrateTimelineBindings } from '../../domain/timelineBindings'
 
 export type GenerationProgressHandler = (payload: {
   storyId: string
@@ -125,7 +126,10 @@ export class GenerationService {
     const charMap = new Map(story.characters.map((c) => [c.id, c]))
     const sceneMap = new Map(story.scenes.map((s) => [s.id, s]))
     const propMap = new Map(story.props.map((p) => [p.id, p]))
-    const prev = previousClipContext(story.timeline, entryId, {
+    const timelineDomain = story.timeline.map((e) =>
+      hydrateTimelineBindings(e)
+    ) as TimelineEntry[]
+    const prev = previousClipContext(timelineDomain, entryId, {
       characters: charMap,
       scenes: sceneMap,
       props: propMap
@@ -212,11 +216,14 @@ export class GenerationService {
         '../../domain/beatContent'
       )
       // Chain from previous beat's continuity keyframe when available.
-      const prevEntry = getPreviousTimelineEntry(story.timeline, entryId)
+      const timelineDomain = story.timeline.map((e) =>
+        hydrateTimelineBindings(e)
+      ) as TimelineEntry[]
+      const prevEntry = getPreviousTimelineEntry(timelineDomain, entryId)
       let previousContinuityPath: string | null = null
       let prevBeatIndex = 0
       if (prevEntry) {
-        prevBeatIndex = timelineBeatDisplayIndex(story.timeline, prevEntry.id)
+        prevBeatIndex = timelineBeatDisplayIndex(timelineDomain, prevEntry.id)
         const contPath = this.store.clipContinuityStillPath(
           storyId,
           prevEntry.id

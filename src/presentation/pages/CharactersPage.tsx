@@ -1401,9 +1401,11 @@ export function CharactersPage(): JSX.Element {
             : 'gen') as CharacterGalleryItem['kind'],
           label: item.label,
           createdAt: item.createdAt,
-          ...(item.layer ? { layer: item.layer } : {}),
+          ...(item.layer
+            ? { layer: item.layer as import('../../domain/characterSheetVariants').WardrobeLayer }
+            : {}),
           introVideoPath: item.introVideoPath ?? null
-        }))
+        })) as import('../../domain/characterGallery').CharacterGalleryItem[]
         setForm((f) => ({ ...f, gallery: mapped }))
         // Keep current selection if possible; prefer item that now has video
         setSelectedImageId((prev) => {
@@ -1453,9 +1455,6 @@ export function CharactersPage(): JSX.Element {
     toast.success(t('characters.externalRefAdded'))
   }
 
-  const handlePickImage = async (): Promise<void> => {
-    await handlePickExternalRef()
-  }
 
   const handleReorderGallery = (fromId: string, toId: string): void => {
     if (!fromId || !toId || fromId === toId) return
@@ -2920,13 +2919,12 @@ export function CharactersPage(): JSX.Element {
                                   scope: { characterId: editingId },
                                   run: async ({ setProgress, signal }) => {
                                     setProgress(20, 'image')
-                                    const r =
-                                      await getApi().costumes.generateDressed({
-                                        costumeId: cos.id,
-                                        characterId: editingId,
-                                        baseImagePath:
-                                          swapBasePath || undefined
-                                      })
+                                    await getApi().costumes.generateDressed({
+                                      costumeId: cos.id,
+                                      characterId: editingId,
+                                      baseImagePath:
+                                        swapBasePath || undefined
+                                    })
                                     if (signal.cancelled) return
                                     setProgress(100, 'done')
                                     const list =

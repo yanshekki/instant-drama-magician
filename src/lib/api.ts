@@ -11,7 +11,10 @@ declare global {
 }
 
 function ensureWebServer(api: ElectronApi): ElectronApi {
-  if (api.webServer?.generateToken && api.webServer?.start) {
+  if (
+    typeof api.webServer?.generateToken === 'function' &&
+    typeof api.webServer?.start === 'function'
+  ) {
     return api
   }
   const inv = (
