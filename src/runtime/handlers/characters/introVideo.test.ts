@@ -136,4 +136,87 @@ describe('registerCharactersIntroVideo', () => {
       expect.objectContaining({ message: 'generateIntroVideo' })
     )
   })
+
+  it('loads soul from file path and bad spokenLanguages', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-iv-soul-'))
+    const src = join(dir, 's.png')
+    const soul = join(dir, 'soul.md')
+    const out = join(dir, 'out.mp4')
+    writeFileSync(src, 'png')
+    writeFileSync(soul, '# Soul\nbrave courier')
+    const long =
+      'POLISHED CHARACTER INTRO VIDEO PROMPT WITH ENOUGH CHARACTERS HERE'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => ({
+      outputPath: req.outputPath
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'courier',
+      spokenLanguages: '{bad',
+      soulMdPath: soul,
+      soulHubId: null,
+      hardRules: null,
+      refGalleryJson: null,
+      refImagePath: src,
+      refSheetPath: src
+    }))
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateVideo },
+      characters: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            characterVideoPath: () => out
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({ aspectRatio: '9:16' })
+    })
+    registerCharactersIntroVideo(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'characters:generateIntroVideo', {
+      characterId: 'c1',
+      sourceImagePath: src,
+      locale: 'zh-HK'
+    })
+    expect(generateVideo).toHaveBeenCalled()
+
+    // soulHubId path via mocked hub
+    get.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      spokenLanguages: JSON.stringify(['en', 1]),
+      soulMdPath: 'soulmd-hub://12',
+      soulHubId: 12,
+      hardRules: null,
+      refGalleryJson: null,
+      refImagePath: src,
+      refSheetPath: src
+    })
+    vi.doMock('../../../infrastructure/soulmd/SoulMdHubClient', () => ({
+      SoulMdHubClient: class {
+        getSoul = async () => ({ content: 'hub soul', file_type: 'md' })
+        static flattenContent = (c: string) => c
+      }
+    }))
+    // may still work without mock if client fails → soulExcerpt empty
+    await invokeRegistered(h as never, 'characters:generateIntroVideo', {
+      characterId: 'c1',
+      sourceImagePath: src,
+      durationSeconds: 6
+    })
+  })
 })

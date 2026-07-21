@@ -511,4 +511,64 @@ describe('electron main index', () => {
 
     void mod
   }, 30_000)
+
+  it('export/import error message boxes and support failure', async () => {
+    // Re-mock AppDataBackupService with failing methods for this import cycle
+    vi.doMock('../../src/application/services', () => ({
+      AppDataBackupService: class {
+        exportToZip = vi.fn(async () => {
+          throw new Error('export boom')
+        })
+        importFromZip = vi.fn(async () => {
+          throw new Error('import boom')
+        })
+      },
+      defaultFullBackupFileName: () => 'full.zip',
+      migrateAppDataIfNeeded: () => ({ ran: true, actions: ['migrated'] })
+    }))
+    const support = await import('../../src/infrastructure/support/SupportReport')
+    vi.mocked(support.writeSupportReportJson).mockImplementation(() => {
+      throw new Error('support boom')
+    })
+
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+
+    dialog.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: join(ud, 'boom.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() =>
+      expect(dialog.showMessageBox).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ type: 'error' })
+      )
+    )
+
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'bad.zip')]
+    })
+    writeFileSync(join(ud, 'bad.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    menuHandlers.importFullBackup()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+
+    dialog.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: join(ud, 's.json')
+    })
+    menuHandlers.exportSupportReport()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+
+    dialog.showSaveDialog.mockResolvedValueOnce({ canceled: true })
+    webContents.capturePage.mockResolvedValueOnce({
+      toPNG: () => Buffer.from('png')
+    })
+    menuHandlers.captureScreenshot()
+    await vi.waitFor(() => expect(webContents.capturePage).toHaveBeenCalled())
+
+    void mod
+  }, 30_000)
 })

@@ -120,5 +120,17 @@ describe('registerScenesAtmosphere', () => {
     })) as { path?: string; draft?: boolean }
     expect(editImage).toHaveBeenCalled()
     expect(r.path || existsSync(out)).toBeTruthy()
+
+    // persist + artStyle update + detail pose (square)
+    const r2 = (await invokeRegistered(h as never, 'scenes:swapAtmosphere', {
+      sceneId: 'sc1',
+      atmosphereDescription: 'foggy morning',
+      baseImagePath: base,
+      persist: true,
+      artStyle: 'anime',
+      pose: 'detail'
+    })) as { draft?: boolean }
+    expect(r2.draft).toBe(false)
+    expect(update).toHaveBeenCalled()
   })
 })

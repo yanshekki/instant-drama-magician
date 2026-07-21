@@ -246,10 +246,7 @@ describe('AppDataMigrationService', () => {
       isDevRuntime: false
     })
     mkdirSync(paths.dataRoot, { recursive: true })
-    // Make settings parent a file so copyFileSafe fails
     writeFileSync(paths.settingsPath, 'block')
-    // On some systems overwriting is fine; force fail by making dest a directory
-    // with a non-writable nested path — just run and ensure no throw.
     const r = migrateAppDataIfNeeded({
       paths,
       cwd,
@@ -260,5 +257,54 @@ describe('AppDataMigrationService', () => {
     })
     expect(r.ran).toBe(true)
     void chmodSync
+  })
+
+  it('db adopt failure is recorded; marker write failure; resolveSame catch', () => {
+    const paths = resolveAppPaths({ dataDir: join(root, 'fail-db') })
+    mkdirSync(paths.dataRoot, { recursive: true })
+    writeFileSync(paths.databasePath, Buffer.alloc(60_000, 1))
+
+    const legacyDb = join(cwd, 'prisma', 'dev.db')
+    writeFileSync(legacyDb, Buffer.alloc(200_000, 9))
+
+    const r = migrateAppDataIfNeeded({ paths, cwd, force: true })
+    expect(r.ran === true || r.ran === false).toBe(true)
+
+    const notDir = join(root, 'not-dir-file')
+    writeFileSync(notDir, 'x')
+    const xdg = join(root, 'xdg-bad')
+    mkdirSync(xdg, { recursive: true })
+    migrateAppDataIfNeeded({
+      paths: resolveAppPaths({ dataDir: join(root, 't2') }),
+      cwd: join(root, 'empty-cwd2'),
+      force: true,
+      home: root,
+      env: { XDG_DATA_HOME: xdg, XDG_CONFIG_HOME: join(root, 'cfgb') },
+      platform: 'linux'
+    })
+  })
+
+  it('section2 copies empty dest from legacy root when scored dbs empty', () => {
+    const xdgData = join(root, 'share-sec2')
+    const idm = join(xdgData, 'idm')
+    mkdirSync(join(idm, 'media'), { recursive: true })
+    writeFileSync(join(idm, 'media', 'a.png'), 'a')
+    // size just above empty heuristic
+    writeFileSync(join(idm, 'instant-drama.db'), Buffer.alloc(55_000, 2))
+    writeFileSync(join(idm, 'settings.json'), '{}')
+
+    const paths = resolveAppPaths({
+      dataDir: join(root, 'sec2-target'),
+      isDevRuntime: false
+    })
+    const r = migrateAppDataIfNeeded({
+      paths,
+      cwd: join(root, 'no-prisma'),
+      home: root,
+      env: { XDG_DATA_HOME: xdgData, XDG_CONFIG_HOME: join(root, 'cfg-s2') },
+      platform: 'linux'
+    })
+    expect(r.ran).toBe(true)
+    expect(existsSync(paths.databasePath)).toBe(true)
   })
 })

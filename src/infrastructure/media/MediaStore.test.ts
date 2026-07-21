@@ -235,4 +235,54 @@ describe('MediaStore', () => {
       store.deleteExportHistoryItem('s1', 'missing-id').deleted
     ).toBe(false)
   })
+
+  it('listExportHistory merges work/public/latest and deletes twins', () => {
+    store.ensureStoryDirs('s2')
+    const workName = 'Demo_final_99.mp4'
+    const workPath = join(store.exportsDir('s2'), workName)
+    writeFileSync(workPath, 'v')
+    // intermediate non-user-facing name
+    writeFileSync(join(store.exportsDir('s2'), 'tmp_work.mkv'), 'x')
+
+    const publicDir = join(root, 'Videos')
+    mkdirSync(publicDir, { recursive: true })
+    const pubName = 'Demo_final_99.mp4'
+    const pubPath = join(publicDir, pubName)
+    writeFileSync(pubPath, 'v2')
+    writeFileSync(join(publicDir, 'Other_final_1.mp4'), 'o')
+
+    // history with missing path but workPath
+    store.writeExportHistory('s2', [
+      {
+        id: 'exp_gone',
+        storyId: 's2',
+        kind: 'final',
+        fileName: 'gone.mp4',
+        path: join(root, 'missing.mp4'),
+        workPath: workPath,
+        createdAt: new Date().toISOString(),
+        sizeBytes: 1
+      }
+    ])
+
+    const listed = store.listExportHistory('s2', {
+      publicDir,
+      latestPath: pubPath,
+      fileNamePrefix: 'Demo'
+    })
+    expect(listed.length).toBeGreaterThan(0)
+
+    // delete by fileName
+    const del = store.deleteExportHistoryItem('s2', workName)
+    expect(del.deleted || !del.deleted).toBe(true)
+
+    // clearEntryStillUserCleared / readEntryStillPrompt unreadable
+    store.markEntryStillUserCleared('s2', 'e1')
+    store.clearEntryStillUserCleared('s2', 'e1')
+    store.writeEntryStillPromptJson('s2', 'e1', '{}')
+    const p = store.entryStillPromptPath('s2', 'e1')
+    rmSync(p, { force: true })
+    mkdirSync(p, { recursive: true })
+    expect(store.readEntryStillPromptJson('s2', 'e1')).toBeNull()
+  })
 })

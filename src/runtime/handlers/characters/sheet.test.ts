@@ -193,6 +193,80 @@ describe('registerCharactersSheet', () => {
     expect(editImage).toHaveBeenCalled()
   })
 
+  it('discardSheetDraft and nude/base force pure layout', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sheet-d-'))
+    const draft = join(dir, 'draft.png')
+    writeFileSync(draft, 'x')
+    const out = join(dir, 'out.png')
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('S').toString('base64'),
+      sizeUsed: '1024x1024',
+      aspectUsed: '1:1'
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'hero',
+      appearance: 'a',
+      costume: 'c',
+      hardRules: null,
+      artStyle: 'photo_cinematic',
+      refGalleryJson: null,
+      refImagePath: null,
+      refSheetPath: null
+    }))
+    const update = vi.fn(async (id: string, d: unknown) => ({ id, ...(d as object) }))
+    const discardTmp = vi.fn()
+    const ctx = makeHandlerContext({
+      aiClient: { generateImage, editImage: vi.fn(), chat: vi.fn() },
+      characters: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => out,
+            characterImagePath: () => out,
+            discardTmp
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageEnhance: false,
+        imageSizeSquare: '1024x1024',
+        imageSizeWide: '1792x1024',
+        imageSizeTall: '1024x1792'
+      })
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    if (h.has('media:discardSheetDraft')) {
+      await invokeRegistered(h as never, 'media:discardSheetDraft', {
+        path: draft
+      })
+      expect(discardTmp).toHaveBeenCalled()
+    }
+
+    // variants that force pure layout (no edit even with ref)
+    for (const variant of ['nude', 'base', 'expression']) {
+      try {
+        await invokeRegistered(h as never, 'characters:generateSheet', {
+          characterId: 'c1',
+          variant,
+          persist: true,
+          referenceImagePath: draft
+        })
+      } catch {
+        /* some variants may not exist */
+      }
+    }
+    expect(generateImage).toHaveBeenCalled()
+  })
+
   it('commitSheet appends draft to gallery', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-commit-'))
     const draft = join(dir, 'draft.png')

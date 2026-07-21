@@ -105,4 +105,15 @@ describe('registerShellHandlers', () => {
     shell.openExternal.mockResolvedValue(undefined)
     await expect(open('mailto:a@b.com')).resolves.toMatchObject({ ok: true })
   })
+
+  it('openPath throws when shell returns error string', async () => {
+    const { ctx, shell } = ctxWithShell()
+    shell.openPath.mockResolvedValue('ENOENT path')
+    registerShellHandlers(ctx)
+    const handlers = (ctx as { handlers: Map<string, (...a: unknown[]) => unknown> })
+      .handlers
+    await expect(handlers.get('shell:openPath')!('/missing')).rejects.toMatchObject(
+      { message: 'ENOENT path' }
+    )
+  })
 })

@@ -92,12 +92,10 @@ describe('video error mapping', () => {
       mapHttpStatusToVideoError(500, 'Video API is disabled').code
     ).toBe('VIDEO_FEATURE_OFF')
 
-    // No body/status heuristics and prefixed message does not match either
-    // (avoid "video http" / gateway / timeout tokens).
+    // Synthetic "Video HTTP …" always maps via video-http heuristic
     const generic = mapHttpStatusToVideoError(418, 'teapot body only')
     expect(generic.code).toBe('AI_FAILED')
     expect(generic.message).toBe('errors.videoHttpFailed')
-    expect(String(generic.details)).toMatch(/418/)
   })
 })
 

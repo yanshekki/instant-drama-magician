@@ -279,9 +279,12 @@ export function mapHttpStatusToVideoError(
   if (status === 429) {
     return new AppError('VIDEO_RATE_LIMIT', 'errors.videoRateLimit', bodyText.slice(0, 200))
   }
+  // Synthetic prefix always matches mapVideoHttpMessage's "video http" heuristic
+  // (and may match timeout/job-failed tokens in the body first).
   const mapped = mapVideoHttpMessage(`Video HTTP ${status}: ${bodyText}`)
-  if (mapped) {
-    return new AppError(mapped.code, mapped.message, mapped.details)
-  }
-  return new AppError('AI_FAILED', 'errors.videoHttpFailed', `${status}: ${bodyText.slice(0, 500)}`)
+  return new AppError(
+    mapped?.code ?? 'AI_FAILED',
+    mapped?.message ?? 'errors.videoHttpFailed',
+    mapped?.details ?? `${status}: ${bodyText.slice(0, 500)}`
+  )
 }
