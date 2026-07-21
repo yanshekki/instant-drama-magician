@@ -64,12 +64,15 @@ describe('ActionCastRefPicker', () => {
       fireEvent.change(selects[1], { target: { value: 'c1' } })
     }
     await waitFor(() => {
-      const add = screen.queryByText(/add|common|actions|cast/i)
-      // click gallery or add buttons
-      const buttons = screen.getAllByRole('button')
-      if (buttons.length) fireEvent.click(buttons[buttons.length - 1])
-      void add
+      expect(screen.getByTitle('G1')).toBeTruthy()
     })
+    // click gallery still then add cover still
+    fireEvent.click(screen.getByTitle('G1'))
+    const addBtn =
+      screen.queryByText('actions.addCoverStill') ||
+      screen.getAllByRole('button').at(-1)
+    if (addBtn) fireEvent.click(addBtn)
+    await waitFor(() => expect(onChange).toHaveBeenCalled())
   })
 
   it('switches entity types and removes existing', async () => {

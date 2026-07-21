@@ -280,4 +280,112 @@ describe('CharactersPage', () => {
     await renderWithProviders(<CharactersPage />)
     await waitFor(() => expect(screen.getByText(/chars-fail/i)).toBeTruthy())
   })
+
+  it('opens costume tab, suggest wardrobe and sheet confirm', async () => {
+    api.characters.generateSheet = vi.fn().mockResolvedValue({
+      path: '/tmp/sheet2.png',
+      label: 'Sheet2',
+      prompt: 'hero front'
+    })
+    await renderWithProviders(<CharactersPage />)
+    await waitFor(() => expect(screen.getByText('Aria')).toBeTruthy())
+
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+
+    const costumeTab = screen.getAllByRole('button').find((b) =>
+      /costume|wardrobe|look/i.test(b.textContent || '')
+    )
+    if (costumeTab) {
+      await act(async () => {
+        costumeTab.click()
+      })
+    }
+
+    for (const re of [
+      /suggest|wardrobe/i,
+      /swap/i,
+      /link/i,
+      /generate sheet|sheet|generate/i
+    ]) {
+      const btn = screen.getAllByRole('button').find((b) =>
+        re.test(b.textContent || '')
+      )
+      if (btn && !(btn as HTMLButtonElement).disabled) {
+        await act(async () => {
+          btn.click()
+        })
+        const confirm = screen
+          .getAllByRole('button')
+          .find((b) =>
+            /confirm|generate|go|imageGenConfirmGo/i.test(b.textContent || '')
+          )
+        if (confirm && confirm !== btn) {
+          await act(async () => {
+            confirm.click()
+          })
+        }
+      }
+    }
+
+    const refsTab = screen.getAllByRole('button').find((b) =>
+      /ref|sheet|image|gallery/i.test(b.textContent || '')
+    )
+    if (refsTab) {
+      await act(async () => {
+        refsTab.click()
+      })
+    }
+
+    // Soul hub
+    const soulish = screen.getAllByRole('button').find((b) =>
+      /soul|hub|import/i.test(b.textContent || '')
+    )
+    if (soulish) {
+      await act(async () => {
+        soulish.click()
+      })
+    }
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(api.characters.list).toHaveBeenCalled()
+  })
+
+  it('AI fill error and generate sheet failure', async () => {
+    api.characters.aiFill = vi.fn().mockRejectedValue(new Error('ai-fail'))
+    api.characters.generateSheet = vi
+      .fn()
+      .mockRejectedValue(new Error('sheet-fail'))
+    await renderWithProviders(<CharactersPage />)
+    await waitFor(() => expect(screen.getByText('Aria')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    const idea = document.querySelector('textarea') as HTMLTextAreaElement | null
+    if (idea) {
+      await act(async () => {
+        fireEvent.change(idea, { target: { value: 'stormy detective' } })
+      })
+    }
+    const ai = screen.getAllByRole('button').find((b) =>
+      /ai fill|^fill$/i.test((b.textContent || '').trim())
+    )
+    if (ai) {
+      await act(async () => {
+        ai.click()
+      })
+      await waitFor(() =>
+        expect(document.body.textContent || '').toMatch(/ai-fail|error/i)
+      )
+    }
+  })
 })

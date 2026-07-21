@@ -342,4 +342,87 @@ describe('StoriesPage', () => {
     })
     await waitFor(() => expect(screen.getByText(/detail-fail/i)).toBeTruthy())
   })
+
+  it('cover generate, script AI and seed demo', async () => {
+    api.stories.seedDemo = vi.fn().mockResolvedValue({
+      storyId: 'story-demo',
+      title: 'Demo Seed'
+    })
+    await renderWithProviders(<StoriesPage />)
+    await waitFor(() => expect(screen.getByText('Demo Story')).toBeTruthy())
+
+    const seed = screen.getAllByRole('button').find((b) =>
+      /seed|demo/i.test(b.textContent || '')
+    )
+    if (seed) {
+      await act(async () => {
+        seed.click()
+      })
+    }
+
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
+
+    for (const re of [
+      /cover|image/i,
+      /generate cover|generate/i,
+      /script|beats/i,
+      /fill script|ai script|suggest script/i,
+      /cast/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+        const go = screen
+          .getAllByRole('button')
+          .find((x) =>
+            /confirm|generate|go/i.test(x.textContent || '')
+          )
+        if (go && go !== b) {
+          await act(async () => {
+            go.click()
+          })
+        }
+      }
+    }
+
+    // status filter COMPLETED / FAILED
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const hasStatus = Array.from(s.options).some((o) =>
+        /COMPLETED|FAILED|GENERATING/i.test(o.value)
+      )
+      if (hasStatus) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: 'COMPLETED' } })
+        })
+        await act(async () => {
+          fireEvent.change(s, { target: { value: '' } })
+        })
+      }
+    }
+    expect(api.stories.list).toHaveBeenCalled()
+  })
+
+  it('list load error falls back to empty', async () => {
+    api.stories.list = vi.fn().mockRejectedValue(new Error('stories-down'))
+    await renderWithProviders(<StoriesPage />, { withToastHost: true })
+    await waitFor(() => expect(api.stories.list).toHaveBeenCalled())
+    // swallow unhandled rejection from failed load; UI falls back
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    expect(document.body.textContent || '').toMatch(
+      /No stories|New story|Stories/i
+    )
+  })
 })

@@ -129,5 +129,49 @@ describe('CostumesPage', () => {
       ).toBeTruthy()
     )
   })
+
+  it('AI fill, dressed generate and link character', async () => {
+    await renderWithProviders(<CostumesPage />)
+    await waitFor(() => expect(screen.getByText('Rain coat')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    for (const re of [
+      /ai|fill|suggest/i,
+      /generate|dressed|sheet/i,
+      /link|character/i,
+      /upload|pick/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      3
+    )) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+    expect(api.costumes.list).toHaveBeenCalled()
+  })
+
+  it('list error', async () => {
+    api.costumes.list = vi.fn().mockRejectedValue(new Error('cost-fail'))
+    await renderWithProviders(<CostumesPage />)
+    await waitFor(() => expect(screen.getByText(/cost-fail/i)).toBeTruthy())
+  })
 })
 

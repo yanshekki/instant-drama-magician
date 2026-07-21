@@ -95,7 +95,7 @@ describe('ImageGenConfirmModal', () => {
       .mockResolvedValueOnce({ url: 'blob:1' })
       .mockRejectedValueOnce(new Error('fail'))
     const onCancel = vi.fn()
-    render(
+    const { rerender } = render(
       <ImageGenConfirmModal
         open
         busy
@@ -110,10 +110,32 @@ describe('ImageGenConfirmModal', () => {
       />
     )
     await waitFor(() => expect(api.media.toPreviewUrl).toHaveBeenCalled())
+    // busy disables cancel
+    expect(
+      (screen.getByText('common.cancel').closest('button') as HTMLButtonElement)
+        .disabled
+    ).toBe(true)
+    // img onError when loaded
+    await waitFor(() => {
+      expect(document.body.querySelectorAll('img').length).toBeGreaterThan(0)
+    })
+    document.body
+      .querySelectorAll('img')
+      .forEach((img) => fireEvent.error(img))
+    // cancel works when not busy
+    rerender(
+      <ImageGenConfirmModal
+        open
+        payload={{
+          prompt: 'p',
+          referencePaths: ['/ok.png'],
+          useIdentityEdit: false
+        }}
+        onCancel={onCancel}
+        onConfirm={() => undefined}
+      />
+    )
     fireEvent.click(screen.getByText('common.cancel'))
     expect(onCancel).toHaveBeenCalled()
-    // img onError
-    const imgs = document.body.querySelectorAll('img')
-    imgs.forEach((img) => fireEvent.error(img))
   })
 })

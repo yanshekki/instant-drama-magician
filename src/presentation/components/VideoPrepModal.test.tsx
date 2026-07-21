@@ -83,7 +83,9 @@ describe('VideoPrepModal', () => {
 
   it('review phase interactions', async () => {
     render(<VideoPrepModal {...base} phase="review" />)
-    expect(screen.getByText('videoPrep.title')).toBeTruthy()
+    expect(
+      screen.getByText((content) => content.includes('videoPrep.title'))
+    ).toBeTruthy()
     // textareas
     const areas = document.querySelectorAll('textarea')
     if (areas[0]) {
@@ -115,7 +117,9 @@ describe('VideoPrepModal', () => {
       const { unmount } = render(
         <VideoPrepModal {...base} phase={phase} />
       )
-      expect(screen.getByText('videoPrep.title')).toBeTruthy()
+      expect(
+        screen.getByRole('dialog', { name: 'videoPrep.title' })
+      ).toBeTruthy()
       unmount()
     }
   })

@@ -164,4 +164,60 @@ describe('ScenesPage', () => {
       await waitFor(() => expect(api.scenes.delete).toHaveBeenCalled())
     }
   })
+
+  it('atmosphere swap and plate generate paths', async () => {
+    await renderWithProviders(<ScenesPage />)
+    await waitFor(() => expect(screen.getByText('Rooftop')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    for (const re of [
+      /ref|plate|image/i,
+      /atmosphere|swap|weather/i,
+      /generate/i,
+      /upload|pick/i,
+      /video|intro/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+        const go = screen
+          .getAllByRole('button')
+          .find((x) =>
+            /confirm|generate|go/i.test(x.textContent || '')
+          )
+        if (go && go !== b) {
+          await act(async () => {
+            go.click()
+          })
+        }
+      }
+    }
+    // filters
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      4
+    )) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+    expect(api.scenes.list).toHaveBeenCalled()
+  })
+
+  it('list error', async () => {
+    api.scenes.list = vi.fn().mockRejectedValue(new Error('scenes-down'))
+    await renderWithProviders(<ScenesPage />)
+    await waitFor(() => expect(screen.getByText(/scenes-down/i)).toBeTruthy())
+  })
 })

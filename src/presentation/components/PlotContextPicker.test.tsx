@@ -10,12 +10,18 @@ import { createMockApi } from '../../test/mockApi'
 
 const api = createMockApi()
 vi.mock('../../lib/api', () => ({ getApi: () => api }))
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (k: string, o?: Record<string, unknown>) =>
-      o ? `${k}:${JSON.stringify(o)}` : k,
+
+/** Stable t so useEffect([..., t]) does not infinite-loop. */
+const i18nMock = vi.hoisted(() => {
+  const t = (k: string, o?: Record<string, unknown>) =>
+    o ? `${k}:${JSON.stringify(o)}` : k
+  return {
+    t,
     i18n: { language: 'en' }
-  })
+  }
+})
+vi.mock('react-i18next', () => ({
+  useTranslation: () => i18nMock
 }))
 
 import { PlotContextPicker } from './PlotContextPicker'
@@ -121,5 +127,33 @@ describe('PlotContextPicker', () => {
       />
     )
     await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
+  })
+
+  it('previews scene and beat segments', async () => {
+    const { rerender } = render(
+      <PlotContextPicker
+        stories={[{ id: 's1', title: 'S' } as never]}
+        storyId="s1"
+        segmentKey="scene:sc1"
+        onStoryChange={() => undefined}
+        onSegmentChange={() => undefined}
+      />
+    )
+    await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/desc|Rain/i)
+    )
+    rerender(
+      <PlotContextPicker
+        stories={[{ id: 's1', title: 'S' } as never]}
+        storyId="s1"
+        segmentKey="beat:t1"
+        onStoryChange={() => undefined}
+        onSegmentChange={() => undefined}
+      />
+    )
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Hello there friend|Hero/i)
+    )
   })
 })

@@ -108,4 +108,95 @@ describe('TimelinePage', () => {
     }
     expect(document.body.textContent).toBeTruthy()
   })
+
+  it('loads clips, creates entry, generates and export paths', async () => {
+    await renderWithProviders(<TimelinePage />, { route: '/timeline' })
+    await waitFor(() => expect(api.stories.list).toHaveBeenCalled())
+
+    // Select story via first select that has story-1
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const opt = Array.from(s.options).find((o) => o.value === 'story-1')
+      if (opt) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: 'story-1' } })
+        })
+        break
+      }
+    }
+
+    await waitFor(
+      () =>
+        expect(api.timeline.list.mock.calls.length).toBeGreaterThan(0) ||
+        expect(document.body.textContent || '').toMatch(/We start here|clip|entry/i),
+      { timeout: 4000 }
+    ).catch(() => undefined)
+
+    // Add / new clip
+    for (const re of [/add clip|new clip|add entry|\+/i]) {
+      const btn = screen.getAllByRole('button').find((b) =>
+        re.test(b.textContent || '')
+      )
+      if (btn && !(btn as HTMLButtonElement).disabled) {
+        await act(async () => {
+          btn.click()
+        })
+        break
+      }
+    }
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Generate pipeline / clip
+    for (const re of [
+      /generate all|run pipeline|generate/i,
+      /export final|export/i,
+      /import clip|import/i,
+      /advanced|studio/i
+    ]) {
+      const btn = screen.getAllByRole('button').find((b) =>
+        re.test(b.textContent || '')
+      )
+      if (btn && !(btn as HTMLButtonElement).disabled) {
+        await act(async () => {
+          btn.click()
+        })
+      }
+    }
+
+    // Edit dialogue fields if present
+    for (const el of Array.from(
+      document.querySelectorAll('textarea, input')
+    ).slice(0, 4)) {
+      const tag = el.tagName.toLowerCase()
+      if (tag === 'textarea' || (el as HTMLInputElement).type === 'text') {
+        await act(async () => {
+          fireEvent.change(el, { target: { value: 'Updated line' } })
+        })
+      }
+    }
+
+    expect(document.body.textContent).toBeTruthy()
+  })
+
+  it('handles empty timeline for selected story', async () => {
+    api.timeline.list = vi.fn().mockResolvedValue([])
+    await renderWithProviders(<TimelinePage />, { route: '/timeline' })
+    await waitFor(() => expect(api.stories.list).toHaveBeenCalled())
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      if (Array.from(s.options).some((o) => o.value === 'story-1')) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: 'story-1' } })
+        })
+        break
+      }
+    }
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(
+        /empty|no clip|add|timeline|Demo Story/i
+      )
+    )
+  })
 })

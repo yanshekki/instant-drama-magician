@@ -45,7 +45,6 @@ describe('EditorShell', () => {
         onSave={onSave}
         saveLabel="Save"
         cancelLabel="Cancel"
-        busy
         tabs={[
           { id: 'a', label: 'TabA' },
           { id: 'b', label: 'TabB' }
@@ -70,6 +69,29 @@ describe('EditorShell', () => {
       'button.absolute.inset-0'
     ) as HTMLButtonElement
     fireEvent.click(backdrop)
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('disables save when busy and closes via header X', () => {
+    const onClose = vi.fn()
+    const onSave = vi.fn()
+    render(
+      <EditorShell
+        open
+        title="BusyEdit"
+        onClose={onClose}
+        onSave={onSave}
+        saveLabel="Save"
+        cancelLabel="Cancel"
+        busy
+        saveDisabled
+      >
+        busy-body
+      </EditorShell>
+    )
+    const save = screen.getByText('Save').closest('button')
+    expect(save?.disabled).toBe(true)
+    fireEvent.click(screen.getAllByLabelText('Cancel')[1]!)
     expect(onClose).toHaveBeenCalled()
   })
 

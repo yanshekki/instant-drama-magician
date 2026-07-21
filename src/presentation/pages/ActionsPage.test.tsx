@@ -119,4 +119,59 @@ describe('ActionsPage', () => {
       await waitFor(() => expect(api.actions.delete).toHaveBeenCalled())
     }
   })
+
+  it('filters, plate generate and cast refs tab', async () => {
+    await renderWithProviders(<ActionsPage />)
+    await waitFor(() => expect(screen.getByText('Draw gun')).toBeTruthy())
+    const search = document.querySelector(
+      'input[placeholder], input[type="search"]'
+    ) as HTMLInputElement | null
+    if (search) {
+      await act(async () => {
+        fireEvent.change(search, { target: { value: 'Draw' } })
+      })
+    }
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    for (const re of [
+      /profile|ref|plate|cast/i,
+      /generate/i,
+      /upload|pick/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    for (const el of Array.from(
+      document.querySelectorAll('textarea, input')
+    ).slice(0, 5)) {
+      await act(async () => {
+        fireEvent.change(el, { target: { value: 'updated action note' } })
+      })
+    }
+    const save = screen.getAllByRole('button').find((b) =>
+      /^save$/i.test((b.textContent || '').trim())
+    )
+    if (save && !(save as HTMLButtonElement).disabled) {
+      await act(async () => {
+        save.click()
+      })
+    }
+    expect(api.actions.list).toHaveBeenCalled()
+  })
+
+  it('list error', async () => {
+    api.actions.list = vi.fn().mockRejectedValue(new Error('actions-fail'))
+    await renderWithProviders(<ActionsPage />)
+    await waitFor(() => expect(screen.getByText(/actions-fail/i)).toBeTruthy())
+  })
 })

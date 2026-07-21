@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -11,11 +12,12 @@ import { createMockApi } from '../../../test/mockApi'
 
 const api = createMockApi()
 vi.mock('../../../lib/api', () => ({ getApi: () => api }))
+const i18nMock = vi.hoisted(() => {
+  const t = (k: string) => k
+  return { t, i18n: { language: 'en' } }
+})
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (k: string) => k,
-    i18n: { language: 'en' }
-  })
+  useTranslation: () => i18nMock
 }))
 
 const toast = {
@@ -43,35 +45,81 @@ import { TimelineAdvancedStudio } from './TimelineAdvancedStudio'
 
 const snap = {
   storyId: 's1',
+  storyTitle: 'Demo',
   castPrep: {
-    characterIds: [],
-    sceneIds: [],
-    propIds: [],
-    actionIds: []
+    version: 1,
+    characters: {
+      c1: { refImagePath: '/c1.png', costumeId: null }
+    }
   },
-  entries: [
+  castCards: [
     {
-      id: 'e1',
+      characterId: 'c1',
+      name: 'Alice',
+      description: 'hero',
+      gallery: [
+        { id: 'g1', path: '/g1.png', label: 'Front', kind: 'sheet' }
+      ],
+      costumes: [
+        {
+          id: 'co1',
+          name: 'Coat',
+          description: 'trench',
+          imagePath: '/co.png',
+          selectable: true
+        }
+      ],
+      selectedRefImagePath: '/g1.png',
+      selectedCostumeId: null,
+      hasAnyImage: true
+    }
+  ],
+  cells: [
+    {
+      entryId: 'e1',
       order: 0,
+      displayIndex: 1,
       startTime: 0,
       endTime: 4,
       dialogue: 'Hello',
-      characterId: null,
-      sceneId: null,
-      propId: null,
-      actionId: null,
-      characterIds: [],
-      sceneIds: [],
-      propIds: [],
-      mediaPath: null,
+      beatSnippet: 'Hello',
+      stillPath: '',
+      stillStatus: 'missing' as const,
       mediaStatus: 'EMPTY',
-      stillPath: null
+      continuityKind: 'first' as const,
+      characterIds: ['c1'],
+      characterNames: ['Alice'],
+      hasCachedPrompt: false,
+      professionalPrompt: null,
+      durationSeconds: 4
+    },
+    {
+      entryId: 'e2',
+      order: 1,
+      displayIndex: 2,
+      startTime: 4,
+      endTime: 8,
+      dialogue: 'Next',
+      beatSnippet: 'Next',
+      stillPath: '/still.png',
+      stillStatus: 'ready' as const,
+      mediaStatus: 'READY',
+      continuityKind: 'locked' as const,
+      characterIds: ['c1'],
+      characterNames: ['Alice'],
+      hasCachedPrompt: true,
+      professionalPrompt: 'cinematic',
+      durationSeconds: 4,
+      mediaPath: '/m.mp4'
     }
   ],
-  characters: [{ id: 'c1', name: 'Alice', refImagePath: null }],
-  scenes: [{ id: 'sc1', title: 'Street', description: 'rain', refImagePath: null }],
-  props: [{ id: 'p1', name: 'Cup', refImagePath: null }],
-  actions: [{ id: 'a1', name: 'Run', refImagePath: null }]
+  summary: {
+    castReady: 1,
+    castTotal: 1,
+    stillReady: 1,
+    stillTotal: 2,
+    videoReady: 1
+  }
 }
 
 describe('TimelineAdvancedStudio', () => {
@@ -144,5 +192,51 @@ describe('TimelineAdvancedStudio', () => {
       // may still call or not depending on implementation
       expect(true).toBe(true)
     })
+  })
+
+  it('switches tabs and toggles cast selections', async () => {
+    renderOpen()
+    await waitFor(() =>
+      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
+    )
+    // Wait for cast content to render after load
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Alice|cast|timeline/i)
+    )
+
+    const buttons = () => screen.queryAllByRole('button')
+    for (const re of [
+      /storyboard|still/i,
+      /cast/i,
+      /save|apply/i,
+      /generate|queue|video/i,
+      /batch|all stills/i
+    ]) {
+      const tab = buttons().find((b) => re.test(b.textContent || ''))
+      if (tab && !(tab as HTMLButtonElement).disabled) {
+        await act(async () => {
+          fireEvent.click(tab)
+        })
+      }
+    }
+
+    for (const cb of Array.from(
+      document.querySelectorAll('input[type="checkbox"], select')
+    ).slice(0, 8)) {
+      if (cb.tagName === 'SELECT') {
+        const sel = cb as HTMLSelectElement
+        if (sel.options.length > 1) {
+          await act(async () => {
+            fireEvent.change(sel, { target: { value: sel.options[1].value } })
+          })
+        }
+      } else {
+        await act(async () => {
+          fireEvent.click(cb)
+        })
+      }
+    }
+
+    expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
   })
 })

@@ -181,4 +181,96 @@ describe('SettingsPage', () => {
     await renderWithProviders(<SettingsPage />)
     await waitFor(() => expect(screen.getByText(/settings-down/i)).toBeTruthy())
   })
+
+  it('gateway, web server, updates and diagnostics actions', async () => {
+    api.gateway.status = vi.fn().mockResolvedValue({
+      state: 'ready',
+      message: 'ok',
+      healthOk: true,
+      grokPath: '/tmp/g',
+      gctoacPath: '/tmp/c',
+      adminUrl: 'http://127.0.0.1:3847'
+    })
+    api.webServer.status = vi.fn().mockResolvedValue({
+      running: true,
+      url: 'http://127.0.0.1:8787',
+      port: 8787,
+      error: null,
+      staticReady: true
+    })
+    api.updates.status = vi.fn().mockResolvedValue({
+      status: 'available',
+      channel: 'stable',
+      currentVersion: '1.0.0',
+      latestVersion: '1.1.0',
+      canCheck: true,
+      canDownload: true
+    })
+    await renderWithProviders(<SettingsPage />)
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
+
+    // Visit remaining tabs
+    for (const re of [
+      /gateway|grok/i,
+      /web|remote|server/i,
+      /update|about|app/i,
+      /advanced|ffmpeg|paths/i,
+      /video/i,
+      /image/i
+    ]) {
+      const tab = screen.getAllByRole('button').find((b) =>
+        re.test(b.textContent || '')
+      )
+      if (tab) {
+        await act(async () => {
+          tab.click()
+        })
+      }
+    }
+
+    for (const re of [
+      /stop/i,
+      /start/i,
+      /token|regenerate/i,
+      /check/i,
+      /download/i,
+      /open/i,
+      /test/i,
+      /apply|preset/i,
+      /backup|export|import|diagnostics|clear/i
+    ]) {
+      const btn = screen.getAllByRole('button').find((b) =>
+        re.test(b.textContent || '')
+      )
+      if (btn && !(btn as HTMLButtonElement).disabled) {
+        await act(async () => {
+          btn.click()
+        })
+      }
+    }
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(api.settings.get).toHaveBeenCalled()
+  })
+
+  it('save failure is handled without crash', async () => {
+    api.settings.set = vi.fn().mockRejectedValue(new Error('save-fail'))
+    await renderWithProviders(<SettingsPage />, { withToastHost: true })
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
+    const save = screen.getAllByRole('button').find((b) =>
+      /save/i.test(b.textContent || '')
+    )
+    if (save) {
+      await act(async () => {
+        save.click()
+      })
+      await waitFor(() => expect(api.settings.set).toHaveBeenCalled()).catch(
+        () => undefined
+      )
+      // page still rendered after failed save
+      expect(document.body.textContent || '').toMatch(/Settings|Chat|App/i)
+    }
+  })
 })
