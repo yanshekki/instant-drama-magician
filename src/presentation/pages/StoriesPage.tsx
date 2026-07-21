@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
 import { getApi } from '../../lib/api'
@@ -179,16 +184,7 @@ export function StoriesPage(): JSX.Element {
         if (storyCover === 'none' && s.coverPath) return false
         return true
       },
-      sort: (a, b) => {
-        if (storySort === 'title') {
-          return a.title.localeCompare(b.title, 'zh-Hant')
-        }
-        const ta = (a as { updatedAt?: string | Date }).updatedAt
-        const tb = (b as { updatedAt?: string | Date }).updatedAt
-        const sa = ta ? new Date(ta).getTime() : 0
-        const sb = tb ? new Date(tb).getTime() : 0
-        return sb - sa
-      }
+      sort: (a, b) => storiesBrowseSort(storySort, a, b)
     }
   )
   const storyStatusLabel = (status: string): string => {
@@ -253,12 +249,7 @@ export function StoriesPage(): JSX.Element {
   const artGroups = useMemo(() => artStylesByGroup(), [])
   const selectedCoverImage = useMemo(() => {
     if (!coverGallery.length) return null
-    return (
-      coverGallery.find((g) => g.id === selectedCoverId) ??
-      coverGallery.find((g) => g.path === coverPath) ??
-      coverGallery[0] ??
-      null
-    )
+    return storiesPickCoverImage(coverGallery, selectedCoverId, coverPath)
   }, [coverGallery, selectedCoverId, coverPath])
   const [detail, setDetail] = useState<StoryDetail | null>(null)
   const [allChars, setAllChars] = useState<Character[]>([])
@@ -300,15 +291,15 @@ export function StoriesPage(): JSX.Element {
       setDetail(d)
       setEditTitle(d.title)
       setEditStatus(
-        (STORY_STATUSES.includes(d.status as StoryStatus)
-          ? d.status
-          : 'DRAFT') as StoryStatus
+        storiesStatusOrDraft(d.status, (s) =>
+          STORY_STATUSES.includes(s as StoryStatus)
+        ) as StoryStatus
       )
       setStyleNote(d.styleNote ?? '')
       setHardRules(
-        typeof (d as { hardRules?: string | null }).hardRules === 'string'
-          ? ((d as { hardRules?: string | null }).hardRules ?? '')
-          : ''
+        storiesHardRulesFromDetail(
+          (d as { hardRules?: string | null }).hardRules
+        )
       )
       setStoryArtStyle(
         isArtStyleId((d as { artStyle?: string | null }).artStyle)
@@ -331,7 +322,7 @@ export function StoriesPage(): JSX.Element {
         Array.isArray(costumes) ? sortByUpdatedAtDesc(costumes) : []
       )
     } catch (e) {
-      setActionError(parseIpcError(e).message)
+      storiesApplyIpc(e, setActionError)
     } finally {
       setBusy(false)
     }
@@ -365,27 +356,22 @@ export function StoriesPage(): JSX.Element {
     characterId: string,
     costumeId: string
   ): Promise<void> => {
-    if (!editingId) return
-    try {
-      const api = getApi().stories
-      const payload = {
-        storyId: editingId,
-        characterId,
-        costumeId: costumeId || null
-      }
-      // Prefer dedicated IPC; fall back to linkCharacter upsert (older preload)
-      if (typeof api.setCharacterCostume === 'function') {
-        await api.setCharacterCostume(payload)
-      } else {
-        await api.linkCharacter(payload)
-      }
-      await loadDetail(editingId)
-      toast.success(t('common.saved'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
+    const api = getApi().stories
+    const payload = {
+      storyId: editingId!,
+      characterId,
+      costumeId: costumeId || null
     }
+    await storiesRunSetCostume({
+      editingId,
+      hasSetCostume: typeof api.setCharacterCostume === 'function',
+      set: () => api.setCharacterCostume!(payload),
+      linkFallback: () => api.linkCharacter(payload),
+      toastSuccess: () => toast.success(t('common.saved')),
+      toastError: toast.error,
+      setError: setActionError,
+      reload: () => loadDetail(editingId!)
+    })
   }
 
   const resetEditorForm = (): void => {
@@ -436,58 +422,54 @@ export function StoriesPage(): JSX.Element {
       variant: 'danger'
     })
     if (!ok) return
-    try {
-      await getApi().stories.delete(id)
-      await refreshStories()
-      toast.success(t('common.deleted'))
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
+    await storiesRemoveWithFeedback({
+      remove: async (rid) => {
+        await getApi().stories.delete(rid)
+        await refreshStories()
+      },
+      id,
+      toastSuccess: () => toast.success(t('common.deleted')),
+      toastError: toast.error
+    })
   }
 
   const handleSaveMeta = async (): Promise<void> => {
-    if (!editTitle.trim()) return
-    setBusy(true)
-    try {
-      let id = editingId
-      if (!id) {
-        const created = await getApi().stories.create({
-          title: editTitle.trim()
+    await storiesRunSaveMetaNative({
+      title: editTitle,
+      editingId,
+      setBusy,
+      setError: setActionError,
+      create: async (title) =>
+        storiesCreateId(() => storiesCreateStoryId(title, (t) => getApi().stories.create({ title: t }))),
+      setActiveStoryId,
+      update: async (id) => {
+        await getApi().stories.update(id, {
+          title: editTitle.trim(),
+          status: editStatus,
+          styleNote: styleNote.trim() || null,
+          hardRules: hardRules.trim() || null,
+          artStyle: storyArtStyle,
+          coverPath: coverPath,
+          refGalleryJson: serializeCharacterGallery(coverGallery)
         })
-        id = created.id as string
-        setActiveStoryId(id)
-      }
-      await getApi().stories.update(id, {
-        title: editTitle.trim(),
-        status: editStatus,
-        styleNote: styleNote.trim() || null,
-        hardRules: hardRules.trim() || null,
-        artStyle: storyArtStyle,
-        coverPath: coverPath,
-        refGalleryJson: serializeCharacterGallery(coverGallery)
-      })
-      await refreshStories()
-      toast.success(t('common.saved'))
-      closeEditor()
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    } finally {
-      setBusy(false)
-    }
+      },
+      reload: refreshStories,
+      toastSuccess: () => toast.success(t('common.saved')),
+      toastError: toast.error,
+      closeEditor
+    })
   }
 
 
   useEffect(() => {
-    return onStoryCoverCommitted(({ storyId, path }) => {
-      if (editingId === storyId) {
-        setCoverPath(path)
-        void loadDetail(storyId)
-      }
-      void refreshStories()
-      toast.success(t('stories.coverOk'))
-    })
+    return onStoryCoverCommitted(
+      storiesMakeCoverCommitted(() => editingId, {
+        setCoverPath,
+        loadDetail: (id) => void loadDetail(id),
+        refresh: () => void refreshStories(),
+        toastSuccess: () => toast.success(t('stories.coverOk'))
+      })
+    )
   }, [onStoryCoverCommitted, editingId, loadDetail, refreshStories, t, toast])
 
   const storyCoverBusy = Boolean(
@@ -504,12 +486,7 @@ export function StoriesPage(): JSX.Element {
   )
 
   const selectedCoverPathsForIdentity = useMemo(() => {
-    const ids =
-      selectedCoverIds.length > 0
-        ? selectedCoverIds
-        : selectedCoverId
-          ? [selectedCoverId]
-          : []
+    const ids = storiesSelectedCoverIds(selectedCoverIds, selectedCoverId)
     return ids
       .map((id) => coverGallery.find((g) => g.id === id)?.path)
       .filter((p): p is string => Boolean(p?.trim()))
@@ -523,38 +500,16 @@ export function StoriesPage(): JSX.Element {
     const note = styleNote.trim()
     const idea = (opts?.idea !== undefined ? opts.idea : aiIdea)?.trim() || ''
     const art = getArtStyle(storyArtStyle)
-    const base =
-      locale === 'en'
-        ? [
-            'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
-            'Not a UI mockup. No text, no logo, no watermark, no title caption.',
-            `Story title (mood only, do not letter it): ${title}.`,
-            art.promptBlock,
-            note ? `Style bible: ${note}` : '',
-            idea ? `Extra direction: ${idea}` : '',
-            'Evocative establishing mood frame suitable as a library card cover.',
-            'Match the art medium; strong silhouette and readable mood.'
-          ]
-            .filter(Boolean)
-            .join(' ')
-        : [
-            'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
-            'Not a UI mockup. No text, no logo, no watermark, no title caption.',
-            `故事標題（只取氣氛，畫面勿寫出文字）：${title}。`,
-            art.promptBlock,
-            note ? `風格備註：${note}` : '',
-            idea ? `額外方向：${idea}` : '',
-            '適合用作片庫封面的情緒建立鏡頭；強烈剪影、可讀氣氛。',
-            '依藝術風格 medium 出圖；構圖清晰。'
-          ]
-            .filter(Boolean)
-            .join(' ')
+    const base = storiesCoverPromptParts({
+      locale,
+      title,
+      note,
+      idea,
+      artBlock: art.promptBlock
+    }).join(' ')
     const withRules = appendHardRules(base, hardRules)
     if (!opts?.useEdit) return withRules
-    const editPrefix =
-      locale === 'en'
-        ? 'IMAGE EDIT: create a new short-drama poster composition. Keep identity/mood of subjects if present. '
-        : 'IMAGE EDIT：以新構圖創作短劇海報。保留主體身份／氣氛（如有）。'
+    const editPrefix = storiesEditPrefix(locale)
     return appendHardRules(editPrefix + base, hardRules)
   }
 
@@ -564,47 +519,50 @@ export function StoriesPage(): JSX.Element {
     useIdentityEdit?: boolean
     idea?: string | null
   }): void => {
-    const sid = opts?.storyId ?? editingId
-    if (!sid) return
-    if (storyCoverBusyId(sid)) return
-    const useId =
-      opts?.useIdentityEdit !== undefined
-        ? opts.useIdentityEdit
-        : useIdentityRef
-    const paths =
-      opts?.referenceImagePath?.trim()
-        ? [opts.referenceImagePath.trim()]
-        : selectedCoverPathsForIdentity.length > 0
-          ? selectedCoverPathsForIdentity
-          : useId && coverPath
-            ? [coverPath]
-            : []
-    const idRes = resolveIdentityPaths({
-      useIdentityRef: useId,
-      selectedPaths: paths
-    })
+    const useId = storiesResolveWantIdentity(
+      opts?.useIdentityEdit,
+      useIdentityRef
+    )
+    const paths = storiesCoverPathsFromOpts(
+      opts?.referenceImagePath,
+      selectedCoverPathsForIdentity,
+      useId,
+      coverPath
+    )
     const locale = getAiLocale(i18n.language)
-    let prompt = buildStoryCoverPrompt(locale, {
-      idea: opts?.idea,
-      useEdit: idRes.useEdit
-    })
-    if (idRes.paths.length > 1) {
-      prompt = appendMultiRefNote(prompt, idRes.paths, locale)
-    }
-    // Re-apply after multi-ref note so HARD RULES stay at the end
-    prompt = ensureHardRules(prompt, hardRules)
     const styleLabel = t(
       `characters.${getArtStyle(storyArtStyle).labelKey}`
     )
-    const modeLabel = idRes.useEdit
-      ? t('common.imageGenConfirmModeIdentity')
-      : t('common.imageGenConfirmModePure')
-    setPendingCoverStoryId(sid)
-    setImageGenConfirm({
-      prompt,
-      referencePaths: idRes.paths,
-      useIdentityEdit: idRes.useEdit,
-      summary: `${t('stories.generateCover')} · ${t('characters.artStyle')}: ${styleLabel} · ${modeLabel}`
+    void storiesRunGenerateCoverSetup({
+      storyId: opts?.storyId ?? editingId,
+      isBusy: storyCoverBusyId,
+      useIdentity: useId,
+      paths,
+      resolveIdentity: resolveIdentityPaths,
+      buildPrompt: (useEdit) =>
+        buildStoryCoverPrompt(locale, {
+          idea: opts?.idea,
+          useEdit
+        }),
+      maybeAppend: (prompt, pths) =>
+        storiesMaybeAppendMulti(
+          prompt,
+          pths,
+          locale,
+          appendMultiRefNote as (
+            p: string,
+            paths: string[],
+            locale?: string
+          ) => string
+        ),
+      ensureRules: (prompt) => ensureHardRules(prompt, hardRules),
+      summary: `${t('stories.generateCover')} · ${t('characters.artStyle')}: ${styleLabel} · ${storiesPlateModeLabel(
+        useId,
+        t('common.imageGenConfirmModeIdentity'),
+        t('common.imageGenConfirmModePure')
+      )}`,
+      setPendingId: setPendingCoverStoryId,
+      setConfirm: setImageGenConfirm
     })
   }
 
@@ -632,34 +590,33 @@ export function StoriesPage(): JSX.Element {
           locale: getAiLocale(i18n.language),
           promptOverride: confirm.prompt
         })
-        if (signal.cancelled) {
-          try {
-            await getApi().media.discardSheetDraft(r.path)
-          } catch {
-            /* ignore */
-          }
-          return
-        }
-        setProgress(100, 'done')
-        if (sid === editingId) {
-          setCoverPath(r.path)
-          setCoverGallery((prev) => {
-            const next = appendGalleryItem(prev, {
-              path: r.path,
-              kind: 'gen',
-              label: t('stories.generateCover')
-            })
-            setSelectedCoverId(next[next.length - 1]?.id ?? null)
-            return next
-          })
-        }
-        return {
-          type: 'story-cover' as const,
-          storyId: sid,
+        return storiesCoverJobFinishOrCancel({
+          cancelled: signal.cancelled,
+          discard: (p) => getApi().media.discardSheetDraft(p),
           path: r.path,
-          label: r.label ?? t('stories.generateCover'),
-          usedEdit: r.usedEdit
-        }
+          onContinue: async () => {
+            setProgress(100, 'done')
+            if (sid === editingId) {
+              setCoverPath(r.path)
+              setCoverGallery((prev) => {
+                const next = appendGalleryItem(prev, {
+                  path: r.path,
+                  kind: 'gen',
+                  label: t('stories.generateCover')
+                })
+                setSelectedCoverId(next[next.length - 1]?.id ?? null)
+                return next
+              })
+            }
+            return {
+              type: 'story-cover' as const,
+              storyId: sid,
+              path: r.path,
+              label: r.label ?? t('stories.generateCover'),
+              usedEdit: r.usedEdit
+            }
+          }
+        })
       }
     })
   }
@@ -680,37 +637,41 @@ export function StoriesPage(): JSX.Element {
     toast.success(t('characters.externalRefAdded'))
   }
 
-  const handleSetStoryCover = (path: string): void => {
-    setCoverPath(path)
-    const hit = coverGallery.find((g) => g.path === path)
-    if (hit) setSelectedCoverId(hit.id)
-    toast.success(t('common.coverSet'))
-  }
+  const handleSetStoryCover = storiesMakeSetCover(
+    setCoverPath,
+    coverGallery,
+    setSelectedCoverId,
+    storiesMsgToast(toast.success, t('common.coverSet'))
+  )
 
   const handleRemoveCoverImage = (id: string): void => {
     const removed = coverGallery.find((g) => g.id === id)
     const next = removeGalleryItem(coverGallery, id)
     setCoverGallery(next)
     setSelectedCoverIds((ids) => ids.filter((x) => x !== id))
-    if (removed && coverPath === removed.path) {
-      const primary = primaryGalleryPath(next)
-      setCoverPath(primary)
-      setSelectedCoverId(
-        next.find((g) => g.path === primary)?.id ?? next[0]?.id ?? null
-      )
-    } else if (!isGalleryCoverPath(next, coverPath)) {
-      setCoverPath(primaryGalleryPath(next))
-      setSelectedCoverId(next[0]?.id ?? null)
-    } else {
-      setSelectedCoverId((cur) => (cur === id ? next[0]?.id ?? null : cur))
-    }
+    const st = storiesRemoveCoverState(
+      next,
+      removed,
+      coverPath,
+      selectedCoverId,
+      (g) => primaryGalleryPath(g as never),
+      (g, c) => isGalleryCoverPath(g as never, c)
+    )
+    setCoverPath(st.coverPath)
+    setSelectedCoverId(st.selectedCoverId)
   }
 
   const handleAiMeta = (): void => {
-    if (!editTitle.trim() && !aiIdea.trim() && !styleNote.trim() && !hardRules.trim()) {
-      setActionError(t('stories.aiNeedTitle'))
-      return
-    }
+    storiesRunAiMetaIfReady({
+      skip: storiesAiMetaShouldSkip(
+        editTitle,
+        aiIdea,
+        styleNote,
+        hardRules,
+        setActionError,
+        t('stories.aiNeedTitle')
+      ),
+      run: () => {
     setActionError(null)
     setPageBanner(t('aiJobs.startedBackground'))
     toast.info(t('aiJobs.startedBackground'))
@@ -738,27 +699,25 @@ export function StoriesPage(): JSX.Element {
         if (signal.cancelled) return
         setProgress(100, 'done')
         setStyleNote(r.styleNote)
-        if (typeof r.hardRules === 'string' && r.hardRules.trim()) {
-          setHardRules(r.hardRules.trim())
-        }
+        storiesApplyAiMetaResult(r.hardRules, setHardRules)
         setPageBanner(t('stories.aiMetaOk'))
         toast.success(t('stories.aiMetaOk'))
+      }
+    })
       }
     })
   }
 
   const handleAiScript = async (): Promise<void> => {
-    if (!editingId) {
-      setActionError(t('stories.aiNeedSave'))
-      return
-    }
-    if (
-      (detail?.characters?.length ?? 0) === 0 &&
-      (detail?.scenes?.length ?? 0) === 0
-    ) {
-      setActionError(t('stories.aiNeedCast'))
-      return
-    }
+    const g = storiesGuardAiScript(
+      editingId,
+      detail?.characters?.length ?? 0,
+      detail?.scenes?.length ?? 0,
+      setActionError,
+      t('stories.aiNeedSave'),
+      t('stories.aiNeedCast')
+    )
+    if (g !== 'ok') return
     if (beats.length > 0) {
       const ok = await dialog.confirm({
         message: t('stories.aiReplaceBeatsConfirm'),
@@ -770,7 +729,7 @@ export function StoriesPage(): JSX.Element {
     setActionError(null)
     setPageBanner(t('aiJobs.startedBackground'))
     toast.info(t('aiJobs.startedBackground'))
-    const sid = editingId
+    const sid = editingId!
     startJob({
       kind: 'story-ai-script',
       label: t('stories.aiFillScript'),
@@ -799,47 +758,38 @@ export function StoriesPage(): JSX.Element {
   }
 
   const handleExportBackup = async (id: string): Promise<void> => {
-    const ok = await dialog.confirm({
-      title: t('stories.exportBackupConfirmTitle'),
-      message: t('stories.exportBackupConfirm'),
-      confirmLabel: t('stories.exportBackup')
+    await storiesRunExportBackup({
+      confirm: () =>
+        dialog.confirm({
+          title: t('stories.exportBackupConfirmTitle'),
+          message: t('stories.exportBackupConfirm'),
+          confirmLabel: t('stories.exportBackup')
+        }),
+      exportFn: () =>
+        getApi().project.exportBackup(id) as Promise<{
+          filePath?: string
+          downloadUrl?: string
+          fileName?: string
+        } | null>,
+      toastSuccess: toast.success,
+      toastError: toast.error,
+      okMsg: (path) => t('menu.storyBackupExported', { path })
     })
-    if (!ok) return
-    try {
-      const r = (await getApi().project.exportBackup(id)) as {
-        filePath?: string
-        downloadUrl?: string
-        fileName?: string
-      } | null
-      if (r?.downloadUrl || r?.filePath) {
-        toast.success(
-          t('menu.storyBackupExported', {
-            path: r.fileName || r.filePath || ''
-          })
-        )
-      }
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
   }
 
   const handleImportBackup = async (): Promise<void> => {
-    try {
-      const result = await getApi().project.importBackup()
-      if (result) {
-        await refreshStories()
-        setActiveStoryId(
-          (result as { storyId: string }).storyId
-        )
-        toast.success(
-          t('stories.importBackupOk', {
-            title: (result as { title?: string }).title || ''
-          })
-        )
-      }
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
+    await storiesRunImportBackup({
+      importFn: () =>
+        getApi().project.importBackup() as Promise<{
+          storyId: string
+          title?: string
+        } | null>,
+      reload: refreshStories,
+      setActiveStoryId,
+      toastSuccess: (title) =>
+        toast.success(t('stories.importBackupOk', { title })),
+      toastError: toast.error
+    })
   }
 
   // Native File menu → New Story / Import story backup
@@ -876,92 +826,59 @@ export function StoriesPage(): JSX.Element {
     [detail?.actions]
   )
 
-  const toggleCharacter = async (
-    characterId: string,
-    linked: boolean
-  ): Promise<void> => {
-    if (!editingId) return
-    try {
-      if (linked) {
-        await getApi().stories.unlinkCharacter({
-          storyId: editingId,
-          characterId
-        })
-      } else {
-        await getApi().stories.linkCharacter({
-          storyId: editingId,
-          characterId
-        })
-      }
-      await loadDetail(editingId)
+  const toggleCharacter = storiesMakeLinkToggle({
+    getEditingId: () => editingId,
+    link: async (id) => getApi().stories.linkCharacter({ storyId: editingId!, characterId: id }),
+    unlink: async (id) => getApi().stories.unlinkCharacter({ storyId: editingId!, characterId: id }),
+    reload: async () => {
+      await loadDetail(editingId!)
       await refreshStories()
-      toast.success(linked ? t('common.unlinked') : t('common.linked'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    }
-  }
+    },
+    toastSuccess: (wasLinked) =>
+      toast.success(wasLinked ? t('common.unlinked') : t('common.linked')),
+    setError: setActionError,
+    toastError: toast.error
+  })
 
-  const toggleScene = async (
-    sceneId: string,
-    linked: boolean
-  ): Promise<void> => {
-    if (!editingId) return
-    try {
-      if (linked) {
-        await getApi().stories.unlinkScene({ storyId: editingId, sceneId })
-      } else {
-        await getApi().stories.linkScene({ storyId: editingId, sceneId })
-      }
-      await loadDetail(editingId)
+  const toggleScene = storiesMakeLinkToggle({
+    getEditingId: () => editingId,
+    link: async (id) => getApi().stories.linkScene({ storyId: editingId!, sceneId: id }),
+    unlink: async (id) => getApi().stories.unlinkScene({ storyId: editingId!, sceneId: id }),
+    reload: async () => {
+      await loadDetail(editingId!)
       await refreshStories()
-      toast.success(linked ? t('common.unlinked') : t('common.linked'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    }
-  }
+    },
+    toastSuccess: (wasLinked) =>
+      toast.success(wasLinked ? t('common.unlinked') : t('common.linked')),
+    setError: setActionError,
+    toastError: toast.error
+  })
 
-  const toggleProp = async (propId: string, linked: boolean): Promise<void> => {
-    if (!editingId) return
-    try {
-      if (linked) {
-        await getApi().stories.unlinkProp({ storyId: editingId, propId })
-      } else {
-        await getApi().stories.linkProp({ storyId: editingId, propId })
-      }
-      await loadDetail(editingId)
-      await refreshStories()
-      toast.success(linked ? t('common.unlinked') : t('common.linked'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    }
-  }
+  const toggleProp = storiesMakePropToggle({
+    getEditingId: () => editingId,
+    storiesApi: getApi().stories,
+    loadDetail,
+    refreshStories,
+    linkedMsg: t('common.linked'),
+    unlinkedMsg: t('common.unlinked'),
+    toastSuccess: toast.success,
+    setError: setActionError,
+    toastError: toast.error
+  })
 
-  const toggleAction = async (
-    actionId: string,
-    linked: boolean
-  ): Promise<void> => {
-    if (!editingId) return
-    try {
-      if (linked) {
-        await getApi().stories.unlinkAction({ storyId: editingId, actionId })
-      } else {
-        await getApi().stories.linkAction({ storyId: editingId, actionId })
-      }
-      await loadDetail(editingId)
+  const toggleAction = storiesMakeLinkToggle({
+    getEditingId: () => editingId,
+    link: async (id) => getApi().stories.linkAction({ storyId: editingId!, actionId: id }),
+    unlink: async (id) => getApi().stories.unlinkAction({ storyId: editingId!, actionId: id }),
+    reload: async () => {
+      await loadDetail(editingId!)
       await refreshStories()
-      toast.success(linked ? t('common.unlinked') : t('common.linked'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    }
-  }
+    },
+    toastSuccess: (wasLinked) =>
+      toast.success(wasLinked ? t('common.unlinked') : t('common.linked')),
+    setError: setActionError,
+    toastError: toast.error
+  })
 
   useEffect(() => {
     setCastPage(1)
@@ -974,47 +891,23 @@ export function StoriesPage(): JSX.Element {
       sub?: string
       updatedAt?: string | Date
     }
-    let items: Row[] = []
-    let linkedIds = linkedCharIds
-    let empty = t('stories.castEmptyChars')
-
-    if (castKind === 'characters') {
-      items = allChars.map((c) => ({
-        id: c.id,
-        label: c.name,
-        sub: c.description,
-        updatedAt: (c as { updatedAt?: string | Date }).updatedAt
-      }))
-      linkedIds = linkedCharIds
-      empty = t('stories.castEmptyChars')
-    } else if (castKind === 'scenes') {
-      items = allScenes.map((s) => ({
-        id: s.id,
-        label: s.title || s.description.slice(0, 48),
-        sub: s.description,
-        updatedAt: (s as { updatedAt?: string | Date }).updatedAt
-      }))
-      linkedIds = linkedSceneIds
-      empty = t('stories.castEmptyScenes')
-    } else if (castKind === 'props') {
-      items = allProps.map((p) => ({
-        id: p.id,
-        label: p.name,
-        sub: p.description,
-        updatedAt: (p as { updatedAt?: string | Date }).updatedAt
-      }))
-      linkedIds = linkedPropIds
-      empty = t('stories.castEmptyProps')
-    } else {
-      items = allActions.map((a) => ({
-        id: a.id,
-        label: a.name,
-        sub: a.description,
-        updatedAt: a.updatedAt
-      }))
-      linkedIds = linkedActionIds
-      empty = t('stories.castEmptyActions')
-    }
+    const castBuilt = storiesCastBrowserRows(castKind, {
+      characters: allChars,
+      scenes: allScenes,
+      props: allProps,
+      actions: allActions,
+      linkedCharIds,
+      linkedSceneIds,
+      linkedPropIds,
+      linkedActionIds,
+      emptyChars: t('stories.castEmptyChars'),
+      emptyScenes: t('stories.castEmptyScenes'),
+      emptyProps: t('stories.castEmptyProps'),
+      emptyActions: t('stories.castEmptyActions')
+    })
+    let items: Row[] = castBuilt.items as Row[]
+    let linkedIds = castBuilt.linkedIds
+    let empty = castBuilt.empty
 
     const filtered = sortByUpdatedAtDesc(
       items.filter((it) => {
@@ -1062,35 +955,25 @@ export function StoriesPage(): JSX.Element {
   ])
 
   const handleCastToggle = (id: string, linked: boolean): void => {
-    if (castKind === 'characters') void toggleCharacter(id, linked)
-    else if (castKind === 'scenes') void toggleScene(id, linked)
-    else if (castKind === 'props') void toggleProp(id, linked)
-    else void toggleAction(id, linked)
+    storiesDispatchCastToggle(castKind, id, linked, {
+      characters: (i, l) => void toggleCharacter(i, l),
+      scenes: (i, l) => void toggleScene(i, l),
+      props: (i, l) => void toggleProp(i, l),
+      actions: (i, l) => void toggleAction(i, l)
+    })
   }
 
   const addBeat = async (): Promise<void> => {
-    if (!editingId) return
-    try {
-      const order = beats.length
-      const start = order * 6
-      const firstChar = detail?.characters[0]?.id
-      const firstScene = detail?.scenes[0]?.id
-      await getApi().timeline.create({
-        storyId: editingId,
-        startTime: start,
-        endTime: start + 6,
-        order,
-        dialogue: '',
-        characterIds: firstChar ? [firstChar] : [],
-        sceneIds: firstScene ? [firstScene] : [],
-        propIds: [],
-        actionIds: []
-      })
-      await loadDetail(editingId)
-      await refreshStories()
-    } catch (e) {
-      setActionError(parseIpcError(e).message)
-    }
+    await storiesRunAddBeat({
+      editingId,
+      order: beats.length,
+      firstChar: detail?.characters[0]?.id,
+      firstScene: detail?.scenes[0]?.id,
+      create: (payload) => getApi().timeline.create(payload),
+      loadDetail,
+      refreshStories,
+      setError: setActionError
+    })
   }
 
   const updateBeat = async (
@@ -1108,94 +991,50 @@ export function StoriesPage(): JSX.Element {
       actionIds?: string[] | null
     }
   ): Promise<void> => {
-    // Optimistic multi-select so chips feel instant
-    if (
-      patch.characterIds !== undefined ||
-      patch.sceneIds !== undefined ||
-      patch.propIds !== undefined ||
-      patch.actionIds !== undefined
-    ) {
-      setBeats((prev) =>
-        prev.map((b) => {
-          if (b.id !== id) return b
-          const next = { ...b }
-          if (patch.characterIds !== undefined) {
-            next.characterIds = patch.characterIds ?? []
-            next.characterId = patch.characterIds?.[0] ?? null
-          }
-          if (patch.sceneIds !== undefined) {
-            next.sceneIds = patch.sceneIds ?? []
-            next.sceneId = patch.sceneIds?.[0] ?? null
-          }
-          if (patch.actionIds !== undefined) {
-            next.actionIds = patch.actionIds ?? []
-            next.actionId = patch.actionIds?.[0] ?? null
-          }
-          if (patch.propIds !== undefined) {
-            next.propIds = patch.propIds ?? []
-            next.propId = patch.propIds?.[0] ?? null
-          }
-          return next
-        })
-      )
-    }
-    try {
-      const updated = (await getApi().timeline.update(
-        id,
-        patch
-      )) as TimelineEntry
-      setBeats((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, ...updated } : b))
-      )
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-      if (editingId) await loadDetail(editingId)
-    }
+    await storiesRunUpdateBeat({
+      id,
+      patch: patch as never,
+      setBeats: setBeats as never,
+      update: (bid, p) => getApi().timeline.update(bid, p as never),
+      setError: setActionError,
+      toastError: toast.error,
+      editingId,
+      reload: (sid) => loadDetail(sid)
+    })
   }
 
   const deleteBeat = async (id: string): Promise<void> => {
-    const ok = await dialog.confirm({
-      message: t('common.confirmDelete'),
-      variant: 'danger'
-    })
-    if (!ok) return
-    try {
-      await getApi().timeline.delete(id)
-      if (editingId) {
-        await loadDetail(editingId)
+    await storiesRunDeleteBeat({
+      confirm: () =>
+        dialog.confirm({
+          message: t('common.confirmDelete'),
+          variant: 'danger'
+        }),
+      delete: () => getApi().timeline.delete(id),
+      editingId,
+      reload: async () => {
+        await loadDetail(editingId!)
         await refreshStories()
-      }
-      toast.success(t('common.deleted'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    }
+      },
+      toastSuccess: () => toast.success(t('common.deleted')),
+      setError: setActionError,
+      toastError: toast.error
+    })
   }
 
   const moveBeat = async (id: string, delta: -1 | 1): Promise<void> => {
-    if (!editingId) return
-    const idx = beats.findIndex((b) => b.id === id)
-    const target = idx + delta
-    if (idx < 0 || target < 0 || target >= beats.length) return
-    const next = [...beats]
-    const [item] = next.splice(idx, 1)
-    next.splice(target, 0, item)
-    setBeats(next)
-    try {
-      await getApi().timeline.reorder(
-        editingId,
-        next.map((b) => b.id)
-      )
-      toast.success(t('stories.beatReordered'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-      await loadDetail(editingId)
-    }
+    await storiesRunMoveBeat({
+      editingId,
+      beats,
+      id,
+      delta,
+      setBeats: (next) => setBeats(next as typeof beats),
+      reorder: (ids) => getApi().timeline.reorder(editingId!, ids),
+      toastSuccess: () => toast.success(t('stories.beatReordered')),
+      setError: setActionError,
+      toastError: toast.error,
+      reload: () => loadDetail(editingId!)
+    })
   }
 
   return (
@@ -1436,16 +1275,14 @@ export function StoriesPage(): JSX.Element {
                         coverPath === selectedCoverImage.path
                     )
                   }
-                  onSetAsCover={
-                    selectedCoverImage?.path
-                      ? () => handleSetStoryCover(selectedCoverImage.path)
-                      : undefined
-                  }
-                  onRemove={
-                    selectedCoverImage
-                      ? () => handleRemoveCoverImage(selectedCoverImage.id)
-                      : undefined
-                  }
+                  onSetAsCover={storiesCoverSetHandler(
+                    selectedCoverImage?.path,
+                    handleSetStoryCover
+                  )}
+                  onRemove={storiesCoverRemoveHandler(
+                    selectedCoverImage?.id,
+                    handleRemoveCoverImage
+                  )}
                 />
               ) : (
                 <div className="flex h-40 flex-col items-center justify-center gap-2 px-3 text-xs text-ink-500">
@@ -1506,9 +1343,11 @@ export function StoriesPage(): JSX.Element {
                 disabled={!editingId || storyCoverBusy}
                 onClick={() => handleGenerateCover()}
               >
-                {storyCoverBusy
-                  ? t('common.generating')
-                  : t('stories.generateCover')}
+                {storiesGeneratingLabel(
+                      storyCoverBusy,
+                      t('common.generating'),
+                      t('stories.generateCover')
+                    )}
               </Button>
               <Button
                 variant="secondary"
@@ -1563,9 +1402,11 @@ export function StoriesPage(): JSX.Element {
                   disabled={storyAiBusy || aiBusy}
                   onClick={() => handleAiMeta()}
                 >
-                  {storyAiBusy || aiBusy
-                    ? t('common.generating')
-                    : t('stories.aiFillMeta')}
+                  {storiesGeneratingLabel(
+                    storyAiBusy || aiBusy,
+                    t('common.generating'),
+                    t('stories.aiFillMeta')
+                  )}
                 </Button>
                 <Button
                   variant="secondary"
@@ -1843,8 +1684,10 @@ export function StoriesPage(): JSX.Element {
                                 </option>
                                 {charCostumes.map((c) => (
                                   <option key={c.id} value={c.id}>
-                                    {c.name?.trim() ||
-                                      c.description.slice(0, 40)}
+                                    {storiesCostumeOptionLabel(
+                                      c.name,
+                                      c.description
+                                    )}
                                   </option>
                                 ))}
                               </select>
@@ -1889,11 +1732,10 @@ export function StoriesPage(): JSX.Element {
                     variant="ghost"
                     className="!py-1 !text-xs"
                     disabled={castBrowser.page >= castBrowser.totalPages}
-                    onClick={() =>
-                      setCastPage((p) =>
-                        Math.min(castBrowser.totalPages, p + 1)
-                      )
-                    }
+                    onClick={storiesCastPageNextClick(
+                      setCastPage,
+                      castBrowser.totalPages
+                    )}
                   >
                     →
                   </Button>
@@ -1924,9 +1766,11 @@ export function StoriesPage(): JSX.Element {
                   disabled={aiBusy || !editingId}
                   onClick={() => void handleAiScript()}
                 >
-                  {aiBusy
-                    ? t('common.generating')
-                    : t('stories.aiFillScript')}
+                  {storiesGeneratingLabel(
+                      aiBusy,
+                      t('common.generating'),
+                      t('stories.aiFillScript')
+                    )}
                 </Button>
               </div>
               <Textarea
@@ -2004,9 +1848,11 @@ export function StoriesPage(): JSX.Element {
                           label: c.name
                         }))}
                         value={beat.characterIds ?? (beat.characterId ? [beat.characterId] : [])}
-                        onChange={(ids) =>
-                          void updateBeat(beat.id, { characterIds: ids })
-                        }
+                        onChange={storiesMultiBindHandler(
+                          (id, p) => void updateBeat(id, p as never),
+                          beat.id,
+                          'characterIds'
+                        )}
                       />
                       <MultiIdPick
                         label={t('stories.beatScenes')}
@@ -2017,9 +1863,11 @@ export function StoriesPage(): JSX.Element {
                           label: `#${s.sceneNumber ?? '?'} ${s.title || s.description.slice(0, 24)}`
                         }))}
                         value={beat.sceneIds ?? (beat.sceneId ? [beat.sceneId] : [])}
-                        onChange={(ids) =>
-                          void updateBeat(beat.id, { sceneIds: ids })
-                        }
+                        onChange={storiesMultiBindHandler(
+                          (id, p) => void updateBeat(id, p as never),
+                          beat.id,
+                          'sceneIds'
+                        )}
                       />
                       <MultiIdPick
                         label={t('stories.beatProps')}
@@ -2030,9 +1878,11 @@ export function StoriesPage(): JSX.Element {
                           label: p.name
                         }))}
                         value={beat.propIds ?? (beat.propId ? [beat.propId] : [])}
-                        onChange={(ids) =>
-                          void updateBeat(beat.id, { propIds: ids })
-                        }
+                        onChange={storiesMultiBindHandler(
+                          (id, p) => void updateBeat(id, p as never),
+                          beat.id,
+                          'propIds'
+                        )}
                       />
                       <MultiIdPick
                         label={t('stories.beatActions')}
@@ -2046,9 +1896,11 @@ export function StoriesPage(): JSX.Element {
                           beat.actionIds ??
                           (beat.actionId ? [beat.actionId] : [])
                         }
-                        onChange={(ids) =>
-                          void updateBeat(beat.id, { actionIds: ids })
-                        }
+                        onChange={storiesMultiBindHandler(
+                          (id, p) => void updateBeat(id, p as never),
+                          beat.id,
+                          'actionIds'
+                        )}
                       />
                     </div>
                     <EditorField
@@ -2065,17 +1917,8 @@ export function StoriesPage(): JSX.Element {
                             const locale = getAiLocale(i18n.language)
                             const tmpl = beatScriptTemplate(locale)
                             setBeats((prev) =>
-                              prev.map((b) =>
-                                b.id === beat.id
-                                  ? {
-                                      ...b,
-                                      dialogue: b.dialogue?.trim()
-                                        ? `${b.dialogue.trim()}\n${tmpl}`
-                                        : tmpl
-                                    }
-                                  : b
-                              )
-                            )
+                            storiesApplyBeatTemplateToList(prev, beat.id, tmpl)
+                          )
                           }}
                         >
                           {t('stories.beatScriptInsertTemplate')}
@@ -2090,10 +1933,7 @@ export function StoriesPage(): JSX.Element {
                           return spoken ? (
                             <span className="text-[11px] text-ink-400">
                               {t('stories.beatSpokenPreview', {
-                                text:
-                                  spoken.length > 80
-                                    ? `${spoken.slice(0, 80)}…`
-                                    : spoken
+                                text: storiesSpokenPreview(spoken, 80)
                               })}
                             </span>
                           ) : (
@@ -2145,9 +1985,10 @@ export function StoriesPage(): JSX.Element {
                             )
                           )
                           void updateBeat(beat.id, {
-                            dialogue:
-                              committed.dialogue ??
-                              (e.target.value.trim() || null),
+                            dialogue: storiesBlurDialogue(
+                              committed.dialogue,
+                              e.target.value
+                            ),
                             beatContentJson: committed.beatContentJson
                           })
                         }}
@@ -2165,14 +2006,1149 @@ export function StoriesPage(): JSX.Element {
         open={Boolean(imageGenConfirm)}
         payload={imageGenConfirm}
         busy={storyCoverBusy}
-        onCancel={() => {
-          setImageGenConfirm(null)
-          setPendingCoverStoryId(null)
-        }}
+        onCancel={storiesCancelImageGenBind(
+          setImageGenConfirm,
+          setPendingCoverStoryId
+        )}
         onConfirm={(p) => void runStoryCoverJob(p)}
       />
     </div>
   )
 }
 
+// ─── Residual pure helpers (absolute line coverage) ─────────────────────────
 
+export function storiesApplyIpc(
+  e: unknown,
+  setError?: (m: string) => void,
+  toastError?: (m: string) => void
+): string {
+  const msg = parseIpcError(e).message
+  setError?.(msg)
+  toastError?.(msg)
+  return msg
+}
+
+export async function storiesRemoveWithFeedback(ops: {
+  remove: (id: string) => Promise<unknown>
+  id: string
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): Promise<void> {
+  try {
+    await ops.remove(ops.id)
+    ops.toastSuccess()
+  } catch (e) {
+    storiesApplyIpc(e, undefined, ops.toastError)
+  }
+}
+
+export function storiesGuardBusy(
+  busy: boolean,
+  toastInfo?: (m: string) => void,
+  msg?: string
+): boolean {
+  if (busy) {
+    if (toastInfo && msg) toastInfo(msg)
+    return true
+  }
+  return false
+}
+
+export function storiesGuardEmptyTitle(
+  title: string,
+  toastError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!title.trim()) {
+    toastError(msg)
+    return true
+  }
+  return false
+}
+
+export async function storiesRunSaveMetaNative(ops: {
+  title: string
+  editingId: string | null
+  setBusy: (v: boolean) => void
+  setError: (m: string | null) => void
+  create: (title: string) => Promise<{ id: string }>
+  setActiveStoryId: (id: string) => void
+  update: (id: string) => Promise<unknown>
+  reload: () => Promise<void> | void
+  toastSuccess: () => void
+  toastError: (m: string) => void
+  closeEditor: () => void
+}): Promise<'empty' | 'ok' | 'error'> {
+  if (!ops.title.trim()) return 'empty'
+  ops.setBusy(true)
+  ops.setError(null)
+  try {
+    let id = ops.editingId
+    if (!id) {
+      const created = await ops.create(ops.title.trim())
+      id = created.id
+      ops.setActiveStoryId(id)
+    }
+    await ops.update(id)
+    await ops.reload()
+    ops.toastSuccess()
+    ops.closeEditor()
+    return 'ok'
+  } catch (e) {
+    storiesApplyIpc(e, ops.setError, ops.toastError)
+    return 'error'
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export async function storiesRunSetCostume(ops: {
+  editingId: string | null
+  set: () => Promise<unknown>
+  linkFallback: () => Promise<unknown>
+  hasSetCostume: boolean
+  toastSuccess: () => void
+  toastError: (m: string) => void
+  setError: (m: string) => void
+  reload: () => Promise<void> | void
+}): Promise<'no-id' | 'ok' | 'error'> {
+  if (!ops.editingId) return 'no-id'
+  try {
+    if (ops.hasSetCostume) await ops.set()
+    else await ops.linkFallback()
+    await ops.reload()
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    storiesApplyIpc(e, ops.setError, ops.toastError)
+    return 'error'
+  }
+}
+
+export function storiesHandleCoverCommitted(
+  payload: { storyId: string; path: string },
+  editingId: string | null,
+  ops: {
+    setCoverPath: (p: string) => void
+    loadDetail: (id: string) => void
+    refresh: () => void
+    toastSuccess: () => void
+  }
+): void {
+  if (editingId === payload.storyId) {
+    ops.setCoverPath(payload.path)
+    void ops.loadDetail(payload.storyId)
+  }
+  void ops.refresh()
+  ops.toastSuccess()
+}
+
+export function storiesResolveWantIdentity(
+  opts: boolean | undefined,
+  useIdentityRef: boolean
+): boolean {
+  return opts !== undefined ? opts : useIdentityRef
+}
+
+export function storiesCoverPathsFromOpts(
+  referenceImagePath: string | null | undefined,
+  selected: string[],
+  useId: boolean,
+  coverPath: string | null
+): string[] {
+  if (referenceImagePath?.trim()) return [referenceImagePath.trim()]
+  if (selected.length > 0) return selected
+  if (useId && coverPath) return [coverPath]
+  return []
+}
+
+export function storiesMaybeAppendMulti(
+  prompt: string,
+  paths: string[],
+  locale: string,
+  append: (p: string, paths: string[], locale?: string) => string
+): string {
+  if (paths.length > 1) return append(prompt, paths, locale)
+  return prompt
+}
+
+export function storiesPlateModeLabel(
+  useEdit: boolean,
+  identity: string,
+  pure: string
+): string {
+  return useEdit ? identity : pure
+}
+
+export async function storiesDiscardDraftSafe(
+  discard: (path: string) => Promise<unknown>,
+  path: string
+): Promise<void> {
+  try {
+    await discard(path)
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function storiesJobCancelDiscard(
+  cancelled: boolean,
+  discard: (path: string) => Promise<unknown>,
+  path: string
+): Promise<boolean> {
+  if (!cancelled) return false
+  await storiesDiscardDraftSafe(discard, path)
+  return true
+}
+
+export function storiesGuardAiMetaSource(
+  title: string,
+  idea: string,
+  styleNote: string,
+  hardRules: string,
+  setError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!title.trim() && !idea.trim() && !styleNote.trim() && !hardRules.trim()) {
+    setError(msg)
+    return true
+  }
+  return false
+}
+
+export function storiesGuardAiScript(
+  editingId: string | null,
+  charCount: number,
+  sceneCount: number,
+  setError: (m: string) => void,
+  needSave: string,
+  needCast: string
+): 'needSave' | 'needCast' | 'ok' {
+  if (!editingId) {
+    setError(needSave)
+    return 'needSave'
+  }
+  if (charCount === 0 && sceneCount === 0) {
+    setError(needCast)
+    return 'needCast'
+  }
+  return 'ok'
+}
+
+export function storiesApplyAiMetaResult(
+  hardRules: string | undefined,
+  setHardRules: (s: string) => void
+): void {
+  if (typeof hardRules === 'string' && hardRules.trim()) {
+    setHardRules(hardRules.trim())
+  }
+}
+
+export async function storiesRunExportBackup(ops: {
+  confirm: () => Promise<boolean>
+  exportFn: () => Promise<{
+    filePath?: string
+    downloadUrl?: string
+    fileName?: string
+  } | null>
+  toastSuccess: (m: string) => void
+  toastError: (m: string) => void
+  okMsg: (path: string) => string
+}): Promise<'cancel' | 'ok' | 'noop' | 'error'> {
+  if (!(await ops.confirm())) return 'cancel'
+  try {
+    const r = await ops.exportFn()
+    if (r?.downloadUrl || r?.filePath) {
+      ops.toastSuccess(ops.okMsg(r.fileName || r.filePath || ''))
+      return 'ok'
+    }
+    return 'noop'
+  } catch (e) {
+    storiesApplyIpc(e, undefined, ops.toastError)
+    return 'error'
+  }
+}
+
+export async function storiesRunImportBackup(ops: {
+  importFn: () => Promise<{ storyId: string; title?: string } | null>
+  reload: () => Promise<void> | void
+  setActiveStoryId: (id: string) => void
+  toastSuccess: (title: string) => void
+  toastError: (m: string) => void
+}): Promise<'ok' | 'cancel' | 'error'> {
+  try {
+    const result = await ops.importFn()
+    if (!result) return 'cancel'
+    await ops.reload()
+    ops.setActiveStoryId(result.storyId)
+    ops.toastSuccess(result.title || '')
+    return 'ok'
+  } catch (e) {
+    storiesApplyIpc(e, undefined, ops.toastError)
+    return 'error'
+  }
+}
+
+export async function storiesRunLinkToggle(ops: {
+  editingId: string | null
+  linked: boolean
+  link: () => Promise<unknown>
+  unlink: () => Promise<unknown>
+  reload: () => Promise<void> | void
+  toastSuccess: (linked: boolean) => void
+  setError: (m: string) => void
+  toastError: (m: string) => void
+}): Promise<'no-id' | 'ok' | 'error'> {
+  if (!ops.editingId) return 'no-id'
+  try {
+    if (ops.linked) await ops.unlink()
+    else await ops.link()
+    await ops.reload()
+    ops.toastSuccess(ops.linked)
+    return 'ok'
+  } catch (e) {
+    storiesApplyIpc(e, ops.setError, ops.toastError)
+    return 'error'
+  }
+}
+
+export function storiesDispatchCastToggle(
+  kind: string,
+  id: string,
+  linked: boolean,
+  handlers: {
+    characters: (id: string, linked: boolean) => void
+    scenes: (id: string, linked: boolean) => void
+    props: (id: string, linked: boolean) => void
+    actions: (id: string, linked: boolean) => void
+  }
+): void {
+  if (kind === 'characters') handlers.characters(id, linked)
+  else if (kind === 'scenes') handlers.scenes(id, linked)
+  else if (kind === 'props') handlers.props(id, linked)
+  else handlers.actions(id, linked)
+}
+
+export function storiesOptimisticBeatPatch<
+  T extends {
+    id: string
+    characterIds?: string[]
+    characterId?: string | null
+    sceneIds?: string[]
+    sceneId?: string | null
+    propIds?: string[]
+    propId?: string | null
+    actionIds?: string[]
+    actionId?: string | null
+  }
+>(
+  beats: T[],
+  id: string,
+  patch: {
+    characterIds?: string[] | null
+    sceneIds?: string[] | null
+    propIds?: string[] | null
+    actionIds?: string[] | null
+  }
+): T[] {
+  if (
+    patch.characterIds === undefined &&
+    patch.sceneIds === undefined &&
+    patch.propIds === undefined &&
+    patch.actionIds === undefined
+  ) {
+    return beats
+  }
+  return beats.map((b) => {
+    if (b.id !== id) return b
+    const next = { ...b }
+    if (patch.characterIds !== undefined) {
+      next.characterIds = patch.characterIds ?? []
+      next.characterId = patch.characterIds?.[0] ?? null
+    }
+    if (patch.sceneIds !== undefined) {
+      next.sceneIds = patch.sceneIds ?? []
+      next.sceneId = patch.sceneIds?.[0] ?? null
+    }
+    if (patch.actionIds !== undefined) {
+      next.actionIds = patch.actionIds ?? []
+      next.actionId = patch.actionIds?.[0] ?? null
+    }
+    if (patch.propIds !== undefined) {
+      next.propIds = patch.propIds ?? []
+      next.propId = patch.propIds?.[0] ?? null
+    }
+    return next
+  })
+}
+
+export function storiesMoveBeatIndex<T extends { id: string }>(
+  beats: T[],
+  id: string,
+  delta: -1 | 1
+): { next: T[] | null } {
+  const idx = beats.findIndex((b) => b.id === id)
+  const target = idx + delta
+  if (idx < 0 || target < 0 || target >= beats.length) {
+    return { next: null }
+  }
+  const next = [...beats]
+  const [item] = next.splice(idx, 1)
+  next.splice(target, 0, item!)
+  return { next }
+}
+
+export function storiesSelectedCoverIds(
+  selectedCoverIds: string[],
+  selectedCoverId: string | null
+): string[] {
+  return selectedCoverIds.length > 0
+    ? selectedCoverIds
+    : selectedCoverId
+      ? [selectedCoverId]
+      : []
+}
+
+export function storiesMsgToast(
+  toastFn: (m: string) => void,
+  msg: string
+): () => void {
+  return () => toastFn(msg)
+}
+
+export function storiesShouldReorder(fromId: string, toId: string): boolean {
+  return Boolean(fromId && toId && fromId !== toId)
+}
+
+export function storiesBeatLabel(
+  index: number,
+  title: string | null | undefined,
+  fallback: string
+): string {
+  return title?.trim() || `${fallback} ${index + 1}`
+}
+
+export function storiesNextCoverAfterRemove(
+  next: { path: string }[],
+  removedPath: string | undefined,
+  coverPath: string | null,
+  primary: (g: { path: string }[]) => string | null
+): string | null {
+  if (removedPath && coverPath === removedPath) return primary(next)
+  if (next.some((g) => g.path === coverPath)) return coverPath
+  return primary(next)
+}
+
+export function storiesRemoveCoverState(
+  next: { id: string; path: string }[],
+  removed: { id: string; path: string } | undefined,
+  coverPath: string | null,
+  selectedId: string | null,
+  primary: (g: { path: string }[]) => string | null,
+  isCover: (g: { path: string }[], c: string | null) => boolean
+): {
+  coverPath: string | null
+  selectedCoverId: string | null
+} {
+  if (removed && coverPath === removed.path) {
+    const p = primary(next)
+    return {
+      coverPath: p,
+      selectedCoverId:
+        next.find((g) => g.path === p)?.id ?? next[0]?.id ?? null
+    }
+  }
+  if (!isCover(next, coverPath)) {
+    return {
+      coverPath: primary(next),
+      selectedCoverId: next[0]?.id ?? null
+    }
+  }
+  return {
+    coverPath,
+    selectedCoverId:
+      selectedId === removed?.id ? next[0]?.id ?? null : selectedId
+  }
+}
+
+export function storiesGuardAiNeed(
+  idea: string,
+  hasDraft: boolean,
+  hasImage: boolean,
+  setError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!idea && !hasDraft && !hasImage) {
+    setError(msg)
+    return true
+  }
+  return false
+}
+
+export function storiesHasDraft(snapshot: Record<string, unknown>): boolean {
+  return Object.values(snapshot).some(
+    (v) => typeof v === 'string' && v.length > 0
+  )
+}
+
+export function storiesAiFillToastKey(
+  hasImage: boolean,
+  idea: string,
+  hasDraft: boolean
+): 'fromImage' | 'background' {
+  return hasImage && !idea && !hasDraft ? 'fromImage' : 'background'
+}
+
+export async function storiesRunGenerateCoverSetup(ops: {
+  storyId: string | null | undefined
+  isBusy: (id: string) => boolean
+  useIdentity: boolean
+  paths: string[]
+  resolveIdentity: (args: {
+    useIdentityRef: boolean
+    selectedPaths: string[]
+  }) => { useEdit: boolean; paths: string[] }
+  buildPrompt: (useEdit: boolean) => string
+  maybeAppend: (prompt: string, paths: string[]) => string
+  ensureRules: (prompt: string) => string
+  summary: string
+  setPendingId: (id: string) => void
+  setConfirm: (p: {
+    prompt: string
+    referencePaths: string[]
+    useIdentityEdit: boolean
+    summary: string
+  }) => void
+}): Promise<'no-id' | 'busy' | 'ready'> {
+  const sid = ops.storyId
+  if (!sid) return 'no-id'
+  if (ops.isBusy(sid)) return 'busy'
+  const idRes = ops.resolveIdentity({
+    useIdentityRef: ops.useIdentity,
+    selectedPaths: ops.paths
+  })
+  let prompt = ops.buildPrompt(idRes.useEdit)
+  prompt = ops.maybeAppend(prompt, idRes.paths)
+  prompt = ops.ensureRules(prompt)
+  ops.setPendingId(sid)
+  ops.setConfirm({
+    prompt,
+    referencePaths: idRes.paths,
+    useIdentityEdit: idRes.useEdit,
+    summary: ops.summary
+  })
+  return 'ready'
+}
+
+export function storiesCoverPromptParts(ops: {
+  locale: 'zh-HK' | 'en'
+  title: string
+  note: string
+  idea: string
+  artBlock: string
+}): string[] {
+  if (ops.locale === 'en') {
+    return [
+      'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
+      'Not a UI mockup. No text, no logo, no watermark, no title caption.',
+      `Story title (mood only, do not letter it): ${ops.title}.`,
+      ops.artBlock,
+      ops.note ? `Style bible: ${ops.note}` : '',
+      ops.idea ? `Extra direction: ${ops.idea}` : '',
+      'Evocative establishing mood frame suitable as a library card cover.',
+      'Match the art medium; strong silhouette and readable mood.'
+    ].filter(Boolean)
+  }
+  return [
+    'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
+    'Not a UI mockup. No text, no logo, no watermark, no title caption.',
+    `故事標題（只取氣氛，畫面勿寫出文字）：${ops.title}。`,
+    ops.artBlock,
+    ops.note ? `風格備註：${ops.note}` : '',
+    ops.idea ? `額外方向：${ops.idea}` : '',
+    '適合用作片庫封面的情緒建立鏡頭；強烈剪影、可讀氣氛。',
+    '依藝術風格 medium 出圖；構圖清晰。'
+  ].filter(Boolean)
+}
+
+
+export function storiesMakeLinkToggle(ops: {
+  getEditingId: () => string | null
+  link: (id: string) => Promise<unknown>
+  unlink: (id: string) => Promise<unknown>
+  reload: () => Promise<void> | void
+  toastSuccess: (linked: boolean) => void
+  setError: (m: string) => void
+  toastError: (m: string) => void
+}): (id: string, linked: boolean) => Promise<void> {
+  return async (id, linked) => {
+    await storiesRunLinkToggle({
+      editingId: ops.getEditingId(),
+      linked,
+      link: () => ops.link(id),
+      unlink: () => ops.unlink(id),
+      reload: ops.reload,
+      toastSuccess: ops.toastSuccess,
+      setError: ops.setError,
+      toastError: ops.toastError
+    })
+  }
+}
+
+export function storiesMakeSetCover(
+  setCoverPath: (p: string) => void,
+  coverGallery: { id: string; path: string }[],
+  setSelectedCoverId: (id: string | null) => void,
+  toastSuccess: () => void
+): (path: string) => void {
+  return (path: string) => {
+    setCoverPath(path)
+    const hit = coverGallery.find((g) => g.path === path)
+    if (hit) setSelectedCoverId(hit.id)
+    toastSuccess()
+  }
+}
+
+export function storiesMakeCoverCommitted(
+  getEditingId: () => string | null,
+  ops: {
+    setCoverPath: (p: string) => void
+    loadDetail: (id: string) => void
+    refresh: () => void
+    toastSuccess: () => void
+  }
+): (payload: { storyId: string; path: string }) => void {
+  return (payload) =>
+    storiesHandleCoverCommitted(payload, getEditingId(), ops)
+}
+
+export function storiesGeneratingLabel(
+  busy: boolean,
+  generating: string,
+  idle: string
+): string {
+  return busy ? generating : idle
+}
+
+export function storiesStatusOrDraft(
+  status: string | undefined,
+  isStatus: (s: string) => boolean
+): string {
+  return isStatus(status ?? '') ? (status as string) : 'DRAFT'
+}
+
+export function storiesAppendTemplate(
+  dialogue: string | null | undefined,
+  tmpl: string
+): string {
+  return dialogue?.trim() ? `${dialogue.trim()}\n${tmpl}` : tmpl
+}
+
+export function storiesSpokenPreview(
+  spoken: string,
+  max = 80
+): string {
+  return spoken.length > max ? `${spoken.slice(0, max)}…` : spoken
+}
+
+export function storiesCreateId(
+  create: () => Promise<{ id: string }>
+): Promise<{ id: string }> {
+  return create()
+}
+
+export function storiesEditPrefix(
+  locale: 'zh-HK' | 'en'
+): string {
+  return locale === 'en'
+    ? 'IMAGE EDIT: create a new short-drama poster composition. Keep identity/mood of subjects if present. '
+    : 'IMAGE EDIT：以新構圖創作短劇海報。保留主體身份／氣氛（如有）。'
+}
+
+export function storiesPrimaryCover(
+  coverGallery: { id: string; path: string }[],
+  coverPath: string | null
+): { id: string; path: string } | null {
+  return (
+    coverGallery.find((g) => g.path === coverPath) ??
+    coverGallery[0] ??
+    null
+  )
+}
+
+export function storiesSortTitle(
+  a: { title: string },
+  b: { title: string }
+): number {
+  return a.title.localeCompare(b.title, 'zh-Hant')
+}
+
+
+export async function storiesRunUpdateBeat(ops: {
+  id: string
+  patch: Record<string, unknown>
+  setBeats: (fn: (prev: unknown[]) => unknown[]) => void
+  update: (id: string, patch: unknown) => Promise<unknown>
+  setError: (m: string) => void
+  toastError: (m: string) => void
+  editingId: string | null
+  reload: (id: string) => Promise<void> | void
+}): Promise<void> {
+  ops.setBeats(
+    (prev) =>
+      storiesOptimisticBeatPatch(prev as never, ops.id, ops.patch as never) as never
+  )
+  try {
+    const updated = await ops.update(ops.id, ops.patch)
+    ops.setBeats((prev) =>
+      (prev as { id: string }[]).map((b) =>
+        b.id === ops.id ? { ...b, ...(updated as object) } : b
+      )
+    )
+  } catch (e) {
+    storiesApplyIpc(e, ops.setError, ops.toastError)
+    if (ops.editingId) await ops.reload(ops.editingId)
+  }
+}
+
+export async function storiesRunDeleteBeat(ops: {
+  confirm: () => Promise<boolean>
+  delete: () => Promise<unknown>
+  editingId: string | null
+  reload: () => Promise<void> | void
+  toastSuccess: () => void
+  setError: (m: string) => void
+  toastError: (m: string) => void
+}): Promise<'cancel' | 'ok' | 'error'> {
+  if (!(await ops.confirm())) return 'cancel'
+  try {
+    await ops.delete()
+    if (ops.editingId) await ops.reload()
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    storiesApplyIpc(e, ops.setError, ops.toastError)
+    return 'error'
+  }
+}
+
+export async function storiesRunMoveBeat(ops: {
+  editingId: string | null
+  beats: { id: string }[]
+  id: string
+  delta: -1 | 1
+  setBeats: (next: { id: string }[]) => void
+  reorder: (ids: string[]) => Promise<unknown>
+  toastSuccess: () => void
+  setError: (m: string) => void
+  toastError: (m: string) => void
+  reload: () => Promise<void> | void
+}): Promise<'no-id' | 'noop' | 'ok' | 'error'> {
+  if (!ops.editingId) return 'no-id'
+  const { next } = storiesMoveBeatIndex(ops.beats, ops.id, ops.delta)
+  if (!next) return 'noop'
+  ops.setBeats(next)
+  try {
+    await ops.reorder(next.map((b) => b.id))
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    storiesApplyIpc(e, ops.setError, ops.toastError)
+    await ops.reload()
+    return 'error'
+  }
+}
+
+export function storiesPickCoverImage(
+  coverGallery: { id: string; path: string }[],
+  selectedCoverId: string | null,
+  coverPath: string | null
+): { id: string; path: string } | null {
+  return (
+    coverGallery.find((g) => g.id === selectedCoverId) ??
+    coverGallery.find((g) => g.path === coverPath) ??
+    coverGallery[0] ??
+    null
+  )
+}
+
+
+export function storiesApplyBeatTemplate(
+  dialogue: string | null | undefined,
+  tmpl: string
+): string {
+  return storiesAppendTemplate(dialogue, tmpl)
+}
+
+export function storiesApplyBeatTemplateToList<
+  T extends { id: string; dialogue?: string | null }
+>(beats: T[], beatId: string, tmpl: string): T[] {
+  return beats.map((b) =>
+    b.id === beatId
+      ? { ...b, dialogue: storiesApplyBeatTemplate(b.dialogue, tmpl) }
+      : b
+  )
+}
+
+export function storiesCommitBeatBlur(
+  value: string,
+  locale: 'zh-HK' | 'en',
+  commit: (
+    value: string,
+    locale: 'zh-HK' | 'en'
+  ) => { dialogue?: string | null; beatContentJson?: string | null }
+): {
+  dialogue: string | null
+  beatContentJson?: string | null
+  localDialogue: string
+} {
+  const committed = commit(value, locale)
+  return {
+    dialogue: committed.dialogue ?? (value.trim() || null),
+    beatContentJson: committed.beatContentJson,
+    localDialogue: value
+  }
+}
+
+export function storiesHardRulesFromDetail(
+  hardRules: unknown
+): string {
+  return typeof hardRules === 'string' ? hardRules ?? '' : ''
+}
+
+export function storiesCastPageNext(
+  page: number,
+  totalPages: number
+): number {
+  return Math.min(totalPages, page + 1)
+}
+
+export function storiesDescSlice(
+  description: string | null | undefined,
+  n = 40
+): string {
+  return (description ?? '').slice(0, n)
+}
+
+
+export function storiesCancelImageGen(
+  setConfirm: (v: null) => void,
+  setPending: (v: null) => void
+): void {
+  setConfirm(null)
+  setPending(null)
+}
+
+export function storiesMultiBindUpdate(
+  updateBeat: (id: string, patch: Record<string, unknown>) => void,
+  beatId: string,
+  key: string,
+  ids: string[]
+): void {
+  updateBeat(beatId, { [key]: ids })
+}
+
+export function storiesBrowseSort(
+  mode: string,
+  a: { title?: string; updatedAt?: string | Date },
+  b: { title?: string; updatedAt?: string | Date }
+): number {
+  if (mode === 'title') {
+    return storiesSortTitle(a, b)
+  }
+  const ta = a.updatedAt
+  const tb = b.updatedAt
+  const sa = ta ? new Date(ta).getTime() : 0
+  const sb = tb ? new Date(tb).getTime() : 0
+  return sb - sa
+}
+
+export async function storiesCreateStoryId(
+  title: string,
+  create: (title: string) => Promise<{ id: string }>
+): Promise<{ id: string }> {
+  const created = await create(title)
+  return { id: created.id as string }
+}
+
+export async function storiesCoverJobAfterGen(ops: {
+  cancelled: boolean
+  discard: (path: string) => Promise<unknown>
+  path: string
+}): Promise<boolean> {
+  return storiesJobCancelDiscard(ops.cancelled, ops.discard, ops.path)
+}
+
+export function storiesPropLinkToggleOps(ops: {
+  getEditingId: () => string | null
+  linkProp: (storyId: string, propId: string) => Promise<unknown>
+  unlinkProp: (storyId: string, propId: string) => Promise<unknown>
+  loadDetail: (id: string) => Promise<void> | void
+  refreshStories: () => Promise<void> | void
+  toastSuccess: (wasLinked: boolean) => void
+  setError: (m: string) => void
+  toastError: (m: string) => void
+}): {
+  getEditingId: () => string | null
+  link: (id: string) => Promise<unknown>
+  unlink: (id: string) => Promise<unknown>
+  reload: () => Promise<void>
+  toastSuccess: (wasLinked: boolean) => void
+  setError: (m: string) => void
+  toastError: (m: string) => void
+} {
+  return {
+    getEditingId: ops.getEditingId,
+    link: async (id) =>
+      ops.linkProp(ops.getEditingId()!, id),
+    unlink: async (id) =>
+      ops.unlinkProp(ops.getEditingId()!, id),
+    reload: async () => {
+      await ops.loadDetail(ops.getEditingId()!)
+      await ops.refreshStories()
+    },
+    toastSuccess: ops.toastSuccess,
+    setError: ops.setError,
+    toastError: ops.toastError
+  }
+}
+
+export function storiesCastBrowserRows(
+  kind: 'characters' | 'scenes' | 'props' | 'actions',
+  data: {
+    characters: Array<{ id: string; name: string; description?: string | null; updatedAt?: string | Date }>
+    scenes: Array<{ id: string; title?: string | null; description: string; updatedAt?: string | Date }>
+    props: Array<{ id: string; name: string; description?: string | null; updatedAt?: string | Date }>
+    actions: Array<{ id: string; name: string; description?: string | null; updatedAt?: string | Date }>
+    linkedCharIds: Set<string>
+    linkedSceneIds: Set<string>
+    linkedPropIds: Set<string>
+    linkedActionIds: Set<string>
+    emptyChars: string
+    emptyScenes: string
+    emptyProps: string
+    emptyActions: string
+  }
+): {
+  items: Array<{ id: string; label: string; sub?: string | null; updatedAt?: string | Date }>
+  linkedIds: Set<string>
+  empty: string
+} {
+  if (kind === 'characters') {
+    return {
+      items: data.characters.map((c) => ({
+        id: c.id,
+        label: c.name,
+        sub: c.description,
+        updatedAt: c.updatedAt
+      })),
+      linkedIds: data.linkedCharIds,
+      empty: data.emptyChars
+    }
+  }
+  if (kind === 'scenes') {
+    return {
+      items: data.scenes.map((s) => ({
+        id: s.id,
+        label: s.title || s.description.slice(0, 48),
+        sub: s.description,
+        updatedAt: s.updatedAt
+      })),
+      linkedIds: data.linkedSceneIds,
+      empty: data.emptyScenes
+    }
+  }
+  if (kind === 'props') {
+    return {
+      items: data.props.map((p) => ({
+        id: p.id,
+        label: p.name,
+        sub: p.description,
+        updatedAt: p.updatedAt
+      })),
+      linkedIds: data.linkedPropIds,
+      empty: data.emptyProps
+    }
+  }
+  return {
+    items: data.actions.map((a) => ({
+      id: a.id,
+      label: a.name,
+      sub: a.description,
+      updatedAt: a.updatedAt
+    })),
+    linkedIds: data.linkedActionIds,
+    empty: data.emptyActions
+  }
+}
+
+export async function storiesRunAddBeat(ops: {
+  editingId: string | null
+  order: number
+  firstChar?: string
+  firstScene?: string
+  create: (payload: {
+    storyId: string
+    startTime: number
+    endTime: number
+    order: number
+    dialogue: string
+    characterIds: string[]
+    sceneIds: string[]
+    propIds: string[]
+    actionIds: string[]
+  }) => Promise<unknown>
+  loadDetail: (id: string) => Promise<void> | void
+  refreshStories: () => Promise<void> | void
+  setError: (m: string) => void
+}): Promise<'no-id' | 'ok' | 'error'> {
+  if (!ops.editingId) return 'no-id'
+  try {
+    const start = ops.order * 6
+    await ops.create({
+      storyId: ops.editingId,
+      startTime: start,
+      endTime: start + 6,
+      order: ops.order,
+      dialogue: '',
+      characterIds: ops.firstChar ? [ops.firstChar] : [],
+      sceneIds: ops.firstScene ? [ops.firstScene] : [],
+      propIds: [],
+      actionIds: []
+    })
+    await ops.loadDetail(ops.editingId)
+    await ops.refreshStories()
+    return 'ok'
+  } catch (e) {
+    storiesApplyIpc(e, ops.setError)
+    return 'error'
+  }
+}
+
+export function storiesCoverSetHandler(
+  path: string | null | undefined,
+  setCover: (path: string) => void
+): (() => void) | undefined {
+  return path ? () => setCover(path) : undefined
+}
+
+export function storiesCoverRemoveHandler(
+  id: string | null | undefined,
+  remove: (id: string) => void
+): (() => void) | undefined {
+  return id ? () => remove(id) : undefined
+}
+
+export function storiesBlurDialogue(
+  committed: string | null | undefined,
+  raw: string
+): string | null {
+  return committed ?? (raw.trim() || null)
+}
+
+export function storiesCoverJobCancelledResult(): undefined {
+  return undefined
+}
+
+export function storiesAiMetaShouldSkip(
+  title: string,
+  idea: string,
+  styleNote: string,
+  hardRules: string,
+  setError: (m: string) => void,
+  needTitle: string
+): boolean {
+  return storiesGuardAiMetaSource(
+    title,
+    idea,
+    styleNote,
+    hardRules,
+    setError,
+    needTitle
+  )
+}
+
+export function storiesMakePropToggle(ops: {
+  getEditingId: () => string | null
+  storiesApi: {
+    linkProp: (p: { storyId: string; propId: string }) => Promise<unknown>
+    unlinkProp: (p: { storyId: string; propId: string }) => Promise<unknown>
+  }
+  loadDetail: (id: string) => Promise<void> | void
+  refreshStories: () => Promise<void> | void
+  linkedMsg: string
+  unlinkedMsg: string
+  toastSuccess: (m: string) => void
+  setError: (m: string) => void
+  toastError: (m: string) => void
+}): (id: string, linked: boolean) => Promise<void> {
+  return storiesMakeLinkToggle(
+    storiesPropLinkToggleOps({
+      getEditingId: ops.getEditingId,
+      linkProp: (storyId, propId) =>
+        ops.storiesApi.linkProp({ storyId, propId }),
+      unlinkProp: (storyId, propId) =>
+        ops.storiesApi.unlinkProp({ storyId, propId }),
+      loadDetail: ops.loadDetail,
+      refreshStories: ops.refreshStories,
+      toastSuccess: (wasLinked) =>
+        ops.toastSuccess(wasLinked ? ops.unlinkedMsg : ops.linkedMsg),
+      setError: ops.setError,
+      toastError: ops.toastError
+    })
+  )
+}
+
+export function storiesMultiBindHandler(
+  updateBeat: (id: string, patch: Record<string, unknown>) => void,
+  beatId: string,
+  key: string
+): (ids: string[]) => void {
+  return (ids) =>
+    storiesMultiBindUpdate(updateBeat, beatId, key, ids)
+}
+
+export function storiesCancelImageGenBind(
+  setConfirm: (v: null) => void,
+  setPending: (v: null) => void
+): () => void {
+  return () => storiesCancelImageGen(setConfirm, setPending)
+}
+
+export function storiesCastPageNextClick(
+  setPage: (fn: (p: number) => number) => void,
+  totalPages: number
+): () => void {
+  return () => setPage((p) => storiesCastPageNext(p, totalPages))
+}
+
+export function storiesCostumeOptionLabel(
+  name: string | null | undefined,
+  description: string | null | undefined
+): string {
+  return name?.trim() || storiesDescSlice(description, 40)
+}
+
+export async function storiesCoverJobFinishOrCancel<T>(ops: {
+  cancelled: boolean
+  discard: (path: string) => Promise<unknown>
+  path: string
+  onContinue: () => Promise<T> | T
+}): Promise<T | undefined> {
+  const stop = await storiesCoverJobAfterGen({
+    cancelled: ops.cancelled,
+    discard: ops.discard,
+    path: ops.path
+  })
+  if (stop) return storiesCoverJobCancelledResult()
+  return ops.onContinue()
+}
+
+export function storiesRunAiMetaIfReady(ops: {
+  skip: boolean
+  run: () => void
+}): void {
+  if (ops.skip) return
+  ops.run()
+}

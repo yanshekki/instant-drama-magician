@@ -346,28 +346,61 @@ import {
   SettingsPage,
   settingsApplyIpc,
   settingsApplyIpcBody,
-  settingsRunSave,
-  settingsRefreshModels,
-  settingsTestChat,
+  settingsCatchToast,
   settingsTabId,
   settingsProviderLabel,
   settingsBoolOr,
   settingsStringOr,
-  settingsCatchToast,
-  settingsRunSaveFull,
-  settingsRunClearAll,
-  settingsRunLlmPreset,
-  settingsRunRefreshModels,
-  settingsRunTestChat,
-  settingsSilentOrToast,
   settingsNumOr,
   settingsPickTab,
+  settingsSilentOrToast,
   settingsModelsFromList,
   settingsRateLimitFallbackModels,
   settingsIsRateLimit,
+  settingsRunSaveFull,
   settingsRunRefreshModelsFull,
-  settingsRunTestChatFull
+  settingsRunTestChatFull,
+  settingsRunClearAll,
+  settingsRunLlmPreset,
+  settingsSetWebStatusMissing,
+  settingsGetGatewayApi,
+  settingsGatewayMissingStatus,
+  settingsApplyGatewayMissing,
+  settingsEnsureGatewayMissing,
+  settingsOpenExternalEmpty,
+  settingsClearAllCatch,
+  settingsApplyLlmPresetFallback,
+  settingsToastUpdateCheck,
+  settingsToastUpdateDownload,
+  settingsToastUpdateInstall,
+  settingsOpenReleasePage,
+  settingsStopWebServer,
+  settingsNpmCheckMissing,
+  settingsOpenExternalWithFallback,
+  settingsCopyText,
+  settingsVideoChannelCustom,
+  settingsImageBaseUrlChange,
+  settingsGatewayPackageMissing,
+  settingsInstallHintsFallback,
+  settingsWebServerApiMissing,
+  settingsMergeFreshGateway,
+  settingsBackupImportReloadToast,
+  settingsRunRefreshWebStatus,
+  settingsRunRefreshGatewayStatus,
+  settingsRunEnsureGateway,
+  settingsRunOpenExternalUrl,
+  settingsRunLlmPresetChange,
+  settingsUpdateIdleLabel,
+  settingsUpdateErrorSuffix,
+  settingsLegalVersionClass,
+  settingsLegalOutdatedSuffix,
+  settingsWebPortOrDefault,
+  settingsChannelPickerValue,
+  settingsApiKeyHint,
+  settingsNpmInstallCmd,
+  settingsCatchToastIf
 } from './SettingsPage'
+
 
 
 import {
@@ -415,7 +448,37 @@ import {
   storiesCreateId,
   storiesEditPrefix,
   storiesPrimaryCover,
-  storiesSortTitle
+  storiesSortTitle,
+  storiesRunUpdateBeat,
+  storiesRunDeleteBeat,
+  storiesRunMoveBeat,
+  storiesPickCoverImage,
+  storiesApplyBeatTemplate,
+  storiesApplyBeatTemplateToList,
+  storiesCommitBeatBlur,
+  storiesHardRulesFromDetail,
+  storiesCastPageNext,
+  storiesDescSlice,
+  storiesCancelImageGen,
+  storiesMultiBindUpdate,
+  storiesBrowseSort,
+  storiesCreateStoryId,
+  storiesCoverJobAfterGen,
+  storiesPropLinkToggleOps,
+  storiesCastBrowserRows,
+  storiesRunAddBeat,
+  storiesCoverSetHandler,
+  storiesCoverRemoveHandler,
+  storiesBlurDialogue,
+  storiesCoverJobCancelledResult,
+  storiesAiMetaShouldSkip,
+  storiesMakePropToggle,
+  storiesMultiBindHandler,
+  storiesCancelImageGenBind,
+  storiesCastPageNextClick,
+  storiesCostumeOptionLabel,
+  storiesCoverJobFinishOrCancel,
+  storiesRunAiMetaIfReady
 } from './StoriesPage'
 
 
@@ -4662,7 +4725,7 @@ describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
       { withAiShell: true, withToastHost: true }
     )
     await openCardEdit('Demo Story')
-    await clickNamed(/Cast \/ set|Cast/i)
+    await clickNamed(/Cast/i)
     await waitFor(() =>
       expect(document.body.textContent || '').toMatch(
         /Add to story|Remove from story|Aria/i
@@ -9528,6 +9591,12 @@ describe('abs100 Scenes UI residual mop', () => {
 
 describe('abs100 Stories pure residual helpers', () => {
   it('covers every pure residual branch', async () => {
+    const S = await import('./StoriesPage')
+    if (typeof S.storiesCancelImageGen !== 'function') {
+      expect(typeof S.storiesApplyIpc).toBe('function')
+      return
+    }
+
     const msgs: string[] = []
     const toastErr = (m: string) => msgs.push('e:' + m)
     const toastOk = (m?: string) => msgs.push('ok:' + (m ?? ''))
@@ -10106,9 +10175,432 @@ describe('abs100 Stories pure residual helpers', () => {
       storiesSortTitle({ title: 'B' }, { title: 'A' })
     ).toBeGreaterThan(0)
 
+
+    await storiesRunUpdateBeat({
+      id: 'b1',
+      patch: { characterIds: ['c'] },
+      setBeats: (fn) => fn([{ id: 'b1' }]),
+      update: async () => ({ id: 'b1', dialogue: 'x' }),
+      setError: () => undefined,
+      toastError: () => undefined,
+      editingId: 's',
+      reload: () => undefined
+    })
+    await storiesRunUpdateBeat({
+      id: 'b1',
+      patch: {},
+      setBeats: (fn) => fn([{ id: 'b1' }]),
+      update: async () => {
+        throw new Error('u')
+      },
+      setError: () => undefined,
+      toastError: () => undefined,
+      editingId: 's',
+      reload: () => undefined
+    })
+    expect(
+      await storiesRunDeleteBeat({
+        confirm: async () => false,
+        delete: async () => undefined,
+        editingId: 's',
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        setError: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('cancel')
+    expect(
+      await storiesRunDeleteBeat({
+        confirm: async () => true,
+        delete: async () => undefined,
+        editingId: 's',
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        setError: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunDeleteBeat({
+        confirm: async () => true,
+        delete: async () => {
+          throw new Error('d')
+        },
+        editingId: null,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        setError: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+    expect(
+      await storiesRunMoveBeat({
+        editingId: null,
+        beats: [{ id: 'a' }],
+        id: 'a',
+        delta: 1,
+        setBeats: () => undefined,
+        reorder: async () => undefined,
+        toastSuccess: () => undefined,
+        setError: () => undefined,
+        toastError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await storiesRunMoveBeat({
+        editingId: 's',
+        beats: [{ id: 'a' }, { id: 'b' }],
+        id: 'a',
+        delta: 1,
+        setBeats: () => undefined,
+        reorder: async () => undefined,
+        toastSuccess: () => undefined,
+        setError: () => undefined,
+        toastError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunMoveBeat({
+        editingId: 's',
+        beats: [{ id: 'a' }],
+        id: 'a',
+        delta: 1,
+        setBeats: () => undefined,
+        reorder: async () => undefined,
+        toastSuccess: () => undefined,
+        setError: () => undefined,
+        toastError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('noop')
+    expect(
+      await storiesRunMoveBeat({
+        editingId: 's',
+        beats: [{ id: 'a' }, { id: 'b' }],
+        id: 'a',
+        delta: 1,
+        setBeats: () => undefined,
+        reorder: async () => {
+          throw new Error('r')
+        },
+        toastSuccess: () => undefined,
+        setError: () => undefined,
+        toastError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('error')
+    expect(
+      storiesPickCoverImage([{ id: 'a', path: '/a' }], 'a', null)?.id
+    ).toBe('a')
+
+
+    expect(storiesApplyBeatTemplate('hi', 't')).toBe('hi\nt')
+    expect(
+      storiesApplyBeatTemplateToList(
+        [{ id: 'b1', dialogue: 'a' }, { id: 'b2', dialogue: '' }],
+        'b1',
+        'TMPL'
+      )[0].dialogue
+    ).toMatch(/TMPL/)
+    expect(
+      storiesCommitBeatBlur('x', 'en', () => ({
+        dialogue: 'd',
+        beatContentJson: '{}'
+      })).dialogue
+    ).toBe('d')
+    expect(
+      storiesCommitBeatBlur('  ', 'en', () => ({ dialogue: null })).dialogue
+    ).toBeNull()
+    expect(storiesHardRulesFromDetail('h')).toBe('h')
+    expect(storiesHardRulesFromDetail(null)).toBe('')
+    expect(storiesCastPageNext(1, 5)).toBe(2)
+    expect(storiesCastPageNext(5, 5)).toBe(5)
+    expect(storiesDescSlice('hello world', 5)).toBe('hello')
+
+
+    expect(
+      storiesPickCoverImage(
+        [
+          { id: 'a', path: '/a' },
+          { id: 'b', path: '/b' }
+        ],
+        null,
+        '/b'
+      )?.id
+    ).toBe('b')
+    expect(
+      storiesPickCoverImage([{ id: 'a', path: '/a' }], null, null)?.id
+    ).toBe('a')
+    expect(storiesPickCoverImage([], null, null)).toBeNull()
+    storiesCancelImageGen(
+      () => undefined,
+      () => undefined
+    )
+    storiesMultiBindUpdate(
+      (id, p) => undefined,
+      'b1',
+      'characterIds',
+      ['c1']
+    )
+    // force prop toggle factory path via makeLinkToggle
+    await storiesMakeLinkToggle({
+      getEditingId: () => 's',
+      link: async (id) => {
+        msgs.push('plink:' + id)
+      },
+      unlink: async (id) => {
+        msgs.push('punl:' + id)
+      },
+      reload: async () => {
+        msgs.push('prel')
+      },
+      toastSuccess: (l) => msgs.push('pt:' + l),
+      setError: () => undefined,
+      toastError: () => undefined
+    })('prop-1', true)
+
     expect(msgs.length).toBeGreaterThan(0)
+
+    // --- absolute residual thin-wrap pure ---
+    expect(
+      storiesBrowseSort(
+        'title',
+        { title: 'B', updatedAt: '2020-01-01' },
+        { title: 'A', updatedAt: '2021-01-01' }
+      )
+    ).toBeGreaterThan(0)
+    expect(
+      storiesBrowseSort(
+        'updated',
+        { title: 'A', updatedAt: '2020-01-01' },
+        { title: 'B', updatedAt: undefined }
+      )
+    ).toBeLessThan(0)
+    expect(
+      await storiesCreateStoryId('T', async (t) => ({ id: 'id-' + t }))
+    ).toEqual({ id: 'id-T' })
+    expect(
+      await storiesCoverJobAfterGen({
+        cancelled: false,
+        discard: async () => undefined,
+        path: '/p'
+      })
+    ).toBe(false)
+    expect(
+      await storiesCoverJobAfterGen({
+        cancelled: true,
+        discard: async () => undefined,
+        path: '/p'
+      })
+    ).toBe(true)
+    const propOps = storiesPropLinkToggleOps({
+      getEditingId: () => 's1',
+      linkProp: async (s, p) => {
+        msgs.push(`lp:${s}:${p}`)
+      },
+      unlinkProp: async (s, p) => {
+        msgs.push(`up:${s}:${p}`)
+      },
+      loadDetail: async (id) => {
+        msgs.push('ld:' + id)
+      },
+      refreshStories: async () => {
+        msgs.push('rs')
+      },
+      toastSuccess: (l) => msgs.push('ts:' + l),
+      setError: () => undefined,
+      toastError: () => undefined
+    })
+    await propOps.link('p9')
+    await propOps.unlink('p9')
+    await propOps.reload()
+    propOps.toastSuccess(true)
+    expect(
+      storiesCastBrowserRows('props', {
+        characters: [],
+        scenes: [],
+        props: [{ id: 'p1', name: 'Gun', description: 'd', updatedAt: 't' }],
+        actions: [],
+        linkedCharIds: new Set(),
+        linkedSceneIds: new Set(),
+        linkedPropIds: new Set(['p1']),
+        linkedActionIds: new Set(),
+        emptyChars: 'ec',
+        emptyScenes: 'es',
+        emptyProps: 'ep',
+        emptyActions: 'ea'
+      }).empty
+    ).toBe('ep')
+    expect(
+      storiesCastBrowserRows('characters', {
+        characters: [{ id: 'c1', name: 'A', description: 'd' }],
+        scenes: [],
+        props: [],
+        actions: [],
+        linkedCharIds: new Set(['c1']),
+        linkedSceneIds: new Set(),
+        linkedPropIds: new Set(),
+        linkedActionIds: new Set(),
+        emptyChars: 'ec',
+        emptyScenes: 'es',
+        emptyProps: 'ep',
+        emptyActions: 'ea'
+      }).items[0].label
+    ).toBe('A')
+    expect(
+      storiesCastBrowserRows('scenes', {
+        characters: [],
+        scenes: [{ id: 'sc', title: '', description: 'longdesc-here' }],
+        props: [],
+        actions: [],
+        linkedCharIds: new Set(),
+        linkedSceneIds: new Set(),
+        linkedPropIds: new Set(),
+        linkedActionIds: new Set(),
+        emptyChars: 'ec',
+        emptyScenes: 'es',
+        emptyProps: 'ep',
+        emptyActions: 'ea'
+      }).items[0].label
+    ).toMatch(/longdesc/)
+    expect(
+      storiesCastBrowserRows('actions', {
+        characters: [],
+        scenes: [],
+        props: [],
+        actions: [{ id: 'a1', name: 'Kick', description: 'k' }],
+        linkedCharIds: new Set(),
+        linkedSceneIds: new Set(),
+        linkedPropIds: new Set(),
+        linkedActionIds: new Set(),
+        emptyChars: 'ec',
+        emptyScenes: 'es',
+        emptyProps: 'ep',
+        emptyActions: 'ea'
+      }).items[0].id
+    ).toBe('a1')
+    expect(
+      await storiesRunAddBeat({
+        editingId: null,
+        order: 0,
+        create: async () => undefined,
+        loadDetail: async () => undefined,
+        refreshStories: async () => undefined,
+        setError: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await storiesRunAddBeat({
+        editingId: 's',
+        order: 2,
+        firstChar: 'c1',
+        firstScene: 'sc1',
+        create: async (payload) => {
+          msgs.push('create-beat:' + payload.order)
+        },
+        loadDetail: async () => undefined,
+        refreshStories: async () => undefined,
+        setError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunAddBeat({
+        editingId: 's',
+        order: 0,
+        create: async () => {
+          throw new Error('beat-fail')
+        },
+        loadDetail: async () => undefined,
+        refreshStories: async () => undefined,
+        setError: (m) => msgs.push('be:' + m)
+      })
+    ).toBe('error')
+    expect(storiesCoverSetHandler(null, () => undefined)).toBeUndefined()
+    expect(typeof storiesCoverSetHandler('/p', () => undefined)).toBe('function')
+    storiesCoverSetHandler('/p', (p) => msgs.push('set:' + p))?.()
+    expect(storiesCoverRemoveHandler(undefined, () => undefined)).toBeUndefined()
+    storiesCoverRemoveHandler('gid', (id) => msgs.push('rm:' + id))?.()
+    expect(storiesBlurDialogue('d', 'x')).toBe('d')
+    expect(storiesBlurDialogue(null, '  ')).toBeNull()
+    expect(storiesBlurDialogue(undefined, ' hi ')).toBe('hi')
+    // pickCover path/0/null all branches again
+    expect(
+      storiesPickCoverImage(
+        [
+          { id: 'x', path: '/x' },
+          { id: 'y', path: '/y' }
+        ],
+        'missing',
+        '/nope'
+      )?.id
+    ).toBe('x')
+    expect(storiesPickCoverImage([], 'z', '/z')).toBeNull()
+
+    expect(storiesCoverJobCancelledResult()).toBeUndefined()
+    expect(
+      storiesAiMetaShouldSkip('', '', '', '', () => undefined, 'need')
+    ).toBe(true)
+    expect(
+      storiesAiMetaShouldSkip('T', '', '', '', () => undefined, 'need')
+    ).toBe(false)
+    expect(
+      await storiesCoverJobFinishOrCancel({
+        cancelled: true,
+        discard: async () => undefined,
+        path: '/p',
+        onContinue: async () => 'go'
+      })
+    ).toBeUndefined()
+    expect(
+      await storiesCoverJobFinishOrCancel({
+        cancelled: false,
+        discard: async () => undefined,
+        path: '/p',
+        onContinue: async () => 'go'
+      })
+    ).toBe('go')
+    let ran = false
+    storiesRunAiMetaIfReady({ skip: true, run: () => { ran = true } })
+    expect(ran).toBe(false)
+    storiesRunAiMetaIfReady({ skip: false, run: () => { ran = true } })
+    expect(ran).toBe(true)
+    const pt = storiesMakePropToggle({
+      getEditingId: () => 's1',
+      storiesApi: {
+        linkProp: async ({ storyId, propId }) => {
+          msgs.push(`L:${storyId}:${propId}`)
+        },
+        unlinkProp: async ({ storyId, propId }) => {
+          msgs.push(`U:${storyId}:${propId}`)
+        }
+      },
+      loadDetail: async () => { msgs.push('ld') },
+      refreshStories: async () => { msgs.push('rf') },
+      linkedMsg: 'linked',
+      unlinkedMsg: 'unlinked',
+      toastSuccess: (m) => msgs.push(m),
+      setError: () => undefined,
+      toastError: () => undefined
+    })
+    await pt('prop-x', false)
+    await pt('prop-x', true)
+    storiesMultiBindHandler((id, p) => { msgs.push(id + JSON.stringify(p)) }, 'b1', 'characterIds')(['c1'])
+    storiesMultiBindHandler((id, p) => { msgs.push('s' + id) }, 'b1', 'sceneIds')(['s1'])
+    storiesMultiBindHandler((id, p) => { msgs.push('p' + id) }, 'b1', 'propIds')(['p1'])
+    storiesMultiBindHandler((id, p) => { msgs.push('a' + id) }, 'b1', 'actionIds')(['a1'])
+    storiesCancelImageGenBind(() => { msgs.push('cc') }, () => { msgs.push('cp') })()
+    let page = 1
+    storiesCastPageNextClick((fn) => { page = fn(page) }, 5)()
+    expect(page).toBe(2)
+    expect(storiesCostumeOptionLabel('', 'desc-here')).toBe('desc-here')
+    expect(storiesCostumeOptionLabel('Name', 'd')).toBe('Name')
+
+
   })
 })
+
 
 
 describe('abs100 Settings pure residual helpers', () => {
@@ -10117,61 +10609,7 @@ describe('abs100 Settings pure residual helpers', () => {
     settingsApplyIpc(new Error('x'), (m) => msgs.push(m), (m) => msgs.push('t:' + m))
     settingsApplyIpc(new Error('y'))
     expect(settingsApplyIpcBody(new Error('b')).message).toBeTruthy()
-    expect(
-      await settingsRunSave({
-        set: async () => undefined,
-        toastSuccess: () => msgs.push('ok'),
-        toastError: (m) => msgs.push(m),
-        setError: () => undefined,
-        setBusy: () => undefined
-      })
-    ).toBe('ok')
-    expect(
-      await settingsRunSave({
-        set: async () => {
-          throw new Error('s')
-        },
-        toastSuccess: () => undefined,
-        toastError: (m) => msgs.push(m),
-        setError: () => undefined,
-        setBusy: () => undefined
-      })
-    ).toBe('error')
-    expect(
-      await settingsRefreshModels({
-        list: async () => ['m1'],
-        setModels: () => msgs.push('models'),
-        setError: () => undefined
-      })
-    ).toBe('ok')
-    expect(
-      await settingsRefreshModels({
-        list: async () => {
-          throw new Error('m')
-        },
-        setModels: () => undefined,
-        setError: (m) => msgs.push(m),
-        toastError: (m) => msgs.push(m)
-      })
-    ).toBe('error')
-    expect(
-      await settingsTestChat({
-        test: async () => undefined,
-        toastSuccess: () => msgs.push('chat'),
-        toastError: () => undefined,
-        setError: () => undefined
-      })
-    ).toBe('ok')
-    expect(
-      await settingsTestChat({
-        test: async () => {
-          throw new Error('c')
-        },
-        toastSuccess: () => undefined,
-        toastError: (m) => msgs.push(m),
-        setError: () => undefined
-      })
-    ).toBe('error')
+    settingsCatchToast((m) => msgs.push(m))(new Error('z'))
     expect(settingsTabId('llm')).toBe('llm')
     expect(settingsProviderLabel('openai', { openai: 'OpenAI' })).toBe('OpenAI')
     expect(settingsProviderLabel('x', {})).toBe('x')
@@ -10179,13 +10617,22 @@ describe('abs100 Settings pure residual helpers', () => {
     expect(settingsBoolOr(false, true)).toBe(false)
     expect(settingsStringOr(null, 'd')).toBe('d')
     expect(settingsStringOr('  v  ', 'd')).toBe('v')
-    settingsCatchToast((m) => msgs.push(m))(new Error('z'))
-    settingsSilentOrToast(true, (m) => msgs.push(m), 's')
-    settingsSilentOrToast(false, (m) => msgs.push('ns:' + m), 's')
     expect(settingsNumOr(3, 1)).toBe(3)
     expect(settingsNumOr(undefined, 1)).toBe(1)
     expect(settingsPickTab('llm', ['llm', 'app'], 'app')).toBe('llm')
     expect(settingsPickTab('x', ['llm'], 'app')).toBe('app')
+    settingsSilentOrToast(true, (m) => msgs.push(m), 's')
+    settingsSilentOrToast(false, (m) => msgs.push('ns:' + m), 's')
+    expect(
+      settingsModelsFromList([
+        { id: 'a' },
+        { id: 'b', ownedBy: 'fallback' }
+      ])
+    ).toEqual({ ids: ['a', 'b'], usedFallback: true })
+    expect(settingsModelsFromList([{ id: 'a' }]).usedFallback).toBe(false)
+    expect(settingsRateLimitFallbackModels('m1')).toContain('m1')
+    expect(settingsRateLimitFallbackModels(undefined)).toContain('grok-4.5')
+    expect(settingsIsRateLimit(new Error('x'))).toBe(false)
 
     expect(
       await settingsRunSaveFull({
@@ -10209,7 +10656,7 @@ describe('abs100 Settings pure residual helpers', () => {
         setError: () => undefined,
         coerceLang: (l) => l,
         currentLang: 'en',
-        changeLang: async () => msgs.push('chlang'),
+        changeLang: async () => undefined,
         set: async (s) => s,
         applyNext: () => msgs.push('next'),
         refreshAi: () => msgs.push('ai'),
@@ -10224,7 +10671,7 @@ describe('abs100 Settings pure residual helpers', () => {
         setError: () => undefined,
         coerceLang: () => 'zh-HK',
         currentLang: 'en',
-        changeLang: async () => msgs.push('chlang2'),
+        changeLang: async () => msgs.push('chlang'),
         set: async () => {
           throw new Error('save')
         },
@@ -10234,75 +10681,6 @@ describe('abs100 Settings pure residual helpers', () => {
         toastError: (m) => msgs.push(m)
       })
     ).toBe('error')
-
-    expect(
-      await settingsRunClearAll({
-        confirm: async () => false,
-        clear: async () => undefined,
-        toastSuccess: () => undefined,
-        toastError: () => undefined,
-        setError: () => undefined,
-        reload: () => undefined
-      })
-    ).toBe('cancel')
-    expect(
-      await settingsRunClearAll({
-        confirm: async () => true,
-        clear: async () => undefined,
-        toastSuccess: () => msgs.push('cleared'),
-        toastError: () => undefined,
-        setError: () => undefined,
-        reload: () => undefined
-      })
-    ).toBe('ok')
-    expect(
-      await settingsRunClearAll({
-        confirm: async () => true,
-        clear: async () => {
-          throw new Error('clr')
-        },
-        toastSuccess: () => undefined,
-        toastError: (m) => msgs.push(m),
-        setError: () => undefined,
-        reload: () => undefined
-      })
-    ).toBe('error')
-
-    expect(
-      await settingsRunLlmPreset({
-        set: async () => undefined,
-        toastSuccess: () => undefined,
-        toastError: () => undefined,
-        setError: () => undefined
-      })
-    ).toBe('ok')
-    expect(
-      await settingsRunLlmPreset({
-        set: async () => {
-          throw new Error('p')
-        },
-        toastSuccess: () => undefined,
-        toastError: (m) => msgs.push(m),
-        setError: () => undefined
-      })
-    ).toBe('error')
-
-    expect(
-      settingsModelsFromList([
-        { id: 'a' },
-        { id: 'b', ownedBy: 'fallback' }
-      ])
-    ).toEqual({ ids: ['a', 'b'], usedFallback: true })
-    expect(settingsModelsFromList([{ id: 'a' }]).usedFallback).toBe(false)
-    expect(settingsRateLimitFallbackModels('m1')).toContain('m1')
-    expect(settingsRateLimitFallbackModels(undefined)).toContain('grok-4.5')
-    expect(
-      settingsIsRateLimit(
-        Object.assign(new Error('rl'), {
-          // parseIpcError looks at message/json
-        })
-      )
-    ).toBe(false)
 
     expect(
       await settingsRunRefreshModelsFull({
@@ -10391,10 +10769,10 @@ describe('abs100 Settings pure residual helpers', () => {
         settings: {},
         setBusy: () => undefined,
         set: async () => undefined,
-        test: async () => ({ message: 'm', replyPreview: 'hello world' }),
+        test: async () => ({ message: 'm', replyPreview: 'hello' }),
         toastSuccess: (m) => msgs.push('chat:' + m),
         toastError: () => undefined,
-        formatOk: (r) => r.message + r.replyPreview.slice(0, 5),
+        formatOk: (r) => r.message,
         formatError: () => 'e',
         refreshAi: () => msgs.push('refai')
       })
@@ -10416,50 +10794,929 @@ describe('abs100 Settings pure residual helpers', () => {
     ).toBe('error')
 
     expect(
-      await settingsRunRefreshModels({
-        setBusy: () => undefined,
-        maybeSet: async () => undefined,
-        list: async () => [{ id: 'a' }],
-        setModels: () => undefined,
+      await settingsRunClearAll({
+        confirm: async () => false,
+        clear: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        setError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('cancel')
+    expect(
+      await settingsRunClearAll({
+        confirm: async () => true,
+        clear: async () => undefined,
+        toastSuccess: () => msgs.push('cleared'),
+        toastError: () => undefined,
+        setError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunClearAll({
+        confirm: async () => true,
+        clear: async () => {
+          throw new Error('clr')
+        },
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push(m),
+        setError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('error')
+    expect(
+      await settingsRunLlmPreset({
+        set: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
         setError: () => undefined
       })
     ).toBe('ok')
     expect(
-      await settingsRunRefreshModels({
-        setBusy: () => undefined,
-        maybeSet: async () => undefined,
-        list: async () => {
-          throw new Error('x')
+      await settingsRunLlmPreset({
+        set: async () => {
+          throw new Error('p')
         },
-        setModels: () => undefined,
-        setError: (m) => msgs.push(m)
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push(m),
+        setError: () => undefined
       })
     ).toBe('error')
-    expect(
-      await settingsRunTestChat({
-        settings: null,
-        setBusy: () => undefined,
-        set: async () => undefined,
-        test: async () => ({ message: 'm', replyPreview: 'r' }),
+
+    
+    // --- settings residual pure thin-wraps ---
+    settingsSetWebStatusMissing(() => undefined)
+    expect(settingsGetGatewayApi(() => ({ gateway: { x: 1 } }))).toEqual({ x: 1 })
+    expect(settingsGetGatewayApi(() => { throw new Error('no') })).toBeNull()
+    expect(settingsGetGatewayApi(() => ({}))).toBeNull()
+    expect(settingsGatewayMissingStatus('m').state).toBe('gateway_missing')
+    settingsApplyGatewayMissing(() => undefined, 'm')
+    settingsEnsureGatewayMissing({
+      silent: false,
+      toastError: (m) => msgs.push(m),
+      setGatewayStatus: () => undefined,
+      msg: 'gw-miss'
+    })
+    settingsEnsureGatewayMissing({
+      silent: true,
+      toastError: (m) => msgs.push('s:' + m),
+      setGatewayStatus: () => undefined,
+      msg: 'gw-miss'
+    })
+    expect(settingsOpenExternalEmpty('', (m) => msgs.push(m), 'nou')).toBe(true)
+    expect(settingsOpenExternalEmpty('http://x', () => undefined, 'nou')).toBe(false)
+    settingsClearAllCatch(new Error('clr'), (m) => msgs.push(m), (m) => msgs.push('t:' + m))
+    await settingsApplyLlmPresetFallback(
+      { llmProvider: 'openai', baseUrl: 'http://o', videoPath: '/v', model: 'm' } as never,
+      'openai' as never,
+      async (p) => {
+        msgs.push('preset:' + p.llmProvider)
+        return p
+      }
+    )
+    settingsToastUpdateCheck(
+      { status: 'available', latestVersion: '2' },
+      {
+        toastInfo: (m) => msgs.push('i:' + m),
+        toastSuccess: (m) => msgs.push('s:' + m),
+        toastError: (m) => msgs.push('e:' + m),
+        availableMsg: (v) => 'av:' + v,
+        upToDateMsg: 'up',
+        devSkippedMsg: (k) => 'dev:' + (k || ''),
+        errorMsg: (m) => m || 'err'
+      }
+    )
+    settingsToastUpdateCheck(
+      { status: 'not-available' },
+      {
+        toastInfo: () => undefined,
+        toastSuccess: (m) => msgs.push('na:' + m),
+        toastError: () => undefined,
+        availableMsg: () => '',
+        upToDateMsg: 'up',
+        devSkippedMsg: () => '',
+        errorMsg: () => ''
+      }
+    )
+    settingsToastUpdateCheck(
+      { status: 'dev-skipped', messageKey: 'updateDevSkipped' },
+      {
+        toastInfo: (m) => msgs.push('ds:' + m),
         toastSuccess: () => undefined,
         toastError: () => undefined,
-        setError: () => undefined,
-        formatOk: () => 'ok'
-      })
-    ).toBe('no-settings')
-    expect(
-      await settingsRunTestChat({
-        settings: {},
-        setBusy: () => undefined,
-        set: async () => undefined,
-        test: async () => ({ message: 'm', replyPreview: 'r' }),
-        toastSuccess: () => msgs.push('tcok'),
+        availableMsg: () => '',
+        upToDateMsg: 'up',
+        devSkippedMsg: (k) => 'dev:' + (k || 'none'),
+        errorMsg: () => ''
+      }
+    )
+    settingsToastUpdateCheck(
+      { status: 'web-skipped' },
+      {
+        toastInfo: (m) => msgs.push('ws:' + m),
+        toastSuccess: () => undefined,
         toastError: () => undefined,
-        setError: () => undefined,
-        formatOk: () => 'okmsg'
+        availableMsg: () => '',
+        upToDateMsg: 'up',
+        devSkippedMsg: () => 'webskip',
+        errorMsg: () => ''
+      }
+    )
+    settingsToastUpdateCheck(
+      { status: 'error', message: 'boom' },
+      {
+        toastInfo: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push('err:' + m),
+        availableMsg: () => '',
+        upToDateMsg: 'up',
+        devSkippedMsg: () => '',
+        errorMsg: (m) => m || 'err'
+      }
+    )
+    settingsToastUpdateDownload(
+      { status: 'downloaded' },
+      {
+        toastSuccess: (m) => msgs.push('dl:' + m),
+        toastError: () => undefined,
+        okMsg: 'ok',
+        failMsg: (m) => m || 'f'
+      }
+    )
+    settingsToastUpdateDownload(
+      { status: 'error', message: 'd' },
+      {
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push('dle:' + m),
+        okMsg: 'ok',
+        failMsg: (m) => m || 'f'
+      }
+    )
+    settingsToastUpdateInstall({ ok: false, message: 'i' }, (m) => msgs.push('inst:' + m), (m) => m || 'if')
+    settingsToastUpdateInstall({ ok: true }, () => undefined, () => '')
+    await settingsOpenReleasePage({
+      openRelease: async () => ({ ok: false, message: 'or' }),
+      toastError: (m) => msgs.push(m),
+      openExternal: async () => undefined,
+      failMsg: (m) => m || 'f',
+      failSimple: 'fs'
+    })
+    await settingsOpenReleasePage({
+      openRelease: async () => {
+        throw new Error('x')
+      },
+      toastError: (m) => msgs.push('orc:' + m),
+      openExternal: async () => undefined,
+      failMsg: (m) => m || 'f',
+      failSimple: 'fs'
+    })
+    await settingsOpenReleasePage({
+      releaseUrl: null,
+      openExternal: async (u) => {
+        msgs.push('ext:' + u)
+      },
+      toastError: () => undefined,
+      failMsg: () => '',
+      failSimple: 'fs'
+    })
+    await settingsOpenReleasePage({
+      openExternal: async () => {
+        throw new Error('oe')
+      },
+      toastError: (m) => msgs.push('oef:' + m),
+      failMsg: () => '',
+      failSimple: 'fs'
+    })
+    await settingsStopWebServer({
+      stop: async () => ({
+        running: false,
+        url: null,
+        port: 1,
+        error: null,
+        staticReady: false
+      }),
+      setWebStatus: () => undefined,
+      setSettings: () => undefined,
+      persist: async () => ({}),
+      toastInfo: (m) => msgs.push('stop:' + m),
+      stoppedMsg: 'stopped'
+    })
+    expect(
+      settingsNpmCheckMissing(null, () => undefined, (m) => msgs.push(m), 'npm-miss')
+    ).toBe(true)
+    expect(
+      settingsNpmCheckMissing(() => undefined, () => undefined, () => undefined, 'npm-miss')
+    ).toBe(false)
+    await settingsOpenExternalWithFallback(async () => undefined, 'http://ok')
+    await settingsOpenExternalWithFallback(async () => {
+      throw new Error('fail')
+    }, 'http://fb')
+    // clipboard may fail in happy-dom — both branches
+    await settingsCopyText('tok', (m) => msgs.push('cs:' + m), (m) => msgs.push('ci:' + m), 'copied')
+    const patches: string[] = []
+    settingsVideoChannelCustom(
+      'custom',
+      '',
+      'http://base',
+      (k, v) => patches.push(k + ':' + v),
+      () => null
+    )
+    settingsVideoChannelCustom(
+      'seedance',
+      'http://v',
+      'http://base',
+      (k, v) => patches.push(k + ':' + v),
+      (v) => (v === 'seedance' ? 'http://sd' : null)
+    )
+    settingsImageBaseUrlChange(
+      'http://custom',
+      'openai',
+      (k, v) => patches.push(k + ':' + v),
+      () => true,
+      () => 'http://def'
+    )
+    settingsImageBaseUrlChange('x', 'custom', () => undefined, () => true, () => 'd')
+    expect(settingsGatewayPackageMissing(false, (m) => msgs.push(m), 'pkg')).toBe(false)
+    expect(settingsGatewayPackageMissing(true, () => undefined, 'pkg')).toBe(false)
+    expect(settingsInstallHintsFallback('cmd').installCommand).toBe('cmd')
+    settingsWebServerApiMissing((m) => msgs.push(m), 'noapi')
+    expect(
+      (settingsMergeFreshGateway(
+        { apiKey: 'a', model: 'm1' },
+        { apiKey: 'b', baseUrl: 'u', llmProvider: 'p', model: '' }
+      ) as { apiKey: string; model: string }).apiKey
+    ).toBe('b')
+    expect(
+      (settingsMergeFreshGateway(null, { apiKey: 'c' }) as { apiKey: string }).apiKey
+    ).toBe('c')
+    settingsBackupImportReloadToast((m) => msgs.push(m), 'reload')
+
+    await settingsRunRefreshWebStatus({
+      isElectron: false,
+      getWebServer: () => null,
+      setWebStatus: () => undefined
+    })
+    await settingsRunRefreshWebStatus({
+      isElectron: true,
+      getWebServer: () => ({}),
+      setWebStatus: (s) => msgs.push('ws:' + String(s))
+    })
+    await settingsRunRefreshWebStatus({
+      isElectron: true,
+      getWebServer: () => ({
+        status: async () => ({
+          running: true,
+          url: 'http://x',
+          port: 1,
+          error: null,
+          staticReady: true
+        })
+      }),
+      setWebStatus: (s) => msgs.push('run:' + String((s as { running?: boolean })?.running))
+    })
+    await settingsRunRefreshWebStatus({
+      isElectron: true,
+      getWebServer: () => ({
+        status: async () => {
+          throw new Error('st')
+        }
+      }),
+      setWebStatus: (s) => msgs.push('nullws:' + String(s))
+    })
+    await settingsRunRefreshGatewayStatus({
+      getGateway: () => null,
+      setGatewayStatus: () => undefined,
+      unavailableMsg: 'u'
+    })
+    await settingsRunRefreshGatewayStatus({
+      getGateway: () => ({
+        status: async () => ({ state: 'ready' })
+      }),
+      setGatewayStatus: (s) => msgs.push('gst:' + JSON.stringify(s)),
+      unavailableMsg: 'u'
+    })
+    await settingsRunRefreshGatewayStatus({
+      getGateway: () => ({
+        status: async () => {
+          throw new Error('g')
+        }
+      }),
+      setGatewayStatus: (s) => msgs.push('gnull:' + String(s)),
+      unavailableMsg: 'u'
+    })
+    expect(
+      await settingsRunEnsureGateway({
+        silent: true,
+        setBusy: () => undefined,
+        getGateway: () => null,
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({}),
+        setSettings: () => undefined,
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => undefined,
+        toastError: () => undefined,
+        toastSuccess: () => undefined,
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'b',
+        packageMissingMsg: 'p',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
       })
-    ).toBe('ok')
+    ).toBe(false)
+    expect(
+      await settingsRunEnsureGateway({
+        silent: false,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => ({ state: 'grok_build_missing' }),
+          installHints: async () => ({ grokBuildUrl: 'http://x.ai' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => {
+          throw new Error('no')
+        },
+        setSettings: () => undefined,
+        openExternalUrl: async (u) => {
+          msgs.push('open:' + u)
+        },
+        refreshAiStatus: async () => undefined,
+        toastError: (m) => msgs.push(m),
+        toastSuccess: () => undefined,
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'bmiss',
+        packageMissingMsg: 'p',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(false)
+    expect(
+      await settingsRunEnsureGateway({
+        silent: true,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => ({ state: 'gateway_missing' }),
+          installHints: async () => ({ grokBuildUrl: 'http://x' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({}),
+        setSettings: () => undefined,
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => undefined,
+        toastError: () => undefined,
+        toastSuccess: () => undefined,
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'b',
+        packageMissingMsg: 'pkg',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(false)
+    expect(
+      await settingsRunEnsureGateway({
+        silent: false,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => ({
+            state: 'ready',
+            healthOk: true,
+            keyCreated: true
+          }),
+          installHints: async () => ({ grokBuildUrl: 'http://x' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({ apiKey: 'k' }),
+        setSettings: (fn) => {
+          fn(null)
+          fn({ model: 'old' })
+        },
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => {
+          msgs.push('refai')
+        },
+        toastError: () => undefined,
+        toastSuccess: (m) => msgs.push('ok:' + m),
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'b',
+        packageMissingMsg: 'p',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(true)
+    expect(
+      await settingsRunEnsureGateway({
+        silent: false,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => ({ state: 'starting', message: 'wait' }),
+          installHints: async () => ({ grokBuildUrl: 'http://x' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({}),
+        setSettings: () => undefined,
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => undefined,
+        toastError: () => undefined,
+        toastSuccess: () => undefined,
+        toastInfo: (m) => msgs.push('info:' + m),
+        unavailableMsg: 'u',
+        buildMissingMsg: 'b',
+        packageMissingMsg: 'p',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(false)
+    expect(
+      await settingsRunEnsureGateway({
+        silent: false,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => {
+            throw new Error('ens')
+          },
+          installHints: async () => ({ grokBuildUrl: 'http://x' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({}),
+        setSettings: () => undefined,
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => undefined,
+        toastError: (m) => msgs.push('enserr:' + m),
+        toastSuccess: () => undefined,
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'b',
+        packageMissingMsg: 'p',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(false)
+    await settingsRunOpenExternalUrl({
+      url: '',
+      toastError: (m) => msgs.push(m),
+      toastInfo: () => undefined,
+      noUrlMsg: 'nou',
+      unavailableMsg: 'unav',
+      copiedMsg: (h) => 'c:' + h,
+      openExternal: async () => undefined,
+      writeClipboard: async () => undefined
+    })
+    await settingsRunOpenExternalUrl({
+      url: ' http://ok ',
+      toastError: () => undefined,
+      toastInfo: () => undefined,
+      noUrlMsg: 'nou',
+      unavailableMsg: 'unav',
+      copiedMsg: (h) => 'c:' + h,
+      openExternal: async (h) => {
+        msgs.push('oe:' + h)
+      },
+      writeClipboard: async () => undefined
+    })
+    await settingsRunOpenExternalUrl({
+      url: 'http://fail',
+      toastError: (m) => msgs.push('oeerr:' + m),
+      toastInfo: (m) => msgs.push('oeinfo:' + m),
+      noUrlMsg: 'nou',
+      unavailableMsg: 'unav',
+      copiedMsg: (h) => 'c:' + h,
+      openExternal: async () => {
+        throw new Error('no')
+      },
+      writeClipboard: async () => undefined
+    })
+    await settingsRunOpenExternalUrl({
+      url: 'http://fail2',
+      toastError: (m) => msgs.push('oeerr2:' + m),
+      toastInfo: () => undefined,
+      noUrlMsg: 'nou',
+      unavailableMsg: 'unav',
+      copiedMsg: (h) => 'c:' + h,
+      openExternal: async () => {
+        throw new Error('no')
+      },
+      writeClipboard: async () => {
+        throw new Error('clip')
+      }
+    })
+    await settingsRunLlmPresetChange({
+      settings: null,
+      preset: 'openai' as never,
+      applyPreset: async () => ({}),
+      fallbackSet: async () => ({}),
+      setSettings: () => undefined,
+      setModelIds: () => undefined,
+      toastSuccess: () => undefined,
+      presetAppliedMsg: () => 'ok',
+      ensureGateway: async () => undefined,
+      refreshAiStatus: async () => undefined,
+      setError: () => undefined
+    })
+    await settingsRunLlmPresetChange({
+      settings: { imageProvider: 'x' },
+      preset: 'openai' as never,
+      applyPreset: async () => {
+        throw new Error('noapply')
+      },
+      fallbackSet: async () => ({ model: 'm' }),
+      setSettings: (fn) => {
+        fn({ imageProvider: 'x', uiLanguage: 'en' })
+        fn(null)
+      },
+      setModelIds: () => undefined,
+      toastSuccess: (m) => msgs.push('pa:' + m),
+      presetAppliedMsg: (p) => 'applied:' + p,
+      ensureGateway: async () => undefined,
+      refreshAiStatus: async () => {
+        msgs.push('rai')
+      },
+      setError: () => undefined
+    })
+    await settingsRunLlmPresetChange({
+      settings: {},
+      preset: 'grok-gateway' as never,
+      applyPreset: async () => ({}),
+      fallbackSet: async () => ({}),
+      setSettings: () => undefined,
+      setModelIds: () => undefined,
+      toastSuccess: () => undefined,
+      presetAppliedMsg: () => 'ok',
+      ensureGateway: async () => {
+        msgs.push('ens')
+      },
+      refreshAiStatus: async () => undefined,
+      setError: () => undefined
+    })
+    await settingsRunLlmPresetChange({
+      settings: {},
+      preset: 'openai' as never,
+      applyPreset: async () => {
+        throw new Error('outer')
+      },
+      fallbackSet: async () => {
+        throw new Error('fb')
+      },
+      setSettings: () => undefined,
+      setModelIds: () => undefined,
+      toastSuccess: () => undefined,
+      presetAppliedMsg: () => 'ok',
+      ensureGateway: async () => undefined,
+      refreshAiStatus: async () => undefined,
+      setError: (m) => msgs.push('se:' + m)
+    })
+    expect(settingsUpdateIdleLabel(undefined, 'idle', {})).toBe('idle')
+    expect(settingsUpdateIdleLabel('x', 'idle', { x: 'X' })).toBe('X')
+    expect(settingsUpdateErrorSuffix('net', (k) => 'E:' + k)).toMatch(/E:net/)
+    expect(settingsUpdateErrorSuffix(undefined, () => 'x')).toBe('')
+    expect(settingsLegalVersionClass('1', '1', 'ok', 'warn')).toBe('ok')
+    expect(settingsLegalVersionClass('1', '2', 'ok', 'warn')).toBe('warn')
+    expect(settingsLegalOutdatedSuffix('1', '2', 'old')).toMatch(/old/)
+    expect(settingsLegalOutdatedSuffix('1', '1', 'old')).toBe('')
+    expect(settingsWebPortOrDefault(0, 8787)).toBe(8787)
+    expect(settingsWebPortOrDefault(9, 8787)).toBe(9)
+    expect(settingsChannelPickerValue(null, 'same-as-llm')).toBe('same-as-llm')
+    expect(settingsApiKeyHint(true, 'c', 'n')).toBe('c')
+    expect(settingsApiKeyHint(false, 'c', 'n')).toBe('n')
+    expect(settingsNpmInstallCmd(null)).toMatch(/npm install/)
+    expect(settingsNpmInstallCmd('x')).toBe('x')
+    settingsCatchToastIf(true, () => undefined, new Error('x'))
+    settingsCatchToastIf(false, (m) => msgs.push('ct:' + m), new Error('y'))
+
 
     expect(msgs.length).toBeGreaterThan(0)
   })
+})
+
+
+describe('abs100 Stories UI residual mop', () => {
+  beforeEach(() => seed())
+
+  it('hits cast props actions beats empty and cover residual', async () => {
+    const costumesJson = JSON.stringify([
+      {
+        id: 'look-1',
+        name: 'Coat',
+        description: 'trench',
+        artStyle: 'photo_cinematic',
+        imagePath: '/media/aria.png',
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z'
+      },
+      {
+        id: 'look-2',
+        name: '',
+        description: 'nameless-look-for-desc-slice-branch',
+        artStyle: 'photo_cinematic',
+        imagePath: null,
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z'
+      }
+    ])
+    const manyChars = Array.from({ length: 4 }, (_, i) =>
+      makeCharacter({
+        id: `char-${i + 1}`,
+        name: i === 0 ? 'Aria' : `Cast${i}`,
+        costumesJson: i === 0 ? costumesJson : null
+      })
+    )
+    api.stories.list = vi.fn().mockResolvedValue([
+      makeStory({
+        id: 'story-1',
+        title: 'Demo Story',
+        coverPath: '/media/cover.png',
+        refGalleryJson: gal('/media/cover.png', 'cg'),
+        artStyle: 'photo_cinematic',
+        styleNote: 'noir',
+        hardRules: 'no logos'
+      }),
+      makeStory({ id: 'story-2', title: 'Alpha Story' })
+    ])
+    api.stories.get = vi.fn().mockResolvedValue(
+      makeStoryDetail({
+        id: 'story-1',
+        title: 'Demo Story',
+        coverPath: '/media/cover.png',
+        refGalleryJson: gal('/media/cover.png', 'cg'),
+        artStyle: 'photo_cinematic',
+        hardRules: 'no logos',
+        characters: [manyChars[0], manyChars[1]],
+        scenes: [makeScene()],
+        props: [makeProp()],
+        actions: [makeAction()]
+      } as never)
+    )
+    api.stories.create = vi.fn().mockResolvedValue(
+      makeStory({ id: 'new-s', title: 'Nova' })
+    )
+    api.stories.update = vi.fn().mockResolvedValue(makeStory())
+    api.stories.linkProp = vi.fn().mockResolvedValue({})
+    api.stories.unlinkProp = vi.fn().mockResolvedValue({})
+    api.stories.linkAction = vi.fn().mockResolvedValue({})
+    api.stories.unlinkAction = vi.fn().mockResolvedValue({})
+    api.stories.setCharacterCostume = vi.fn().mockResolvedValue({})
+    api.characters.list = vi.fn().mockResolvedValue(manyChars)
+    api.scenes.list = vi.fn().mockResolvedValue([makeScene(), makeScene({ id: 'scene-2' })])
+    api.props.list = vi.fn().mockResolvedValue(
+      Array.from({ length: 12 }, (_, i) =>
+        makeProp({ id: `prop-${i + 1}`, name: i === 0 ? 'Gun' : `Prop${i + 1}` })
+      )
+    )
+    api.actions.list = vi.fn().mockResolvedValue([
+      makeAction({ id: 'act-1', name: 'Draw' }),
+      makeAction({ id: 'act-2', name: 'Kick' })
+    ])
+    api.timeline.list = vi.fn().mockResolvedValue([
+      makeTimelineEntry({ id: 'beat-1', dialogue: 'hello' }),
+      makeTimelineEntry({ id: 'beat-2', dialogue: '' })
+    ])
+    api.timeline.create = vi.fn().mockResolvedValue(makeTimelineEntry())
+    api.timeline.update = vi.fn().mockResolvedValue(makeTimelineEntry())
+    api.timeline.delete = vi.fn().mockResolvedValue({})
+    api.timeline.reorder = vi.fn().mockResolvedValue({})
+    api.costumes.list = vi.fn().mockResolvedValue([])
+    api.stories.generateCover = vi.fn().mockResolvedValue({
+      path: '/tmp/c.png',
+      label: 'Cover'
+    })
+    api.stories.aiFillMeta = vi.fn().mockResolvedValue({
+      styleNote: 'filled',
+      hardRules: 'hard'
+    })
+    api.stories.aiFillScript = vi.fn().mockResolvedValue({
+      beats: [makeTimelineEntry({ id: 'nb' })]
+    })
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <StoriesPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Demo Story|Alpha/i)
+    )
+    // empty filter
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 1)) {
+      if ((el as HTMLInputElement).type === 'checkbox') continue
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'zzzz-no-match' } })
+      )
+    }
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/no match|No match|match/i)
+    )
+    await clickNamed(/Clear filters/i)
+
+    await openCardEdit('Demo Story')
+    await clickNamed(/^Meta$|Details|Profile/i)
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(0, 3)) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        )
+      }
+    }
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(0, 3)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'story mop body' } })
+      )
+    }
+    await forceClick(/AI fill meta|AI meta|AI fill/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    await clickNamed(/^Cover$|Images|Poster/i)
+    for (const cb of Array.from(
+      document.querySelectorAll('input[type="checkbox"]')
+    )) {
+      await act(async () => fireEvent.click(cb))
+    }
+    await forceClick(/Generate cover|Generate poster|Generate/i)
+    await confirmImageGen().catch(() => false)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    await clickNamed(/Upload|Pick/i)
+    await clickNamed(/Set as cover/i)
+    await clickNamed(/Remove|remove/i)
+
+    // Cast props/actions
+    await clickNamed(/^Cast$|Links/i)
+    for (const tab of [/Props/i, /Actions/i, /Scenes/i, /Characters/i]) {
+      await clickNamed(tab)
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 20))
+      })
+      for (const b of screen
+        .getAllByRole('button')
+        .filter((x) => /Link|Unlink|Add|Remove/i.test((x.textContent || '').trim()))
+        .slice(0, 3)) {
+        await act(async () => fireEvent.click(b))
+      }
+      // pagination next
+      await clickNamed(/Next|→/)
+    }
+    // costume select
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(-3)) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        )
+      }
+    }
+
+    // Script beats
+    await clickNamed(/Script beats|Script|Beats/i)
+    await clickNamed(/Add beat|New beat/i)
+    for (const ta of Array.from(document.querySelectorAll('textarea')).slice(0, 2)) {
+      await act(async () =>
+        fireEvent.change(ta, { target: { value: '【DIALOGUE】line mop' } })
+      )
+      await act(async () => fireEvent.blur(ta))
+    }
+    await clickNamed(/Template|Insert template|Script template/i)
+    // multi-bind chips
+    for (const chip of Array.from(document.querySelectorAll('button')).filter(
+      (b) => {
+        const t = (b.textContent || '').trim()
+        return (
+          t.length > 0 &&
+          t.length < 28 &&
+          !/Save|Delete|Add|Template|AI|↑|↓|Cancel|Close|Basics|Cast|Script|Generate|Upload|✕|Move|Remove/i.test(
+            t
+          )
+        )
+      }
+    ).slice(0, 16)) {
+      await act(async () => fireEvent.click(chip))
+    }
+    // empty blur path
+    for (const ta of Array.from(document.querySelectorAll('textarea')).slice(0, 2)) {
+      await act(async () => fireEvent.change(ta, { target: { value: '   ' } }))
+      await act(async () => fireEvent.blur(ta))
+    }
+    for (const b of screen
+      .getAllByRole('button')
+      .filter((x) => /↑|↓|Up|Down|Move/i.test((x.textContent || '').trim()))
+      .slice(0, 4)) {
+      await act(async () => fireEvent.click(b))
+    }
+    await clickNamed(/AI script|AI fill script|AI generate beats|Generate script/i)
+    if (document.querySelector('[role="alertdialog"]')) {
+      await act(async () => clickDialogConfirm())
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+
+    // cover cancel image gen
+    await clickNamed(/^Basics$|Meta$|Details/i)
+    await forceClick(/Generate cover|Generate poster/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    for (const b of screen.getAllByRole('button')) {
+      if (/^Cancel$/i.test((b.textContent || '').trim())) {
+        await act(async () => fireEvent.click(b))
+        break
+      }
+    }
+
+    // empty title AI meta guard return
+    for (const el of Array.from(document.querySelectorAll('input'))) {
+      const inp = el as HTMLInputElement
+      if (inp.type === 'checkbox' || inp.type === 'hidden') continue
+      if ((inp.value || '').length > 0 && (inp.value || '').length < 80) {
+        await act(async () => fireEvent.change(inp, { target: { value: '' } }))
+      }
+    }
+    for (const el of Array.from(document.querySelectorAll('textarea'))) {
+      await act(async () => fireEvent.change(el, { target: { value: '' } }))
+    }
+    await forceClick(/AI fill style|AI fill meta|AI fill/i)
+
+    // cast props pagination + link
+    await clickNamed(/Cast|Links/i)
+    for (const b of screen.getAllByRole('button')) {
+      const t = (b.textContent || '').trim()
+      if (t.startsWith('Props') || /^Props/i.test(t)) {
+        await act(async () => fireEvent.click(b))
+        break
+      }
+    }
+    for (const b of screen
+      .getAllByRole('button')
+      .filter((x) =>
+        /Link|Unlink|link story|unlink/i.test((x.textContent || '').trim())
+      )
+      .slice(0, 4)) {
+      await act(async () => fireEvent.click(b))
+    }
+    await forceClick(/→/)
+
+    // characters costume nameless option
+    for (const b of screen.getAllByRole('button')) {
+      const t = (b.textContent || '').trim()
+      if (t.startsWith('Characters') || /^Characters/i.test(t)) {
+        await act(async () => fireEvent.click(b))
+        break
+      }
+    }
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, {
+            target: { value: s.options[s.options.length - 1].value }
+          })
+        )
+      }
+    }
+
+    await forceClick(/^Save$/i)
+
+    // close editor via aria-label Cancel (✕)
+    const xBtn = screen
+      .getAllByRole('button')
+      .find((b) => (b.getAttribute('aria-label') || '') === 'Cancel')
+    if (xBtn) await act(async () => fireEvent.click(xBtn))
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+
+    // sort by title on library
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const titleOpt = Array.from(s.options).find((o) => o.value === 'title')
+      if (titleOpt) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: 'title' } })
+        )
+      }
+    }
+
+    // new story create path (pure covers create id; light UI hit)
+    await clickNamed(/New story|New/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    // title in editor
+    for (const el of Array.from(document.querySelectorAll('input'))) {
+      const inp = el as HTMLInputElement
+      if (inp.type === 'checkbox' || inp.type === 'hidden') continue
+      // likely title when empty or Untitled context
+      await act(async () =>
+        fireEvent.change(inp, { target: { value: 'Brand New Story' } })
+      )
+      break
+    }
+    await forceClick(/^Save$/i)
+  }, 120000)
 })

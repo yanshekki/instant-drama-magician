@@ -204,9 +204,11 @@ export function CostumesPage(): JSX.Element {
       { value: '', label: t('library.filterAny') },
       ...vals.map((v) => ({
         value: v,
-        label: isArtStyleId(v)
-          ? t(`characters.${getArtStyle(v).labelKey}`)
-          : v
+        label: costumesArtStyleLabel(
+          v,
+          isArtStyleId,
+          (x) => t(`characters.${getArtStyle(x).labelKey}`)
+        )
       }))
     ]
   }, [items, t])
@@ -485,9 +487,7 @@ export function CostumesPage(): JSX.Element {
       toast.success(t('common.saved'))
       closeEditor()
     } catch (e) {
-      const msg = parseIpcError(e).message
-      setError(msg)
-      toast.error(msg)
+      costumesApplyIpc(e, setError, toast.error)
     } finally {
       setBusy(false)
     }
@@ -522,7 +522,7 @@ export function CostumesPage(): JSX.Element {
       await reload()
       toast.success(t('common.deleted'))
     } catch (e) {
-      toast.error(parseIpcError(e).message)
+      costumesApplySimpleIpc(e, toast.error)
     }
   }
 
@@ -1470,12 +1470,11 @@ export function CostumesPage(): JSX.Element {
                     ].join(' ')}
                     disabled={dressCharBaseOptions.length === 0}
                     onClick={() => {
-                      if (
-                        dressCharBaseOptions[0] &&
-                        !dressBasePath
-                      ) {
-                        setDressBasePath(dressCharBaseOptions[0].path)
-                      }
+                      const auto = costumesMaybeSetDressBase(
+                        dressCharBaseOptions,
+                        dressBasePath
+                      )
+                      if (auto) setDressBasePath(auto)
                     }}
                   >
                     {t('costumes.baseImageManual')}
