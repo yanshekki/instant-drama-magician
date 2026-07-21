@@ -29,13 +29,16 @@ jobs:
       - name: Prisma generate
         run: npx prisma generate
 
+      - name: Test alignment (sibling unit tests)
+        run: npm run test:align
+
       - name: Locales verify
         run: npm run locales:verify
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
+      - name: Unit tests + coverage
         run: npm run test:ci
 
       - name: Upload coverage

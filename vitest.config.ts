@@ -40,13 +40,13 @@ export default defineConfig({
         'src/assets/**',
         'src/styles/**'
       ],
-      // Progressive gate — raise as presentation/handler suites grow (target 85%).
-      // Baseline ~17% overall due to large UI pages + registerAllHandlers.
+      // Progressive gate after handler/domain alignment (raise toward 70% over time).
+      // Large *Page.tsx keep overall lines lower; domain/application stay high in practice.
       thresholds: {
-        lines: 15,
-        functions: 15,
-        branches: 20,
-        statements: 15
+        lines: 25,
+        functions: 50,
+        branches: 50,
+        statements: 25
       }
     }
   },
