@@ -174,12 +174,12 @@ reg(
       const idea = (payload.idea ?? '').trim()
       const {
         aspectFromImageSize
-      } = await import('../types/settings')
+      } = await import('../../types/settings')
       const { getArtStyle } = await import(
-        '../domain/characterArtStyles'
+        '../../domain/characterArtStyles'
       )
       const { allRefPaths, appendMultiRefNote, pickPrimaryRefPath } =
-        await import('../domain/imageGenConfirm')
+        await import('../../domain/imageGenConfirm')
       const artStyle = getArtStyle(
         (row as { artStyle?: string | null }).artStyle ?? undefined
       )
@@ -281,7 +281,7 @@ reg(
         appendGalleryItem,
         parseCharacterGallery,
         serializeCharacterGallery
-      } = await import('../domain/characterGallery')
+      } = await import('../../domain/characterGallery')
       const gallery = parseCharacterGallery(
         (row as { refGalleryJson?: string | null }).refGalleryJson,
         {
@@ -356,7 +356,7 @@ reg(
         buildStoryMetaSystemPrompt,
         buildStoryMetaUserPrompt,
         extractStoryMetaJson
-      } = await import('../domain/storyMasterPrompt')
+      } = await import('../../domain/storyMasterPrompt')
       const contextSnippets: string[] = []
       if (payload.storyId) {
         const full = await host.getPrisma().story.findUnique({
@@ -456,7 +456,7 @@ reg(
         buildStoryBeatsUserPrompt,
         extractStoryBeatsJson,
         resolveBeatIds
-      } = await import('../domain/storyMasterPrompt')
+      } = await import('../../domain/storyMasterPrompt')
       const completion = await ctx.aiClient.chat({
         messages: [
           {
@@ -541,10 +541,10 @@ reg(
         timeCursor = max._max.endTime ?? 0
       }
       const { serializeIdList } = await import(
-        '../domain/timelineBindings'
+        '../../domain/timelineBindings'
       )
       const { snapVideoSeconds } = await import(
-        '../domain/videoDuration'
+        '../../domain/videoDuration'
       )
       for (let i = 0; i < drafts.length; i++) {
         const ids = resolveBeatIds(drafts[i], cast)

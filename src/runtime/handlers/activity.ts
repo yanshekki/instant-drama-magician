@@ -177,7 +177,7 @@ reg(
     let ffmpeg = { available: false, message: 'unknown' }
     try {
       const { FfmpegService } = await import(
-        '../infrastructure/ffmpeg/FfmpegService'
+        '../../infrastructure/ffmpeg/FfmpegService'
       )
       await new FfmpegService().ensureAvailable()
       ffmpeg = { available: true, message: 'ffmpeg OK' }
@@ -257,7 +257,7 @@ reg(
     let ffmpeg = { available: false, message: 'unknown' }
     try {
       const { FfmpegService } = await import(
-        '../infrastructure/ffmpeg/FfmpegService'
+        '../../infrastructure/ffmpeg/FfmpegService'
       )
       await new FfmpegService().ensureAvailable()
       ffmpeg = { available: true, message: 'ffmpeg OK' }

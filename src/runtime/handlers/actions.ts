@@ -183,12 +183,12 @@ reg(
         buildActionMasterSystemPrompt,
         buildActionMasterUserPrompt,
         extractActionProfileJson
-      } = await import('../domain/actionMasterPrompt')
+      } = await import('../../domain/actionMasterPrompt')
       const {
         buildVisionUserContent,
         resolveReadableImagePath,
         visionFillUserPreamble
-      } = await import('../domain/chatVision')
+      } = await import('../../domain/chatVision')
       const locale = payload.locale ?? 'zh-HK'
       const draft = payload.existingDraft
       const hasDraft = Boolean(
@@ -205,7 +205,7 @@ reg(
         )
       }
       const { shouldInjectStoryContext } = await import(
-        '../domain/storyContextPolicy'
+        '../../domain/storyContextPolicy'
       )
       let storyTitle: string | undefined
       let styleNote: string | null | undefined
@@ -263,10 +263,10 @@ reg(
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractActionProfileJson(text)
       const { fillMissingProfileFields } = await import(
-        '../domain/profileFillMissing'
+        '../../domain/profileFillMissing'
       )
       const { ACTION_PROFILE_JSON_KEYS } = await import(
-        '../domain/actionMasterPrompt'
+        '../../domain/actionMasterPrompt'
       )
       const actionRequired = ACTION_PROFILE_JSON_KEYS.filter(
         (k) => k !== 'artStyle' && k !== 'hardRules'
@@ -325,24 +325,24 @@ reg(
       const {
         buildActionPlateEditPrompt,
         buildActionPlateImagePrompt
-      } = await import('../domain/actionMasterPrompt')
+      } = await import('../../domain/actionMasterPrompt')
       const { getActionPanelLayout } = await import(
-        '../domain/actionPlateVariants'
+        '../../domain/actionPlateVariants'
       )
       const { parseActionCastRefs } = await import(
-        '../domain/actionCastRefs'
+        '../../domain/actionCastRefs'
       )
-      const { getArtStyle } = await import('../domain/characterArtStyles')
+      const { getArtStyle } = await import('../../domain/characterArtStyles')
       const { resolveSheetGenMode } = await import(
-        '../domain/characterMasterPrompt'
+        '../../domain/characterMasterPrompt'
       )
       const {
         appendActionGalleryItem,
         parseActionGallery,
         primaryActionGalleryPath,
         serializeActionGallery
-      } = await import('../domain/actionGallery')
-      const { aspectFromImageSize } = await import('../types/settings')
+      } = await import('../../domain/actionGallery')
+      const { aspectFromImageSize } = await import('../../types/settings')
 
       const layout = getActionPanelLayout(
         payload.panelLayout ?? row.panelLayout
@@ -373,7 +373,7 @@ reg(
         refImagePath: row.refImagePath
       })
       const { allRefPaths, appendMultiRefNote, pickPrimaryRefPath } =
-        await import('../domain/imageGenConfirm')
+        await import('../../domain/imageGenConfirm')
       const refList = allRefPaths(
         payload.referenceImagePath,
         payload.referenceImagePaths
@@ -438,7 +438,7 @@ reg(
       }
       writeFileSync(outPath, Buffer.from(img.b64, 'base64'))
       const { enhanceCharacterImage } = await import(
-        '../infrastructure/media/imageEnhance'
+        '../../infrastructure/media/imageEnhance'
       )
       const enhanced = enhanceCharacterImage(outPath, {
         enabled: ctx.settings.imageEnhance,
@@ -525,7 +525,7 @@ reg(
         parseActionGallery,
         primaryActionGalleryPath,
         serializeActionGallery
-      } = await import('../domain/actionGallery')
+      } = await import('../../domain/actionGallery')
       const gallery = parseActionGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath
       })
@@ -588,7 +588,7 @@ reg(
       }
       const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
       const { buildActionIntroVideoPrompt } = await import(
-        '../domain/actionMasterPrompt'
+        '../../domain/actionMasterPrompt'
       )
       const fallbackPrompt = buildActionIntroVideoPrompt(profile, locale)
       const store = generation().getMediaStore()
@@ -604,11 +604,11 @@ reg(
           : '16:9'
       const {
         polishThenGenerateVideo
-      } = await import('../application/video/polishVideoPrompt')
+      } = await import('../../application/video/polishVideoPrompt')
       const actionHardRules = row.hardRules ?? null
       const {
         hardRulesMaterialsBlock
-      } = await import('../domain/videoPromptPolish')
+      } = await import('../../domain/videoPromptPolish')
       const result = await polishThenGenerateVideo({
         ai: ctx.aiClient,
         locale,
@@ -631,7 +631,7 @@ reg(
         parseActionGallery,
         serializeActionGallery,
         setActionGalleryIntroVideo
-      } = await import('../domain/actionGallery')
+      } = await import('../../domain/actionGallery')
       const gallery = parseActionGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath
       })

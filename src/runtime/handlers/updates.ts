@@ -118,7 +118,7 @@ export function registerUpdatesHandlers(ctx: HandlerContext): void {
 // ─── Auto-update (electron-updater; headless/web returns channel-aware state) ─
 async function loadUpdateService() {
   try {
-    const mod = await import('../infrastructure/update/AppUpdateService')
+    const mod = await import('../../infrastructure/update/AppUpdateService')
     return mod.appUpdateService
   } catch {
     return null

@@ -265,7 +265,7 @@ reg(
       buildMediaDownloadResult,
       mediaSaveAsKind,
       saveAsDialogFilters
-    } = await import('../domain/mediaSaveAs')
+    } = await import('../../domain/mediaSaveAs')
 
     let to =
       typeof destPath === 'string' && destPath.trim()
@@ -314,7 +314,7 @@ reg(
   'media:checkFfmpeg',
   (async () => {
     const { FfmpegService } = await import(
-      '../infrastructure/ffmpeg/FfmpegService'
+      '../../infrastructure/ffmpeg/FfmpegService'
     )
     try {
       const svc = new FfmpegService()

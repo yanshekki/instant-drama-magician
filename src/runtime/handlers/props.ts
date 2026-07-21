@@ -171,12 +171,12 @@ reg(
         buildPropMasterSystemPrompt,
         buildPropMasterUserPrompt,
         extractPropProfileJson
-      } = await import('../domain/propMasterPrompt')
+      } = await import('../../domain/propMasterPrompt')
       const {
         buildVisionUserContent,
         resolveReadableImagePath,
         visionFillUserPreamble
-      } = await import('../domain/chatVision')
+      } = await import('../../domain/chatVision')
       const locale = payload.locale ?? 'zh-HK'
       const draft = payload.existingDraft
       const hasDraft = Boolean(
@@ -194,7 +194,7 @@ reg(
       }
       // Pure invent-from-idea: skip active story style (Demo rain etc.)
       const { shouldInjectStoryContext } = await import(
-        '../domain/storyContextPolicy'
+        '../../domain/storyContextPolicy'
       )
       let storyTitle: string | undefined
       let styleNote: string | null | undefined
@@ -255,10 +255,10 @@ reg(
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractPropProfileJson(text)
       const { fillMissingProfileFields } = await import(
-        '../domain/profileFillMissing'
+        '../../domain/profileFillMissing'
       )
       const { PROP_PROFILE_JSON_KEYS } = await import(
-        '../domain/propMasterPrompt'
+        '../../domain/propMasterPrompt'
       )
       const propRequired = PROP_PROFILE_JSON_KEYS.filter(
         (k) => k !== 'artStyle' && k !== 'hardRules'
@@ -320,28 +320,28 @@ reg(
         buildPropPlateEditPrompt,
         buildPropPlateImagePrompt,
         getPropPlateVariant
-      } = await import('../domain/propPlateVariants')
+      } = await import('../../domain/propPlateVariants')
       const { getArtStyle } = await import(
-        '../domain/characterArtStyles'
+        '../../domain/characterArtStyles'
       )
       const { resolveSheetGenMode } = await import(
-        '../domain/characterMasterPrompt'
+        '../../domain/characterMasterPrompt'
       )
       const {
         appendSceneGalleryItem,
         parseSceneGallery,
         primarySceneGalleryPath,
         serializeSceneGallery
-      } = await import('../domain/sceneGallery')
+      } = await import('../../domain/sceneGallery')
       const {
         aspectFromImageSize,
         imageSizeForPropPlate
-      } = await import('../types/settings')
+      } = await import('../../types/settings')
       const {
         allRefPaths,
         appendMultiRefNote,
         pickPrimaryRefPath
-      } = await import('../domain/imageGenConfirm')
+      } = await import('../../domain/imageGenConfirm')
 
       const variantDef = getPropPlateVariant(payload.variant)
       const variant = variantDef.id
@@ -417,7 +417,7 @@ reg(
       }
       writeFileSync(outPath, Buffer.from(img.b64, 'base64'))
       const { enhanceCharacterImage } = await import(
-        '../infrastructure/media/imageEnhance'
+        '../../infrastructure/media/imageEnhance'
       )
       const enhanced = enhanceCharacterImage(outPath, {
         enabled: ctx.settings.imageEnhance,
@@ -534,10 +534,10 @@ reg(
 
       const {
         polishThenGenerateVideo
-      } = await import('../application/video/polishVideoPrompt')
+      } = await import('../../application/video/polishVideoPrompt')
       const {
         buildPropIntroVideoPolishUserPrompt
-      } = await import('../domain/videoPromptPolish')
+      } = await import('../../domain/videoPromptPolish')
 
       const propHardRules = row.hardRules ?? null
       const result = await polishThenGenerateVideo({
@@ -574,7 +574,7 @@ reg(
         parseSceneGallery,
         serializeSceneGallery,
         setSceneGalleryIntroVideo
-      } = await import('../domain/sceneGallery')
+      } = await import('../../domain/sceneGallery')
       const gallery = parseSceneGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath
       })
@@ -639,7 +639,7 @@ reg(
         parseSceneGallery,
         primarySceneGalleryPath,
         serializeSceneGallery
-      } = await import('../domain/sceneGallery')
+      } = await import('../../domain/sceneGallery')
       const gallery = parseSceneGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath
       })

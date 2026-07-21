@@ -130,12 +130,12 @@ async function resolveWebStaticDir(): Promise<string> {
 
 async function syncEmbeddedWebServer(
   s: AppSettings
-): Promise<import('../infrastructure/webserver/EmbeddedWebServer').WebServerStatus> {
+): Promise<import('../../infrastructure/webserver/EmbeddedWebServer').WebServerStatus> {
   const {
     getEmbeddedWebServer,
     generateWebServerToken
   } = await import(
-    '../infrastructure/webserver/EmbeddedWebServer'
+    '../../infrastructure/webserver/EmbeddedWebServer'
   )
   const ws = getEmbeddedWebServer()
   if (!s.webServerEnabled) {
@@ -164,7 +164,7 @@ reg(
   'webServer:status',
   (async () => {
     const { getEmbeddedWebServer } = await import(
-      '../infrastructure/webserver/EmbeddedWebServer'
+      '../../infrastructure/webserver/EmbeddedWebServer'
     )
     return getEmbeddedWebServer().getStatus()
   })
@@ -191,7 +191,7 @@ reg(
   (async () => {
     settingsStore.save({ webServerEnabled: false })
     const { getEmbeddedWebServer } = await import(
-      '../infrastructure/webserver/EmbeddedWebServer'
+      '../../infrastructure/webserver/EmbeddedWebServer'
     )
     return getEmbeddedWebServer().stop()
   })
@@ -200,7 +200,7 @@ reg(
   'webServer:generateToken',
   (async () => {
     const { generateWebServerToken } = await import(
-      '../infrastructure/webserver/EmbeddedWebServer'
+      '../../infrastructure/webserver/EmbeddedWebServer'
     )
     const token = generateWebServerToken()
     const next = settingsStore.save({ webServerAuthToken: token })

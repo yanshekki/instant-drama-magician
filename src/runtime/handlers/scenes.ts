@@ -176,12 +176,12 @@ reg(
         buildSceneMasterUserPrompt,
         buildSceneSuggestFromStoryUserPrompt,
         extractSceneProfileJson
-      } = await import('../domain/sceneMasterPrompt')
+      } = await import('../../domain/sceneMasterPrompt')
       const {
         buildVisionUserContent,
         resolveReadableImagePath,
         visionFillUserPreamble
-      } = await import('../domain/chatVision')
+      } = await import('../../domain/chatVision')
       const locale = payload.locale ?? 'zh-HK'
       let storyTitle: string | undefined
       let styleNote: string | null | undefined
@@ -216,7 +216,7 @@ reg(
       // Pure invent-from-idea: only user idea (+ empty form). Inject story
       // cast/style only when refining a draft or explicitly suggesting from story.
       const { shouldInjectStoryContext } = await import(
-        '../domain/storyContextPolicy'
+        '../../domain/storyContextPolicy'
       )
       const injectStoryContext = shouldInjectStoryContext({
         hasDraft,
@@ -434,10 +434,10 @@ reg(
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractSceneProfileJson(text)
       const { fillMissingProfileFields } = await import(
-        '../domain/profileFillMissing'
+        '../../domain/profileFillMissing'
       )
       const { SCENE_PROFILE_JSON_KEYS } = await import(
-        '../domain/sceneMasterPrompt'
+        '../../domain/sceneMasterPrompt'
       )
       const sceneRequired = SCENE_PROFILE_JSON_KEYS.filter(
         (k) => k !== 'artStyle' && k !== 'hardRules'
@@ -501,20 +501,20 @@ reg(
         buildScenePlateEditPrompt,
         buildScenePlateImagePrompt,
         getScenePlateVariant
-      } = await import('../domain/scenePlateVariants')
+      } = await import('../../domain/scenePlateVariants')
       const { getArtStyle } = await import(
-        '../domain/characterArtStyles'
+        '../../domain/characterArtStyles'
       )
       const {
         appendSceneGalleryItem,
         parseSceneGallery,
         primarySceneGalleryPath,
         serializeSceneGallery
-      } = await import('../domain/sceneGallery')
+      } = await import('../../domain/sceneGallery')
       const {
         aspectFromImageSize,
         imageSizeForScenePlate
-      } = await import('../types/settings')
+      } = await import('../../types/settings')
 
       const variantDef = getScenePlateVariant(payload.variant)
       const variant = variantDef.id
@@ -540,7 +540,7 @@ reg(
         refImagePath: row.refImagePath
       })
       const { allRefPaths, appendMultiRefNote, pickPrimaryRefPath } =
-        await import('../domain/imageGenConfirm')
+        await import('../../domain/imageGenConfirm')
       const refList = allRefPaths(
         payload.referenceImagePath,
         payload.referenceImagePaths
@@ -552,7 +552,7 @@ reg(
       const validPrimary =
         refPath && existsSync(refPath) ? refPath : null
       const { resolveSheetGenMode } = await import(
-        '../domain/characterMasterPrompt'
+        '../../domain/characterMasterPrompt'
       )
       const usedEdit =
         resolveSheetGenMode({
@@ -605,7 +605,7 @@ reg(
       }
       writeFileSync(outPath, Buffer.from(img.b64, 'base64'))
       const { enhanceCharacterImage } = await import(
-        '../infrastructure/media/imageEnhance'
+        '../../infrastructure/media/imageEnhance'
       )
       const enhanced = enhanceCharacterImage(outPath, {
         enabled: ctx.settings.imageEnhance,
@@ -739,10 +739,10 @@ reg(
 
       const {
         polishThenGenerateVideo
-      } = await import('../application/video/polishVideoPrompt')
+      } = await import('../../application/video/polishVideoPrompt')
       const {
         buildSceneIntroVideoPolishUserPrompt
-      } = await import('../domain/videoPromptPolish')
+      } = await import('../../domain/videoPromptPolish')
 
       const sceneHardRules = row.hardRules ?? null
       const result = await polishThenGenerateVideo({
@@ -786,7 +786,7 @@ reg(
         parseSceneGallery,
         serializeSceneGallery,
         setSceneGalleryIntroVideo
-      } = await import('../domain/sceneGallery')
+      } = await import('../../domain/sceneGallery')
       const gallery = parseSceneGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath
       })
@@ -854,9 +854,9 @@ reg(
         parseSceneGallery,
         primarySceneGalleryPath,
         serializeSceneGallery
-      } = await import('../domain/sceneGallery')
+      } = await import('../../domain/sceneGallery')
       const { getScenePlateVariant, isScenePlateVariantId } = await import(
-        '../domain/scenePlateVariants'
+        '../../domain/scenePlateVariants'
       )
       const gallery = parseSceneGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath
@@ -883,7 +883,7 @@ reg(
           parseSceneLooks,
           serializeSceneLooks,
           upsertSceneLook
-        } = await import('../domain/sceneLooks')
+        } = await import('../../domain/sceneLooks')
         let looks = parseSceneLooks(row.looksJson)
         looks = ensureLookInLibrary(looks, atmo, {
           name: payload.label?.replace(/^Atmosphere ·\s*/i, '') || 'Look'
@@ -944,17 +944,17 @@ reg(
         atmosphereGalleryLabel,
         getAtmospherePose,
         pickBestSceneBaseImage
-      } = await import('../domain/sceneAtmosphere')
+      } = await import('../../domain/sceneAtmosphere')
       const { getArtStyle } = await import(
-        '../domain/characterArtStyles'
+        '../../domain/characterArtStyles'
       )
       const {
         appendSceneGalleryItem,
         parseSceneGallery,
         primarySceneGalleryPath,
         serializeSceneGallery
-      } = await import('../domain/sceneGallery')
-      const { aspectFromImageSize } = await import('../types/settings')
+      } = await import('../../domain/sceneGallery')
+      const { aspectFromImageSize } = await import('../../types/settings')
 
       const gallery = parseSceneGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath
@@ -1011,7 +1011,7 @@ reg(
       }
       writeFileSync(outPath, Buffer.from(img.b64, 'base64'))
       const { enhanceCharacterImage } = await import(
-        '../infrastructure/media/imageEnhance'
+        '../../infrastructure/media/imageEnhance'
       )
       const enhanced = enhanceCharacterImage(outPath, {
         enabled: ctx.settings.imageEnhance,
@@ -1095,7 +1095,7 @@ reg(
         parseSceneGallery,
         serializeSceneGallery,
         primarySceneGalleryPath
-      } = await import('../domain/sceneGallery')
+      } = await import('../../domain/sceneGallery')
       const srcGallery = parseSceneGallery(source.refGalleryJson, {
         refImagePath: source.refImagePath
       })

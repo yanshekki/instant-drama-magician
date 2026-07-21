@@ -232,14 +232,14 @@ reg(
         buildVisionUserContent,
         resolveReadableImagePath,
         visionFillUserPreamble
-      } = await import('../domain/chatVision')
+      } = await import('../../domain/chatVision')
       const {
         hardRulesAiInstruction,
         defaultHardRulesFallback,
         normalizeHardRules
-      } = await import('../domain/promptHardRules')
+      } = await import('../../domain/promptHardRules')
       const { coerceProfileString, extractJsonObject } = await import(
-        '../domain/jsonProfileFields'
+        '../../domain/jsonProfileFields'
       )
       const refPath = resolveReadableImagePath(payload.referenceImagePath)
       const hasImage = Boolean(refPath)
@@ -318,7 +318,7 @@ reg(
         name = description.slice(0, 32) || (locale === 'en' ? 'Look' : '造型')
       }
       const { fillMissingProfileFields } = await import(
-        '../domain/profileFillMissing'
+        '../../domain/profileFillMissing'
       )
       const costumePatch = await fillMissingProfileFields({
         profile: {
@@ -397,18 +397,18 @@ reg(
         costumeSwapGalleryLabel,
         getCostumeSwapPose,
         pickBestBaseImage
-      } = await import('../domain/costumeSwap')
+      } = await import('../../domain/costumeSwap')
       const { getArtStyle } = await import(
-        '../domain/characterArtStyles'
+        '../../domain/characterArtStyles'
       )
       const { aspectFromImageSize } = await import(
-        '../types/settings'
+        '../../types/settings'
       )
       const {
         appendGalleryItem,
         parseCharacterGallery,
         serializeCharacterGallery
-      } = await import('../domain/characterGallery')
+      } = await import('../../domain/characterGallery')
 
       const gallery = parseCharacterGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath,
@@ -585,10 +585,10 @@ reg(
 
       const {
         polishThenGenerateVideo
-      } = await import('../application/video/polishVideoPrompt')
+      } = await import('../../application/video/polishVideoPrompt')
       const {
         buildCostumeIntroVideoPolishUserPrompt
-      } = await import('../domain/videoPromptPolish')
+      } = await import('../../domain/videoPromptPolish')
 
       const costumeHardRules = row.hardRules ?? null
       const result = await polishThenGenerateVideo({

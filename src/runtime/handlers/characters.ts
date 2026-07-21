@@ -217,7 +217,7 @@ reg(
         mannerisms = mannerisms ?? row.mannerisms
         if (!existingNames.length) {
           const { parseCharacterCostumes } = await import(
-            '../domain/characterCostumes'
+            '../../domain/characterCostumes'
           )
           existingNames = parseCharacterCostumes(
             (row as { costumesJson?: string | null }).costumesJson
@@ -342,7 +342,7 @@ reg(
         buildWardrobeSuggestSystemPrompt,
         buildWardrobeSuggestUserPrompt,
         extractWardrobeSuggestionJson
-      } = await import('../domain/wardrobeSuggest')
+      } = await import('../../domain/wardrobeSuggest')
       const completion = await ctx.aiClient.chat({
         messages: [
           {
@@ -424,7 +424,7 @@ reg(
         buildVisionUserContent,
         resolveReadableImagePath,
         visionFillUserPreamble
-      } = await import('../domain/chatVision')
+      } = await import('../../domain/chatVision')
       const refPath = resolveReadableImagePath(payload.referenceImagePath)
       const hasImage = Boolean(refPath)
       if (!idea && !hasDraft && !hasSoul && !hasImage) {
@@ -436,7 +436,7 @@ reg(
       // Character invent uses only idea + form + soul (not the open story’s style).
       // Scene / clip / wardrobe flows own story continuity.
       const { shouldInjectStoryContextForCharacter } = await import(
-        '../domain/storyContextPolicy'
+        '../../domain/storyContextPolicy'
       )
       let storyTitle: string | undefined
       let styleNote: string | null | undefined
@@ -517,10 +517,10 @@ reg(
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractCharacterProfileJson(text)
       const { fillMissingProfileFields } = await import(
-        '../domain/profileFillMissing'
+        '../../domain/profileFillMissing'
       )
       const { CHARACTER_PROFILE_JSON_KEYS: charKeys } = await import(
-        '../domain/characterMasterPrompt'
+        '../../domain/characterMasterPrompt'
       )
       const charRequired = charKeys.filter((k) => k !== 'spokenLanguages' && k !== 'hardRules')
       const charPatch = await fillMissingProfileFields({
@@ -704,16 +704,16 @@ reg(
         hardRules: row.hardRules ?? undefined
       }
       const { getSheetVariant } = await import(
-        '../domain/characterSheetVariants'
+        '../../domain/characterSheetVariants'
       )
       const { getArtStyle } = await import(
-        '../domain/characterArtStyles'
+        '../../domain/characterArtStyles'
       )
       const { resolveSheetGenMode } = await import(
-        '../domain/characterMasterPrompt'
+        '../../domain/characterMasterPrompt'
       )
       const { allRefPaths, appendMultiRefNote, pickPrimaryRefPath } =
-        await import('../domain/imageGenConfirm')
+        await import('../../domain/imageGenConfirm')
       const variantDef = getSheetVariant(payload.variant)
       const variant = variantDef.id
       const artStyle = getArtStyle(
@@ -723,7 +723,7 @@ reg(
       const {
         aspectFromImageSize,
         imageSizeForSheetVariant
-      } = await import('../types/settings')
+      } = await import('../../types/settings')
       const size = imageSizeForSheetVariant(ctx.settings, variant)
       const aspectRatio = aspectFromImageSize(size)
 
@@ -804,7 +804,7 @@ reg(
 
       // Grok native ~720p/1k; optional 2× Lanczos+unsharp (Settings → Photo)
       const { enhanceCharacterImage } = await import(
-        '../infrastructure/media/imageEnhance'
+        '../../infrastructure/media/imageEnhance'
       )
       const enhanced = enhanceCharacterImage(outPath, {
         enabled: ctx.settings.imageEnhance,
@@ -1016,11 +1016,11 @@ reg(
 
       const {
         polishThenGenerateVideo
-      } = await import('../application/video/polishVideoPrompt')
+      } = await import('../../application/video/polishVideoPrompt')
       const {
         buildIntroVideoPolishUserPrompt,
         truncateForVideoPrompt
-      } = await import('../domain/videoPromptPolish')
+      } = await import('../../domain/videoPromptPolish')
 
       const charHardRules = row.hardRules ?? null
       const result = await polishThenGenerateVideo({
@@ -1130,7 +1130,7 @@ reg(
         refSheetPath: row.refSheetPath
       })
       const { getSheetVariant, isSheetVariantId } = await import(
-        '../domain/characterSheetVariants'
+        '../../domain/characterSheetVariants'
       )
       const knownLayers = new Set([
         'identity',
@@ -1174,7 +1174,7 @@ reg(
           serializeCharacterCostumes,
           upsertCostume,
           createCostumeEntry
-        } = await import('../domain/characterCostumes')
+        } = await import('../../domain/characterCostumes')
         let lib = parseCharacterCostumes(
           (row as { costumesJson?: string | null }).costumesJson
         )
@@ -1268,13 +1268,13 @@ reg(
         costumeSwapGalleryLabel,
         getCostumeSwapPose,
         pickBestBaseImage
-      } = await import('../domain/costumeSwap')
+      } = await import('../../domain/costumeSwap')
       const { getArtStyle } = await import(
-        '../domain/characterArtStyles'
+        '../../domain/characterArtStyles'
       )
       const {
         aspectFromImageSize
-      } = await import('../types/settings')
+      } = await import('../../types/settings')
 
       const gallery = parseCharacterGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath,
@@ -1339,7 +1339,7 @@ reg(
       writeFileSync(outPath, Buffer.from(img.b64, 'base64'))
 
       const { enhanceCharacterImage } = await import(
-        '../infrastructure/media/imageEnhance'
+        '../../infrastructure/media/imageEnhance'
       )
       const enhanced = enhanceCharacterImage(outPath, {
         enabled: ctx.settings.imageEnhance,

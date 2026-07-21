@@ -143,7 +143,7 @@ reg(
       next.imageProvider === 'grok-gateway' ||
       next.videoProvider === 'grok-gateway'
     ) {
-      void import('../infrastructure/gateway/GrokGatewayService')
+      void import('../../infrastructure/gateway/GrokGatewayService')
         .then(({ getGrokGatewayService }) =>
           getGrokGatewayService().ensureRunning()
         )

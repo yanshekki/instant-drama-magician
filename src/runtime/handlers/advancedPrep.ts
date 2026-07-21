@@ -120,7 +120,7 @@ reg(
   'timeline:getAdvancedPrep',
   (async ( storyId: string) => {
     const { AdvancedPrepService } = await import(
-      '../application/services/AdvancedPrepService'
+      '../../application/services/AdvancedPrepService'
     )
     const svc = new AdvancedPrepService(
       host.getPrisma(),
@@ -141,7 +141,7 @@ reg(
       const {
         parseStoryCastPrep,
         serializeStoryCastPrep
-      } = await import('../domain/advancedPrep')
+      } = await import('../../domain/advancedPrep')
       const store = generation().getMediaStore()
       const normalized = parseStoryCastPrep(JSON.stringify(prep ?? {}))
       store.writeStoryCastPrepJson(
@@ -156,7 +156,7 @@ reg(
   'timeline:clearEntryStill',
   (async ( storyId: string, entryId: string) => {
     const { AdvancedPrepService } = await import(
-      '../application/services/AdvancedPrepService'
+      '../../application/services/AdvancedPrepService'
     )
     const svc = new AdvancedPrepService(
       host.getPrisma(),
@@ -179,7 +179,7 @@ reg(
       }
     ) => {
       const { AdvancedPrepService } = await import(
-        '../application/services/AdvancedPrepService'
+        '../../application/services/AdvancedPrepService'
       )
       const svc = new AdvancedPrepService(
         host.getPrisma(),

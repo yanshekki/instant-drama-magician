@@ -119,14 +119,14 @@ export function registerGatewayHandlers(ctx: HandlerContext): void {
 reg('gateway:status', async () => {
   const {
     getGrokGatewayService
-  } = await import('../infrastructure/gateway/GrokGatewayService')
+  } = await import('../../infrastructure/gateway/GrokGatewayService')
   return getGrokGatewayService().getStatus()
 })
 
 reg('gateway:ensure', async () => {
   const {
     getGrokGatewayService
-  } = await import('../infrastructure/gateway/GrokGatewayService')
+  } = await import('../../infrastructure/gateway/GrokGatewayService')
   const gw = getGrokGatewayService()
   // Must use host settingsStore (cached) — a separate SettingsStore would
   // write disk while leaving in-memory ctx.settings + ctx.aiClient on a stale empty key.
@@ -167,7 +167,7 @@ reg('gateway:ensure', async () => {
 reg('gateway:installHints', async () => {
   const {
     GrokGatewayService
-  } = await import('../infrastructure/gateway/GrokGatewayService')
+  } = await import('../../infrastructure/gateway/GrokGatewayService')
   return {
     grokBuildUrl: GrokGatewayService.grokBuildInstallUrl(),
     gatewayDocsUrl: GrokGatewayService.gatewayDocsUrl(),
@@ -178,7 +178,7 @@ reg('gateway:installHints', async () => {
 reg('gateway:openAdmin', async (url?: string) => {
   const {
     getGrokGatewayService
-  } = await import('../infrastructure/gateway/GrokGatewayService')
+  } = await import('../../infrastructure/gateway/GrokGatewayService')
   const gw = getGrokGatewayService()
   const st = await gw.ensureRunning()
   const target =
@@ -225,7 +225,7 @@ reg(
     const {
       applyLlmPreset,
       coerceLlmProviderPreset
-    } = await import('../domain/openaiCompatible')
+    } = await import('../../domain/openaiCompatible')
     const current = settingsStore.load()
     const id = coerceLlmProviderPreset(preset, current.baseUrl)
     const patched = applyLlmPreset(current, id)
@@ -237,7 +237,7 @@ reg(
     })
     rebindAi(next)
     if (id === 'grok-gateway') {
-      void import('../infrastructure/gateway/GrokGatewayService')
+      void import('../../infrastructure/gateway/GrokGatewayService')
         .then(({ getGrokGatewayService }) =>
           getGrokGatewayService().ensureRunning()
         )
@@ -256,7 +256,7 @@ reg(
 reg(
   'ai:applyGrokDefaults',
   (async () => {
-    const { applyLlmPreset } = await import('../domain/openaiCompatible')
+    const { applyLlmPreset } = await import('../../domain/openaiCompatible')
     const current = settingsStore.load()
     const patched = applyLlmPreset(current, 'grok-gateway')
     const next = settingsStore.save({

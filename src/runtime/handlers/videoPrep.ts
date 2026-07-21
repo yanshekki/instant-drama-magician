@@ -164,13 +164,13 @@ reg(
 
       const {
         polishProfessionalVideoPrompt
-      } = await import('../application/video/prepareVideoPrompt')
+      } = await import('../../application/video/prepareVideoPrompt')
       const {
         generateVideoStillKeyframe
-      } = await import('../application/video/generateVideoStill')
+      } = await import('../../application/video/generateVideoStill')
       const {
         materialsSummaryLines
-      } = await import('../domain/videoPrep')
+      } = await import('../../domain/videoPrep')
       const store = generation().getMediaStore()
       store.ensureLibraryDirs()
       store.ensureTmpDir()
@@ -240,15 +240,15 @@ reg(
           spokenLanguages
         }
         const { buildCharacterIntroVideoPrompt } = await import(
-          '../domain/characterMasterPrompt'
+          '../../domain/characterMasterPrompt'
         )
         const {
           buildIntroVideoPolishUserPrompt,
           truncateForVideoPrompt
-        } = await import('../domain/videoPromptPolish')
+        } = await import('../../domain/videoPromptPolish')
         prepHardRules = row.hardRules ?? null
         const { ensureHardRules: sealChar } = await import(
-          '../domain/promptHardRules'
+          '../../domain/promptHardRules'
         )
         fallbackPrompt = sealChar(
           buildCharacterIntroVideoPrompt(profile, locale, {
@@ -297,14 +297,14 @@ reg(
           artStyle: (row as { artStyle?: string | null }).artStyle ?? undefined
         }
         const { buildSceneIntroVideoPrompt } = await import(
-          '../domain/sceneMasterPrompt'
+          '../../domain/sceneMasterPrompt'
         )
         const {
           buildSceneIntroVideoPolishUserPrompt
-        } = await import('../domain/videoPromptPolish')
+        } = await import('../../domain/videoPromptPolish')
         prepHardRules = row.hardRules ?? null
         const { ensureHardRules: sealScene } = await import(
-          '../domain/promptHardRules'
+          '../../domain/promptHardRules'
         )
         fallbackPrompt = sealScene(
           buildSceneIntroVideoPrompt(profile, locale),
@@ -344,14 +344,14 @@ reg(
           artStyle: (row as { artStyle?: string | null }).artStyle ?? undefined
         }
         const { buildPropIntroVideoPrompt } = await import(
-          '../domain/propMasterPrompt'
+          '../../domain/propMasterPrompt'
         )
         const {
           buildPropIntroVideoPolishUserPrompt
-        } = await import('../domain/videoPromptPolish')
+        } = await import('../../domain/videoPromptPolish')
         prepHardRules = row.hardRules ?? null
         const { ensureHardRules: sealProp } = await import(
-          '../domain/promptHardRules'
+          '../../domain/promptHardRules'
         )
         fallbackPrompt = sealProp(
           buildPropIntroVideoPrompt(profile, locale),
@@ -389,14 +389,14 @@ reg(
           artStyle: row.artStyle ?? undefined
         }
         const { buildActionIntroVideoPrompt } = await import(
-          '../domain/actionMasterPrompt'
+          '../../domain/actionMasterPrompt'
         )
         const {
           hardRulesMaterialsBlock
-        } = await import('../domain/videoPromptPolish')
+        } = await import('../../domain/videoPromptPolish')
         prepHardRules = row.hardRules ?? null
         const { ensureHardRules: sealAct } = await import(
-          '../domain/promptHardRules'
+          '../../domain/promptHardRules'
         )
         fallbackPrompt = sealAct(
           buildActionIntroVideoPrompt(profile, locale),
@@ -434,14 +434,14 @@ reg(
           artStyle: row.artStyle ?? undefined
         }
         const { buildCostumeIntroVideoPrompt } = await import(
-          '../domain/costumeSwap'
+          '../../domain/costumeSwap'
         )
         const {
           buildCostumeIntroVideoPolishUserPrompt
-        } = await import('../domain/videoPromptPolish')
+        } = await import('../../domain/videoPromptPolish')
         prepHardRules = row.hardRules ?? null
         const { ensureHardRules: sealCos } = await import(
-          '../domain/promptHardRules'
+          '../../domain/promptHardRules'
         )
         fallbackPrompt = sealCos(
           buildCostumeIntroVideoPrompt(profile, locale),
@@ -479,10 +479,10 @@ reg(
           throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound')
         }
         const { parseIdList } = await import(
-          '../domain/timelineBindings'
+          '../../domain/timelineBindings'
         )
         const { snapVideoSeconds } = await import(
-          '../domain/videoDuration'
+          '../../domain/videoDuration'
         )
         const {
           buildClipPrompt,
@@ -491,17 +491,17 @@ reg(
           getPreviousTimelineEntry,
           buildContinuityLockPrompt,
           timelineBeatDisplayIndex
-        } = await import('../domain/promptContinuity')
+        } = await import('../../domain/promptContinuity')
         const { characterVideoPromptBlock } = await import(
-          '../domain/characterMasterPrompt'
+          '../../domain/characterMasterPrompt'
         )
         const {
           buildClipVideoPolishUserPrompt
-        } = await import('../domain/videoPromptPolish')
+        } = await import('../../domain/videoPromptPolish')
         const {
           beatContentToClipPromptBlock,
           parseBeatContent
-        } = await import('../domain/beatContent')
+        } = await import('../../domain/beatContent')
 
         const asList = (
           multi: string | string[] | null | undefined,
@@ -654,7 +654,7 @@ reg(
           buildClipPrepHash,
           parseEntryStillPromptCache,
           serializeEntryStillPromptCache
-        } = await import('../domain/advancedPrep')
+        } = await import('../../domain/advancedPrep')
         const castPrep = parseStoryCastPrep(
           store.readStoryCastPrepJson(payload.storyId)
         )
@@ -697,7 +697,7 @@ reg(
           null
 
         const { collectTimelineHardRules, ensureHardRules } = await import(
-          '../domain/promptHardRules'
+          '../../domain/promptHardRules'
         )
         const clipHardRules = collectTimelineHardRules({
           story: story as {
@@ -890,7 +890,7 @@ reg(
             polishedFlag = polishedOnly.polished
           } else if (prepHardRules) {
             const { ensureHardRules: sealRules } = await import(
-              '../domain/promptHardRules'
+              '../../domain/promptHardRules'
             )
             promptOut = sealRules(promptOut, prepHardRules)
           }
@@ -966,7 +966,7 @@ reg(
         }
         if (prepHardRules) {
           const { ensureHardRules: seal } = await import(
-            '../domain/promptHardRules'
+            '../../domain/promptHardRules'
           )
           fallbackPrompt = seal(fallbackPrompt, prepHardRules)
         }
@@ -1011,7 +1011,7 @@ reg(
             serializeEntryStillPromptCache,
             parseStoryCastPrep,
             resolveCastRefFromPrep
-          } = await import('../domain/advancedPrep')
+          } = await import('../../domain/advancedPrep')
           const castPrep = parseStoryCastPrep(
             store.readStoryCastPrepJson(payload.storyId)
           )
@@ -1021,7 +1021,7 @@ reg(
             >
           ).find((e) => e.id === payload.entryId)
           const { parseIdList } = await import(
-            '../domain/timelineBindings'
+            '../../domain/timelineBindings'
           )
           const primaryChar = (entryRow?.characterId as string) || null
           const castRef = resolveCastRefFromPrep(primaryChar, castPrep)
@@ -1128,13 +1128,13 @@ reg(
       }
       const {
         polishProfessionalVideoPrompt
-      } = await import('../application/video/prepareVideoPrompt')
+      } = await import('../../application/video/prepareVideoPrompt')
       const {
         generateVideoStillKeyframe
-      } = await import('../application/video/generateVideoStill')
+      } = await import('../../application/video/generateVideoStill')
       const {
         buildStillRegenPolishUserPrompt
-      } = await import('../domain/videoPrep')
+      } = await import('../../domain/videoPrep')
       const seconds =
         typeof payload.durationSeconds === 'number'
           ? payload.durationSeconds
@@ -1166,10 +1166,10 @@ reg(
             (await actions().get(payload.actionId))?.hardRules ?? null
         } else if (payload.storyId && payload.entryId) {
           const { collectTimelineHardRules } = await import(
-            '../domain/promptHardRules'
+            '../../domain/promptHardRules'
           )
           const { hydrateTimelineBindings } = await import(
-            '../domain/timelineBindings'
+            '../../domain/timelineBindings'
           )
           const story = await stories().get(payload.storyId)
           const entryRaw = await host
@@ -1352,7 +1352,7 @@ reg(
       }
       const {
         mergeFinalVideoPrompt
-      } = await import('../domain/videoPrep')
+      } = await import('../../domain/videoPrep')
       const seconds =
         typeof payload.durationSeconds === 'number'
           ? payload.durationSeconds
@@ -1387,10 +1387,10 @@ reg(
           payload.entryId
         ) {
           const { collectTimelineHardRules } = await import(
-            '../domain/promptHardRules'
+            '../../domain/promptHardRules'
           )
           const { hydrateTimelineBindings } = await import(
-            '../domain/timelineBindings'
+            '../../domain/timelineBindings'
           )
           const story = await stories().get(payload.storyId)
           const entryRaw = await host
@@ -1544,7 +1544,7 @@ reg(
           serializeCharacterGallery,
           setGalleryIntroVideo,
           appendGalleryItem
-        } = await import('../domain/characterGallery')
+        } = await import('../../domain/characterGallery')
         let next = parseCharacterGallery(row.refGalleryJson, {
           refImagePath: row.refImagePath,
           refSheetPath: row.refSheetPath
@@ -1594,7 +1594,7 @@ reg(
           serializeSceneGallery,
           setSceneGalleryIntroVideo,
           appendSceneGalleryItem
-        } = await import('../domain/sceneGallery')
+        } = await import('../../domain/sceneGallery')
         let next = parseSceneGallery(row.refGalleryJson, {
           refImagePath: row.refImagePath
         })
@@ -1630,7 +1630,7 @@ reg(
           serializeSceneGallery,
           setSceneGalleryIntroVideo,
           appendSceneGalleryItem
-        } = await import('../domain/sceneGallery')
+        } = await import('../../domain/sceneGallery')
         let next = parseSceneGallery(row.refGalleryJson, {
           refImagePath: row.refImagePath
         })
@@ -1666,7 +1666,7 @@ reg(
           serializeCharacterGallery,
           setGalleryIntroVideo,
           appendGalleryItem
-        } = await import('../domain/characterGallery')
+        } = await import('../../domain/characterGallery')
         let next = parseCharacterGallery(row.refGalleryJson, {
           refImagePath: row.refImagePath
         })
@@ -1702,7 +1702,7 @@ reg(
           serializeActionGallery,
           setActionGalleryIntroVideo,
           appendActionGalleryItem
-        } = await import('../domain/actionGallery')
+        } = await import('../../domain/actionGallery')
         let next = parseActionGallery(row.refGalleryJson, {
           refImagePath: row.refImagePath
         })
