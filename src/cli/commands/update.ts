@@ -14,7 +14,8 @@ import {
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
-function currentCliVersion(): string {
+/** Exported for residual tests. */
+export function currentCliVersion(): string {
   try {
     const root = join(__dirname, '..', '..', '..', 'package.json')
     const j = JSON.parse(readFileSync(root, 'utf8')) as {

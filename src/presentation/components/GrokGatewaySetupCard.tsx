@@ -43,9 +43,7 @@ export function GrokGatewaySetupCard({
             ? 'checking'
             : status?.state === 'unhealthy' || status?.state === 'error'
               ? 'unhealthy'
-              : status
-                ? 'checking'
-                : 'checking'
+              : 'checking'
 
   const grokOk = Boolean(status?.grokPath)
   const gatewayOk =

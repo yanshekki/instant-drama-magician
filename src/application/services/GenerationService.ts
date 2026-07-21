@@ -356,6 +356,7 @@ export class GenerationService {
             ? `${prop.name}: ${prop.description}`
             : null,
           hardRules: clipHardRules,
+          // primary action is always actionsBound[0] when multi-bound
           actionBlock: action
             ? [
                 `Motion guide "${action.name}": ${action.description || ''}`,
@@ -365,16 +366,7 @@ export class GenerationService {
               ]
                 .filter(Boolean)
                 .join('\n')
-            : actionsBound.length > 1
-              ? actionsBound
-                  .map(
-                    (a) =>
-                      `${a.name}: ${(a.description || '').slice(0, 120)}${
-                        a.motionNotes ? ` | motion: ${a.motionNotes}` : ''
-                      }`
-                  )
-                  .join('\n')
-              : null,
+            : null,
           beatOrDialogue,
           previousContext: prevWithLock || prev,
           multiCastNote,

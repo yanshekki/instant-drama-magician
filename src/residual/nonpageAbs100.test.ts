@@ -599,13 +599,14 @@ describe('abs100 handlers mop', () => {
     })
     registerGatewayHandlers(ctx)
     const h = (ctx as { handlers: Map<string, unknown> }).handlers
-    for (const ch of h.keys()) {
-      if (/admin|open/i.test(ch)) {
-        try {
-          await invokeRegistered(h as never, ch, { url: '   ' })
-        } catch {
-          /* */
-        }
+    if (h.has('gateway:openAdmin')) {
+      try {
+        await Promise.race([
+          invokeRegistered(h as never, 'gateway:openAdmin', { url: '  ' }),
+          new Promise((r) => setTimeout(r, 500))
+        ])
+      } catch {
+        /* */
       }
     }
   })

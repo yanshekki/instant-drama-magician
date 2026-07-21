@@ -690,6 +690,7 @@ reg(
           propBlock: prop
             ? `${prop.name}: ${prop.description}`
             : null,
+          // primary action is always actionsBound[0] when multi-bound
           actionBlock: action
             ? [
                 `Motion guide "${String(action.name ?? '')}": ${String(action.description ?? '')}`,
@@ -705,14 +706,7 @@ reg(
               ]
                 .filter(Boolean)
                 .join('\n')
-            : actionsBound.length > 1
-              ? actionsBound
-                  .map(
-                    (a) =>
-                      `${String(a.name ?? '')}: ${String(a.description ?? '').slice(0, 120)}`
-                  )
-                  .join(' | ')
-              : null,
+            : null,
           beatOrDialogue,
           previousContext: prevWithLock || prev,
           multiCastNote,
