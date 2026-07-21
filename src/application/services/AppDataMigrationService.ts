@@ -14,6 +14,7 @@ import {
   writeFileSync,
   readFileSync
 } from 'fs'
+import { execFileSync } from 'child_process'
 import { basename, dirname, join } from 'path'
 import {
   type AppPaths,
@@ -55,12 +56,39 @@ function dbLooksEmpty(dbPath: string): boolean {
   if (!existsSync(dbPath)) return true
   try {
     const size = statSync(dbPath).size
-    // Empty schema-only DBs in this project are ~100–130KB with 0 stories;
-    // treat very small or missing as empty. Prefer size heuristic + optional
-    // story count via sqlite would need native bind — keep simple:
-    return size < 50_000
+    if (size < 50_000) return true
+    // Prefer story-count when possible (better-sqlite not required)
+    const n = countStoriesRough(dbPath)
+    if (n !== null) return n === 0
+    return false
   } catch {
     return true
+  }
+}
+
+/** Best-effort Story count via `sqlite3` CLI if present; else null. */
+function countStoriesRough(dbPath: string): number | null {
+  try {
+    const out = execFileSync(
+      'sqlite3',
+      [dbPath, 'SELECT COUNT(*) FROM Story;'],
+      { encoding: 'utf8', timeout: 3000 }
+    )
+    const n = Number(String(out).trim())
+    return Number.isFinite(n) ? n : null
+  } catch {
+    return null
+  }
+}
+
+function dbStoryScore(dbPath: string): number {
+  if (!existsSync(dbPath)) return -1
+  const n = countStoriesRough(dbPath)
+  if (n !== null) return n
+  try {
+    return statSync(dbPath).size
+  } catch {
+    return -1
   }
 }
 
@@ -124,21 +152,36 @@ export function migrateAppDataIfNeeded(
     platform: options.platform
   })
 
-  // 1) Prefer a legacy DB with content when dest is empty
-  if (destEmpty) {
-    for (const db of leg.databases) {
-      if (!existsSync(db)) continue
-      if (dbLooksEmpty(db)) continue
-      // Don't copy over self
-      if (resolveSame(db, destDb)) continue
+  // 1) Prefer a richer legacy DB when dest is empty OR clearly poorer
+  //    (e.g. leftover 0–1 story schema vs prisma/dev.db with full library)
+  {
+    const destScore = dbStoryScore(destDb)
+    let best: { path: string; score: number } | null = null
+    for (const db of [
+      ...leg.databases,
+      ...leg.roots.map((r) => join(r, DATABASE_FILE))
+    ]) {
+      if (!existsSync(db) || resolveSame(db, destDb)) continue
+      const score = dbStoryScore(db)
+      if (score <= 0) continue
+      if (!best || score > best.score) best = { path: db, score }
+    }
+    const shouldReplace =
+      destEmpty ||
+      (best !== null && best.score > destScore && destScore <= 1)
+    if (shouldReplace && best) {
       try {
-        copyFileSafe(db, destDb)
-        result.copied.push({ from: db, to: destDb, kind: 'db' })
-        result.actions.push(`db: copied ${db} → ${destDb}`)
-        break
+        if (existsSync(destDb)) {
+          copyFileSafe(destDb, `${destDb}.bak-before-migrate`)
+        }
+        copyFileSafe(best.path, destDb)
+        result.copied.push({ from: best.path, to: destDb, kind: 'db' })
+        result.actions.push(
+          `db: adopted richer ${best.path} (score ${best.score} > ${destScore}) → ${destDb}`
+        )
       } catch (e) {
         result.actions.push(
-          `db: failed ${db}: ${e instanceof Error ? e.message : String(e)}`
+          `db: failed ${best.path}: ${e instanceof Error ? e.message : String(e)}`
         )
       }
     }
