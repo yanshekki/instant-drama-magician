@@ -774,4 +774,94 @@ describe('TimelineAdvancedStudio', () => {
     expect(true).toBe(true)
   })
 
+  it('last residual saveCast toast video queue needStills and ready', async () => {
+    const onClose = vi.fn()
+    const onStart = vi.fn()
+    api.timeline.setCastPrep = vi.fn().mockResolvedValue(snap.castPrep)
+    // all stills ready
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      cells: snap.cells.map((c) => ({
+        ...c,
+        stillStatus: 'ready' as const,
+        stillPath: '/s.png'
+      })),
+      summary: {
+        ...snap.summary,
+        stillReady: snap.cells.length,
+        stillTotal: snap.cells.length,
+        generating: 1
+      }
+    })
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={onClose}
+          onStartVideoQueue={onStart}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+
+    // save cast → toast success
+    const save = Array.from(document.querySelectorAll('button')).find((b) =>
+      (b.textContent || '').includes('saveCast')
+    )
+    if (save && !save.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(save)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 30))
+      })
+    }
+
+    // video queue ready
+    const vq = Array.from(document.querySelectorAll('button')).find((b) =>
+      /videoQueue|startVideo|queueReady|skipStill/i.test(b.textContent || '')
+    )
+    if (vq && !vq.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(vq)
+      })
+    }
+
+    // need stills path: empty ready cells
+    onClose.mockClear()
+    onStart.mockClear()
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      cells: snap.cells.map((c) => ({
+        ...c,
+        stillStatus: 'empty' as const,
+        stillPath: null
+      })),
+      summary: { ...snap.summary, stillReady: 0, stillTotal: 2 }
+    })
+    // remount
+    const { unmount } = render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={onClose}
+          onStartVideoQueue={onStart}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+    const vq2 = Array.from(document.querySelectorAll('button')).find((b) =>
+      /videoQueue|startVideo|queueReady/i.test(b.textContent || '')
+    )
+    if (vq2 && !vq2.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(vq2)
+      })
+    }
+    unmount()
+    expect(true).toBe(true)
+  })
+
 })

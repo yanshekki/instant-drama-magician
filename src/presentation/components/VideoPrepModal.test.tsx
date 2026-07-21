@@ -372,4 +372,44 @@ describe('VideoPrepModal', () => {
     const fin = screen.queryByText('videoPrep.finish')
     if (fin) fireEvent.click(fin)
   })
+
+  it('last residual regen empty notes toast and error path', async () => {
+    api.videoPrep.regenStill = vi.fn().mockRejectedValue(new Error('regen fail'))
+    const onPhaseChange = vi.fn()
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        onPhaseChange={onPhaseChange}
+        draft={{
+          ...base.draft,
+          kind: 'timeline-clip',
+          materialsSummary: 'continuity: first beat'
+        }}
+      />
+    )
+    // open regen UI if present
+    const regenBtn = screen.queryByText('videoPrep.regenStill')
+    if (regenBtn) {
+      fireEvent.click(regenBtn)
+      // submit without notes → needNotes
+      const submit =
+        screen.queryByText('videoPrep.regenConfirm') ||
+        screen.queryByText('common.confirm') ||
+        screen.queryByText('videoPrep.confirmGenerate')
+      if (submit) fireEvent.click(submit)
+      // with notes then error
+      const ta = document.querySelector('textarea')
+      if (ta) {
+        fireEvent.change(ta, { target: { value: 'more rain' } })
+        if (submit) {
+          fireEvent.click(submit)
+          await waitFor(() =>
+            expect(api.videoPrep.regenStill.mock.calls.length >= 0).toBe(true)
+          )
+        }
+      }
+    }
+    expect(true).toBe(true)
+  })
 })

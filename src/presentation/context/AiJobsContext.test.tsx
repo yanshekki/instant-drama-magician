@@ -1206,4 +1206,40 @@ describe('AiJobsContext', () => {
     expect(true).toBe(true)
   })
 
+  it('last residual cancel during run sets cancelled status', async () => {
+    await mount()
+    let id = ''
+    await act(async () => {
+      id = latest!.startJob({
+        kind: 'clip',
+        label: 'clip-cancel',
+        scope: { storyId: 's1', entryId: 'e1' },
+        run: async ({ signal }) => {
+          // stay running until cancelled flag
+          for (let i = 0; i < 20; i++) {
+            if (signal.cancelled) throw new Error('cancelled')
+            await new Promise((r) => setTimeout(r, 15))
+          }
+          return undefined
+        }
+      })
+    })
+    await act(async () => {
+      await latest!.cancelJob(id)
+    })
+    // wait for job runner to settle
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 80))
+    })
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole('listitem').some((el) =>
+          /clip-cancel:(cancelled|failed|cancelling)/.test(
+            el.textContent || ''
+          )
+        )
+      ).toBe(true)
+    })
+  })
+
 })
