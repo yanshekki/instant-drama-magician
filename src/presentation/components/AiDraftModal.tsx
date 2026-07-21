@@ -122,21 +122,24 @@ export function AiDraftModal(): JSX.Element | null {
 
           {draft.type === 'wardrobe-suggest' && (
             <div className="space-y-2 rounded-xl border border-ink-800 bg-ink-900/50 p-3 text-sm text-ink-200">
-              <Row k={t('characters.costumeLibName')} v={draft.suggestion.name} />
+              <Row
+                k={t('characters.costumeLibName')}
+                v={draft.suggestion?.name ?? ''}
+              />
               <Row
                 k={t('characters.swapCostumeDesc')}
-                v={draft.suggestion.costume}
+                v={draft.suggestion?.costume ?? ''}
               />
               <Row
                 k={t('characters.artStyle')}
-                v={draft.suggestion.artStyle}
+                v={draft.suggestion?.artStyle ?? ''}
               />
-              {draft.suggestion.rationale && (
+              {draft.suggestion?.rationale ? (
                 <Row
                   k={t('characters.suggestRationale')}
                   v={draft.suggestion.rationale}
                 />
-              )}
+              ) : null}
               <p className="pt-1 text-[11px] text-ink-500">
                 {t('aiJobs.wardrobeDraftHint')}
               </p>

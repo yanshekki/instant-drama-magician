@@ -12,6 +12,9 @@ import { AppProvider } from '../presentation/context/AppContext'
 import { ToastProvider, ToastHost } from '../presentation/context/ToastContext'
 import { DialogProvider } from '../presentation/context/DialogContext'
 import { AiJobsProvider } from '../presentation/context/AiJobsContext'
+import { AiJobHud } from '../presentation/components/AiJobHud'
+import { AiDraftModal } from '../presentation/components/AiDraftModal'
+import { VideoPrepHost } from '../presentation/components/VideoPrepHost'
 
 let ready: Promise<unknown> | null = null
 
@@ -39,6 +42,11 @@ export type ProviderOptions = {
   withDialog?: boolean
   withAiJobs?: boolean
   withToastHost?: boolean
+  /**
+   * Mount AiJobHud + AiDraftModal + VideoPrepHost (as Layout does).
+   * Required for startJob draft accept and startVideoPrep registration.
+   */
+  withAiShell?: boolean
 }
 
 export function TestProviders({
@@ -48,11 +56,23 @@ export function TestProviders({
   withToast = true,
   withDialog = true,
   withAiJobs = true,
-  withToastHost = false
+  withToastHost = false,
+  withAiShell = false
 }: {
   children: ReactNode
 } & ProviderOptions): ReactElement {
   let tree: ReactNode = children
+
+  if (withAiShell) {
+    tree = (
+      <>
+        {tree}
+        <AiJobHud />
+        <AiDraftModal />
+        <VideoPrepHost />
+      </>
+    )
+  }
 
   if (withAiJobs) {
     tree = <AiJobsProvider>{tree}</AiJobsProvider>
@@ -91,6 +111,7 @@ export async function renderWithProviders(
     withDialog = true,
     withAiJobs = true,
     withToastHost = false,
+    withAiShell = false,
     ...renderOptions
   } = options ?? {}
   return render(ui, {
@@ -103,11 +124,75 @@ export async function renderWithProviders(
         withDialog={withDialog}
         withAiJobs={withAiJobs}
         withToastHost={withToastHost}
+        withAiShell={withAiShell}
       >
         {children}
       </TestProviders>
     )
   })
+}
+
+/** Wait for AiDraftModal and click Apply/Save/Add-to-gallery primary button. */
+export async function acceptOpenAiDraft(): Promise<boolean> {
+  const { waitFor, screen, fireEvent, act } = await import(
+    '@testing-library/react'
+  )
+  try {
+    await waitFor(
+      () => {
+        const text = document.body.textContent || ''
+        // Auto-opened reviewing modal (en locale title)
+        const hasTitle =
+          /AI result draft/i.test(text) || text.includes('aiJobs.draftTitle')
+        const hasReview = screen
+          .queryAllByRole('button')
+          .some((b) => /^Review$/i.test((b.textContent || '').trim()))
+        expect(hasTitle || hasReview).toBe(true)
+      },
+      { timeout: 10000 }
+    )
+  } catch {
+    return false
+  }
+  // If only HUD Review is visible, open the modal first
+  const review = screen
+    .queryAllByRole('button')
+    .find((b) => /^Review$/i.test((b.textContent || '').trim()))
+  if (review && !(document.body.textContent || '').match(/AI result draft/i)) {
+    await act(async () => {
+      fireEvent.click(review)
+    })
+  }
+  await waitFor(
+    () => {
+      expect(
+        screen
+          .queryAllByRole('button')
+          .some((b) =>
+            /Apply and save|Add to gallery and save|Apply wardrobe|OK|Acknowledge/i.test(
+              b.textContent || ''
+            )
+          )
+      ).toBe(true)
+    },
+    { timeout: 5000 }
+  ).catch(() => undefined)
+
+  const apply = screen
+    .getAllByRole('button')
+    .find((b) =>
+      /Apply and save|Add to gallery and save|Apply wardrobe|^OK$|Acknowledge/i.test(
+        (b.textContent || '').trim()
+      )
+    )
+  if (!apply) return false
+  await act(async () => {
+    fireEvent.click(apply)
+  })
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30))
+  })
+  return true
 }
 
 /** Click the primary confirm button in DialogProvider alertdialog. */
