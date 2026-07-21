@@ -792,6 +792,246 @@ describe('registerVideoPrepCreate', () => {
     expect(generateImage).not.toHaveBeenCalled()
     expect(writeEntryStillPromptJson).toHaveBeenCalled()
   })
+
+  it('timeline multi-cast multi-scene multi-prop multi-action', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-multi-'))
+    const stillOut = join(dir, 'e1.png')
+    writeFileSync(stillOut, 's')
+    const ref = join(dir, 'r.png')
+    writeFileSync(ref, 'r')
+    const long =
+      'POLISHED MULTI CAST CLIP PROMPT WITH ENOUGH LENGTH FOR THE POLISHER TO ACCEPT IT FULLY'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('X').toString('base64')
+    }))
+    const story = {
+      id: 's1',
+      title: 'Multi',
+      styleNote: 'noir',
+      hardRules: 'no gore',
+      characters: [
+        {
+          id: 'c1',
+          name: 'A',
+          description: 'one',
+          appearance: 'tall',
+          costume: 'suit',
+          hardRules: null,
+          spokenLanguages: 'not-json',
+          ageRange: '20',
+          gender: 'f',
+          personality: 'calm',
+          backstory: 'b',
+          relationships: 'r',
+          mannerisms: 'm',
+          voiceDesc: 'v',
+          visualTags: 't',
+          artStyle: 'photo',
+          refImagePath: ref
+        },
+        {
+          id: 'c2',
+          name: 'B',
+          description: 'two',
+          appearance: null,
+          costume: null,
+          hardRules: null,
+          spokenLanguages: JSON.stringify(['en', 'zh']),
+          refImagePath: null
+        }
+      ],
+      scenes: [
+        {
+          id: 'sc1',
+          sceneNumber: 1,
+          title: 'Pier',
+          description: 'wet',
+          mood: 'cold',
+          lighting: 'neon',
+          hardRules: null,
+          refImagePath: null
+        },
+        {
+          id: 'sc2',
+          sceneNumber: 2,
+          title: 'Alley',
+          description: 'dark',
+          mood: null,
+          lighting: null,
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      props: [
+        { id: 'p1', name: 'Bag', description: 'red', hardRules: null, refImagePath: null },
+        { id: 'p2', name: 'Key', description: 'brass', hardRules: null, refImagePath: null }
+      ],
+      actions: [
+        {
+          id: 'a1',
+          name: 'Run',
+          description: 'sprint',
+          motionNotes: 'fast',
+          intention: 'escape',
+          cameraNotes: 'handheld',
+          hardRules: null,
+          refImagePath: null
+        },
+        {
+          id: 'a2',
+          name: 'Turn',
+          description: 'look back',
+          motionNotes: null,
+          intention: null,
+          cameraNotes: null,
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      timeline: [
+        {
+          id: 'e0',
+          order: 0,
+          startTime: 0,
+          endTime: 4,
+          characterId: 'c1',
+          sceneId: 'sc1',
+          propId: 'p1',
+          actionId: 'a1',
+          characterIds: JSON.stringify(['c1', 'c2']),
+          sceneIds: JSON.stringify(['sc1', 'sc2']),
+          propIds: JSON.stringify(['p1', 'p2']),
+          actionIds: JSON.stringify(['a1', 'a2']),
+          dialogue: 'Go!',
+          beatContentJson: null,
+          mediaStatus: 'READY'
+        },
+        {
+          id: 'e1',
+          order: 1,
+          startTime: 4,
+          endTime: 9,
+          characterId: 'c1',
+          sceneId: 'sc1',
+          propId: 'p1',
+          actionId: 'a1',
+          characterIds: JSON.stringify(['c1', 'c2']),
+          sceneIds: JSON.stringify(['sc1', 'sc2']),
+          propIds: JSON.stringify(['p1', 'p2']),
+          actionIds: JSON.stringify(['a1', 'a2']),
+          dialogue: null,
+          beatContentJson: JSON.stringify({ beat: 'chase' }),
+          mediaStatus: 'EMPTY'
+        }
+      ]
+    }
+    const prevStill = join(dir, 'prev.png')
+    writeFileSync(prevStill, 'p')
+    const ctx = makeHandlerContext({
+      settings: {
+        aspectRatio: '9:16',
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024'
+      } as never,
+      aiClient: { chat, generateImage, editImage: generateImage, generateVideo: vi.fn() },
+      stories: () => ({ get: vi.fn(async () => story) }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            ensureStoryDirs: vi.fn(),
+            tmpImagePath: () => stillOut,
+            clipContinuityStillPath: (_s: string, eid: string) =>
+              eid === 'e0' ? prevStill : stillOut,
+            readStoryCastPrepJson: vi.fn(() => null),
+            writeEntryStillPromptJson: vi.fn(),
+            readEntryStillPromptJson: vi.fn(() => null),
+            clearEntryStillUserCleared: vi.fn(),
+            isEntryStillUserCleared: vi.fn(() => false)
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      stillOnly: true
+    })) as { professionalPrompt?: string }
+    expect(chat).toHaveBeenCalled()
+    expect(r.professionalPrompt || long).toBeTruthy()
+  })
+
+  it('entity intros seal hardRules for scene prop action costume', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-ent-'))
+    const stillOut = join(dir, 's.png')
+    const long = 'POLISHED ENTITY INTRO PROMPT LONG ENOUGH FOR ACCEPTANCE THRESHOLD'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('X').toString('base64')
+    }))
+    const baseMedia = {
+      ensureLibraryDirs: vi.fn(),
+      ensureTmpDir: vi.fn(),
+      tmpImagePath: () => stillOut,
+      characterImagePath: () => stillOut,
+      sceneImagePath: () => stillOut,
+      propImagePath: () => stillOut,
+      actionImagePath: () => stillOut,
+      costumeImagePath: () => stillOut
+    }
+    for (const [kind, idKey, factory] of [
+      ['scene-intro', 'sceneId', 'scenes'],
+      ['prop-intro', 'propId', 'props'],
+      ['action-intro', 'actionId', 'actions'],
+      ['costume-intro', 'costumeId', 'costumes']
+    ] as const) {
+      const get = vi.fn(async () => ({
+        id: 'x1',
+        name: 'N',
+        title: 'T',
+        description: 'd',
+        hardRules: 'NO TEXT',
+        artStyle: null,
+        refImagePath: null
+      }))
+      const ctx = makeHandlerContext({
+        settings: {
+          aspectRatio: '1:1',
+          imageSizeSquare: '1024x1024',
+          imageSizeWide: '1792x1024',
+          imageSizeTall: '1024x1792'
+        } as never,
+        aiClient: { chat, generateImage, editImage: generateImage, generateVideo: vi.fn() },
+        scenes: () => ({ get }) as never,
+        props: () => ({ get }) as never,
+        actions: () => ({ get }) as never,
+        costumes: () => ({ get }) as never,
+        generation: () =>
+          ({
+            getMediaStore: () => baseMedia,
+            cancel: vi.fn(),
+            rebindAi: vi.fn()
+          }) as never
+      })
+      registerVideoPrepCreate(ctx)
+      const h = (ctx as { handlers: Map<string, unknown> }).handlers
+      await invokeRegistered(h as never, 'videoPrep:create', {
+        kind,
+        [idKey]: 'x1',
+        stillOnly: true
+      })
+    }
+    expect(chat.mock.calls.length).toBeGreaterThan(3)
+  })
 })
-
-

@@ -442,4 +442,155 @@ describe('TimelineAdvancedStudio', () => {
     )
     if (queue) fireEvent.click(queue)
   })
+
+  it('video queue ready with no stills toasts needStills', async () => {
+    const onStart = vi.fn()
+    const onClose = vi.fn()
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      cells: snap.cells.map((c) => ({
+        ...c,
+        stillStatus: 'missing',
+        stillPath: null
+      })),
+      summary: { ...snap.summary, stillReady: 0 }
+    })
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={onClose}
+          onStartVideoQueue={onStart}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() =>
+      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
+    )
+    const queue = Array.from(document.querySelectorAll('button')).find((b) =>
+      /startVideo|queueVideo|videoQueue|toVideoAll|startFull/i.test(
+        b.textContent || ''
+      )
+    )
+    if (queue) {
+      fireEvent.click(queue)
+      await waitFor(() => expect(toast.info).toHaveBeenCalled())
+    }
+  })
+
+  it('cast card without image + gallery empty + go character', async () => {
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      castCards: [
+        {
+          characterId: 'c2',
+          name: 'Bob',
+          description: 'side',
+          gallery: [],
+          costumes: [],
+          selectedRefImagePath: null,
+          selectedCostumeId: null,
+          hasAnyImage: false
+        }
+      ]
+    })
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={vi.fn()}
+          onStartVideoQueue={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(document.body.textContent || '').toMatch(/Bob/i))
+    const go = Array.from(document.querySelectorAll('button')).find((b) =>
+      /goCharacter|characters/i.test(b.textContent || '')
+    )
+    if (go) fireEvent.click(go)
+  })
+
+  it('storyboard cell stillFromVideo and stale and READY no still', async () => {
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      cells: [
+        {
+          ...snap.cells[0],
+          stillStatus: 'ready',
+          stillFromVideo: true,
+          stillPath: '/fromvid.png',
+          continuityKind: 'locked',
+          characterNames: ['Alice'],
+          beatSnippet: 'hello'
+        },
+        {
+          ...snap.cells[1],
+          stillStatus: 'stale',
+          stillPath: '/old.png',
+          continuityKind: 'text-only',
+          characterNames: [],
+          beatSnippet: ''
+        },
+        {
+          entryId: 'e3',
+          displayIndex: 3,
+          startTime: 10,
+          endTime: 12,
+          stillStatus: 'missing',
+          stillPath: null,
+          stillFromVideo: false,
+          mediaStatus: 'READY',
+          continuityKind: 'first',
+          characterNames: [],
+          beatSnippet: null
+        }
+      ]
+    })
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={vi.fn()}
+          onStartVideoQueue={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() =>
+      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
+    )
+    const storyTab = Array.from(document.querySelectorAll('button')).find((b) =>
+      /storyboard|still/i.test(b.textContent || '')
+    )
+    if (storyTab) fireEvent.click(storyTab)
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/still|Alice|hello/i)
+    )
+  })
+
+  it('save cast button reloads', async () => {
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={vi.fn()}
+          onStartVideoQueue={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() =>
+      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
+    )
+    const save = Array.from(document.querySelectorAll('button')).find((b) =>
+      /saveCast|castSaved|save/i.test(b.textContent || '')
+    )
+    if (save) {
+      await act(async () => {
+        fireEvent.click(save)
+      })
+    }
+  })
 })

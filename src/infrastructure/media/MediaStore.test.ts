@@ -396,4 +396,51 @@ describe('MediaStore', () => {
     mkdirSync(p, { recursive: true }) // path is dir → read fails
     expect(store.readStoryCastPrepJson('s5')).toBeNull()
   })
+
+  it('unlink failures on clear/promote/delete are swallowed', () => {
+    store.ensureStoryDirs('s6')
+    store.ensureTmpDir()
+    store.ensureLibraryDirs()
+    // mark then make path a directory so unlink fails
+    store.markEntryStillUserCleared('s6', 'e9')
+    const cleared = store.entryStillClearedPath('s6', 'e9')
+    try {
+      rmSync(cleared, { force: true })
+      mkdirSync(cleared, { recursive: true })
+    } catch { /* */ }
+    store.clearEntryStillUserCleared('s6', 'e9')
+
+    // promoteTmpTo unlink fail: dest ok, source dir
+    const dest = store.characterImagePath('cx', 'sheet')
+    mkdirSync(join(dest, '..'), { recursive: true })
+    writeFileSync(dest, 'keep')
+    const badSrc = join(store.tmpDir(), 'as-dir')
+    mkdirSync(badSrc, { recursive: true })
+    // promoteTmpTo may fail copy from dir - wrap
+    try {
+      store.promoteTmpImage(null, 'cx', badSrc, 'sheet2')
+    } catch { /* ok */ }
+
+    // listExportHistory work dir readdir fails if path is file
+    const expDir = store.exportsDir('s6')
+    // write a file where we expect dir already
+    writeFileSync(join(expDir, 'bad_final_1.mp4'), 'x')
+    // public dir readdir fail
+    const publicDir = join(root, 'pub-bad')
+    writeFileSync(publicDir, 'not-a-dir')
+    try {
+      store.listExportHistory('s6', { publicDir, fileNamePrefix: 'bad' })
+    } catch { /* */ }
+
+    // delete work twin unlink fail: make twin a dir after record
+    const name = 'Twin_final_1.mp4'
+    const work = join(store.exportsDir('s6'), name)
+    writeFileSync(work, 'v')
+    store.recordExportHistory('s6', { kind: 'final', path: work, fileName: name })
+    try {
+      rmSync(work, { force: true })
+      mkdirSync(work, { recursive: true })
+    } catch { /* */ }
+    store.deleteExportHistoryItem('s6', name)
+  })
 })

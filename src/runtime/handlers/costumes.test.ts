@@ -382,4 +382,159 @@ describe('registerCostumesHandlers', () => {
       locale: 'zh-HK'
     })
   })
+
+  it('setActiveOnCharacter, aiFill zh, wardrobe polish, costume swap size classes', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-cos-scrub-'))
+    const out = join(dir, 'swap.png')
+    writeFileSync(out, 'x')
+    const ref = join(dir, 'ref.png')
+    writeFileSync(ref, 'r')
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: COSTUME_JSON } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('S').toString('base64'),
+      sizeUsed: '1792x1024',
+      aspectUsed: '16:9'
+    }))
+    const editImage = vi.fn(async () => ({
+      b64: Buffer.from('E').toString('base64'),
+      sizeUsed: '1024x1024',
+      aspectUsed: '1:1'
+    }))
+    const setActiveOnCharacter = vi.fn(async () => ({ ok: true }))
+    const get = vi.fn(async () =>
+      costumeRow({
+        hardRules: 'H',
+        artStyle: 'photo_cinematic'
+      })
+    )
+    const charactersGet = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'hero',
+      appearance: 'tall',
+      ageRange: '20s',
+      gender: 'm',
+      visualTags: 'tags',
+      mannerisms: 'nods',
+      hardRules: 'no logo',
+      artStyle: 'photo_cinematic',
+      refImagePath: ref,
+      costume: 'jacket'
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage, editImage },
+      costumes: () =>
+        ({
+          get,
+          list: vi.fn(async () => []),
+          create: vi.fn(),
+          update: vi.fn(async (id, d) => ({ id, ...d })),
+          remove: vi.fn(),
+          setActiveOnCharacter,
+          linkCharacter: vi.fn(),
+          unlinkCharacter: vi.fn()
+        }) as never,
+      characters: () =>
+        ({
+          get: charactersGet,
+          update: vi.fn(async (id, d) => ({ id, ...d }))
+        }) as never,
+      activity: {
+        append: vi.fn(),
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => out,
+            costumeImagePath: () => out,
+            characterImagePath: () => out,
+            promoteTmpImage: vi.fn(() => out)
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageEnhance: false,
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024',
+        imageSizeTall: '1024x1792',
+        aspectRatio: '16:9'
+      })
+    })
+    registerCostumesHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    // setActive if channel exists
+    if (h.has('costumes:setActive')) {
+      await invokeRegistered(h as never, 'costumes:setActive', {
+        costumeId: 'cos1',
+        characterId: 'c1'
+      })
+      expect(setActiveOnCharacter).toHaveBeenCalled()
+    }
+
+    // aiFill with locale zh and idea only
+    if (h.has('costumes:aiFill')) {
+      await invokeRegistered(h as never, 'costumes:aiFill', {
+        costumeId: 'cos1',
+        idea: '雨衣',
+        locale: 'zh-HK'
+      })
+    }
+
+    // wardrobe suggest
+    if (h.has('costumes:suggestWardrobe') || h.has('costumes:aiWardrobe')) {
+      const key = h.has('costumes:suggestWardrobe')
+        ? 'costumes:suggestWardrobe'
+        : 'costumes:aiWardrobe'
+      try {
+        await invokeRegistered(h as never, key, {
+          characterId: 'c1',
+          locale: 'en',
+          draft: { description: '  trench coat  ' }
+        })
+      } catch { /* */ }
+    }
+
+    // costume swap
+    if (h.has('costumes:generateDressed') || h.has('characters:costumeSwap')) {
+      const key = [...h.keys()].find((k) => /swap|costumeSwap|generateDressed/i.test(k))
+      if (key) {
+        try {
+          await invokeRegistered(h as never, key, {
+            costumeId: 'cos1',
+            characterId: 'c1',
+            pose: 'front',
+            persist: false
+          })
+        } catch { /* */ }
+      }
+    }
+
+    // list channels for debug coverage of remaining
+    for (const key of h.keys()) {
+      if (/generateSheet|generateImage|swap/i.test(key)) {
+        try {
+          await invokeRegistered(h as never, key, {
+            costumeId: 'cos1',
+            characterId: 'c1',
+            referenceImagePath: ref,
+            persist: false,
+            locale: 'en'
+          })
+        } catch { /* */ }
+      }
+    }
+  })
 })

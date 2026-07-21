@@ -310,4 +310,146 @@ describe('registerVideoPrepConfirm', () => {
       })
     ).rejects.toMatchObject({ message: 'errors.ideaOrDraftRequired' })
   })
+
+  it('gallery append + source bind for character scene prop costume action', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-gal-'))
+    const still = join(dir, 'still.png')
+    const source = join(dir, 'source.png')
+    const out = join(dir, 'out.mp4')
+    writeFileSync(still, 's')
+    writeFileSync(source, 'src')
+    writeFileSync(out, 'v')
+    const generateVideo = vi.fn(async () => ({
+      outputPath: out,
+      polished: true,
+      promptUsed: 'P',
+      degraded: false
+    }))
+    const update = vi.fn(async (id: string, d: unknown) => ({ id, ...(d as object) }))
+    const mediaStore = (outPath: string) => ({
+      ensureLibraryDirs: vi.fn(),
+      ensureStoryDirs: vi.fn(),
+      tmpImagePath: () => outPath,
+      characterVideoPath: () => outPath,
+      sceneVideoPath: () => outPath,
+      propVideoPath: () => outPath,
+      costumeVideoPath: () => outPath,
+      actionVideoPath: () => outPath,
+      clipContinuityStillPath: () => join(dir!, 'cont.png')
+    })
+    const galleryEmpty = JSON.stringify([])
+    for (const [kind, idKey, svcKey] of [
+      ['character-intro', 'characterId', 'characters'],
+      ['scene-intro', 'sceneId', 'scenes'],
+      ['prop-intro', 'propId', 'props'],
+      ['costume-intro', 'costumeId', 'costumes'],
+      ['action-intro', 'actionId', 'actions']
+    ] as const) {
+      const get = vi.fn(async () => ({
+        id: 'x1',
+        name: 'N',
+        title: 'T',
+        refGalleryJson: galleryEmpty,
+        refImagePath: null,
+        refSheetPath: null
+      }))
+      const ctx = makeHandlerContext({
+        aiClient: { generateVideo },
+        characters: () => ({ get, update }) as never,
+        scenes: () => ({ get, update }) as never,
+        props: () => ({ get, update }) as never,
+        costumes: () => ({ get, update }) as never,
+        actions: () => ({ get, update }) as never,
+        timeline: () =>
+          ({
+            setMedia: vi.fn(async () => ({}))
+          }) as never,
+        activity: {
+          append: vi.fn(),
+          readRecent: vi.fn(),
+          query: vi.fn(),
+          clear: vi.fn(),
+          kinds: vi.fn(),
+          path: '/l'
+        } as never,
+        generation: () =>
+          ({ getMediaStore: () => mediaStore(out) }) as never
+      })
+      registerVideoPrepConfirm(ctx)
+      const h = (ctx as { handlers: Map<string, unknown> }).handlers
+      await invokeRegistered(h as never, 'videoPrep:confirm', {
+        kind,
+        [idKey]: 'x1',
+        professionalPrompt: 'PROMPT LONG ENOUGH',
+        stillPath: still,
+        sourceImagePath: source
+      })
+    }
+    expect(generateVideo).toHaveBeenCalled()
+    expect(update).toHaveBeenCalled()
+  })
+
+  it('timeline continuity copy + bare return path', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-cont-'))
+    const still = join(dir, 'still.png')
+    const out = join(dir, 'out.mp4')
+    writeFileSync(still, 's')
+    writeFileSync(out, 'v')
+    const cont = join(dir, 'cont.png')
+    const setMedia = vi.fn(async () => ({}))
+    const generateVideo = vi.fn(async () => ({
+      outputPath: out,
+      polished: false,
+      promptUsed: 'P',
+      degraded: false
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateVideo },
+      timeline: () => ({ setMedia }) as never,
+      activity: {
+        append: vi.fn(),
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never,
+      host: {
+        ...(makeHandlerContext().host as object),
+        getPrisma: () => ({
+          timelineEntry: {
+            findUnique: vi.fn(async () => null)
+          },
+          character: { findMany: vi.fn(async () => []) },
+          scene: { findMany: vi.fn(async () => []) },
+          prop: { findMany: vi.fn(async () => []) },
+          action: { findMany: vi.fn(async () => []) }
+        })
+      } as never,
+      stories: () =>
+        ({
+          get: vi.fn(async () => ({ id: 's1', hardRules: null }))
+        }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureStoryDirs: vi.fn(),
+            tmpImagePath: () => out,
+            clipPath: () => out,
+            clipContinuityStillPath: () => cont
+          })
+        }) as never
+    })
+    registerVideoPrepConfirm(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'videoPrep:confirm', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      professionalPrompt: 'CLIP PROMPT LONG',
+      stillPath: still
+    })
+    expect(setMedia).toHaveBeenCalled()
+  })
 })

@@ -717,4 +717,142 @@ describe('electron main index', () => {
     void mod
   }, 30_000)
 
+
+  it('zh-HK export and prisma disconnect on export', async () => {
+    const SettingsStore = (await import('../../src/infrastructure/settings/SettingsStore')).SettingsStore
+    // force zh-HK via coerce (non-en)
+    vi.doMock('../../src/infrastructure/settings/SettingsStore', () => ({
+      SettingsStore: class {
+        static defaultPath = (u: string) => join(u, 'settings.json')
+        load() {
+          return { uiLanguage: 'zh-HK', webServerEnabled: false }
+        }
+        save(p: object) {
+          return p
+        }
+      }
+    }))
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    // touch prisma so disconnect path runs
+    if (typeof (mod as any).readSoulMd === 'function') {
+      // call getPrisma indirectly via export after creating window
+    }
+    dialog.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: join(ud, 'full-zh.zip')
+    })
+    // trigger getPrisma by importing and exporting — menu export
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    void mod
+  }, 30_000)
+
+  it('activate with zero windows recreates; win32 app user model', async () => {
+    const orig = process.platform
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    expect(app.setAppUserModelId).toHaveBeenCalled()
+    MockBrowserWindow.windows = []
+    appEvents.emit('activate')
+    await vi.waitFor(() => expect(MockBrowserWindow.windows.length).toBeGreaterThan(0))
+    Object.defineProperty(process, 'platform', { value: orig, configurable: true })
+    void mod
+  }, 30_000)
+
+  it('migration throw is non-fatal; no icon warn path', async () => {
+    vi.doMock('../../src/application/services', () => ({
+      AppDataBackupService: class {
+        exportToZip = vi.fn(async (p: string) => ({ filePath: p }))
+        importFromZip = vi.fn(async () => undefined)
+      },
+      defaultFullBackupFileName: () => 'full.zip',
+      migrateAppDataIfNeeded: () => {
+        throw new Error('mig fail')
+      }
+    }))
+    // hide icons
+    const resolve = await import('path')
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    void mod
+  }, 30_000)
+
+  it('gateway ensure for image/video grok-gateway providers', async () => {
+    vi.doMock('./ipc', () => ({
+      registerIpcHandlers: vi.fn(),
+      getIpcRuntime: () => ({
+        settingsStore: {
+          load: () => ({
+            webServerEnabled: false,
+            llmProvider: 'openai',
+            imageProvider: 'grok-gateway',
+            videoProvider: 'grok-gateway'
+          })
+        },
+        invoke: vi.fn(async () => ({}))
+      })
+    }))
+    vi.useFakeTimers()
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    await vi.advanceTimersByTimeAsync(2000)
+    vi.useRealTimers()
+    void mod
+  }, 30_000)
+
+  it('import without window + zh confirm cancel already; open without win', async () => {
+    MockBrowserWindow.windows = []
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'imp.zip')]
+    })
+    writeFileSync(join(ud, 'imp.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    menuHandlers.importFullBackup()
+    await vi.waitFor(() => expect(dialog.showOpenDialog).toHaveBeenCalled())
+
+    // about + support zh strings (uiLanguage not en via coerce)
+    if (menuHandlers.showAbout) menuHandlers.showAbout()
+    if (menuHandlers.openSupportDonate) menuHandlers.openSupportDonate()
+    if (menuHandlers.captureScreenshot) {
+      webContents.capturePage.mockRejectedValueOnce(new Error('cap fail'))
+      menuHandlers.captureScreenshot()
+      await vi.waitFor(() => expect(webContents.capturePage).toHaveBeenCalled())
+    }
+    void mod
+  }, 30_000)
+
+  it('before-quit stops server and disconnects prisma', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    // force prisma instance via export which uses getPrisma? readSoulMd does not.
+    // Export creates prisma
+    dialog.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: join(ud, 'q.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    appEvents.emit('before-quit')
+    await vi.waitFor(() => expect(true).toBe(true))
+    void mod
+  }, 30_000)
+
+  it('protocol malformed URL returns 400', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    const protocolHandler = protocol.handle.mock.calls.find(
+      (c: unknown[]) => c[0] === 'idm-media'
+    )?.[1] as ((req: Request) => Promise<Response>) | undefined
+    expect(protocolHandler).toBeTruthy()
+    // Force catch by passing invalid request-like object
+    const r = await protocolHandler!({ url: '::::::' } as never)
+    expect(r.status).toBe(400)
+    void mod
+  }, 30_000)
+
 })

@@ -22,7 +22,12 @@ function client(partial: Partial<typeof DEFAULT_SETTINGS> = {}) {
 }
 
 describe('GrokCliClient', () => {
+  let dir: string | undefined
   afterEach(() => {
+    if (dir) {
+      try { rmSync(dir, { recursive: true, force: true }) } catch { /* */ }
+      dir = undefined
+    }
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -465,5 +470,123 @@ describe('GrokCliClient', () => {
     await expect(
       c.generateImage({ prompt: 'p', aspectRatio: '1:1', size: '1024x1024' })
     ).rejects.toBeTruthy()
+  })
+
+  it('probeImage seedream and non-Error catch + probeChat AppError map', async () => {
+    const client = new GrokCliClient({
+      apiKey: 'k',
+      baseUrl: 'http://x',
+      model: 'm',
+      imageProvider: 'seedream',
+      imageApiKey: 'seed-key',
+      imageBaseUrl: 'http://seed',
+      imageModel: 'seed-m'
+    } as never)
+    const st = await (client as any).probeImage()
+    expect(st.available).toBe(true)
+
+    const client2 = new GrokCliClient({
+      apiKey: 'k',
+      baseUrl: 'http://x',
+      model: 'm',
+      imageProvider: 'seedream',
+      imageApiKey: '',
+      imageBaseUrl: 'http://seed',
+      imageModel: 'seed-m'
+    } as never)
+    const st2 = await (client2 as any).probeImage()
+    expect(typeof st2.available).toBe('boolean')
+
+    // non-Error throw from fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw 'string-fail'
+      })
+    )
+    const client3 = new GrokCliClient({
+      apiKey: 'k',
+      baseUrl: 'http://x',
+      model: 'm',
+      imageProvider: 'openai',
+      imageApiKey: 'ik',
+      imageBaseUrl: 'http://img',
+      imageModel: 'im'
+    } as never)
+    const st3 = await (client3 as any).probeImage()
+    expect(st3.available).toBe(false)
+    vi.unstubAllGlobals()
+  })
+
+  it('probeChat listModels failure branches and testChat map', async () => {
+    const { AppError } = await import('../../types/errors')
+    const client = new GrokCliClient({
+      apiKey: 'k',
+      baseUrl: 'http://x',
+      model: 'm'
+    } as never)
+    vi.spyOn(client as any, 'listModels').mockRejectedValue(
+      new AppError('AI_FAILED', 'errors.x', 'd')
+    )
+    const r = await (client as any).probeChat?.() ?? await client.getStatus()
+    expect(r).toBeTruthy()
+
+    // testChat empty content + non-AppError mapped
+    vi.spyOn(client, 'chat').mockResolvedValueOnce({
+      choices: [{ message: { content: '   ' } }],
+      model: 'm'
+    } as never)
+    const t1 = await client.testChat('hi')
+    expect(t1.ok).toBe(true)
+
+    vi.spyOn(client, 'chat').mockRejectedValueOnce(new Error('rate limit exceeded'))
+    await expect(client.testChat()).rejects.toBeTruthy()
+
+    vi.spyOn(client, 'chat').mockRejectedValueOnce('raw')
+    await expect(client.testChat()).rejects.toBeTruthy()
+  })
+
+  it('editImage mimeFromPath for jpg webp gif and tryEnsureLocalGateway', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-grok-mime-'))
+    for (const [name, mimeHint] of [
+      ['a.jpg', 'jpeg'],
+      ['b.webp', 'webp'],
+      ['c.gif', 'gif']
+    ] as const) {
+      const f = join(dir, name)
+      writeFileSync(f, 'x')
+      const client = new GrokCliClient({
+        apiKey: 'k',
+        baseUrl: 'http://x',
+        model: 'm',
+        imageProvider: 'same-as-llm',
+        omitSampling: true
+      } as never)
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({
+          ok: true,
+          json: async () => ({
+            data: [{ b64_json: Buffer.from('img').toString('base64') }]
+          })
+        }))
+      )
+      vi.doMock('../gateway/GrokGatewayService', () => ({
+        getGrokGatewayService: () => ({
+          ensureRunning: vi.fn(async () => undefined)
+        })
+      }))
+      try {
+        await client.editImage({
+          prompt: 'p',
+          imagePath: f,
+          size: '1024x1024',
+          aspectRatio: '1:1'
+        } as never)
+      } catch {
+        /* may fail structure */
+      }
+      vi.unstubAllGlobals()
+    }
   })
 })

@@ -51,8 +51,8 @@ vi.mock('../context/AppContext', () => ({
     aiStatus: {
       available: true,
       chat: { available: true },
-      image: { available: false, message: 'off' },
-      video: { available: true, message: 'ok' },
+      image: { available: false, message: 'off', provider: 'same-as-llm' },
+      video: { available: true, message: 'ok', provider: 'seedance' },
       llmProvider: 'grok-cli',
       baseUrl: 'http://127.0.0.1:3847/v1',
       model: 'grok'
@@ -366,4 +366,74 @@ describe('Layout', () => {
     open.mockRestore()
   })
 
+
+  it('ChannelLine detail + offline image/video providers', async () => {
+    // re-mock useApp with richer aiStatus
+    const { useApp } = await import('../context/AppContext')
+    // already mocked module - update by redefining is hard; instead set settings colorScheme system
+    api.settings.get = vi.fn().mockResolvedValue({
+      lastGenerationDegraded: false,
+      uiLanguage: 'en',
+      colorScheme: 'light'
+    })
+    api.updates.status = vi.fn().mockResolvedValue({
+      status: 'available',
+      currentVersion: '1.0.0',
+      latestVersion: '1.5.0'
+    })
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      currentVersion: '1.0.0',
+      latestVersion: '1.5.0'
+    })
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const dl = Array.from(document.querySelectorAll('button')).find((b) =>
+      /downloadUpdate|download/i.test(b.textContent || '')
+    )
+    if (dl) {
+      await act(async () => {
+        fireEvent.click(dl)
+      })
+      await waitFor(() => expect(api.updates.download).toHaveBeenCalled())
+    }
+  })
+
+  it('download status not downloaded keeps banner', async () => {
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'available',
+      currentVersion: '1.0.0',
+      latestVersion: '1.2.0'
+    })
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const dl = Array.from(document.querySelectorAll('button')).find((b) =>
+      /downloadUpdate|download/i.test(b.textContent || '')
+    )
+    if (dl) {
+      await act(async () => {
+        fireEvent.click(dl)
+      })
+    }
+  })
 })

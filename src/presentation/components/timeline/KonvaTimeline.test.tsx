@@ -84,10 +84,13 @@ vi.mock('react-konva', () => {
           onWheel: props.onWheel,
           onTap: props.onTap,
           onPointerDown: () => {
-            if (onDragMove) {
-              if (dragBound) dragBound({ x: x + 40, y: 0 })
-              onDragMove({ target })
+            if (dragBound) {
+              const b = dragBound({ x: x + 40, y: 0 })
+              if (b && typeof b.x === 'number') x = b.x
             }
+            if (onDragMove) onDragMove({ target })
+          },
+          onPointerUp: () => {
             if (onDragEnd) onDragEnd({ target })
           }
         },
@@ -415,7 +418,8 @@ describe('KonvaTimeline', () => {
     if (pack) expect((pack as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('invokes drag move/end on clips and playhead + stage deselect', () => {
+  it('invokes drag move/end on clips and playhead + stage deselect', async () => {
+    const { act } = await import('@testing-library/react')
     const onMove = vi.fn()
     const onSelect = vi.fn()
     const onPlayhead = vi.fn()
@@ -440,13 +444,25 @@ describe('KonvaTimeline', () => {
     const stage = container.querySelector('[data-konva="Stage"]')
     expect(stage).toBeTruthy()
     fireEvent.mouseDown(stage!)
+    expect(onSelect).toHaveBeenCalledWith(null)
 
-    const groups = container.querySelectorAll('[data-konva="Group"][data-draggable="1"]')
-    expect(groups.length).toBeGreaterThan(0)
-    for (const g of Array.from(groups).slice(0, 3)) {
-      fireEvent.pointerDown(g)
+    // clips + playhead groups + nested resize rects
+    const draggables = container.querySelectorAll('[data-draggable="1"]')
+    expect(draggables.length).toBeGreaterThan(0)
+    for (const g of Array.from(draggables)) {
+      await act(async () => {
+        fireEvent.pointerDown(g)
+      })
+      await act(async () => {
+        fireEvent.pointerUp(g)
+      })
     }
-    // drop with stage ref available
+    // also click/tap a clip group
+    const groups = container.querySelectorAll('[data-konva="Group"][data-draggable="1"]')
+    if (groups[0]) {
+      fireEvent.click(groups[0])
+      // onTap prop is stored as onTap on div - fire via click already covered onClick
+    }
     const track = container.querySelector('.overflow-x-auto')
     if (track) {
       fireEvent.drop(track, {
@@ -459,8 +475,8 @@ describe('KonvaTimeline', () => {
               : ''
         }
       })
+      expect(onDrop).toHaveBeenCalled()
     }
-    // onMove and/or onPlayhead may fire depending on which groups dragged
-    expect(onSelect.mock.calls.length + onMove.mock.calls.length + onPlayhead.mock.calls.length).toBeGreaterThan(0)
+    expect(onMove.mock.calls.length + onPlayhead.mock.calls.length).toBeGreaterThan(0)
   })
 })
