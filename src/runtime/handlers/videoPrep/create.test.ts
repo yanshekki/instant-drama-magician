@@ -203,4 +203,143 @@ describe('registerVideoPrepCreate', () => {
     expect(r.kind).toBe('scene-intro')
     expect(r.entityIds.sceneId).toBe('sc1')
   })
+
+  function stillOnlyCtx(opts: {
+    stillOut: string
+    props?: unknown
+    actions?: unknown
+    costumes?: unknown
+  }) {
+    const long =
+      'POLISHED INTRO VIDEO PROMPT WITH SUFFICIENT LENGTH FOR EXTRACT PASS'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('I').toString('base64')
+    }))
+    return makeHandlerContext({
+      aiClient: { chat, generateImage, editImage: generateImage },
+      props: opts.props
+        ? () => opts.props as never
+        : undefined,
+      actions: opts.actions
+        ? () => opts.actions as never
+        : undefined,
+      costumes: opts.costumes
+        ? () => opts.costumes as never
+        : undefined,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => opts.stillOut,
+            propImagePath: () => opts.stillOut,
+            actionImagePath: () => opts.stillOut,
+            costumeImagePath: () => opts.stillOut,
+            characterImagePath: () => opts.stillOut,
+            sceneImagePath: () => opts.stillOut
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+  }
+
+  it('creates prop/action/costume intro stillOnly', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-pac-'))
+    const stillOut = join(dir, 'p.png')
+
+    const propGet = vi.fn(async () => ({
+      id: 'p1',
+      name: 'Umbrella',
+      description: 'red',
+      material: 'nylon',
+      hardRules: null
+    }))
+    let ctx = stillOnlyCtx({
+      stillOut,
+      props: { get: propGet }
+    })
+    registerVideoPrepCreate(ctx)
+    let h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(h as never, 'videoPrep:create', {
+        kind: 'prop-intro',
+        stillOnly: true
+      })
+    ).rejects.toMatchObject({ message: 'errors.propIdRequired' })
+    let r = (await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'prop-intro',
+      propId: 'p1',
+      stillOnly: true
+    })) as { entityIds: { propId?: string } }
+    expect(r.entityIds.propId).toBe('p1')
+
+    const actGet = vi.fn(async () => ({
+      id: 'a1',
+      name: 'Kick',
+      description: 'door',
+      motionNotes: 'hard',
+      intention: 'threat',
+      hardRules: null
+    }))
+    ctx = stillOnlyCtx({ stillOut, actions: { get: actGet } })
+    registerVideoPrepCreate(ctx)
+    h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(h as never, 'videoPrep:create', {
+        kind: 'action-intro',
+        stillOnly: true
+      })
+    ).rejects.toMatchObject({ message: 'errors.actionIdRequired' })
+    r = (await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'action-intro',
+      actionId: 'a1',
+      stillOnly: true
+    })) as { entityIds: { actionId?: string } }
+    expect(r.entityIds.actionId).toBe('a1')
+
+    const cosGet = vi.fn(async () => ({
+      id: 'cos1',
+      name: 'Raincoat',
+      description: 'yellow',
+      hardRules: null
+    }))
+    ctx = stillOnlyCtx({ stillOut, costumes: { get: cosGet } })
+    registerVideoPrepCreate(ctx)
+    h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(h as never, 'videoPrep:create', {
+        kind: 'costume-intro',
+        stillOnly: true
+      })
+    ).rejects.toMatchObject({ message: 'errors.costumeIdRequired' })
+    r = (await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'costume-intro',
+      costumeId: 'cos1',
+      stillOnly: true
+    })) as { entityIds: { costumeId?: string } }
+    expect(r.entityIds.costumeId).toBe('cos1')
+  })
+
+  it('timeline-clip requires story and entry', async () => {
+    const ctx = makeHandlerContext({
+      aiClient: {
+        generateVideo: vi.fn(),
+        chat: vi.fn(),
+        generateImage: vi.fn()
+      }
+    })
+    registerVideoPrepCreate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(h as never, 'videoPrep:create', {
+        kind: 'timeline-clip',
+        stillOnly: true
+      })
+    ).rejects.toMatchObject({ message: 'errors.storyAndEntryRequired' })
+  })
 })
+
