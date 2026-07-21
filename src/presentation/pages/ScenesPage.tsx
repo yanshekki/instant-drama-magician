@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction
+} from 'react'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
@@ -246,12 +252,12 @@ export function ScenesPage(): JSX.Element {
     Boolean(sceneImage)
 
   const removeWithFeedback = async (id: string): Promise<void> => {
-    try {
-      await remove(id)
-      toast.success(t('common.deleted'))
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
+    await scenesRemoveWithFeedback({
+      remove,
+      id,
+      toastSuccess: () => toast.success(t('common.deleted')),
+      toastError: toast.error
+    })
   }
 
 
@@ -294,28 +300,22 @@ export function ScenesPage(): JSX.Element {
   }, [])
 
   useEffect(() => {
-    if (plotSuggestOpen && activeStoryId && !plotStoryId) {
-      setPlotStoryId(activeStoryId)
-    }
+    scenesMaybeSetPlotStory(
+      plotSuggestOpen,
+      activeStoryId,
+      plotStoryId,
+      setPlotStoryId
+    )
   }, [plotSuggestOpen, activeStoryId, plotStoryId])
 
   const sceneBusy = (sceneId?: string | null): boolean =>
-    isBlocked({
-      kind: [
-        'scene-ai-fill',
-        'scene-plate',
-        'scene-intro-video',
-        'atmosphere-swap'
-      ],
-      sceneId: sceneId ?? undefined
-    }) ||
-    activeJobs.some(
-      (j) =>
-        (j.kind === 'scene-ai-fill' ||
-          j.kind === 'scene-plate' ||
-          j.kind === 'scene-intro-video' ||
-          j.kind === 'atmosphere-swap') &&
-        (!sceneId || j.scope.sceneId === sceneId)
+    scenesAiBusyFromJobs(
+      activeJobs,
+      sceneId,
+      isBlocked({
+        kind: [...SCENE_AI_KINDS],
+        sceneId: sceneId ?? undefined
+      })
     )
 
   const editorBusy = sceneBusy(editingId)
@@ -334,88 +334,38 @@ export function ScenesPage(): JSX.Element {
 
   useEffect(() => {
     return onSceneProfileApply((draft) => {
-      if (draft.sceneId && editingId && draft.sceneId !== editingId) {
-        void reload()
-        return
-      }
-      const p = draft.profile
-      setForm((f) => ({
-        ...f,
-        title: p.title ?? f.title,
-        description: p.description || f.description,
-        script: p.script ?? f.script,
-        locationType: p.locationType ?? f.locationType,
-        timeOfDay: p.timeOfDay ?? f.timeOfDay,
-        weather: p.weather ?? f.weather,
-        mood: p.mood ?? f.mood,
-        lighting: p.lighting ?? f.lighting,
-        colorPalette: p.colorPalette ?? f.colorPalette,
-        setDressing: p.setDressing ?? f.setDressing,
-        soundscape: p.soundscape ?? f.soundscape,
-        cameraNotes: p.cameraNotes ?? f.cameraNotes,
-        visualTags:
-          typeof p.visualTags === 'string' && p.visualTags.trim()
-            ? p.visualTags.trim()
-            : f.visualTags,
-        hardRules:
-          typeof p.hardRules === 'string' && p.hardRules.trim()
-            ? p.hardRules.trim()
-            : f.hardRules,
-        artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle,
-        seedPrompt: p.description || f.seedPrompt
-      }))
-      setEditorOpen(true)
-      setPageBanner(t('scenes.aiFillOk')); toast.success(t('scenes.aiFillOk'))
-      void reload()
+      scenesHandleProfileApply(draft as never, editingId, {
+        reload,
+        setForm,
+        setEditorOpen,
+        setEditorPanel,
+        toastSuccess: () => toast.success(t('scenes.aiFillOk')),
+        setPageBanner: () => setPageBanner(t('scenes.aiFillOk'))
+      })
     })
-  }, [onSceneProfileApply, editingId, reload, t])
+  }, [onSceneProfileApply, editingId, reload, t, toast])
 
   useEffect(() => {
     return onScenePlateCommitted(({ sceneId, path, gallery }) => {
-      if (editingId === sceneId) {
-        if (gallery && gallery.length > 0) {
-          const g = gallery.map((item) => ({
-            id: item.id,
-            path: item.path,
-            kind: (item.kind === 'sheet' ||
-            item.kind === 'upload' ||
-            item.kind === 'gen'
-              ? item.kind
-              : 'sheet') as 'sheet' | 'upload' | 'gen',
-            label: item.label,
-            createdAt: item.createdAt,
-            ...(item.layer ? { layer: item.layer } : {}),
-            ...(item.introVideoPath
-              ? { introVideoPath: item.introVideoPath }
-              : {})
-          }))
-          setForm((f) => ({ ...f, gallery: g }))
-          const newest =
-            g.find((item) => item.path === path) ?? g[0] ?? null
-          setSelectedImageId(newest?.id ?? null)
-        } else {
-          void getApi()
-            .scenes.list()
-            .then((list) => {
-              const s = (list as Scene[]).find((x) => x.id === sceneId)
-              if (!s) return
-              const g = galleryFromScene(s)
-              setForm((f) => ({
-                ...f,
-                gallery: g,
-                coverPath: primarySceneGalleryPath(g, s.refImagePath),
-                looks: ensureLookInLibrary(parseSceneLooks(s.looksJson), null)
-              }))
-              const newest =
-                g.find((item) => item.path === path) ?? g[0] ?? null
-              setSelectedImageId(newest?.id ?? null)
-            })
+      scenesHandlePlateCommitted(
+        { sceneId, path, gallery },
+        editingId,
+        {
+          setForm,
+          setSelectedImageId,
+          reload,
+          toastSuccess: () => toast.success(t('scenes.plateOkShort')),
+          listScene: scenesMakeFindInList(
+            () => getApi().scenes.list() as Promise<Scene[]>
+          ),
+          galleryFrom: galleryFromScene,
+          primary: primarySceneGalleryPath,
+          ensureLooks: ensureLookInLibrary,
+          parseLooks: parseSceneLooks
         }
-      }
-      void reload()
-      toast.success(t('scenes.plateOkShort'))
+      )
     })
-  }, [onScenePlateCommitted, editingId, reload, t])
+}, [onScenePlateCommitted, editingId, reload, t])
 
   const closeEditor = (): void => {
     setEditorOpen(false)
@@ -529,49 +479,37 @@ export function ScenesPage(): JSX.Element {
   }
 
   const handleSave = async (): Promise<void> => {
-    if (!form.description.trim() && !form.title.trim()) return
-    setActionError(null)
-    try {
-      if (editingId) {
-        const ok = await update(editingId, payload())
-        if (ok) {
-          toast.success(t('common.saved'))
-          setPageBanner(t('scenes.saved'))
-          await reload()
-          closeEditor()
-        } else {
-          toast.error(t('common.actionFailed'))
-        }
-      } else {
-        const ok = await create(payload())
-        if (ok) {
-          toast.success(t('common.saved'))
-          setPageBanner(t('scenes.saved'))
-          await reload()
-          closeEditor()
-        } else {
-          toast.error(t('common.actionFailed'))
-        }
-      }
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    }
+    await scenesRunSave({
+      description: form.description,
+      title: form.title,
+      editingId,
+      toastError: toast.error,
+      toastSuccess: toast.success,
+      setBanner: setPageBanner,
+      setError: setActionError,
+      savedMsg: t('common.saved'),
+      failedMsg: t('common.actionFailed'),
+      update: (id) => update(id, payload()),
+      create: () => create(payload()),
+      reload,
+      closeEditor
+    })
   }
 
   const ensureSavedId = async (): Promise<string | null> => {
-    if (editingId) return editingId
-    const ok = await create(payload())
-    if (!ok || !activeStoryId) return null
-    await reload()
-    const list = (await getApi().scenes.list(activeStoryId)) as Scene[]
-    const created = list.find((s) => s.sceneNumber === form.sceneNumber)
-    if (created) {
-      setEditingId(created.id)
-      return created.id
-    }
-    return null
+    return scenesEnsureSavedId({
+      editingId,
+      activeStoryId,
+      sceneNumber: form.sceneNumber,
+      create: () => create(payload()),
+      reload,
+      list: async () =>
+        (await getApi().scenes.list(activeStoryId!)) as Array<{
+          id: string
+          sceneNumber: number
+        }>,
+      setEditingId
+    })
   }
 
   const openPlotSuggest = (): void => {
@@ -586,9 +524,6 @@ export function ScenesPage(): JSX.Element {
     segmentKey?: string | null
   }): void => {
     setActionError(null)
-    if (editorBusy) return
-    const idea = aiIdea.trim()
-    // All scene form fields — generate always improves when anything is filled
     const snapshot = {
       title: form.title.trim() || undefined,
       description: form.description.trim() || undefined,
@@ -605,91 +540,79 @@ export function ScenesPage(): JSX.Element {
       visualTags: form.visualTags.trim() || undefined,
       artStyle: form.artStyle || undefined
     }
-    const hasDraft = Object.values(snapshot).some(
-      (v) => typeof v === 'string' && v.length > 0
-    )
-    const refPath =
-      selectedImage?.path?.trim() ||
-      form.coverPath?.trim() ||
-      form.gallery[0]?.path?.trim() ||
-      ''
-    const hasImage = Boolean(refPath) && !opts?.suggestFromStory
-    if (!idea && !hasDraft && !opts?.suggestFromStory && !hasImage) {
-      setActionError(t('common.aiNeedIdeaOrImage'))
-      return
-    }
-    const storyIdForJob =
-      (opts?.suggestFromStory
-        ? opts.storyId?.trim()
-        : opts?.storyId?.trim() || activeStoryId) || undefined
-    if (opts?.suggestFromStory && !storyIdForJob) {
-      setActionError(t('scenes.suggestNeedStory'))
-      return
-    }
-    setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(
-      hasImage && !idea && !hasDraft
-        ? t('common.aiFillFromImage')
-        : t('aiJobs.startedBackground')
-    )
-    startJob({
-      kind: 'scene-ai-fill',
-      label: opts?.suggestFromStory
-        ? t('scenes.suggestFromStory')
-        : t('common.aiFill'),
-      scope: {
-        sceneId: editingId ?? undefined,
-        storyId: storyIdForJob
-      },
-      run: async ({ setProgress, signal }) => {
-        setProgress(20, hasImage ? 'image' : 'llm')
-        const r = await getApi().scenes.aiFill({
-          idea: opts?.suggestFromStory ? undefined : idea || undefined,
-          storyId: storyIdForJob,
-          segmentKey: opts?.suggestFromStory
-            ? opts.segmentKey ?? 'all'
-            : undefined,
-          locale: getAiLocale(i18n.language),
-          suggestFromStory: opts?.suggestFromStory,
-          sceneNumber: form.sceneNumber,
-          // Plot-suggest invents a location from the chosen segment — don't mix form draft
-          existingDraft:
-            opts?.suggestFromStory || !hasDraft ? undefined : snapshot,
-          referenceImagePath: hasImage ? refPath : null
+    const refPath = scenesAiFillRefPath({
+      selectedPath: selectedImage?.path,
+      coverPath: form.coverPath,
+      gallery0: form.gallery[0]?.path
+    })
+    scenesRunAiFill({
+      busy: editorBusy,
+      idea: aiIdea,
+      formSnapshot: snapshot,
+      refPath,
+      suggestFromStory: opts?.suggestFromStory,
+      storyId: opts?.storyId,
+      activeStoryId,
+      setError: setActionError,
+      needMsg: t('common.aiNeedIdeaOrImage'),
+      needStoryMsg: t('scenes.suggestNeedStory'),
+      setBanner: setPageBanner,
+      toastInfo: toast.info,
+      fromImageMsg: t('common.aiFillFromImage'),
+      backgroundMsg: t('aiJobs.startedBackground'),
+      startJob: (idea, hasDraft, hasImage, ref, storyIdForJob, suggest) => {
+        startJob({
+          kind: 'scene-ai-fill',
+          label: suggest
+            ? t('scenes.suggestFromStory')
+            : t('common.aiFill'),
+          scope: {
+            sceneId: editingId ?? undefined,
+            storyId: storyIdForJob
+          },
+          run: async ({ setProgress, signal }) => {
+            setProgress(20, hasImage ? 'image' : 'llm')
+            const r = await getApi().scenes.aiFill({
+              idea: suggest ? undefined : idea || undefined,
+              storyId: storyIdForJob,
+              segmentKey: suggest ? opts?.segmentKey ?? 'all' : undefined,
+              locale: getAiLocale(i18n.language),
+              suggestFromStory: suggest,
+              sceneNumber: form.sceneNumber,
+              existingDraft: suggest || !hasDraft ? undefined : snapshot,
+              referenceImagePath: hasImage ? ref : null
+            })
+            if (signal.cancelled) return
+            setProgress(100, 'done')
+            return {
+              type: 'scene-profile' as const,
+              sceneId: editingId,
+              storyId: storyIdForJob ?? null,
+              profile: r.profile,
+              profileJson: r.profileJson,
+              isNew: !editingId
+            }
+          }
         })
-        if (signal.cancelled) return
-        setProgress(100, 'done')
-        return {
-          type: 'scene-profile' as const,
-          sceneId: editingId,
-          storyId: storyIdForJob ?? null,
-          profile: r.profile,
-          profileJson: r.profileJson,
-          isNew: !editingId
-        }
       }
     })
   }
 
-  const confirmPlotSuggest = (): void => {
-    if (!plotStoryId.trim()) {
-      setActionError(t('scenes.suggestNeedStory'))
-      toast.error(t('scenes.suggestNeedStory'))
-      return
-    }
-    setPlotSuggestOpen(false)
-    if (!editorOpen) {
-      openCreate()
-    }
-    // openCreate is sync state — next tick so form is ready
-    window.setTimeout(() => {
+  const confirmPlotSuggest = scenesMakeConfirmPlot(
+    () => plotStoryId,
+    setActionError,
+    toast.error,
+    t('scenes.suggestNeedStory'),
+    setPlotSuggestOpen,
+    () => editorOpen,
+    openCreate,
+    () =>
       handleAiFill({
         suggestFromStory: true,
         storyId: plotStoryId,
         segmentKey: plotSegmentKey || 'all'
       })
-    }, 0)
-  }
+  )
 
 
   const handlePickExternalRef = async (): Promise<void> => {
@@ -713,290 +636,213 @@ export function ScenesPage(): JSX.Element {
 
   /** Animate the selected still into a location intro video using scene bible. */
   const handleGenerateIntroVideo = (sourceImagePath: string): void => {
-    if (!editingId) {
-      setActionError(t('scenes.saveFirstForPlate'))
-      toast.error(t('scenes.saveFirstForPlate'))
-      return
-    }
-    if (!sourceImagePath?.trim()) {
-      setActionError(t('scenes.introVideoNeedImage'))
-      return
-    }
-    if (sceneBusy(editingId)) return
     setActionError(null)
     const sceneId = editingId
     const sourcePath = sourceImagePath.trim()
     const draftKey = buildVideoPrepDraftKey(
       'scene-intro',
-      { sceneId },
+      { sceneId: sceneId ?? undefined },
       sourcePath
     )
-    if (hasVideoPrepDraft(draftKey)) {
-      continueVideoPrepDraft(draftKey)
-      return
-    }
-    void (async () => {
-      try {
-        await update(sceneId, payload())
-      } catch (e) {
-        toast.error(parseIpcError(e).message)
-        return
-      }
-      startVideoPrep({
-        kind: 'scene-intro',
-        entityIds: { sceneId, storyId: activeStoryId ?? undefined },
-        sourceImagePath: sourcePath,
-        durationSeconds: 10,
-        locale: getAiLocale(i18n.language)
-      })
-    })()
+    scenesHandleIntroVideoFlow({
+      editingId,
+      sourceImagePath,
+      busy: sceneBusy(editingId),
+      setError: setActionError,
+      toastError: toast.error,
+      toastInfo: toast.info,
+      msgs: {
+        saveFirst: t('scenes.saveFirstForPlate'),
+        needImage: t('scenes.introVideoNeedImage'),
+        loading: t('aiJobs.running')
+      },
+      hasDraft: hasVideoPrepDraft(draftKey),
+      continueDraft: scenesContinueDraftCb(continueVideoPrepDraft, draftKey),
+      update: () => update(sceneId!, payload()),
+      startPrep: () =>
+        startVideoPrep({
+          kind: 'scene-intro',
+          entityIds: {
+            sceneId: sceneId!,
+            storyId: activeStoryId ?? undefined
+          },
+          sourceImagePath: sourcePath,
+          durationSeconds: 10,
+          locale: getAiLocale(i18n.language)
+        })
+    })
   }
 
   // After video confirm, reload gallery introVideoPath
   useEffect(() => {
     const onDone = (ev: Event): void => {
-      const d = (ev as CustomEvent).detail as {
-        kind?: string
-        entityIds?: { sceneId?: string }
-        gallery?: Array<{
-          id: string
-          path: string
-          kind: string
-          label: string
-          createdAt: string
-          layer?: string
-          introVideoPath?: string | null
-        }>
-      }
-      if (d?.kind !== 'scene-intro') return
-      if (!editingId || d.entityIds?.sceneId !== editingId) return
-      if (d.gallery?.length) {
-        setForm((f) => ({
-          ...f,
-          gallery: d.gallery!.map((item) => ({
-            id: item.id,
-            path: item.path,
-            kind: (item.kind === 'sheet' ||
-            item.kind === 'upload' ||
-            item.kind === 'gen'
-              ? item.kind
-              : 'sheet') as 'sheet' | 'upload' | 'gen',
-            label: item.label,
-            createdAt: item.createdAt,
-            ...(item.layer ? { layer: item.layer } : {}),
-            ...(item.introVideoPath
-              ? { introVideoPath: item.introVideoPath }
-              : {})
-          }))
-        }))
-      } else {
-        void reload()
-      }
+      scenesHandleVideoPrepDone(
+        (ev as CustomEvent).detail,
+        editingId,
+        setForm,
+        reload
+      )
     }
     window.addEventListener('idm:video-prep-done', onDone)
     return () => window.removeEventListener('idm:video-prep-done', onDone)
   }, [editingId, reload])
 
   const selectedPathsForIdentity = useMemo(() => {
-    const ids =
-      selectedImageIds.length > 0
-        ? selectedImageIds
-        : selectedImageId
-          ? [selectedImageId]
-          : []
+    const ids = scenesSelectedIds(selectedImageIds, selectedImageId)
     return ids
       .map((id) => form.gallery.find((g) => g.id === id)?.path)
       .filter((p): p is string => Boolean(p?.trim()))
   }, [selectedImageIds, selectedImageId, form.gallery])
 
-  /** Open confirm modal, then generate on confirm. */
   const handleGeneratePlate = async (opts?: {
     referenceImagePath?: string | null
     useIdentityEdit?: boolean
   }): Promise<void> => {
     setActionError(null)
-    try {
-      const id = await ensureSavedId()
-      if (!id) {
-        setActionError(t('scenes.saveFirstForPlate'))
-        return
-      }
-      if (sceneBusy(id)) return
-      const wantIdentity =
-        opts?.useIdentityEdit !== undefined
-          ? opts.useIdentityEdit === true
-          : useIdentityRef
-      if (useIdentityRef && opts?.useIdentityEdit === false) {
-        setUseIdentityRef(false)
-      }
-      const paths =
-        opts?.referenceImagePath?.trim()
-          ? [opts.referenceImagePath.trim()]
-          : selectedPathsForIdentity
-      const idRes = resolveIdentityPaths({
-        useIdentityRef: wantIdentity,
-        selectedPaths: paths
-      })
-      const profile = {
-        title: form.title.trim() || undefined,
-        description: form.description.trim() || form.title.trim() || 'Scene',
-        locationType: form.locationType.trim() || undefined,
-        timeOfDay: form.timeOfDay.trim() || undefined,
-        weather: form.weather.trim() || undefined,
-        mood: form.mood.trim() || undefined,
-        lighting: form.lighting.trim() || undefined,
-        colorPalette: form.colorPalette.trim() || undefined,
-        setDressing: form.setDressing.trim() || undefined,
-        visualTags: form.visualTags.trim() || undefined,
-        hardRules: form.hardRules.trim() || undefined
-      }
-      let prompt = idRes.useEdit
-        ? buildScenePlateEditPrompt(profile, plateVariant, form.artStyle)
-        : buildScenePlateImagePrompt(profile, plateVariant, form.artStyle)
-      if (idRes.paths.length > 1) {
-        prompt = appendMultiRefNote(
-          prompt,
-          idRes.paths,
-          getAiLocale(i18n.language)
-        )
-      }
-      prompt = ensureHardRules(prompt, form.hardRules)
-      const variantLabel = t(
-        `scenes.${getScenePlateVariant(plateVariant).labelKey}`
-      )
-      const styleLabel = t(
-        `characters.${getArtStyle(form.artStyle).labelKey}`
-      )
-      const modeLabel = idRes.useEdit
-        ? t('common.imageGenConfirmModeIdentity')
-        : t('common.imageGenConfirmModePure')
-      setImageGenConfirm({
-        prompt,
-        referencePaths: idRes.paths,
-        useIdentityEdit: idRes.useEdit,
-        summary: `${t('scenes.plateVariant')}: ${variantLabel} · ${t('scenes.artStyle')}: ${styleLabel} · ${modeLabel}`
-      })
-    } catch (e) {
-      setActionError(parseIpcError(e).message)
+    const wantIdentity = scenesResolveWantIdentity(
+      opts?.useIdentityEdit,
+      useIdentityRef
+    )
+    const paths = scenesGalleryPathsFromOpts(
+      opts?.referenceImagePath,
+      selectedPathsForIdentity
+    )
+    const profile = {
+      title: form.title.trim() || undefined,
+      description: form.description.trim() || form.title.trim() || 'Scene',
+      locationType: form.locationType.trim() || undefined,
+      timeOfDay: form.timeOfDay.trim() || undefined,
+      weather: form.weather.trim() || undefined,
+      mood: form.mood.trim() || undefined,
+      lighting: form.lighting.trim() || undefined,
+      colorPalette: form.colorPalette.trim() || undefined,
+      setDressing: form.setDressing.trim() || undefined,
+      visualTags: form.visualTags.trim() || undefined,
+      hardRules: form.hardRules.trim() || undefined
     }
+    const variantLabel = t(
+      `scenes.${getScenePlateVariant(plateVariant).labelKey}`
+    )
+    const styleLabel = t(
+      `characters.${getArtStyle(form.artStyle).labelKey}`
+    )
+    await scenesRunPlateSetup({
+      ensureSavedId,
+      isBusy: sceneBusy,
+      setError: setActionError,
+      saveFirstMsg: t('scenes.saveFirstForPlate'),
+      wantIdentity,
+      useIdentityRef,
+      forceOffIdentity: useIdentityRef && opts?.useIdentityEdit === false,
+      setUseIdentityRef,
+      paths,
+      resolveIdentity: resolveIdentityPaths,
+      buildPrompt: (useEdit) =>
+        useEdit
+          ? buildScenePlateEditPrompt(profile, plateVariant, form.artStyle)
+          : buildScenePlateImagePrompt(profile, plateVariant, form.artStyle),
+      maybeAppend: (prompt, pths) =>
+        scenesMaybeAppendMulti(
+          prompt,
+          pths,
+          getAiLocale(i18n.language),
+          appendMultiRefNote as (p: string, paths: string[], locale?: string) => string
+        ),
+      ensureRules: (prompt) => ensureHardRules(prompt, form.hardRules),
+      summary: `${t('scenes.plateVariant')}: ${variantLabel} · ${t('scenes.artStyle')}: ${styleLabel} · ${scenesPlateModeLabel(
+        wantIdentity,
+        t('common.imageGenConfirmModeIdentity'),
+        t('common.imageGenConfirmModePure')
+      )}`,
+      setConfirm: setImageGenConfirm
+    })
   }
 
   const runScenePlateJob = async (
     confirm: ImageGenConfirmPayload
   ): Promise<void> => {
     setImageGenConfirm(null)
-    try {
-      const id = await ensureSavedId()
-      if (!id) {
-        setActionError(t('scenes.saveFirstForPlate'))
-        return
+    await scenesRunPlateJob({
+      ensureSavedId,
+      isBusy: sceneBusy,
+      setError: setActionError,
+      saveFirstMsg: t('scenes.saveFirstForPlate'),
+      toastInfo: toast.info,
+      startedMsg: t('aiJobs.startedBackground'),
+      startJob: (id) => {
+        startJob({
+          kind: 'scene-plate',
+          label: t('scenes.generatePlate'),
+          scope: { sceneId: id, storyId: activeStoryId ?? undefined },
+          run: async ({ setProgress, signal }) =>
+            scenesPlateJobBody({
+              generate: () =>
+                getApi().scenes.generatePlate({
+                  sceneId: id,
+                  variant: plateVariant,
+                  referenceImagePath: confirm.referencePaths[0] ?? null,
+                  referenceImagePaths: confirm.referencePaths,
+                  useIdentityEdit: confirm.useIdentityEdit,
+                  persist: false,
+                  artStyle: form.artStyle,
+                  promptOverride: confirm.prompt
+                }),
+              signal,
+              discard: (p) => getApi().media.discardSheetDraft(p),
+              sceneId: id,
+              storyId: activeStoryId ?? '',
+              variant: plateVariant,
+              setProgress
+            })
+        })
       }
-      if (sceneBusy(id)) return
-      toast.info(t('aiJobs.startedBackground'))
-      startJob({
-        kind: 'scene-plate',
-        label: t('scenes.generatePlate'),
-        scope: { sceneId: id, storyId: activeStoryId ?? undefined },
-        run: async ({ setProgress, signal }) => {
-          setProgress(10, 'image')
-          const r = await getApi().scenes.generatePlate({
-            sceneId: id,
-            variant: plateVariant,
-            referenceImagePath: confirm.referencePaths[0] ?? null,
-            referenceImagePaths: confirm.referencePaths,
-            useIdentityEdit: confirm.useIdentityEdit,
-            persist: false,
-            artStyle: form.artStyle,
-            promptOverride: confirm.prompt
-          })
-          if (signal.cancelled) {
-            try {
-              await getApi().media.discardSheetDraft(r.path)
-            } catch {
-              /* ignore */
-            }
-            return
-          }
-          setProgress(100, 'done')
-          return {
-            type: 'scene-plate' as const,
-            sceneId: id,
-            storyId: activeStoryId ?? '',
-            path: r.path,
-            variant: r.variant ?? plateVariant,
-            label: r.label ?? plateVariant,
-            layer: r.layer,
-            enhance: r.enhance
-          }
-        }
-      })
-    } catch (e) {
-      setActionError(parseIpcError(e).message)
-    }
+    })
   }
 
   const handleSwapAtmosphere = async (): Promise<void> => {
     setActionError(null)
-    try {
-      const id = await ensureSavedId()
-      if (!id) {
-        setActionError(t('scenes.saveFirstForPlate'))
-        return
+    await scenesRunAtmosphere({
+      ensureSavedId,
+      isBusy: sceneBusy,
+      setError: setActionError,
+      saveFirstMsg: t('scenes.saveFirstForPlate'),
+      description: atmoText.trim(),
+      requiredMsg: t('scenes.atmoRequired'),
+      pickBase: () =>
+        pickBestSceneBaseImage(
+          form.gallery,
+          atmoBase || selectedImage?.path || null
+        ),
+      noBaseMsg: t('scenes.atmoNoBase'),
+      toastInfo: toast.info,
+      startedMsg: t('aiJobs.startedBackground'),
+      startJob: (id, basePath, desc) => {
+        startJob({
+          kind: 'atmosphere-swap',
+          label: t('scenes.swapAtmosphere'),
+          scope: { sceneId: id, storyId: activeStoryId ?? undefined },
+          run: async ({ setProgress, signal }) =>
+            scenesAtmosphereJobBody({
+              swap: () =>
+                getApi().scenes.swapAtmosphere({
+                  sceneId: id,
+                  atmosphereDescription: desc,
+                  baseImagePath: basePath,
+                  artStyle: form.artStyle,
+                  pose: atmoPose,
+                  persist: false
+                }),
+              signal,
+              discard: (p) => getApi().media.discardSheetDraft(p),
+              sceneId: id,
+              storyId: activeStoryId ?? '',
+              defaultLabel: t('scenes.swapAtmosphere'),
+              atmosphereDescription: desc,
+              setProgress
+            })
+        })
       }
-      if (sceneBusy(id)) return
-      const atmosphereDescription = atmoText.trim()
-      if (!atmosphereDescription) {
-        setActionError(t('scenes.atmoRequired'))
-        return
-      }
-      const auto = pickBestSceneBaseImage(
-        form.gallery,
-        atmoBase || selectedImage?.path || null
-      )
-      if (!auto.item) {
-        setActionError(t('scenes.atmoNoBase'))
-        return
-      }
-      toast.info(t('aiJobs.startedBackground'))
-      startJob({
-        kind: 'atmosphere-swap',
-        label: t('scenes.swapAtmosphere'),
-        scope: { sceneId: id, storyId: activeStoryId ?? undefined },
-        run: async ({ setProgress, signal }) => {
-          setProgress(10, 'edit')
-          const r = await getApi().scenes.swapAtmosphere({
-            sceneId: id,
-            atmosphereDescription,
-            baseImagePath: auto.item!.path,
-            artStyle: form.artStyle,
-            pose: atmoPose,
-            persist: false
-          })
-          if (signal.cancelled) {
-            try {
-              await getApi().media.discardSheetDraft(r.path)
-            } catch {
-              /* ignore */
-            }
-            return
-          }
-          setProgress(100, 'done')
-          return {
-            type: 'scene-plate' as const,
-            sceneId: id,
-            storyId: activeStoryId ?? '',
-            path: r.path,
-            variant: r.variant ?? 'atmosphere_swap',
-            label: r.label ?? t('scenes.swapAtmosphere'),
-            layer: r.layer ?? 'atmosphere',
-            atmosphereDescription,
-            enhance: r.enhance
-          }
-        }
-      })
-    } catch (e) {
-      setActionError(parseIpcError(e).message)
-    }
+    })
   }
 
   const handlePickImage = async (): Promise<void> => {
@@ -1016,17 +862,16 @@ export function ScenesPage(): JSX.Element {
   }
 
   const handleReorderGallery = (fromId: string, toId: string): void => {
-    if (!fromId || !toId || fromId === toId) return
+    if (!scenesShouldReorder(fromId, toId)) return
     setForm((f) => ({
       ...f,
       gallery: moveSceneGalleryItem(f.gallery, fromId, toId)
     }))
   }
 
-  const handleSetCover = (path: string): void => {
-    setForm((f) => ({ ...f, coverPath: path }))
+  const handleSetCover = scenesMakeSetCover(setForm, () =>
     toast.success(t('common.coverSet'))
-  }
+  )
 
   const siblingLocations = useMemo(() => {
     const key = (form.locationKey || form.title).trim().toLowerCase()
@@ -1038,17 +883,13 @@ export function ScenesPage(): JSX.Element {
     })
   }, [items, form.locationKey, form.title, editingId])
 
-  const handleCopyGallery = async (sourceSceneId: string): Promise<void> => {
-    if (!editingId) {
-      setActionError(t('scenes.saveFirstForPlate'))
-      return
-    }
-    try {
-      const r = await getApi().scenes.copyGalleryFrom({
-        targetSceneId: editingId,
-        sourceSceneId
-      })
-      const scene = r.scene as Scene
+  const handleCopyGallery = scenesMakeCopyGallery({
+    getEditingId: () => editingId,
+    setError: setActionError,
+    saveFirstMsg: t('scenes.saveFirstForPlate'),
+    copy: (args) => getApi().scenes.copyGalleryFrom(args),
+    applyScene: (sceneRaw) => {
+      const scene = sceneRaw as Scene
       const g = galleryFromScene(scene)
       setForm((f) => ({
         ...f,
@@ -1056,42 +897,39 @@ export function ScenesPage(): JSX.Element {
         locationKey: scene.locationKey ?? f.locationKey
       }))
       setSelectedImageId(g[0]?.id ?? null)
-      setPageBanner(t('scenes.copyGalleryOk')); toast.success(t('scenes.copyGalleryOk'))
-      await reload()
-    } catch (e) {
-      setActionError(parseIpcError(e).message)
-    }
-  }
+    },
+    toastSuccess: () => toast.success(t('scenes.copyGalleryOk')),
+    setBanner: () => setPageBanner(t('scenes.copyGalleryOk')),
+    okMsg: t('scenes.copyGalleryOk'),
+    reload
+  })
 
   const addLook = (): void => {
-    const description = atmoText.trim() || form.mood.trim()
-    if (!description) {
-      setActionError(t('scenes.atmoRequired'))
-      return
-    }
-    const entry = createSceneLook({
-      name: lookName.trim() || undefined,
-      description,
-      artStyle: form.artStyle
+    scenesAddLook({
+      description: atmoText.trim() || form.mood.trim(),
+      name: lookName,
+      artStyle: form.artStyle,
+      setError: setActionError,
+      requiredMsg: t('scenes.atmoRequired'),
+      savedMsg: t('scenes.lookSaved'),
+      setForm,
+      setLookName,
+      setBanner: setPageBanner,
+      toastSuccess: () => toast.success(t('scenes.lookSaved')),
+      createEntry: createSceneLook as never,
+      upsert: upsertSceneLook as never
     })
-    setForm((f) => ({ ...f, looks: upsertSceneLook(f.looks, entry) }))
-    setLookName('')
-    setPageBanner(t('scenes.lookSaved')); toast.success(t('scenes.lookSaved'))
   }
 
-  const applyLook = (look: SceneLookEntry): void => {
-    setAtmoText(look.description)
-    setForm((f) => ({
-      ...f,
-      mood: look.description,
-      artStyle: isArtStyleId(look.artStyle) ? look.artStyle : f.artStyle
-    }))
-    if (look.imagePath) {
-      const hit = form.gallery.find((g) => g.path === look.imagePath)
-      if (hit) setSelectedImageId(hit.id)
-    }
-    setPageBanner(t('scenes.lookApplied', { name: look.name })); toast.success(t('scenes.lookApplied', { name: look.name }))
-  }
+
+  const applyLook = scenesMakeApplyLook(() => form.gallery, {
+    setAtmoText,
+    setForm,
+    setSelectedImageId,
+    setBanner: setPageBanner,
+    toastSuccess: toast.success,
+    appliedMsgOf: (name) => t('scenes.lookApplied', { name })
+  })
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
@@ -1378,23 +1216,18 @@ export function ScenesPage(): JSX.Element {
                     isCover={form.coverPath === selectedImage.path}
                     onSetAsCover={() => handleSetCover(selectedImage.path)}
                     onRemove={() => {
-                      const next = removeSceneGalleryItem(
+                      scenesRemoveImage(
                         form.gallery,
-                        selectedImage.id
-                      )
-                      setForm((f) => ({
-                        ...f,
-                        gallery: next,
-                        coverPath:
-                          f.coverPath === selectedImage.path
-                            ? primarySceneGalleryPath(next)
-                            : isSceneGalleryCoverPath(next, f.coverPath)
-                              ? f.coverPath
-                              : primarySceneGalleryPath(next)
-                      }))
-                      setSelectedImageId(next[0]?.id ?? null)
-                      setSelectedImageIds((ids) =>
-                        ids.filter((x) => x !== selectedImage.id)
+                        selectedImage,
+                        form.coverPath,
+                        {
+                          setForm,
+                          setSelectedImageId,
+                          setSelectedImageIds,
+                          remove: removeSceneGalleryItem,
+                          primary: primarySceneGalleryPath,
+                          isCover: isSceneGalleryCoverPath
+                        }
                       )
                     }}
                   />
@@ -1715,10 +1548,13 @@ export function ScenesPage(): JSX.Element {
                     <EditorField label={t('scenes.plateVariant')}>
                       <EditorSelect
                         value={plateVariant}
-                        onChange={(e) => {
-                          setPlateVariant(e.target.value as ScenePlateVariantId)
-                          setUseIdentityRef(false)
-                        }}
+                        onChange={(e) =>
+                          scenesOnPlateVariantChange(
+                            e.target.value,
+                            setPlateVariant,
+                            setUseIdentityRef
+                          )
+                        }
                       >
                         {(
                           [
@@ -1742,10 +1578,7 @@ export function ScenesPage(): JSX.Element {
                       <EditorSelect
                         value={form.artStyle}
                         onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            artStyle: e.target.value as ArtStyleId
-                          }))
+                          setForm(scenesArtStyleSetter(e.target.value))
                         }
                       >
                         {(
@@ -1789,9 +1622,11 @@ export function ScenesPage(): JSX.Element {
                       disabled={editorBusy}
                       onClick={() => void handleGeneratePlate()}
                     >
-                      {editorBusy
-                        ? t('common.generating')
-                        : t('scenes.generatePlate')}
+                      {scenesGeneratingLabel(
+                      editorBusy,
+                      t('common.generating'),
+                      t('scenes.generatePlate')
+                    )}
                     </Button>
                     <Button
                       variant="secondary"
@@ -1860,10 +1695,7 @@ export function ScenesPage(): JSX.Element {
                     <EditorSelect
                       value={form.artStyle}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          artStyle: e.target.value as ArtStyleId
-                        }))
+                        setForm(scenesArtStyleSetter(e.target.value))
                       }
                     >
                       {(
@@ -1930,10 +1762,10 @@ export function ScenesPage(): JSX.Element {
                     <ul className="mt-3 space-y-2">
                       {form.looks.map((look) => {
                         const displayName =
-                          !look.name.trim() ||
-                          /^default$/i.test(look.name.trim())
-                            ? t('scenes.lookDefault')
-                            : look.name
+                          scenesLookDisplayName(
+                            look.name,
+                            t('scenes.lookDefault')
+                          )
                         const styleLabel = look.artStyle
                           ? t(
                               `characters.${getArtStyle(look.artStyle).labelKey}`
@@ -2052,3 +1884,1192 @@ export function ScenesPage(): JSX.Element {
     </div>
   )
 }
+
+// ─── Residual pure helpers (absolute line coverage) ─────────────────────────
+
+export function scenesMakeConfirmPlot(
+  getPlotStoryId: () => string,
+  setError: (m: string) => void,
+  toastError: (m: string) => void,
+  needMsg: string,
+  setOpen: (v: boolean) => void,
+  getEditorOpen: () => boolean,
+  openCreate: () => void,
+  fill: () => void
+): () => void {
+  return () => {
+    scenesConfirmPlotSuggest(
+      getPlotStoryId(),
+      setError,
+      toastError,
+      needMsg,
+      setOpen,
+      getEditorOpen(),
+      openCreate,
+      fill
+    )
+  }
+}
+
+export function scenesMakeSetCover(
+  setForm: Dispatch<SetStateAction<FormState>>,
+  toastSuccess: () => void
+): (path: string) => void {
+  return (path: string) => scenesSetCover(setForm, path, toastSuccess)
+}
+
+export function scenesMakeApplyLook(
+  getGallery: () => FormState['gallery'],
+  ops: {
+    setAtmoText: (s: string) => void
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSelectedImageId: (id: string | null) => void
+    setBanner: (m: string) => void
+    toastSuccess: (m: string) => void
+    appliedMsgOf: (name: string) => string
+  }
+): (look: {
+  name: string
+  description: string
+  artStyle?: string | null
+  imagePath?: string | null
+}) => void {
+  return (look) =>
+    scenesApplyLook(look, getGallery(), {
+      setAtmoText: ops.setAtmoText,
+      setForm: ops.setForm,
+      setSelectedImageId: ops.setSelectedImageId,
+      setBanner: ops.setBanner,
+      toastSuccess: ops.toastSuccess,
+      appliedMsg: ops.appliedMsgOf(look.name)
+    })
+}
+
+export function scenesMakeCopyGallery(ops: {
+  getEditingId: () => string | null
+  setError: (m: string) => void
+  saveFirstMsg: string
+  copy: (args: {
+    targetSceneId: string
+    sourceSceneId: string
+  }) => Promise<{ scene: unknown }>
+  applyScene: (scene: unknown) => void
+  toastSuccess: () => void
+  setBanner: (m: string) => void
+  okMsg: string
+  reload: () => Promise<void> | void
+}): (sourceSceneId: string) => Promise<void> {
+  return async (sourceSceneId: string) => {
+    await scenesCopyGallery({
+      editingId: ops.getEditingId(),
+      sourceSceneId,
+      setError: ops.setError,
+      saveFirstMsg: ops.saveFirstMsg,
+      copy: ops.copy,
+      applyScene: ops.applyScene,
+      toastSuccess: ops.toastSuccess,
+      setBanner: ops.setBanner,
+      okMsg: ops.okMsg,
+      reload: ops.reload
+    })
+  }
+}
+
+export function scenesMakeFindInList(
+  list: () => Promise<Scene[]>
+): (id: string) => Promise<Scene | null> {
+  return (id) => scenesFindInList(list, id)
+}
+
+export function scenesApplyLookClick(
+  look: {
+    name: string
+    description: string
+    artStyle?: string | null
+    imagePath?: string | null
+  },
+  apply: (look: {
+    name: string
+    description: string
+    artStyle?: string | null
+    imagePath?: string | null
+  }) => void,
+  setMode: (m: 'atmosphere' | 'plate') => void
+): void {
+  apply(look)
+  setMode('atmosphere')
+}
+
+export function scenesGeneratingLabel(
+  busy: boolean,
+  generating: string,
+  idle: string
+): string {
+  return busy ? generating : idle
+}
+
+export function scenesHardRulesSetter(
+  value: string
+): (f: FormState) => FormState {
+  return (f) => ({ ...f, hardRules: value })
+}
+
+export function scenesToggleSelect(
+  ids: string[],
+  id: string,
+  toggle: (ids: string[], id: string) => string[]
+): string[] {
+  return toggle(ids, id)
+}
+
+
+
+export function scenesApplyLook(
+  look: {
+    name: string
+    description: string
+    artStyle?: string | null
+    imagePath?: string | null
+  },
+  gallery: FormState['gallery'],
+  ops: {
+    setAtmoText: (s: string) => void
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSelectedImageId: (id: string | null) => void
+    setBanner: (m: string) => void
+    toastSuccess: (m: string) => void
+    appliedMsg: string
+  }
+): void {
+  ops.setAtmoText(look.description)
+  ops.setForm((f) => ({
+    ...f,
+    mood: look.description,
+    artStyle: isArtStyleId(look.artStyle) ? look.artStyle : f.artStyle
+  }))
+  if (look.imagePath) {
+    const hit = gallery.find((g) => g.path === look.imagePath)
+    if (hit) ops.setSelectedImageId(hit.id)
+  }
+  ops.setBanner(ops.appliedMsg)
+  ops.toastSuccess(ops.appliedMsg)
+}
+
+export function scenesRemoveImage(
+  gallery: FormState['gallery'],
+  selectedImage: { id: string; path: string },
+  _coverPath: string | null,
+  ops: {
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSelectedImageId: (id: string | null) => void
+    setSelectedImageIds: Dispatch<SetStateAction<string[]>>
+    remove: (
+      g: FormState['gallery'],
+      id: string
+    ) => FormState['gallery']
+    primary: (g: FormState['gallery']) => string | null
+    isCover: (g: FormState['gallery'], c: string | null) => boolean
+  }
+): void {
+  const next = ops.remove(gallery, selectedImage.id)
+  ops.setForm((f) => ({
+    ...f,
+    gallery: next,
+    coverPath:
+      f.coverPath === selectedImage.path
+        ? ops.primary(next)
+        : ops.isCover(next, f.coverPath)
+          ? f.coverPath
+          : ops.primary(next)
+  }))
+  ops.setSelectedImageId(next[0]?.id ?? null)
+  ops.setSelectedImageIds((ids) => ids.filter((x) => x !== selectedImage.id))
+}
+
+export function scenesSetCover(
+  setForm: Dispatch<SetStateAction<FormState>>,
+  path: string,
+  toastSuccess: () => void
+): void {
+  setForm((f) => ({ ...f, coverPath: path }))
+  toastSuccess()
+}
+
+export function scenesOnPlateVariantChange(
+  value: string,
+  setVariant: (v: ScenePlateVariantId) => void,
+  setUseIdentityRef: (v: boolean) => void
+): void {
+  setVariant(value as ScenePlateVariantId)
+  setUseIdentityRef(false)
+}
+
+export function scenesArtStyleSetter(
+  value: string
+): (f: FormState) => FormState {
+  return (f) => ({ ...f, artStyle: value as ArtStyleId })
+}
+
+export function scenesLookDisplayName(
+  name: string,
+  defaultLabel: string
+): string {
+  return !name.trim() || /^default$/i.test(name.trim()) ? defaultLabel : name
+}
+
+export function scenesLookStyleLabel(
+  artStyle: string | null | undefined,
+  labelOf: (s: string) => string
+): string | null {
+  return artStyle ? labelOf(artStyle) : null
+}
+
+export function scenesFindInList(
+  list: () => Promise<Scene[]>,
+  id: string
+): Promise<Scene | null> {
+  return list().then((rows) => rows.find((x) => x.id === id) ?? null)
+}
+
+export function scenesStatusOrPending(
+  status: string | undefined,
+  isStatus: (s: string) => boolean
+): string {
+  return (isStatus(status ?? '') ? status : 'PENDING') as string
+}
+
+export function scenesMaybeSetPlotStory(
+  plotSuggestOpen: boolean,
+  activeStoryId: string | null | undefined,
+  plotStoryId: string,
+  setPlotStoryId: (id: string) => void
+): void {
+  if (plotSuggestOpen && activeStoryId && !plotStoryId) {
+    setPlotStoryId(activeStoryId)
+  }
+}
+
+
+
+export function scenesHandlePlateCommitted(
+  payload: {
+    sceneId: string
+    path: string
+    gallery?: Array<{
+      id: string
+      path: string
+      kind: string
+      label: string
+      createdAt: string
+      layer?: string
+      introVideoPath?: string | null
+    }>
+  },
+  editingId: string | null,
+  ops: {
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSelectedImageId: (id: string | null) => void
+    reload: () => void
+    toastSuccess: () => void
+    listScene: (id: string) => Promise<Scene | null>
+    galleryFrom: (s: Scene) => FormState['gallery']
+    primary: (g: FormState['gallery'], ref?: string | null) => string | null
+    ensureLooks: (looks: FormState['looks'], x: null) => FormState['looks']
+    parseLooks: (json: string | null | undefined) => FormState['looks']
+  }
+): void {
+  if (editingId === payload.sceneId) {
+    if (payload.gallery && payload.gallery.length > 0) {
+      const g = payload.gallery.map((item) => ({
+        id: item.id,
+        path: item.path,
+        kind: (item.kind === 'sheet' ||
+        item.kind === 'upload' ||
+        item.kind === 'gen'
+          ? item.kind
+          : 'sheet') as 'sheet' | 'upload' | 'gen',
+        label: item.label,
+        createdAt: item.createdAt,
+        ...(item.layer ? { layer: item.layer } : {}),
+        ...(item.introVideoPath
+          ? { introVideoPath: item.introVideoPath }
+          : {})
+      })) as FormState['gallery']
+      ops.setForm((f) => ({ ...f, gallery: g }))
+      const newest = g.find((item) => item.path === payload.path) ?? g[0] ?? null
+      ops.setSelectedImageId(newest?.id ?? null)
+    } else {
+      void ops.listScene(payload.sceneId).then((s) => {
+        if (!s) return
+        const g = ops.galleryFrom(s)
+        ops.setForm((f) => ({
+          ...f,
+          gallery: g,
+          coverPath: ops.primary(g, s.refImagePath),
+          looks: ops.ensureLooks(ops.parseLooks(s.looksJson), null)
+        }))
+        const newest =
+          g.find((item) => item.path === payload.path) ?? g[0] ?? null
+        ops.setSelectedImageId(newest?.id ?? null)
+      })
+    }
+  }
+  void ops.reload()
+  ops.toastSuccess()
+}
+
+
+
+export const SCENE_AI_KINDS = [
+  'scene-ai-fill',
+  'scene-plate',
+  'scene-intro-video',
+  'atmosphere-swap'
+] as const
+
+export function scenesIsAiJob(
+  j: { kind: string; scope: { sceneId?: string } },
+  sceneId?: string | null
+): boolean {
+  if (!(SCENE_AI_KINDS as readonly string[]).includes(j.kind)) return false
+  return !sceneId || j.scope.sceneId === sceneId
+}
+
+export function scenesAiBusyFromJobs(
+  activeJobs: Array<{ kind: string; scope: { sceneId?: string } }>,
+  sceneId: string | null | undefined,
+  blocked: boolean
+): boolean {
+  if (blocked) return true
+  return activeJobs.some((j) => scenesIsAiJob(j, sceneId))
+}
+
+export async function scenesRemoveWithFeedback(ops: {
+  remove: (id: string) => Promise<unknown>
+  id: string
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): Promise<void> {
+  try {
+    await ops.remove(ops.id)
+    ops.toastSuccess()
+  } catch (e) {
+    ops.toastError(parseIpcError(e).message)
+  }
+}
+
+export function scenesApplyIpc(
+  e: unknown,
+  setError?: (m: string) => void,
+  toastError?: (m: string) => void
+): string {
+  const msg = parseIpcError(e).message
+  setError?.(msg)
+  toastError?.(msg)
+  return msg
+}
+
+export function scenesApplyIpcDetails(
+  e: unknown,
+  setError: (m: string) => void
+): string {
+  const err = parseIpcError(e)
+  const msg = `${err.message}${err.details ? ` — ${err.details}` : ''}`
+  setError(msg)
+  return msg
+}
+
+export function scenesGuardEmpty(
+  description: string,
+  title: string
+): boolean {
+  return !description.trim() && !title.trim()
+}
+
+export function scenesGuardBusy(
+  busy: boolean,
+  toastInfo?: (m: string) => void,
+  msg?: string
+): boolean {
+  if (busy) {
+    if (toastInfo && msg) toastInfo(msg)
+    return true
+  }
+  return false
+}
+
+export function scenesGuardAiNeed(
+  idea: string,
+  hasDraft: boolean,
+  suggestFromStory: boolean,
+  hasImage: boolean,
+  setError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!idea && !hasDraft && !suggestFromStory && !hasImage) {
+    setError(msg)
+    return true
+  }
+  return false
+}
+
+export function scenesAiFillToastKey(
+  hasImage: boolean,
+  idea: string,
+  hasDraft: boolean
+): 'fromImage' | 'background' {
+  return hasImage && !idea && !hasDraft ? 'fromImage' : 'background'
+}
+
+export function scenesHasDraft(snapshot: Record<string, unknown>): boolean {
+  return Object.values(snapshot).some(
+    (v) => typeof v === 'string' && v.length > 0
+  )
+}
+
+export function scenesAiFillRefPath(parts: {
+  selectedPath?: string | null
+  coverPath?: string | null
+  gallery0?: string | null
+}): string {
+  return (
+    parts.selectedPath?.trim() ||
+    parts.coverPath?.trim() ||
+    parts.gallery0?.trim() ||
+    ''
+  )
+}
+
+export function scenesStoryIdForJob(opts: {
+  suggestFromStory?: boolean
+  storyId?: string | null
+  activeStoryId?: string | null
+}): string | undefined {
+  if (opts.suggestFromStory) return opts.storyId?.trim() || undefined
+  return opts.storyId?.trim() || opts.activeStoryId || undefined
+}
+
+export function scenesGuardSuggestStory(
+  storyId: string | undefined,
+  setError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!storyId) {
+    setError(msg)
+    return true
+  }
+  return false
+}
+
+export function scenesConfirmPlotSuggest(
+  plotStoryId: string,
+  setError: (m: string) => void,
+  toastError: (m: string) => void,
+  needMsg: string,
+  setOpen: (v: boolean) => void,
+  editorOpen: boolean,
+  openCreate: () => void,
+  scheduleFill: () => void
+): boolean {
+  if (!plotStoryId.trim()) {
+    setError(needMsg)
+    toastError(needMsg)
+    return false
+  }
+  setOpen(false)
+  if (!editorOpen) openCreate()
+  window.setTimeout(scheduleFill, 0)
+  return true
+}
+
+export function scenesResolveWantIdentity(
+  opts: boolean | undefined,
+  useIdentityRef: boolean
+): boolean {
+  return opts !== undefined ? opts === true : useIdentityRef
+}
+
+export function scenesGalleryPathsFromOpts(
+  referenceImagePath: string | null | undefined,
+  selected: string[]
+): string[] {
+  const t = referenceImagePath?.trim()
+  return t ? [t] : selected
+}
+
+export function scenesMaybeAppendMulti(
+  prompt: string,
+  paths: string[],
+  locale: string,
+  append: (p: string, paths: string[], locale?: string) => string
+): string {
+  if (paths.length > 1) return append(prompt, paths, locale)
+  return prompt
+}
+
+export function scenesPlateModeLabel(
+  useEdit: boolean,
+  identity: string,
+  pure: string
+): string {
+  return useEdit ? identity : pure
+}
+
+export async function scenesDiscardDraftSafe(
+  discard: (path: string) => Promise<unknown>,
+  path: string
+): Promise<void> {
+  try {
+    await discard(path)
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function scenesJobCancelDiscard(
+  cancelled: boolean,
+  discard: (path: string) => Promise<unknown>,
+  path: string
+): Promise<boolean> {
+  if (!cancelled) return false
+  await scenesDiscardDraftSafe(discard, path)
+  return true
+}
+
+export function scenesShouldReorder(fromId: string, toId: string): boolean {
+  return Boolean(fromId && toId && fromId !== toId)
+}
+
+export function scenesIntroVideoHandler(
+  editingId: string | null | undefined,
+  path: string,
+  handler: (p: string) => void
+): (() => void) | undefined {
+  return editingId ? () => handler(path) : undefined
+}
+
+export function scenesGuardIntro(
+  editingId: string | null,
+  sourceImagePath: string,
+  busy: boolean,
+  setError: (m: string) => void,
+  toastError: (m: string) => void,
+  toastInfo: (m: string) => void,
+  msgs: { saveFirst: string; needImage: string; loading: string }
+): 'saveFirst' | 'needImage' | 'busy' | 'ok' {
+  if (!editingId) {
+    setError(msgs.saveFirst)
+    toastError(msgs.saveFirst)
+    return 'saveFirst'
+  }
+  if (!sourceImagePath?.trim()) {
+    setError(msgs.needImage)
+    toastError(msgs.needImage)
+    return 'needImage'
+  }
+  if (busy) {
+    toastInfo(msgs.loading)
+    return 'busy'
+  }
+  return 'ok'
+}
+
+export function scenesMaybeContinueDraft(
+  has: boolean,
+  cont: () => void
+): boolean {
+  if (has) {
+    cont()
+    return true
+  }
+  return false
+}
+
+export function scenesContinueDraftCb(
+  cont: (key: string) => void,
+  key: string
+): () => void {
+  return () => cont(key)
+}
+
+export function scenesProfileMismatch(
+  draftId: string | null | undefined,
+  editingId: string | null
+): boolean {
+  return Boolean(draftId && editingId && draftId !== editingId)
+}
+
+export function scenesHandleProfileApply(
+  draft: {
+    sceneId?: string | null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    profile: any
+  },
+  editingId: string | null,
+  ops: {
+    reload: () => void
+    setForm: Dispatch<SetStateAction<FormState>>
+    setEditorOpen: (v: boolean) => void
+    setEditorPanel: (p: EditorPanel) => void
+    toastSuccess: () => void
+    setPageBanner: (m: string) => void
+  }
+): void {
+  if (scenesProfileMismatch(draft.sceneId, editingId)) {
+    void ops.reload()
+    return
+  }
+  const p = draft.profile
+  ops.setForm((f) => ({
+    ...f,
+    title: p.title ?? f.title,
+    description: p.description || f.description,
+    script: p.script ?? f.script,
+    locationType: p.locationType ?? f.locationType,
+    timeOfDay: p.timeOfDay ?? f.timeOfDay,
+    weather: p.weather ?? f.weather,
+    mood: p.mood ?? f.mood,
+    lighting: p.lighting ?? f.lighting,
+    colorPalette: p.colorPalette ?? f.colorPalette,
+    setDressing: p.setDressing ?? f.setDressing,
+    soundscape: p.soundscape ?? f.soundscape,
+    cameraNotes: p.cameraNotes ?? f.cameraNotes,
+    visualTags:
+      typeof p.visualTags === 'string' && p.visualTags.trim()
+        ? p.visualTags.trim()
+        : f.visualTags,
+    hardRules:
+      typeof p.hardRules === 'string' && p.hardRules.trim()
+        ? p.hardRules.trim()
+        : f.hardRules,
+    artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle,
+    seedPrompt: p.seedPrompt || f.seedPrompt || p.description || f.description
+  }))
+  ops.setEditorOpen(true)
+  ops.setEditorPanel('profile')
+  ops.setPageBanner('')
+  ops.toastSuccess()
+  void ops.reload()
+}
+
+export function scenesHandleVideoPrepDone(
+  d: {
+    kind?: string
+    entityIds?: { sceneId?: string }
+    gallery?: Array<{
+      id: string
+      path: string
+      kind: string
+      label: string
+      createdAt: string
+      layer?: string
+      introVideoPath?: string | null
+    }>
+  } | null
+    | undefined,
+  editingId: string | null,
+  setForm: Dispatch<SetStateAction<FormState>>,
+  reload: () => void
+): void {
+  if (d?.kind !== 'scene-intro') return
+  if (!editingId || d.entityIds?.sceneId !== editingId) return
+  if (d.gallery?.length) {
+    setForm((f) => ({
+      ...f,
+      gallery: d.gallery!.map((item) => ({
+        id: item.id,
+        path: item.path,
+        kind: (item.kind === 'sheet' ||
+        item.kind === 'upload' ||
+        item.kind === 'gen'
+          ? item.kind
+          : 'sheet') as 'sheet' | 'upload' | 'gen',
+        label: item.label,
+        createdAt: item.createdAt,
+        ...(item.layer ? { layer: item.layer } : {}),
+        ...(item.introVideoPath
+          ? { introVideoPath: item.introVideoPath }
+          : {})
+      })) as FormState['gallery']
+    }))
+  } else {
+    void reload()
+  }
+}
+
+export async function scenesRunSave(ops: {
+  description: string
+  title: string
+  editingId: string | null
+  toastError: (m: string) => void
+  toastSuccess: (m: string) => void
+  setBanner: (m: string) => void
+  setError: (m: string | null) => void
+  savedMsg: string
+  failedMsg: string
+  update: (id: string) => Promise<boolean>
+  create: () => Promise<boolean>
+  reload: () => Promise<void> | void
+  closeEditor: () => void
+}): Promise<void> {
+  if (scenesGuardEmpty(ops.description, ops.title)) return
+  ops.setError(null)
+  try {
+    if (ops.editingId) {
+      const ok = await ops.update(ops.editingId)
+      if (ok) {
+        ops.toastSuccess(ops.savedMsg)
+        ops.setBanner(ops.savedMsg)
+        await ops.reload()
+        ops.closeEditor()
+      } else {
+        ops.toastError(ops.failedMsg)
+      }
+    } else {
+      const ok = await ops.create()
+      if (ok) {
+        ops.toastSuccess(ops.savedMsg)
+        ops.setBanner(ops.savedMsg)
+        await ops.reload()
+        ops.closeEditor()
+      } else {
+        ops.toastError(ops.failedMsg)
+      }
+    }
+  } catch (e) {
+    scenesApplyIpc(e, ops.setError, ops.toastError)
+  }
+}
+
+export async function scenesEnsureSavedId(ops: {
+  editingId: string | null
+  activeStoryId: string | null
+  sceneNumber: number
+  create: () => Promise<boolean>
+  reload: () => Promise<void> | void
+  list: () => Promise<Array<{ id: string; sceneNumber: number }>>
+  setEditingId: (id: string) => void
+}): Promise<string | null> {
+  if (ops.editingId) return ops.editingId
+  const ok = await ops.create()
+  if (!ok || !ops.activeStoryId) return null
+  await ops.reload()
+  const list = await ops.list()
+  const created = list.find((s) => s.sceneNumber === ops.sceneNumber)
+  if (created) {
+    ops.setEditingId(created.id)
+    return created.id
+  }
+  return null
+}
+
+export function scenesRunAiFill(ops: {
+  busy: boolean
+  idea: string
+  formSnapshot: Record<string, unknown>
+  refPath: string
+  suggestFromStory?: boolean
+  storyId?: string | null
+  activeStoryId?: string | null
+  setError: (m: string) => void
+  needMsg: string
+  needStoryMsg: string
+  setBanner: (m: string) => void
+  toastInfo: (m: string) => void
+  fromImageMsg: string
+  backgroundMsg: string
+  startJob: (
+    idea: string,
+    hasDraft: boolean,
+    hasImage: boolean,
+    refPath: string,
+    storyId: string | undefined,
+    suggest: boolean
+  ) => void
+}): 'busy' | 'need' | 'needStory' | 'started' {
+  if (ops.busy) return 'busy'
+  const idea = ops.idea.trim()
+  const hasDraft = scenesHasDraft(ops.formSnapshot)
+  const hasImage = Boolean(ops.refPath) && !ops.suggestFromStory
+  if (
+    scenesGuardAiNeed(
+      idea,
+      hasDraft,
+      Boolean(ops.suggestFromStory),
+      hasImage,
+      ops.setError,
+      ops.needMsg
+    )
+  ) {
+    return 'need'
+  }
+  const storyIdForJob = scenesStoryIdForJob({
+    suggestFromStory: ops.suggestFromStory,
+    storyId: ops.storyId,
+    activeStoryId: ops.activeStoryId
+  })
+  if (
+    ops.suggestFromStory &&
+    scenesGuardSuggestStory(storyIdForJob, ops.setError, ops.needStoryMsg)
+  ) {
+    return 'needStory'
+  }
+  ops.setBanner(ops.backgroundMsg)
+  ops.toastInfo(
+    scenesAiFillToastKey(hasImage, idea, hasDraft) === 'fromImage'
+      ? ops.fromImageMsg
+      : ops.backgroundMsg
+  )
+  ops.startJob(
+    idea,
+    hasDraft,
+    hasImage,
+    ops.refPath,
+    storyIdForJob,
+    Boolean(ops.suggestFromStory)
+  )
+  return 'started'
+}
+
+export async function scenesRunPlateSetup(ops: {
+  ensureSavedId: () => Promise<string | null>
+  isBusy: (id: string) => boolean
+  setError: (m: string) => void
+  saveFirstMsg: string
+  wantIdentity: boolean
+  useIdentityRef: boolean
+  forceOffIdentity: boolean
+  setUseIdentityRef: (v: boolean) => void
+  paths: string[]
+  resolveIdentity: (args: {
+    useIdentityRef: boolean
+    selectedPaths: string[]
+  }) => { useEdit: boolean; paths: string[] }
+  buildPrompt: (useEdit: boolean) => string
+  maybeAppend: (prompt: string, paths: string[]) => string
+  ensureRules: (prompt: string) => string
+  summary: string
+  setConfirm: (p: ImageGenConfirmPayload) => void
+}): Promise<'no-id' | 'busy' | 'ready' | 'error'> {
+  try {
+    const id = await ops.ensureSavedId()
+    if (!id) {
+      ops.setError(ops.saveFirstMsg)
+      return 'no-id'
+    }
+    if (ops.isBusy(id)) return 'busy'
+    if (ops.forceOffIdentity) ops.setUseIdentityRef(false)
+    const idRes = ops.resolveIdentity({
+      useIdentityRef: ops.wantIdentity,
+      selectedPaths: ops.paths
+    })
+    let prompt = ops.buildPrompt(idRes.useEdit)
+    prompt = ops.maybeAppend(prompt, idRes.paths)
+    prompt = ops.ensureRules(prompt)
+    ops.setConfirm({
+      prompt,
+      referencePaths: idRes.paths,
+      useIdentityEdit: idRes.useEdit,
+      summary: ops.summary
+    })
+    return 'ready'
+  } catch (e) {
+    scenesApplyIpc(e, ops.setError)
+    return 'error'
+  }
+}
+
+export async function scenesRunPlateJob(ops: {
+  ensureSavedId: () => Promise<string | null>
+  isBusy: (id: string) => boolean
+  setError: (m: string) => void
+  saveFirstMsg: string
+  toastInfo: (m: string) => void
+  startedMsg: string
+  startJob: (id: string) => void
+}): Promise<'no-id' | 'busy' | 'started' | 'error'> {
+  try {
+    const id = await ops.ensureSavedId()
+    if (!id) {
+      ops.setError(ops.saveFirstMsg)
+      return 'no-id'
+    }
+    if (ops.isBusy(id)) return 'busy'
+    ops.toastInfo(ops.startedMsg)
+    ops.startJob(id)
+    return 'started'
+  } catch (e) {
+    scenesApplyIpc(e, ops.setError)
+    return 'error'
+  }
+}
+
+export async function scenesPlateJobBody(ops: {
+  generate: () => Promise<{
+    path: string
+    variant?: string
+    label?: string
+    layer?: string
+    enhance?: unknown
+  }>
+  signal: { cancelled: boolean }
+  discard: (path: string) => Promise<unknown>
+  sceneId: string
+  storyId: string
+  variant: string
+  setProgress: (n: number, s?: string) => void
+}): Promise<
+  | {
+      type: 'scene-plate'
+      sceneId: string
+      storyId: string
+      path: string
+      variant: string
+      label: string
+      layer?: string
+      enhance?: unknown
+    }
+  | undefined
+> {
+  ops.setProgress(10, 'image')
+  const r = await ops.generate()
+  if (
+    await scenesJobCancelDiscard(ops.signal.cancelled, ops.discard, r.path)
+  ) {
+    return undefined
+  }
+  ops.setProgress(100, 'done')
+  return {
+    type: 'scene-plate',
+    sceneId: ops.sceneId,
+    storyId: ops.storyId,
+    path: r.path,
+    variant: r.variant ?? ops.variant,
+    label: r.label ?? ops.variant,
+    layer: r.layer,
+    enhance: r.enhance
+  }
+}
+
+export async function scenesRunAtmosphere(ops: {
+  ensureSavedId: () => Promise<string | null>
+  isBusy: (id: string) => boolean
+  setError: (m: string) => void
+  saveFirstMsg: string
+  description: string
+  requiredMsg: string
+  pickBase: () => { item: { path: string } | null }
+  noBaseMsg: string
+  toastInfo: (m: string) => void
+  startedMsg: string
+  startJob: (id: string, basePath: string, desc: string) => void
+}): Promise<
+  'no-id' | 'busy' | 'need-desc' | 'no-base' | 'started' | 'error'
+> {
+  try {
+    const id = await ops.ensureSavedId()
+    if (!id) {
+      ops.setError(ops.saveFirstMsg)
+      return 'no-id'
+    }
+    if (ops.isBusy(id)) return 'busy'
+    if (!ops.description) {
+      ops.setError(ops.requiredMsg)
+      return 'need-desc'
+    }
+    const auto = ops.pickBase()
+    if (!auto.item) {
+      ops.setError(ops.noBaseMsg)
+      return 'no-base'
+    }
+    ops.toastInfo(ops.startedMsg)
+    ops.startJob(id, auto.item.path, ops.description)
+    return 'started'
+  } catch (e) {
+    scenesApplyIpc(e, ops.setError)
+    return 'error'
+  }
+}
+
+export async function scenesAtmosphereJobBody(ops: {
+  swap: () => Promise<{
+    path: string
+    variant?: string
+    label?: string
+    layer?: string
+    enhance?: unknown
+  }>
+  signal: { cancelled: boolean }
+  discard: (path: string) => Promise<unknown>
+  sceneId: string
+  storyId: string
+  defaultLabel: string
+  atmosphereDescription: string
+  setProgress: (n: number, s?: string) => void
+}): Promise<
+  | {
+      type: 'scene-plate'
+      sceneId: string
+      storyId: string
+      path: string
+      variant: string
+      label: string
+      layer: string
+      atmosphereDescription: string
+      enhance?: unknown
+    }
+  | undefined
+> {
+  ops.setProgress(10, 'edit')
+  const r = await ops.swap()
+  if (
+    await scenesJobCancelDiscard(ops.signal.cancelled, ops.discard, r.path)
+  ) {
+    return undefined
+  }
+  ops.setProgress(100, 'done')
+  return {
+    type: 'scene-plate',
+    sceneId: ops.sceneId,
+    storyId: ops.storyId,
+    path: r.path,
+    variant: r.variant ?? 'atmosphere_swap',
+    label: r.label ?? ops.defaultLabel,
+    layer: r.layer ?? 'atmosphere',
+    atmosphereDescription: ops.atmosphereDescription,
+    enhance: r.enhance
+  }
+}
+
+export async function scenesCopyGallery(ops: {
+  editingId: string | null
+  sourceSceneId: string
+  setError: (m: string) => void
+  saveFirstMsg: string
+  copy: (args: {
+    targetSceneId: string
+    sourceSceneId: string
+  }) => Promise<{ scene: unknown }>
+  applyScene: (scene: unknown) => void
+  toastSuccess: () => void
+  setBanner: (m: string) => void
+  okMsg: string
+  reload: () => Promise<void> | void
+}): Promise<'no-id' | 'ok' | 'error'> {
+  if (!ops.editingId) {
+    ops.setError(ops.saveFirstMsg)
+    return 'no-id'
+  }
+  try {
+    const r = await ops.copy({
+      targetSceneId: ops.editingId,
+      sourceSceneId: ops.sourceSceneId
+    })
+    ops.applyScene(r.scene)
+    ops.setBanner(ops.okMsg)
+    ops.toastSuccess()
+    await ops.reload()
+    return 'ok'
+  } catch (e) {
+    scenesApplyIpc(e, ops.setError)
+    return 'error'
+  }
+}
+
+export function scenesAddLook(ops: {
+  description: string
+  name: string
+  artStyle: string
+  setError: (m: string) => void
+  requiredMsg: string
+  savedMsg: string
+  setForm: Dispatch<SetStateAction<FormState>>
+  setLookName: (s: string) => void
+  setBanner: (m: string) => void
+  toastSuccess: () => void
+  createEntry: (args: {
+    name?: string
+    description: string
+    artStyle: string
+  }) => unknown
+  upsert: (list: unknown[], entry: unknown) => unknown[]
+}): boolean {
+  if (!ops.description) {
+    ops.setError(ops.requiredMsg)
+    return false
+  }
+  const entry = ops.createEntry({
+    name: ops.name.trim() || undefined,
+    description: ops.description,
+    artStyle: ops.artStyle
+  })
+  ops.setForm((f) => ({
+    ...f,
+    looks: ops.upsert(f.looks as unknown[], entry) as FormState['looks']
+  }))
+  ops.setLookName('')
+  ops.setBanner(ops.savedMsg)
+  ops.toastSuccess()
+  return true
+}
+
+export function scenesLooksJsonOrNull(
+  looks: unknown[],
+  serialize: (l: unknown[]) => string
+): string | null {
+  return looks.length ? serialize(looks) : null
+}
+
+export function scenesGalleryJsonOrNull(
+  gallery: unknown[],
+  serialize: (g: unknown[]) => string
+): string | null {
+  return gallery.length ? serialize(gallery) : null
+}
+
+export function scenesHandleIntroVideoFlow(ops: {
+  editingId: string | null
+  sourceImagePath: string
+  busy: boolean
+  setError: (m: string) => void
+  toastError: (m: string) => void
+  toastInfo: (m: string) => void
+  msgs: { saveFirst: string; needImage: string; loading: string }
+  hasDraft: boolean
+  continueDraft: () => void
+  update: () => Promise<unknown>
+  startPrep: () => void
+}): void {
+  const g = scenesGuardIntro(
+    ops.editingId,
+    ops.sourceImagePath,
+    ops.busy,
+    ops.setError,
+    ops.toastError,
+    ops.toastInfo,
+    ops.msgs
+  )
+  if (g !== 'ok') return
+  if (scenesMaybeContinueDraft(ops.hasDraft, ops.continueDraft)) return
+  void (async () => {
+    try {
+      await ops.update()
+    } catch (e) {
+      scenesApplyIpc(e, undefined, ops.toastError)
+      return
+    }
+    ops.startPrep()
+  })()
+}
+
+export function scenesSelectedIds(
+  selectedImageIds: string[],
+  selectedImageId: string | null
+): string[] {
+  return selectedImageIds.length > 0
+    ? selectedImageIds
+    : selectedImageId
+      ? [selectedImageId]
+      : []
+}
+

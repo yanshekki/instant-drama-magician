@@ -461,19 +461,14 @@ export function PropsPage(): JSX.Element {
     setActionError(null)
     const propId = editingId!
     const sourcePath = sourceImagePath.trim()
-    const draftKey = buildVideoPrepDraftKey(
-      'prop-intro',
-      { propId },
-      sourcePath
-    )
-    if (
-      propsMaybeContinueDraft(hasVideoPrepDraft(draftKey), () =>
-        continueVideoPrepDraft(draftKey)
-      )
-    ) {
-      return
-    }
-    void propsStartIntroAfterSave({
+    void propsRunIntroVideoFlow({
+      draftKey: buildVideoPrepDraftKey(
+        'prop-intro',
+        { propId },
+        sourcePath
+      ),
+      hasDraft: hasVideoPrepDraft,
+      continueDraft: continueVideoPrepDraft,
       update: () => update(propId, payload()),
       toastError: toast.error,
       start: () =>
@@ -517,61 +512,62 @@ export function PropsPage(): JSX.Element {
     referenceImagePath?: string | null
   }): Promise<void> => {
     setActionError(null)
-    try {
-      const id = await ensureSavedId()
-      if (!id) return
-      if (propsGuardBusy(propBusy(id), toast.info, t('common.loading'))) {
-        return
+    await propsRunGeneratePlateSetup({
+      ensureSavedId,
+      isBusy: (id) => propBusy(id),
+      toastInfo: toast.info,
+      loadingMsg: t('common.loading'),
+      setError: setActionError,
+      toastError: toast.error,
+      buildConfirm: () => {
+        const wantIdentity = propsResolveWantIdentity(
+          opts?.useIdentityEdit,
+          useIdentityRef
+        )
+        const paths = propsGalleryPathsFromOpts(
+          opts?.referenceImagePath,
+          selectedPathsForIdentity
+        )
+        const idRes = resolveIdentityPaths({
+          useIdentityRef: wantIdentity,
+          selectedPaths: paths
+        })
+        const profile = {
+          name: form.name.trim() || 'Prop',
+          description: form.description.trim() || form.name.trim() || 'Prop',
+          material: form.material.trim() || undefined,
+          sizeNotes: form.sizeNotes.trim() || undefined,
+          condition: form.condition.trim() || undefined,
+          visualTags: form.visualTags.trim() || undefined,
+          hardRules: form.hardRules.trim() || undefined
+        }
+        let prompt = idRes.useEdit
+          ? buildPropPlateEditPrompt(profile, plateVariant, form.artStyle)
+          : buildPropPlateImagePrompt(profile, plateVariant, form.artStyle)
+        prompt = propsMaybeAppendMultiRef(
+          prompt,
+          idRes.paths,
+          getAiLocale(i18n.language),
+          appendMultiRefNote
+        )
+        prompt = ensureHardRules(prompt, form.hardRules)
+        const variantLabel = t(
+          `props.${getPropPlateVariant(plateVariant).labelKey}`
+        )
+        const styleLabel = t(
+          `characters.${getArtStyle(form.artStyle).labelKey}`
+        )
+        const modeLabel = idRes.useEdit
+          ? t('common.imageGenConfirmModeIdentity')
+          : t('common.imageGenConfirmModePure')
+        setImageGenConfirm({
+          prompt,
+          referencePaths: idRes.paths,
+          useIdentityEdit: idRes.useEdit,
+          summary: `${t('props.plateVariant')}: ${variantLabel} · ${t('props.artStyle')}: ${styleLabel} · ${modeLabel}`
+        })
       }
-      const wantIdentity = propsResolveWantIdentity(
-        opts?.useIdentityEdit,
-        useIdentityRef
-      )
-      const paths = propsGalleryPathsFromOpts(
-        opts?.referenceImagePath,
-        selectedPathsForIdentity
-      )
-      const idRes = resolveIdentityPaths({
-        useIdentityRef: wantIdentity,
-        selectedPaths: paths
-      })
-      const profile = {
-        name: form.name.trim() || 'Prop',
-        description: form.description.trim() || form.name.trim() || 'Prop',
-        material: form.material.trim() || undefined,
-        sizeNotes: form.sizeNotes.trim() || undefined,
-        condition: form.condition.trim() || undefined,
-        visualTags: form.visualTags.trim() || undefined,
-        hardRules: form.hardRules.trim() || undefined
-      }
-      let prompt = idRes.useEdit
-        ? buildPropPlateEditPrompt(profile, plateVariant, form.artStyle)
-        : buildPropPlateImagePrompt(profile, plateVariant, form.artStyle)
-      prompt = propsMaybeAppendMultiRef(
-        prompt,
-        idRes.paths,
-        getAiLocale(i18n.language),
-        appendMultiRefNote
-      )
-      prompt = ensureHardRules(prompt, form.hardRules)
-      const variantLabel = t(
-        `props.${getPropPlateVariant(plateVariant).labelKey}`
-      )
-      const styleLabel = t(
-        `characters.${getArtStyle(form.artStyle).labelKey}`
-      )
-      const modeLabel = idRes.useEdit
-        ? t('common.imageGenConfirmModeIdentity')
-        : t('common.imageGenConfirmModePure')
-      setImageGenConfirm({
-        prompt,
-        referencePaths: idRes.paths,
-        useIdentityEdit: idRes.useEdit,
-        summary: `${t('props.plateVariant')}: ${variantLabel} · ${t('props.artStyle')}: ${styleLabel} · ${modeLabel}`
-      })
-    } catch (e) {
-      propsApplyIpcError(e, setActionError, toast.error)
-    }
+    })
   }
 
   const runPropPlateJob = async (
@@ -866,19 +862,12 @@ export function PropsPage(): JSX.Element {
                       setForm((f) => ({
                         ...f,
                         gallery: next,
-                        coverPath: propsNextCoverAfterGallery(
+                        coverPath: propsCoverPathOnRemove(
+                          f.coverPath,
+                          selectedImage.path,
                           next,
-                          f.coverPath === selectedImage.path
-                            ? null
-                            : f.coverPath,
-                          (gal, c) =>
-                            c
-                              ? isSceneGalleryCoverPath(
-                                  gal as never,
-                                  c
-                                )
-                              : false,
-                          (gal) => primarySceneGalleryPath(gal as never)
+                          isSceneGalleryCoverPath as never,
+                          primarySceneGalleryPath as never
                         )
                       }))
                       setSelectedImageId(next[0]?.id ?? null)
@@ -1391,6 +1380,63 @@ export async function propsStartIntroAfterSave(ops: {
   }
   ops.start()
   return 'started'
+}
+
+export async function propsRunIntroVideoFlow(ops: {
+  draftKey: string
+  hasDraft: (key: string) => boolean
+  continueDraft: (key: string) => void
+  update: () => Promise<unknown>
+  toastError: (m: string) => void
+  start: () => void
+}): Promise<'continue' | 'error' | 'started'> {
+  if (
+    propsMaybeContinueDraft(ops.hasDraft(ops.draftKey), () =>
+      ops.continueDraft(ops.draftKey)
+    )
+  ) {
+    return 'continue'
+  }
+  return propsStartIntroAfterSave({
+    update: ops.update,
+    toastError: ops.toastError,
+    start: ops.start
+  })
+}
+
+export async function propsRunGeneratePlateSetup(ops: {
+  ensureSavedId: () => Promise<string | null>
+  isBusy: (id: string) => boolean
+  toastInfo: (m: string) => void
+  loadingMsg: string
+  setError: (m: string) => void
+  toastError: (m: string) => void
+  buildConfirm: () => void
+}): Promise<'no-id' | 'busy' | 'ok' | 'error'> {
+  try {
+    const id = await ops.ensureSavedId()
+    if (!id) return 'no-id'
+    if (propsGuardBusy(ops.isBusy(id), ops.toastInfo, ops.loadingMsg)) {
+      return 'busy'
+    }
+    ops.buildConfirm()
+    return 'ok'
+  } catch (e) {
+    propsApplyIpcError(e, ops.setError, ops.toastError)
+    return 'error'
+  }
+}
+
+export function propsCoverPathOnRemove(
+  coverPath: string | null,
+  removedPath: string,
+  next: { path: string }[],
+  isCover: (gal: { path: string }[], c: string) => boolean,
+  primary: (gal: { path: string }[]) => string | null
+): string | null {
+  if (coverPath === removedPath) return primary(next)
+  if (coverPath && isCover(next, coverPath)) return coverPath
+  return primary(next)
 }
 
 export function propsApplyPickedImage(ops: {

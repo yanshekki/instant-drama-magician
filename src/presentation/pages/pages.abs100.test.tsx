@@ -248,7 +248,73 @@ import {
   propsStartIntroAfterSave,
   propsSuggestIdeaLabel
 } from './PropsPage'
-import { ScenesPage } from './ScenesPage'
+import {
+  ScenesPage,
+  SCENE_AI_KINDS,
+  scenesAiBusyFromJobs,
+  scenesAiFillRefPath,
+  scenesAiFillToastKey,
+  scenesAddLook,
+  scenesApplyIpc,
+  scenesApplyIpcDetails,
+  scenesAtmosphereJobBody,
+  scenesConfirmPlotSuggest,
+  scenesContinueDraftCb,
+  scenesCopyGallery,
+  scenesDiscardDraftSafe,
+  scenesEnsureSavedId,
+  scenesGalleryJsonOrNull,
+  scenesGalleryPathsFromOpts,
+  scenesGuardAiNeed,
+  scenesGuardBusy,
+  scenesGuardEmpty,
+  scenesGuardIntro,
+  scenesGuardSuggestStory,
+  scenesHandleIntroVideoFlow,
+  scenesHandleProfileApply,
+  scenesHandleVideoPrepDone,
+  scenesHasDraft,
+  scenesIntroVideoHandler,
+  scenesIsAiJob,
+  scenesJobCancelDiscard,
+  scenesLooksJsonOrNull,
+  scenesMaybeAppendMulti,
+  scenesMaybeContinueDraft,
+  scenesPlateJobBody,
+  scenesPlateModeLabel,
+  scenesProfileMismatch,
+  scenesRemoveWithFeedback,
+  scenesResolveWantIdentity,
+  scenesRunAiFill,
+  scenesRunAtmosphere,
+  scenesRunPlateJob,
+  scenesRunPlateSetup,
+  scenesRunSave,
+  scenesSelectedIds,
+  scenesShouldReorder,
+  scenesStoryIdForJob,
+  scenesHandlePlateCommitted,
+  scenesApplyLook,
+  scenesRemoveImage,
+  scenesSetCover,
+  scenesOnPlateVariantChange,
+  scenesArtStyleSetter,
+  scenesLookDisplayName,
+  scenesLookStyleLabel,
+  scenesFindInList,
+  scenesStatusOrPending,
+  scenesMaybeSetPlotStory,
+  scenesMakeConfirmPlot,
+  scenesMakeSetCover,
+  scenesMakeApplyLook,
+  scenesMakeCopyGallery,
+  scenesMakeFindInList,
+  scenesApplyLookClick,
+  scenesGeneratingLabel,
+  scenesHardRulesSetter,
+  scenesToggleSelect
+} from './ScenesPage'
+
 import { SettingsPage } from './SettingsPage'
 import { StoriesPage } from './StoriesPage'
 import {
@@ -7627,4 +7693,1380 @@ describe('abs100 Characters UI residual mop', () => {
       await new Promise((r) => setTimeout(r, 40))
     })
   }, 150000)
+})
+
+
+describe('abs100 Scenes pure residual helpers', () => {
+  it('covers every pure residual branch', async () => {
+    const msgs: string[] = []
+    const toastErr = (m: string) => msgs.push('e:' + m)
+    const toastInfo = (m: string) => msgs.push('i:' + m)
+    const setErr = (m: string | null) => msgs.push('s:' + m)
+
+    expect(scenesIsAiJob({ kind: 'other', scope: {} }, 's1')).toBe(false)
+    expect(
+      scenesIsAiJob({ kind: 'scene-ai-fill', scope: { sceneId: 's1' } }, 's1')
+    ).toBe(true)
+    expect(
+      scenesIsAiJob({ kind: 'scene-ai-fill', scope: {} }, null)
+    ).toBe(true)
+    expect(SCENE_AI_KINDS).toContain('atmosphere-swap')
+    expect(scenesAiBusyFromJobs([], 's1', true)).toBe(true)
+    expect(
+      scenesAiBusyFromJobs(
+        [{ kind: 'scene-plate', scope: { sceneId: 's1' } }],
+        's1',
+        false
+      )
+    ).toBe(true)
+    expect(scenesAiBusyFromJobs([], 's1', false)).toBe(false)
+
+    await scenesRemoveWithFeedback({
+      remove: async () => undefined,
+      id: 'x',
+      toastSuccess: () => msgs.push('ok'),
+      toastError: toastErr
+    })
+    await scenesRemoveWithFeedback({
+      remove: async () => {
+        throw new Error('rm')
+      },
+      id: 'x',
+      toastSuccess: () => undefined,
+      toastError: toastErr
+    })
+    scenesApplyIpc(new Error('a'), setErr, toastErr)
+    scenesApplyIpcDetails(
+      new Error(
+        JSON.stringify({ code: 'INTERNAL', message: 'm', details: 'd' })
+      ),
+      setErr
+    )
+    expect(scenesGuardEmpty('', '')).toBe(true)
+    expect(scenesGuardEmpty('d', '')).toBe(false)
+    expect(scenesGuardBusy(true, toastInfo, 'L')).toBe(true)
+    expect(scenesGuardBusy(false)).toBe(false)
+    expect(
+      scenesGuardAiNeed('', false, false, false, setErr, 'need')
+    ).toBe(true)
+    expect(
+      scenesGuardAiNeed('i', false, false, false, setErr, 'need')
+    ).toBe(false)
+    expect(scenesAiFillToastKey(true, '', false)).toBe('fromImage')
+    expect(scenesAiFillToastKey(false, '', false)).toBe('background')
+    expect(scenesHasDraft({ a: 'x' })).toBe(true)
+    expect(scenesHasDraft({ a: '' })).toBe(false)
+    expect(scenesAiFillRefPath({ selectedPath: ' /s ' })).toBe('/s')
+    expect(scenesAiFillRefPath({})).toBe('')
+    expect(
+      scenesStoryIdForJob({
+        suggestFromStory: true,
+        storyId: 's',
+        activeStoryId: 'a'
+      })
+    ).toBe('s')
+    expect(
+      scenesStoryIdForJob({
+        suggestFromStory: false,
+        storyId: null,
+        activeStoryId: 'a'
+      })
+    ).toBe('a')
+    expect(scenesGuardSuggestStory(undefined, setErr, 'ns')).toBe(true)
+    expect(scenesGuardSuggestStory('s', setErr, 'ns')).toBe(false)
+    expect(
+      scenesConfirmPlotSuggest(
+        '',
+        setErr,
+        toastErr,
+        'need',
+        () => undefined,
+        false,
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(false)
+    expect(
+      scenesConfirmPlotSuggest(
+        'story',
+        setErr,
+        toastErr,
+        'need',
+        () => undefined,
+        false,
+        () => msgs.push('oc'),
+        () => msgs.push('fill')
+      )
+    ).toBe(true)
+    await new Promise((r) => setTimeout(r, 5))
+    expect(scenesResolveWantIdentity(true, false)).toBe(true)
+    expect(scenesResolveWantIdentity(undefined, true)).toBe(true)
+    expect(scenesGalleryPathsFromOpts('/p', ['a'])).toEqual(['/p'])
+    expect(scenesGalleryPathsFromOpts(null, ['a'])).toEqual(['a'])
+    expect(
+      scenesMaybeAppendMulti('p', ['a', 'b'], 'en', (x) => x + '+')
+    ).toBe('p+')
+    expect(scenesMaybeAppendMulti('p', ['a'], 'en', (x) => x + '+')).toBe('p')
+    expect(scenesPlateModeLabel(true, 'I', 'P')).toBe('I')
+    expect(scenesPlateModeLabel(false, 'I', 'P')).toBe('P')
+    await scenesDiscardDraftSafe(async () => {
+      throw new Error('x')
+    }, '/p')
+    await scenesDiscardDraftSafe(async () => undefined, '/p')
+    expect(
+      await scenesJobCancelDiscard(false, async () => undefined, '/p')
+    ).toBe(false)
+    expect(
+      await scenesJobCancelDiscard(true, async () => undefined, '/p')
+    ).toBe(true)
+    expect(scenesShouldReorder('a', 'b')).toBe(true)
+    expect(scenesShouldReorder('a', 'a')).toBe(false)
+    expect(typeof scenesIntroVideoHandler('id', '/p', () => undefined)).toBe(
+      'function'
+    )
+    expect(scenesIntroVideoHandler(null, '/p', () => undefined)).toBeUndefined()
+    expect(
+      scenesGuardIntro(
+        null,
+        '/p',
+        false,
+        setErr,
+        toastErr,
+        toastInfo,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('saveFirst')
+    expect(
+      scenesGuardIntro(
+        'id',
+        '',
+        false,
+        setErr,
+        toastErr,
+        toastInfo,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('needImage')
+    expect(
+      scenesGuardIntro(
+        'id',
+        '/p',
+        true,
+        setErr,
+        toastErr,
+        toastInfo,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('busy')
+    expect(
+      scenesGuardIntro(
+        'id',
+        '/p',
+        false,
+        setErr,
+        toastErr,
+        toastInfo,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('ok')
+    expect(scenesMaybeContinueDraft(true, () => msgs.push('c'))).toBe(true)
+    expect(scenesMaybeContinueDraft(false, () => undefined)).toBe(false)
+    scenesContinueDraftCb((k) => msgs.push(k), 'k')()
+    expect(scenesProfileMismatch('a', 'b')).toBe(true)
+    expect(scenesProfileMismatch('a', 'a')).toBe(false)
+
+    let formSnap: Record<string, unknown> | null = null
+    const setForm = (fn: (f: never) => unknown) => {
+      formSnap = fn({
+        title: '',
+        description: '',
+        script: '',
+        locationType: '',
+        timeOfDay: '',
+        weather: '',
+        mood: '',
+        lighting: '',
+        colorPalette: '',
+        setDressing: '',
+        soundscape: '',
+        cameraNotes: '',
+        visualTags: '',
+        hardRules: '',
+        seedPrompt: '',
+        artStyle: 'photo_cinematic',
+        gallery: [],
+        coverPath: null,
+        looks: [],
+        locationKey: '',
+        sceneNumber: 1
+      } as never) as typeof formSnap
+    }
+    scenesHandleProfileApply(
+      { sceneId: 's2', profile: { title: 'X' } },
+      's1',
+      {
+        reload: () => msgs.push('rel'),
+        setForm: setForm as never,
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        toastSuccess: () => undefined,
+        setPageBanner: () => undefined
+      }
+    )
+    scenesHandleProfileApply(
+      {
+        sceneId: 's1',
+        profile: {
+          title: 'T',
+          description: 'd',
+          visualTags: '  v  ',
+          hardRules: '  h  ',
+          artStyle: 'photo_cinematic'
+        }
+      },
+      's1',
+      {
+        reload: () => undefined,
+        setForm: setForm as never,
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        toastSuccess: () => undefined,
+        setPageBanner: () => undefined
+      }
+    )
+    scenesHandleProfileApply(
+      {
+        sceneId: null,
+        profile: {
+          visualTags: '  ',
+          hardRules: '',
+          artStyle: 'bad'
+        }
+      },
+      null,
+      {
+        reload: () => undefined,
+        setForm: setForm as never,
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        toastSuccess: () => undefined,
+        setPageBanner: () => undefined
+      }
+    )
+
+    scenesHandleVideoPrepDone({ kind: 'other' }, 's1', setForm as never, () =>
+      undefined
+    )
+    scenesHandleVideoPrepDone(
+      { kind: 'scene-intro', entityIds: { sceneId: 'x' } },
+      's1',
+      setForm as never,
+      () => undefined
+    )
+    scenesHandleVideoPrepDone(
+      {
+        kind: 'scene-intro',
+        entityIds: { sceneId: 's1' },
+        gallery: [
+          {
+            id: 'g',
+            path: '/n',
+            kind: 'weird',
+            label: 'L',
+            createdAt: 't',
+            layer: 'base',
+            introVideoPath: '/v'
+          }
+        ]
+      },
+      's1',
+      setForm as never,
+      () => undefined
+    )
+    scenesHandleVideoPrepDone(
+      { kind: 'scene-intro', entityIds: { sceneId: 's1' } },
+      's1',
+      setForm as never,
+      () => msgs.push('vreload')
+    )
+
+    await scenesRunSave({
+      description: '',
+      title: '',
+      editingId: null,
+      toastError: toastErr,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: setErr,
+      savedMsg: 's',
+      failedMsg: 'f',
+      update: async () => true,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await scenesRunSave({
+      description: 'd',
+      title: '',
+      editingId: 'id',
+      toastError: toastErr,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: setErr,
+      savedMsg: 's',
+      failedMsg: 'f',
+      update: async () => false,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await scenesRunSave({
+      description: 'd',
+      title: '',
+      editingId: 'id',
+      toastError: toastErr,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: setErr,
+      savedMsg: 's',
+      failedMsg: 'f',
+      update: async () => true,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await scenesRunSave({
+      description: 'd',
+      title: '',
+      editingId: null,
+      toastError: toastErr,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: setErr,
+      savedMsg: 's',
+      failedMsg: 'f',
+      update: async () => true,
+      create: async () => false,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await scenesRunSave({
+      description: 'd',
+      title: '',
+      editingId: null,
+      toastError: toastErr,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: setErr,
+      savedMsg: 's',
+      failedMsg: 'f',
+      update: async () => true,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await scenesRunSave({
+      description: 'd',
+      title: '',
+      editingId: null,
+      toastError: toastErr,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: setErr,
+      savedMsg: 's',
+      failedMsg: 'f',
+      update: async () => true,
+      create: async () => {
+        throw new Error('c')
+      },
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+
+    expect(
+      await scenesEnsureSavedId({
+        editingId: 'id',
+        activeStoryId: 's',
+        sceneNumber: 1,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [],
+        setEditingId: () => undefined
+      })
+    ).toBe('id')
+    expect(
+      await scenesEnsureSavedId({
+        editingId: null,
+        activeStoryId: null,
+        sceneNumber: 1,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [],
+        setEditingId: () => undefined
+      })
+    ).toBeNull()
+    expect(
+      await scenesEnsureSavedId({
+        editingId: null,
+        activeStoryId: 's',
+        sceneNumber: 1,
+        create: async () => false,
+        reload: () => undefined,
+        list: async () => [],
+        setEditingId: () => undefined
+      })
+    ).toBeNull()
+    expect(
+      await scenesEnsureSavedId({
+        editingId: null,
+        activeStoryId: 's',
+        sceneNumber: 3,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [{ id: 'n', sceneNumber: 3 }],
+        setEditingId: (id) => msgs.push('eid:' + id)
+      })
+    ).toBe('n')
+    expect(
+      await scenesEnsureSavedId({
+        editingId: null,
+        activeStoryId: 's',
+        sceneNumber: 9,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [{ id: 'n', sceneNumber: 3 }],
+        setEditingId: () => undefined
+      })
+    ).toBeNull()
+
+    expect(
+      scenesRunAiFill({
+        busy: true,
+        idea: '',
+        formSnapshot: {},
+        refPath: '',
+        setError: setErr,
+        needMsg: 'n',
+        needStoryMsg: 'ns',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      scenesRunAiFill({
+        busy: false,
+        idea: '',
+        formSnapshot: {},
+        refPath: '',
+        setError: setErr,
+        needMsg: 'n',
+        needStoryMsg: 'ns',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => undefined
+      })
+    ).toBe('need')
+    expect(
+      scenesRunAiFill({
+        busy: false,
+        idea: '',
+        formSnapshot: {},
+        refPath: '',
+        suggestFromStory: true,
+        storyId: null,
+        setError: setErr,
+        needMsg: 'n',
+        needStoryMsg: 'ns',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => undefined
+      })
+    ).toBe('needStory')
+    expect(
+      scenesRunAiFill({
+        busy: false,
+        idea: 'idea',
+        formSnapshot: { title: 't' },
+        refPath: '/img',
+        setError: setErr,
+        needMsg: 'n',
+        needStoryMsg: 'ns',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => msgs.push('job')
+      })
+    ).toBe('started')
+    expect(
+      scenesRunAiFill({
+        busy: false,
+        idea: '',
+        formSnapshot: {},
+        refPath: '/img',
+        setError: setErr,
+        needMsg: 'n',
+        needStoryMsg: 'ns',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => msgs.push('job2')
+      })
+    ).toBe('started')
+
+    expect(
+      await scenesRunPlateSetup({
+        ensureSavedId: async () => null,
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        wantIdentity: true,
+        useIdentityRef: true,
+        forceOffIdentity: false,
+        setUseIdentityRef: () => undefined,
+        paths: [],
+        resolveIdentity: () => ({ useEdit: false, paths: [] }),
+        buildPrompt: () => 'p',
+        maybeAppend: (p) => p,
+        ensureRules: (p) => p,
+        summary: 's',
+        setConfirm: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await scenesRunPlateSetup({
+        ensureSavedId: async () => 'id',
+        isBusy: () => true,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        wantIdentity: true,
+        useIdentityRef: true,
+        forceOffIdentity: true,
+        setUseIdentityRef: (v) => msgs.push('uir:' + v),
+        paths: ['/a', '/b'],
+        resolveIdentity: () => ({ useEdit: true, paths: ['/a', '/b'] }),
+        buildPrompt: () => 'p',
+        maybeAppend: (p) => p + '+',
+        ensureRules: (p) => p + '!',
+        summary: 's',
+        setConfirm: (c) => msgs.push(c.prompt)
+      })
+    ).toBe('busy')
+    expect(
+      await scenesRunPlateSetup({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        wantIdentity: true,
+        useIdentityRef: true,
+        forceOffIdentity: true,
+        setUseIdentityRef: () => undefined,
+        paths: ['/a', '/b'],
+        resolveIdentity: () => ({ useEdit: true, paths: ['/a', '/b'] }),
+        buildPrompt: () => 'p',
+        maybeAppend: (p) => p + '+',
+        ensureRules: (p) => p + '!',
+        summary: 's',
+        setConfirm: () => undefined
+      })
+    ).toBe('ready')
+    expect(
+      await scenesRunPlateSetup({
+        ensureSavedId: async () => {
+          throw new Error('e')
+        },
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        wantIdentity: false,
+        useIdentityRef: false,
+        forceOffIdentity: false,
+        setUseIdentityRef: () => undefined,
+        paths: [],
+        resolveIdentity: () => ({ useEdit: false, paths: [] }),
+        buildPrompt: () => 'p',
+        maybeAppend: (p) => p,
+        ensureRules: (p) => p,
+        summary: 's',
+        setConfirm: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await scenesRunPlateJob({
+        ensureSavedId: async () => null,
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await scenesRunPlateJob({
+        ensureSavedId: async () => 'id',
+        isBusy: () => true,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      await scenesRunPlateJob({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => msgs.push('pj')
+      })
+    ).toBe('started')
+    expect(
+      await scenesRunPlateJob({
+        ensureSavedId: async () => {
+          throw new Error('e')
+        },
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await scenesPlateJobBody({
+        generate: async () => ({ path: '/p' }),
+        signal: { cancelled: true },
+        discard: async () => undefined,
+        sceneId: 's',
+        storyId: 'st',
+        variant: 'v',
+        setProgress: () => undefined
+      })
+    ).toBeUndefined()
+    expect(
+      (
+        await scenesPlateJobBody({
+          generate: async () => ({
+            path: '/p',
+            variant: 'v2',
+            label: 'L',
+            layer: 'base'
+          }),
+          signal: { cancelled: false },
+          discard: async () => undefined,
+          sceneId: 's',
+          storyId: 'st',
+          variant: 'v',
+          setProgress: () => undefined
+        })
+      )?.variant
+    ).toBe('v2')
+
+    expect(
+      await scenesRunAtmosphere({
+        ensureSavedId: async () => null,
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        description: 'd',
+        requiredMsg: 'req',
+        pickBase: () => ({ item: { path: '/b' } }),
+        noBaseMsg: 'nb',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await scenesRunAtmosphere({
+        ensureSavedId: async () => 'id',
+        isBusy: () => true,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        description: 'd',
+        requiredMsg: 'req',
+        pickBase: () => ({ item: { path: '/b' } }),
+        noBaseMsg: 'nb',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      await scenesRunAtmosphere({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        description: '',
+        requiredMsg: 'req',
+        pickBase: () => ({ item: { path: '/b' } }),
+        noBaseMsg: 'nb',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => undefined
+      })
+    ).toBe('need-desc')
+    expect(
+      await scenesRunAtmosphere({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        description: 'd',
+        requiredMsg: 'req',
+        pickBase: () => ({ item: null }),
+        noBaseMsg: 'nb',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => undefined
+      })
+    ).toBe('no-base')
+    expect(
+      await scenesRunAtmosphere({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        description: 'd',
+        requiredMsg: 'req',
+        pickBase: () => ({ item: { path: '/b' } }),
+        noBaseMsg: 'nb',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => msgs.push('atm')
+      })
+    ).toBe('started')
+    expect(
+      await scenesRunAtmosphere({
+        ensureSavedId: async () => {
+          throw new Error('e')
+        },
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        description: 'd',
+        requiredMsg: 'req',
+        pickBase: () => ({ item: { path: '/b' } }),
+        noBaseMsg: 'nb',
+        toastInfo: toastInfo,
+        startedMsg: 'st',
+        startJob: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await scenesAtmosphereJobBody({
+        swap: async () => ({ path: '/p' }),
+        signal: { cancelled: true },
+        discard: async () => undefined,
+        sceneId: 's',
+        storyId: 'st',
+        defaultLabel: 'D',
+        atmosphereDescription: 'a',
+        setProgress: () => undefined
+      })
+    ).toBeUndefined()
+    expect(
+      (
+        await scenesAtmosphereJobBody({
+          swap: async () => ({ path: '/p', label: 'L', layer: 'atmosphere' }),
+          signal: { cancelled: false },
+          discard: async () => undefined,
+          sceneId: 's',
+          storyId: 'st',
+          defaultLabel: 'D',
+          atmosphereDescription: 'a',
+          setProgress: () => undefined
+        })
+      )?.atmosphereDescription
+    ).toBe('a')
+
+    expect(
+      await scenesCopyGallery({
+        editingId: null,
+        sourceSceneId: 's',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        copy: async () => ({ scene: {} }),
+        applyScene: () => undefined,
+        toastSuccess: () => undefined,
+        setBanner: () => undefined,
+        okMsg: 'ok',
+        reload: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await scenesCopyGallery({
+        editingId: 'id',
+        sourceSceneId: 's',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        copy: async () => ({ scene: { id: 'x' } }),
+        applyScene: () => msgs.push('apply'),
+        toastSuccess: () => undefined,
+        setBanner: () => undefined,
+        okMsg: 'ok',
+        reload: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await scenesCopyGallery({
+        editingId: 'id',
+        sourceSceneId: 's',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        copy: async () => {
+          throw new Error('c')
+        },
+        applyScene: () => undefined,
+        toastSuccess: () => undefined,
+        setBanner: () => undefined,
+        okMsg: 'ok',
+        reload: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      scenesAddLook({
+        description: '',
+        name: '',
+        artStyle: 'photo_cinematic',
+        setError: setErr,
+        requiredMsg: 'req',
+        savedMsg: 'sv',
+        setForm: setForm as never,
+        setLookName: () => undefined,
+        setBanner: () => undefined,
+        toastSuccess: () => undefined,
+        createEntry: () => ({}),
+        upsert: (l) => l
+      })
+    ).toBe(false)
+    expect(
+      scenesAddLook({
+        description: 'wet',
+        name: '  ',
+        artStyle: 'photo_cinematic',
+        setError: setErr,
+        requiredMsg: 'req',
+        savedMsg: 'sv',
+        setForm: setForm as never,
+        setLookName: () => undefined,
+        setBanner: () => undefined,
+        toastSuccess: () => undefined,
+        createEntry: (a) => ({ id: '1', ...a }),
+        upsert: (l, e) => [...l, e]
+      })
+    ).toBe(true)
+
+    expect(scenesLooksJsonOrNull([], () => 'x')).toBeNull()
+    expect(scenesLooksJsonOrNull([{}], () => 'j')).toBe('j')
+    expect(scenesGalleryJsonOrNull([], () => 'x')).toBeNull()
+    expect(scenesGalleryJsonOrNull([{}], () => 'g')).toBe('g')
+    expect(scenesSelectedIds(['a'], null)).toEqual(['a'])
+    expect(scenesSelectedIds([], 'b')).toEqual(['b'])
+    expect(scenesSelectedIds([], null)).toEqual([])
+
+    scenesHandleIntroVideoFlow({
+      editingId: null,
+      sourceImagePath: '/p',
+      busy: false,
+      setError: setErr,
+      toastError: toastErr,
+      toastInfo: toastInfo,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: false,
+      continueDraft: () => undefined,
+      update: async () => undefined,
+      startPrep: () => undefined
+    })
+    scenesHandleIntroVideoFlow({
+      editingId: 's1',
+      sourceImagePath: '/p',
+      busy: false,
+      setError: setErr,
+      toastError: toastErr,
+      toastInfo: toastInfo,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: true,
+      continueDraft: () => msgs.push('cont'),
+      update: async () => undefined,
+      startPrep: () => undefined
+    })
+    scenesHandleIntroVideoFlow({
+      editingId: 's1',
+      sourceImagePath: '/p',
+      busy: false,
+      setError: setErr,
+      toastError: toastErr,
+      toastInfo: toastInfo,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: false,
+      continueDraft: () => undefined,
+      update: async () => undefined,
+      startPrep: () => msgs.push('prep')
+    })
+    await new Promise((r) => setTimeout(r, 5))
+    scenesHandleIntroVideoFlow({
+      editingId: 's1',
+      sourceImagePath: '/p',
+      busy: false,
+      setError: setErr,
+      toastError: toastErr,
+      toastInfo: toastInfo,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: false,
+      continueDraft: () => undefined,
+      update: async () => {
+        throw new Error('u')
+      },
+      startPrep: () => undefined
+    })
+    await new Promise((r) => setTimeout(r, 5))
+
+
+    scenesApplyLook(
+      {
+        name: 'L',
+        description: 'wet',
+        artStyle: 'bad',
+        imagePath: '/img'
+      },
+      [
+        {
+          id: 'g',
+          path: '/img',
+          kind: 'sheet',
+          label: 'G',
+          createdAt: 't'
+        }
+      ] as never,
+      {
+        setAtmoText: () => undefined,
+        setForm: (fn: any) =>
+          fn({
+            mood: '',
+            artStyle: 'photo_cinematic',
+            gallery: []
+          }),
+        setSelectedImageId: () => undefined,
+        setBanner: () => undefined,
+        toastSuccess: () => undefined,
+        appliedMsg: 'ok'
+      }
+    )
+    scenesApplyLook(
+      { name: 'L', description: 'wet', imagePath: null },
+      [],
+      {
+        setAtmoText: () => undefined,
+        setForm: (fn: any) =>
+          fn({ mood: '', artStyle: 'photo_cinematic', gallery: [] }),
+        setSelectedImageId: () => undefined,
+        setBanner: () => undefined,
+        toastSuccess: () => undefined,
+        appliedMsg: 'ok'
+      }
+    )
+    scenesRemoveImage(
+      [
+        {
+          id: 'a',
+          path: '/a',
+          kind: 'sheet',
+          label: 'A',
+          createdAt: 't'
+        },
+        {
+          id: 'b',
+          path: '/b',
+          kind: 'sheet',
+          label: 'B',
+          createdAt: 't'
+        }
+      ] as never,
+      { id: 'a', path: '/a' },
+      '/a',
+      {
+        setForm: (fn: any) =>
+          fn({
+            gallery: [],
+            coverPath: '/a'
+          }),
+        setSelectedImageId: () => undefined,
+        setSelectedImageIds: (fn: any) => fn(['a', 'b']),
+        remove: (g, id) => g.filter((x: any) => x.id !== id),
+        primary: (g) => g[0]?.path ?? null,
+        isCover: () => true
+      }
+    )
+    scenesRemoveImage(
+      [
+        {
+          id: 'a',
+          path: '/a',
+          kind: 'sheet',
+          label: 'A',
+          createdAt: 't'
+        }
+      ] as never,
+      { id: 'a', path: '/a' },
+      '/x',
+      {
+        setForm: (fn: any) =>
+          fn({
+            gallery: [],
+            coverPath: '/x'
+          }),
+        setSelectedImageId: () => undefined,
+        setSelectedImageIds: (fn: any) => fn([]),
+        remove: () => [],
+        primary: () => null,
+        isCover: () => false
+      }
+    )
+    scenesSetCover(
+      (fn: any) => fn({ coverPath: null }),
+      '/c',
+      () => undefined
+    )
+    scenesOnPlateVariantChange(
+      'hero',
+      () => undefined,
+      () => undefined
+    )
+    scenesArtStyleSetter('photo_cinematic')({
+      artStyle: 'anime_cel'
+    } as never)
+    expect(scenesLookDisplayName('', 'D')).toBe('D')
+    expect(scenesLookDisplayName('Default', 'D')).toBe('D')
+    expect(scenesLookDisplayName('Coat', 'D')).toBe('Coat')
+    expect(scenesLookStyleLabel(null, () => 'x')).toBeNull()
+    expect(scenesLookStyleLabel('photo_cinematic', () => 'P')).toBe('P')
+    expect(
+      await scenesFindInList(
+        async () => [{ id: 's1' } as never],
+        's1'
+      )
+    ).toMatchObject({ id: 's1' })
+    expect(await scenesFindInList(async () => [], 'x')).toBeNull()
+    expect(scenesStatusOrPending('READY', () => true)).toBe('READY')
+    expect(scenesStatusOrPending('x', () => false)).toBe('PENDING')
+    scenesMaybeSetPlotStory(true, 's1', '', (id) => msgs.push('plot:' + id))
+    scenesMaybeSetPlotStory(false, 's1', '', () => undefined)
+
+
+    scenesMakeConfirmPlot(
+      () => 'story',
+      () => undefined,
+      () => undefined,
+      'need',
+      () => undefined,
+      () => false,
+      () => msgs.push('oc2'),
+      () => msgs.push('fill2')
+    )()
+    await new Promise((r) => setTimeout(r, 5))
+    scenesMakeSetCover(
+      (fn: any) => fn({ coverPath: null }),
+      () => undefined
+    )('/c2')
+    scenesMakeApplyLook(
+      () => [],
+      {
+        setAtmoText: () => undefined,
+        setForm: (fn: any) =>
+          fn({ mood: '', artStyle: 'photo_cinematic', gallery: [] }),
+        setSelectedImageId: () => undefined,
+        setBanner: () => undefined,
+        toastSuccess: () => undefined,
+        appliedMsgOf: (n) => 'a:' + n
+      }
+    )({ name: 'N', description: 'd' })
+    await scenesMakeCopyGallery({
+      getEditingId: () => 'id',
+      setError: () => undefined,
+      saveFirstMsg: 'sf',
+      copy: async () => ({ scene: {} }),
+      applyScene: () => undefined,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      okMsg: 'ok',
+      reload: () => undefined
+    })('src')
+    expect(
+      await scenesMakeFindInList(async () => [{ id: 'x' } as never])('x')
+    ).toMatchObject({ id: 'x' })
+    scenesApplyLookClick(
+      { name: 'L', description: 'd' },
+      () => msgs.push('al'),
+      (m) => msgs.push('mode:' + m)
+    )
+    expect(scenesGeneratingLabel(true, 'G', 'I')).toBe('G')
+    expect(scenesGeneratingLabel(false, 'G', 'I')).toBe('I')
+    scenesHardRulesSetter('hr')({ hardRules: '' } as never)
+    expect(
+      scenesToggleSelect(['a'], 'b', (ids, id) => [...ids, id])
+    ).toEqual(['a', 'b'])
+
+    expect(msgs.length).toBeGreaterThan(0)
+
+    scenesHandlePlateCommitted(
+      { sceneId: 's9', path: '/p' },
+      's1',
+      {
+        setForm: () => undefined,
+        setSelectedImageId: () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        listScene: async () => null,
+        galleryFrom: () => [],
+        primary: () => null,
+        ensureLooks: (l) => l,
+        parseLooks: () => []
+      }
+    )
+    scenesHandlePlateCommitted(
+      {
+        sceneId: 's1',
+        path: '/new',
+        gallery: [
+          {
+            id: 'g1',
+            path: '/old',
+            kind: 'sheet',
+            label: 'O',
+            createdAt: 't'
+          },
+          {
+            id: 'g2',
+            path: '/new',
+            kind: 'weird',
+            label: 'N',
+            createdAt: 't',
+            layer: 'base',
+            introVideoPath: '/v'
+          }
+        ]
+      },
+      's1',
+      {
+        setForm: (fn: any) =>
+          fn({
+            gallery: [],
+            looks: [],
+            coverPath: null
+          }),
+        setSelectedImageId: (id) => msgs.push('sel:' + id),
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        listScene: async () => null,
+        galleryFrom: () => [],
+        primary: () => null,
+        ensureLooks: (l) => l,
+        parseLooks: () => []
+      }
+    )
+    scenesHandlePlateCommitted(
+      { sceneId: 's1', path: '/x', gallery: [] },
+      's1',
+      {
+        setForm: (fn: any) =>
+          fn({
+            gallery: [],
+            looks: [],
+            coverPath: null
+          }),
+        setSelectedImageId: () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        listScene: async () =>
+          ({
+            id: 's1',
+            refImagePath: '/x',
+            looksJson: null
+          }) as never,
+        galleryFrom: () =>
+          [
+            {
+              id: 'g',
+              path: '/x',
+              kind: 'sheet',
+              label: 'X',
+              createdAt: 't'
+            }
+          ] as never,
+        primary: () => '/x',
+        ensureLooks: (l) => l,
+        parseLooks: () => []
+      }
+    )
+    await new Promise((r) => setTimeout(r, 5))
+
+  }, 30000)
+})
+
+
+describe('abs100 Scenes UI residual mop', () => {
+  beforeEach(() => seed())
+
+  it('hits plot confirm copy reorder looks plate residual', async () => {
+    const looksJson = JSON.stringify([
+      {
+        id: 'look-s1',
+        name: 'Default',
+        description: 'wet neon rain',
+        artStyle: 'photo_cinematic',
+        imagePath: '/media/roof.png',
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z'
+      }
+    ])
+    api.scenes.list = vi.fn().mockResolvedValue([
+      makeScene({
+        id: 'scene-1',
+        title: 'Rooftop',
+        sceneNumber: 1,
+        locationKey: 'rooftop',
+        refImagePath: '/media/roof.png',
+        refGalleryJson: gal('/media/roof.png', 'sg'),
+        looksJson,
+        artStyle: 'photo_cinematic'
+      }),
+      makeScene({
+        id: 'scene-2',
+        title: 'Rooftop',
+        sceneNumber: 2,
+        locationKey: 'rooftop',
+        refImagePath: '/media/roof2.png',
+        refGalleryJson: gal('/media/roof2.png', 'sg2')
+      })
+    ])
+    api.scenes.copyGalleryFrom = vi.fn().mockResolvedValue({
+      scene: makeScene({
+        id: 'scene-1',
+        locationKey: 'rooftop',
+        refGalleryJson: gal('/media/roof2.png', 'c')
+      })
+    })
+    api.scenes.generatePlate = vi.fn().mockResolvedValue({
+      path: '/tmp/sp.png',
+      label: 'P',
+      variant: 'hero'
+    })
+    api.scenes.swapAtmosphere = vi.fn().mockResolvedValue({
+      path: '/tmp/a.png',
+      label: 'A',
+      layer: 'detail'
+    })
+    api.scenes.update = vi.fn().mockResolvedValue(makeScene())
+    api.scenes.create = vi.fn().mockResolvedValue(
+      makeScene({ id: 'sn', sceneNumber: 9 })
+    )
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <ScenesPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Rooftop|Scenes|scene/i)
+    )
+    await clickNamed(/Clear filters/i)
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Rooftop/i)
+    )
+    // plot suggest
+    await clickNamed(/Suggest from story/i)
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/story|plot|segment|Suggest/i)
+    )
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(0, 2)) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        )
+      }
+    }
+    await clickNamed(/Confirm|Suggest|Generate|OK|Apply/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    await clickNamed(/^Cancel$/i)
+    await clickNamed(/Clear filters/i)
+
+    await openCardEdit('Rooftop')
+    await clickNamed(/^Images$/i)
+    // apply look
+    for (const b of screen
+      .getAllByRole('button')
+      .filter((x) => /^Apply$/i.test((x.textContent || '').trim()))
+      .slice(0, 2)) {
+      await act(async () => fireEvent.click(b))
+    }
+    // copy sibling
+    const copyBtn = screen
+      .getAllByRole('button')
+      .find((b) => /#\s*2|Copy/i.test((b.textContent || '').trim()))
+    if (copyBtn) await act(async () => fireEvent.click(copyBtn))
+    // plate variant/art style selects
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, {
+            target: { value: s.options[s.options.length - 1].value }
+          })
+        )
+      }
+    }
+    // multi select + reorder
+    for (const cb of Array.from(
+      document.querySelectorAll('input[type="checkbox"]')
+    )) {
+      await act(async () => fireEvent.click(cb))
+    }
+    for (const b of screen.queryAllByLabelText(/Move right|Move left/i)) {
+      ;(b as HTMLButtonElement).disabled = false
+      await act(async () => fireEvent.click(b))
+    }
+    await clickNamed(/Set as cover/i)
+    await clickNamed(/Remove|remove/i)
+    await clickNamed(/Generate plate|Generate professional|Generate/i)
+    await confirmImageGen().catch(() => false)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    await clickNamed(/Atmosphere/i)
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(-1)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'fog dawn mop' } })
+      )
+    }
+    await clickNamed(/Generate atmosphere|swap/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    await clickNamed(/^Save$/i)
+  }, 90000)
 })
