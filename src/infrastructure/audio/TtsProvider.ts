@@ -119,18 +119,26 @@ export function assertSpawnExitOk(code: number | null, cmd: string): void {
   throw new Error(`${cmd} exited ${code}`)
 }
 
+/** Exported for residual unit tests. */
+export function settleSpawn(
+  code: number | null,
+  cmd: string,
+  resolve: () => void,
+  reject: (e: unknown) => void
+): void {
+  try {
+    assertSpawnExitOk(code, cmd)
+    resolve()
+  } catch (e) {
+    reject(e)
+  }
+}
+
 function run(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { stdio: 'ignore' })
     child.on('error', reject)
-    child.on('close', (code) => {
-      try {
-        assertSpawnExitOk(code, cmd)
-        resolve()
-      } catch (e) {
-        reject(e)
-      }
-    })
+    child.on('close', (code) => settleSpawn(code, cmd, resolve, reject))
   })
 }
 

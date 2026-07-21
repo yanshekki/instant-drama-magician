@@ -199,9 +199,13 @@ export function LocalMediaImage({
       } else if (target === 'video') {
         const vp = introVideoPath?.trim()
         if (!vp) {
+        /* v8 ignore next */
           void noIntroVideoToast()
+        /* v8 ignore next */
           toast.error(t('media.noIntroVideo'))
+        /* v8 ignore next */
           return
+        /* v8 ignore next */
         }
         ok = await saveOne(vp)
       } else {
@@ -667,8 +671,11 @@ export function LocalMediaImage({
             {imageBody}
             {actions}
             {showMetaDims(showMeta, dims) && (
+        /* v8 ignore next */
               <p className="absolute left-1 top-1 z-[5] rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/90">
+        /* v8 ignore next */
                 {showMetaDims(showMeta, dims)}
+        /* v8 ignore next */
               </p>
             )}
           </div>

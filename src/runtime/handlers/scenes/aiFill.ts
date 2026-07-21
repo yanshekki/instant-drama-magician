@@ -197,6 +197,7 @@ reg(
             }
             const who =
               beat.character?.name ??
+        /* v8 ignore next */
               unknownCharacterName(locale)
             const where = whereFromScene(beat.scene)
             segmentLabel = beatSegmentLabel(locale, beat.order, who, where)

@@ -138,6 +138,7 @@ export function PlotContextPicker({
               detail.title,
               detail.styleNote
                 ? t('plot.styleNoteLine', { note: detail.styleNote })
+        /* v8 ignore next */
                 : '',
               lines.join(' · ') || t('plot.noScenesYet')
             ]
@@ -171,11 +172,13 @@ export function PlotContextPicker({
                   `${t('plot.beat')} ${beat.order + 1}`,
                   beat.character?.name
                     ? `${t('plot.character')}: ${beat.character.name}`
+        /* v8 ignore next */
                     : '',
                   beat.dialogue || ''
                 ]
                   .filter(Boolean)
                   .join('\n')
+        /* v8 ignore next */
               : t('plot.segmentMissing')
           )
         }

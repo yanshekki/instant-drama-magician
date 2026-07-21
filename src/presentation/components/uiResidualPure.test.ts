@@ -11,7 +11,10 @@ import {
   noIntroVideoToast,
   showMetaDims,
   wheelZoomDelta,
-  preventWheel
+  preventWheel,
+  handleRegenNotesGate,
+  handleRegenCatch,
+  onLockedEscape
 } from './uiResidualPure'
 
 describe('uiResidualPure', () => {
@@ -87,5 +90,17 @@ describe('uiResidualPure', () => {
     const we = { preventDefault: vi.fn(), stopPropagation: vi.fn() }
     preventWheel(we)
     expect(we.preventDefault).toHaveBeenCalled()
+    const need = vi.fn()
+    expect(handleRegenNotesGate(false, need)).toBe(false)
+    expect(need).toHaveBeenCalled()
+    expect(handleRegenNotesGate(true, need)).toBe(true)
+    const onReview = vi.fn()
+    const onError = vi.fn()
+    handleRegenCatch(onReview, onError, new Error('x'), (e) => String(e))
+    expect(onReview).toHaveBeenCalled()
+    expect(onError).toHaveBeenCalled()
+    const pe = { key: 'Escape', preventDefault: vi.fn() }
+    onLockedEscape(pe)
+    expect(pe.preventDefault).toHaveBeenCalled()
   })
 })

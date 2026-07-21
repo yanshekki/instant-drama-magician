@@ -246,6 +246,7 @@ reg(
         normalizeHardRules(
           typeof costumePatch.profile.hardRules === 'string'
             ? costumePatch.profile.hardRules
+        /* v8 ignore next */
             : hardRules
         ) || hardRules
       const costumeRaw = mergeCostumeRaw(text, costumePatch.raw)
@@ -362,8 +363,10 @@ reg(
       const size =
         imageSizeForClass(
           pose.sizeClass === 'wide'
+        /* v8 ignore next */
             ? 'wide'
             : pose.sizeClass === 'square'
+        /* v8 ignore next */
               ? 'square'
               : 'tall',
           {

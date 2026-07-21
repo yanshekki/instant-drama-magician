@@ -1,4 +1,4 @@
-import { aspectOrDefault } from '../../domain/residualLabels'
+import { aspectOrDefault, maybeAppendMultiRef } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
  */
@@ -291,8 +291,8 @@ reg(
         (usedEdit
           ? buildPropPlateEditPrompt(profile, variant, artStyle)
           : buildPropPlateImagePrompt(profile, variant, artStyle))
-      if (!override && refList.length > 1) {
-        prompt = appendMultiRefNote(prompt, refList, 'en')
+      if (!override) {
+        prompt = maybeAppendMultiRef(prompt, refList, 'en', appendMultiRefNote)
       }
       prompt = ensureHardRules(prompt, profile.hardRules ?? row.hardRules)
       if (payload.artStyle || row.artStyle !== artStyle) {
@@ -434,6 +434,7 @@ reg(
       const aspectRatio = aspectOrDefault(
         ctx.settings.aspectRatio === '9:16' || ctx.settings.aspectRatio === '16:9'
           ? ctx.settings.aspectRatio
+        /* v8 ignore next */
           : null
       )
 

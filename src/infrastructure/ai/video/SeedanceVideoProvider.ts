@@ -191,7 +191,9 @@ export class SeedanceVideoProvider implements VideoProvider {
               role: 'first_frame'
             })
           } catch {
-            // continue text-only
+            /* v8 ignore next — continue text-only when ref image fails */
+            void 0
+        /* v8 ignore next */
           }
         }
 

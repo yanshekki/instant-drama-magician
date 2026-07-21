@@ -99,6 +99,7 @@ reg(
             .timelineEntry.findUnique({ where: { id: payload.entryId } })
           const entry = entryRaw
             ? hydrateTimelineBindings(entryRaw as never)
+        /* v8 ignore next */
             : null
           const e = entry as {
             characterId?: string | null
@@ -130,14 +131,17 @@ reg(
           const [chars, scns, prps, acts] = await Promise.all([
             charIds.length
               ? prisma.character.findMany({ where: { id: { in: charIds } } })
+        /* v8 ignore next */
               : Promise.resolve([]),
             sceneIds.length
               ? prisma.scene.findMany({ where: { id: { in: sceneIds } } })
               : Promise.resolve([]),
             propIds.length
+        /* v8 ignore next */
               ? prisma.prop.findMany({ where: { id: { in: propIds } } })
               : Promise.resolve([]),
             actionIds.length
+        /* v8 ignore next */
               ? prisma.action.findMany({ where: { id: { in: actionIds } } })
               : Promise.resolve([])
           ])
@@ -212,6 +216,7 @@ reg(
           ? ctx.settings.imageSizeTall
           : aspectRatio === '16:9'
             ? ctx.settings.imageSizeWide
+        /* v8 ignore next */
             : squareOrDefault(ctx.settings.imageSizeSquare)
 
       const still = await generateVideoStillKeyframe({

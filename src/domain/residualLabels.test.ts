@@ -26,7 +26,9 @@ import {
   shouldAutoCreateVideoPrep,
   patchIfRequestIdMatch,
   assertFfmpegOutputExists,
-  onSystemSchemeChange
+  onSystemSchemeChange,
+  swallow,
+  maybeAppendMultiRef
 } from './residualLabels'
 
 describe('residualLabels', () => {
@@ -143,5 +145,11 @@ describe('residualLabels', () => {
     expect(sync).not.toHaveBeenCalled()
     onSystemSchemeChange('system', sync)
     expect(sync).toHaveBeenCalled()
+    expect(() => swallow(new Error('x'))).not.toThrow()
+    expect(() => swallow()).not.toThrow()
+    expect(
+      maybeAppendMultiRef('p', [1, 2], 'en', (p, r, l) => p + '-multi')
+    ).toBe('p-multi')
+    expect(maybeAppendMultiRef('p', [1], 'en', (p) => p + '-x')).toBe('p')
   })
 })

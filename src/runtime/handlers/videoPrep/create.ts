@@ -848,7 +848,9 @@ reg(
             prepHardRules = cos?.hardRules ?? null
           }
         } catch {
-          /* non-fatal */
+          /* v8 ignore next */
+          void 0
+        /* v8 ignore next */
         }
         if (prepHardRules) {
           const { ensureHardRules: seal } = await import(

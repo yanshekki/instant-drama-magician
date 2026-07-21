@@ -203,7 +203,8 @@ export function patchIfRequestIdMatch<T extends { requestId: string }>(
 export function assertFfmpegOutputExists(
   outputPath: string,
   exists: (p: string) => boolean,
-  AppErrorCtor: new (code: string, key: string) => Error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  AppErrorCtor: new (code: any, key: string) => Error
 ): void {
   if (!exists(outputPath)) {
     throw new AppErrorCtor('FFMPEG_FAILED', 'errors.ffmpegExportMissing')
@@ -216,4 +217,21 @@ export function onSystemSchemeChange(
   syncTheme: () => void
 ): void {
   if (pref === 'system') syncTheme()
+}
+
+
+/** Empty catch body for residual-safe defensive catches. */
+export function swallow(_e?: unknown): void {
+  void _e
+}
+
+
+export function maybeAppendMultiRef(
+  prompt: string,
+  refList: unknown[],
+  locale: string,
+  append: (p: string, refs: unknown[], loc: string) => string
+): string {
+  if (refList.length > 1) return append(prompt, refList, locale)
+  return prompt
 }

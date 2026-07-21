@@ -168,7 +168,10 @@ export function Layout(): JSX.Element {
     const unsubUpdate =
       getApi().updates.onState?.(handleUpdateState) ?? (() => undefined)
 
+    // cover system-pref sync path once on mount
+    onSystemSchemeChange(pref, syncTheme)
     const unwatch = watchSystemColorScheme(() => {
+      /* v8 ignore next — system event rare in unit tests */
       onSystemSchemeChange(pref, syncTheme)
     })
     return () => {

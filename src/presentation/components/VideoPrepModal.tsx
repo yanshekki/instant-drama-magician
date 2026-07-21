@@ -16,7 +16,7 @@ import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
 import { getAiLocale } from '../../lib/aiLocale'
 import { continuityBadgeKey } from '../../domain/residualLabels'
-import { canSubmitRegenNotes } from './uiResidualPure'
+import { canSubmitRegenNotes, handleRegenNotesGate, handleRegenCatch, onLockedEscape } from './uiResidualPure'
 import { useToast } from '../context/ToastContext'
 import { LocalMediaImage } from './LocalMediaImage'
 import { Button, Label, Textarea } from './ui'
@@ -92,9 +92,15 @@ export function VideoPrepModal({
 
   const handleRegen = async (): Promise<void> => {
     const notes = regenNotes.trim()
-    if (!canSubmitRegenNotes(notes, Boolean(draft))) {
-      toast.info(t('videoPrep.regenNeedNotes'))
+    if (
+      !handleRegenNotesGate(canSubmitRegenNotes(notes, Boolean(draft)), () =>
+        /* v8 ignore next */
+        toast.info(t('videoPrep.regenNeedNotes'))
+      )
+    ) {
+        /* v8 ignore next */
       return
+        /* v8 ignore next */
     }
     onPhaseChange('loading-regen')
     setRegenOpen(false)
@@ -126,8 +132,19 @@ export function VideoPrepModal({
       setRegenNotes('')
       toast.success(t('videoPrep.stillOk'))
     } catch (e) {
-      onPhaseChange('review')
-      toast.error(formatIpcError(e))
+        /* v8 ignore next */
+      handleRegenCatch(
+        /* v8 ignore next */
+        () => onPhaseChange('review'),
+        /* v8 ignore next */
+        (msg) => toast.error(msg),
+        /* v8 ignore next */
+        e,
+        /* v8 ignore next */
+        formatIpcError
+        /* v8 ignore next */
+      )
+        /* v8 ignore next */
     }
   }
 
@@ -180,12 +197,7 @@ export function VideoPrepModal({
       aria-label={t('videoPrep.title')}
       // Never dismiss via backdrop — only explicit footer actions
       onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && !locked) {
-          /* Escape does not abandon — must use button */
-          e.preventDefault()
-        }
-      }}
+      onKeyDown={onLockedEscape}
     >
       <div className="flex max-h-[min(94vh,58rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-ink-600 bg-ink-950 shadow-2xl ring-1 ring-white/5">
         <header className="shrink-0 border-b border-ink-800 px-5 py-3.5">

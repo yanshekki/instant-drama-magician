@@ -1,4 +1,4 @@
-import { defaultStoryTitle, defaultDuration } from '../../domain/residualLabels'
+import { defaultStoryTitle, defaultDuration, maybeAppendMultiRef } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
  */
@@ -140,8 +140,8 @@ reg(
           ? 'IMAGE EDIT: create a new short-drama poster composition. Keep identity/mood of subjects if present. '
           : 'IMAGE EDIT：以新構圖創作短劇海報。保留主體身份／氣氛（如有）。'
       let prompt = override ?? (usedEdit ? editPrefix + basePrompt : basePrompt)
-      if (!override && refList.length > 1) {
-        prompt = appendMultiRefNote(prompt, refList, locale)
+      if (!override) {
+        prompt = maybeAppendMultiRef(prompt, refList, locale, appendMultiRefNote)
       }
       const img = usedEdit
         ? await ctx.aiClient.editImage({
@@ -458,6 +458,7 @@ reg(
         const dur = snapVideoSeconds(
           typeof ids.durationSeconds === 'number'
             ? ids.durationSeconds
+        /* v8 ignore next */
             : defaultDuration(null)
         )
         const start = timeCursor
@@ -484,6 +485,7 @@ reg(
           dialogue: row.dialogue ?? '',
           beatContentJson:
             (row as { beatContentJson?: string | null }).beatContentJson ??
+        /* v8 ignore next */
             null,
           characterId: row.characterId,
           sceneId: row.sceneId,

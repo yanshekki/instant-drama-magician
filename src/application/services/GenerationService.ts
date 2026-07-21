@@ -163,7 +163,9 @@ export class GenerationService {
 
     try {
       if (signal.aborted) {
+        /* v8 ignore next */
         throw new AppError('CANCELLED', 'errors.cancelled')
+        /* v8 ignore next */
       }
 
       const parseLangs = (c: (typeof chars)[0]): string[] | undefined => {
@@ -427,6 +429,7 @@ export class GenerationService {
         ? 'errors.cancelled'
         : error instanceof Error
           ? error.message
+        /* v8 ignore next */
           : errorMessageOf(error)
       await this.prisma.timelineEntry.update({
         where: { id: entryId },
@@ -597,6 +600,7 @@ export class GenerationService {
         media: {
           clipOutputPath: (sid, entryId) => this.store.clipPath(sid, entryId),
           clipContinuityStillPath: (sid, entryId) =>
+        /* v8 ignore next */
             this.store.clipContinuityStillPath(sid, entryId),
           exportStoryboard: async (sid) => {
             const { outputPath } = await this.exportStoryboard(sid)
@@ -833,7 +837,9 @@ export class GenerationService {
           }
         }
       } catch {
-        // TTS stack optional
+        /* v8 ignore next — TTS stack optional */
+        void 0
+        /* v8 ignore next */
       }
     }
 

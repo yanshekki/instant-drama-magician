@@ -94,9 +94,7 @@ export function GalleryThumbStrip({
         ) : null}
         <div
           className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1"
-          onDragOver={(e) => {
-            dragOverMove(e)
-          }}
+          onDragOver={dragOverMove}
         >
           {items.map((g) => {
             const primary = effectiveSelected === g.id

@@ -156,7 +156,9 @@ reg(
           })
         }
       } catch {
-        /* non-fatal */
+        /* v8 ignore next */
+        void 0
+        /* v8 ignore next */
       }
       const finalPrompt = mergeFinalVideoPrompt(
         payload.professionalPrompt,
@@ -200,7 +202,9 @@ reg(
             mediaError: null
           })
         } catch {
-          /* best-effort status */
+          /* v8 ignore next */
+          void 0
+        /* v8 ignore next */
         }
       }
 

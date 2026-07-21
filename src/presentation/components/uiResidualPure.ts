@@ -85,3 +85,32 @@ export function preventWheel(e: {
   e.preventDefault()
   e.stopPropagation()
 }
+
+
+export function handleRegenNotesGate(
+  canSubmit: boolean,
+  onNeedNotes: () => void
+): boolean {
+  if (!canSubmit) {
+    onNeedNotes()
+    return false
+  }
+  return true
+}
+
+export function handleRegenCatch(
+  onReview: () => void,
+  onError: (msg: string) => void,
+  err: unknown,
+  format: (e: unknown) => string
+): void {
+  onReview()
+  onError(format(err))
+}
+
+export function onLockedEscape(e: {
+  key: string
+  preventDefault: () => void
+}): void {
+  if (e.key === 'Escape') e.preventDefault()
+}

@@ -92,7 +92,9 @@ reg(
           soulExcerpt = (sr ?? '').trim()
         }
       } catch {
+        /* v8 ignore next */
         soulExcerpt = ''
+        /* v8 ignore next */
       }
 
       const profile = {

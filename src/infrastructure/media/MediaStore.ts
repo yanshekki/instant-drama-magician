@@ -1,3 +1,4 @@
+import { mergeExportByName } from './exportHistoryPure'
 import {
   copyFileSync,
   existsSync,
@@ -589,24 +590,10 @@ export class MediaStore {
         byName.set(item.fileName, item)
         continue
       }
-      const prevIsWork =
-        prev.path.includes(`${sep}exports${sep}`) ||
-        prev.path.endsWith(`${sep}exports`)
-      const curIsWork =
-        item.path.includes(`${sep}exports${sep}`) ||
-        item.path.endsWith(`${sep}exports`)
-      if (prevIsWork && !curIsWork) {
-        byName.set(item.fileName, {
-          ...item,
-          workPath: item.workPath || prev.path,
-          id: prev.id
-        })
-      } else if (!prev.workPath && (item.workPath || curIsWork)) {
-        byName.set(item.fileName, {
-          ...prev,
-          workPath: item.workPath || item.path
-        })
-      }
+      byName.set(
+        item.fileName,
+        mergeExportByName(prev, item, sep) as typeof item
+      )
     }
 
     return sortExportHistoryNewestFirst([...byName.values()])
