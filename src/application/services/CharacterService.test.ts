@@ -11,22 +11,32 @@ describe('CharacterService', () => {
     ).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 
-  it('create trims name', async () => {
+  it('create trims name and optional fields', async () => {
     const prisma = createMockPrisma()
     ;(prisma.character.create as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'c1',
       name: 'Alice'
     })
     const svc = new CharacterService(prisma as never)
-    await svc.create({ name: '  Alice  ', description: 'hero' } as never)
+    await svc.create({
+      name: '  Alice  ',
+      description: 'hero',
+      appearance: '  short  ',
+      personality: '  ',
+      ageRange: undefined
+    } as never)
     expect(prisma.character.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ name: 'Alice' })
+        data: expect.objectContaining({
+          name: 'Alice',
+          appearance: 'short',
+          personality: null
+        })
       })
     )
   })
 
-  it('list passes search filter', () => {
+  it('list passes search filter or undefined', () => {
     const prisma = createMockPrisma()
     const svc = new CharacterService(prisma as never)
     void svc.list({ q: 'bob' })
@@ -37,13 +47,50 @@ describe('CharacterService', () => {
         })
       })
     )
+    void svc.list()
+    expect(prisma.character.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: undefined })
+    )
+  })
+
+  it('get throws NOT_FOUND when missing', async () => {
+    const prisma = createMockPrisma()
+    ;(prisma.character.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      null
+    )
+    const svc = new CharacterService(prisma as never)
+    await expect(svc.get('missing')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      message: 'errors.characterNotFound'
+    })
+    ;(prisma.character.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      { id: 'c1', name: 'A' }
+    )
+    await expect(svc.get('c1')).resolves.toMatchObject({ id: 'c1' })
   })
 
   it('delete throws when missing', async () => {
     const prisma = createMockPrisma()
     const svc = new CharacterService(prisma as never)
     if (typeof svc.delete === 'function') {
+      ;(prisma.character.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+        null
+      )
       await expect(svc.delete('x')).rejects.toBeTruthy()
+    }
+  })
+
+  it('update validates name when provided', async () => {
+    const prisma = createMockPrisma()
+    ;(prisma.character.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'c1',
+      name: 'Old'
+    })
+    const svc = new CharacterService(prisma as never)
+    if (typeof svc.update === 'function') {
+      await expect(
+        svc.update('c1', { name: '  ' } as never)
+      ).rejects.toMatchObject({ code: 'VALIDATION' })
     }
   })
 })

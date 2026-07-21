@@ -38,4 +38,31 @@ describe('SettingsStore', () => {
     const s = new SettingsStore(path)
     expect(s.load()).toBeTruthy()
   })
+
+  it('path getter and cache reuse', () => {
+    const s = new SettingsStore(path)
+    expect(s.path).toBe(path)
+    const a = s.load()
+    const b = s.load()
+    expect(a).toBe(b)
+  })
+
+  it('migrates legacy grok model and gateway defaults on load', () => {
+    writeFileSync(
+      path,
+      JSON.stringify({
+        baseUrl: 'http://127.0.0.1:39281/v1',
+        videoPath: 'http://127.0.0.1:39281/v1/videos',
+        model: 'grok-cli',
+        apiKey: ''
+      }),
+      'utf8'
+    )
+    const s = new SettingsStore(path)
+    const loaded = s.load()
+    expect(s.lastLoadMigrated).toBe(true)
+    expect(loaded.llmProvider).toBe('grok-gateway')
+    expect(loaded.model).toBe('grok-4.5')
+    expect(loaded.baseUrl).toMatch(/3847/)
+  })
 })
