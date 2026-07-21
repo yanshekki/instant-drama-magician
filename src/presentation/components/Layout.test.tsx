@@ -51,9 +51,12 @@ vi.mock('../context/AppContext', () => ({
     aiStatus: {
       available: true,
       chat: { available: false },
-      image: { available: true, message: 'ok', provider: 'dalle' },
-      video: { available: false, message: 'off', provider: 'same-as-llm' },
-      llmProvider: 'my-custom-provider',
+      // image same-as-llm → Layout detail uses llmTitle (line 301)
+      image: { available: true, message: 'ok', provider: 'same-as-llm' },
+      // video custom provider string (line 315)
+      video: { available: false, message: 'off', provider: 'seedance-custom' },
+      // unknown preset → custom title (line 193)
+      llmProvider: 'my-custom-provider-xyz',
       baseUrl: 'http://127.0.0.1:3847/v1',
       model: 'grok'
     },
@@ -623,6 +626,53 @@ describe('Layout', () => {
     }
     // image/video same-as-llm provider titles rendered from mock useApp
     expect(document.body.textContent).toBeTruthy()
+  })
+
+  it('download success updates banner via onState available', async () => {
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      currentVersion: '1.0.0',
+      latestVersion: '2.5.0'
+    })
+    api.updates.onState = vi.fn((cb: (s: unknown) => void) => {
+      queueMicrotask(() =>
+        cb({
+          status: 'available',
+          currentVersion: '1.0.0',
+          latestVersion: '2.5.0'
+        })
+      )
+      return () => undefined
+    })
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home-dl</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home-dl')).toBeTruthy())
+    await waitFor(() => {
+      const el = document.body.textContent || ''
+      expect(el).toMatch(/updateAvailableBanner|downloadUpdate/)
+    })
+    const downloadBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => (b.textContent || '').includes('downloadUpdate')
+    )
+    expect(downloadBtn).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(downloadBtn!)
+    })
+    await waitFor(() => expect(api.updates.download).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'settings.updateDownloadedToast'
+      )
+    )
   })
 
 })

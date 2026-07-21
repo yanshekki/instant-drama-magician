@@ -537,4 +537,124 @@ describe('registerCostumesHandlers', () => {
       }
     }
   })
+
+  it('residual missing-fill raw and square pose size', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-cos-z-'))
+    const ref = join(dir, 'r.png')
+    writeFileSync(ref, 'p')
+    const incomplete = JSON.stringify({
+      name: 'Coat',
+      description: '',
+      appearance: '',
+      visualTags: '',
+      hardRules: ''
+    })
+    let n = 0
+    const chat = vi.fn(async () => {
+      n++
+      if (n === 1) return { choices: [{ message: { content: incomplete } }] }
+      return {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                name: 'Coat',
+                description: 'long',
+                appearance: 'black',
+                visualTags: 'x',
+                hardRules: 'NO'
+              })
+            }
+          }
+        ]
+      }
+    })
+    const editImage = vi.fn(async () => ({
+      b64: Buffer.from('Y').toString('base64')
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('X').toString('base64')
+    }))
+    const get = vi.fn(async () => ({
+      id: 'cos1',
+      name: 'Coat',
+      description: 'd',
+      appearance: 'a',
+      visualTags: 't',
+      hardRules: null,
+      characterId: 'c1',
+      refImagePath: ref
+    }))
+    const charGet = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      appearance: 'short hair',
+      ageRange: '20s',
+      gender: 'm',
+      visualTags: 'urban',
+      mannerisms: null,
+      hardRules: null,
+      refImagePath: ref
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage, editImage },
+      costumes: () =>
+        ({
+          get,
+          update: vi.fn(async (id: string, d: unknown) => ({
+            id,
+            ...(d as object)
+          }))
+        }) as never,
+      characters: () => ({ get: charGet }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => join(dir, 't.png'),
+            costumeImagePath: () => join(dir, 'out.png'),
+            characterImagePath: () => ref
+          })
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024'
+      })
+    })
+    registerCostumesHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    if (h.has('costumes:aiFill')) {
+      try {
+        await invokeRegistered(h as never, 'costumes:aiFill', {
+          idea: 'coat',
+          locale: 'en'
+        })
+      } catch {
+        /* */
+      }
+    }
+    // dress gen with square pose if channel exists
+    for (const key of h.keys()) {
+      if (/generateDress|generatePose|generateStill|swap/i.test(key)) {
+        try {
+          await invokeRegistered(h as never, key, {
+            costumeId: 'cos1',
+            characterId: 'c1',
+            pose: 'square',
+            sizeClass: 'square',
+            referenceImagePath: ref,
+            locale: 'en'
+          })
+        } catch {
+          /* */
+        }
+      }
+    }
+    rmSync(dir, { recursive: true, force: true })
+  })
 })

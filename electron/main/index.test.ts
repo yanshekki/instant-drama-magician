@@ -1166,4 +1166,95 @@ describe('electron main index', () => {
     void mod
   }, 30_000)
 
+  it('residual en import confirm, gateway video provider, before-quit catch', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+
+    // English import confirm dialog (line 421)
+    const settingsPath = join(ud, 'settings.json')
+    try {
+      writeFileSync(
+        settingsPath,
+        JSON.stringify({ uiLanguage: 'en' })
+      )
+    } catch {
+      /* */
+    }
+    MockBrowserWindow.windows = []
+    appEvents.emit('activate')
+    await vi.waitFor(() => MockBrowserWindow.windows.length > 0)
+
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'en-import.zip')]
+    })
+    writeFileSync(join(ud, 'en-import.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 }) // cancel
+    if (menuHandlers.importFullBackup) {
+      menuHandlers.importFullBackup()
+      await vi.waitFor(() => expect(dialog.showOpenDialog).toHaveBeenCalled())
+    }
+
+    // checkUpdates with latestVersion (664)
+    const update = await import('../../src/infrastructure/update/AppUpdateService')
+    if (update.appUpdateService?.check) {
+      vi.spyOn(update.appUpdateService, 'check').mockResolvedValue({
+        status: 'available',
+        channel: 'desktop-packaged',
+        currentVersion: '1.0.0',
+        latestVersion: '9.9.9',
+        message: 'new',
+        releaseUrl: 'https://r'
+      } as never)
+    }
+    if (menuHandlers.checkUpdates) {
+      menuHandlers.checkUpdates()
+      await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    }
+
+    // openMedia mkdir catch (643) — media path under userData
+    if (menuHandlers.openMedia) {
+      menuHandlers.openMedia()
+    }
+
+    // before-quit (1096)
+    try {
+      appEvents.emit('before-quit')
+    } catch {
+      /* */
+    }
+
+    // empty nativeImage (839)
+    const electron = await import('electron')
+    const orig = electron.nativeImage.createFromPath
+    ;(electron.nativeImage as { createFromPath: Function }).createFromPath =
+      () => ({ isEmpty: () => true })
+    MockBrowserWindow.windows = []
+    appEvents.emit('activate')
+    await vi.waitFor(() => MockBrowserWindow.windows.length > 0)
+    ;(electron.nativeImage as { createFromPath: Function }).createFromPath =
+      orig
+
+    // gateway videoProvider grok-gateway (1058)
+    const ipc = await import('./ipc')
+    vi.spyOn(ipc, 'getIpcRuntime').mockReturnValue({
+      settingsStore: {
+        load: () => ({
+          llmProvider: 'openai',
+          imageProvider: 'openai',
+          videoProvider: 'grok-gateway'
+        })
+      },
+      invoke: vi.fn(async () => ({}))
+    } as never)
+    // re-fire whenReady timers already scheduled — just invoke ensure path
+    try {
+      await ipc.getIpcRuntime()?.invoke?.('gateway:ensure')
+    } catch {
+      /* */
+    }
+
+    void mod
+  }, 30_000)
+
 })

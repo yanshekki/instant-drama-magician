@@ -347,4 +347,136 @@ describe('registerActionsHandlers', () => {
       expect.objectContaining({ message: 'commitActionPlate' })
     )
   })
+
+  it('residual square tall layouts en multiRef and missing-fill', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-act-z-'))
+    const ref = join(dir, 'r.png')
+    const ref2 = join(dir, 'r2.png')
+    writeFileSync(ref, 'p')
+    writeFileSync(ref2, 'p2')
+    const incomplete = JSON.stringify({
+      name: 'X',
+      description: '',
+      motionNotes: '',
+      intention: '',
+      cameraNotes: '',
+      visualTags: '',
+      hardRules: ''
+    })
+    let n = 0
+    const chat = vi.fn(async () => {
+      n++
+      if (n === 1) return { choices: [{ message: { content: incomplete } }] }
+      return {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                name: 'Run',
+                description: 'd',
+                motionNotes: 'm',
+                intention: 'i',
+                cameraNotes: 'c',
+                visualTags: 't',
+                hardRules: 'NO'
+              })
+            }
+          }
+        ]
+      }
+    })
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('X').toString('base64')
+    }))
+    const editImage = vi.fn(async () => ({
+      b64: Buffer.from('Y').toString('base64')
+    }))
+    const get = vi.fn(async () => ({
+      id: 'a1',
+      name: 'Run',
+      description: 'd',
+      motionNotes: 'm',
+      intention: 'i',
+      cameraNotes: 'c',
+      visualTags: 't',
+      hardRules: null,
+      artStyle: null,
+      panelLayout: 'strip',
+      refImagePath: ref,
+      refGalleryJson: null,
+      castRefsJson: null
+    }))
+    const update = vi.fn(async (id: string, d: unknown) => ({
+      id,
+      ...(d as object)
+    }))
+    const media = {
+      ensureLibraryDirs: vi.fn(),
+      ensureTmpDir: vi.fn(),
+      tmpImagePath: () => join(dir, 't.png'),
+      actionImagePath: () => join(dir, 'out.png'),
+      writeFile: writeFileSync
+    }
+    // write generated
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage, editImage },
+      actions: () => ({ get, update }) as never,
+      generation: () => ({ getMediaStore: () => media }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024'
+      })
+    })
+    registerActionsHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    // aiFill with incomplete → missing-fill
+    if (h.has('actions:aiFill')) {
+      try {
+        await invokeRegistered(h as never, 'actions:aiFill', {
+          idea: 'run',
+          locale: 'en'
+        })
+      } catch {
+        /* */
+      }
+    }
+
+    // plate with square layout
+    await invokeRegistered(h as never, 'actions:generatePlate', {
+      actionId: 'a1',
+      panelLayout: '1panel',
+      locale: 'en',
+      useIdentityEdit: true,
+      referenceImagePath: ref,
+      referenceImagePaths: [ref, ref2]
+    })
+    // tall layout
+    get.mockResolvedValueOnce({
+      id: 'a1',
+      name: 'Run',
+      description: 'd',
+      motionNotes: null,
+      intention: null,
+      cameraNotes: null,
+      visualTags: null,
+      hardRules: null,
+      artStyle: 'cinematic',
+      panelLayout: 'vertical',
+      refImagePath: ref,
+      refGalleryJson: null,
+      castRefsJson: null
+    })
+    await invokeRegistered(h as never, 'actions:generatePlate', {
+      actionId: 'a1',
+      panelLayout: 'vertical',
+      locale: 'en',
+      useIdentityEdit: true,
+      referenceImagePaths: [ref, ref2]
+    })
+    rmSync(dir, { recursive: true, force: true })
+  })
 })

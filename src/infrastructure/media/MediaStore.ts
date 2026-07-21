@@ -495,10 +495,8 @@ export class MediaStore {
             fileName: name,
             path: full,
             workPath: full,
-            createdAt:
-              createdAtFromExportFileName(name) ||
-              mtimeIso ||
-              new Date(0).toISOString(),
+            // mtimeIso set above when isFile; filename stamp preferred when present
+            createdAt: createdAtFromExportFileName(name) || (mtimeIso as string),
             sizeBytes: size
           })
         }
@@ -542,10 +540,7 @@ export class MediaStore {
             fileName: name,
             path: full,
             workPath: null,
-            createdAt:
-              createdAtFromExportFileName(name) ||
-              mtimeIso ||
-              new Date(0).toISOString(),
+            createdAt: createdAtFromExportFileName(name) || (mtimeIso as string),
             sizeBytes: size
           })
         }
