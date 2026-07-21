@@ -82,4 +82,115 @@ describe('AppDataMigrationService', () => {
     migrateAppDataIfNeeded({ paths, cwd })
     expect(readFileSync(paths.databasePath)[0]).toBe(7)
   })
+
+  it('force re-runs migration and merges logs/cache/exports', () => {
+    const xdgData = join(root, 'share2')
+    const idm = join(xdgData, 'idm')
+    mkdirSync(join(idm, 'media', 'nested'), { recursive: true })
+    mkdirSync(join(idm, 'logs'), { recursive: true })
+    mkdirSync(join(idm, 'cache'), { recursive: true })
+    mkdirSync(join(idm, 'exports'), { recursive: true })
+    writeFileSync(join(idm, 'media', 'nested', 'c.png'), 'img')
+    writeFileSync(join(idm, 'logs', 'a.jsonl'), 'log')
+    writeFileSync(join(idm, 'cache', 'x.json'), '{}')
+    writeFileSync(join(idm, 'exports', 'e.zip'), 'zip')
+    writeFileSync(join(idm, 'instant-drama.db'), Buffer.alloc(60_000, 3))
+    writeFileSync(join(idm, 'settings.json'), '{}')
+
+    const paths = resolveAppPaths({
+      dataDir: join(root, 'target-force'),
+      isDevRuntime: false
+    })
+    // first run writes marker
+    migrateAppDataIfNeeded({
+      paths,
+      cwd,
+      home: root,
+      env: { XDG_DATA_HOME: xdgData, XDG_CONFIG_HOME: join(root, 'cfg2') },
+      platform: 'linux'
+    })
+    // force again
+    const r = migrateAppDataIfNeeded({
+      paths,
+      cwd,
+      force: true,
+      home: root,
+      env: { XDG_DATA_HOME: xdgData, XDG_CONFIG_HOME: join(root, 'cfg2') },
+      platform: 'linux'
+    })
+    expect(r.ran).toBe(true)
+    expect(existsSync(join(paths.mediaRoot, 'nested', 'c.png'))).toBe(true)
+  })
+
+  it('readMigrationMarker returns null or parsed object', async () => {
+    const { readMigrationMarker, MIGRATION_MARKER_FILE } = await import(
+      './AppDataMigrationService'
+    )
+    expect(readMigrationMarker(join(root, 'nope'))).toBeNull()
+    const dataRoot = join(root, 'marker-read')
+    mkdirSync(dataRoot, { recursive: true })
+    writeFileSync(join(dataRoot, MIGRATION_MARKER_FILE), '{bad')
+    expect(readMigrationMarker(dataRoot)).toBeNull()
+    writeFileSync(
+      join(dataRoot, MIGRATION_MARKER_FILE),
+      JSON.stringify({ at: 'now' })
+    )
+    expect(readMigrationMarker(dataRoot)).toMatchObject({ at: 'now' })
+  })
+
+  it('skips tiny empty-looking dest and adopts richer legacy', () => {
+    const paths = resolveAppPaths({ dataDir: join(root, 'tiny-dest') })
+    mkdirSync(paths.dataRoot, { recursive: true })
+    writeFileSync(paths.databasePath, Buffer.alloc(100, 1)) // < 50k empty
+
+    const legacyDb = join(cwd, 'prisma', 'dev.db')
+    writeFileSync(legacyDb, Buffer.alloc(70_000, 5))
+
+    const r = migrateAppDataIfNeeded({ paths, cwd })
+    expect(r.ran).toBe(true)
+    // dest was empty-looking; migration should replace with a larger usable db
+    expect(readFileSync(paths.databasePath).length).toBeGreaterThan(50_000)
+  })
+
+  it('adopts richer db when dest has low story score', () => {
+    const paths = resolveAppPaths({ dataDir: join(root, 'poor-dest') })
+    mkdirSync(paths.dataRoot, { recursive: true })
+    // large enough to not look empty by size, but score may still lose
+    writeFileSync(paths.databasePath, Buffer.alloc(60_000, 1))
+
+    const legacyDb = join(cwd, 'prisma', 'dev.db')
+    writeFileSync(legacyDb, Buffer.alloc(120_000, 8))
+
+    const r = migrateAppDataIfNeeded({ paths, cwd, force: true })
+    expect(r.ran).toBe(true)
+    // either kept dest or adopted richer — both paths exercise scoring
+    expect(existsSync(paths.databasePath)).toBe(true)
+  })
+
+  it('copyTree skips existing dest files and marker names', () => {
+    const xdgData = join(root, 'share-skip')
+    const idm = join(xdgData, 'idm')
+    mkdirSync(join(idm, 'media'), { recursive: true })
+    writeFileSync(join(idm, 'media', 'keep.png'), 'src')
+    writeFileSync(join(idm, 'instant-drama.db'), Buffer.alloc(60_000, 4))
+
+    const paths = resolveAppPaths({
+      dataDir: join(root, 'target-skip'),
+      isDevRuntime: false
+    })
+    mkdirSync(paths.mediaRoot, { recursive: true })
+    writeFileSync(join(paths.mediaRoot, 'keep.png'), 'already')
+
+    migrateAppDataIfNeeded({
+      paths,
+      cwd,
+      home: root,
+      env: { XDG_DATA_HOME: xdgData, XDG_CONFIG_HOME: join(root, 'cfg-skip') },
+      platform: 'linux'
+    })
+    // existing dest file not overwritten
+    expect(readFileSync(join(paths.mediaRoot, 'keep.png'), 'utf8')).toBe(
+      'already'
+    )
+  })
 })

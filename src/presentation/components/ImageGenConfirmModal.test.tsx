@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, fireEvent } from '@testing-library/react'
-import { ImageGenConfirmModal } from './ImageGenConfirmModal'
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  waitFor
+} from '@testing-library/react'
+import { createMockApi } from '../../test/mockApi'
+
+const api = createMockApi()
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -10,17 +18,14 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('../../lib/api', () => ({
-  getApi: () => ({
-    media: {
-      toPreviewUrl: vi.fn().mockResolvedValue({ url: 'blob:x' })
-    }
-  })
+  getApi: () => api
 }))
+
+import { ImageGenConfirmModal } from './ImageGenConfirmModal'
 
 describe('ImageGenConfirmModal', () => {
   afterEach(() => {
     cleanup()
-    // Portal roots may leave dialogs on body
     document.body.innerHTML = ''
   })
 
@@ -51,7 +56,6 @@ describe('ImageGenConfirmModal', () => {
         onConfirm={() => undefined}
       />
     )
-    // Portal mounts on document.body
     expect(screen.getByText('common.imageGenConfirmTitle')).toBeTruthy()
     expect(screen.getByText('common.imageGenConfirmPrompt')).toBeTruthy()
     expect(screen.queryByText('common.hardRules')).toBeNull()
@@ -78,11 +82,38 @@ describe('ImageGenConfirmModal', () => {
     const ta = document.body.querySelector(
       'textarea'
     ) as HTMLTextAreaElement
-    expect(ta).toBeTruthy()
     fireEvent.change(ta, { target: { value: 'edited prompt' } })
     fireEvent.click(screen.getByText('common.imageGenConfirmGo'))
     expect(onConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ prompt: 'edited prompt' })
     )
+  })
+
+  it('cancel and busy state; reference thumbs load/fail', async () => {
+    api.media.toPreviewUrl = vi
+      .fn()
+      .mockResolvedValueOnce({ url: 'blob:1' })
+      .mockRejectedValueOnce(new Error('fail'))
+    const onCancel = vi.fn()
+    render(
+      <ImageGenConfirmModal
+        open
+        busy
+        payload={{
+          prompt: 'p',
+          referencePaths: ['/ok.png', '/bad.png', '  '],
+          useIdentityEdit: true,
+          summary: 'sum'
+        }}
+        onCancel={onCancel}
+        onConfirm={() => undefined}
+      />
+    )
+    await waitFor(() => expect(api.media.toPreviewUrl).toHaveBeenCalled())
+    fireEvent.click(screen.getByText('common.cancel'))
+    expect(onCancel).toHaveBeenCalled()
+    // img onError
+    const imgs = document.body.querySelectorAll('img')
+    imgs.forEach((img) => fireEvent.error(img))
   })
 })

@@ -120,18 +120,164 @@ describe('registerActivityHandlers', () => {
   })
 
   it('diagnostics:full returns probes and tips', async () => {
-    const ctx = makeHandlerContext()
+    const ctx = makeHandlerContext({
+      aiClient: {
+        probeChat: vi.fn(async () => ({ ok: false })),
+        getStatus: vi.fn(async () => ({ available: false, message: 'down' })),
+        videoProvider: {
+          probe: vi.fn(async () => ({
+            id: 'stub',
+            available: false,
+            message: 'no video'
+          }))
+        },
+        chat: vi.fn(),
+        generateImage: vi.fn()
+      },
+      host: {
+        ...(makeHandlerContext().host as object),
+        isPackaged: true,
+        userData: '/tmp/idm-test'
+      } as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({ apiKey: '', videoMode: 'auto' })
+    })
     registerActivityHandlers(ctx)
     const h = (ctx as { handlers: Map<string, unknown> }).handlers
     const d = (await invokeRegistered(h as never, 'diagnostics:full')) as {
       chat: { available: boolean }
       video: { available: boolean }
       tips: string[]
-      app: { version: string }
+      app: { version: string; isPackaged: boolean }
     }
     expect(d.chat).toBeDefined()
     expect(d.video).toBeDefined()
-    expect(Array.isArray(d.tips)).toBe(true)
-    expect(d.app.version).toBeTruthy()
+    expect(d.tips.length).toBeGreaterThan(0)
+    expect(d.app.isPackaged).toBe(true)
+  })
+
+  it('support:exportReport dialog paths and media:pickBgm', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-sup2-'))
+    try {
+      const audio = join(dir, 'a.mp3')
+      const { writeFileSync } = await import('fs')
+      writeFileSync(audio, 'mp3')
+      const append = vi.fn()
+      const rebindAi = vi.fn()
+      const save = vi.fn((p: unknown) => ({ bgmPath: audio, ...(p as object) }))
+      const showSaveDialog = vi
+        .fn()
+        .mockResolvedValueOnce({ canceled: true, filePath: undefined })
+        .mockResolvedValueOnce({ canceled: false, filePath: join(dir, 'r.json') })
+      const showOpenDialog = vi
+        .fn()
+        .mockResolvedValueOnce({ canceled: true, filePaths: [] })
+        .mockResolvedValueOnce({ canceled: false, filePaths: [audio] })
+
+      const ctx = makeHandlerContext({
+        rebindAi,
+        activity: {
+          append,
+          readRecent: vi.fn(() => []),
+          query: vi.fn(() => []),
+          clear: vi.fn(),
+          kinds: vi.fn(() => []),
+          path: join(dir, 'a.jsonl')
+        } as never,
+        settingsStore: {
+          load: vi.fn(() => ({
+            apiKey: '',
+            videoMode: 'auto',
+            ttsHttpUrl: ''
+          })),
+          save,
+          lastLoadMigrated: false
+        } as never,
+        mediaRoot: () => join(dir, 'media'),
+        host: {
+          ...(makeHandlerContext().host as object),
+          mode: 'headless',
+          userData: dir,
+          getMainWindow: () => ({ id: 1 }),
+          dialog: { showSaveDialog, showOpenDialog }
+        } as never,
+        aiClient: {
+          probeChat: vi.fn(async () => ({ ok: false })),
+          getStatus: vi.fn(async () => ({ available: false, message: 'x' })),
+          videoProvider: {
+            probe: vi.fn(async () => ({
+              id: 'v',
+              available: false,
+              message: 'v'
+            }))
+          },
+          chat: vi.fn(),
+          generateImage: vi.fn()
+        }
+      })
+      registerActivityHandlers(ctx)
+      const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+      // canceled dialog → headless fallback to default path
+      const r1 = (await invokeRegistered(h as never, 'support:exportReport')) as {
+        filePath: string
+      }
+      expect(r1.filePath).toBeTruthy()
+
+      // electron mode cancel returns null
+      const ctxEl = makeHandlerContext({
+        activity: {
+          append,
+          readRecent: vi.fn(() => []),
+          query: vi.fn(),
+          clear: vi.fn(),
+          kinds: vi.fn(),
+          path: join(dir, 'a.jsonl')
+        } as never,
+        settingsStore: {
+          load: vi.fn(() => ({ apiKey: 'k', videoMode: 'auto' })),
+          save: vi.fn(),
+          lastLoadMigrated: false
+        } as never,
+        host: {
+          ...(makeHandlerContext().host as object),
+          mode: 'electron',
+          userData: dir,
+          getMainWindow: () => null,
+          dialog: {
+            showSaveDialog: vi.fn(async () => ({
+              canceled: true,
+              filePath: undefined
+            })),
+            showOpenDialog: vi.fn()
+          }
+        } as never
+      })
+      registerActivityHandlers(ctxEl)
+      await expect(
+        invokeRegistered(
+          (ctxEl as { handlers: Map<string, unknown> }).handlers as never,
+          'support:exportReport'
+        )
+      ).resolves.toBeNull()
+
+      // pickBgm
+      await expect(
+        invokeRegistered(h as never, 'media:pickBgm')
+      ).resolves.toBeNull()
+      const bgm = (await invokeRegistered(h as never, 'media:pickBgm')) as {
+        filePath: string
+      }
+      expect(bgm.filePath).toContain('bgm')
+      expect(rebindAi).toHaveBeenCalled()
+
+      await invokeRegistered(h as never, 'media:pickBgm', audio)
+      await expect(
+        invokeRegistered(h as never, 'media:pickBgm', '/no.mp3')
+      ).rejects.toMatchObject({ message: 'errors.audioNotFound' })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

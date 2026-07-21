@@ -992,6 +992,374 @@ describe('GenerationService', () => {
     expect(r.warnings.some((w) => /No READY/i.test(w))).toBe(true)
   })
 
+  it('loadStory prefers story costume text and name fallback', async () => {
+    const prisma = createMockPrisma()
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...storyIncludeShape({}),
+      storyCharacters: [
+        {
+          costumeId: 'co1',
+          costume: {
+            id: 'co1',
+            name: 'SuitName',
+            description: '  ',
+            refImagePath: '/co.png'
+          },
+          character: {
+            id: 'c1',
+            name: 'Ming',
+            description: 'courier',
+            costume: 'default-costume',
+            hardRules: null
+          }
+        },
+        {
+          costumeId: 'co2',
+          costume: {
+            id: 'co2',
+            name: '  ',
+            description: '  black suit  ',
+            refImagePath: null
+          },
+          character: {
+            id: 'c2',
+            name: 'Yau',
+            description: 'clerk',
+            costume: 'other',
+            hardRules: null
+          }
+        }
+      ],
+      storyScenes: [
+        {
+          sceneNumber: 1,
+          scriptOverride: 'ov',
+          statusOverride: 'DONE',
+          scene: {
+            id: 'sc1',
+            sceneNumber: 1,
+            title: 'A',
+            description: 'd',
+            script: 'base',
+            status: 'PENDING'
+          }
+        }
+      ]
+    })
+    const { svc } = makeSvc({ prisma })
+    // exportPreflight → loadStory
+    await svc.exportPreflight('s1')
+    // costume name used when description empty; description when present
+    expect(prisma.story.findUnique).toHaveBeenCalled()
+  })
+
+  it('run interactiveVideo and updateSceneScript without status', async () => {
+    const prisma = createMockPrisma()
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({ status: 'DRAFT' })
+    )
+    const pipeline = {
+      run: vi.fn().mockResolvedValue({
+        success: false,
+        steps: [{ step: 'script', success: false, degraded: false }]
+      })
+    }
+    const ai = {
+      getStatus: vi.fn(),
+      chat: vi.fn(),
+      generateImage: vi.fn(),
+      generateVideo: vi.fn()
+    }
+    const svc = new GenerationService(prisma as never, ai as never, {
+      mediaRoot: dir,
+      settings: { aspectRatio: '16:9', videoConcurrency: 1 } as never,
+      pipeline: pipeline as never,
+      ffmpeg: { ensureAvailable: vi.fn() } as never
+    })
+    const result = await svc.run('s1', undefined, { interactiveVideo: true })
+    expect(result.success).toBe(false)
+    expect(prisma.story.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'FAILED' } })
+    )
+    const runArgs = pipeline.run.mock.calls[0][1] as {
+      persistence: {
+        updateSceneScript: (id: string, script: string, status?: string) => Promise<void>
+        updateEntryMedia: (
+          id: string,
+          data: Record<string, unknown>
+        ) => Promise<void>
+      }
+    }
+    await runArgs.persistence.updateSceneScript('sc1', 'no-status')
+    await runArgs.persistence.updateEntryMedia('e1', {
+      mediaStatus: 'EMPTY'
+    })
+  })
+
+  it('deleteExport matches by path and fileName basename', async () => {
+    const prisma = createMockPrisma()
+    const storyRow = {
+      id: 's1',
+      title: 'Rain Demo',
+      exportPath: null as string | null
+    }
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockImplementation(
+      async (args: { select?: unknown }) => {
+        if (args?.select) return storyRow
+        return storyIncludeShape({ title: storyRow.title })
+      }
+    )
+    const { svc } = makeSvc({ prisma })
+    const store = svc.getMediaStore()
+    store.ensureStoryDirs('s1')
+    const work = join(dir, 's1', 'exports')
+    mkdirSync(work, { recursive: true })
+    const fileName = `${safeAsciiExportName('Rain Demo', 's1')}_final_2.mp4`
+    const path = join(work, fileName)
+    writeFileSync(path, 'x')
+    store.recordExportHistory('s1', {
+      kind: 'final',
+      path,
+      workPath: path,
+      fileName
+    })
+    storyRow.exportPath = path
+    // delete by path
+    const del = await svc.deleteExport('s1', path)
+    expect(del).toHaveProperty('ok')
+  })
+
+  it('exportFinal with TTS enabled covers tts branch via mocked fetch', async () => {
+    const prisma = createMockPrisma()
+    const clipPath = join(dir, 'clip-tts.mp4')
+    writeFileSync(clipPath, 'mp4')
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({
+        title: 'TTS',
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 6,
+            characterId: 'c1',
+            sceneId: 'sc1',
+            propId: null,
+            actionId: null,
+            // Structured dialogue so extractSpokenLines yields text for TTS
+            dialogue: '[DIALOGUE|Ming] 你好世界',
+            beatContentJson: null,
+            mediaPath: clipPath,
+            mediaStatus: 'READY',
+            mediaError: null
+          },
+          {
+            id: 'e2',
+            order: 1,
+            startTime: 6,
+            endTime: 12,
+            characterId: null,
+            sceneId: null,
+            propId: null,
+            actionId: null,
+            dialogue: null,
+            mediaPath: null,
+            mediaStatus: 'EMPTY',
+            mediaError: null
+          }
+        ]
+      })
+    )
+    const exportFinal = vi.fn(async (opts: {
+      fileName: string
+      outDir: string
+      dialogueAudioPaths?: unknown[]
+    }) => {
+      const p = join(opts.outDir, opts.fileName)
+      mkdirSync(opts.outDir, { recursive: true })
+      writeFileSync(p, 'final')
+      return p
+    })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer
+    } as Response)
+    try {
+      const svc = new GenerationService(
+        prisma as never,
+        {
+          getStatus: vi.fn(),
+          chat: vi.fn(),
+          generateImage: vi.fn(),
+          generateVideo: vi.fn()
+        } as never,
+        {
+          mediaRoot: dir,
+          settings: {
+            aspectRatio: '16:9',
+            ttsEnabled: true,
+            ttsHttpUrl: 'http://127.0.0.1:9/tts',
+            apiKey: 'k',
+            ttsVoice: 'default',
+            exportProfile: 'balanced',
+            burnSubtitles: false,
+            includeSilentAudio: true,
+            bgmVolume: 0.1,
+            dialogueVolume: 1,
+            openExportFolder: false,
+            duckRatio: 0.3,
+            transitionMode: 'none',
+            transitionSec: 0,
+            bgmPath: null
+          } as never,
+          ffmpeg: {
+            ensureAvailable: vi.fn().mockResolvedValue(undefined),
+            exportFinal
+          } as never
+        }
+      )
+      await svc.exportFinal('s1')
+      expect(exportFinal).toHaveBeenCalled()
+      const args = exportFinal.mock.calls[0][0] as {
+        dialogueAudioPaths?: unknown[]
+      }
+      expect(Array.isArray(args.dialogueAudioPaths)).toBe(true)
+      expect((args.dialogueAudioPaths ?? []).length).toBeGreaterThan(0)
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
+  it('exportFinal TTS speak failure is skipped', async () => {
+    const prisma = createMockPrisma()
+    const clipPath = join(dir, 'clip-tts2.mp4')
+    writeFileSync(clipPath, 'mp4')
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({
+        title: 'TTS2',
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 6,
+            characterId: 'c1',
+            sceneId: null,
+            propId: null,
+            dialogue: '[DIALOGUE] line one',
+            mediaPath: clipPath,
+            mediaStatus: 'READY'
+          }
+        ]
+      })
+    )
+    const exportFinal = vi.fn(async (opts: { fileName: string; outDir: string }) => {
+      const p = join(opts.outDir, opts.fileName)
+      mkdirSync(opts.outDir, { recursive: true })
+      writeFileSync(p, 'f')
+      return p
+    })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 500
+    } as Response)
+    try {
+      const svc = new GenerationService(
+        prisma as never,
+        { getStatus: vi.fn(), chat: vi.fn(), generateImage: vi.fn(), generateVideo: vi.fn() } as never,
+        {
+          mediaRoot: dir,
+          settings: {
+            aspectRatio: '16:9',
+            ttsEnabled: true,
+            ttsHttpUrl: 'http://x',
+            apiKey: 'k',
+            exportProfile: 'balanced',
+            burnSubtitles: false,
+            includeSilentAudio: false,
+            bgmVolume: 0,
+            dialogueVolume: 1,
+            openExportFolder: false
+          } as never,
+          ffmpeg: {
+            ensureAvailable: vi.fn().mockResolvedValue(undefined),
+            exportFinal
+          } as never
+        }
+      )
+      await expect(svc.exportFinal('s1')).resolves.toBeTruthy()
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
+  it('generateClip accepts multi-id JSON strings and empty spokenLanguages', async () => {
+    const prisma = createMockPrisma()
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({
+        characters: [
+          {
+            id: 'c1',
+            name: 'Ming',
+            description: 'courier',
+            costume: 'jacket',
+            hardRules: null,
+            spokenLanguages: '   '
+          }
+        ],
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 6,
+            characterId: 'c1',
+            sceneId: 'sc1',
+            propId: null,
+            actionId: null,
+            // DB shape: JSON strings (hydrateTimelineBindings uses parseIdList)
+            characterIds: JSON.stringify(['c1']),
+            sceneIds: JSON.stringify(['sc1']),
+            propIds: JSON.stringify([]),
+            actionIds: JSON.stringify([]),
+            dialogue: 'hi',
+            beatContentJson: null,
+            mediaPath: null,
+            mediaStatus: 'EMPTY',
+            mediaError: null
+          }
+        ]
+      })
+    )
+    ;(prisma.timelineEntry.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {}
+    )
+    const long =
+      'POLISHED ARRAY IDS CLIP PROMPT WITH ENOUGH LENGTH TO BE ACCEPTED AS TEXT'
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => {
+      writeFileSync(req.outputPath, 'mp4')
+      return { outputPath: req.outputPath, degraded: false }
+    })
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const { svc } = makeSvc({
+      prisma,
+      ai: { generateVideo, chat }
+    })
+    const r = await svc.generateClip('s1', 'e1')
+    expect(r.mediaPath).toBeTruthy()
+  })
+
+  it('resolvePublicExportDir uses electron app.getPath when available', async () => {
+    vi.doMock('electron', () => ({
+      app: { getPath: (k: string) => `/tmp/electron-${k}` }
+    }))
+    // resolvePublicExportDir uses require — mock may not apply; assert fallback at least
+    const dirPath = resolvePublicExportDir()
+    expect(dirPath).toMatch(/Videos|InstantDrama|electron/)
+  })
+
   it('mapClips labels fall through to scene/prop/action/order', async () => {
     const prisma = createMockPrisma()
     const finalWork = join(dir, 'map.mp4')

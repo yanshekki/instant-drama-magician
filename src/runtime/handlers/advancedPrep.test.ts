@@ -39,4 +39,46 @@ describe('registerAdvancedprepHandlers', () => {
       costumeId: 'cos1'
     })
   })
+
+  it('getAdvancedPrep, clearEntryStill, openFromStill delegate to service', async () => {
+    const AdvancedPrepService = (
+      await import('../../application/services/AdvancedPrepService')
+    ).AdvancedPrepService
+    const getSnapshot = vi
+      .spyOn(AdvancedPrepService.prototype, 'getSnapshot')
+      .mockResolvedValue({ storyId: 's1' } as never)
+    const clearEntryStill = vi
+      .spyOn(AdvancedPrepService.prototype, 'clearEntryStill')
+      .mockResolvedValue({ ok: true } as never)
+    const openFromStill = vi
+      .spyOn(AdvancedPrepService.prototype, 'openFromStill')
+      .mockResolvedValue({ stillPath: '/s.png' } as never)
+
+    const ctx = makeHandlerContext({
+      host: {
+        ...(makeHandlerContext().host as object),
+        getPrisma: () => ({}) as never
+      } as never
+    })
+    registerAdvancedprepHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    await expect(
+      invokeRegistered(h as never, 'timeline:getAdvancedPrep', 's1')
+    ).resolves.toMatchObject({ storyId: 's1' })
+    await expect(
+      invokeRegistered(h as never, 'timeline:clearEntryStill', 's1', 'e1')
+    ).resolves.toMatchObject({ ok: true })
+    await expect(
+      invokeRegistered(h as never, 'videoPrep:openFromStill', {
+        storyId: 's1',
+        entryId: 'e1',
+        locale: 'en',
+        forcePolish: true
+      })
+    ).resolves.toMatchObject({ stillPath: '/s.png' })
+    expect(getSnapshot).toHaveBeenCalled()
+    expect(clearEntryStill).toHaveBeenCalled()
+    expect(openFromStill).toHaveBeenCalled()
+  })
 })

@@ -78,4 +78,68 @@ describe('registerSettingsHandlers', () => {
     expect(rebuildApplicationMenu).toHaveBeenCalled()
     expect(next).toMatchObject({ uiLanguage: 'en' })
   })
+
+  it('settings:set starts gateway for grok providers and syncs web server', async () => {
+    const gwMod = await import('../../infrastructure/gateway/GrokGatewayService')
+    const ensureRunning = vi.fn(async () => ({}))
+    vi.spyOn(gwMod, 'getGrokGatewayService').mockReturnValue({
+      ensureRunning
+    } as never)
+    const syncMod = await import('./embeddedWebServerSync')
+    const sync = vi
+      .spyOn(syncMod, 'syncEmbeddedWebServer')
+      .mockResolvedValue({ running: true } as never)
+
+    const rebuildApplicationMenu = vi.fn(() => {
+      throw new Error('menu fail')
+    })
+    const store = {
+      load: vi.fn(() => ({
+        uiLanguage: 'zh-HK',
+        llmProvider: 'openai',
+        webServerEnabled: false
+      })),
+      save: vi.fn((p: object) => ({
+        uiLanguage: 'en',
+        llmProvider: 'grok-gateway',
+        imageProvider: 'grok-gateway',
+        videoProvider: 'grok-gateway',
+        webServerEnabled: true,
+        webServerPort: 8787,
+        ...p
+      })),
+      lastLoadMigrated: false
+    }
+    const ctx = makeHandlerContext({
+      settingsStore: store as never,
+      rebindAi: vi.fn(),
+      host: {
+        mode: 'electron',
+        userData: '/tmp/u',
+        mediaRoot: '/tmp/m',
+        appVersion: '1',
+        isPackaged: false,
+        platform: 'linux',
+        getPrisma: vi.fn(),
+        settingsStore: store,
+        activity: { append: vi.fn() },
+        dialog: {},
+        shell: {},
+        getMainWindow: () => null,
+        rebuildApplicationMenu
+      } as never
+    })
+    registerSettingsHandlers(ctx)
+    const handlers = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(handlers as never, 'settings:set', {
+      uiLanguage: 'en',
+      llmProvider: 'grok-gateway',
+      webServerEnabled: true,
+      webServerPort: 9000
+    })
+    await new Promise((r) => setTimeout(r, 30))
+    expect(ensureRunning).toHaveBeenCalled()
+    expect(sync).toHaveBeenCalled()
+    expect(rebuildApplicationMenu).toHaveBeenCalled()
+  })
 })

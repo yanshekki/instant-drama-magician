@@ -128,6 +128,7 @@ export function createMockPrisma(seed?: {
   const storyProp = chainable([])
   const storyAction = chainable([])
   const costumeCharacter = chainable([])
+  const characterCostume = chainable([])
 
   return {
     story,
@@ -142,6 +143,7 @@ export function createMockPrisma(seed?: {
     storyProp,
     storyAction,
     costumeCharacter,
+    characterCostume,
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => {
       if (typeof fn === 'function') {
         return fn({
@@ -156,7 +158,8 @@ export function createMockPrisma(seed?: {
           storyScene,
           storyProp,
           storyAction,
-          costumeCharacter
+          costumeCharacter,
+          characterCostume
         })
       }
       return fn

@@ -13,7 +13,8 @@ export default defineConfig({
       'src/**/*.integration.test.ts',
       'src/**/*.contract.test.ts',
       'electron/**/*.test.ts',
-      'electron/**/*.contract.test.ts'
+      'electron/**/*.contract.test.ts',
+      'server/**/*.test.ts'
     ],
     exclude: ['node_modules', 'out', 'release', 'src/types/prisma/**'],
     // Prefer node for most tests; component suites use happy-dom (lighter than jsdom).
@@ -42,7 +43,8 @@ export default defineConfig({
         // Pure type surface (no runtime statements)
         'src/types/electron-api.ts',
         'src/infrastructure/ai/video/types.ts',
-        'src/infrastructure/update/updateTypes.ts'
+        'src/infrastructure/update/updateTypes.ts',
+        'src/runtime/HandlerHost.ts'
       ],
       // Climb toward Full ~100%: raise as suites grow (currently ~26% lines).
       // Target: 100% lines/statements; branches may lag until pure dead code removed.

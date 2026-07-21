@@ -16,15 +16,21 @@ export function createMockApi(
       delete: vi.fn().mockResolvedValue({ ok: true }),
       seedDemo: vi.fn().mockResolvedValue({ storyId: 's1', title: 'Demo' }),
       generateCover: vi.fn().mockResolvedValue({ path: '/tmp/c.png' }),
-      commitCover: vi.fn().mockResolvedValue({}),
-      aiFillMeta: vi.fn().mockResolvedValue({ styleNote: '' }),
-      aiFillScript: vi.fn().mockResolvedValue({ beats: [], drafts: [], raw: '' }),
+      commitCover: vi.fn().mockResolvedValue({ path: '/tmp/c.png' }),
+      aiFillMeta: vi.fn().mockResolvedValue({ styleNote: 'cinematic' }),
+      aiFillScript: vi.fn().mockResolvedValue({
+        beats: [{ order: 0, dialogue: 'Hi' }],
+        drafts: [],
+        raw: ''
+      }),
       linkCharacter: vi.fn().mockResolvedValue({}),
       unlinkCharacter: vi.fn().mockResolvedValue({}),
       linkScene: vi.fn().mockResolvedValue({}),
       unlinkScene: vi.fn().mockResolvedValue({}),
       linkProp: vi.fn().mockResolvedValue({}),
       unlinkProp: vi.fn().mockResolvedValue({}),
+      linkAction: vi.fn().mockResolvedValue({}),
+      unlinkAction: vi.fn().mockResolvedValue({}),
       listCast: vi.fn().mockResolvedValue([]),
       setCharacterCostume: vi.fn().mockResolvedValue({})
     },
@@ -35,7 +41,11 @@ export function createMockApi(
       delete: vi.fn().mockResolvedValue({ ok: true }),
       aiFill: vi.fn().mockResolvedValue({}),
       generateSheet: vi.fn().mockResolvedValue({ path: '/tmp/s.png' }),
-      commitSheet: vi.fn().mockResolvedValue({}),
+      commitSheet: vi.fn().mockResolvedValue({
+        path: '/tmp/s.png',
+        character: { id: 'c1', costume: null },
+        gallery: []
+      }),
       generateSoul: vi.fn().mockResolvedValue({}),
       importSoulMd: vi.fn().mockResolvedValue({}),
       importSoulMdUrl: vi.fn().mockResolvedValue({}),
@@ -52,7 +62,10 @@ export function createMockApi(
       delete: vi.fn().mockResolvedValue({ ok: true }),
       aiFill: vi.fn().mockResolvedValue({}),
       generatePlate: vi.fn().mockResolvedValue({ path: '/tmp/p.png' }),
-      commitPlate: vi.fn().mockResolvedValue({}),
+      commitPlate: vi.fn().mockResolvedValue({
+        path: '/tmp/p.png',
+        gallery: []
+      }),
       generateIntroVideo: vi.fn().mockResolvedValue({}),
       swapAtmosphere: vi.fn().mockResolvedValue({}),
       copyGalleryFrom: vi.fn().mockResolvedValue({})
@@ -64,7 +77,10 @@ export function createMockApi(
       delete: vi.fn().mockResolvedValue({ ok: true }),
       aiFill: vi.fn().mockResolvedValue({}),
       generatePlate: vi.fn().mockResolvedValue({ path: '/tmp/p.png' }),
-      commitPlate: vi.fn().mockResolvedValue({}),
+      commitPlate: vi.fn().mockResolvedValue({
+        path: '/tmp/p.png',
+        gallery: []
+      }),
       generateIntroVideo: vi.fn().mockResolvedValue({})
     },
     actions: {
@@ -77,7 +93,10 @@ export function createMockApi(
       unlinkStory: vi.fn().mockResolvedValue({ ok: true }),
       aiFill: vi.fn().mockResolvedValue({ profile: {}, profileJson: '{}', raw: '' }),
       generatePlate: vi.fn().mockResolvedValue({ path: '/tmp/a.png' }),
-      commitPlate: vi.fn().mockResolvedValue({}),
+      commitPlate: vi.fn().mockResolvedValue({
+        path: '/tmp/a.png',
+        gallery: []
+      }),
       generateIntroVideo: vi.fn().mockResolvedValue({})
     },
     costumes: {
@@ -109,7 +128,17 @@ export function createMockApi(
       get: vi.fn().mockResolvedValue({
         uiLanguage: 'en',
         legalAcceptedVersion: '1.0.0',
-        webServerPort: 8787
+        legalAcceptedAt: '2026-01-01T00:00:00.000Z',
+        firstRunSeen: true,
+        webServerPort: 8787,
+        baseUrl: 'http://127.0.0.1:3847/v1',
+        model: 'grok-4.5',
+        apiKey: '',
+        llmProvider: 'openai-compatible',
+        videoMode: 'stub',
+        imageProvider: 'same-as-llm',
+        videoProvider: 'stub',
+        colorScheme: 'system'
       }),
       set: vi.fn().mockImplementation(async (p: unknown) => p)
     },
@@ -149,7 +178,10 @@ export function createMockApi(
     },
     activity: {
       recent: vi.fn().mockResolvedValue([]),
-      query: vi.fn().mockResolvedValue([]),
+      query: vi.fn().mockResolvedValue({
+        entries: [],
+        path: '/tmp/activity.jsonl'
+      }),
       clear: vi.fn().mockResolvedValue({ ok: true }),
       getPath: vi.fn().mockResolvedValue({ path: '/tmp/a.log' }),
       openLogFolder: vi.fn().mockResolvedValue({ ok: true })
@@ -220,12 +252,21 @@ export function createMockApi(
       openAdmin: vi.fn().mockResolvedValue({})
     },
     souls: {
-      list: vi.fn().mockResolvedValue([]),
+      list: vi.fn().mockResolvedValue({
+        data: [],
+        total_pages: 1,
+        current_page: 1
+      }),
       get: vi.fn().mockResolvedValue(null),
-      searchLocal: vi.fn().mockResolvedValue([]),
+      searchLocal: vi.fn().mockResolvedValue({ items: [] }),
       categories: vi.fn().mockResolvedValue([]),
       suggestions: vi.fn().mockResolvedValue([]),
-      ensureIndex: vi.fn().mockResolvedValue({})
+      ensureIndex: vi.fn().mockResolvedValue({
+        count: 0,
+        pages: 0,
+        fromCache: true,
+        suggestions: []
+      })
     },
     videoPrep: {
       create: vi.fn().mockResolvedValue({}),
@@ -244,4 +285,25 @@ export function stubGetApi(api: ElectronApi = createMockApi()): void {
     isElectron: () => false,
     isWebRuntime: () => true
   }))
+}
+
+/**
+ * Re-apply default vi.fn implementations onto an existing mock API.
+ * Needed because src/test/setup.ts calls vi.restoreAllMocks() after each test,
+ * which clears mockResolvedValue on module-level createMockApi() instances.
+ */
+export function reseedMockApi(
+  api: ElectronApi,
+  overrides: Partial<Record<keyof ElectronApi, unknown>> = {}
+): ElectronApi {
+  const fresh = createMockApi(overrides) as unknown as Record<string, Record<string, unknown>>
+  const target = api as unknown as Record<string, Record<string, unknown>>
+  for (const ns of Object.keys(fresh)) {
+    if (!target[ns] || typeof fresh[ns] !== 'object') {
+      target[ns] = fresh[ns]
+      continue
+    }
+    Object.assign(target[ns], fresh[ns])
+  }
+  return api
 }

@@ -73,7 +73,41 @@ describe('headless adapters', () => {
 
   it('shell openExternal and showItemInFolder do not throw', async () => {
     const sh = createHeadlessShell()
-    await sh.openExternal('https://example.com')
+    // xdg-open may hang or fail on CI; race with timeout so headless stays non-blocking
+    await Promise.race([
+      sh.openExternal('https://example.com'),
+      new Promise((r) => setTimeout(r, 500))
+    ])
     expect(() => sh.showItemInFolder('/tmp')).not.toThrow()
+  })
+
+  it('covers platform branches via process.platform stub', async () => {
+    const platforms = ['darwin', 'win32', 'linux'] as const
+    const orig = process.platform
+    for (const p of platforms) {
+      Object.defineProperty(process, 'platform', {
+        value: p,
+        configurable: true
+      })
+      const sh = createHeadlessShell()
+      process.env.IDM_DEBUG = '1'
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      // openPath returns error string on failure (no hang if xdg-open missing)
+      const err = await Promise.race([
+        sh.openPath('/nonexistent-idm-path-xyz'),
+        new Promise<string>((r) => setTimeout(() => r('timeout'), 800))
+      ])
+      expect(typeof err).toBe('string')
+      await Promise.race([
+        sh.openExternal('https://x.test'),
+        new Promise((r) => setTimeout(r, 500))
+      ])
+      warn.mockRestore()
+      delete process.env.IDM_DEBUG
+    }
+    Object.defineProperty(process, 'platform', {
+      value: orig,
+      configurable: true
+    })
   })
 })

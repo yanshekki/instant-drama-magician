@@ -82,4 +82,27 @@ describe('registerShellHandlers', () => {
     ).resolves.toEqual({ ok: true })
     expect(shell.showItemInFolder).toHaveBeenCalledWith('/tmp/a.png')
   })
+
+  it('openExternal falls back when Electron open fails', async () => {
+    const { ctx, shell } = ctxWithShell()
+    shell.openExternal.mockRejectedValue(new Error('electron fail'))
+    registerShellHandlers(ctx)
+    const handlers = (ctx as { handlers: Map<string, (...a: unknown[]) => unknown> })
+      .handlers
+    const open = handlers.get('shell:openExternal')!
+    // xdg-open may or may not exist; accept either success via fallback or IO error
+    try {
+      const r = (await open('https://example.com')) as {
+        ok: boolean
+        via?: string
+      }
+      expect(r.ok).toBe(true)
+      expect(r.via).toBe('fallback')
+    } catch (e) {
+      expect(e).toMatchObject({ message: 'errors.openUrlFailed' })
+    }
+    // mailto allowed
+    shell.openExternal.mockResolvedValue(undefined)
+    await expect(open('mailto:a@b.com')).resolves.toMatchObject({ ok: true })
+  })
 })

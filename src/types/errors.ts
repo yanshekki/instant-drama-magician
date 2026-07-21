@@ -264,9 +264,11 @@ export function mapHttpStatusToVideoError(
   status: number,
   bodyText: string
 ): AppError {
-  const mapped = mapVideoHttpMessage(`Video HTTP ${status}: ${bodyText}`)
-  if (mapped) {
-    return new AppError(mapped.code, mapped.message, mapped.details)
+  // Prefer body heuristics (feature-off, agent key, timeouts, …) before status.
+  // Use raw body first so generic "Video HTTP …" does not swallow status mapping.
+  const fromBody = mapVideoHttpMessage(bodyText)
+  if (fromBody) {
+    return new AppError(fromBody.code, fromBody.message, fromBody.details)
   }
   if (status === 401) {
     return new AppError('VIDEO_UNAUTHORIZED', 'errors.videoUnauthorized', bodyText.slice(0, 200))
@@ -276,6 +278,10 @@ export function mapHttpStatusToVideoError(
   }
   if (status === 429) {
     return new AppError('VIDEO_RATE_LIMIT', 'errors.videoRateLimit', bodyText.slice(0, 200))
+  }
+  const mapped = mapVideoHttpMessage(`Video HTTP ${status}: ${bodyText}`)
+  if (mapped) {
+    return new AppError(mapped.code, mapped.message, mapped.details)
   }
   return new AppError('AI_FAILED', 'errors.videoHttpFailed', `${status}: ${bodyText.slice(0, 500)}`)
 }

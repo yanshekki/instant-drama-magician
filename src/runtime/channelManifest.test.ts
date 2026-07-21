@@ -31,4 +31,11 @@ describe('channelManifest', () => {
       expect(set.has(c.channel)).toBe(true)
     }
   })
+
+  it('specFor falls back for unknown channel', () => {
+    const s = specFor('totally:unknown:channel')
+    expect(s.channel).toBe('totally:unknown:channel')
+    expect(s.description).toContain('totally:unknown:channel')
+    expect(s.argsHint).toBe('[...args]')
+  })
 })

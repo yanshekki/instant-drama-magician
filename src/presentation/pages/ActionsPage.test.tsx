@@ -1,55 +1,122 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { createMockApi, reseedMockApi } from '../../test/mockApi'
+import {
+  makeAction,
+  makeCharacter,
+  makeScene,
+  makeStory
+} from '../../test/pageFixtures'
+import {
+  clickDialogConfirm,
+  renderWithProviders
+} from '../../test/renderWithProviders'
+import { ActionsPage } from './ActionsPage'
 
+const api = createMockApi()
 vi.mock('../../lib/api', () => ({
-  getApi: () => ({
-    stories: { list: vi.fn().mockResolvedValue([]) },
-    characters: { list: vi.fn().mockResolvedValue([]) },
-    scenes: { list: vi.fn().mockResolvedValue([]) },
-    props: { list: vi.fn().mockResolvedValue([]) },
-    actions: { list: vi.fn().mockResolvedValue([]) },
-    costumes: { list: vi.fn().mockResolvedValue([]) },
-    timeline: { list: vi.fn().mockResolvedValue([]) },
-    settings: {
-      get: vi.fn().mockResolvedValue({
-        uiLanguage: 'en',
-        legalAcceptedVersion: '1.0.0'
-      }),
-      set: vi.fn()
-    },
-    activity: {
-      recent: vi.fn().mockResolvedValue([]),
-      query: vi.fn().mockResolvedValue([])
-    },
-    ai: {
-      status: vi.fn().mockResolvedValue({ available: true }),
-      listModels: vi.fn().mockResolvedValue([])
-    },
-    app: {
-      getInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
-      onMenuAction: () => () => {}
-    },
-    media: { checkFfmpeg: vi.fn().mockResolvedValue({ available: true }) },
-    diagnostics: { full: vi.fn().mockResolvedValue({}) },
-    webServer: {
-      status: vi.fn().mockResolvedValue({ running: false }),
-      generateToken: vi.fn().mockResolvedValue('t')
-    },
-    updates: {
-      status: vi.fn().mockResolvedValue({ status: 'idle' }),
-      onState: () => () => {}
-    },
-    generation: { onProgress: () => () => {} }
-  }),
+  getApi: () => api,
   isElectron: () => true,
   isWebRuntime: () => false
 }))
 
-import * as Page from './ActionsPage'
-
 describe('ActionsPage', () => {
-  it('exports a component', () => {
-    const Comp =
-      (Page as Record<string, unknown>).ActionsPage || Object.values(Page)[0]
-    expect(typeof Comp).toBe('function')
+  beforeEach(() => {
+    reseedMockApi(api)
+    api.stories.list = vi.fn().mockResolvedValue([makeStory()])
+    api.ai.status = vi.fn().mockResolvedValue({ available: true, message: 'ok' })
+    api.actions.list = vi.fn().mockResolvedValue([
+      makeAction(),
+      makeAction({ id: 'action-2', name: 'Jump' })
+    ])
+    api.actions.create = vi
+      .fn()
+      .mockResolvedValue(makeAction({ id: 'a-new', name: 'New' }))
+    api.actions.update = vi.fn().mockResolvedValue(makeAction())
+    api.actions.delete = vi.fn().mockResolvedValue({ ok: true })
+    api.actions.aiFill = vi.fn().mockResolvedValue({
+      profile: { name: 'Draw', description: 'quick draw' },
+      profileJson: '{}',
+      raw: ''
+    })
+    api.actions.generatePlate = vi
+      .fn()
+      .mockResolvedValue({ path: '/tmp/a.png' })
+    api.characters.list = vi.fn().mockResolvedValue([makeCharacter()])
+    api.scenes.list = vi.fn().mockResolvedValue([makeScene()])
+  })
+
+  it('empty create and list edit delete', async () => {
+    api.actions.list = vi.fn().mockResolvedValue([])
+    await renderWithProviders(<ActionsPage />)
+    await waitFor(() =>
+      expect(screen.getByText(/No action guides yet/i)).toBeTruthy()
+    )
+    const news = screen.getAllByRole('button').filter((b) =>
+      /new/i.test(b.textContent || '')
+    )
+    await act(async () => {
+      news[0].click()
+    })
+    const nameInput = document.querySelector('input') as HTMLInputElement
+    if (nameInput) {
+      await act(async () => {
+        fireEvent.change(nameInput, { target: { value: 'Kick' } })
+      })
+    }
+    const save = screen.getAllByRole('button').find((b) =>
+      /^save$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      save?.click()
+    })
+    await waitFor(() => expect(api.actions.create).toHaveBeenCalled())
+  })
+
+  it('edit existing, AI, delete', async () => {
+    await renderWithProviders(<ActionsPage />)
+    await waitFor(() => expect(screen.getByText('Draw gun')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    const save = screen.getAllByRole('button').find((b) =>
+      /^save$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      save?.click()
+    })
+    await waitFor(() => expect(api.actions.update).toHaveBeenCalled())
+
+    const ai = screen.getAllByRole('button').find((b) =>
+      /ai|suggest|fill/i.test(b.textContent || '')
+    )
+    if (ai) {
+      await act(async () => {
+        ai.click()
+      })
+    }
+
+    const cancel = screen.getAllByRole('button').find((b) =>
+      /^cancel$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      cancel?.click()
+    })
+
+    const del = screen.getAllByRole('button').find((b) =>
+      /^delete$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      del?.click()
+    })
+    if (document.querySelector('[role="alertdialog"]')) {
+      await act(async () => {
+        clickDialogConfirm()
+      })
+      await waitFor(() => expect(api.actions.delete).toHaveBeenCalled())
+    }
   })
 })

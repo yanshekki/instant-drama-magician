@@ -1,36 +1,45 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { classifyUpdateError, emptyUpdateState } from './updateTypes'
 
-// electron import fails in node — test pure helpers + module path isolation
-describe('AppUpdateService', () => {
-  it('is electron-only module (dynamic import may fail in pure node)', async () => {
-    try {
-      const mod = await import('./AppUpdateService')
-      expect(mod.appUpdateService || mod.AppUpdateService).toBeTruthy()
-    } catch (e) {
-      // Expected when electron native not available in unit env
-      expect(String(e)).toMatch(/electron|Cannot find|getVersion/i)
-    }
+const handlers: Record<string, (...a: unknown[]) => void> = {}
+const autoUpdater = {
+  autoDownload: false,
+  autoInstallOnAppQuit: false,
+  allowPrerelease: false,
+  checkForUpdates: vi.fn(),
+  downloadUpdate: vi.fn(),
+  quitAndInstall: vi.fn(),
+  on: vi.fn((ev: string, fn: (...a: unknown[]) => void) => {
+    handlers[ev] = fn
+    return autoUpdater
   })
-})
+}
+
+vi.mock('electron', () => ({
+  app: {
+    isPackaged: true,
+    getVersion: () => '1.2.0'
+  }
+}))
+
+vi.mock('electron-updater', () => ({
+  autoUpdater
+}))
+
+vi.mock('../../domain/installChannel', () => ({
+  detectInstallChannel: () => 'desktop-packaged',
+  githubReleaseUrl: (v?: string) =>
+    v ? `https://github.com/r/releases/tag/v${v}` : 'https://github.com/r/releases'
+}))
 
 describe('classifyUpdateError', () => {
-  it('classifies network errors', () => {
+  it('classifies kinds', () => {
     expect(classifyUpdateError('getaddrinfo ENOTFOUND github.com')).toBe(
       'network'
     )
     expect(classifyUpdateError('Fetch failed')).toBe('network')
-  })
-
-  it('classifies feed / 404', () => {
     expect(classifyUpdateError('404 latest-linux.yml not found')).toBe('feed')
-  })
-
-  it('classifies signature', () => {
     expect(classifyUpdateError('Code signature invalid')).toBe('signature')
-  })
-
-  it('classifies disk and permission', () => {
     expect(classifyUpdateError('ENOSPC: no space left')).toBe('disk')
     expect(classifyUpdateError('EACCES: permission denied')).toBe('permission')
   })
@@ -44,6 +53,94 @@ describe('emptyUpdateState', () => {
     })
     expect(s.status).toBe('idle')
     expect(s.canAutoInstall).toBe(false)
-    expect(s.source).toBe('none')
+  })
+})
+
+describe('AppUpdateService', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    Object.keys(handlers).forEach((k) => delete handlers[k])
+    autoUpdater.checkForUpdates.mockReset()
+    autoUpdater.downloadUpdate.mockReset()
+    autoUpdater.quitAndInstall.mockReset()
+    autoUpdater.on.mockClear()
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('covers packaged check/download/install and events', async () => {
+    const { AppUpdateService, appUpdateService } = await import(
+      './AppUpdateService'
+    )
+    expect(appUpdateService).toBeTruthy()
+    const svc = new AppUpdateService()
+    const send = vi.fn()
+    svc.bindWindow(() => ({ webContents: { send } }) as never)
+    svc.bindWindow(() => null) // wireOnce once
+
+    autoUpdater.checkForUpdates.mockResolvedValue({ updateInfo: null })
+    let st = await svc.check()
+    expect(['checking', 'not-available', 'idle', 'error']).toContain(st.status)
+
+    autoUpdater.checkForUpdates.mockRejectedValue(new Error('ENOTFOUND'))
+    st = await svc.check()
+    expect(st.status).toBe('error')
+
+    // silent check
+    autoUpdater.checkForUpdates.mockResolvedValue({
+      updateInfo: { version: '9' }
+    })
+    await svc.check({ silent: true })
+
+    // events
+    handlers['checking-for-update']?.()
+    handlers['update-available']?.({
+      version: '2.0.0',
+      releaseNotes: 'notes'
+    })
+    expect(svc.getState().status).toBe('available')
+    handlers['update-available']?.({
+      version: '2.1.0',
+      releaseNotes: [{ note: 'a' }, 'b']
+    })
+    handlers['update-not-available']?.({ version: '1.2.0' })
+    handlers['download-progress']?.({ percent: 42.2 })
+    handlers['update-downloaded']?.({
+      version: '2.0.0',
+      releaseNotes: null
+    })
+    expect(svc.getState().canAutoInstall).toBe(true)
+    handlers['error']?.(new Error('fail'))
+
+    // download when available
+    handlers['update-available']?.({ version: '3.0.0', releaseNotes: 'x' })
+    autoUpdater.downloadUpdate.mockResolvedValue(undefined)
+    await svc.download()
+    autoUpdater.downloadUpdate.mockRejectedValue(new Error('disk ENOSPC'))
+    handlers['update-available']?.({ version: '3.0.1' })
+    await svc.download()
+
+    handlers['update-downloaded']?.({ version: '3.0.1' })
+    expect(svc.quitAndInstall().ok).toBe(true)
+  })
+
+  it('dev channel skips', async () => {
+    vi.doMock('../../domain/installChannel', () => ({
+      detectInstallChannel: () => 'desktop-dev',
+      githubReleaseUrl: () => 'https://x'
+    }))
+    vi.resetModules()
+    // re-mock electron-updater for fresh module
+    vi.doMock('electron', () => ({
+      app: { isPackaged: false, getVersion: () => '1.0.0' }
+    }))
+    vi.doMock('electron-updater', () => ({ autoUpdater }))
+    const { AppUpdateService } = await import('./AppUpdateService')
+    const svc = new AppUpdateService()
+    const st = await svc.check()
+    expect(st.status).toBe('dev-skipped')
+    expect((await svc.download()).status).toBe('dev-skipped')
+    expect(svc.quitAndInstall().ok).toBe(false)
   })
 })

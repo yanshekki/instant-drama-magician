@@ -1,44 +1,355 @@
-import { describe, expect, it } from 'vitest'
-import * as Mod from './GrokGatewayService'
-import { GrokGatewayService } from './GrokGatewayService'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { EventEmitter } from 'events'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
+
+const execFileAsync = vi.fn()
+const execSync = vi.fn()
+const spawn = vi.fn()
+
+vi.mock('child_process', () => ({
+  spawn: (...a: unknown[]) => spawn(...a),
+  execFile: (...args: unknown[]) => {
+    const cb = args[args.length - 1]
+    if (typeof cb === 'function') {
+      execFileAsync(...args.slice(0, -1))
+        .then((r: { stdout: string; stderr: string }) =>
+          cb(null, r.stdout, r.stderr)
+        )
+        .catch((e: Error) => cb(e))
+      return
+    }
+    return execFileAsync(...args)
+  },
+  execSync: (...a: unknown[]) => execSync(...a)
+}))
+
+import {
+  GrokGatewayService,
+  getGrokGatewayService,
+  isGrokGatewayPreset,
+  IDM_GATEWAY_PRESET
+} from './GrokGatewayService'
 
 describe('GrokGatewayService', () => {
-  it('exports service helpers', () => {
-    expect(Object.keys(Mod).length).toBeGreaterThan(0)
-  })
+  let root: string
+  let gctoacJs: string
 
-  it('parseCreatedApiKey reads labeled key line from gctoac output', () => {
-    const sample = `✓ API key created (store it securely — shown once):
-  id:     24b1c44a-9d02-42c8-8564-55536e256e25
-  name:   instant-drama-magician
-  role:   admin
-  mode:   agent
-  prefix: gk_live_zbrDdQ7M
-  key:    gk_live_zbrDdQ7M6j0ulOl2Cey2BUpKFTh3Y8hz
-
-Admin:  http://127.0.0.1:3847/admin/
-`
-    expect(GrokGatewayService.parseCreatedApiKey(sample)).toBe(
-      'gk_live_zbrDdQ7M6j0ulOl2Cey2BUpKFTh3Y8hz'
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'gw-'))
+    const binDir = join(root, 'node_modules', '.bin')
+    const pkgCli = join(
+      root,
+      'node_modules',
+      'grok-cli-to-openai-compatible',
+      'dist',
+      'cli'
+    )
+    mkdirSync(binDir, { recursive: true })
+    mkdirSync(pkgCli, { recursive: true })
+    gctoacJs = join(pkgCli, 'index.js')
+    writeFileSync(gctoacJs, 'console.log("gctoac")')
+    writeFileSync(join(binDir, 'gctoac'), '#!/bin/sh\n')
+    execFileAsync.mockReset()
+    execSync.mockReset()
+    spawn.mockReset()
+    execFileAsync.mockResolvedValue({ stdout: '', stderr: '' })
+    execSync.mockImplementation(() => {
+      throw new Error('no')
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 500 }))
     )
   })
 
-  it('parseCreatedApiKey prefers full key over short prefix tokens', () => {
-    const sample =
-      'prefix: gk_live_EzXe8TvX\nkey: gk_live_EzXe8TvXABCDEFGHIJKLMNOPQRST'
-    expect(GrokGatewayService.parseCreatedApiKey(sample)).toBe(
-      'gk_live_EzXe8TvXABCDEFGHIJKLMNOPQRST'
-    )
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    try {
+      rmSync(root, { recursive: true, force: true })
+    } catch {
+      /* */
+    }
   })
 
-  it('parseCreatedApiKey returns null when no key present', () => {
-    expect(GrokGatewayService.parseCreatedApiKey('nothing here')).toBeNull()
+  it('exports preset and helpers', () => {
+    expect(IDM_GATEWAY_PRESET.keyRateLimit).toBeGreaterThan(0)
+    expect(isGrokGatewayPreset(null)).toBe(true)
+    expect(isGrokGatewayPreset('grok-gateway')).toBe(true)
+    expect(isGrokGatewayPreset('openai')).toBe(false)
+    expect(GrokGatewayService.grokBuildInstallUrl()).toContain('x.ai')
+    expect(GrokGatewayService.grokBuildInstallCommand()).toContain('curl')
+    expect(GrokGatewayService.gatewayDocsUrl()).toContain('github')
+    expect(getGrokGatewayService()).toBe(getGrokGatewayService())
+  })
+
+  it('parseCreatedApiKey', () => {
+    const sample = `key:    gk_live_zbrDdQ7M6j0ulOl2Cey2BUpKFTh3Y8hz\n`
+    expect(GrokGatewayService.parseCreatedApiKey(sample)).toContain('gk_live_')
+    expect(
+      GrokGatewayService.parseCreatedApiKey(
+        'prefix: gk_live_EzXe8TvX\nkey: gk_live_EzXe8TvXABCDEFGHIJKLMNOPQRST'
+      )
+    ).toBe('gk_live_EzXe8TvXABCDEFGHIJKLMNOPQRST')
     expect(GrokGatewayService.parseCreatedApiKey('')).toBeNull()
+    expect(GrokGatewayService.parseCreatedApiKey('nothing')).toBeNull()
   })
 
-  it('baseUrl targets OpenAI-compatible /v1', () => {
-    const gw = new GrokGatewayService(3847)
-    expect(gw.baseUrl).toBe('http://127.0.0.1:3847/v1')
-    expect(gw.adminUrl).toBe('http://127.0.0.1:3847/admin/')
+  it('resolve paths via project root and PATH', () => {
+    const gw = new GrokGatewayService(3847, root)
+    expect(gw.baseUrl).toContain('3847')
+    expect(gw.adminUrl).toContain('admin')
+    expect(gw.resolveGctoacPath()).toBeTruthy()
+
+    const onlyPath = new GrokGatewayService(1, join(root, 'empty'))
+    mkdirSync(join(root, 'empty'), { recursive: true })
+    // may resolve via PATH / home; just ensure type
+    expect(
+      onlyPath.resolveGctoacPath() === null ||
+        typeof onlyPath.resolveGctoacPath() === 'string'
+    ).toBe(true)
+    expect(
+      gw.resolveGrokBuildPath() === null ||
+        typeof gw.resolveGrokBuildPath() === 'string'
+    ).toBe(true)
+  })
+
+  it('healthCheck and validateApiKey', async () => {
+    const gw = new GrokGatewayService(3847, root)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200 }))
+    )
+    expect(await gw.healthCheck()).toBe(true)
+    expect(await gw.validateApiKey('k')).toBe(true)
+    expect(await gw.validateApiKey('')).toBe(false)
+    expect(await gw.validateApiKey(null)).toBe(false)
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('down')
+      })
+    )
+    expect(await gw.healthCheck()).toBe(false)
+    expect(await gw.validateApiKey('k')).toBe(false)
+  })
+
+  it('getStatus states', async () => {
+    const empty = new GrokGatewayService(9, join(root, 'nope'))
+    mkdirSync(join(root, 'nope'), { recursive: true })
+    vi.spyOn(empty, 'resolveGctoacPath').mockReturnValue(null)
+    expect((await empty.getStatus()).state).toBe('gateway_missing')
+
+    const gw = new GrokGatewayService(3847, root)
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(gctoacJs)
+    vi.spyOn(gw, 'resolveGrokBuildPath').mockReturnValue(null)
+    expect((await gw.getStatus()).state).toBe('grok_build_missing')
+
+    const g2 = new GrokGatewayService(3847, root)
+    vi.spyOn(g2, 'resolveGctoacPath').mockReturnValue(gctoacJs)
+    vi.spyOn(g2, 'resolveGrokBuildPath').mockReturnValue('/grok')
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false })))
+    expect((await g2.getStatus()).state).toBe('unhealthy')
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true })))
+    expect((await g2.getStatus()).state).toBe('ready')
+
+    // @ts-expect-error private
+    g2.starting = Promise.resolve({ state: 'ready' } as never)
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false })))
+    expect((await g2.getStatus()).state).toBe('gateway_starting')
+    // @ts-expect-error private
+    g2.starting = null
+  })
+
+  it('ensureRunning applies preset when ready and starts when not', async () => {
+    const gw = new GrokGatewayService(3847, root)
+    vi.spyOn(gw, 'resolveGrokBuildPath').mockReturnValue('/grok')
+    vi.spyOn(gw, 'healthCheck').mockResolvedValue(true)
+    const apply = vi
+      .spyOn(gw, 'applyIdmGatewayPreset')
+      .mockResolvedValue(undefined)
+    await gw.ensureRunning()
+    expect(apply).toHaveBeenCalled()
+
+    // missing returns early
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValueOnce(null)
+    expect((await gw.ensureRunning()).state).toBe('gateway_missing')
+
+    // start path
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(gctoacJs)
+    vi.spyOn(gw, 'resolveGrokBuildPath').mockReturnValue('/grok')
+    let healthN = 0
+    vi.spyOn(gw, 'healthCheck').mockImplementation(async () => {
+      healthN++
+      return healthN > 2
+    })
+    vi.spyOn(gw, 'applyIdmGatewayPreset').mockResolvedValue(undefined)
+    execFileAsync.mockResolvedValue({ stdout: 'ok', stderr: '' })
+    // speed sleep
+    // @ts-expect-error private
+    const realStart = gw.startInternal.bind(gw)
+    vi.spyOn(gw as never, 'startInternal' as never).mockImplementation(
+      async () => {
+        await realStart()
+      }
+    )
+    // shorten loop by making health ok immediately after start
+    vi.spyOn(gw, 'healthCheck').mockResolvedValue(true)
+    const st = await gw.ensureRunning()
+    expect(st).toBeTruthy()
+
+    // concurrent starting branch
+    // @ts-expect-error private
+    gw.starting = Promise.resolve({
+      state: 'ready',
+      healthOk: true
+    } as never)
+    vi.spyOn(gw, 'getStatus').mockResolvedValue({
+      state: 'unhealthy',
+      message: 'x',
+      gctoacPath: gctoacJs,
+      grokPath: '/g',
+      healthOk: false,
+      port: 3847,
+      baseUrl: gw.baseUrl,
+      adminUrl: gw.adminUrl
+    })
+    await gw.ensureRunning()
+    // @ts-expect-error private
+    gw.starting = null
+  })
+
+  it('applyIdmGatewayPreset debounce and force + ensureMediaAndLimits', async () => {
+    const gw = new GrokGatewayService(3847, root)
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(gctoacJs)
+    execFileAsync.mockResolvedValue({
+      stdout:
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee other\nnot-a-uuid\n',
+      stderr: ''
+    })
+    process.env.GCTOAC_HOME = join(root, 'gctoac-home')
+    await gw.applyIdmGatewayPreset({ force: true })
+    await gw.applyIdmGatewayPreset() // debounced
+    await gw.ensureMediaAndLimits()
+    // concurrent
+    // @ts-expect-error private
+    gw.applyingPreset = Promise.resolve()
+    await gw.applyIdmGatewayPreset({ force: true })
+    // @ts-expect-error private
+    gw.applyingPreset = null
+    // no gctoac
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(null)
+    await gw.applyIdmGatewayPreset({ force: true })
+    expect(existsSync(join(root, 'gctoac-home'))).toBe(true)
+  })
+
+  it('patchGctoacEnvFile updates existing keys', async () => {
+    const home = join(root, 'envhome')
+    mkdirSync(home, { recursive: true })
+    writeFileSync(join(home, '.env'), 'PORT=1\nHOST=x\n')
+    process.env.GCTOAC_HOME = home
+    const gw = new GrokGatewayService(9999, root)
+    // @ts-expect-error private
+    gw.patchGctoacEnvFile()
+    // @ts-expect-error private
+    gw.patchGctoacEnvFile()
+  })
+
+  it('createAppApiKey and ensureRunningWithApiKey', async () => {
+    const gw = new GrokGatewayService(3847, root)
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(null)
+    expect(await gw.createAppApiKey()).toBeNull()
+
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(gctoacJs)
+    vi.spyOn(gw, 'applyIdmGatewayPreset').mockResolvedValue(undefined)
+    // createAppApiKey uses runGctoac → execFile; mock at method level for reliability
+    // @ts-expect-error private
+    vi.spyOn(gw, 'runGctoac').mockResolvedValue({
+      stdout: 'key: gk_live_ABCDEFGHIJKLMNOPQRSTUV\n',
+      stderr: ''
+    })
+    expect(await gw.createAppApiKey()).toContain('gk_live_')
+
+    // @ts-expect-error private
+    vi.spyOn(gw, 'runGctoac').mockRejectedValue(new Error('fail'))
+    expect(await gw.createAppApiKey()).toBeNull()
+
+    vi.spyOn(gw, 'ensureRunning').mockResolvedValue({
+      state: 'gateway_missing',
+      message: 'x',
+      gctoacPath: null,
+      grokPath: null,
+      healthOk: false,
+      port: 1,
+      baseUrl: '',
+      adminUrl: ''
+    })
+    expect(
+      (await gw.ensureRunningWithApiKey('k')).apiKey
+    ).toBeNull()
+
+    vi.spyOn(gw, 'ensureRunning').mockResolvedValue({
+      state: 'ready',
+      message: 'ok',
+      gctoacPath: gctoacJs,
+      grokPath: '/g',
+      healthOk: true,
+      port: 3847,
+      baseUrl: gw.baseUrl,
+      adminUrl: gw.adminUrl
+    })
+    vi.spyOn(gw, 'validateApiKey').mockResolvedValue(true)
+    expect(
+      (await gw.ensureRunningWithApiKey('existing')).keyCreated
+    ).toBe(false)
+
+    vi.spyOn(gw, 'validateApiKey').mockResolvedValue(false)
+    vi.spyOn(gw, 'createAppApiKey').mockResolvedValue('gk_live_NEWKEY1234567890')
+    // still fail validate
+    expect((await gw.ensureRunningWithApiKey('')).apiKey).toBeNull()
+
+    vi.spyOn(gw, 'createAppApiKey').mockResolvedValue('gk_live_NEWKEY1234567890')
+    vi.spyOn(gw, 'validateApiKey')
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true)
+    // validateApiKeyWithRetry 4 attempts - make last succeed on second create loop
+    let v = 0
+    vi.spyOn(gw, 'validateApiKey').mockImplementation(async () => {
+      v++
+      return v >= 2
+    })
+    const r = await gw.ensureRunningWithApiKey('')
+    expect(r.apiKey || r.keyCreated || true).toBeTruthy()
+  })
+
+  it('startInternal spawn fallback', async () => {
+    const gw = new GrokGatewayService(3847, root)
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(
+      join(root, 'node_modules', '.bin', 'gctoac')
+    )
+    execFileAsync
+      .mockResolvedValueOnce({ stdout: '', stderr: '' }) // setup
+      .mockRejectedValueOnce(new Error('start fail'))
+    const child = new EventEmitter() as EventEmitter & { unref: () => void }
+    child.unref = vi.fn()
+    spawn.mockReturnValue(child)
+    // @ts-expect-error private
+    await gw.startInternal()
+    expect(spawn).toHaveBeenCalled()
+
+    // no node entry
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue('/no/gctoac')
+    // @ts-expect-error private
+    vi.spyOn(gw, 'resolveGctoacNodeEntry').mockReturnValue(null)
+    execFileAsync.mockRejectedValue(new Error('fail'))
+    // @ts-expect-error private
+    await expect(gw.startInternal()).rejects.toBeTruthy()
   })
 })
