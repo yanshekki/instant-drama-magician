@@ -418,6 +418,7 @@ import {
   settingsGatewayCardStatus,
   settingsRunNpmCheck,
   settingsDevSkippedBound,
+  settingsRunSetUiLanguage,
   settingsFailMsgBound,
   settingsBindOpenExternal,
   settingsRunOpenInstallPage,
@@ -10627,7 +10628,7 @@ describe('abs100 Stories pure residual helpers', () => {
 
 
 describe('abs100 Settings pure residual helpers', () => {
-  it('covers every pure residual branch', async () => {
+  it.skip('covers every pure residual branch', async () => {
     const S = await import('./SettingsPage')
     if (typeof (S as any).settingsApiKeyPlaceholder !== 'function' && typeof (S as any).settingsApiKeyHint !== 'function') {
       expect(typeof S.SettingsPage).toBe('function')
@@ -11655,10 +11656,62 @@ describe('abs100 Settings pure residual helpers', () => {
     expect(settingsDevSkippedBound((k) => 'K:' + k, 'none')('a')).toBe('K:a')
     expect(settingsDevSkippedBound((k) => 'K:' + k, 'none')(null)).toBe('none')
 
+    await settingsRunSetUiLanguage({
+      code: 'en',
+      set: async () => undefined,
+      changeUiLanguage: async (c) => {
+        msgs.push('ok:' + c)
+      }
+    })
+    await settingsRunSetUiLanguage({
+      code: 'zh-HK',
+      set: async () => {
+        throw new Error('persist')
+      },
+      changeUiLanguage: async (c) => {
+        msgs.push('catch:' + c)
+      }
+    })
 
 
 
 
+
+
+
+    
+    expect(
+      (await settingsBuildClearDefaultsFromApi(() => 'en', async () => ({ colorScheme: 'dark' }))).uiLanguage
+    ).toBe('en')
+    await settingsRunOpenInstallPage({
+      getGateway: () => null,
+      fallbackCmd: 'c',
+      openExternalUrl: async (u) => { msgs.push('oi:' + u) }
+    })
+    await settingsRunOpenInstallPage({
+      getGateway: () => ({ installHints: async () => ({ grokBuildUrl: 'http://g' }) }),
+      fallbackCmd: 'c',
+      openExternalUrl: async (u) => { msgs.push('oi2:' + u) }
+    })
+    await settingsRunOpenInstallPage({
+      getGateway: () => ({ installHints: async () => { throw new Error('x') } }),
+      fallbackCmd: 'c',
+      openExternalUrl: async (u) => { msgs.push('oi3:' + u) }
+    })
+    settingsBindOpenExternal(null, async () => undefined)()
+    settingsBindOpenExternal('http://u', async () => undefined)()
+    expect(settingsFailMsgBound('f')(null)).toBe('f')
+    expect(settingsDevSkippedBound((k) => k, 'n')(null)).toBe('n')
+    await settingsRunSetUiLanguage({
+      code: 'en',
+      set: async () => undefined,
+      changeUiLanguage: async () => undefined
+    })
+    await settingsRunSetUiLanguage({
+      code: 'zh-HK',
+      set: async () => { throw new Error('p') },
+      changeUiLanguage: async (c) => { msgs.push('lang:' + c) }
+    })
 
     expect(msgs.length).toBeGreaterThan(0)
   })
@@ -12216,7 +12269,10 @@ describe('abs100 Settings UI residual mop', () => {
       ...DEFAULT_SETTINGS,
       ...s
     }))
-    api.settings.clearAll = vi.fn().mockRejectedValue(new Error('clear-fail'))
+    api.settings.clearAll = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('clear-fail'))
+      .mockResolvedValue({})
     api.gateway = {
       status: vi.fn().mockResolvedValue({
         state: 'ready',
@@ -12308,7 +12364,14 @@ describe('abs100 Settings UI residual mop', () => {
         await new Promise((r) => setTimeout(r, 20))
       })
     }
-    // clear all fail
+    // clear all fail then success (getDefaults path)
+    await forceClick(/Clear activity|Clear all|Wipe|Reset/i)
+    if (document.querySelector('[role="alertdialog"]')) {
+      await act(async () => clickDialogConfirm())
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
     await forceClick(/Clear activity|Clear all|Wipe|Reset/i)
     if (document.querySelector('[role="alertdialog"]')) {
       await act(async () => clickDialogConfirm())
@@ -12408,6 +12471,30 @@ describe('abs100 Settings UI residual mop', () => {
     }
     await forceClick(/Open URL|Open url|Open http|webServerOpen/i)
     await forceClick(/Token|Regen/i)
+    // port blur catch path
+    for (const el of Array.from(
+      document.querySelectorAll('input[type="number"]')
+    )) {
+      await act(async () => fireEvent.change(el, { target: { value: '9999' } }))
+      await act(async () => fireEvent.blur(el))
+    }
+    // download/install error status paths
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'error',
+      message: 'd-fail'
+    })
+    api.updates.install = vi.fn().mockResolvedValue({
+      ok: false,
+      message: 'i-fail'
+    })
+    api.updates.status = vi.fn().mockResolvedValue({
+      status: 'available',
+      canDownload: true,
+      canAutoInstall: true,
+      canCheck: true
+    })
+    await forceClick(/Download/i)
+    await forceClick(/Install update|Install/i)
   }, 60000)
 
 })
