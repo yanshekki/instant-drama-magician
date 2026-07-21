@@ -80,5 +80,63 @@ describe('actionMasterPrompt', () => {
       'en'
     )
     expect(v).toMatch(/Bow|motion|video|camera/i)
+
+    const zh = buildActionIntroVideoPrompt(
+      {
+        name: '鞠躬',
+        description: '禮貌鞠躬',
+        motionNotes: '深彎',
+        intention: '致意',
+        cameraNotes: '側跟',
+        visualTags: 'formal',
+        hardRules: '禁止水印'
+      },
+      'zh-HK'
+    )
+    expect(zh).toContain('鞠躬')
+    expect(zh).toMatch(/動作|鏡頭|禁止/)
+  })
+
+  it('user prompt improve mode zh with draft', () => {
+    const u = buildActionMasterUserPrompt({
+      locale: 'zh-HK',
+      idea: '更慢',
+      existingDraft: {
+        name: '拔刀',
+        description: '英雄拔刀',
+        motionNotes: '右手胯到高',
+        intention: '威脅'
+      }
+    })
+    expect(u).toMatch(/拔刀|英雄|更慢/)
+  })
+
+  it('plate image prompt with cast refs and hard rules', () => {
+    const img = buildActionPlateImagePrompt(
+      {
+        name: 'Slash',
+        description: 'wide arc',
+        motionNotes: 'L→R',
+        hardRules: '【禁止】水印'
+      },
+      'grid-2x2',
+      'photo_cinematic',
+      [
+        {
+          entityType: 'character',
+          entityId: 'c1',
+          entityName: 'Ming',
+          roleHint: 'hero'
+        }
+      ]
+    )
+    expect(img).toMatch(/Slash|Ming|禁止|panel|grid/i)
+
+    const edit = buildActionPlateEditPrompt(
+      { name: 'Slash', description: 'arc', hardRules: 'NO logo' },
+      'strip-3',
+      'anime_modern'
+    )
+    expect(edit).toMatch(/EDIT|Slash|anime|NO logo/i)
   })
 })

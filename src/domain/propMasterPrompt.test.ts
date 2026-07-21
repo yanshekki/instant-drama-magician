@@ -60,6 +60,23 @@ describe('propMasterPrompt', () => {
     expect(u).not.toMatch(/可選製作上下文/)
   })
 
+  it('improve mode includes draft and story context', () => {
+    const u = buildPropMasterUserPrompt({
+      idea: '更舊',
+      locale: 'en',
+      existingDraft: {
+        name: 'Watch',
+        description: 'silver case',
+        material: 'silver',
+        visualTags: 'vintage'
+      },
+      storyTitle: 'Rain',
+      styleNote: 'neon'
+    })
+    expect(u).toContain('Watch')
+    expect(u).toMatch(/Rain|neon|IMPROVE|Current/i)
+  })
+
   it('buildPropIntroVideoPrompt locks object identity', () => {
     const zh = buildPropIntroVideoPrompt(
       {
@@ -73,5 +90,25 @@ describe('propMasterPrompt', () => {
     expect(zh).toMatch(/物件鎖定/)
     expect(zh).toContain('懷錶')
     expect(zh).toContain('silver')
+
+    const en = buildPropIntroVideoPrompt(
+      {
+        name: 'Watch',
+        description: 'rusted silver',
+        sizeNotes: 'palm',
+        visualTags: 'vintage',
+        hardRules: 'NO brand'
+      },
+      'en'
+    )
+    expect(en).toMatch(/OBJECT|Watch|identity/i)
+    expect(en).toContain('palm')
+  })
+
+  it('extractPropProfileJson accepts description-only fallbacks', () => {
+    const p = extractPropProfileJson(
+      JSON.stringify({ description: 'only desc object' })
+    )
+    expect(p.description || p.name).toBeTruthy()
   })
 })

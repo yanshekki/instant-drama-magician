@@ -3,6 +3,7 @@ import type { CharacterGalleryItem } from './characterGallery'
 import {
   buildCostumeIntroVideoPrompt,
   buildCostumeSwapPrompt,
+  costumePosesByGroup,
   costumeSwapGalleryLabel,
   COSTUME_SWAP_POSES,
   getCostumeSwapPose,
@@ -121,5 +122,59 @@ describe('costumeSwap', () => {
     expect(zh).toMatch(/服裝鎖定/)
     expect(zh).toContain('雨褸')
     expect(zh).toContain('黑色皮褸')
+
+    const en = buildCostumeIntroVideoPrompt(
+      {
+        name: 'Coat',
+        description: 'black leather',
+        fabric: 'leather',
+        colorNotes: 'matte black',
+        hardRules: 'NO logo'
+      },
+      'en'
+    )
+    expect(en).toMatch(/WARDROBE|costume|Coat/i)
+    expect(en).toContain('leather')
+  })
+
+  it('costumePosesByGroup groups all poses', () => {
+    const groups = costumePosesByGroup()
+    const all = Object.values(groups).flat()
+    expect(all.length).toBe(COSTUME_SWAP_POSES.length)
+    expect(Object.keys(groups).length).toBeGreaterThan(0)
+  })
+
+  it('inferGalleryLayer more heuristics and pick when only costume', () => {
+    expect(
+      inferGalleryLayer(item({ path: '/i', label: 'Identity lock still' }))
+    ).toBe('identity')
+    expect(
+      inferGalleryLayer(item({ path: '/d', label: 'Fabric detail close-up' }))
+    ).toBe('detail')
+    // sheet/upload/gen without wardrobe keywords default to costume
+    expect(
+      inferGalleryLayer(item({ path: '/x', label: 'misc', kind: 'sheet' }))
+    ).toBe('costume')
+    expect(
+      inferGalleryLayer(
+        item({ path: '/e', label: 'misc', kind: 'external' })
+      )
+    ).toBeNull()
+
+    const onlyCostume = [
+      item({ path: '/c.png', label: 'Costume', layer: 'costume' })
+    ]
+    expect(pickBestBaseImage(onlyCostume).reason).toBe('costume')
+  })
+
+  it('buildCostumeSwapPrompt with hard rules and default pose', () => {
+    const p = buildCostumeSwapPrompt({
+      name: 'Ming',
+      newCostume: 'yellow raincoat',
+      hardRules: '【禁止】水印',
+      appearance: 'short hair'
+    })
+    expect(p).toContain('yellow raincoat')
+    expect(p).toMatch(/禁止|水印/)
   })
 })

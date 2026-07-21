@@ -5,6 +5,8 @@ import {
   videoCapablePresets
 } from './openaiCompatible'
 import {
+  arkDefaultBaseUrl,
+  arkIntlBaseUrl,
   channelPresetBaseUrl,
   imageProviderOptions,
   resolveChatEndpoint,
@@ -198,5 +200,81 @@ describe('provider option catalogs (capability-filtered)', () => {
     expect(channelPresetBaseUrl('grok-gateway')).toBe(GROK_GATEWAY_BASE_URL)
     expect(channelPresetBaseUrl('seedance')).toContain('ark')
     expect(channelPresetBaseUrl('seedream')).toContain('ark')
+    expect(arkDefaultBaseUrl()).toContain('ark')
+    expect(arkIntlBaseUrl()).toMatch(/byteplus|ark/i)
+  })
+})
+
+describe('seedream / seedance and same-as-llm branches', () => {
+  it('resolves seedream image with default model', () => {
+    const ep = resolveImageEndpoint(
+      s({
+        imageProvider: 'seedream',
+        imageBaseUrl: '',
+        imageApiKey: 'ark-key',
+        imageModel: ''
+      })
+    )
+    expect(ep.baseUrl).toMatch(/ark|volc/i)
+    expect(ep.apiKey).toBe('ark-key')
+    expect(ep.model.length).toBeGreaterThan(0)
+  })
+
+  it('resolves seedance video marker path', () => {
+    const ep = resolveVideoEndpoint(
+      s({
+        videoProvider: 'seedance',
+        videoBaseUrl: '',
+        videoApiKey: 'ark-v',
+        videoModel: ''
+      })
+    )
+    expect(ep.mode).toBe('http')
+    expect(ep.videoPath).toMatch(/seedance/)
+    expect(ep.apiKey).toBe('ark-v')
+  })
+
+  it('same-as-llm non-gateway keeps explicit http mode', () => {
+    const ep = resolveVideoEndpoint(
+      s({
+        llmProvider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk',
+        videoProvider: 'same-as-llm',
+        videoMode: 'http'
+      })
+    )
+    expect(ep.mode).toBe('http')
+    expect(ep.videoPath).toContain('/videos')
+  })
+
+  it('same-as-llm gateway respects stub videoMode', () => {
+    const ep = resolveVideoEndpoint(
+      s({
+        llmProvider: 'grok-gateway',
+        baseUrl: GROK_GATEWAY_BASE_URL,
+        videoProvider: 'same-as-llm',
+        videoMode: 'stub'
+      })
+    )
+    expect(ep.mode).toBe('stub')
+  })
+
+  it('chat defaults when base/model empty', () => {
+    const ep = resolveChatEndpoint(s({ baseUrl: '', model: '' }))
+    expect(ep.baseUrl).toBe(GROK_GATEWAY_BASE_URL.replace(/\/+$/, '') || ep.baseUrl)
+    expect(ep.model).toBeTruthy()
+  })
+
+  it('video preset keeps explicit path under base', () => {
+    const ep = resolveVideoEndpoint(
+      s({
+        videoProvider: 'openai',
+        videoBaseUrl: 'https://api.openai.com/v1',
+        videoPath: 'https://api.openai.com/v1/videos/custom',
+        videoApiKey: 'sk'
+      })
+    )
+    expect(ep.videoPath).toContain('custom')
   })
 })
