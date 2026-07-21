@@ -43,7 +43,8 @@ export type MigrationOptions = {
 
 const MARKER = '.idm-migrated-v1'
 
-function isNonEmptyDir(dir: string): boolean {
+/** Exported for unit tests (catch/empty dir branches). */
+export function isNonEmptyDir(dir: string): boolean {
   try {
     if (!existsSync(dir) || !statSync(dir).isDirectory()) return false
     return readdirSync(dir).length > 0
@@ -52,7 +53,8 @@ function isNonEmptyDir(dir: string): boolean {
   }
 }
 
-function dbLooksEmpty(dbPath: string): boolean {
+/** Exported for unit tests (stat catch / story-count empty). */
+export function dbLooksEmpty(dbPath: string): boolean {
   if (!existsSync(dbPath)) return true
   try {
     const size = statSync(dbPath).size
@@ -81,7 +83,8 @@ function countStoriesRough(dbPath: string): number | null {
   }
 }
 
-function dbStoryScore(dbPath: string): number {
+/** Exported for unit tests (stat catch → -1). */
+export function dbStoryScore(dbPath: string): number {
   if (!existsSync(dbPath)) return -1
   const n = countStoriesRough(dbPath)
   if (n !== null) return n

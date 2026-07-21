@@ -24,7 +24,8 @@ import { cmdDomain, DOMAIN_NAMESPACES } from './commands/domain'
 import { emitFailure, printHuman } from './output'
 import { EXIT } from './types'
 
-function packageVersion(): string {
+/** Exported for residual unit tests. */
+export function packageVersion(): string {
   // Prefer this package's package.json (works for npm -g and local),
   // not process.cwd() which may be an unrelated project.
   const candidates = [

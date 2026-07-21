@@ -2,18 +2,15 @@
  * Domain IPC handlers (split for maintainability).
  */
 import { detectInstallChannel, githubReleaseUrl } from '../../domain/installChannel'
-import { NPM_INSTALL_CMD, NPM_PACKAGE_NAME, checkNpmPackageUpdate } from '../../infrastructure/update/npmPackageUpdate'
+import {
+  NPM_INSTALL_CMD,
+  NPM_PACKAGE_NAME,
+  checkNpmPackageUpdate
+} from '../../infrastructure/update/npmPackageUpdate'
 import type { HandlerContext } from './context'
 
-export function registerUpdatesHandlers(ctx: HandlerContext): void {
-  const {
-    reg,
-    host,
-    activity
-  } = ctx
-
-// ─── Auto-update (electron-updater; headless/web returns channel-aware state) ─
-async function loadUpdateService() {
+/** Exported for residual tests (import failure → null). */
+export async function loadUpdateService() {
   try {
     const mod = await import('../../infrastructure/update/AppUpdateService')
     return mod.appUpdateService
@@ -22,7 +19,11 @@ async function loadUpdateService() {
   }
 }
 
-function nonDesktopUpdateState(status: 'dev-skipped' | 'web-skipped') {
+/** Exported for residual tests (web/packaged channel mapping). */
+export function nonDesktopUpdateState(
+  status: 'dev-skipped' | 'web-skipped',
+  host: { isPackaged: boolean; appVersion: string }
+) {
   const channel = detectInstallChannel({
     isElectron: Boolean(process.versions.electron),
     isPackaged: host.isPackaged,
@@ -50,25 +51,26 @@ function nonDesktopUpdateState(status: 'dev-skipped' | 'web-skipped') {
   }
 }
 
-reg(
-  'updates:status',
-  (async () => {
+export function registerUpdatesHandlers(ctx: HandlerContext): void {
+  const { reg, host, activity } = ctx
+
+  reg('updates:status', async () => {
     const svc = await loadUpdateService()
     if (!svc) {
       return nonDesktopUpdateState(
-        process.versions.electron ? 'dev-skipped' : 'web-skipped'
+        process.versions.electron ? 'dev-skipped' : 'web-skipped',
+        host
       )
     }
     return svc.getState()
   })
-)
-reg(
-  'updates:check',
-  (async (opts?: { silent?: boolean }) => {
+
+  reg('updates:check', async (opts?: { silent?: boolean }) => {
     const svc = await loadUpdateService()
     if (!svc) {
       return nonDesktopUpdateState(
-        process.versions.electron ? 'dev-skipped' : 'web-skipped'
+        process.versions.electron ? 'dev-skipped' : 'web-skipped',
+        host
       )
     }
     const state = await svc.check({ silent: Boolean(opts?.silent) })
@@ -82,24 +84,21 @@ reg(
     })
     return state
   })
-)
-reg(
-  'updates:download',
-  (async () => {
+
+  reg('updates:download', async () => {
     const svc = await loadUpdateService()
     if (!svc) {
       return nonDesktopUpdateState(
-        process.versions.electron ? 'dev-skipped' : 'web-skipped'
+        process.versions.electron ? 'dev-skipped' : 'web-skipped',
+        host
       )
     }
     const state = await svc.download()
     activity.append({ kind: 'update', message: `download → ${state.status}` })
     return state
   })
-)
-reg(
-  'updates:install',
-  (async () => {
+
+  reg('updates:install', async () => {
     const svc = await loadUpdateService()
     if (!svc) {
       return {
@@ -111,10 +110,8 @@ reg(
     activity.append({ kind: 'update', message: 'quitAndInstall' })
     return svc.quitAndInstall()
   })
-)
-reg(
-  'updates:checkNpm',
-  (async () => {
+
+  reg('updates:checkNpm', async () => {
     const result = await checkNpmPackageUpdate(
       NPM_PACKAGE_NAME,
       host.appVersion
@@ -130,10 +127,8 @@ reg(
       installCommand: result.installCommand || NPM_INSTALL_CMD
     }
   })
-)
-reg(
-  'updates:openReleasePage',
-  (async (version?: string) => {
+
+  reg('updates:openReleasePage', async (version?: string) => {
     const href = githubReleaseUrl(version || undefined)
     try {
       await host.shell.openExternal(href)
@@ -146,6 +141,4 @@ reg(
       }
     }
   })
-)
-
 }

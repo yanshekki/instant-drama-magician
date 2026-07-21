@@ -97,6 +97,7 @@ export async function cmdServer(
   process.on('SIGINT', shutdown)
   process.on('SIGTERM', shutdown)
 
-  // Keep process alive
+  // Keep process alive (skip in tests)
+  if (process.env.IDM_SERVER_NO_WAIT === '1') return
   await new Promise(() => undefined)
 }

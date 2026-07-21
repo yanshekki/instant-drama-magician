@@ -61,17 +61,8 @@ export async function cmdDomain(
 
   const channel = resolveDomainChannel(namespace, action)
   const rest = positionals.slice(1)
-  let args = await resolveInvokeArgs(rest, flags)
-
-  // Convenience: single bare id as first arg when no JSON provided
-  if (
-    args.length === 0 &&
-    rest.length === 1 &&
-    !rest[0].startsWith('{') &&
-    !rest[0].startsWith('[')
-  ) {
-    args = [rest[0]]
-  }
+  // resolveInvokeArgs already accepts bare non-JSON tokens as args
+  const args = await resolveInvokeArgs(rest, flags)
 
   if (DESTRUCTIVE.test(channel) && !globals.yes) {
     emitFailure(

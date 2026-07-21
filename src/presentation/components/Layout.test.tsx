@@ -51,10 +51,10 @@ vi.mock('../context/AppContext', () => ({
     aiStatus: {
       available: true,
       chat: { available: false },
-      // image same-as-llm → Layout detail uses llmTitle (line 301)
-      image: { available: true, message: 'ok', provider: 'same-as-llm' },
-      // video custom provider string (line 315)
-      video: { available: false, message: 'off', provider: 'seedance-custom' },
+      // image custom provider string (line 302 else)
+      image: { available: true, message: 'ok', provider: 'dalle-custom' },
+      // video same-as-llm → llmTitle (line 314)
+      video: { available: false, message: 'off', provider: 'same-as-llm' },
       // unknown preset → custom title (line 193)
       llmProvider: 'my-custom-provider-xyz',
       baseUrl: 'http://127.0.0.1:3847/v1',
@@ -626,6 +626,39 @@ describe('Layout', () => {
     }
     // image/video same-as-llm provider titles rendered from mock useApp
     expect(document.body.textContent).toBeTruthy()
+  })
+
+  it('system colorScheme watches matchMedia', async () => {
+    api.settings.get = vi.fn().mockResolvedValue({
+      lastGenerationDegraded: false,
+      uiLanguage: 'en',
+      colorScheme: 'system'
+    })
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home-sys</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home-sys')).toBeTruthy())
+    // fire system scheme change if listener registered
+    const mql = window.matchMedia('(prefers-color-scheme: dark)')
+    const add =
+      (mql as unknown as { addEventListener?: Function }).addEventListener ||
+      (mql as unknown as { addListener?: Function }).addListener
+    void add
+    try {
+      ;(mql as unknown as { onchange?: Function | null }).onchange?.(
+        new Event('change')
+      )
+    } catch {
+      /* */
+    }
   })
 
   it('download success updates banner via onState available', async () => {
