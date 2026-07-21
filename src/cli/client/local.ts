@@ -3,6 +3,15 @@
  */
 import { join, resolve } from 'path'
 import { mkdirSync } from 'fs'
+
+/** Exported for residual unit tests. */
+export function mkdirNonFatal(dir: string): void {
+  try {
+    mkdirSync(dir, { recursive: true })
+  } catch {
+    /* ignore */
+  }
+}
 import { createRuntime, type AppRuntime } from '../../runtime/createRuntime'
 import type { IdmClient } from '../types'
 import { defaultDataDir } from '../config'
@@ -30,11 +39,7 @@ export async function createLocalClient(
     paths.cacheDir,
     paths.exportsDir
   ]) {
-    try {
-      mkdirSync(d, { recursive: true })
-    } catch {
-      /* ignore */
-    }
+    mkdirNonFatal(d)
   }
   try {
     migrateAppDataIfNeeded({ paths, cwd: process.cwd() })

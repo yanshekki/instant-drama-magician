@@ -3,6 +3,7 @@
  * open immediately → staged extract/polish/still → review → confirm → success / next.
  * Loading phases lock the UI; emergency exit aborts in-flight work.
  */
+import { shouldAutoCreateVideoPrep, patchIfRequestIdMatch } from '../../domain/residualLabels'
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type {
@@ -97,10 +98,11 @@ export function VideoPrepHost(): JSX.Element | null {
   useEffect(() => {
     const session = videoPrepSession
     if (!session) return
-    if (session.request.resumeDraft) return
     if (
-      session.phase !== 'loading-extract' &&
-      session.phase !== 'loading-materials'
+      !shouldAutoCreateVideoPrep(
+        session.phase,
+        Boolean(session.request.resumeDraft)
+      )
     ) {
       return
     }
@@ -203,14 +205,11 @@ export function VideoPrepHost(): JSX.Element | null {
           queueTotal: req.queueTotal
         }
         setVideoPrepSession((prev) =>
-          prev && prev.requestId === requestId
-            ? {
-                ...prev,
-                phase: 'review',
-                draft,
-                errorMessage: undefined
-              }
-            : prev
+          patchIfRequestIdMatch(prev, requestId, {
+            phase: 'review',
+            draft,
+            errorMessage: undefined
+          })
         )
         toast.success(
           r.skippedStill ? t('videoPrep.stillReused') : t('videoPrep.stillOk')
@@ -218,13 +217,10 @@ export function VideoPrepHost(): JSX.Element | null {
       } catch (e) {
         if (signal.cancelled) return
         setVideoPrepSession((prev) =>
-          prev && prev.requestId === requestId
-            ? {
-                ...prev,
-                phase: 'error',
-                errorMessage: formatIpcError(e)
-              }
-            : prev
+          patchIfRequestIdMatch(prev, requestId, {
+            phase: 'error',
+            errorMessage: formatIpcError(e)
+          })
         )
       } finally {
         if (runningCreateRef.current === requestId) {

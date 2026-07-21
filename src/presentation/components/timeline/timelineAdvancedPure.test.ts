@@ -1,10 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   castSaveToast,
   stillReadyDecrement,
   batchTargets,
   genLockedExtra,
-  readyVideoEntryIds
+  readyVideoEntryIds,
+  shouldSilentPersistOnGen,
+  shouldSilentPersistOnBatch,
+  stillStatusOrMissing,
+  runSaveCast,
+  maybeSilentPersistDirty,
+  maybeSilentPersistBatch,
+  fireVideoQueue,
+  notifyCastSaved
 } from './timelineAdvancedPure'
 
 describe('timelineAdvancedPure', () => {
@@ -29,5 +37,39 @@ describe('timelineAdvancedPure', () => {
     expect(genLockedExtra(null, null, 'B', 'G')).toBe('')
 
     expect(readyVideoEntryIds(cells)).toEqual(['a', 'c'])
+    expect(shouldSilentPersistOnGen(true)).toBe(true)
+    expect(shouldSilentPersistOnGen(false)).toBe(false)
+    expect(shouldSilentPersistOnBatch(true)).toBe(true)
+    expect(stillStatusOrMissing(undefined)).toBe('missing')
+    expect(stillStatusOrMissing('ready')).toBe('ready')
+  })
+
+  it('async residual helpers', async () => {
+    const persist = vi.fn(async () => undefined)
+    const reload = vi.fn(async () => undefined)
+    await runSaveCast(persist, reload)
+    expect(persist).toHaveBeenCalled()
+    expect(reload).toHaveBeenCalled()
+
+    const setProgress = vi.fn()
+    await maybeSilentPersistDirty(false, setProgress, persist)
+    expect(setProgress).not.toHaveBeenCalled()
+    await maybeSilentPersistDirty(true, setProgress, persist)
+    expect(setProgress).toHaveBeenCalledWith(15, 'start')
+
+    await maybeSilentPersistBatch(false, persist)
+    await maybeSilentPersistBatch(true, persist)
+
+    const onClose = vi.fn()
+    const onStart = vi.fn()
+    fireVideoQueue(onClose, onStart, ['e1'])
+    expect(onClose).toHaveBeenCalled()
+    expect(onStart).toHaveBeenCalledWith(['e1'], { skipStill: true })
+
+    const toast = vi.fn()
+    notifyCastSaved(false, toast)
+    expect(toast).not.toHaveBeenCalled()
+    notifyCastSaved(true, toast)
+    expect(toast).toHaveBeenCalled()
   })
 })

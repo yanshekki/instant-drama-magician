@@ -4,6 +4,14 @@ import { getApi } from '../../../lib/api'
 import type { TimelineEntry } from '../../../types/domain'
 import { Button } from '../ui'
 import { tMediaStatus } from '../../lib/statusLabels'
+import {
+  safeSeekCurrentTime,
+  shouldStartPlay,
+  isNearClipEnd,
+  shouldFireEnded,
+  playVideoSafe
+} from './previewPlayerPure'
+import { attachPlayStart } from '../uiResidualPure'
 
 interface PreviewPlayerProps {
   entry: TimelineEntry | null
@@ -85,11 +93,9 @@ export function PreviewPlayer({
     const target = Math.min(local, Math.max(0, Math.min(dur, clipLen) - 0.04))
     const threshold = force ? 0.02 : isPlaying ? 0.45 : 0.06
     if (Math.abs(v.currentTime - target) > threshold) {
-      try {
-        v.currentTime = target
-      } catch {
-        /* loading */
-      }
+      safeSeekCurrentTime((tt) => {
+        v.currentTime = tt
+      }, target)
     }
   }
 
@@ -122,21 +128,18 @@ export function PreviewPlayer({
     const req = ++playReq.current
 
     const start = (): void => {
-      if (playReq.current !== req) return
+      if (!shouldStartPlay(playReq.current, req)) return
       seekToPlayhead(v, true)
-      void v.play().catch(() => undefined)
+      playVideoSafe(() => v.play())
     }
 
-    if (v.readyState >= 2) start()
-    else {
-      const onCanPlay = (): void => {
-        v.removeEventListener('canplay', onCanPlay)
-        start()
-      }
-      v.addEventListener('canplay', onCanPlay)
-      v.load()
-      return () => v.removeEventListener('canplay', onCanPlay)
-    }
+    return attachPlayStart({
+      readyState: v.readyState,
+      start,
+      addEventListener: (ev, cb) => v.addEventListener(ev, cb),
+      removeEventListener: (ev, cb) => v.removeEventListener(ev, cb),
+      load: () => v.load()
+    })
   }, [isPlaying, src, entry?.id])
 
   // Media clock → parent; detect clip end for sequential advance
@@ -152,11 +155,7 @@ export function PreviewPlayer({
       const global = entry.startTime + local
       onMediaClock(Math.min(global, entry.endTime - 0.001))
 
-      const nearEnd =
-        local >= clipLen - 0.08 ||
-        (Number.isFinite(v.duration) &&
-          v.duration > 0 &&
-          local >= v.duration - 0.08)
+      const nearEnd = isNearClipEnd(local, clipLen, v.duration)
       if (nearEnd && !endedGuard.current) {
         endedGuard.current = true
         v.pause()
@@ -165,7 +164,7 @@ export function PreviewPlayer({
     }
 
     const onEnded = (): void => {
-      if (!isPlaying || endedGuard.current) return
+      if (!shouldFireEnded(isPlaying, endedGuard.current)) return
       endedGuard.current = true
       onMediaClock(entry.endTime - 0.001)
       onClipEnded?.()

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   sceneLinkLabel,
   beatSegmentLabel,
@@ -14,7 +14,19 @@ import {
   aspectOrDefault,
   multiActionBoundNote,
   errorMessageOf,
-  squareOrDefault
+  squareOrDefault,
+  clipEndSeconds,
+  multiSubjectClipNote,
+  appearanceOrDescription,
+  onlineChipClass,
+  dragTransition,
+  providerTitle,
+  llmPresetTitle,
+  continuityBadgeKey,
+  shouldAutoCreateVideoPrep,
+  patchIfRequestIdMatch,
+  assertFfmpegOutputExists,
+  onSystemSchemeChange
 } from './residualLabels'
 
 describe('residualLabels', () => {
@@ -58,5 +70,78 @@ describe('residualLabels', () => {
     expect(errorMessageOf('s')).toBe('s')
     expect(squareOrDefault(null)).toBe('1024x1024')
     expect(squareOrDefault('1x1')).toBe('1x1')
+
+    expect(clipEndSeconds({ startSeconds: 1 })).toBe(5)
+    expect(clipEndSeconds({ startSeconds: 1, endSeconds: 3 })).toBe(3)
+
+    expect(
+      multiSubjectClipNote({
+        charNames: ['A'],
+        sceneLabels: ['S'],
+        propNames: ['P']
+      })
+    ).toBeNull()
+    expect(
+      multiSubjectClipNote({
+        charNames: ['A', 'B'],
+        sceneLabels: ['S1', 'S2'],
+        propNames: ['P1', 'P2']
+      })
+    ).toMatch(/MULTI-SUBJECT|Locations|Props/)
+    expect(
+      multiSubjectClipNote({
+        charNames: [],
+        sceneLabels: ['S1', 'S2'],
+        propNames: []
+      })
+    ).toMatch(/Locations/)
+
+    expect(appearanceOrDescription(null, 'd')).toBe('d')
+    expect(appearanceOrDescription('a', 'd')).toBe('a')
+    expect(appearanceOrDescription(null, null)).toBeUndefined()
+
+    expect(onlineChipClass(true)).toMatch(/emerald/)
+    expect(onlineChipClass(false)).toMatch(/ink-800/)
+    expect(dragTransition(true)).toBe('none')
+    expect(dragTransition(false)).toMatch(/transform/)
+    expect(providerTitle('same-as-llm', 'same-as-llm', 'LLM')).toBe('LLM')
+    expect(providerTitle('openai', 'same-as-llm', 'LLM')).toBe('openai')
+    expect(llmPresetTitle(true, 'preset', 'custom')).toBe('custom')
+    expect(llmPresetTitle(false, 'preset', 'custom')).toBe('preset')
+    expect(continuityBadgeKey('continuity: LOCKED x')).toBe('locked')
+    expect(continuityBadgeKey('continuity: text only')).toBe('textOnly')
+    expect(continuityBadgeKey('continuity: first beat')).toBe('firstBeat')
+    expect(continuityBadgeKey('none')).toBeNull()
+    expect(shouldAutoCreateVideoPrep('review')).toBe(false)
+    expect(shouldAutoCreateVideoPrep('loading-extract')).toBe(true)
+    expect(shouldAutoCreateVideoPrep('loading-materials')).toBe(true)
+    expect(shouldAutoCreateVideoPrep('loading-extract', true)).toBe(false)
+    expect(
+      patchIfRequestIdMatch({ requestId: 'a', phase: 'x' }, 'a', {
+        phase: 'review'
+      })
+    ).toEqual({ requestId: 'a', phase: 'review' })
+    expect(
+      patchIfRequestIdMatch({ requestId: 'a', phase: 'x' }, 'b', {
+        phase: 'review'
+      })
+    ).toEqual({ requestId: 'a', phase: 'x' })
+    expect(patchIfRequestIdMatch(null, 'a', { phase: 'x' } as never)).toBeNull()
+    class AE extends Error {
+      constructor(public code: string, public key: string) {
+        super(key)
+      }
+    }
+    expect(() =>
+      assertFfmpegOutputExists('/no', () => false, AE as never)
+    ).toThrow()
+    expect(() =>
+      assertFfmpegOutputExists('/yes', () => true, AE as never)
+    ).not.toThrow()
+    const sync = vi.fn()
+    onSystemSchemeChange('dark', sync)
+    expect(sync).not.toHaveBeenCalled()
+    onSystemSchemeChange('system', sync)
+    expect(sync).toHaveBeenCalled()
   })
 })

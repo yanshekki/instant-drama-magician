@@ -1,3 +1,5 @@
+import { wheelZoomDelta, preventWheel } from './uiResidualPure'
+import { dragTransition } from '../../domain/residualLabels'
 import {
   useCallback,
   useEffect,
@@ -102,10 +104,8 @@ export function MediaZoomLightbox({
     const el = stageRef.current
     if (!el) return
     const onWheel = (e: WheelEvent): void => {
-      e.preventDefault()
-      e.stopPropagation()
-      const dir = e.deltaY > 0 ? -STEP : STEP
-      zoomBy(dir)
+      preventWheel(e)
+      zoomBy(wheelZoomDelta(e.deltaY, STEP))
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
@@ -210,9 +210,7 @@ export function MediaZoomLightbox({
               style={{
                 transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
                 transformOrigin: 'center center',
-                transition: drag.current.active
-                  ? 'none'
-                  : 'transform 0.08s ease-out',
+                transition: dragTransition(drag.current.active),
                 imageRendering: scale > 2 ? 'auto' : 'auto'
               }}
             />

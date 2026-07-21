@@ -138,4 +138,25 @@ describe('ImageGenConfirmModal', () => {
     fireEvent.click(screen.getByText('common.cancel'))
     expect(onCancel).toHaveBeenCalled()
   })
+  it('zero residual Escape backdrop not busy', () => {
+    const onCancel = vi.fn()
+    render(
+      <ImageGenConfirmModal
+        open
+        busy={false}
+        payload={{
+          prompt: 'p',
+          referencePaths: [],
+          useIdentityEdit: false
+        }}
+        onCancel={onCancel}
+        onConfirm={vi.fn()}
+      />
+    )
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    const backdrop = document.querySelector('[role="presentation"]')
+    if (backdrop) fireEvent.click(backdrop)
+    expect(onCancel).toHaveBeenCalled()
+  })
+
 })

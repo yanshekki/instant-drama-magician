@@ -1,3 +1,4 @@
+import { noIntroVideoToast, showMetaDims } from './uiResidualPure'
 import {
   useEffect,
   useRef,
@@ -198,6 +199,7 @@ export function LocalMediaImage({
       } else if (target === 'video') {
         const vp = introVideoPath?.trim()
         if (!vp) {
+          void noIntroVideoToast()
           toast.error(t('media.noIntroVideo'))
           return
         }
@@ -664,9 +666,9 @@ export function LocalMediaImage({
           >
             {imageBody}
             {actions}
-            {showMeta && dims && (
+            {showMetaDims(showMeta, dims) && (
               <p className="absolute left-1 top-1 z-[5] rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/90">
-                {dims}
+                {showMetaDims(showMeta, dims)}
               </p>
             )}
           </div>

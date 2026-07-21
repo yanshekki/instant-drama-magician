@@ -1,3 +1,4 @@
+import { clipEndSeconds, assertFfmpegOutputExists } from '../../domain/residualLabels'
 import { spawn } from 'child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
@@ -304,9 +305,7 @@ export class FfmpegService {
 
     const duckWindows = dialogue.map((d) => ({
       startSeconds: d.startSeconds,
-      endSeconds:
-        d.endSeconds ??
-        d.startSeconds + 4
+      endSeconds: clipEndSeconds(d)
     }))
 
     const args: string[] = [this.ffmpegBin, '-y', '-i', rawPath]
@@ -531,9 +530,7 @@ export class FfmpegService {
         outputPath
       ])
     }
-    if (!existsSync(outputPath)) {
-      throw new AppError('FFMPEG_FAILED', 'errors.ffmpegExportMissing')
-    }
+    assertFfmpegOutputExists(outputPath, existsSync, AppError)
     return outputPath
   }
 

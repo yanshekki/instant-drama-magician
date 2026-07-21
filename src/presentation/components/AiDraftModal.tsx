@@ -1,3 +1,4 @@
+import { optionalEl } from '../context/aiJobsPure'
 import { useTranslation } from 'react-i18next'
 import { useAiJobs } from '../context/AiJobsContext'
 import { LocalMediaImage } from './LocalMediaImage'
@@ -134,12 +135,12 @@ export function AiDraftModal(): JSX.Element | null {
                 k={t('characters.artStyle')}
                 v={draft.suggestion?.artStyle ?? ''}
               />
-              {draft.suggestion?.rationale ? (
+              {optionalEl(Boolean(draft.suggestion?.rationale)) === 'show' && (
                 <Row
                   k={t('characters.suggestRationale')}
-                  v={draft.suggestion.rationale}
+                  v={draft.suggestion?.rationale ?? ''}
                 />
-              ) : null}
+              )}
               <p className="pt-1 text-[11px] text-ink-500">
                 {t('aiJobs.wardrobeDraftHint')}
               </p>

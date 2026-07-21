@@ -1,3 +1,4 @@
+import { llmPresetTitle, providerTitle, onSystemSchemeChange } from '../../domain/residualLabels'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -168,7 +169,7 @@ export function Layout(): JSX.Element {
       getApi().updates.onState?.(handleUpdateState) ?? (() => undefined)
 
     const unwatch = watchSystemColorScheme(() => {
-      if (pref === 'system') syncTheme()
+      onSystemSchemeChange(pref, syncTheme)
     })
     return () => {
       unwatch()
@@ -188,9 +189,11 @@ export function Layout(): JSX.Element {
     aiStatus?.baseUrl ?? ''
   )
   const llmDef = getLlmPresetDef(llmPreset)
-  const llmTitle = llmDef
-    ? t(`settings.llmPreset.${llmDef.labelKey}`)
-    : t('settings.llmPreset.custom')
+  const llmTitle = llmPresetTitle(
+    !llmDef,
+    llmDef ? t(`settings.llmPreset.${llmDef.labelKey}`) : '',
+    t('settings.llmPreset.custom')
+  )
   const llmStatusLine = chatOk
     ? t('ai.providerOnline', { name: llmTitle })
     : t('ai.providerOffline', { name: llmTitle })
@@ -297,9 +300,7 @@ export function Layout(): JSX.Element {
                 label={t('ai.channelImage')}
                 available={imageCh.available}
                 detail={
-                  imageCh.provider === 'same-as-llm'
-                    ? llmTitle
-                    : imageCh.provider
+                  providerTitle(imageCh.provider, 'same-as-llm', llmTitle)
                 }
                 onlineLabel={onlineLabel}
                 offlineLabel={offlineLabel}
@@ -310,9 +311,7 @@ export function Layout(): JSX.Element {
                 label={t('ai.channelVideo')}
                 available={videoCh.available}
                 detail={
-                  videoCh.provider === 'same-as-llm'
-                    ? llmTitle
-                    : videoCh.provider
+                  providerTitle(videoCh.provider, 'same-as-llm', llmTitle)
                 }
                 onlineLabel={onlineLabel}
                 offlineLabel={offlineLabel}

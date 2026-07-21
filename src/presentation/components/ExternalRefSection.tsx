@@ -1,3 +1,4 @@
+import { optionalEl } from '../context/aiJobsPure'
 /**
  * Shared “external reference stills” block (Characters-page pattern).
  * Parent owns gallery paths; this only renders pick / list / use-toggle.
@@ -56,16 +57,16 @@ export function ExternalRefSection({
                 enableZoom={false}
                 hoverZoom={false}
               />
-              {onRemove ? (
+              {optionalEl(Boolean(onRemove)) === 'show' && (
                 <button
                   type="button"
                   className="absolute right-0.5 top-0.5 rounded bg-black/70 px-1 text-[9px] text-white"
-                  onClick={() => onRemove(g.id)}
+                  onClick={() => onRemove?.(g.id)}
                   disabled={disabled}
                 >
                   ×
                 </button>
-              ) : null}
+              )}
             </div>
           ))}
         </div>

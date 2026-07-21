@@ -113,13 +113,23 @@ function commandExists(cmd: string): Promise<boolean> {
   })
 }
 
+/** Exported for residual unit tests. */
+export function assertSpawnExitOk(code: number | null, cmd: string): void {
+  if (code === 0) return
+  throw new Error(`${cmd} exited ${code}`)
+}
+
 function run(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { stdio: 'ignore' })
     child.on('error', reject)
     child.on('close', (code) => {
-      if (code === 0) resolve()
-      else reject(new Error(`${cmd} exited ${code}`))
+      try {
+        assertSpawnExitOk(code, cmd)
+        resolve()
+      } catch (e) {
+        reject(e)
+      }
     })
   })
 }

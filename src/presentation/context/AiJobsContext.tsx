@@ -36,6 +36,7 @@ import type {
   SceneProfileFields
 } from '../../types/domain'
 import type { ArtStyleId } from '../../domain/characterArtStyles'
+import { persistJobsSafe, loadDraftStoreSafe, pipelineProgressPct } from './aiJobsPure'
 
 const AI_JOBS_STORAGE_KEY = 'idm.aiJobs.v1'
 const AI_JOBS_MAX_PERSIST = 24
@@ -419,7 +420,7 @@ function loadPersistedJobs(): AiJob[] {
 }
 
 function persistJobs(jobs: AiJob[]): void {
-  try {
+  persistJobsSafe(() => {
     // Only pending drafts + short-lived real failures (not interrupt stubs)
     const keep = jobs
       .filter(
@@ -431,9 +432,7 @@ function persistJobs(jobs: AiJob[]): void {
       )
       .slice(0, AI_JOBS_MAX_PERSIST)
     localStorage.setItem(AI_JOBS_STORAGE_KEY, JSON.stringify(keep))
-  } catch {
-    /* quota / private mode */
-  }
+  })
 }
 
 export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Element {
@@ -450,29 +449,27 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
   const [videoPrepSession, setVideoPrepSession] =
     useState<VideoPrepSession | null>(null)
   const [savedVideoPrepDrafts, setSavedVideoPrepDrafts] =
-    useState<VideoPrepDraftStore>(() => {
-      try {
-        return loadVideoPrepDraftStore({
-          v2Raw: localStorage.getItem(VIDEO_PREP_DRAFTS_STORAGE_KEY),
-          v1Raw: localStorage.getItem(VIDEO_PREP_DRAFT_STORAGE_KEY)
-        })
-      } catch {
-        return {}
-      }
-    })
+    useState<VideoPrepDraftStore>(() =>
+      loadDraftStoreSafe(
+        () =>
+          loadVideoPrepDraftStore({
+            v2Raw: localStorage.getItem(VIDEO_PREP_DRAFTS_STORAGE_KEY),
+            v1Raw: localStorage.getItem(VIDEO_PREP_DRAFT_STORAGE_KEY)
+          }),
+        {}
+      )
+    )
   const startVideoPrepImpl = useRef<
     ((input: StartVideoPrepInput) => void) | null
   >(null)
 
   const persistDraftStore = useCallback((store: VideoPrepDraftStore) => {
-    try {
+    persistJobsSafe(() => {
       localStorage.setItem(
         VIDEO_PREP_DRAFTS_STORAGE_KEY,
         serializeVideoPrepDraftStore(store)
       )
-    } catch {
-      /* ignore quota */
-    }
+    })
   }, [])
   const cancelFlags = useRef(new Map<string, { cancelled: boolean }>())
   const profileHandlers = useRef(
@@ -578,13 +575,11 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
         prev.map((j) => {
           if (j.status !== 'running') return j
           if (j.kind === 'pipeline' && j.scope.storyId === payload.storyId) {
-            const pct =
-              payload.total > 0
-                ? Math.min(
-                    99,
-                    Math.round(((payload.index + 1) / payload.total) * 100)
-                  )
-                : j.progress
+            const pct = pipelineProgressPct(
+              payload.total,
+              payload.index,
+              j.progress
+            )
             return {
               ...j,
               progress: pct,

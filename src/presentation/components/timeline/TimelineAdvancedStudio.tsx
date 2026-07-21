@@ -18,7 +18,7 @@ import { LocalMediaImage } from '../LocalMediaImage'
 import { Button, Select } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAiJobs } from '../../context/AiJobsContext'
-import { castSaveToast, stillReadyDecrement, batchTargets, genLockedExtra, readyVideoEntryIds } from './timelineAdvancedPure'
+import { castSaveToast, stillReadyDecrement, batchTargets, genLockedExtra, readyVideoEntryIds, shouldSilentPersistOnGen, shouldSilentPersistOnBatch, stillStatusOrMissing, runSaveCast, maybeSilentPersistDirty, maybeSilentPersistBatch, fireVideoQueue, notifyCastSaved } from './timelineAdvancedPure'
 
 export interface AdvancedPrepSnapshot {
   storyId: string
@@ -170,9 +170,9 @@ export function TimelineAdvancedStudio({
       )) as StoryCastPrep
       setCastPrep(next)
       setSnap((prev) => (prev ? { ...prev, castPrep: next } : prev))
-      if (castSaveToast(opts?.silent) === 'success') {
+      notifyCastSaved(castSaveToast(opts?.silent) === 'success', () =>
         toast.success(t('timeline.advanced.castSaved'))
-      }
+      )
       return next
     } catch (e) {
       toast.error(parseIpcError(e).message)
@@ -183,8 +183,10 @@ export function TimelineAdvancedStudio({
   }
 
   const handleSaveCast = async (): Promise<void> => {
-    await persistCastPrep(castPrep)
-    await reload()
+    await runSaveCast(
+      () => persistCastPrep(castPrep),
+      () => reload()
+    )
   }
 
   const selectGalleryImage = async (
@@ -225,10 +227,11 @@ export function TimelineAdvancedStudio({
       run: async ({ setProgress, signal }) => {
         try {
           setProgress(8, 'start')
-          if (dirtyRef.current) {
-            setProgress(15, 'start')
-            await persistCastPrep(castPrep, { silent: true })
-          }
+          await maybeSilentPersistDirty(
+            dirtyRef.current,
+            setProgress,
+            () => persistCastPrep(castPrep, { silent: true })
+          )
           if (signal.cancelled) return
           if (force) {
             setProgress(22, 'start')
@@ -282,8 +285,9 @@ export function TimelineAdvancedStudio({
               0,
               prev.summary.stillReady -
                 stillReadyDecrement(
-                  prev.cells.find((c) => c.entryId === entryId)?.stillStatus ||
-                    'missing'
+                  stillStatusOrMissing(
+                    prev.cells.find((c) => c.entryId === entryId)?.stillStatus
+                  )
                 )
             )
           }
@@ -321,9 +325,9 @@ export function TimelineAdvancedStudio({
         let done = 0
         try {
           setProgress(5, 'start')
-          if (needSave) {
-            await persistCastPrep(prepSnapshot, { silent: true })
-          }
+          await maybeSilentPersistBatch(needSave, () =>
+            persistCastPrep(prepSnapshot, { silent: true })
+          )
           if (signal.cancelled) return
           for (const cell of targets) {
             if (signal.cancelled || batchCancelRef.current) break
@@ -372,8 +376,7 @@ export function TimelineAdvancedStudio({
       toast.info(t('timeline.advanced.needStills'))
       return
     }
-    onClose()
-    onStartVideoQueue(ids, { skipStill: true })
+    fireVideoQueue(onClose, onStartVideoQueue, ids)
   }
 
   if (!open) return null

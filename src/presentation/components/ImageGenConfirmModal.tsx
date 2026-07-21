@@ -1,3 +1,4 @@
+import { shouldCancelModal, shouldCancelOnBackdropClick } from './uiResidualPure'
 /**
  * Confirm / edit prompt before reference-image generation (shared by all asset pages).
  * Portaled to document.body so EditorShell stacking never traps clicks / cancel.
@@ -92,7 +93,7 @@ export function ImageGenConfirmModal({
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && !busy) onCancel()
+      if (shouldCancelModal(e.key, busy)) onCancel()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -106,7 +107,7 @@ export function ImageGenConfirmModal({
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4"
       role="presentation"
       onClick={() => {
-        if (!busy) onCancel()
+        if (shouldCancelOnBackdropClick(busy)) onCancel()
       }}
     >
       <div

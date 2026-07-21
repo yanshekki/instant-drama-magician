@@ -1,3 +1,4 @@
+import { onlineChipClass } from '../../domain/residualLabels'
 /**
  * Grouped professional picker for OpenAI-compatible LLM presets.
  */
@@ -108,9 +109,7 @@ function CapPill({ on, label }: { on: boolean; label: string }): JSX.Element {
     <span
       className={[
         'rounded-full px-2 py-0.5 text-[10px] font-medium',
-        on
-          ? 'bg-emerald-950/80 text-emerald-200 ring-1 ring-emerald-700/40'
-          : 'bg-ink-800 text-ink-500 ring-1 ring-ink-700/60'
+        onlineChipClass(on)
       ].join(' ')}
     >
       {on ? '✓ ' : '— '}

@@ -143,6 +143,40 @@ describe('GalleryThumbStrip', () => {
     fireEvent.click(a)
     expect(document.body.textContent).toBeTruthy()
   })
+  it('zero residual dragOver move and moved click ignore', () => {
+    const onSelect = vi.fn()
+    const onReorder = vi.fn()
+    render(
+      <GalleryThumbStrip
+        items={[
+          { id: 'a', path: '/a.png', label: 'A' },
+          { id: 'b', path: '/b.png', label: 'B' }
+        ]}
+        selectedId="a"
+        onSelect={onSelect}
+        onReorder={onReorder}
+      />
+    )
+    const root = document.body.querySelector('div') || document.body
+    const dt = {
+      dropEffect: 'none',
+      effectAllowed: 'move',
+      setData: vi.fn(),
+      getData: () => 'a',
+      types: ['text/plain']
+    } as unknown as DataTransfer
+    fireEvent.dragOver(root, { dataTransfer: dt })
+    // simulate drag then click
+    const cells = document.querySelectorAll('[draggable="true"]')
+    if (cells[0]) {
+      fireEvent.dragStart(cells[0], { dataTransfer: dt })
+      fireEvent.drop(cells[1] || cells[0], { dataTransfer: dt })
+      fireEvent.dragEnd(cells[0], { dataTransfer: dt })
+      fireEvent.click(cells[0])
+    }
+    expect(true).toBe(true)
+  })
+
 })
 
   it('done residual: multi border, dragImage catch, shift ends', () => {

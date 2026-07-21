@@ -1,3 +1,4 @@
+import { toggleLanguageCode } from './uiResidualPure'
 /**
  * Searchable multi-select for world languages (character spoken languages).
  */
@@ -37,11 +38,7 @@ export function LanguageMultiPick({
 
   const toggle = (code: string): void => {
     if (disabled) return
-    if (selected.has(code)) {
-      onChange(value.filter((c) => c !== code))
-      return
-    }
-    onChange([...value, code])
+    onChange(toggleLanguageCode(value, code))
   }
 
   const remove = (code: string): void => {

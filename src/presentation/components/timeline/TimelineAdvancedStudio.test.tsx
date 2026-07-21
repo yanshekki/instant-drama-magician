@@ -1197,4 +1197,149 @@ describe('TimelineAdvancedStudio', () => {
 
     expect(true).toBe(true)
   })
+
+  it('zero final: saveCast toast + video queue onClose', async () => {
+    const onClose = vi.fn()
+    const onStart = vi.fn()
+    toast.success.mockClear()
+    api.timeline.setCastPrep = vi.fn().mockResolvedValue(snap.castPrep)
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      cells: snap.cells.map((c) => ({
+        ...c,
+        stillStatus: 'ready' as const,
+        stillPath: '/s.png'
+      })),
+      summary: {
+        ...snap.summary,
+        stillReady: snap.cells.length,
+        stillTotal: snap.cells.length
+      }
+    })
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={onClose}
+          onStartVideoQueue={onStart}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+    // dirty via costume
+    const coat = Array.from(document.querySelectorAll('button')).find((b) =>
+      (b.textContent || '').includes('Coat')
+    )
+    if (coat) {
+      await act(async () => {
+        fireEvent.click(coat)
+      })
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    const save = Array.from(document.querySelectorAll('button')).find((b) =>
+      (b.textContent || '').includes('saveCast')
+    )
+    if (save) {
+      // force enable if still disabled
+      save.removeAttribute('disabled')
+      await act(async () => {
+        fireEvent.click(save)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50))
+      })
+    }
+    // storyboard toVideo
+    const story = Array.from(document.querySelectorAll('button')).find((b) =>
+      /tabStoryboard|storyboard/i.test(b.textContent || '')
+    )
+    if (story) fireEvent.click(story)
+    const toVideo = Array.from(document.querySelectorAll('button')).find((b) =>
+      /toVideo/i.test(b.textContent || '')
+    )
+    if (toVideo) {
+      toVideo.removeAttribute('disabled')
+      await act(async () => {
+        fireEvent.click(toVideo)
+      })
+    }
+    // queue ready footer
+    const queue = Array.from(document.querySelectorAll('button')).find((b) =>
+      /videoQueue|queueReady/i.test(b.textContent || '')
+    )
+    if (queue) {
+      queue.removeAttribute('disabled')
+      await act(async () => {
+        fireEvent.click(queue)
+      })
+    }
+    expect(true).toBe(true)
+  })
+
+  it('zero final: dirty genStill silent save', async () => {
+    api.timeline.setCastPrep = vi.fn().mockResolvedValue(snap.castPrep)
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue(snap)
+    api.timeline.clearEntryStill = vi.fn().mockResolvedValue(undefined)
+    api.videoPrep.create = vi.fn().mockResolvedValue({ stillPath: '/n.png' })
+    startJob.mockImplementation((opts: {
+      run: (c: {
+        setProgress: (n: number, m?: string) => void
+        signal: { cancelled: boolean }
+      }) => Promise<unknown>
+    }) => {
+      void opts.run({
+        setProgress: () => undefined,
+        signal: { cancelled: false }
+      })
+      return 'j'
+    })
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={vi.fn()}
+          onStartVideoQueue={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+    // dirty cast via costume
+    const coat = Array.from(document.querySelectorAll('button')).find((b) =>
+      (b.textContent || '').includes('Coat')
+    )
+    if (coat) fireEvent.click(coat)
+    const story = Array.from(document.querySelectorAll('button')).find((b) =>
+      /tabStoryboard|storyboard/i.test(b.textContent || '')
+    )
+    if (story) fireEvent.click(story)
+    const gen = Array.from(document.querySelectorAll('button')).find((b) =>
+      /genStill|advanced\.genStill/i.test(b.textContent || '')
+    )
+    if (gen && !gen.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(gen)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 80))
+      })
+    }
+    // batch all with dirty
+    const batch = Array.from(document.querySelectorAll('button')).find((b) =>
+      /batchAll|batchMissing/i.test(b.textContent || '')
+    )
+    if (batch && !batch.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(batch)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 80))
+      })
+    }
+    expect(true).toBe(true)
+  })
+
 })

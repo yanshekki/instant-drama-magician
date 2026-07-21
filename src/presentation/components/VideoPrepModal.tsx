@@ -15,6 +15,8 @@ import {
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
 import { getAiLocale } from '../../lib/aiLocale'
+import { continuityBadgeKey } from '../../domain/residualLabels'
+import { canSubmitRegenNotes } from './uiResidualPure'
 import { useToast } from '../context/ToastContext'
 import { LocalMediaImage } from './LocalMediaImage'
 import { Button, Label, Textarea } from './ui'
@@ -90,7 +92,7 @@ export function VideoPrepModal({
 
   const handleRegen = async (): Promise<void> => {
     const notes = regenNotes.trim()
-    if (!notes || !draft) {
+    if (!canSubmitRegenNotes(notes, Boolean(draft))) {
       toast.info(t('videoPrep.regenNeedNotes'))
       return
     }
@@ -290,11 +292,11 @@ export function VideoPrepModal({
               <p className="text-sm font-medium text-ink-100">
                 {t('videoPrep.videoOk')}
               </p>
-              {resultPath ? (
+              {resultPath && (
                 <p className="max-w-md truncate text-center text-[11px] text-ink-500">
                   {resultPath}
                 </p>
-              ) : null}
+              )}
             </div>
           ) : null}
 
@@ -325,23 +327,31 @@ export function VideoPrepModal({
                     <h3 className="text-xs font-semibold text-ink-300">
                       {t('videoPrep.materials')}
                     </h3>
-                    {/continuity:\s*LOCKED/i.test(draft.materialsSummary) ? (
-                      <p className="mt-1.5 inline-flex items-center rounded-full border border-emerald-700/60 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                        {t('videoPrep.continuityLocked')}
-                      </p>
-                    ) : /continuity:\s*text only/i.test(
-                        draft.materialsSummary
-                      ) ? (
-                      <p className="mt-1.5 inline-flex items-center rounded-full border border-amber-700/60 bg-amber-950/40 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-                        {t('videoPrep.continuityTextOnly')}
-                      </p>
-                    ) : /continuity:\s*first beat/i.test(
-                        draft.materialsSummary
-                      ) ? (
-                      <p className="mt-1.5 inline-flex items-center rounded-full border border-ink-600 bg-ink-900/60 px-2 py-0.5 text-[10px] font-medium text-ink-300">
-                        {t('videoPrep.continuityFirstBeat')}
-                      </p>
-                    ) : null}
+                    {(() => {
+                      const badge = continuityBadgeKey(draft.materialsSummary)
+                      if (badge === 'locked') {
+                        return (
+                          <p className="mt-1.5 inline-flex items-center rounded-full border border-emerald-700/60 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                            {t('videoPrep.continuityLocked')}
+                          </p>
+                        )
+                      }
+                      if (badge === 'textOnly') {
+                        return (
+                          <p className="mt-1.5 inline-flex items-center rounded-full border border-amber-700/60 bg-amber-950/40 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                            {t('videoPrep.continuityTextOnly')}
+                          </p>
+                        )
+                      }
+                      if (badge === 'firstBeat') {
+                        return (
+                          <p className="mt-1.5 inline-flex items-center rounded-full border border-ink-600 bg-ink-900/60 px-2 py-0.5 text-[10px] font-medium text-ink-300">
+                            {t('videoPrep.continuityFirstBeat')}
+                          </p>
+                        )
+                      }
+                      return null
+                    })()}
                     <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-ink-400">
                       {draft.materialsSummary}
                     </pre>

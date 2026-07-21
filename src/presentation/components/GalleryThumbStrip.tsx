@@ -1,3 +1,4 @@
+import { dragOverMove, consumeMovedClick } from './uiResidualPure'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LocalMediaImage } from './LocalMediaImage'
@@ -94,8 +95,7 @@ export function GalleryThumbStrip({
         <div
           className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1"
           onDragOver={(e) => {
-            e.preventDefault()
-            e.dataTransfer.dropEffect = 'move'
+            dragOverMove(e)
           }}
         >
           {items.map((g) => {
@@ -125,7 +125,7 @@ export function GalleryThumbStrip({
                           : 'border-ink-700 opacity-85 hover:opacity-100'
                 ].join(' ')}
                 onClick={(e) => {
-                  if (movedRef.current) {
+                  if (consumeMovedClick(movedRef.current)) {
                     movedRef.current = false
                     return
                   }

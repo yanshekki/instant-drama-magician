@@ -1,4 +1,4 @@
-import { imageSizeForAspect } from '../../../domain/residualLabels'
+import { imageSizeForAspect, multiSubjectClipNote, appearanceOrDescription } from '../../../domain/residualLabels'
 /**
  * Video prep — registerVideoPrepCreate
  */
@@ -481,10 +481,10 @@ reg(
             description: String(c.description ?? ''),
             ageRange: (c.ageRange as string | null) ?? undefined,
             gender: (c.gender as string | null) ?? undefined,
-            appearance:
-              ((c.appearance as string | null) ??
-                (c.description as string | null)) ||
-              undefined,
+            appearance: appearanceOrDescription(
+              c.appearance as string | null,
+              c.description as string | null
+            ),
             costume: (c.costume as string | null) ?? undefined,
             personality: (c.personality as string | null) ?? undefined,
             backstory: (c.backstory as string | null) ?? undefined,
@@ -496,24 +496,13 @@ reg(
             spokenLanguages: parseLangs(c)
           })
         )
-        const multiCastNote =
-          chars.length > 1 || scenesBound.length > 1 || propsBound.length > 1
-            ? [
-                'MULTI-SUBJECT CLIP:',
-                chars.length
-                  ? `Characters (primary first): ${chars.map((c) => c.name).join(', ')}.`
-                  : null,
-                scenesBound.length > 1
-                  ? `Locations: ${scenesBound.map((s) => s.title || String(s.description).slice(0, 40)).join(' | ')}.`
-                  : null,
-                propsBound.length > 1
-                  ? `Props: ${propsBound.map((p) => p.name).join(', ')}.`
-                  : null,
-                'Keep all listed subjects visible/consistent; primary character is the action focus.'
-              ]
-                .filter(Boolean)
-                .join(' ')
-            : null
+        const multiCastNote = multiSubjectClipNote({
+          charNames: chars.map((c) => c.name),
+          sceneLabels: scenesBound.map(
+            (s) => s.title || String(s.description).slice(0, 40)
+          ),
+          propNames: propsBound.map((p) => p.name)
+        })
 
         const charMap = new Map(
           characters.map((c) => [String(c.id), c as never])
