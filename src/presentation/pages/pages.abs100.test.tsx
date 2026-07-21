@@ -214,6 +214,7 @@ import {
   propsApplyIpcError,
   propsApplySimpleIpc,
   propsClearFilters,
+  propsFilterGalleryByLayer,
   propsMakeClearFilters,
   propsDiscardDraftSafe,
   propsGalleryPathsFromOpts,
@@ -341,8 +342,83 @@ import {
   scenesCustomLocOptionElement
 } from './ScenesPage'
 
-import { SettingsPage } from './SettingsPage'
-import { StoriesPage } from './StoriesPage'
+import {
+  SettingsPage,
+  settingsApplyIpc,
+  settingsApplyIpcBody,
+  settingsRunSave,
+  settingsRefreshModels,
+  settingsTestChat,
+  settingsTabId,
+  settingsProviderLabel,
+  settingsBoolOr,
+  settingsStringOr,
+  settingsCatchToast,
+  settingsRunSaveFull,
+  settingsRunClearAll,
+  settingsRunLlmPreset,
+  settingsRunRefreshModels,
+  settingsRunTestChat,
+  settingsSilentOrToast,
+  settingsNumOr,
+  settingsPickTab,
+  settingsModelsFromList,
+  settingsRateLimitFallbackModels,
+  settingsIsRateLimit,
+  settingsRunRefreshModelsFull,
+  settingsRunTestChatFull
+} from './SettingsPage'
+
+
+import {
+  StoriesPage,
+  storiesApplyIpc,
+  storiesRemoveWithFeedback,
+  storiesGuardBusy,
+  storiesGuardEmptyTitle,
+  storiesRunSaveMetaNative,
+  storiesRunSetCostume,
+  storiesHandleCoverCommitted,
+  storiesResolveWantIdentity,
+  storiesCoverPathsFromOpts,
+  storiesMaybeAppendMulti,
+  storiesPlateModeLabel,
+  storiesDiscardDraftSafe,
+  storiesJobCancelDiscard,
+  storiesGuardAiMetaSource,
+  storiesGuardAiScript,
+  storiesApplyAiMetaResult,
+  storiesRunExportBackup,
+  storiesRunImportBackup,
+  storiesRunLinkToggle,
+  storiesDispatchCastToggle,
+  storiesOptimisticBeatPatch,
+  storiesMoveBeatIndex,
+  storiesSelectedCoverIds,
+  storiesMsgToast,
+  storiesShouldReorder,
+  storiesBeatLabel,
+  storiesNextCoverAfterRemove,
+  storiesRemoveCoverState,
+  storiesGuardAiNeed,
+  storiesHasDraft,
+  storiesAiFillToastKey,
+  storiesRunGenerateCoverSetup,
+  storiesCoverPromptParts,
+  storiesMakeLinkToggle,
+  storiesMakeSetCover,
+  storiesMakeCoverCommitted,
+  storiesGeneratingLabel,
+  storiesStatusOrDraft,
+  storiesAppendTemplate,
+  storiesSpokenPreview,
+  storiesCreateId,
+  storiesEditPrefix,
+  storiesPrimaryCover,
+  storiesSortTitle
+} from './StoriesPage'
+
+
 import {
   formatExportSize,
   formatExportWhen,
@@ -2343,6 +2419,21 @@ describe('abs100 Props absolute', () => {
 
   it('pure residual helpers cover every branch', async () => {
     const msgs: string[] = []
+    expect(
+      propsFilterGalleryByLayer(
+        [{ layer: 'a' }, { layer: 'b' }, { layer: undefined }],
+        'all'
+      )
+    ).toHaveLength(3)
+    expect(
+      propsFilterGalleryByLayer(
+        [{ layer: 'a' }, { layer: 'b' }, { layer: undefined }],
+        'a'
+      )
+    ).toHaveLength(1)
+    expect(
+      propsFilterGalleryByLayer([{ layer: undefined }], 'base')
+    ).toHaveLength(0)
     propsClearFilters(
       (q) => msgs.push('q:' + q),
       (v) => msgs.push('i:' + v)
@@ -9431,4 +9522,944 @@ describe('abs100 Scenes UI residual mop', () => {
     })
   }, 120000)
 
+})
+
+
+
+describe('abs100 Stories pure residual helpers', () => {
+  it('covers every pure residual branch', async () => {
+    const msgs: string[] = []
+    const toastErr = (m: string) => msgs.push('e:' + m)
+    const toastOk = (m?: string) => msgs.push('ok:' + (m ?? ''))
+    const setErr = (m: string | null) => msgs.push('s:' + m)
+
+    storiesApplyIpc(new Error('x'), setErr, toastErr)
+    storiesApplyIpc(new Error('y'))
+    await storiesRemoveWithFeedback({
+      remove: async () => undefined,
+      id: '1',
+      toastSuccess: () => toastOk('d'),
+      toastError: toastErr
+    })
+    await storiesRemoveWithFeedback({
+      remove: async () => {
+        throw new Error('rm')
+      },
+      id: '1',
+      toastSuccess: () => undefined,
+      toastError: toastErr
+    })
+    expect(storiesGuardBusy(true, (m) => msgs.push(m), 'L')).toBe(true)
+    expect(storiesGuardBusy(false)).toBe(false)
+    expect(storiesGuardEmptyTitle('', toastErr, 'e')).toBe(true)
+    expect(storiesGuardEmptyTitle('t', toastErr, 'e')).toBe(false)
+
+    expect(
+      await storiesRunSaveMetaNative({
+        title: '',
+        editingId: null,
+        setBusy: () => undefined,
+        setError: setErr,
+        create: async () => ({ id: 'n' }),
+        setActiveStoryId: () => undefined,
+        update: async () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: toastErr,
+        closeEditor: () => undefined
+      })
+    ).toBe('empty')
+    expect(
+      await storiesRunSaveMetaNative({
+        title: 'T',
+        editingId: 'id',
+        setBusy: () => undefined,
+        setError: setErr,
+        create: async () => ({ id: 'n' }),
+        setActiveStoryId: () => undefined,
+        update: async () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => toastOk('s'),
+        toastError: toastErr,
+        closeEditor: () => msgs.push('close')
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunSaveMetaNative({
+        title: 'T',
+        editingId: null,
+        setBusy: () => undefined,
+        setError: setErr,
+        create: async () => ({ id: 'n' }),
+        setActiveStoryId: (id) => msgs.push('act:' + id),
+        update: async () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: toastErr,
+        closeEditor: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunSaveMetaNative({
+        title: 'T',
+        editingId: 'id',
+        setBusy: () => undefined,
+        setError: setErr,
+        create: async () => ({ id: 'n' }),
+        setActiveStoryId: () => undefined,
+        update: async () => {
+          throw new Error('u')
+        },
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: toastErr,
+        closeEditor: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await storiesRunSetCostume({
+        editingId: null,
+        set: async () => undefined,
+        linkFallback: async () => undefined,
+        hasSetCostume: true,
+        toastSuccess: () => undefined,
+        toastError: toastErr,
+        setError: setErr,
+        reload: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await storiesRunSetCostume({
+        editingId: 's',
+        set: async () => undefined,
+        linkFallback: async () => undefined,
+        hasSetCostume: true,
+        toastSuccess: () => undefined,
+        toastError: toastErr,
+        setError: setErr,
+        reload: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunSetCostume({
+        editingId: 's',
+        set: async () => undefined,
+        linkFallback: async () => undefined,
+        hasSetCostume: false,
+        toastSuccess: () => undefined,
+        toastError: toastErr,
+        setError: setErr,
+        reload: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunSetCostume({
+        editingId: 's',
+        set: async () => {
+          throw new Error('c')
+        },
+        linkFallback: async () => undefined,
+        hasSetCostume: true,
+        toastSuccess: () => undefined,
+        toastError: toastErr,
+        setError: setErr,
+        reload: () => undefined
+      })
+    ).toBe('error')
+
+    storiesHandleCoverCommitted(
+      { storyId: 's2', path: '/p' },
+      's1',
+      {
+        setCoverPath: () => undefined,
+        loadDetail: () => undefined,
+        refresh: () => msgs.push('ref'),
+        toastSuccess: () => undefined
+      }
+    )
+    storiesHandleCoverCommitted(
+      { storyId: 's1', path: '/p' },
+      's1',
+      {
+        setCoverPath: (p) => msgs.push('cp:' + p),
+        loadDetail: (id) => msgs.push('ld:' + id),
+        refresh: () => undefined,
+        toastSuccess: () => undefined
+      }
+    )
+
+    expect(storiesResolveWantIdentity(true, false)).toBe(true)
+    expect(storiesResolveWantIdentity(undefined, true)).toBe(true)
+    expect(storiesCoverPathsFromOpts('/r', ['a'], true, '/c')).toEqual(['/r'])
+    expect(storiesCoverPathsFromOpts(null, ['a'], true, '/c')).toEqual(['a'])
+    expect(storiesCoverPathsFromOpts(null, [], true, '/c')).toEqual(['/c'])
+    expect(storiesCoverPathsFromOpts(null, [], false, '/c')).toEqual([])
+    expect(
+      storiesMaybeAppendMulti('p', ['a', 'b'], 'en', (x) => x + '+')
+    ).toBe('p+')
+    expect(storiesMaybeAppendMulti('p', ['a'], 'en', (x) => x + '+')).toBe('p')
+    expect(storiesPlateModeLabel(true, 'I', 'P')).toBe('I')
+    expect(storiesPlateModeLabel(false, 'I', 'P')).toBe('P')
+    await storiesDiscardDraftSafe(async () => {
+      throw new Error('d')
+    }, '/p')
+    await storiesDiscardDraftSafe(async () => undefined, '/p')
+    expect(
+      await storiesJobCancelDiscard(false, async () => undefined, '/p')
+    ).toBe(false)
+    expect(
+      await storiesJobCancelDiscard(true, async () => undefined, '/p')
+    ).toBe(true)
+
+    expect(
+      storiesGuardAiMetaSource('', '', '', '', setErr, 'need')
+    ).toBe(true)
+    expect(
+      storiesGuardAiMetaSource('t', '', '', '', setErr, 'need')
+    ).toBe(false)
+    expect(
+      storiesGuardAiScript(null, 0, 0, setErr, 'save', 'cast')
+    ).toBe('needSave')
+    expect(
+      storiesGuardAiScript('id', 0, 0, setErr, 'save', 'cast')
+    ).toBe('needCast')
+    expect(
+      storiesGuardAiScript('id', 1, 0, setErr, 'save', 'cast')
+    ).toBe('ok')
+    storiesApplyAiMetaResult('  hard  ', (s) => msgs.push('hr:' + s))
+    storiesApplyAiMetaResult('   ', () => msgs.push('skip'))
+    storiesApplyAiMetaResult(undefined, () => msgs.push('skip2'))
+
+    expect(
+      await storiesRunExportBackup({
+        confirm: async () => false,
+        exportFn: async () => null,
+        toastSuccess: toastOk,
+        toastError: toastErr,
+        okMsg: (p) => p
+      })
+    ).toBe('cancel')
+    expect(
+      await storiesRunExportBackup({
+        confirm: async () => true,
+        exportFn: async () => ({ filePath: '/b.zip' }),
+        toastSuccess: toastOk,
+        toastError: toastErr,
+        okMsg: (p) => 'ok:' + p
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunExportBackup({
+        confirm: async () => true,
+        exportFn: async () => ({ downloadUrl: '/d', fileName: 'f.zip' }),
+        toastSuccess: toastOk,
+        toastError: toastErr,
+        okMsg: (p) => p
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunExportBackup({
+        confirm: async () => true,
+        exportFn: async () => null,
+        toastSuccess: toastOk,
+        toastError: toastErr,
+        okMsg: (p) => p
+      })
+    ).toBe('noop')
+    expect(
+      await storiesRunExportBackup({
+        confirm: async () => true,
+        exportFn: async () => {
+          throw new Error('e')
+        },
+        toastSuccess: toastOk,
+        toastError: toastErr,
+        okMsg: (p) => p
+      })
+    ).toBe('error')
+
+    expect(
+      await storiesRunImportBackup({
+        importFn: async () => null,
+        reload: () => undefined,
+        setActiveStoryId: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: toastErr
+      })
+    ).toBe('cancel')
+    expect(
+      await storiesRunImportBackup({
+        importFn: async () => ({ storyId: 's', title: 'T' }),
+        reload: () => undefined,
+        setActiveStoryId: (id) => msgs.push('act:' + id),
+        toastSuccess: (title) => msgs.push('imp:' + title),
+        toastError: toastErr
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunImportBackup({
+        importFn: async () => {
+          throw new Error('i')
+        },
+        reload: () => undefined,
+        setActiveStoryId: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: toastErr
+      })
+    ).toBe('error')
+
+    expect(
+      await storiesRunLinkToggle({
+        editingId: null,
+        linked: false,
+        link: async () => undefined,
+        unlink: async () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        setError: setErr,
+        toastError: toastErr
+      })
+    ).toBe('no-id')
+    expect(
+      await storiesRunLinkToggle({
+        editingId: 's',
+        linked: true,
+        link: async () => undefined,
+        unlink: async () => undefined,
+        reload: () => undefined,
+        toastSuccess: (l) => msgs.push('unl:' + l),
+        setError: setErr,
+        toastError: toastErr
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunLinkToggle({
+        editingId: 's',
+        linked: false,
+        link: async () => undefined,
+        unlink: async () => undefined,
+        reload: () => undefined,
+        toastSuccess: (l) => msgs.push('lnk:' + l),
+        setError: setErr,
+        toastError: toastErr
+      })
+    ).toBe('ok')
+    expect(
+      await storiesRunLinkToggle({
+        editingId: 's',
+        linked: false,
+        link: async () => {
+          throw new Error('l')
+        },
+        unlink: async () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        setError: setErr,
+        toastError: toastErr
+      })
+    ).toBe('error')
+
+    storiesDispatchCastToggle('characters', 'c1', true, {
+      characters: (i, l) => msgs.push('ch:' + i + l),
+      scenes: () => undefined,
+      props: () => undefined,
+      actions: () => undefined
+    })
+    storiesDispatchCastToggle('scenes', 's1', false, {
+      characters: () => undefined,
+      scenes: (i, l) => msgs.push('sc:' + i + l),
+      props: () => undefined,
+      actions: () => undefined
+    })
+    storiesDispatchCastToggle('props', 'p1', true, {
+      characters: () => undefined,
+      scenes: () => undefined,
+      props: (i, l) => msgs.push('pr:' + i + l),
+      actions: () => undefined
+    })
+    storiesDispatchCastToggle('actions', 'a1', false, {
+      characters: () => undefined,
+      scenes: () => undefined,
+      props: () => undefined,
+      actions: (i, l) => msgs.push('ac:' + i + l)
+    })
+
+    const beats = [
+      {
+        id: 'b1',
+        characterIds: [],
+        characterId: null,
+        sceneIds: [],
+        sceneId: null,
+        propIds: [],
+        propId: null,
+        actionIds: [],
+        actionId: null
+      }
+    ]
+    expect(storiesOptimisticBeatPatch(beats, 'b1', {})).toEqual(beats)
+    const patched = storiesOptimisticBeatPatch(beats, 'b1', {
+      characterIds: ['c1'],
+      sceneIds: ['s1'],
+      propIds: ['p1'],
+      actionIds: ['a1']
+    })
+    expect(patched[0].characterId).toBe('c1')
+    expect(patched[0].sceneId).toBe('s1')
+    expect(
+      storiesOptimisticBeatPatch(beats, 'other', { characterIds: ['c'] })
+    ).toEqual(beats)
+    const multi = [
+      { id: 'b1' },
+      { id: 'b2' },
+      { id: 'b3' }
+    ]
+    expect(storiesMoveBeatIndex(multi, 'b1', 1).next?.map((b) => b.id)).toEqual([
+      'b2',
+      'b1',
+      'b3'
+    ])
+    expect(storiesMoveBeatIndex(multi, 'b1', -1).next).toBeNull()
+    expect(storiesMoveBeatIndex(multi, 'b3', 1).next).toBeNull()
+    expect(storiesSelectedCoverIds(['a'], null)).toEqual(['a'])
+    expect(storiesSelectedCoverIds([], 'b')).toEqual(['b'])
+    expect(storiesSelectedCoverIds([], null)).toEqual([])
+    storiesMsgToast(toastOk, 'm')()
+    expect(storiesShouldReorder('a', 'b')).toBe(true)
+    expect(storiesShouldReorder('a', 'a')).toBe(false)
+    expect(storiesBeatLabel(0, 'T', 'Beat')).toBe('T')
+    expect(storiesBeatLabel(1, '', 'Beat')).toBe('Beat 2')
+    expect(
+      storiesNextCoverAfterRemove([{ path: '/b' }], '/a', '/a', () => '/p')
+    ).toBe('/p')
+    expect(
+      storiesNextCoverAfterRemove([{ path: '/b' }], '/x', '/b', () => '/p')
+    ).toBe('/b')
+    expect(
+      storiesNextCoverAfterRemove([], '/x', '/z', () => null)
+    ).toBeNull()
+
+    expect(
+      storiesRemoveCoverState(
+        [
+          { id: 'b', path: '/b' },
+          { id: 'c', path: '/c' }
+        ],
+        { id: 'a', path: '/a' },
+        '/a',
+        'a',
+        () => '/b',
+        () => true
+      ).coverPath
+    ).toBe('/b')
+    expect(
+      storiesRemoveCoverState(
+        [{ id: 'b', path: '/b' }],
+        { id: 'a', path: '/a' },
+        '/x',
+        'a',
+        () => '/b',
+        () => false
+      ).selectedCoverId
+    ).toBe('b')
+    expect(
+      storiesRemoveCoverState(
+        [
+          { id: 'a', path: '/a' },
+          { id: 'b', path: '/b' }
+        ],
+        { id: 'a', path: '/a' },
+        '/b',
+        'a',
+        () => '/p',
+        () => true
+      ).selectedCoverId
+    ).toBe('a')
+    expect(
+      storiesRemoveCoverState(
+        [{ id: 'b', path: '/b' }],
+        { id: 'a', path: '/a' },
+        '/b',
+        'sel',
+        () => '/p',
+        () => true
+      ).selectedCoverId
+    ).toBe('sel')
+
+    expect(storiesAiFillToastKey(true, '', false)).toBe('fromImage')
+    expect(storiesAiFillToastKey(false, '', false)).toBe('background')
+    expect(storiesHasDraft({ a: 'x' })).toBe(true)
+    expect(storiesHasDraft({ a: '' })).toBe(false)
+    expect(storiesGuardAiNeed('', false, false, setErr, 'n')).toBe(true)
+    expect(storiesGuardAiNeed('i', false, false, setErr, 'n')).toBe(false)
+
+    expect(
+      await storiesRunGenerateCoverSetup({
+        storyId: null,
+        isBusy: () => false,
+        useIdentity: false,
+        paths: [],
+        resolveIdentity: () => ({ useEdit: false, paths: [] }),
+        buildPrompt: () => 'p',
+        maybeAppend: (p) => p,
+        ensureRules: (p) => p,
+        summary: 's',
+        setPendingId: () => undefined,
+        setConfirm: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await storiesRunGenerateCoverSetup({
+        storyId: 's',
+        isBusy: () => true,
+        useIdentity: false,
+        paths: [],
+        resolveIdentity: () => ({ useEdit: false, paths: [] }),
+        buildPrompt: () => 'p',
+        maybeAppend: (p) => p,
+        ensureRules: (p) => p,
+        summary: 's',
+        setPendingId: () => undefined,
+        setConfirm: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      await storiesRunGenerateCoverSetup({
+        storyId: 's',
+        isBusy: () => false,
+        useIdentity: true,
+        paths: ['/a', '/b'],
+        resolveIdentity: () => ({ useEdit: true, paths: ['/a', '/b'] }),
+        buildPrompt: () => 'p',
+        maybeAppend: (p) => p + '+',
+        ensureRules: (p) => p + '!',
+        summary: 's',
+        setPendingId: (id) => msgs.push('pend:' + id),
+        setConfirm: (c) => msgs.push('conf:' + c.prompt)
+      })
+    ).toBe('ready')
+
+    expect(
+      storiesCoverPromptParts({
+        locale: 'en',
+        title: 'T',
+        note: 'n',
+        idea: 'i',
+        artBlock: 'art'
+      }).length
+    ).toBeGreaterThan(3)
+    expect(
+      storiesCoverPromptParts({
+        locale: 'zh-HK',
+        title: 'T',
+        note: '',
+        idea: '',
+        artBlock: 'art'
+      }).length
+    ).toBeGreaterThan(3)
+
+
+    await storiesMakeLinkToggle({
+      getEditingId: () => 's',
+      link: async () => undefined,
+      unlink: async () => undefined,
+      reload: () => undefined,
+      toastSuccess: () => undefined,
+      setError: () => undefined,
+      toastError: () => undefined
+    })('id', false)
+    storiesMakeSetCover(
+      () => undefined,
+      [{ id: 'g', path: '/p' }],
+      () => undefined,
+      () => undefined
+    )('/p')
+    storiesMakeSetCover(
+      () => undefined,
+      [],
+      () => undefined,
+      () => undefined
+    )('/x')
+    storiesMakeCoverCommitted(() => 's1', {
+      setCoverPath: () => undefined,
+      loadDetail: () => undefined,
+      refresh: () => undefined,
+      toastSuccess: () => undefined
+    })({ storyId: 's1', path: '/c' })
+    expect(storiesGeneratingLabel(true, 'G', 'I')).toBe('G')
+    expect(storiesGeneratingLabel(false, 'G', 'I')).toBe('I')
+    expect(storiesStatusOrDraft('READY', () => true)).toBe('READY')
+    expect(storiesStatusOrDraft('x', () => false)).toBe('DRAFT')
+    expect(storiesAppendTemplate('hi', 'tmpl')).toBe('hi\ntmpl')
+    expect(storiesAppendTemplate('', 'tmpl')).toBe('tmpl')
+    expect(storiesSpokenPreview('short')).toBe('short')
+    expect(storiesSpokenPreview('x'.repeat(100)).endsWith('…')).toBe(true)
+    expect(await storiesCreateId(async () => ({ id: 'n' }))).toEqual({ id: 'n' })
+    expect(storiesEditPrefix('en')).toMatch(/IMAGE EDIT/)
+    expect(storiesEditPrefix('zh-HK')).toMatch(/IMAGE EDIT/)
+    expect(
+      storiesPrimaryCover([{ id: 'a', path: '/a' }], '/a')?.id
+    ).toBe('a')
+    expect(storiesPrimaryCover([], null)).toBeNull()
+    expect(
+      storiesSortTitle({ title: 'B' }, { title: 'A' })
+    ).toBeGreaterThan(0)
+
+    expect(msgs.length).toBeGreaterThan(0)
+  })
+})
+
+
+describe('abs100 Settings pure residual helpers', () => {
+  it('covers every pure residual branch', async () => {
+    const msgs: string[] = []
+    settingsApplyIpc(new Error('x'), (m) => msgs.push(m), (m) => msgs.push('t:' + m))
+    settingsApplyIpc(new Error('y'))
+    expect(settingsApplyIpcBody(new Error('b')).message).toBeTruthy()
+    expect(
+      await settingsRunSave({
+        set: async () => undefined,
+        toastSuccess: () => msgs.push('ok'),
+        toastError: (m) => msgs.push(m),
+        setError: () => undefined,
+        setBusy: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunSave({
+        set: async () => {
+          throw new Error('s')
+        },
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push(m),
+        setError: () => undefined,
+        setBusy: () => undefined
+      })
+    ).toBe('error')
+    expect(
+      await settingsRefreshModels({
+        list: async () => ['m1'],
+        setModels: () => msgs.push('models'),
+        setError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRefreshModels({
+        list: async () => {
+          throw new Error('m')
+        },
+        setModels: () => undefined,
+        setError: (m) => msgs.push(m),
+        toastError: (m) => msgs.push(m)
+      })
+    ).toBe('error')
+    expect(
+      await settingsTestChat({
+        test: async () => undefined,
+        toastSuccess: () => msgs.push('chat'),
+        toastError: () => undefined,
+        setError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await settingsTestChat({
+        test: async () => {
+          throw new Error('c')
+        },
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push(m),
+        setError: () => undefined
+      })
+    ).toBe('error')
+    expect(settingsTabId('llm')).toBe('llm')
+    expect(settingsProviderLabel('openai', { openai: 'OpenAI' })).toBe('OpenAI')
+    expect(settingsProviderLabel('x', {})).toBe('x')
+    expect(settingsBoolOr(undefined, true)).toBe(true)
+    expect(settingsBoolOr(false, true)).toBe(false)
+    expect(settingsStringOr(null, 'd')).toBe('d')
+    expect(settingsStringOr('  v  ', 'd')).toBe('v')
+    settingsCatchToast((m) => msgs.push(m))(new Error('z'))
+    settingsSilentOrToast(true, (m) => msgs.push(m), 's')
+    settingsSilentOrToast(false, (m) => msgs.push('ns:' + m), 's')
+    expect(settingsNumOr(3, 1)).toBe(3)
+    expect(settingsNumOr(undefined, 1)).toBe(1)
+    expect(settingsPickTab('llm', ['llm', 'app'], 'app')).toBe('llm')
+    expect(settingsPickTab('x', ['llm'], 'app')).toBe('app')
+
+    expect(
+      await settingsRunSaveFull({
+        settings: null,
+        setSaving: () => undefined,
+        setError: () => undefined,
+        coerceLang: (l) => l,
+        currentLang: 'en',
+        changeLang: async () => undefined,
+        set: async () => ({}),
+        applyNext: () => undefined,
+        refreshAi: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('no-settings')
+    expect(
+      await settingsRunSaveFull({
+        settings: { uiLanguage: 'en' },
+        setSaving: () => undefined,
+        setError: () => undefined,
+        coerceLang: (l) => l,
+        currentLang: 'en',
+        changeLang: async () => msgs.push('chlang'),
+        set: async (s) => s,
+        applyNext: () => msgs.push('next'),
+        refreshAi: () => msgs.push('ai'),
+        toastSuccess: () => msgs.push('saved'),
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunSaveFull({
+        settings: { uiLanguage: 'zh-HK' },
+        setSaving: () => undefined,
+        setError: () => undefined,
+        coerceLang: () => 'zh-HK',
+        currentLang: 'en',
+        changeLang: async () => msgs.push('chlang2'),
+        set: async () => {
+          throw new Error('save')
+        },
+        applyNext: () => undefined,
+        refreshAi: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push(m)
+      })
+    ).toBe('error')
+
+    expect(
+      await settingsRunClearAll({
+        confirm: async () => false,
+        clear: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        setError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('cancel')
+    expect(
+      await settingsRunClearAll({
+        confirm: async () => true,
+        clear: async () => undefined,
+        toastSuccess: () => msgs.push('cleared'),
+        toastError: () => undefined,
+        setError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunClearAll({
+        confirm: async () => true,
+        clear: async () => {
+          throw new Error('clr')
+        },
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push(m),
+        setError: () => undefined,
+        reload: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await settingsRunLlmPreset({
+        set: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        setError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunLlmPreset({
+        set: async () => {
+          throw new Error('p')
+        },
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push(m),
+        setError: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      settingsModelsFromList([
+        { id: 'a' },
+        { id: 'b', ownedBy: 'fallback' }
+      ])
+    ).toEqual({ ids: ['a', 'b'], usedFallback: true })
+    expect(settingsModelsFromList([{ id: 'a' }]).usedFallback).toBe(false)
+    expect(settingsRateLimitFallbackModels('m1')).toContain('m1')
+    expect(settingsRateLimitFallbackModels(undefined)).toContain('grok-4.5')
+    expect(
+      settingsIsRateLimit(
+        Object.assign(new Error('rl'), {
+          // parseIpcError looks at message/json
+        })
+      )
+    ).toBe(false)
+
+    expect(
+      await settingsRunRefreshModelsFull({
+        setBusy: () => undefined,
+        maybeSet: async () => undefined,
+        list: async () => [{ id: 'm1' }],
+        setModels: (ids) => msgs.push('ids:' + ids.join(',')),
+        toastInfo: (m) => msgs.push('i:' + m),
+        toastSuccess: (m) => msgs.push('s:' + m),
+        toastError: (m) => msgs.push('e:' + m),
+        fallbackMsg: 'fb',
+        loadedMsg: (n) => 'loaded:' + n,
+        rateLimitMsg: 'rl',
+        currentModel: 'm0',
+        formatError: (e) => String(e)
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunRefreshModelsFull({
+        setBusy: () => undefined,
+        maybeSet: async () => undefined,
+        list: async () => [{ id: 'm1', ownedBy: 'fallback' }],
+        setModels: () => undefined,
+        toastInfo: (m) => msgs.push('fb:' + m),
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        fallbackMsg: 'fb',
+        loadedMsg: () => 'l',
+        rateLimitMsg: 'rl',
+        formatError: (e) => String(e)
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunRefreshModelsFull({
+        setBusy: () => undefined,
+        maybeSet: async () => undefined,
+        list: async () => {
+          throw new Error(
+            JSON.stringify({ code: 'AI_RATE_LIMIT', message: 'rl' })
+          )
+        },
+        setModels: (ids) => msgs.push('rlids:' + ids.length),
+        toastInfo: (m) => msgs.push('rli:' + m),
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        fallbackMsg: 'fb',
+        loadedMsg: () => 'l',
+        rateLimitMsg: 'rl',
+        currentModel: 'x',
+        formatError: (e) => String(e)
+      })
+    ).toBe('rate-limit')
+    expect(
+      await settingsRunRefreshModelsFull({
+        setBusy: () => undefined,
+        maybeSet: async () => undefined,
+        list: async () => {
+          throw new Error('other')
+        },
+        setModels: () => undefined,
+        toastInfo: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push('err:' + m),
+        fallbackMsg: 'fb',
+        loadedMsg: () => 'l',
+        rateLimitMsg: 'rl',
+        formatError: (e) => 'fmt:' + (e as Error).message
+      })
+    ).toBe('error')
+
+    expect(
+      await settingsRunTestChatFull({
+        settings: null,
+        setBusy: () => undefined,
+        set: async () => undefined,
+        test: async () => ({ message: 'm', replyPreview: 'r' }),
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        formatOk: () => 'ok',
+        formatError: () => 'e',
+        refreshAi: () => undefined
+      })
+    ).toBe('no-settings')
+    expect(
+      await settingsRunTestChatFull({
+        settings: {},
+        setBusy: () => undefined,
+        set: async () => undefined,
+        test: async () => ({ message: 'm', replyPreview: 'hello world' }),
+        toastSuccess: (m) => msgs.push('chat:' + m),
+        toastError: () => undefined,
+        formatOk: (r) => r.message + r.replyPreview.slice(0, 5),
+        formatError: () => 'e',
+        refreshAi: () => msgs.push('refai')
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunTestChatFull({
+        settings: {},
+        setBusy: () => undefined,
+        set: async () => undefined,
+        test: async () => {
+          throw new Error('fail')
+        },
+        toastSuccess: () => undefined,
+        toastError: (m) => msgs.push('tce:' + m),
+        formatOk: () => 'ok',
+        formatError: (e) => 'fmt:' + (e as Error).message,
+        refreshAi: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await settingsRunRefreshModels({
+        setBusy: () => undefined,
+        maybeSet: async () => undefined,
+        list: async () => [{ id: 'a' }],
+        setModels: () => undefined,
+        setError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await settingsRunRefreshModels({
+        setBusy: () => undefined,
+        maybeSet: async () => undefined,
+        list: async () => {
+          throw new Error('x')
+        },
+        setModels: () => undefined,
+        setError: (m) => msgs.push(m)
+      })
+    ).toBe('error')
+    expect(
+      await settingsRunTestChat({
+        settings: null,
+        setBusy: () => undefined,
+        set: async () => undefined,
+        test: async () => ({ message: 'm', replyPreview: 'r' }),
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        setError: () => undefined,
+        formatOk: () => 'ok'
+      })
+    ).toBe('no-settings')
+    expect(
+      await settingsRunTestChat({
+        settings: {},
+        setBusy: () => undefined,
+        set: async () => undefined,
+        test: async () => ({ message: 'm', replyPreview: 'r' }),
+        toastSuccess: () => msgs.push('tcok'),
+        toastError: () => undefined,
+        setError: () => undefined,
+        formatOk: () => 'okmsg'
+      })
+    ).toBe('ok')
+
+    expect(msgs.length).toBeGreaterThan(0)
+  })
 })

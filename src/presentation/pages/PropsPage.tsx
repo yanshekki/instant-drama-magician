@@ -218,10 +218,10 @@ export function PropsPage(): JSX.Element {
   }, [form.gallery])
 
   const [propLayerFilter, setPropLayerFilter] = useState('all')
-  const filteredPropGallery = useMemo(() => {
-    if (propLayerFilter === 'all') return form.gallery
-    return form.gallery.filter((g) => String(g.layer ?? '') === propLayerFilter)
-  }, [form.gallery, propLayerFilter])
+  const filteredPropGallery = useMemo(
+    () => propsFilterGalleryByLayer(form.gallery, propLayerFilter),
+    [form.gallery, propLayerFilter]
+  )
 
   const propBusy = (propId?: string | null): boolean =>
     isBlocked({
@@ -1265,6 +1265,14 @@ export function PropsPage(): JSX.Element {
 }
 
 // ─── Residual pure helpers (absolute line coverage) ─────────────────────────
+
+export function propsFilterGalleryByLayer<T extends { layer?: string }>(
+  gallery: T[],
+  layerFilter: string
+): T[] {
+  if (layerFilter === 'all') return gallery
+  return gallery.filter((g) => String(g.layer ?? '') === layerFilter)
+}
 
 export function propsClearFilters(
   setQ: (q: string) => void,
