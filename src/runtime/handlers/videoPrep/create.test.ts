@@ -341,5 +341,128 @@ describe('registerVideoPrepCreate', () => {
       })
     ).rejects.toMatchObject({ message: 'errors.storyAndEntryRequired' })
   })
+
+  it('timeline-clip stillOnly builds clip prep from story timeline', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-tl-'))
+    const stillOut = join(dir, 'cont.png')
+    const long =
+      'POLISHED TIMELINE CLIP PROMPT WITH ENOUGH LENGTH FOR THE EXTRACTOR'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('CLIP').toString('base64')
+    }))
+    const writeEntryStillPromptJson = vi.fn()
+    const ensureStoryDirs = vi.fn()
+    const story = {
+      id: 's1',
+      title: 'Rain Night',
+      styleNote: 'neon handheld',
+      hardRules: '【禁止】水印',
+      characters: [
+        {
+          id: 'c1',
+          name: 'Ming',
+          description: 'courier',
+          appearance: 'short hair',
+          costume: 'jacket',
+          hardRules: null,
+          spokenLanguages: JSON.stringify(['yue']),
+          refImagePath: null
+        }
+      ],
+      scenes: [
+        {
+          id: 'sc1',
+          sceneNumber: 1,
+          title: 'Alley',
+          description: 'wet alley',
+          mood: 'tense',
+          lighting: 'neon',
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      props: [
+        {
+          id: 'p1',
+          name: 'Umbrella',
+          description: 'red',
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      actions: [],
+      timeline: [
+        {
+          id: 'e1',
+          order: 0,
+          startTime: 0,
+          endTime: 6,
+          characterId: 'c1',
+          sceneId: 'sc1',
+          propId: 'p1',
+          actionId: null,
+          characterIds: ['c1'],
+          sceneIds: ['sc1'],
+          propIds: ['p1'],
+          dialogue: '又係落雨',
+          beatContentJson: null,
+          mediaStatus: 'EMPTY'
+        }
+      ]
+    }
+    const get = vi.fn(async () => story)
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage, editImage: generateImage },
+      stories: () => ({ get }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            ensureStoryDirs,
+            tmpImagePath: () => stillOut,
+            clipContinuityStillPath: () => stillOut,
+            readStoryCastPrepJson: vi.fn(() => null),
+            writeEntryStillPromptJson
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    await expect(
+      invokeRegistered(h as never, 'videoPrep:create', {
+        kind: 'timeline-clip',
+        storyId: 's1',
+        entryId: 'missing',
+        stillOnly: true
+      })
+    ).rejects.toMatchObject({ message: 'errors.timelineEntryNotFound' })
+
+    const r = (await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      stillOnly: true,
+      locale: 'zh-HK'
+    })) as {
+      kind: string
+      entityIds: { storyId?: string; entryId?: string }
+      stillPath: string
+      materialsSummary?: string
+    }
+    expect(r.kind).toBe('timeline-clip')
+    expect(r.entityIds).toEqual({ storyId: 's1', entryId: 'e1' })
+    expect(r.stillPath).toBe(stillOut)
+    expect(ensureStoryDirs).toHaveBeenCalledWith('s1')
+    expect(chat).toHaveBeenCalled()
+    expect(generateImage).toHaveBeenCalled()
+  })
 })
+
 
