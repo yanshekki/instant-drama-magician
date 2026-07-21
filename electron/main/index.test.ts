@@ -10,6 +10,10 @@ import {
 import { join } from 'path'
 import { tmpdir } from 'os'
 
+const prismaCtl = vi.hoisted(() => ({
+  disconnect: vi.fn(async () => undefined)
+}))
+
 const appEvents = new EventEmitter()
 const whenReadyCbs: Array<() => void | Promise<void>> = []
 let menuHandlers: any = null
@@ -212,7 +216,7 @@ vi.mock('../../src/infrastructure/support/SupportReport', () => ({
 
 vi.mock('../../src/types/prisma', () => ({
   PrismaClient: class {
-    $disconnect = vi.fn(async () => undefined)
+    $disconnect = (...a: unknown[]) => prismaCtl.disconnect(...a)
   }
 }))
 
@@ -1373,4 +1377,136 @@ describe('electron main index', () => {
 
     void mod
   }, 45_000)
+
+  it('abs100: prisma disconnect throw + bare en import + screenshot userData', async () => {
+    prismaCtl.disconnect.mockReset()
+    prismaCtl.disconnect.mockResolvedValue(undefined)
+
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+
+    // first export creates prisma via getPrisma after success
+    dialog.showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: join(ud, 'a.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+
+    // second export: disconnect throws → catch 338
+    prismaCtl.disconnect.mockRejectedValueOnce(new Error('disc fail'))
+    dialog.showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: join(ud, 'b.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() => expect(prismaCtl.disconnect).toHaveBeenCalled())
+
+    // third: recreate prisma, then import with disconnect throw (440)
+    prismaCtl.disconnect.mockResolvedValueOnce(undefined)
+    dialog.showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: join(ud, 'c.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await actWait()
+
+    // bare window null → English confirm 423
+    MockBrowserWindow.windows = []
+    // close main window via closed callback if present
+    const wins = MockBrowserWindow.windows
+    void wins
+    // force closed on last window if any was created during whenReady
+    // re-import cycle already has mainWindow from whenReady — emit closed
+    try {
+      const w = MockBrowserWindow.windows[0]
+      if (w && w._closed) w._closed()
+    } catch {
+      /* */
+    }
+    // Actually windows empty — create then close
+    appEvents.emit('activate')
+    await vi.waitFor(() => MockBrowserWindow.windows.length > 0)
+    const win = MockBrowserWindow.windows[MockBrowserWindow.windows.length - 1]
+    if (win._closed) win._closed()
+    MockBrowserWindow.windows = []
+
+    writeFileSync(join(ud, 'settings.json'), JSON.stringify({ uiLanguage: 'en' }))
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'imp.zip')]
+    })
+    writeFileSync(join(ud, 'imp.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 }) // cancel confirm
+    prismaCtl.disconnect.mockRejectedValueOnce(new Error('imp disc'))
+    menuHandlers.importFullBackup()
+    await actWait()
+
+    // accept restore so disconnect on import path runs
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'imp2.zip')]
+    })
+    writeFileSync(join(ud, 'imp2.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    prismaCtl.disconnect.mockRejectedValueOnce(new Error('imp disc2'))
+    menuHandlers.importFullBackup()
+    await actWait()
+
+    // screenshot: pictures+desktop throw
+    const origGetPath = app.getPath
+    app.getPath = (name: string) => {
+      if (name === 'pictures' || name === 'desktop') throw new Error('no')
+      return origGetPath(name)
+    }
+    MockBrowserWindow.windows = []
+    appEvents.emit('activate')
+    await vi.waitFor(() => MockBrowserWindow.windows.length > 0)
+    webContents.capturePage.mockResolvedValueOnce({
+      toPNG: () => Buffer.from('png')
+    })
+    dialog.showSaveDialog.mockResolvedValueOnce({ canceled: true })
+    if (menuHandlers.captureScreenshot) {
+      menuHandlers.captureScreenshot()
+      await actWait()
+    }
+    app.getPath = origGetPath
+
+    // openMedia mkdir throw
+    if (menuHandlers.openMedia) {
+      const fs = await import('fs')
+      const spy = vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {
+        throw new Error('mkdir fail')
+      })
+      try {
+        menuHandlers.openMedia()
+      } catch {
+        /* */
+      }
+      spy.mockRestore()
+    }
+
+    // no icon file
+    {
+      const fs = await import('fs')
+      const spy = vi.spyOn(fs, 'existsSync').mockImplementation((p: unknown) => {
+        if (/icon|512x512|app-icon/i.test(String(p))) return false
+        try {
+          return existsSync(String(p))
+        } catch {
+          return false
+        }
+      })
+      MockBrowserWindow.windows = []
+      appEvents.emit('activate')
+      await actWait()
+      spy.mockRestore()
+    }
+
+    void mod
+  }, 60_000)
 })
+
+async function actWait(ms = 80): Promise<void> {
+  await new Promise((r) => setTimeout(r, ms))
+}
