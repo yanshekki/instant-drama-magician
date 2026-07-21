@@ -46,6 +46,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:core": "vitest run --coverage --coverage.include='src/domain/**/*.{ts,tsx}' --coverage.include='src/application/**/*.{ts,tsx}' --coverage.include='src/infrastructure/**/*.{ts,tsx}' --coverage.include='src/runtime/**/*.{ts,tsx}' --coverage.include='src/cli/**/*.{ts,tsx}' --coverage.include='src/lib/**/*.{ts,tsx}' --coverage.include='src/types/errors.ts' --coverage.include='src/types/settings.ts' --coverage.include='server/**/*.ts'",
     "test:integration": "vitest run src/**/*.integration.test.ts",
     "test:ci": "vitest run --coverage",
     "test:align": "node scripts/check-test-alignment.mjs",

@@ -45,10 +45,25 @@ describe('characters crud handlers', () => {
 })
 ```
 
-## Coverage
+## Coverage (Full lines → 100% campaign)
 
-`vitest.config.ts` thresholds rise as suites grow. Giant `*Page.tsx` files are
-not required to hit high line %; keep smoke tests and push logic into tested modules.
+**Product goal:** overall **lines ≈ 100%** (hard KPI). Pure type modules
+(`electron-api.ts`, `*.d.ts`, prisma client, locales) are excluded from the
+denominator because they contain no runtime statements.
+
+| Command | Scope |
+|---------|--------|
+| `npm run test:coverage` | Full (src + electron + server, minus type-only) |
+| `npm run test:coverage:core` | domain / application / infrastructure / runtime / cli / lib |
+
+**Strategy:**
+
+1. Domain + services + handlers: real unit tests → **≥95–100%** of those trees  
+2. Giant pages: extract pure helpers; RTL tests for every user-visible branch  
+3. Electron: mock `electron` APIs; cover pure helpers 100%  
+4. Raise `vitest.config.ts` thresholds every PR until **100 / 100 / 100**
+
+Progress is tracked in CI coverage artifacts (`coverage/index.html`).
 
 ## CI
 

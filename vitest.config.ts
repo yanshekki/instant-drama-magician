@@ -38,15 +38,19 @@ export default defineConfig({
         'src/env.d.ts',
         'src/test/**',
         'src/assets/**',
-        'src/styles/**'
+        'src/styles/**',
+        // Pure type surface (no runtime statements)
+        'src/types/electron-api.ts',
+        'src/infrastructure/ai/video/types.ts',
+        'src/infrastructure/update/updateTypes.ts'
       ],
-      // Progressive gate after handler/domain alignment (raise toward 70% over time).
-      // Large *Page.tsx keep overall lines lower; domain/application stay high in practice.
+      // Climb toward Full ~100%: raise as suites grow (currently ~26% lines).
+      // Target: 100% lines/statements; branches may lag until pure dead code removed.
       thresholds: {
-        lines: 25,
-        functions: 50,
-        branches: 50,
-        statements: 25
+        lines: 26,
+        functions: 55,
+        branches: 55,
+        statements: 26
       }
     }
   },
