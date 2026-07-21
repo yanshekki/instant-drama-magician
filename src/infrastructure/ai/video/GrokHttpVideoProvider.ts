@@ -178,7 +178,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
         const contentType = res.headers.get('content-type') ?? ''
         if (!contentType.includes('application/json')) {
           const buf = Buffer.from(await res.arrayBuffer())
-          if (buf.length < 32) throw new Error('Video API returned empty body')
+          if (buf.length < 32) throw new AppError('VALIDATION', 'errors.videoApiEmptyBody')
           writeFileSync(request.outputPath, buf)
           return { outputPath: request.outputPath }
         }
@@ -201,7 +201,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
 
         const jobId = json.id ?? json.job_id
         if (!jobId) {
-          throw new Error('Video API response missing job id')
+          throw new AppError('VALIDATION', 'errors.videoApiMissingJobId')
         }
         this.lastJobId = jobId
 
@@ -284,7 +284,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
       throw new Error(`Video content HTTP ${res.status}`)
     }
     const buf = Buffer.from(await res.arrayBuffer())
-    if (buf.length < 32) throw new Error('Video content empty')
+    if (buf.length < 32) throw new AppError('VALIDATION', 'errors.videoContentEmpty')
     writeFileSync(dest, buf)
   }
 

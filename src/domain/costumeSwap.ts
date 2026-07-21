@@ -4,6 +4,7 @@
  */
 import type { CharacterGalleryItem } from './characterGallery'
 import { getArtStyle, type ArtStyleId } from './characterArtStyles'
+import { AppError } from '../types/errors'
 import {
   isLikelyMinorAge,
   type WardrobeLayer
@@ -236,7 +237,7 @@ export function buildCostumeSwapPrompt(input: {
   const pose = getCostumeSwapPose(input.pose)
   const costume = input.newCostume.trim()
   if (!costume) {
-    throw new Error('errors.costumeDescRequired')
+    throw new AppError('VALIDATION', 'errors.costumeDescRequired')
   }
 
   const body = [

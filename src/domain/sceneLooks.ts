@@ -1,3 +1,4 @@
+import { AppError } from '../types/errors'
 /**
  * Named atmosphere looks for a scene (JSON on Scene.looksJson).
  * Mirrors characterCostumes structure.
@@ -67,7 +68,7 @@ export function createSceneLook(input: {
   imagePath?: string | null
 }): SceneLookEntry {
   const description = input.description.trim()
-  if (!description) throw new Error('Look description is required')
+  if (!description) throw new AppError('VALIDATION', 'errors.lookDescriptionRequired')
   const now = new Date().toISOString()
   return {
     id: `look_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,

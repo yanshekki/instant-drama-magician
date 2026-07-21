@@ -10,6 +10,7 @@ import {
   buildVideoPromptPolishSystemPrompt,
   extractPolishedVideoPrompt
 } from '../../domain/videoPromptPolish'
+import { AppError } from '../../types/errors'
 
 export async function polishProfessionalVideoPrompt(options: {
   ai: AIProvider
@@ -23,8 +24,8 @@ export async function polishProfessionalVideoPrompt(options: {
 }): Promise<{ prompt: string; polished: boolean }> {
   const locale = options.locale ?? 'zh-HK'
   const fallback = options.fallbackPrompt.trim()
-  if (!fallback) throw new Error('fallbackPrompt is required')
-  if (options.signal?.aborted) throw new Error('errors.cancelled')
+  if (!fallback) throw new AppError('VALIDATION', 'errors.fallbackPromptRequired')
+  if (options.signal?.aborted) throw new AppError('CANCELLED', 'errors.cancelled')
 
   const seal = (prompt: string): string =>
     ensureHardRules(prompt, options.hardRules)
@@ -40,7 +41,7 @@ export async function polishProfessionalVideoPrompt(options: {
       ],
       max_tokens: options.maxTokens ?? 900
     })
-    if (options.signal?.aborted) throw new Error('errors.cancelled')
+    if (options.signal?.aborted) throw new AppError('CANCELLED', 'errors.cancelled')
     const raw = chatContentText(completion.choices[0]?.message?.content)
     const extracted = extractPolishedVideoPrompt(raw)
     if (extracted.length >= 40) {

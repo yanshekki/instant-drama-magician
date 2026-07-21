@@ -1,4 +1,5 @@
 import type { ElectronApi } from '../types/electron-api'
+import { AppError } from '../types/errors'
 import { createHttpAppClient } from './httpAppClient'
 
 declare global {
@@ -58,8 +59,9 @@ export function getApi(): ElectronApi {
   if (typeof window !== 'undefined') {
     return createHttpAppClient()
   }
-  throw new Error(
-    'API is not available. Run Electron (`npm run dev`) or the web server (`npm run start:server`).'
+  throw new AppError(
+    'INTERNAL',
+    'errors.apiUnavailable'
   )
 }
 

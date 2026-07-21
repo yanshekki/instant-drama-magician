@@ -11,6 +11,7 @@ import {
   buildVideoPromptPolishSystemPrompt,
   extractPolishedVideoPrompt
 } from '../../domain/videoPromptPolish'
+import { AppError } from '../../types/errors'
 
 export interface PolishThenGenerateOptions {
   ai: AIProvider
@@ -33,7 +34,7 @@ export type PolishThenGenerateResult = VideoGenResult & {
 
 function assertNotAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
-    throw new Error('errors.cancelled')
+    throw new AppError('CANCELLED', 'errors.cancelled')
   }
 }
 
@@ -47,10 +48,10 @@ export async function polishThenGenerateVideo(
   const locale = options.locale ?? 'zh-HK'
   const fallback = options.fallbackPrompt.trim()
   if (!fallback) {
-    throw new Error('fallbackPrompt is required')
+    throw new AppError('VALIDATION', 'errors.fallbackPromptRequired')
   }
   if (!options.ai.generateVideo) {
-    throw new Error('AI provider has no generateVideo')
+    throw new AppError('VALIDATION', 'errors.videoUnavailable')
   }
 
   assertNotAborted(options.signal)

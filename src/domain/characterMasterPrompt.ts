@@ -5,6 +5,7 @@
 
 import type { CharacterProfileFields } from '../types/domain'
 import { buildImproveUserPrompt } from './aiImprovePrompt'
+import { AppError } from '../types/errors'
 import {
   getArtStyle,
   qualityBlockForFamily,
@@ -153,7 +154,7 @@ export function buildCharacterMasterUserPrompt(options: {
 export function extractCharacterProfileJson(text: string): CharacterProfileFields {
   const parsed = extractJsonObject(text)
   const name = coerceProfileString(parsed.name)
-  if (!name) throw new Error('Character JSON missing name')
+  if (!name) throw new AppError('VALIDATION', 'errors.characterJsonMissingName')
   const spokenLanguages = normalizeLanguageCodes(
     parsed.spokenLanguages ?? parsed.languages ?? parsed.spoken_languages
   )

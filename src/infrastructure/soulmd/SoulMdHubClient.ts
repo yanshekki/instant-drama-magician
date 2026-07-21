@@ -5,6 +5,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
+import { AppError } from '../../types/errors'
 
 export const SOULMD_HUB_ORIGIN = 'https://soulmd-hub.ysk.hk'
 
@@ -88,7 +89,7 @@ export class SoulMdHubClient {
       throw new Error(`SoulMD Hub list failed: HTTP ${res.status}`)
     }
     const json = (await res.json()) as SoulListResponse
-    if (!json.success) throw new Error('SoulMD Hub list unsuccessful')
+    if (!json.success) throw new AppError('VALIDATION', 'errors.soulHubListFailed')
     return json
   }
 
@@ -101,7 +102,7 @@ export class SoulMdHubClient {
       throw new Error(`SoulMD Hub get failed: HTTP ${res.status}`)
     }
     const json = (await res.json()) as { success: boolean; data: SoulDetail }
-    if (!json.success || !json.data) throw new Error('Soul not found')
+    if (!json.success || !json.data) throw new AppError('VALIDATION', 'errors.soulNotFound')
     return json.data
   }
 

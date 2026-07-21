@@ -5,6 +5,7 @@ import type { SceneGalleryItem } from './sceneGallery'
 import { inferSceneGalleryLayer } from './sceneGallery'
 import { getArtStyle } from './characterArtStyles'
 import { appendHardRules } from './promptHardRules'
+import { AppError } from '../types/errors'
 
 export type AtmospherePose = 'wide' | 'hero' | 'detail'
 
@@ -72,7 +73,7 @@ export function buildAtmosphereSwapPrompt(input: {
   const style = getArtStyle(input.artStyle ?? undefined)
   const pose = getAtmospherePose(input.pose)
   const atmo = input.atmosphereDescription.trim()
-  if (!atmo) throw new Error('errors.atmosphereRequired')
+  if (!atmo) throw new AppError('VALIDATION', 'errors.atmosphereRequired')
 
   const body = [
     'IMAGE EDIT / ATMOSPHERE SWAP TASK (highest priority):',

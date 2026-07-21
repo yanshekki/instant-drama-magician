@@ -1,3 +1,4 @@
+import { AppError } from '../types/errors'
 /**
  * Shared helpers for LLM profile JSON: extract object + coerce string fields.
  * Models often return visualTags as string[] — must not drop those as "empty".
@@ -77,17 +78,17 @@ export function coerceProfileStringFrom(
  */
 export function extractJsonObject(text: string): Record<string, unknown> {
   let raw = (text ?? '').trim()
-  if (!raw) throw new Error('No JSON object in model response')
+  if (!raw) throw new AppError('VALIDATION', 'errors.noJsonInModelResponse')
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fenced) raw = fenced[1].trim()
   const start = raw.indexOf('{')
   const end = raw.lastIndexOf('}')
   if (start < 0 || end <= start) {
-    throw new Error('No JSON object in model response')
+    throw new AppError('VALIDATION', 'errors.noJsonInModelResponse')
   }
   const parsed = JSON.parse(raw.slice(start, end + 1)) as unknown
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('No JSON object in model response')
+    throw new AppError('VALIDATION', 'errors.noJsonInModelResponse')
   }
   return parsed as Record<string, unknown>
 }

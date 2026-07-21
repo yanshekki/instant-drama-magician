@@ -3,6 +3,7 @@
  * Domain-only prompt builders; IPC runs the LLM.
  */
 import { ART_STYLES, isArtStyleId, type ArtStyleId } from './characterArtStyles'
+import { AppError } from '../types/errors'
 
 export type PlotSegmentRef =
   | { type: 'all' }
@@ -140,7 +141,7 @@ export function extractWardrobeSuggestionJson(
       : 'Look'
   const costume =
     typeof parsed.costume === 'string' ? parsed.costume.trim() : ''
-  if (!costume) throw new Error('Missing costume in wardrobe suggestion')
+  if (!costume) throw new AppError('VALIDATION', 'errors.wardrobeCostumeMissing')
   const styleRaw =
     typeof parsed.artStyle === 'string' ? parsed.artStyle.trim() : ''
   const artStyle: ArtStyleId = isArtStyleId(styleRaw)

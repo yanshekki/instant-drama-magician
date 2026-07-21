@@ -1,3 +1,4 @@
+import { AppError } from '../types/errors'
 /**
  * Browser helpers for web runtime: file pick, upload, download.
  * (Does not import httpAppClient — avoids circular deps.)
@@ -112,7 +113,7 @@ export async function uploadBrowserFile(
     result?: { filePath?: string; fileName?: string }
   }
   const filePath = r.filePath || r.result?.filePath
-  if (!filePath) throw new Error('Upload response missing filePath')
+  if (!filePath) throw new AppError('VALIDATION', 'errors.uploadMissingFilePath')
   return {
     filePath,
     fileName: r.fileName || r.result?.fileName || name

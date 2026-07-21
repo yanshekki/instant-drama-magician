@@ -1,6 +1,7 @@
 import { spawn } from 'child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
+import { AppError } from '../../types/errors'
 
 export interface TtsRequest {
   text: string
@@ -53,7 +54,7 @@ export class LocalCliTtsProvider implements TtsProvider {
 
   async speak(request: TtsRequest): Promise<{ outputPath: string; degraded?: boolean }> {
     const bin = this.bin ?? (await this.detect())
-    if (!bin) throw new Error('No local TTS binary (espeak/piper)')
+    if (!bin) throw new AppError('VALIDATION', 'errors.ttsBinaryMissing')
 
     if (bin === 'espeak') {
       await run(bin, ['-w', request.outputPath, request.text])
@@ -100,7 +101,7 @@ export class CompositeTtsProvider implements TtsProvider {
       return this.local.speak(request)
     }
     // Write empty placeholder wav header-less skip — caller treats as degraded
-    throw new Error('TTS unavailable')
+    throw new AppError('VALIDATION', 'errors.ttsUnavailable')
   }
 }
 

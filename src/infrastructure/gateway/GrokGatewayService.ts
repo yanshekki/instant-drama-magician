@@ -11,6 +11,7 @@ import { join, dirname } from 'path'
 import { promisify } from 'util'
 import { GROK_GATEWAY_BASE_URL } from '../../domain/gatewayDefaults'
 import { homedir } from 'os'
+import { AppError } from '../../types/errors'
 
 const execFileAsync = promisify(execFile)
 
@@ -645,7 +646,7 @@ export class GrokGatewayService {
   private async startInternal(): Promise<void> {
     const gctoac = this.resolveGctoacPath()
     if (!gctoac) {
-      throw new Error('gctoac not found')
+      throw new AppError('VALIDATION', 'errors.gctoacNotFound')
     }
 
     // Patch env *before* start so process inherits max limits

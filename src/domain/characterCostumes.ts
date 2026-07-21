@@ -1,3 +1,4 @@
+import { AppError } from '../types/errors'
 /**
  * Named wardrobe library per character (JSON on Character.costumesJson).
  * Active costume mirrors Character.costume for video / sheet prompts.
@@ -77,7 +78,7 @@ export function createCostumeEntry(input: {
 }): CharacterCostumeEntry {
   const description = input.description.trim()
   if (!description) {
-    throw new Error('Costume description is required')
+    throw new AppError('VALIDATION', 'errors.costumeDescRequired')
   }
   const now = new Date().toISOString()
   return {

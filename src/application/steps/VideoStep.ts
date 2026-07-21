@@ -9,6 +9,7 @@ import {
   buildContinuityLockPrompt,
   timelineBeatDisplayIndex
 } from '../../domain/promptContinuity'
+import { AppError } from '../../types/errors'
 import { existsSync } from 'fs'
 import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
 import {
@@ -72,7 +73,7 @@ export class VideoStep implements PipelineStep {
       targets,
       concurrency,
       async (entry, i) => {
-        if (signal?.aborted) throw new Error('errors.cancelled')
+        if (signal?.aborted) throw new AppError('CANCELLED', 'errors.cancelled')
 
         const clipDur = Math.min(
           DEFAULT_MAX_CLIP_SECONDS,

@@ -4,6 +4,7 @@
 
 import { buildImproveUserPrompt } from './aiImprovePrompt'
 import type { BeatContent, BeatUnit } from './beatContent'
+import { AppError } from '../types/errors'
 import {
   beatContentToJson,
   estimateBeatDurationSeconds,
@@ -104,7 +105,7 @@ export function extractStoryMetaJson(
   }
   const note =
     typeof parsed.styleNote === 'string' ? parsed.styleNote.trim() : ''
-  if (!note) throw new Error('Missing styleNote')
+  if (!note) throw new AppError('VALIDATION', 'errors.styleNoteRequired')
   const rules =
     normalizeHardRules(
       typeof parsed.hardRules === 'string' ? parsed.hardRules : null
@@ -249,7 +250,7 @@ export function extractStoryBeatsJson(
   const arrMatch = s.match(/\[[\s\S]*\]/)
   if (arrMatch) s = arrMatch[0]
   const parsed = JSON.parse(s) as unknown
-  if (!Array.isArray(parsed)) throw new Error('Beats must be a JSON array')
+  if (!Array.isArray(parsed)) throw new AppError('VALIDATION', 'errors.beatsMustBeArray')
   const out: StoryBeatDraft[] = []
   for (const raw of parsed) {
     if (!raw || typeof raw !== 'object') continue
@@ -328,7 +329,7 @@ export function extractStoryBeatsJson(
       beatContentJson: beatContentToJson(content)
     })
   }
-  if (!out.length) throw new Error('No beats in AI response')
+  if (!out.length) throw new AppError('VALIDATION', 'errors.noBeatsInResponse')
   return out
 }
 

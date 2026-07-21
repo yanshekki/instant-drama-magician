@@ -4,6 +4,7 @@
 import type { SceneProfileFields } from '../types/domain'
 import { buildImproveUserPrompt } from './aiImprovePrompt'
 import { isArtStyleId, type ArtStyleId } from './characterArtStyles'
+import { AppError } from '../types/errors'
 import {
   coerceProfileString,
   coerceProfileStringFrom,
@@ -150,7 +151,7 @@ export function extractSceneProfileJson(text: string): SceneProfileFields & {
     coerceProfileString(parsed.description) ||
     coerceProfileString(parsed.title) ||
     ''
-  if (!description) throw new Error('Missing description in scene profile')
+  if (!description) throw new AppError('VALIDATION', 'errors.sceneDescriptionRequired')
   const artRaw = coerceProfileString(parsed.artStyle)
   const title = coerceProfileString(parsed.title)
   let visualTags = coerceProfileStringFrom(parsed, [...VISUAL_TAGS_KEYS])
