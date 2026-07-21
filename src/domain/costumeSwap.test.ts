@@ -4,6 +4,8 @@ import {
   buildCostumeIntroVideoPrompt,
   buildCostumeSwapPrompt,
   costumeSwapGalleryLabel,
+  COSTUME_SWAP_POSES,
+  getCostumeSwapPose,
   inferGalleryLayer,
   pickBestBaseImage
 } from './costumeSwap'
@@ -73,6 +75,14 @@ describe('costumeSwap', () => {
   it('returns none when gallery empty', () => {
     expect(pickBestBaseImage([]).reason).toBe('none')
     expect(pickBestBaseImage([]).item).toBeNull()
+  })
+
+  it('lists expanded pose packages with size classes', () => {
+    expect(COSTUME_SWAP_POSES.length).toBeGreaterThanOrEqual(6)
+    expect(getCostumeSwapPose('bust').sizeClass).toBe('tall')
+    expect(getCostumeSwapPose('turnaround').sizeClass).toBe('wide')
+    expect(getCostumeSwapPose('detail_fabric').sizeClass).toBe('square')
+    expect(getCostumeSwapPose('unknown_pose').id).toBe('hero_front')
   })
 
   it('builds prompt that locks identity and replaces wardrobe', () => {

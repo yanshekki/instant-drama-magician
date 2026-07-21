@@ -33,7 +33,7 @@ export type PolishThenGenerateResult = VideoGenResult & {
 
 function assertNotAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
-    throw new Error('Cancelled')
+    throw new Error('errors.cancelled')
   }
 }
 
@@ -42,7 +42,7 @@ function assertNotAborted(signal?: AbortSignal): void {
  * On chat failure or empty extract → use fallbackPrompt.
  */
 export async function polishThenGenerateVideo(
-  options: PolishThenGenerateOptions
+  options: PolishThenGenerateOptions & { hardRules?: string | null }
 ): Promise<PolishThenGenerateResult> {
   const locale = options.locale ?? 'zh-HK'
   const fallback = options.fallbackPrompt.trim()
@@ -80,6 +80,12 @@ export async function polishThenGenerateVideo(
   } catch {
     polished = false
     promptUsed = fallback
+  }
+
+  // Force HARD RULES onto the final video prompt (LLM often drops them).
+  if (options.hardRules) {
+    const { ensureHardRules } = await import('../../domain/promptHardRules')
+    promptUsed = ensureHardRules(promptUsed, options.hardRules)
   }
 
   assertNotAborted(options.signal)

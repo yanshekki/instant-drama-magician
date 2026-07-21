@@ -8,6 +8,7 @@ import { PrismaClient } from '../types/prisma'
 import { SettingsStore } from '../infrastructure/settings/SettingsStore'
 import { ActivityLog } from '../infrastructure/activity/ActivityLog'
 import { MediaStore } from '../infrastructure/media/MediaStore'
+import { normalizeSqliteDateTimes } from '../infrastructure/db/normalizeSqliteDateTimes'
 import { AppError, toAppError } from '../types/errors'
 import { readFile } from 'fs/promises'
 import { registerAllHandlers } from './registerAllHandlers'
@@ -76,9 +77,14 @@ export function createRuntime(opts: RuntimeOptions): AppRuntime {
       })
     : (null as unknown as PrismaClient)
 
-  if (ownsPrisma) {
-    void prisma.$queryRaw`SELECT 1`.catch(() => undefined)
-  }
+  /** Wait before first channel call so TEXT/INTEGER DateTime mix is fixed. */
+  const dbReady: Promise<void> = ownsPrisma
+    ? prisma
+        .$queryRaw`SELECT 1`
+        .then(() => normalizeSqliteDateTimes(prisma))
+        .then(() => undefined)
+        .catch(() => undefined)
+    : Promise.resolve()
 
   const settingsStore =
     opts.hostOverrides?.settingsStore ??
@@ -152,7 +158,7 @@ export function createRuntime(opts: RuntimeOptions): AppRuntime {
         resolved.startsWith(data + sep) ||
         resolved === data
       if (!ok) {
-        throw new AppError('VALIDATION', 'Path outside data directory')
+        throw new AppError('VALIDATION', 'errors.pathOutsideDataDir')
       }
       return {
         url: `/api/media?p=${encodeURIComponent(resolved)}`,
@@ -203,6 +209,7 @@ export function createRuntime(opts: RuntimeOptions): AppRuntime {
     channel: string,
     args: unknown[] = []
   ): Promise<unknown> => {
+    await dbReady
     const fn = handlers.get(channel)
     if (!fn) {
       throw new AppError(

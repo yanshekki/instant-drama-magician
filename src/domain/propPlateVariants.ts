@@ -2,6 +2,7 @@
  * Prop reference plates for short-drama continuity.
  */
 import { getArtStyle } from './characterArtStyles'
+import { appendHardRules } from './promptHardRules'
 
 export type PropPlateVariantId =
   | 'hero'
@@ -81,13 +82,14 @@ export function buildPropPlateImagePrompt(
     sizeNotes?: string
     condition?: string
     visualTags?: string
+    hardRules?: string
   },
   variant: string = 'hero',
   artStyle: string = 'photo_cinematic'
 ): string {
   const style = getArtStyle(artStyle)
   const def = getPropPlateVariant(variant)
-  return [
+  const body = [
     style.promptBlock,
     `Repeat: medium MUST be style id "${style.id}".`,
     'Create a PROP reference still for AI short-drama continuity.',
@@ -103,6 +105,7 @@ export function buildPropPlateImagePrompt(
   ]
     .filter(Boolean)
     .join(' ')
+  return appendHardRules(body, profile.hardRules)
 }
 
 export function buildPropPlateEditPrompt(
@@ -113,6 +116,7 @@ export function buildPropPlateEditPrompt(
     sizeNotes?: string
     condition?: string
     visualTags?: string
+    hardRules?: string
   },
   variant: string = 'hero',
   artStyle: string = 'photo_cinematic'

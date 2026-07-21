@@ -171,10 +171,34 @@ export function createMockApi(
       onProgress: vi.fn(() => () => undefined)
     },
     updates: {
-      status: vi.fn().mockResolvedValue({ status: 'idle' }),
-      check: vi.fn().mockResolvedValue({ status: 'idle' }),
-      download: vi.fn().mockResolvedValue({}),
-      install: vi.fn().mockResolvedValue({}),
+      status: vi.fn().mockResolvedValue({
+        status: 'idle',
+        channel: 'desktop-dev',
+        currentVersion: '0.0.0',
+        canCheck: false,
+        canDownload: false,
+        canAutoInstall: false,
+        source: 'none'
+      }),
+      check: vi.fn().mockResolvedValue({
+        status: 'dev-skipped',
+        channel: 'desktop-dev',
+        currentVersion: '0.0.0'
+      }),
+      download: vi.fn().mockResolvedValue({ status: 'dev-skipped' }),
+      install: vi.fn().mockResolvedValue({ ok: false }),
+      checkNpm: vi.fn().mockResolvedValue({
+        packageName: 'instant-drama-magician',
+        currentVersion: '0.0.0',
+        latestVersion: null,
+        updateAvailable: false,
+        checkedAt: new Date().toISOString(),
+        installCommand: 'npm install -g instant-drama-magician@latest'
+      }),
+      openReleasePage: vi.fn().mockResolvedValue({
+        ok: true,
+        url: 'https://github.com/yanshekki/instant-drama-magician/releases'
+      }),
       onState: vi.fn(() => () => undefined)
     },
     shell: {

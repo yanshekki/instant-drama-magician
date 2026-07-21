@@ -11,6 +11,11 @@ import {
   serializeBeatContent,
   spokenSummaryFromBeatContent
 } from './beatContent'
+import {
+  defaultHardRulesFallback,
+  hardRulesAiInstruction,
+  normalizeHardRules
+} from './promptHardRules'
 
 export function buildStoryMetaSystemPrompt(
   locale: 'zh-HK' | 'en' = 'zh-HK'
@@ -18,18 +23,20 @@ export function buildStoryMetaSystemPrompt(
   if (locale === 'en') {
     return [
       'You are a short-drama showrunner.',
-      'Given a story title and optional idea, write a concise visual style bible.',
-      'Return ONLY JSON (no fences): {"styleNote":"2-5 sentences: tone, lighting, camera, color, pacing"}',
+      'Given a story title and optional idea, write a concise visual style bible AND hard rules for cover + clip generation.',
+      'Return ONLY JSON (no fences): {"styleNote":"2-5 sentences: tone, lighting, camera, color, pacing","hardRules":"3-8 MUST/MUST-NOT lines for image & video"}',
+      hardRulesAiInstruction('en'),
       'Concrete, filmable language for AI video continuity.',
-      'Use title, idea, existing style note, and any context snippets provided; if thin, invent freely a coherent style bible.'
+      'Use title, idea, existing style note / hard rules, and any context snippets; if thin, invent freely a coherent style bible + rules.'
     ].join(' ')
   }
   return [
     '你是短劇主創／視覺總監。',
-    '根據故事標題與構想，寫簡潔可拍的風格備註（Style bible）。',
-    '只回傳 JSON（不要代碼塊）：{"styleNote":"2–5 句：氣氛、光線、鏡頭、色調、節奏"}',
+    '根據故事標題與構想，寫簡潔可拍的風格備註（Style bible）以及出圖／出片「生成鐵則」。',
+    '只回傳 JSON（不要代碼塊）：{"styleNote":"2–5 句：氣氛、光線、鏡頭、色調、節奏","hardRules":"3–8 句必須／禁止"}',
+    hardRulesAiInstruction('zh-HK'),
     '要具體、適合 AI 影片／出圖延續。',
-    '用提供的標題、構想、現有風格與上下文；不足就自由補齊一套連貫風格。'
+    '用提供的標題、構想、現有風格／鐵則與上下文；不足就自由補齊一套連貫風格與鐵則。'
   ].join(' ')
 }
 
@@ -37,6 +44,7 @@ export function buildStoryMetaUserPrompt(options: {
   title: string
   idea?: string
   existingStyleNote?: string | null
+  existingHardRules?: string | null
   /** Cast / scene / prop blurbs for richer style direction */
   contextSnippets?: string[]
   locale?: 'zh-HK' | 'en'
@@ -56,7 +64,8 @@ export function buildStoryMetaUserPrompt(options: {
     idea: options.idea?.trim() || options.title,
     draft: {
       title: options.title,
-      styleNote: options.existingStyleNote ?? ''
+      styleNote: options.existingStyleNote ?? '',
+      hardRules: options.existingHardRules ?? ''
     },
     draftLabel: {
       en: 'Current story fields:',
@@ -65,27 +74,47 @@ export function buildStoryMetaUserPrompt(options: {
     extraBlocks: extras,
     createLabel: { en: 'Story idea / title:', zh: '故事構想／標題：' },
     emptyIdeaPolish: {
-      en: '(polish visual style bible for AI video continuity)',
-      zh: '（潤飾視覺風格備註，利於 AI 出片 continuity）'
+      en: '(polish visual style bible + hardRules for AI video continuity)',
+      zh: '（潤飾視覺風格備註與生成鐵則，利於 AI 出片 continuity）'
     },
     closing: {
-      en: 'Return ONLY JSON: {"styleNote":"…"}.',
-      zh: '只回傳 JSON：{"styleNote":"…"}。'
+      en: 'Return ONLY JSON: {"styleNote":"…","hardRules":"…"}. Both keys required and non-empty.',
+      zh: '只回傳 JSON：{"styleNote":"…","hardRules":"…"}。兩個鍵都必填且非空。'
     }
   })
 }
 
-export function extractStyleNoteJson(text: string): string {
+export type StoryMetaExtract = {
+  styleNote: string
+  hardRules: string
+}
+
+export function extractStoryMetaJson(
+  text: string,
+  locale: 'zh-HK' | 'en' = 'zh-HK'
+): StoryMetaExtract {
   let s = text.trim()
   const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fence) s = fence[1].trim()
   const brace = s.match(/\{[\s\S]*\}/)
   if (brace) s = brace[0]
-  const parsed = JSON.parse(s) as { styleNote?: unknown }
+  const parsed = JSON.parse(s) as {
+    styleNote?: unknown
+    hardRules?: unknown
+  }
   const note =
     typeof parsed.styleNote === 'string' ? parsed.styleNote.trim() : ''
   if (!note) throw new Error('Missing styleNote')
-  return note
+  const rules =
+    normalizeHardRules(
+      typeof parsed.hardRules === 'string' ? parsed.hardRules : null
+    ) || defaultHardRulesFallback('story', locale)
+  return { styleNote: note, hardRules: rules }
+}
+
+/** @deprecated prefer extractStoryMetaJson */
+export function extractStyleNoteJson(text: string): string {
+  return extractStoryMetaJson(text).styleNote
 }
 
 export interface StoryBeatDraft {

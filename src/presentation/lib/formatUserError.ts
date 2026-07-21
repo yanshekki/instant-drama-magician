@@ -5,45 +5,94 @@
 
 type TFn = (key: string, opts?: Record<string, unknown>) => string
 
-/** Stable machine keys thrown as AppError.message from main/IPC. */
+/** Stable machine keys thrown as AppError.message / details from main/IPC. */
 const ERROR_KEYS = new Set([
-  'errors.costumeNoBaseImage',
-  'errors.costumeSwapNoBase',
-  'errors.sourceImageRequired',
-  'errors.videoUnavailable',
-  'errors.ideaOrDraftRequired',
-  'errors.cannotRemoveCharacterOnTimeline',
-  'errors.cannotRemoveSceneOnTimeline',
-  'errors.cannotRemovePropOnTimeline',
-  'errors.cannotRemoveActionOnTimeline',
-  'errors.characterNameRequired',
-  'errors.nameRequired',
-  'errors.descriptionRequired',
-  'errors.storyIdRequired',
-  'errors.sceneIdRequired',
-  'errors.propIdRequired',
   'errors.actionIdRequired',
-  'errors.characterIdRequired',
-  'errors.costumeIdRequired',
-  'errors.storyNotFound',
-  'errors.timelineEntryNotFound',
-  'errors.timelineBeatNotFound',
-  'errors.sceneNotLinked',
-  'errors.propNotLinked',
-  'errors.draftNotFound',
-  'errors.mediaNotFound',
-  'errors.pathOutsideDataDir',
-  'errors.cancelled',
-  'errors.unauthorized',
-  'errors.sourceSceneNoGallery',
+  'errors.actionNotFound',
+  'errors.actionNotLinked',
+  'errors.aiUnavailable',
+  'errors.apiKeyRejected',
+  'errors.atmosphereBasePlateRequired',
   'errors.atmosphereRequired',
+  'errors.backupInvalidManifest',
+  'errors.backupMissingDb',
+  'errors.backupMissingManifest',
+  'errors.backupMissingStoryJson',
+  'errors.backupUnsupportedVersion',
+  'errors.backupWrongKind',
+  'errors.backupZipNotFound',
+  'errors.cancelled',
+  'errors.cannotRemoveActionOnTimeline',
+  'errors.cannotRemoveCharacterOnTimeline',
+  'errors.cannotRemovePropOnTimeline',
+  'errors.cannotRemoveSceneOnTimeline',
+  'errors.characterIdRequired',
+  'errors.characterNameRequired',
+  'errors.characterNotFound',
+  'errors.characterNotInCast',
+  'errors.characterNotLinked',
+  'errors.cliUnauthorizedToken',
+  'errors.costumeActiveCannotDelete',
+  'errors.costumeActiveCannotUnlink',
+  'errors.costumeCreateFailed',
   'errors.costumeDescRequired',
+  'errors.costumeIdRequired',
+  'errors.costumeNoBaseImage',
+  'errors.costumeNotLinkedToCharacter',
+  'errors.costumeSwapNoBase',
+  'errors.descriptionRequired',
+  'errors.draftNotFound',
+  'errors.exportIdRequired',
+  'errors.ffmpegColorClipMissing',
+  'errors.ffmpegExportMissing',
+  'errors.ffmpegFinalMissing',
+  'errors.ffmpegNormalizeFailed',
+  'errors.ffmpegNotFound',
+  'errors.ffmpegStillExtractFailed',
+  'errors.grokCliFailed',
+  'errors.grokCliFailedHint',
+  'errors.headlessPickFile',
+  'errors.headlessSavePath',
+  'errors.ideaOrDraftRequired',
   'errors.ideaOrImageRequired',
-  'errors.invalidSoulUrl',
-  'errors.soulFileMustBeMd',
+  'errors.imageApiNoB64',
+  'errors.importZipPathRequired',
   'errors.invalidSoulHubId',
+  'errors.invalidSoulUrl',
+  'errors.invalidUrl',
+  'errors.keyNotAllowed',
+  'errors.mediaNotFound',
+  'errors.nameRequired',
   'errors.networkFailed',
-  'errors.aiUnavailable'
+  'errors.noApiKey',
+  'errors.pathOutsideDataDir',
+  'errors.propIdRequired',
+  'errors.propNotFound',
+  'errors.propNotLinked',
+  'errors.sceneIdRequired',
+  'errors.sceneNotFound',
+  'errors.sceneNotLinked',
+  'errors.seedanceInvalidDataUrl',
+  'errors.seedanceKeyRequired',
+  'errors.seedanceNoTaskId',
+  'errors.seedanceNoVideoUrl',
+  'errors.soulFileMustBeMd',
+  'errors.soulMdNotFound',
+  'errors.sourceImageRequired',
+  'errors.sourceSceneNoGallery',
+  'errors.storyAndEntryRequired',
+  'errors.storyIdRequired',
+  'errors.storyNotFound',
+  'errors.timelineBeatNotFound',
+  'errors.timelineEntryNotFound',
+  'errors.tooManyRequests',
+  'errors.unauthorized',
+  'errors.unknownSegmentKey',
+  'errors.unknownVideoPrepKind',
+  'errors.urlRequired',
+  'errors.videoUnavailable',
+  'errors.visionImageUnreadable',
+  'errors.visionImageUnreadableDetail'
 ])
 
 /** Legacy English → i18n key (jobs already failed before key migration). */
@@ -176,8 +225,26 @@ const LEGACY_EN_TO_KEY: Array<{ re: RegExp; key: string }> = [
   {
     re: /cannot reach the ai gateway|cannot reach.*gateway/i,
     key: 'errors.aiUnavailable'
+  },
+  {
+    re: /reference image (not found|unreadable)|vision image unreadable/i,
+    key: 'errors.visionImageUnreadable'
+  },
+  {
+    re: /grok cli exited|produced no stdout|grok_error/i,
+    key: 'errors.grokCliFailed'
   }
 ]
+
+function translateErrorToken(token: string, t: TFn): string {
+  const raw = token.trim()
+  if (!raw) return raw
+  if (ERROR_KEYS.has(raw) || /^errors\.[a-zA-Z0-9_.]+$/.test(raw)) {
+    const tr = t(raw)
+    if (tr !== raw) return tr
+  }
+  return raw
+}
 
 export function formatUserError(
   message: string | null | undefined,
@@ -191,19 +258,29 @@ export function formatUserError(
     return t('aiJobs.interruptedReload')
   }
 
-  // Direct i18n key
-  if (ERROR_KEYS.has(raw) || raw.startsWith('errors.')) {
+  // Direct i18n key only (not "errors.foo — …" composites)
+  if (ERROR_KEYS.has(raw) || /^errors\.[a-zA-Z0-9_.]+$/.test(raw)) {
     const tr = t(raw)
     if (tr !== raw) return tr
   }
 
   // "errors.foo — details" combined form from AiJobsContext
+  // details may also be an errors.* key (must translate both sides)
   const split = raw.match(/^(errors\.[a-zA-Z0-9_.]+)\s*[—\-]\s*(.+)$/)
   if (split) {
-    const tr = t(split[1])
-    if (tr !== split[1]) {
-      return split[2] ? `${tr} — ${split[2]}` : tr
+    const trMsg = translateErrorToken(split[1], t)
+    const trDet = translateErrorToken(split[2], t)
+    if (trMsg !== split[1] || trDet !== split[2]) {
+      return trDet ? `${trMsg} — ${trDet}` : trMsg
     }
+  }
+
+  // "English — errors.foo" or mixed: translate trailing errors.* detail
+  const splitAny = raw.match(/^(.+?)\s*[—\-]\s*(errors\.[a-zA-Z0-9_.]+)\s*$/)
+  if (splitAny) {
+    const left = formatUserError(splitAny[1], t, fallbackKey)
+    const right = translateErrorToken(splitAny[2], t)
+    return `${left} — ${right}`
   }
 
   for (const { re, key } of LEGACY_EN_TO_KEY) {

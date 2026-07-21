@@ -8,36 +8,119 @@ import {
   isLikelyMinorAge,
   type WardrobeLayer
 } from './characterSheetVariants'
+import { appendHardRules } from './promptHardRules'
 
-export type CostumeSwapPose = 'hero_front' | 'turnaround' | 'three_quarter'
+export type CostumeSwapPose =
+  | 'hero_front'
+  | 'turnaround'
+  | 'three_quarter'
+  | 'bust'
+  | 'profile'
+  | 'back'
+  | 'detail_fabric'
 
-export const COSTUME_SWAP_POSES: {
+/** Image canvas class for generateDressed size pick. */
+export type CostumePoseSizeClass = 'tall' | 'wide' | 'square'
+
+export type CostumePoseGroup = 'fullbody' | 'multi' | 'detail'
+
+export interface CostumeSwapPoseDef {
   id: CostumeSwapPose
+  /** i18n under characters.* (legacy) or costumes.* */
   labelKey: string
+  /** Short aspect badge e.g. 9:16 */
+  aspectBadge: string
+  sizeClass: CostumePoseSizeClass
+  group: CostumePoseGroup
+  /** One-line layout instruction for the image model */
   layout: string
-}[] = [
+}
+
+export const COSTUME_SWAP_POSES: CostumeSwapPoseDef[] = [
   {
     id: 'hero_front',
     labelKey: 'swapPoseHero',
+    aspectBadge: '9:16',
+    sizeClass: 'tall',
+    group: 'fullbody',
     layout:
       'Tall 9:16 SINGLE full-body front standing pose, head-to-toe visible, neutral hero stance, arms relaxed, feet planted. One character only.'
   },
   {
-    id: 'turnaround',
-    labelKey: 'swapPoseTurnaround',
-    layout:
-      'Wide 16:9 turnaround with EXACTLY FOUR full-body figures same scale: front, left 90°, back, right 90°. Neutral A-pose, complete new costume on every view.'
-  },
-  {
     id: 'three_quarter',
     labelKey: 'swapPoseThreeQuarter',
+    aspectBadge: '1:1',
+    sizeClass: 'square',
+    group: 'fullbody',
     layout:
       'Square 1:1 SINGLE three-quarter (~45°) full-body portrait, head-to-toe preferred, readable new costume silhouette.'
+  },
+  {
+    id: 'profile',
+    labelKey: 'swapPoseProfile',
+    aspectBadge: '9:16',
+    sizeClass: 'tall',
+    group: 'fullbody',
+    layout:
+      'Tall 9:16 SINGLE full-body true profile (90° side view), head-to-toe, neutral stance, costume silhouette and side seams fully readable. One character only.'
+  },
+  {
+    id: 'back',
+    labelKey: 'swapPoseBack',
+    aspectBadge: '9:16',
+    sizeClass: 'tall',
+    group: 'fullbody',
+    layout:
+      'Tall 9:16 SINGLE full-body rear view, head-to-toe, arms slightly away from body so back of coat/dress/hair and rear silhouette are clear. One character only.'
+  },
+  {
+    id: 'bust',
+    labelKey: 'swapPoseBust',
+    aspectBadge: '3:4',
+    sizeClass: 'tall',
+    group: 'detail',
+    layout:
+      'Tall 3:4 SINGLE upper-body bust portrait (chest up), collar, neckline, shoulders, outer layers and face jewelry readable; not a full-body crop. One character only.'
+  },
+  {
+    id: 'detail_fabric',
+    labelKey: 'swapPoseDetailFabric',
+    aspectBadge: '1:1',
+    sizeClass: 'square',
+    group: 'detail',
+    layout:
+      'Square 1:1 costume DETAIL board: close-ups of fabric weave, buttons, zippers, embroidery, belt hardware, and material transitions of the NEW outer costume only; no full scene, no second character.'
+  },
+  {
+    id: 'turnaround',
+    labelKey: 'swapPoseTurnaround',
+    aspectBadge: '16:9',
+    sizeClass: 'wide',
+    group: 'multi',
+    layout:
+      'Wide 16:9 turnaround with EXACTLY FOUR full-body figures same scale: front, left 90°, back, right 90°. Neutral A-pose, complete new costume on every view.'
   }
 ]
 
-export function getCostumeSwapPose(id?: string | null): (typeof COSTUME_SWAP_POSES)[number] {
+export function getCostumeSwapPose(
+  id?: string | null
+): CostumeSwapPoseDef {
   return COSTUME_SWAP_POSES.find((p) => p.id === id) ?? COSTUME_SWAP_POSES[0]
+}
+
+export function costumePosesByGroup(): Record<
+  CostumePoseGroup,
+  CostumeSwapPoseDef[]
+> {
+  const out: Record<CostumePoseGroup, CostumeSwapPoseDef[]> = {
+    fullbody: [],
+    multi: [],
+    detail: []
+  }
+  for (const p of COSTUME_SWAP_POSES) {
+    out[p.group].push(p)
+  }
+  return out
 }
 
 /**
@@ -147,15 +230,16 @@ export function buildCostumeSwapPrompt(input: {
   gender?: string | null
   visualTags?: string | null
   mannerisms?: string | null
+  hardRules?: string | null
 }): string {
   const style = getArtStyle(input.artStyle ?? undefined)
   const pose = getCostumeSwapPose(input.pose)
   const costume = input.newCostume.trim()
   if (!costume) {
-    throw new Error('Costume description is required for costume swap')
+    throw new Error('errors.costumeDescRequired')
   }
 
-  return [
+  const body = [
     'IMAGE EDIT / COSTUME SWAP TASK (highest priority — read fully before painting):',
     style.promptBlock,
     `Repeat: output medium MUST be style id "${style.id}" (${style.family}).`,
@@ -183,6 +267,7 @@ export function buildCostumeSwapPrompt(input: {
   ]
     .filter(Boolean)
     .join(' ')
+  return appendHardRules(body, input.hardRules)
 }
 
 export function costumeSwapGalleryLabel(costumeDescription: string): string {
@@ -199,6 +284,7 @@ export function buildCostumeIntroVideoPrompt(
     name: string
     description: string
     artStyle?: string | null
+    hardRules?: string | null
   },
   locale: 'zh-HK' | 'en' = 'zh-HK'
 ): string {
@@ -210,35 +296,41 @@ export function buildCostumeIntroVideoPrompt(
   const art = profile.artStyle?.trim()
 
   if (locale === 'en') {
-    return [
-      'IMAGE-TO-VIDEO: animate the exact wardrobe look in the reference still as a short costume intro clip for short-drama wardrobe library.',
-      'WARDROBE LOCK: same silhouette, fabrics, colors, layers, accessories, and wear as the reference — do not invent a different outfit.',
-      'If a person is in the still: IDENTITY LOCK on face/body while fabric may gently move; if mannequin or flat-lay: keep product framing.',
-      `Look name: ${name}.`,
-      `Costume description: ${look}.`,
-      art ? `Art style: ${art}.` : null,
-      'Camera: gentle push-in or subtle orbit; fashion-look lighting consistent with the still.',
-      'Action beat: hold pose/still → fabric drape / sleeve hem micro-motion / light glint on hardware → settle.',
-      'No new cast faces; no text overlays, logos, or erotic posing.',
-      'Duration fits a 6–10s wardrobe intro clip.'
+    return appendHardRules(
+      [
+        'IMAGE-TO-VIDEO: animate the exact wardrobe look in the reference still as a short costume intro clip for short-drama wardrobe library.',
+        'WARDROBE LOCK: same silhouette, fabrics, colors, layers, accessories, and wear as the reference — do not invent a different outfit.',
+        'If a person is in the still: IDENTITY LOCK on face/body while fabric may gently move; if mannequin or flat-lay: keep product framing.',
+        `Look name: ${name}.`,
+        `Costume description: ${look}.`,
+        art ? `Art style: ${art}.` : null,
+        'Camera: gentle push-in or subtle orbit; fashion-look lighting consistent with the still.',
+        'Action beat: hold pose/still → fabric drape / sleeve hem micro-motion / light glint on hardware → settle.',
+        'No new cast faces; no text overlays, logos, or erotic posing.',
+        'Duration fits a 6–10s wardrobe intro clip.'
+      ]
+        .filter(Boolean)
+        .join(' '),
+      profile.hardRules
+    )
+  }
+  return appendHardRules(
+    [
+      '圖生影片：以參考靜幀中的同一戲服造型，拍一段短劇戲服庫用「造型介紹」短片。',
+      '服裝鎖定：輪廓、布料、顏色、層次、配件與舊損必須與參考圖一致，不可換成另一套。',
+      '若靜幀有人：鎖定臉與體型，布料可輕微擺動；若為人台／平鋪：保持產品構圖。',
+      `造型名稱：${name}。`,
+      `戲服描述：${look}。`,
+      art ? `藝術風格：${art}。` : null,
+      '運鏡：輕微推近或慢環繞；光線與靜幀一致。',
+      '動作節奏：定格 → 布料垂墜／袖口微動／五金反光 → 定格。',
+      '勿新增角色臉、字幕、logo 或色情姿勢。',
+      '適合 6–10 秒造型介紹短片。'
     ]
       .filter(Boolean)
-      .join(' ')
-  }
-  return [
-    '圖生影片：以參考靜幀中的同一戲服造型，拍一段短劇戲服庫用「造型介紹」短片。',
-    '服裝鎖定：輪廓、布料、顏色、層次、配件與舊損必須與參考圖一致，不可換成另一套。',
-    '若靜幀有人：鎖定臉與體型，布料可輕微擺動；若為人台／平鋪：保持產品構圖。',
-    `造型名稱：${name}。`,
-    `戲服描述：${look}。`,
-    art ? `藝術風格：${art}。` : null,
-    '運鏡：輕微推近或慢環繞；光線與靜幀一致。',
-    '動作節奏：定格 → 布料垂墜／袖口微動／五金反光 → 定格。',
-    '勿新增角色臉、字幕、logo 或色情姿勢。',
-    '適合 6–10 秒造型介紹短片。'
-  ]
-    .filter(Boolean)
-    .join(' ')
+      .join(' '),
+    profile.hardRules
+  )
 }
 
 export type { ArtStyleId }

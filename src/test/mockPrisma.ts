@@ -39,6 +39,7 @@ export function createMockPrisma(seed?: {
   scene?: Row | Row[] | null
   prop?: Row | Row[] | null
   costume?: Row | Row[] | null
+  action?: Row | Row[] | null
   timelineEntry?: Row | Row[] | null
 }) {
   const story = chainable(
@@ -99,6 +100,21 @@ export function createMockPrisma(seed?: {
     ;(costume.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
   }
 
+  const action = chainable(
+    Array.isArray(seed?.action)
+      ? seed?.action
+      : seed?.action
+        ? [seed.action]
+        : []
+  )
+  if (seed?.action && !Array.isArray(seed.action)) {
+    ;(action.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      seed.action
+    )
+  } else {
+    ;(action.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  }
+
   const timelineEntry = chainable(
     Array.isArray(seed?.timelineEntry)
       ? seed?.timelineEntry
@@ -110,6 +126,7 @@ export function createMockPrisma(seed?: {
   const storyCharacter = chainable([])
   const storyScene = chainable([])
   const storyProp = chainable([])
+  const storyAction = chainable([])
   const costumeCharacter = chainable([])
 
   return {
@@ -118,10 +135,12 @@ export function createMockPrisma(seed?: {
     scene,
     prop,
     costume,
+    action,
     timelineEntry,
     storyCharacter,
     storyScene,
     storyProp,
+    storyAction,
     costumeCharacter,
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => {
       if (typeof fn === 'function') {
@@ -131,10 +150,12 @@ export function createMockPrisma(seed?: {
           scene,
           prop,
           costume,
+          action,
           timelineEntry,
           storyCharacter,
           storyScene,
           storyProp,
+          storyAction,
           costumeCharacter
         })
       }

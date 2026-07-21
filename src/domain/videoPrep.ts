@@ -3,6 +3,8 @@
  * Flow: extract materials → LLM professional prompt → still → user review → video.
  */
 
+import { appendHardRules } from './promptHardRules'
+
 export type VideoPrepKind =
   | 'character-intro'
   | 'scene-intro'
@@ -299,18 +301,23 @@ export function removeVideoPrepDraft(
 /** Merge director prompt + optional user extras for the final generateVideo call. */
 export function mergeFinalVideoPrompt(
   professionalPrompt: string,
-  userExtraPrompt?: string | null
+  userExtraPrompt?: string | null,
+  hardRules?: string | null
 ): string {
   const pro = (professionalPrompt ?? '').trim()
   const extra = (userExtraPrompt ?? '').trim()
-  if (!pro && !extra) return ''
-  if (!extra) return pro
-  if (!pro) return extra
-  return [
-    pro,
-    'DIRECTOR / USER REVISION (must follow; overrides conflicts):',
-    extra
-  ].join('\n')
+  let base = ''
+  if (!pro && !extra) base = ''
+  else if (!extra) base = pro
+  else if (!pro) base = extra
+  else {
+    base = [
+      pro,
+      'DIRECTOR / USER REVISION (supplement only — must not violate HARD RULES):',
+      extra
+    ].join('\n')
+  }
+  return appendHardRules(base, hardRules)
 }
 
 /**
@@ -350,8 +357,10 @@ export function buildStillRegenPolishUserPrompt(options: {
   improvementNotes: string
   seconds: number
   aspectRatio?: string
+  hardRules?: string | null
 }): string {
   const en = options.locale === 'en'
+  const rules = (options.hardRules ?? '').trim()
   return [
     en
       ? 'TASK: Revise the image-to-video director prompt AND keep it usable as a still keyframe brief.'
@@ -362,10 +371,23 @@ export function buildStillRegenPolishUserPrompt(options: {
       : `用戶改進要求：\n${options.improvementNotes.trim()}`,
     en ? 'Current professional prompt:' : '目前專業提示詞：',
     options.professionalPrompt.trim(),
+    rules
+      ? en
+        ? [
+            'HARD RULES (must keep at end of output; do not drop or weaken):',
+            rules
+          ].join('\n')
+        : [
+            'HARD RULES／生成鐵則（必須保留於輸出最尾；不得刪除或削弱）：',
+            rules
+          ].join('\n')
+      : null,
     en
-      ? 'Return ONE improved director prompt only (English-first). Apply the improvement; keep IDENTITY/SPACE/OBJECT locks.'
-      : '只回傳一條改進後的導演提示詞（英文為主）。套用改進；保留 IDENTITY／SPACE／OBJECT 鎖定。'
-  ].join('\n')
+      ? 'Return ONE improved director prompt only (English-first). Apply the improvement; keep IDENTITY/SPACE/OBJECT locks and HARD RULES.'
+      : '只回傳一條改進後的導演提示詞（英文為主）。套用改進；保留 IDENTITY／SPACE／OBJECT 鎖定與 HARD RULES。'
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 export function materialsSummaryLines(

@@ -43,10 +43,29 @@ Grok Gateway locked presets **forbid** `temperature`/`top_p`/`stop` (HTTP 400). 
 
 | Symptom | Action |
 |---------|--------|
-| AI_UNAVAILABLE | Start gateway; check port 3847 |
+| AI_UNAVAILABLE | Start gateway; check port 3847 (`gctoac start` / `gctoac start --pm2`) |
 | AI_UNAUTHORIZED / 401 | Correct `gk_live_` key |
 | AI_RATE_LIMIT / 429 | Ensure gateway preset; may be upstream xAI limits |
 | timeout | Raise `chatTimeoutMs` |
+| 502 · Grok CLI exited | Often **vision** or CLI crash: gateway must convert data URLs to ACP `{ type:image, data, mimeType }`; app also downscales large stills |
+| Reference image unreadable | Re-import the external/gallery still |
+
+### Vision (external still → AI fill)
+
+- OpenAI wire format: `{ type: "image_url", image_url: { url: "data:image/…;base64,…" } }`  
+- Grok CLI needs ACP blocks: `{ type: "image", data, mimeType }`  
+- InstantDrama **rewrites** multimodal content for the **grok-gateway** preset; gateway `buildPromptJson` should convert data URLs the same way.  
+- Set **BODY_LIMIT** ≥ `10mb` in `~/.gctoac/.env` (default `1mb` can drop large data URLs).  
+- App downscales long edge >1024 / large PNGs to JPEG to avoid `grok --prompt-json` **E2BIG**.  
+- On network failure, chat **ensureRunning** once and retries (local Grok preset only).
+
+### Runtime path (avoid dual gateways)
+
+| Item | Note |
+|------|------|
+| Prefer | A **single** running gctoac (PM2 or detached) per machine |
+| Check | `gctoac status` · `pm2 show grok-openai-gateway` |
+| Port | Default **3847**; Admin `http://127.0.0.1:3847/admin/` |
 
 ## 2. Video (same Gateway)
 

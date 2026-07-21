@@ -22,6 +22,11 @@ model Story {
   coverPath  String?
   /** Optional multi cover gallery JSON (same shape as character gallery). */
   refGalleryJson String?
+  /**
+   * Hard rules for cover / clip generation (必須／禁止).
+   * Highest user priority over styleNote / positive descriptions.
+   */
+  hardRules  String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -52,6 +57,8 @@ model Character {
   relationships  String?
   visualTags     String?
   seedPrompt     String?
+  /** 生成鐵則：必須／禁止（sheet、intro video 等最高優先） */
+  hardRules      String?
   profileJson    String?
   refSheetPath   String?
   refGalleryJson String?
@@ -59,6 +66,8 @@ model Character {
   artStyle       String?
   /** @deprecated Prefer CharacterCostume M2M; kept for migration/fallback */
   costumesJson   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   storyLinks      StoryCharacter[]
   timelineEntries TimelineEntry[]
@@ -77,6 +86,8 @@ model Costume {
   refImagePath   String?
   refGalleryJson String?
   seedPrompt     String?
+  /** 生成鐵則：必須／禁止（換裝板、介紹片） */
+  hardRules      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -121,7 +132,11 @@ model Scene {
   looksJson      String?
   profileJson    String?
   seedPrompt     String?
+  /** 生成鐵則：必須／禁止（場景板、氣氛、介紹片） */
+  hardRules      String?
   locationKey    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   storyLinks      StoryScene[]
   timelineEntries TimelineEntry[]
@@ -141,6 +156,10 @@ model Prop {
   refGalleryJson String?
   profileJson    String?
   seedPrompt     String?
+  /** 生成鐵則：必須／禁止（道具板、介紹片） */
+  hardRules      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   storyLinks      StoryProp[]
   timelineEntries TimelineEntry[]
@@ -213,6 +232,8 @@ model Action {
   castRefsJson   String?
   profileJson    String?
   seedPrompt     String?
+  /** 生成鐵則：必須／禁止（動作分鏡板、介紹片） */
+  hardRules      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

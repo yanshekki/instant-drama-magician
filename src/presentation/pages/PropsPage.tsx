@@ -1,19 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ensureHardRules } from '../../domain/promptHardRules'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
 import {
   appendSceneGalleryItem,
   isSceneGalleryCoverPath,
-  listSceneExternalRefs,
   moveSceneGalleryItem,
   parseSceneGallery,
-  pickSceneExternalRefPath,
   primarySceneGalleryPath,
   removeSceneGalleryItem,
   serializeSceneGallery,
   type SceneGalleryItem
 } from '../../domain/sceneGallery'
-import { ExternalRefSection } from '../components/ExternalRefSection'
+import {
+  appendMultiRefNote,
+  resolveIdentityPaths,
+  toggleGallerySelection
+} from '../../domain/imageGenConfirm'
+import {
+  buildPropPlateEditPrompt,
+  buildPropPlateImagePrompt
+} from '../../domain/propPlateVariants'
+import {
+  ImageGenConfirmModal,
+  type ImageGenConfirmPayload
+} from '../components/ImageGenConfirmModal'
 import { PlotContextPicker } from '../components/PlotContextPicker'
 import type { StoryWithCounts } from '../../types/domain'
 import {
@@ -21,7 +32,10 @@ import {
   libraryCardClass,
   libraryGridClass,
   libraryMediaBadgeClass,
-  libraryMediaClass
+  libraryMediaClass,
+  libraryCardActionBtnClass,
+  libraryCardActionDeleteClass,
+  libraryCardActionsRowClass
 } from '../components/libraryCard'
 import {
   LibraryBrowseBar,
@@ -30,14 +44,17 @@ import {
 } from '../components/LibraryBrowseBar'
 import { LibraryFilterSelect } from '../components/LibraryFilterSelect'
 import { useLibraryBrowse } from '../hooks/useLibraryBrowse'
+import { compareUpdatedAtDesc } from '../lib/librarySort'
 import {
   DEFAULT_PROP_PLATE,
+  getPropPlateVariant,
   PROP_PLATE_VARIANTS,
   type PropPlateVariantId
 } from '../../domain/propPlateVariants'
 import {
   artStylesByGroup,
   DEFAULT_ART_STYLE,
+  getArtStyle,
   isArtStyleId,
   type ArtStyleId
 } from '../../domain/characterArtStyles'
@@ -68,6 +85,7 @@ type EditorPanel = 'profile' | 'refs'
 interface FormState {
   name: string
   description: string
+  hardRules: string
   material: string
   sizeNotes: string
   condition: string
@@ -80,6 +98,7 @@ interface FormState {
 const emptyForm = (): FormState => ({
   name: '',
   description: '',
+  hardRules: '',
   material: '',
   sizeNotes: '',
   condition: '',
@@ -136,7 +155,8 @@ export function PropsPage(): JSX.Element {
         if (propImage === 'has' && !hasImg) return false
         if (propImage === 'none' && hasImg) return false
         return true
-      }
+      },
+      sort: compareUpdatedAtDesc
     }
   )
   const clearPropFilters = (): void => {
@@ -161,8 +181,10 @@ export function PropsPage(): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
+  const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
-  const [useExternalRef, setUseExternalRef] = useState(true)
+  const [imageGenConfirm, setImageGenConfirm] =
+    useState<ImageGenConfirmPayload | null>(null)
   const [plateVariant, setPlateVariant] =
     useState<PropPlateVariantId>(DEFAULT_PROP_PLATE)
   const [plotSuggestOpen, setPlotSuggestOpen] = useState(false)
@@ -186,11 +208,6 @@ export function PropsPage(): JSX.Element {
       setPlotStoryId(activeStoryId)
     }
   }, [plotSuggestOpen, activeStoryId, plotStoryId])
-
-  const propExternalRefs = useMemo(
-    () => listSceneExternalRefs(form.gallery),
-    [form.gallery]
-  )
 
   const propLayerOptions = useMemo(() => {
     const layers = new Set<string>()
@@ -238,14 +255,24 @@ export function PropsPage(): JSX.Element {
         ...f,
         name: p.name || f.name,
         description: p.description || f.description,
-        material: p.material ?? f.material,
-        sizeNotes: p.sizeNotes ?? f.sizeNotes,
-        condition: p.condition ?? f.condition,
-        visualTags: p.visualTags ?? f.visualTags,
+        material: p.material?.trim() ? p.material : f.material,
+        sizeNotes: p.sizeNotes?.trim() ? p.sizeNotes : f.sizeNotes,
+        condition: p.condition?.trim() ? p.condition : f.condition,
+        // Prefer AI visualTags even when previously empty; never keep blank if AI sent tags
+        visualTags:
+          typeof p.visualTags === 'string' && p.visualTags.trim()
+            ? p.visualTags.trim()
+            : f.visualTags,
+        hardRules:
+          typeof p.hardRules === 'string' && p.hardRules.trim()
+            ? p.hardRules.trim()
+            : f.hardRules,
         artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle
       }))
       setEditorOpen(true)
+      setEditorPanel('profile')
       setPageBanner(t('props.aiFillOk')); toast.success(t('props.aiFillOk'))
+      // Do not reload list immediately — it can race and leave form looking stale.
       void reload()
     })
   }, [onPropProfileApply, editingId, reload, t])
@@ -321,6 +348,7 @@ export function PropsPage(): JSX.Element {
     setForm({
       name: p.name,
       description: p.description,
+      hardRules: p.hardRules ?? '',
       material: p.material ?? '',
       sizeNotes: p.sizeNotes ?? '',
       condition: p.condition ?? '',
@@ -353,7 +381,8 @@ export function PropsPage(): JSX.Element {
       refGalleryJson: form.gallery.length
         ? serializeSceneGallery(form.gallery)
         : null,
-      seedPrompt: form.description || null
+      seedPrompt: form.description || null,
+      hardRules: form.hardRules || null
     }
   }
 
@@ -370,20 +399,22 @@ export function PropsPage(): JSX.Element {
         if (ok) {
           toast.success(t('common.saved'))
           setPageBanner(t('props.saved'))
+          await reload()
+          closeEditor()
         } else {
           toast.error(t('common.actionFailed'))
         }
         return
       }
-      // First save: create once, lock editingId so further saves are updates
-      const row = (await getApi().props.create({
+      // First save: create, then return to list
+      await getApi().props.create({
         ...payload(),
         linkStoryId: activeStoryId ?? undefined
-      })) as Prop
+      })
       await reload()
-      setEditingId(row.id)
       toast.success(t('common.saved'))
       setPageBanner(t('props.saved'))
+      closeEditor()
     } catch (e) {
       const msg = parseIpcError(e).message
       setActionError(msg)
@@ -459,7 +490,7 @@ export function PropsPage(): JSX.Element {
     )
     startJob({
       kind: 'prop-ai-fill',
-      label: t('props.aiFill'),
+      label: t('common.aiFill'),
       scope: {
         propId: editingId ?? undefined,
         storyId: activeStoryId ?? undefined
@@ -485,24 +516,6 @@ export function PropsPage(): JSX.Element {
         }
       }
     })
-  }
-
-  const handlePickExternalRef = async (): Promise<void> => {
-    const result = await getApi().media.pickRefImage()
-    if (!result) return
-    const next = appendSceneGalleryItem(form.gallery, {
-      path: result.filePath,
-      kind: 'external',
-      label: t('characters.externalRefLabel')
-    })
-    setForm((f) => ({
-      ...f,
-      gallery: next,
-      coverPath: f.coverPath ?? next[0]?.path ?? null
-    }))
-    setSelectedImageId(next[next.length - 1]?.id ?? null)
-    setUseExternalRef(true)
-    toast.success(t('characters.externalRefAdded'))
   }
 
   /** Animate the selected still into a prop intro video using prop bible. */
@@ -595,49 +608,98 @@ export function PropsPage(): JSX.Element {
     return () => window.removeEventListener('idm:video-prep-done', onDone)
   }, [editingId, reload])
 
+  const selectedPathsForIdentity = useMemo(() => {
+    const ids =
+      selectedImageIds.length > 0
+        ? selectedImageIds
+        : selectedImageId
+          ? [selectedImageId]
+          : []
+    return ids
+      .map((id) => form.gallery.find((g) => g.id === id)?.path)
+      .filter((p): p is string => Boolean(p?.trim()))
+  }, [selectedImageIds, selectedImageId, form.gallery])
+
+  /** Open confirm modal, then generate on confirm. */
   const handleGeneratePlate = async (opts?: {
     useIdentityEdit?: boolean
     referenceImagePath?: string | null
-    useExternalRef?: boolean
   }): Promise<void> => {
     setActionError(null)
     try {
       const id = await ensureSavedId()
-      if (!id) {
-        // ensureSavedId already toasts on failure
-        return
-      }
+      if (!id) return
       if (propBusy(id)) {
         toast.info(t('common.loading'))
         return
       }
-      // Pure generate unless identity lock / external ref is on (characters parity).
       const wantIdentity =
         opts?.useIdentityEdit !== undefined
           ? opts.useIdentityEdit === true
           : useIdentityRef
-      const wantExternal =
-        opts?.useExternalRef !== undefined
-          ? opts.useExternalRef
-          : useExternalRef
-      const externalPath = wantExternal
-        ? pickSceneExternalRefPath(
-            form.gallery,
-            opts?.referenceImagePath ?? selectedImage?.path
-          )
-        : null
-      const preferred = wantIdentity
-        ? (opts?.referenceImagePath ??
-          externalPath ??
-          selectedImage?.path ??
-          null)
-        : externalPath
-      // Prefer external still for identity when checkbox on (same as character external ref toast)
-      toast.info(
-        preferred
-          ? t('characters.genWithExternalRef')
-          : t('aiJobs.startedBackground')
+      const paths =
+        opts?.referenceImagePath?.trim()
+          ? [opts.referenceImagePath.trim()]
+          : selectedPathsForIdentity
+      const idRes = resolveIdentityPaths({
+        useIdentityRef: wantIdentity,
+        selectedPaths: paths
+      })
+      const profile = {
+        name: form.name.trim() || 'Prop',
+        description: form.description.trim() || form.name.trim() || 'Prop',
+        material: form.material.trim() || undefined,
+        sizeNotes: form.sizeNotes.trim() || undefined,
+        condition: form.condition.trim() || undefined,
+        visualTags: form.visualTags.trim() || undefined,
+        hardRules: form.hardRules.trim() || undefined
+      }
+      let prompt = idRes.useEdit
+        ? buildPropPlateEditPrompt(profile, plateVariant, form.artStyle)
+        : buildPropPlateImagePrompt(profile, plateVariant, form.artStyle)
+      if (idRes.paths.length > 1) {
+        prompt = appendMultiRefNote(
+          prompt,
+          idRes.paths,
+          getAiLocale(i18n.language)
+        )
+      }
+      prompt = ensureHardRules(prompt, form.hardRules)
+      const variantLabel = t(
+        `props.${getPropPlateVariant(plateVariant).labelKey}`
       )
+      const styleLabel = t(
+        `characters.${getArtStyle(form.artStyle).labelKey}`
+      )
+      const modeLabel = idRes.useEdit
+        ? t('common.imageGenConfirmModeIdentity')
+        : t('common.imageGenConfirmModePure')
+      setImageGenConfirm({
+        prompt,
+        referencePaths: idRes.paths,
+        useIdentityEdit: idRes.useEdit,
+        summary: `${t('props.plateVariant')}: ${variantLabel} · ${t('props.artStyle')}: ${styleLabel} · ${modeLabel}`
+      })
+    } catch (e) {
+      const err = parseIpcError(e)
+      const msg = `${err.message}${err.details ? ` — ${err.details}` : ''}`
+      setActionError(msg)
+      toast.error(msg)
+    }
+  }
+
+  const runPropPlateJob = async (
+    confirm: ImageGenConfirmPayload
+  ): Promise<void> => {
+    setImageGenConfirm(null)
+    try {
+      const id = await ensureSavedId()
+      if (!id) return
+      if (propBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      toast.info(t('aiJobs.startedBackground'))
       startJob({
         kind: 'prop-plate',
         label: t('props.generatePlate'),
@@ -647,10 +709,12 @@ export function PropsPage(): JSX.Element {
           const r = await getApi().props.generatePlate({
             propId: id,
             variant: plateVariant,
-            referenceImagePath: preferred,
-            useIdentityEdit: Boolean(wantIdentity && preferred),
+            referenceImagePath: confirm.referencePaths[0] ?? null,
+            referenceImagePaths: confirm.referencePaths,
+            useIdentityEdit: confirm.useIdentityEdit,
             persist: false,
-            artStyle: form.artStyle
+            artStyle: form.artStyle,
+            promptOverride: confirm.prompt
           })
           if (signal.cancelled) {
             try {
@@ -686,14 +750,21 @@ export function PropsPage(): JSX.Element {
     const next = appendSceneGalleryItem(form.gallery, {
       path: result.filePath,
       kind: 'upload',
-      label: t('props.uploadLabel')
+      label: t('common.uploadRef')
     })
+    const newId = next[next.length - 1]?.id ?? null
     setForm((f) => ({
       ...f,
       gallery: next,
       coverPath: f.coverPath ?? next[0]?.path ?? null
     }))
-    setSelectedImageId(next[0]?.id ?? null)
+    if (newId) {
+      setSelectedImageId(newId)
+      setSelectedImageIds((ids) =>
+        ids.includes(newId) ? ids : [...ids, newId]
+      )
+    }
+    toast.success(t('characters.externalRefAdded'))
   }
 
   const handleReorderGallery = (fromId: string, toId: string): void => {
@@ -810,50 +881,7 @@ export function PropsPage(): JSX.Element {
                               objectFit="cover"
                               className="h-full border-0 rounded-none"
                               actionsLayout="overlay"
-                              regenerateBusy={propBusy(p.id)}
                               onImageClick={() => openEdit(p)}
-                              onRegenerate={() => {
-                                toast.info(t('aiJobs.startedBackground'))
-                                startJob({
-                                  kind: 'prop-plate',
-                                  label: t('props.generatePlate'),
-                                  scope: {
-                                    propId: p.id,
-                                    storyId: activeStoryId ?? undefined
-                                  },
-                                  run: async ({ setProgress, signal }) => {
-                                    setProgress(10, 'image')
-                                    const r =
-                                      await getApi().props.generatePlate({
-                                        propId: p.id,
-                                        variant: plateVariant,
-                                        useIdentityEdit: false,
-                                        persist: false,
-                                        artStyle: p.artStyle ?? undefined
-                                      })
-                                    if (signal.cancelled) {
-                                      try {
-                                        await getApi().media.discardSheetDraft(
-                                          r.path
-                                        )
-                                      } catch {
-                                        /* ignore */
-                                      }
-                                      return
-                                    }
-                                    setProgress(100, 'done')
-                                    return {
-                                      type: 'prop-plate' as const,
-                                      propId: p.id,
-                                      storyId: activeStoryId ?? '',
-                                      path: r.path,
-                                      variant: r.variant ?? plateVariant,
-                                      label: r.label ?? plateVariant,
-                                      enhance: r.enhance
-                                    }
-                                  }
-                                })
-                              }}
                             />
                           ) : (
                             <button
@@ -887,17 +915,17 @@ export function PropsPage(): JSX.Element {
                               </span>
                             )}
                           </div>
-                          <div className="mt-auto flex items-center gap-2 pt-4">
+                          <div className={libraryCardActionsRowClass}>
                             <Button
                               variant="secondary"
-                              className="min-w-0 flex-1 !py-1.5 text-xs"
+                              className={libraryCardActionBtnClass}
                               onClick={() => openEdit(p)}
                             >
                               {t('common.edit')}
                             </Button>
                             <Button
                               variant="ghost"
-                              className="min-w-0 flex-1 !py-1.5 text-xs text-rose-300"
+                              className={libraryCardActionDeleteClass}
                               onClick={() => {
                                 void (async () => {
                                   const ok = await dialog.confirm({
@@ -956,7 +984,6 @@ export function PropsPage(): JSX.Element {
                     showMeta
                     className="border-0 rounded-xl"
                     actionsLayout="bar"
-                    regenerateBusy={editorBusy}
                     introVideoBusy={editorBusy}
                     introVideoPath={selectedImage.introVideoPath}
                     introVideoHasDraft={
@@ -974,12 +1001,28 @@ export function PropsPage(): JSX.Element {
                         ? () => handleGenerateIntroVideo(selectedImage.path)
                         : undefined
                     }
-                    onRegenerate={() =>
-                      void handleGeneratePlate({
-                        referenceImagePath: selectedImage.path,
-                        useIdentityEdit: useIdentityRef
-                      })
-                    }
+                    isCover={form.coverPath === selectedImage.path}
+                    onSetAsCover={() => handleSetCover(selectedImage.path)}
+                    onRemove={() => {
+                      const next = removeSceneGalleryItem(
+                        form.gallery,
+                        selectedImage.id
+                      )
+                      setForm((f) => ({
+                        ...f,
+                        gallery: next,
+                        coverPath:
+                          f.coverPath === selectedImage.path
+                            ? primarySceneGalleryPath(next)
+                            : isSceneGalleryCoverPath(next, f.coverPath)
+                              ? f.coverPath
+                              : primarySceneGalleryPath(next)
+                      }))
+                      setSelectedImageId(next[0]?.id ?? null)
+                      setSelectedImageIds((ids) =>
+                        ids.filter((x) => x !== selectedImage.id)
+                      )
+                    }}
                   />
                 ) : (
                   <div className="flex h-32 flex-col items-center justify-center gap-2 px-3 text-xs text-ink-600">
@@ -999,10 +1042,10 @@ export function PropsPage(): JSX.Element {
                         disabled={editorBusy}
                         onClick={() => {
                           setEditorPanel('refs')
-                          void handlePickExternalRef()
+                          void handlePickImage()
                         }}
                       >
-                        {t('characters.externalRefTitle')}
+                        {t('common.uploadRef')}
                       </Button>
                     </div>
                   </div>
@@ -1030,9 +1073,16 @@ export function PropsPage(): JSX.Element {
               <GalleryThumbStrip
                 items={filteredPropGallery}
                 selectedId={selectedImageId}
+                selectedIds={selectedImageIds}
+                multiSelect
                 coverPath={form.coverPath}
                 fallbackCoverPath={primarySceneGalleryPath(form.gallery)}
                 onSelect={setSelectedImageId}
+                onToggleSelect={(id) =>
+                  setSelectedImageIds((ids) =>
+                    toggleGallerySelection(ids, id)
+                  )
+                }
                 onReorder={handleReorderGallery}
                 labelOf={(g) => translatePropGalleryLabel(g.label, t)}
               />
@@ -1047,7 +1097,7 @@ export function PropsPage(): JSX.Element {
                 </div>
               )}
               <section className="rounded-xl border border-brand-800/35 bg-brand-950/20 p-4">
-                <h3 className="text-sm font-semibold">{t('props.aiTitle')}</h3>
+                <h3 className="text-sm font-semibold">{t('common.aiTitle')}</h3>
                 <p className="mt-1 text-[11px] text-ink-500">
                   {t('common.aiHintWithImage')}
                 </p>
@@ -1065,7 +1115,7 @@ export function PropsPage(): JSX.Element {
                 />
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button disabled={editorBusy} onClick={handleAiFill}>
-                    {t('props.aiFill')}
+                    {t('common.aiFill')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -1096,6 +1146,20 @@ export function PropsPage(): JSX.Element {
                       setForm((f) => ({ ...f, description: e.target.value }))
                     }
                     placeholder={t('props.descriptionPlaceholder')}
+                  />
+                </div>
+                <div>
+                  <Label>{t('common.hardRules')}</Label>
+                  <p className="mb-1.5 text-[11px] leading-relaxed text-ink-500">
+                    {t('common.hardRulesHint')}
+                  </p>
+                  <Textarea
+                    size="md"
+                    value={form.hardRules}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, hardRules: e.target.value }))
+                    }
+                    placeholder={t('common.hardRulesPh')}
                   />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1215,27 +1279,6 @@ export function PropsPage(): JSX.Element {
                   </span>
                 </span>
               </label>
-              <ExternalRefSection
-                items={propExternalRefs.map((g) => ({
-                  id: g.id,
-                  path: g.path,
-                  label: g.label
-                }))}
-                useExternalRef={useExternalRef}
-                onUseExternalChange={setUseExternalRef}
-                onAdd={handlePickExternalRef}
-                onRemove={(id) => {
-                  const next = removeSceneGalleryItem(form.gallery, id)
-                  setForm((f) => ({
-                    ...f,
-                    gallery: next,
-                    coverPath: isSceneGalleryCoverPath(next, f.coverPath)
-                      ? f.coverPath
-                      : primarySceneGalleryPath(next)
-                  }))
-                }}
-                disabled={editorBusy}
-              />
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   className="sm:flex-1"
@@ -1248,46 +1291,8 @@ export function PropsPage(): JSX.Element {
                   variant="secondary"
                   onClick={() => void handlePickImage()}
                 >
-                  {t('props.pickImage')}
+                  {t('common.uploadRef')}
                 </Button>
-                {selectedImage && form.coverPath !== selectedImage.path && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleSetCover(selectedImage.path)}
-                  >
-                    {t('common.setAsCover')}
-                  </Button>
-                )}
-                {selectedImage && form.coverPath === selectedImage.path && (
-                  <span className="inline-flex items-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                    {t('common.isCover')}
-                  </span>
-                )}
-                {selectedImage && (
-                  <Button
-                    variant="ghost"
-                    className="text-rose-300"
-                    onClick={() => {
-                      const next = removeSceneGalleryItem(
-                        form.gallery,
-                        selectedImage.id
-                      )
-                      setForm((f) => ({
-                        ...f,
-                        gallery: next,
-                        coverPath:
-                          f.coverPath === selectedImage.path
-                            ? primarySceneGalleryPath(next)
-                            : isSceneGalleryCoverPath(next, f.coverPath)
-                              ? f.coverPath
-                              : primarySceneGalleryPath(next)
-                      }))
-                      setSelectedImageId(next[0]?.id ?? null)
-                    }}
-                  >
-                    {t('props.removePhoto')}
-                  </Button>
-                )}
               </div>
             </div>
           )}
@@ -1389,12 +1394,19 @@ export function PropsPage(): JSX.Element {
                   }, 0)
                 }}
               >
-                {t('props.aiFill')}
+                {t('common.aiFill')}
               </Button>
             </div>
           </div>
         </div>
       )}
+      <ImageGenConfirmModal
+        open={Boolean(imageGenConfirm)}
+        payload={imageGenConfirm}
+        busy={editorBusy}
+        onCancel={() => setImageGenConfirm(null)}
+        onConfirm={(p) => void runPropPlateJob(p)}
+      />
     </div>
   )
 }

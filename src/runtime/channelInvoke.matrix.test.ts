@@ -8,6 +8,7 @@ const SAFE = [
   'scenes:list',
   'props:list',
   'costumes:list',
+  'actions:list',
   'settings:get',
   'ai:status',
   'app:getInfo',
@@ -19,7 +20,9 @@ const SAFE = [
   'generation:progress',
   'gateway:status',
   'souls:categories',
-  'webServer:status'
+  'webServer:status',
+  'timeline:list',
+  'souls:list'
 ]
 
 describe('channel invoke matrix (safe channels)', () => {

@@ -63,6 +63,8 @@ export interface Character {
   relationships?: string | null
   visualTags?: string | null
   seedPrompt?: string | null
+  /** 生成鐵則 must/must-not for image & video */
+  hardRules?: string | null
   profileJson?: string | null
   refSheetPath?: string | null
   refGalleryJson?: string | null
@@ -71,6 +73,8 @@ export interface Character {
   artStyle?: string | null
   /** JSON wardrobe library (see characterCostumes domain) */
   costumesJson?: string | null
+  createdAt?: string | Date
+  updatedAt?: string | Date
 }
 
 /** AI-filled / form profile for a character (JSON schema for master prompt). */
@@ -91,6 +95,8 @@ export interface CharacterProfileFields {
   visualTags?: string
   /** Original idea / seed used for master-prompt invent */
   seedPrompt?: string
+  /** Hard rules (必須／禁止) — highest priority for gen */
+  hardRules?: string
 }
 
 export interface Scene {
@@ -119,7 +125,10 @@ export interface Scene {
   looksJson?: string | null
   profileJson?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
   locationKey?: string | null
+  createdAt?: string | Date
+  updatedAt?: string | Date
 }
 
 /** AI-filled / form profile for a scene location bible. */
@@ -137,6 +146,7 @@ export interface SceneProfileFields {
   soundscape?: string
   cameraNotes?: string
   visualTags?: string
+  hardRules?: string
 }
 
 export interface Prop {
@@ -154,6 +164,9 @@ export interface Prop {
   refGalleryJson?: string | null
   profileJson?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
+  createdAt?: string | Date
+  updatedAt?: string | Date
 }
 
 export interface PropProfileFields {
@@ -163,6 +176,7 @@ export interface PropProfileFields {
   sizeNotes?: string
   condition?: string
   visualTags?: string
+  hardRules?: string
 }
 
 export interface Action {
@@ -180,8 +194,9 @@ export interface Action {
   castRefsJson?: string | null
   profileJson?: string | null
   seedPrompt?: string | null
-  createdAt?: string
-  updatedAt?: string
+  hardRules?: string | null
+  createdAt?: string | Date
+  updatedAt?: string | Date
 }
 
 export interface ActionProfileFields {
@@ -191,6 +206,7 @@ export interface ActionProfileFields {
   intention?: string
   cameraNotes?: string
   visualTags?: string
+  hardRules?: string
 }
 
 export interface TimelineEntry {
@@ -223,6 +239,7 @@ export interface CreateStoryInput {
   title: string
   styleNote?: string | null
   artStyle?: string | null
+  hardRules?: string | null
 }
 
 export interface UpdateStoryInput {
@@ -230,6 +247,7 @@ export interface UpdateStoryInput {
   status?: StoryStatus | string
   styleNote?: string | null
   artStyle?: string | null
+  hardRules?: string | null
   coverPath?: string | null
   refGalleryJson?: string | null
 }
@@ -255,6 +273,7 @@ export interface CreateCharacterInput {
   relationships?: string | null
   visualTags?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
   profileJson?: string | null
   refSheetPath?: string | null
   refGalleryJson?: string | null
@@ -293,6 +312,7 @@ export interface CreateSceneInput {
   looksJson?: string | null
   profileJson?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
   locationKey?: string | null
 }
 
@@ -315,6 +335,7 @@ export interface CreatePropInput {
   refGalleryJson?: string | null
   profileJson?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
 }
 
 export type UpdatePropInput = Partial<
@@ -338,6 +359,7 @@ export interface CreateActionInput {
   castRefsJson?: string | null
   profileJson?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
 }
 
 export type UpdateActionInput = Partial<
@@ -461,6 +483,11 @@ export interface AIProviderStatus {
   baseUrl: string
   model: string
   message: string
+  /**
+   * Active chat LLM preset id (e.g. mistral, xai, grok-gateway).
+   * Sidebar status should show this label, not always “Grok CLI”.
+   */
+  llmProvider?: string
   /** Chat / LLM channel */
   chat?: AIChannelStatus
   /**

@@ -67,22 +67,33 @@ export function mapChatHttpStatus(status: number, bodyText: string): AppError {
   if (status === 401) {
     return new AppError(
       'AI_UNAUTHORIZED',
-      'API key rejected',
+      'errors.apiKeyRejected',
       'The gateway refused the key. Re-select Grok so the app can issue a new key.'
     )
   }
   if (status === 403) {
     return new AppError(
       'AI_KEY_MODE',
-      'Key not allowed for this action',
+      'errors.keyNotAllowed',
       'The app key may need agent permissions. Re-select Grok to refresh automatically.'
     )
   }
   if (status === 429) {
     return new AppError(
       'AI_RATE_LIMIT',
-      'Too many requests',
+      'errors.tooManyRequests',
       'The gateway rate limit was hit. Wait a few seconds and try again.'
+    )
+  }
+  // Gateway up but Grok CLI failed (vision format, crash, empty stdout)
+  if (
+    (status === 502 || status === 500) &&
+    /grok cli exited|grok_error|produced no stdout|e2big/i.test(bodyText)
+  ) {
+    return new AppError(
+      'AI_FAILED',
+      'errors.grokCliFailed',
+      'errors.grokCliFailedHint'
     )
   }
   const mapped = mapChatMessage(`Chat HTTP ${status}: ${bodyText.slice(0, 200)}`)
@@ -112,7 +123,7 @@ export function mapChatMessage(message: string): AppErrorBody | null {
   if (/\bno api key\b/.test(m)) {
     return {
       code: 'AI_UNAUTHORIZED',
-      message: 'No API key',
+      message: 'errors.noApiKey',
       details:
         'Open Settings → re-select Grok so the app can auto-create a gateway key.'
     }
@@ -120,22 +131,30 @@ export function mapChatMessage(message: string): AppErrorBody | null {
   if (/\b401\b|unauthorized|invalid api key/.test(m)) {
     return {
       code: 'AI_UNAUTHORIZED',
-      message: 'API key rejected',
+      message: 'errors.apiKeyRejected',
       details: 'Re-select Grok so the app can issue a new key automatically.'
     }
   }
   if (/\b403\b|forbidden|safe.?mode|key mode/.test(m)) {
     return {
       code: 'AI_KEY_MODE',
-      message: 'Key not allowed for this action',
+      message: 'errors.keyNotAllowed',
       details: 'Re-select Grok to refresh access automatically.'
     }
   }
   if (/\b429\b|rate limit/.test(m)) {
     return {
       code: 'AI_RATE_LIMIT',
-      message: 'Too many requests',
+      message: 'errors.tooManyRequests',
       details: 'Wait a few seconds and try again.'
+    }
+  }
+  // Grok CLI process failed under gateway (vision / argv / crash)
+  if (/grok cli exited|grok_error|produced no stdout|\be2big\b/.test(m)) {
+    return {
+      code: 'AI_FAILED',
+      message: 'errors.grokCliFailed',
+      details: 'errors.grokCliFailedHint'
     }
   }
   // Grok-Cli-to-OpenAI-compatible: strictSampling rejects temperature/top_p/stop

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildPropIntroVideoPrompt,
   buildPropMasterSystemPrompt,
-  buildPropMasterUserPrompt
+  buildPropMasterUserPrompt,
+  extractPropProfileJson
 } from './propMasterPrompt'
 
 describe('propMasterPrompt', () => {
@@ -12,6 +13,43 @@ describe('propMasterPrompt', () => {
     expect(zh).toMatch(/依據來源|自由補齊/)
     expect(en).toMatch(/Sources of truth|invent freely/i)
   })
+
+  it('system prompt requires every key and forbids visualTags array', () => {
+    const zh = buildPropMasterSystemPrompt('zh-HK')
+    expect(zh).toMatch(/必須輸出|每一個鍵/)
+    expect(zh).toMatch(/visualTags/)
+    expect(zh).toMatch(/禁止|陣列/)
+  })
+
+  it('extractPropProfileJson coerces visualTags array to string', () => {
+    const p = extractPropProfileJson(`\`\`\`json
+{
+  "name": "金心項鍊",
+  "description": "金色心形吊墜",
+  "material": "gold",
+  "sizeNotes": "2cm",
+  "condition": "new",
+  "visualTags": ["gold", "heart", "necklace"],
+  "artStyle": "photo_cinematic"
+}
+\`\`\``)
+    expect(p.name).toBe('金心項鍊')
+    expect(p.visualTags).toBe('gold, heart, necklace')
+    expect(p.material).toBe('gold')
+    expect(p.artStyle).toBe('photo_cinematic')
+  })
+
+  it('extractPropProfileJson accepts visual_tags alias', () => {
+    const p = extractPropProfileJson(
+      JSON.stringify({
+        name: 'Cup',
+        description: 'Ceramic cup',
+        visual_tags: 'white, ceramic'
+      })
+    )
+    expect(p.visualTags).toBe('white, ceramic')
+  })
+
 
   it('create mode follows idea without story injection in prompt builder', () => {
     const u = buildPropMasterUserPrompt({

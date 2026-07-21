@@ -8,9 +8,27 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
+  # Guard: package.json version must match tag vX.Y.Z (skip on workflow_dispatch without tag)
+  version-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify package.json version matches tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          echo "tag=$TAG package=$PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG must equal package.json version $PKG"
+            exit 1
+          fi
+
   linux:
+    needs: [version-guard]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +55,12 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify linux update assets
+        run: |
+          test -n "$(ls release/*.AppImage 2>/dev/null)" || { echo "missing AppImage"; exit 1; }
+          test -f release/latest-linux.yml || { echo "missing latest-linux.yml"; exit 1; }
+          echo "Linux assets OK"
+          ls -la release/*.{AppImage,deb,yml} 2>/dev/null || true
       - name: Upload linux artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -45,6 +69,7 @@ jobs:
             release/*.AppImage
             release/*.deb
             release/latest-linux.yml
+            release/*.blockmap
           if-no-files-found: warn
           retention-days: 30
       - name: Publish GitHub Release (linux)
@@ -55,6 +80,7 @@ jobs:
             release/*.AppImage
             release/*.deb
             release/latest-linux.yml
+            release/*.blockmap
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}
@@ -62,6 +88,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   windows:
+    needs: [version-guard]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,6 +107,12 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify windows update assets
+        shell: bash
+        run: |
+          test -n "$(ls release/*.exe 2>/dev/null)" || { echo "missing exe"; exit 1; }
+          test -f release/latest.yml || { echo "missing latest.yml"; exit 1; }
+          echo "Windows assets OK"
       - name: Upload windows artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -87,6 +120,7 @@ jobs:
           path: |
             release/*.exe
             release/latest.yml
+            release/*.blockmap
           if-no-files-found: warn
           retention-days: 30
       - name: Attach Windows to GitHub Release
@@ -96,12 +130,14 @@ jobs:
           files: |
             release/*.exe
             release/latest.yml
+            release/*.blockmap
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # macOS unsigned dmg (no Apple Developer cert). Optional secrets enable signing later.
   macos:
+    needs: [version-guard]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -120,6 +156,11 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify mac update assets
+        run: |
+          test -n "$(ls release/*.dmg 2>/dev/null)" || { echo "missing dmg"; exit 1; }
+          test -f release/latest-mac.yml || { echo "missing latest-mac.yml"; exit 1; }
+          echo "macOS assets OK"
       - name: Upload mac artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -127,6 +168,8 @@ jobs:
           path: |
             release/*.dmg
             release/latest-mac.yml
+            release/*.blockmap
+            release/*.zip
           if-no-files-found: warn
           retention-days: 30
       - name: Attach macOS to GitHub Release
@@ -136,6 +179,33 @@ jobs:
           files: |
             release/*.dmg
             release/latest-mac.yml
+            release/*.blockmap
+            release/*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Publish same version to npm so CLI channel matches GitHub Releases
+  npm-publish:
+    needs: [version-guard, linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install
+        run: npm ci
+      - name: Prisma generate
+        run: npx prisma generate
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify published version
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          echo "Published $PKG — users: npm install -g instant-drama-magician@$PKG"

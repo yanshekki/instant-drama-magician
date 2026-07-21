@@ -31,7 +31,7 @@ export class SceneService {
             ]
           }
         : undefined,
-      orderBy: { title: 'asc' }
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
     })
   }
 
@@ -41,7 +41,7 @@ export class SceneService {
 
   async get(id: string) {
     const row = await this.prisma.scene.findUnique({ where: { id } })
-    if (!row) throw new AppError('NOT_FOUND', `Scene not found: ${id}`)
+    if (!row) throw new AppError('NOT_FOUND', 'errors.sceneNotFound', String(id))
     return row
   }
 
@@ -73,6 +73,7 @@ export class SceneService {
         looksJson: trimOrNull(input.looksJson),
         profileJson: trimOrNull(input.profileJson),
         seedPrompt: trimOrNull(input.seedPrompt),
+        hardRules: trimOrNull(input.hardRules),
         locationKey: trimOrNull(input.locationKey)
       }
     })
@@ -160,6 +161,9 @@ export class SceneService {
         ...(data.seedPrompt !== undefined
           ? { seedPrompt: trimOrNull(data.seedPrompt) }
           : {}),
+        ...(data.hardRules !== undefined
+          ? { hardRules: trimOrNull(data.hardRules) }
+          : {}),
         ...(data.locationKey !== undefined
           ? { locationKey: trimOrNull(data.locationKey) }
           : {})
@@ -178,6 +182,6 @@ export class SceneService {
       where: { id },
       select: { id: true }
     })
-    if (!found) throw new AppError('NOT_FOUND', `Scene not found: ${id}`)
+    if (!found) throw new AppError('NOT_FOUND', 'errors.sceneNotFound', String(id))
   }
 }

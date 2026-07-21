@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   extractStoryBeatsJson,
+  extractStoryMetaJson,
   extractStyleNoteJson,
   resolveBeatIds
 } from './storyMasterPrompt'
@@ -10,6 +11,20 @@ describe('storyMasterPrompt', () => {
     expect(
       extractStyleNoteJson('{"styleNote":" neon rain, handheld "}')
     ).toBe('neon rain, handheld')
+  })
+
+  it('extracts styleNote + hardRules', () => {
+    const m = extractStoryMetaJson(
+      '{"styleNote":" neon rain ","hardRules":"【禁止】水印\\n【必須】可讀剪影"}'
+    )
+    expect(m.styleNote).toBe('neon rain')
+    expect(m.hardRules).toMatch(/水印|剪影/)
+  })
+
+  it('falls back hardRules when omitted', () => {
+    const m = extractStoryMetaJson('{"styleNote":"mood only"}', 'en')
+    expect(m.styleNote).toBe('mood only')
+    expect(m.hardRules.length).toBeGreaterThan(5)
   })
 
   it('extracts beats array (legacy dialogue)', () => {

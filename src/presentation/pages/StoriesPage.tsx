@@ -16,7 +16,10 @@ import {
   libraryBodyClass,
   libraryCardClass,
   libraryGridClass,
-  libraryMediaClass
+  libraryMediaClass,
+  libraryCardActionBtnClass,
+  libraryCardActionDeleteClass,
+  libraryCardActionsRowClass
 } from '../components/libraryCard'
 import {
   LibraryBrowseBar,
@@ -26,6 +29,8 @@ import {
 import { LibraryFilterSelect } from '../components/LibraryFilterSelect'
 import { useLibraryBrowse } from '../hooks/useLibraryBrowse'
 import { matchesSearchQuery } from '../lib/searchQuery'
+import { sortByUpdatedAtDesc } from '../lib/librarySort'
+import { appendHardRules, ensureHardRules } from '../../domain/promptHardRules'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
@@ -33,7 +38,6 @@ import { useAiJobs } from '../context/AiJobsContext'
 import { PageHeader } from '../components/PageHeader'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
-import { ExternalRefSection } from '../components/ExternalRefSection'
 import {
   EditorField,
   EditorSelect,
@@ -45,9 +49,7 @@ import { MultiIdPick } from '../components/MultiIdPick'
 import {
   appendGalleryItem,
   isGalleryCoverPath,
-  listExternalRefs,
   parseCharacterGallery,
-  pickExternalRefPath,
   primaryGalleryPath,
   removeGalleryItem,
   serializeCharacterGallery,
@@ -57,9 +59,19 @@ import { translateCharacterGalleryLabel } from '../../domain/galleryLabelI18n'
 import {
   artStylesByGroup,
   DEFAULT_ART_STYLE,
+  getArtStyle,
   isArtStyleId,
   type ArtStyleId
 } from '../../domain/characterArtStyles'
+import {
+  appendMultiRefNote,
+  resolveIdentityPaths,
+  toggleGallerySelection
+} from '../../domain/imageGenConfirm'
+import {
+  ImageGenConfirmModal,
+  type ImageGenConfirmPayload
+} from '../components/ImageGenConfirmModal'
 import {
   MAX_BEAT_ACTIONS,
   MAX_BEAT_CHARACTERS,
@@ -225,13 +237,19 @@ export function StoriesPage(): JSX.Element {
   const [editTitle, setEditTitle] = useState('')
   const [editStatus, setEditStatus] = useState<StoryStatus>('DRAFT')
   const [styleNote, setStyleNote] = useState('')
+  const [hardRules, setHardRules] = useState('')
   const [storyArtStyle, setStoryArtStyle] =
     useState<ArtStyleId>(DEFAULT_ART_STYLE)
   const [coverPath, setCoverPath] = useState<string | null>(null)
   const [coverGallery, setCoverGallery] = useState<CharacterGalleryItem[]>([])
   const [selectedCoverId, setSelectedCoverId] = useState<string | null>(null)
+  const [selectedCoverIds, setSelectedCoverIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
-  const [useExternalRef, setUseExternalRef] = useState(true)
+  const [imageGenConfirm, setImageGenConfirm] =
+    useState<ImageGenConfirmPayload | null>(null)
+  const [pendingCoverStoryId, setPendingCoverStoryId] = useState<string | null>(
+    null
+  )
   const artGroups = useMemo(() => artStylesByGroup(), [])
   const selectedCoverImage = useMemo(() => {
     if (!coverGallery.length) return null
@@ -287,6 +305,11 @@ export function StoriesPage(): JSX.Element {
           : 'DRAFT') as StoryStatus
       )
       setStyleNote(d.styleNote ?? '')
+      setHardRules(
+        typeof (d as { hardRules?: string | null }).hardRules === 'string'
+          ? ((d as { hardRules?: string | null }).hardRules ?? '')
+          : ''
+      )
       setStoryArtStyle(
         isArtStyleId((d as { artStyle?: string | null }).artStyle)
           ? ((d as { artStyle: string }).artStyle as ArtStyleId)
@@ -299,12 +322,14 @@ export function StoriesPage(): JSX.Element {
       )
       setCoverGallery(cg)
       setSelectedCoverId(cg.find((x) => x.path === d.coverPath)?.id ?? cg[0]?.id ?? null)
-      setAllChars(chars)
-      setAllScenes(scenes)
-      setAllProps(props)
-      setAllActions(actions)
+      setAllChars(sortByUpdatedAtDesc(chars))
+      setAllScenes(sortByUpdatedAtDesc(scenes))
+      setAllProps(sortByUpdatedAtDesc(props))
+      setAllActions(sortByUpdatedAtDesc(actions))
       setBeats(timeline)
-      setCostumeLib(Array.isArray(costumes) ? costumes : [])
+      setCostumeLib(
+        Array.isArray(costumes) ? sortByUpdatedAtDesc(costumes) : []
+      )
     } catch (e) {
       setActionError(parseIpcError(e).message)
     } finally {
@@ -367,6 +392,7 @@ export function StoriesPage(): JSX.Element {
     setEditTitle('')
     setEditStatus('DRAFT')
     setStyleNote('')
+    setHardRules('')
     setStoryArtStyle(DEFAULT_ART_STYLE)
     setCoverPath(null)
     setCoverGallery([])
@@ -379,7 +405,6 @@ export function StoriesPage(): JSX.Element {
     setDetail(null)
     setAiIdea('')
     setUseIdentityRef(false)
-    setUseExternalRef(true)
     setActionError(null)
   }
 
@@ -430,20 +455,20 @@ export function StoriesPage(): JSX.Element {
           title: editTitle.trim()
         })
         id = created.id as string
-        setEditingId(id)
         setActiveStoryId(id)
       }
       await getApi().stories.update(id, {
         title: editTitle.trim(),
         status: editStatus,
         styleNote: styleNote.trim() || null,
+        hardRules: hardRules.trim() || null,
         artStyle: storyArtStyle,
         coverPath: coverPath,
         refGalleryJson: serializeCharacterGallery(coverGallery)
       })
       await refreshStories()
-      await loadDetail(id)
       toast.success(t('common.saved'))
+      closeEditor()
     } catch (e) {
       const msg = parseIpcError(e).message
       setActionError(msg)
@@ -453,10 +478,6 @@ export function StoriesPage(): JSX.Element {
     }
   }
 
-  const storyExternalRefs = useMemo(
-    () => listExternalRefs(coverGallery),
-    [coverGallery]
-  )
 
   useEffect(() => {
     return onStoryCoverCommitted(({ storyId, path }) => {
@@ -482,11 +503,65 @@ export function StoriesPage(): JSX.Element {
       })
   )
 
+  const selectedCoverPathsForIdentity = useMemo(() => {
+    const ids =
+      selectedCoverIds.length > 0
+        ? selectedCoverIds
+        : selectedCoverId
+          ? [selectedCoverId]
+          : []
+    return ids
+      .map((id) => coverGallery.find((g) => g.id === id)?.path)
+      .filter((p): p is string => Boolean(p?.trim()))
+  }, [selectedCoverIds, selectedCoverId, coverGallery])
+
+  const buildStoryCoverPrompt = (
+    locale: 'zh-HK' | 'en',
+    opts?: { idea?: string | null; useEdit?: boolean }
+  ): string => {
+    const title = editTitle.trim() || (locale === 'en' ? 'Story' : '故事')
+    const note = styleNote.trim()
+    const idea = (opts?.idea !== undefined ? opts.idea : aiIdea)?.trim() || ''
+    const art = getArtStyle(storyArtStyle)
+    const base =
+      locale === 'en'
+        ? [
+            'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
+            'Not a UI mockup. No text, no logo, no watermark, no title caption.',
+            `Story title (mood only, do not letter it): ${title}.`,
+            art.promptBlock,
+            note ? `Style bible: ${note}` : '',
+            idea ? `Extra direction: ${idea}` : '',
+            'Evocative establishing mood frame suitable as a library card cover.',
+            'Match the art medium; strong silhouette and readable mood.'
+          ]
+            .filter(Boolean)
+            .join(' ')
+        : [
+            'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
+            'Not a UI mockup. No text, no logo, no watermark, no title caption.',
+            `故事標題（只取氣氛，畫面勿寫出文字）：${title}。`,
+            art.promptBlock,
+            note ? `風格備註：${note}` : '',
+            idea ? `額外方向：${idea}` : '',
+            '適合用作片庫封面的情緒建立鏡頭；強烈剪影、可讀氣氛。',
+            '依藝術風格 medium 出圖；構圖清晰。'
+          ]
+            .filter(Boolean)
+            .join(' ')
+    const withRules = appendHardRules(base, hardRules)
+    if (!opts?.useEdit) return withRules
+    const editPrefix =
+      locale === 'en'
+        ? 'IMAGE EDIT: create a new short-drama poster composition. Keep identity/mood of subjects if present. '
+        : 'IMAGE EDIT：以新構圖創作短劇海報。保留主體身份／氣氛（如有）。'
+    return appendHardRules(editPrefix + base, hardRules)
+  }
+
   const handleGenerateCover = (opts?: {
     storyId?: string
     referenceImagePath?: string | null
     useIdentityEdit?: boolean
-    useExternalRef?: boolean
     idea?: string | null
   }): void => {
     const sid = opts?.storyId ?? editingId
@@ -496,21 +571,51 @@ export function StoriesPage(): JSX.Element {
       opts?.useIdentityEdit !== undefined
         ? opts.useIdentityEdit
         : useIdentityRef
-    const wantExt =
-      opts?.useExternalRef !== undefined
-        ? opts.useExternalRef
-        : useExternalRef
-    const externalPath = wantExt
-      ? pickExternalRefPath(coverGallery, {
-          preferredPath: opts?.referenceImagePath ?? coverPath
-        })
-      : null
-    const refPath =
-      opts?.referenceImagePath !== undefined
-        ? opts.referenceImagePath
-        : useId
-          ? coverPath ?? externalPath
-          : externalPath
+    const paths =
+      opts?.referenceImagePath?.trim()
+        ? [opts.referenceImagePath.trim()]
+        : selectedCoverPathsForIdentity.length > 0
+          ? selectedCoverPathsForIdentity
+          : useId && coverPath
+            ? [coverPath]
+            : []
+    const idRes = resolveIdentityPaths({
+      useIdentityRef: useId,
+      selectedPaths: paths
+    })
+    const locale = getAiLocale(i18n.language)
+    let prompt = buildStoryCoverPrompt(locale, {
+      idea: opts?.idea,
+      useEdit: idRes.useEdit
+    })
+    if (idRes.paths.length > 1) {
+      prompt = appendMultiRefNote(prompt, idRes.paths, locale)
+    }
+    // Re-apply after multi-ref note so HARD RULES stay at the end
+    prompt = ensureHardRules(prompt, hardRules)
+    const styleLabel = t(
+      `characters.${getArtStyle(storyArtStyle).labelKey}`
+    )
+    const modeLabel = idRes.useEdit
+      ? t('common.imageGenConfirmModeIdentity')
+      : t('common.imageGenConfirmModePure')
+    setPendingCoverStoryId(sid)
+    setImageGenConfirm({
+      prompt,
+      referencePaths: idRes.paths,
+      useIdentityEdit: idRes.useEdit,
+      summary: `${t('stories.generateCover')} · ${t('characters.artStyle')}: ${styleLabel} · ${modeLabel}`
+    })
+  }
+
+  const runStoryCoverJob = async (
+    confirm: ImageGenConfirmPayload
+  ): Promise<void> => {
+    setImageGenConfirm(null)
+    const sid = pendingCoverStoryId ?? editingId
+    setPendingCoverStoryId(null)
+    if (!sid) return
+    if (storyCoverBusyId(sid)) return
     toast.info(t('aiJobs.startedBackground'))
     startJob({
       kind: 'story-cover',
@@ -520,10 +625,12 @@ export function StoriesPage(): JSX.Element {
         setProgress(10, 'image')
         const r = await getApi().stories.generateCover({
           storyId: sid,
-          idea: (opts?.idea !== undefined ? opts.idea : aiIdea) || null,
-          useIdentityEdit: Boolean(refPath),
-          referenceImagePath: refPath,
-          locale: getAiLocale(i18n.language)
+          idea: aiIdea || null,
+          useIdentityEdit: confirm.useIdentityEdit,
+          referenceImagePath: confirm.referencePaths[0] ?? null,
+          referenceImagePaths: confirm.referencePaths,
+          locale: getAiLocale(i18n.language),
+          promptOverride: confirm.prompt
         })
         if (signal.cancelled) {
           try {
@@ -573,22 +680,6 @@ export function StoriesPage(): JSX.Element {
     toast.success(t('characters.externalRefAdded'))
   }
 
-  const handlePickStoryExternal = async (): Promise<void> => {
-    if (!editingId) return
-    const result = await getApi().media.pickRefImage()
-    if (!result) return
-    const next = appendGalleryItem(coverGallery, {
-      path: result.filePath,
-      kind: 'external',
-      label: t('characters.externalRefLabel')
-    })
-    setCoverGallery(next)
-    setSelectedCoverId(next[next.length - 1]?.id ?? null)
-    setUseExternalRef(true)
-    if (!coverPath) setCoverPath(result.filePath)
-    toast.success(t('characters.externalRefAdded'))
-  }
-
   const handleSetStoryCover = (path: string): void => {
     setCoverPath(path)
     const hit = coverGallery.find((g) => g.path === path)
@@ -600,6 +691,7 @@ export function StoriesPage(): JSX.Element {
     const removed = coverGallery.find((g) => g.id === id)
     const next = removeGalleryItem(coverGallery, id)
     setCoverGallery(next)
+    setSelectedCoverIds((ids) => ids.filter((x) => x !== id))
     if (removed && coverPath === removed.path) {
       const primary = primaryGalleryPath(next)
       setCoverPath(primary)
@@ -615,7 +707,7 @@ export function StoriesPage(): JSX.Element {
   }
 
   const handleAiMeta = (): void => {
-    if (!editTitle.trim() && !aiIdea.trim() && !styleNote.trim()) {
+    if (!editTitle.trim() && !aiIdea.trim() && !styleNote.trim() && !hardRules.trim()) {
       setActionError(t('stories.aiNeedTitle'))
       return
     }
@@ -631,7 +723,8 @@ export function StoriesPage(): JSX.Element {
         if (editingId) {
           await getApi().stories.update(editingId, {
             title: editTitle.trim() || undefined,
-            styleNote: styleNote.trim() || null
+            styleNote: styleNote.trim() || null,
+            hardRules: hardRules.trim() || null
           })
         }
         const r = await getApi().stories.aiFillMeta({
@@ -639,11 +732,15 @@ export function StoriesPage(): JSX.Element {
           title: editTitle,
           idea: aiIdea,
           existingStyleNote: styleNote,
+          existingHardRules: hardRules,
           locale: getAiLocale(i18n.language)
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
         setStyleNote(r.styleNote)
+        if (typeof r.hardRules === 'string' && r.hardRules.trim()) {
+          setHardRules(r.hardRules.trim())
+        }
         setPageBanner(t('stories.aiMetaOk'))
         toast.success(t('stories.aiMetaOk'))
       }
@@ -871,7 +968,12 @@ export function StoriesPage(): JSX.Element {
   }, [castKind, castQ, castLinkFilter, editingId])
 
   const castBrowser = useMemo(() => {
-    type Row = { id: string; label: string; sub?: string }
+    type Row = {
+      id: string
+      label: string
+      sub?: string
+      updatedAt?: string | Date
+    }
     let items: Row[] = []
     let linkedIds = linkedCharIds
     let empty = t('stories.castEmptyChars')
@@ -880,7 +982,8 @@ export function StoriesPage(): JSX.Element {
       items = allChars.map((c) => ({
         id: c.id,
         label: c.name,
-        sub: c.description
+        sub: c.description,
+        updatedAt: (c as { updatedAt?: string | Date }).updatedAt
       }))
       linkedIds = linkedCharIds
       empty = t('stories.castEmptyChars')
@@ -888,7 +991,8 @@ export function StoriesPage(): JSX.Element {
       items = allScenes.map((s) => ({
         id: s.id,
         label: s.title || s.description.slice(0, 48),
-        sub: s.description
+        sub: s.description,
+        updatedAt: (s as { updatedAt?: string | Date }).updatedAt
       }))
       linkedIds = linkedSceneIds
       empty = t('stories.castEmptyScenes')
@@ -896,7 +1000,8 @@ export function StoriesPage(): JSX.Element {
       items = allProps.map((p) => ({
         id: p.id,
         label: p.name,
-        sub: p.description
+        sub: p.description,
+        updatedAt: (p as { updatedAt?: string | Date }).updatedAt
       }))
       linkedIds = linkedPropIds
       empty = t('stories.castEmptyProps')
@@ -904,21 +1009,24 @@ export function StoriesPage(): JSX.Element {
       items = allActions.map((a) => ({
         id: a.id,
         label: a.name,
-        sub: a.description
+        sub: a.description,
+        updatedAt: a.updatedAt
       }))
       linkedIds = linkedActionIds
       empty = t('stories.castEmptyActions')
     }
 
-    const filtered = items.filter((it) => {
-      const linked = linkedIds.has(it.id)
-      if (castLinkFilter === 'linked' && !linked) return false
-      if (castLinkFilter === 'unlinked' && linked) return false
-      return matchesSearchQuery(
-        [it.label, it.sub ?? ''].join(' '),
-        castQ
-      )
-    })
+    const filtered = sortByUpdatedAtDesc(
+      items.filter((it) => {
+        const linked = linkedIds.has(it.id)
+        if (castLinkFilter === 'linked' && !linked) return false
+        if (castLinkFilter === 'unlinked' && linked) return false
+        return matchesSearchQuery(
+          [it.label, it.sub ?? ''].join(' '),
+          castQ
+        )
+      })
+    )
 
     const total = filtered.length
     const totalPages = Math.max(1, Math.ceil(total / CAST_PAGE_SIZE))
@@ -1207,14 +1315,7 @@ export function StoriesPage(): JSX.Element {
                             objectFit="cover"
                             className="h-full border-0 rounded-none"
                             actionsLayout="overlay"
-                            regenerateBusy={storyCoverBusyId(story.id)}
                             onImageClick={() => openEditor(story.id)}
-                            onRegenerate={() =>
-                              handleGenerateCover({
-                                storyId: story.id,
-                                useIdentityEdit: false
-                              })
-                            }
                           />
                         ) : (
                           <button
@@ -1258,24 +1359,24 @@ export function StoriesPage(): JSX.Element {
                             timeline: story._count?.timeline ?? 0
                           })}
                         </p>
-                        <div className="mt-auto flex items-center gap-2 pt-4">
+                        <div className={libraryCardActionsRowClass}>
                           <Button
                             variant="secondary"
-                            className="min-w-0 flex-1 !py-1.5 text-xs"
+                            className={libraryCardActionBtnClass}
                             onClick={() => openEditor(story.id)}
                           >
                             {t('common.edit')}
                           </Button>
                           <Button
                             variant="ghost"
-                            className="min-w-0 flex-1 !py-1.5 text-xs"
+                            className={libraryCardActionBtnClass}
                             onClick={() => void handleExportBackup(story.id)}
                           >
                             {t('stories.exportBackup')}
                           </Button>
                           <Button
                             variant="ghost"
-                            className="min-w-0 flex-1 !py-1.5 text-xs text-rose-300"
+                            className={libraryCardActionDeleteClass}
                             onClick={() => void handleDelete(story.id)}
                           >
                             {t('common.delete')}
@@ -1329,9 +1430,21 @@ export function StoriesPage(): JSX.Element {
                   objectFit="cover"
                   className="border-0 rounded-xl"
                   actionsLayout="bar"
-                  regenerateBusy={storyCoverBusy}
-                  onRegenerate={
-                    editingId ? () => handleGenerateCover() : undefined
+                  isCover={
+                    Boolean(
+                      selectedCoverImage?.path &&
+                        coverPath === selectedCoverImage.path
+                    )
+                  }
+                  onSetAsCover={
+                    selectedCoverImage?.path
+                      ? () => handleSetStoryCover(selectedCoverImage.path)
+                      : undefined
+                  }
+                  onRemove={
+                    selectedCoverImage
+                      ? () => handleRemoveCoverImage(selectedCoverImage.id)
+                      : undefined
                   }
                 />
               ) : (
@@ -1350,8 +1463,15 @@ export function StoriesPage(): JSX.Element {
               <GalleryThumbStrip
                 items={coverGallery}
                 selectedId={selectedCoverId}
+                selectedIds={selectedCoverIds}
+                multiSelect
                 coverPath={coverPath}
                 onSelect={(id) => setSelectedCoverId(id)}
+                onToggleSelect={(id) =>
+                  setSelectedCoverIds((ids) =>
+                    toggleGallerySelection(ids, id)
+                  )
+                }
                 onReorder={(fromId, toId) => {
                   const from = coverGallery.findIndex((g) => g.id === fromId)
                   const to = coverGallery.findIndex((g) => g.id === toId)
@@ -1381,18 +1501,6 @@ export function StoriesPage(): JSX.Element {
                 </span>
               </span>
             </label>
-            <ExternalRefSection
-              items={storyExternalRefs.map((g) => ({
-                id: g.id,
-                path: g.path,
-                label: g.label
-              }))}
-              useExternalRef={useExternalRef}
-              onUseExternalChange={setUseExternalRef}
-              onAdd={handlePickStoryExternal}
-              onRemove={(id) => handleRemoveCoverImage(id)}
-              disabled={!editingId || storyCoverBusy}
-            />
             <div className="flex flex-col gap-2">
               <Button
                 disabled={!editingId || storyCoverBusy}
@@ -1407,36 +1515,8 @@ export function StoriesPage(): JSX.Element {
                 disabled={!editingId}
                 onClick={() => void handlePickCover()}
               >
-                {t('scenes.pickImage')}
+                {t('common.uploadRef')}
               </Button>
-              {selectedCoverImage &&
-                coverPath !== selectedCoverImage.path && (
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      handleSetStoryCover(selectedCoverImage.path)
-                    }
-                  >
-                    {t('common.setAsCover')}
-                  </Button>
-                )}
-              {selectedCoverImage &&
-                coverPath === selectedCoverImage.path && (
-                  <span className="inline-flex items-center justify-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                    {t('common.isCover')}
-                  </span>
-                )}
-              {selectedCoverImage && (
-                <Button
-                  variant="ghost"
-                  className="text-rose-300"
-                  onClick={() =>
-                    handleRemoveCoverImage(selectedCoverImage.id)
-                  }
-                >
-                  {t('characters.removePhoto')}
-                </Button>
-              )}
             </div>
             <p className="text-[11px] text-ink-500">
               {t('common.galleryReorderHint')}
@@ -1551,6 +1631,17 @@ export function StoriesPage(): JSX.Element {
                   </optgroup>
                 ))}
               </EditorSelect>
+            </EditorField>
+            <EditorField
+              label={t('common.hardRules')}
+              hint={`${t('common.hardRulesHint')} · ${t('stories.aiFillMeta')}`}
+            >
+              <Textarea
+                size="md"
+                value={hardRules}
+                onChange={(e) => setHardRules(e.target.value)}
+                placeholder={t('common.hardRulesPh')}
+              />
             </EditorField>
             <EditorField
               label={t('stories.styleNote')}
@@ -2070,6 +2161,16 @@ export function StoriesPage(): JSX.Element {
           </div>
         )}
       </EditorShell>
+      <ImageGenConfirmModal
+        open={Boolean(imageGenConfirm)}
+        payload={imageGenConfirm}
+        busy={storyCoverBusy}
+        onCancel={() => {
+          setImageGenConfirm(null)
+          setPendingCoverStoryId(null)
+        }}
+        onConfirm={(p) => void runStoryCoverJob(p)}
+      />
     </div>
   )
 }

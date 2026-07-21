@@ -20,8 +20,9 @@ interface LocalMediaImageProps {
   showMeta?: boolean
   objectFit?: 'contain' | 'cover'
   /**
-   * Always show regenerate + save when a path exists (default true).
+   * Show zoom + save (and optional cover/remove/intro) when a path exists (default true).
    * Pass false only for pure decorative thumbnails that must stay clickable-only.
+   * Regenerate is intentionally not shown — pages use dedicated generate controls.
    */
   showActions?: boolean
   /** bar under image | overlay on image | compact icon row */
@@ -33,8 +34,12 @@ interface LocalMediaImageProps {
    * Also auto-fills when maxHeightClass contains `h-full`.
    */
   variant?: 'default' | 'thumb' | 'fill'
-  /** Re-generate this image. Required for the button to work. */
+  /**
+   * @deprecated Regenerated UI removed — dedicated page generate buttons only.
+   * Kept so call sites type-check until cleaned up.
+   */
   onRegenerate?: () => void | Promise<void>
+  /** @deprecated No longer shown in the action bar. */
   regenerateBusy?: boolean
   /** Turn this still into a self-intro video (uses character bible on parent). */
   onIntroVideo?: () => void | Promise<void>
@@ -49,13 +54,19 @@ interface LocalMediaImageProps {
   enableZoom?: boolean
   /** Mild hover scale on the thumbnail (default true when enableZoom). */
   hoverZoom?: boolean
+  /** Set this still as cover (left action bar). */
+  onSetAsCover?: () => void
+  /** True when this still is already the cover. */
+  isCover?: boolean
+  /** Remove this still from the gallery (left action bar). */
+  onRemove?: () => void
 }
 
 type SaveTarget = 'still' | 'video' | 'both'
 
 /**
  * Preview a local media path via idm-media:// with standard image actions:
- * regenerate + save/download + zoom. Web uses browser download; Electron Save dialog.
+ * zoom + save/download (+ optional cover/remove/intro). Web uses browser download; Electron Save dialog.
  */
 export function LocalMediaImage({
   filePath,
@@ -67,16 +78,21 @@ export function LocalMediaImage({
   showActions = true,
   actionsLayout = 'bar',
   variant = 'default',
-  onRegenerate,
-  regenerateBusy = false,
+  onRegenerate: _onRegenerate,
+  regenerateBusy: _regenerateBusy = false,
   onIntroVideo,
   introVideoBusy = false,
   introVideoHasDraft = false,
   introVideoPath = null,
   onImageClick,
   enableZoom = true,
-  hoverZoom
+  hoverZoom,
+  onSetAsCover,
+  isCover = false,
+  onRemove
 }: LocalMediaImageProps): JSX.Element | null {
+  void _onRegenerate
+  void _regenerateBusy
   const { t } = useTranslation()
   const toast = useToast()
   const web = isWebRuntime()
@@ -93,7 +109,6 @@ export function LocalMediaImage({
   const [dims, setDims] = useState<string | null>(null)
   const [saveBusy, setSaveBusy] = useState(false)
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
-  const [regenBusyLocal, setRegenBusyLocal] = useState(false)
   const [introBusyLocal, setIntroBusyLocal] = useState(false)
   const [zoomOpen, setZoomOpen] = useState(false)
   /** In-app intro video player (idm-media preview URL). */
@@ -166,12 +181,7 @@ export function LocalMediaImage({
 
   if (!filePath) return null
 
-  const busy =
-    regenerateBusy ||
-    regenBusyLocal ||
-    saveBusy ||
-    introVideoBusy ||
-    introBusyLocal
+  const busy = saveBusy || introVideoBusy || introBusyLocal
 
   const saveOne = async (path: string): Promise<boolean> => {
     const r = await getApi().media.saveAs(path)
@@ -222,20 +232,6 @@ export function LocalMediaImage({
       return
     }
     void runSave('still')
-  }
-
-  const handleRegenerate = async (e: MouseEvent): Promise<void> => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!onRegenerate || busy) return
-    setRegenBusyLocal(true)
-    try {
-      await onRegenerate()
-    } catch (err) {
-      toast.error(parseIpcError(err).message)
-    } finally {
-      setRegenBusyLocal(false)
-    }
   }
 
   const handleIntroVideo = async (e: MouseEvent): Promise<void> => {
@@ -355,11 +351,12 @@ export function LocalMediaImage({
     <div
       className={
         actionsLayout === 'overlay'
-          ? 'absolute inset-x-0 bottom-0 z-10 grid grid-cols-2 gap-1.5 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 pt-6 sm:grid-cols-3'
+          ? // Always 2 equal columns per row (放大 | 另存為); extra actions wrap
+            'absolute inset-x-0 bottom-0 z-10 grid w-full grid-cols-2 gap-1.5 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 pt-6'
           : actionsLayout === 'compact'
-            ? 'absolute inset-x-0 bottom-0 z-10 grid grid-cols-3 gap-0.5 bg-black/75 p-0.5'
-            : // Even grid: equal-size buttons, no orphan half-row stretch
-              'grid w-full shrink-0 grid-cols-2 gap-1.5 border-t border-ink-800 bg-ink-950/95 p-2 sm:grid-cols-3'
+            ? 'absolute inset-x-0 bottom-0 z-10 grid w-full grid-cols-2 gap-0.5 bg-black/75 p-0.5'
+            : // Even grid: two equal-width buttons per row
+              'grid w-full shrink-0 grid-cols-2 gap-1.5 border-t border-ink-800 bg-ink-950/95 p-2'
       }
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -374,21 +371,6 @@ export function LocalMediaImage({
           {t('media.zoom')}
         </button>
       )}
-      <button
-        type="button"
-        disabled={busy || !onRegenerate}
-        title={
-          onRegenerate
-            ? t('media.regenerate')
-            : t('media.regenerateUnavailable')
-        }
-        onClick={(e) => void handleRegenerate(e)}
-        className={actionBtnClass(actionsLayout, !onRegenerate)}
-      >
-        {regenBusyLocal || regenerateBusy
-          ? t('common.loading')
-          : t('media.regenerate')}
-      </button>
       {onIntroVideo && (
         <button
           type="button"
@@ -440,6 +422,50 @@ export function LocalMediaImage({
         </button>
       ) : null}
       {saveButton}
+      {onSetAsCover && !isCover ? (
+        <button
+          type="button"
+          disabled={busy}
+          title={t('common.setAsCover')}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onSetAsCover()
+          }}
+          className={actionBtnClass(actionsLayout, false)}
+        >
+          {t('common.setAsCover')}
+        </button>
+      ) : null}
+      {isCover ? (
+        <span
+          className={[
+            actionBtnClass(actionsLayout, true),
+            'cursor-default border-amber-700/50 bg-amber-950/40 text-amber-100'
+          ].join(' ')}
+          title={t('common.isCover')}
+        >
+          {t('common.isCover')}
+        </span>
+      ) : null}
+      {onRemove ? (
+        <button
+          type="button"
+          disabled={busy}
+          title={t('common.removeThisImage')}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onRemove()
+          }}
+          className={[
+            actionBtnClass(actionsLayout, false),
+            'text-rose-300 hover:text-rose-200'
+          ].join(' ')}
+        >
+          {t('common.removeThisImage')}
+        </button>
+      ) : null}
     </div>
   ) : null
 
@@ -574,17 +600,16 @@ export function LocalMediaImage({
           enableZoom || onImageClick ? 'cursor-zoom-in' : ''
         ].join(' ')}
         onClick={(e) => {
+          // Single-click: parent action only (e.g. open editor).
+          // Never open fullscreen zoom here — that trapped users after
+          // "generate" / accidental clicks with no obvious way out.
           if (onImageClick) {
             e.stopPropagation()
             onImageClick()
-            return
-          }
-          if (enableZoom) {
-            e.stopPropagation()
-            openZoom()
           }
         }}
         onDoubleClick={(e) => {
+          // Explicit zoom only (or use the 放大 toolbar button).
           if (enableZoom) {
             e.stopPropagation()
             openZoom(e)

@@ -147,15 +147,15 @@ export function MediaZoomLightbox({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-black/92 backdrop-blur-sm"
+      className="fixed inset-0 z-[220] flex flex-col bg-black/92 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label={t('media.zoomTitle')}
       onClick={onClose}
     >
-      {/* Toolbar — always light-on-dark (ignore app light/dark ink tokens) */}
+      {/* Toolbar — always light-on-dark; high z so never buried under previews */}
       <div
-        className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/15 bg-zinc-950/90 px-4 py-2"
+        className="relative z-[1] flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/15 bg-zinc-950 px-4 py-2.5 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="min-w-0 truncate text-sm font-medium text-white">
@@ -182,8 +182,11 @@ export function MediaZoomLightbox({
           </ToolbarBtn>
           <button
             type="button"
-            className="ml-2 rounded-lg border border-white/35 bg-white/10 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-white/20"
-            onClick={onClose}
+            className="ml-2 rounded-lg border border-white/50 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-white/25"
+            onClick={(e) => {
+              e.stopPropagation()
+              onClose()
+            }}
           >
             {t('common.cancel')} ✕
           </button>

@@ -81,6 +81,18 @@ describe('characterMasterPrompt', () => {
     expect(p.mannerisms).toBe('摸頭盔')
   })
 
+  it('coerces visualTags array to comma string', () => {
+    const p = extractCharacterProfileJson(
+      JSON.stringify({
+        name: 'Ming',
+        description: 'Courier',
+        visualTags: ['helmet', 'delivery', 'urban']
+      })
+    )
+    expect(p.visualTags).toBe('helmet, delivery, urban')
+  })
+
+
   it('builds sheet image prompt with multi-view layout', () => {
     const p = buildCharacterSheetImagePrompt({
       name: 'Ming',

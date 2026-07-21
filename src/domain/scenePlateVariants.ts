@@ -4,6 +4,7 @@
  */
 
 import { getArtStyle } from './characterArtStyles'
+import { appendHardRules } from './promptHardRules'
 
 export type SceneSizeClass = 'wide' | 'square' | 'tall'
 
@@ -318,13 +319,14 @@ export function buildScenePlateImagePrompt(
     colorPalette?: string
     setDressing?: string
     visualTags?: string
+    hardRules?: string
   },
   variant: string = 'establishing',
   artStyle: string = 'photo_cinematic'
 ): string {
   const style = getArtStyle(artStyle)
   const def = getScenePlateVariant(variant)
-  return [
+  const body = [
     style.promptBlock,
     `Repeat: medium MUST be style id "${style.id}" (${style.family}).`,
     buildSceneIdentityLock(profile),
@@ -332,6 +334,7 @@ export function buildScenePlateImagePrompt(
     `LAYOUT: ${def.layout}`,
     `Final check: correct medium ${style.id}; empty of hero faces; location identity locked.`
   ].join(' ')
+  return appendHardRules(body, profile.hardRules)
 }
 
 export function buildScenePlateEditPrompt(
@@ -346,6 +349,7 @@ export function buildScenePlateEditPrompt(
     colorPalette?: string
     setDressing?: string
     visualTags?: string
+    hardRules?: string
   },
   variant: string = 'establishing',
   artStyle: string = 'photo_cinematic'

@@ -159,7 +159,7 @@ export class SeedanceVideoProvider implements VideoProvider {
     if (!this.apiKey.trim()) {
       throw new AppError(
         'VALIDATION',
-        'Seedance API key is required',
+        'errors.seedanceKeyRequired',
         'Set video API key in Settings → Video → Seedance'
       )
     }
@@ -223,7 +223,7 @@ export class SeedanceVideoProvider implements VideoProvider {
         if (!taskId) {
           throw new AppError(
             'VIDEO_JOB_FAILED',
-            'Seedance create response missing task id',
+            'errors.seedanceNoTaskId',
             JSON.stringify(created).slice(0, 400)
           )
         }
@@ -234,7 +234,7 @@ export class SeedanceVideoProvider implements VideoProvider {
         if (!videoUrl) {
           throw new AppError(
             'VIDEO_JOB_FAILED',
-            'Seedance succeeded but no video URL in response',
+            'errors.seedanceNoVideoUrl',
             JSON.stringify(done).slice(0, 500)
           )
         }
@@ -292,7 +292,7 @@ export class SeedanceVideoProvider implements VideoProvider {
   private async downloadTo(url: string, dest: string): Promise<void> {
     if (url.startsWith('data:')) {
       const m = /^data:([^;]+);base64,(.+)$/s.exec(url)
-      if (!m) throw new AppError('IO', 'Invalid data URL from Seedance')
+      if (!m) throw new AppError('IO', 'errors.seedanceInvalidDataUrl')
       writeFileSync(dest, Buffer.from(m[2], 'base64'))
       return
     }

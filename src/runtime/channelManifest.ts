@@ -168,8 +168,16 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     description: 'Copy media to destination',
     argsHint: '["src","dest"]'
   },
-  { channel: 'updates:status', description: 'Update status (web-skipped on server)' },
-  { channel: 'updates:check', description: 'Check updates (desktop-oriented)' },
+  { channel: 'updates:status', description: 'Update status (channel-aware)' },
+  { channel: 'updates:check', description: 'Check GitHub Releases (desktop packaged)' },
+  { channel: 'updates:download', description: 'Download desktop update' },
+  { channel: 'updates:install', description: 'Quit and install desktop update' },
+  { channel: 'updates:checkNpm', description: 'Check npm registry for CLI package' },
+  {
+    channel: 'updates:openReleasePage',
+    description: 'Open GitHub Releases in browser',
+    argsHint: '["1.2.0"?]'
+  },
   {
     channel: 'shell:openPath',
     description: 'Open path (headless may no-op)',
@@ -185,10 +193,488 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     description: 'Open external URL (desktop)',
     desktopOnly: true
   },
-  { channel: 'app:rebuildMenu', description: 'Rebuild native menu', desktopOnly: true }
+  { channel: 'app:rebuildMenu', description: 'Rebuild native menu', desktopOnly: true },
+  {
+    channel: 'activity:clear',
+    description: 'activity: clear',
+    argsHint: '[{...}]',
+    destructive: true
+  },
+  {
+    channel: 'activity:openLogFolder',
+    description: 'activity: open log folder',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'activity:query',
+    description: 'activity: query',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'ai:applyGrokDefaults',
+    description: 'ai: apply grok defaults',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'ai:applyLlmPreset',
+    description: 'ai: apply llm preset',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'ai:probeChat',
+    description: 'ai: probe chat',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'ai:probeVideo',
+    description: 'ai: probe video',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:aiFill',
+    description: 'characters: ai fill',
+    argsHint: '[{idea?, locale?, existingDraft?}]'
+  },
+  {
+    channel: 'characters:commitSheet',
+    description: 'characters: commit sheet',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:generateIntroVideo',
+    description: 'characters: generate intro video',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:generateSheet',
+    description: 'characters: generate sheet',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:generateSoul',
+    description: 'characters: generate soul',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:importSoulMd',
+    description: 'characters: import soul md',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:importSoulMdUrl',
+    description: 'characters: import soul md url',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:readSoulContent',
+    description: 'characters: read soul content',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:suggestWardrobe',
+    description: 'characters: suggest wardrobe',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:swapCostume',
+    description: 'characters: swap costume',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:writeSoulContent',
+    description: 'characters: write soul content',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'costumes:aiFill',
+    description: 'costumes: ai fill',
+    argsHint: '[{idea?, locale?, existingDraft?}]'
+  },
+  {
+    channel: 'costumes:generateDressed',
+    description: 'costumes: generate dressed',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'costumes:generateIntroVideo',
+    description: 'costumes: generate intro video',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'costumes:get',
+    description: 'costumes: get',
+    argsHint: '["id"]'
+  },
+  {
+    channel: 'costumes:linkCharacter',
+    description: 'costumes: link character',
+    argsHint: '[{storyId, id...}]'
+  },
+  {
+    channel: 'costumes:listForCharacter',
+    description: 'costumes: list for character',
+    argsHint: '["id"]'
+  },
+  {
+    channel: 'costumes:setActive',
+    description: 'costumes: set active',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'costumes:unlinkCharacter',
+    description: 'costumes: unlink character',
+    argsHint: '[{storyId, id...}]',
+    destructive: true
+  },
+  {
+    channel: 'gateway:ensure',
+    description: 'gateway: ensure',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'gateway:installHints',
+    description: 'gateway: install hints',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'gateway:openAdmin',
+    description: 'gateway: open admin',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'gateway:status',
+    description: 'gateway: status',
+    argsHint: '[]'
+  },
+  {
+    channel: 'generation:cancel',
+    description: 'generation: cancel',
+    argsHint: '[{...}]',
+    destructive: true
+  },
+  {
+    channel: 'generation:progress',
+    description: 'generation: progress',
+    argsHint: '[]'
+  },
+  {
+    channel: 'generation:run',
+    description: 'generation: run',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'generation:runClip',
+    description: 'generation: run clip',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:deleteExport',
+    description: 'media: delete export',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:discardSheetDraft',
+    description: 'media: discard sheet draft',
+    argsHint: '[{...}]',
+    destructive: true
+  },
+  {
+    channel: 'media:exportConcat',
+    description: 'media: export concat',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:exportFinal',
+    description: 'media: export final',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:exportPreflight',
+    description: 'media: export preflight',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:exportStoryboard',
+    description: 'media: export storyboard',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:importClip',
+    description: 'media: import clip',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:listExports',
+    description: 'media: list exports',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:openClip',
+    description: 'media: open clip',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:pickBgm',
+    description: 'media: pick bgm',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'media:pickRefImage',
+    description: 'media: pick ref image',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'props:aiFill',
+    description: 'props: ai fill',
+    argsHint: '[{idea?, locale?, existingDraft?}]'
+  },
+  {
+    channel: 'props:commitPlate',
+    description: 'props: commit plate',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'props:generateIntroVideo',
+    description: 'props: generate intro video',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'props:generatePlate',
+    description: 'props: generate plate',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'actions:aiFill',
+    description: 'actions: ai fill',
+    argsHint: '[{idea?, locale?, existingDraft?}]'
+  },
+  {
+    channel: 'actions:commitPlate',
+    description: 'actions: commit plate',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'actions:generateIntroVideo',
+    description: 'actions: generate intro video',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'actions:generatePlate',
+    description: 'actions: generate plate',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'actions:linkStory',
+    description: 'actions: link story',
+    argsHint: '[{storyId, id...}]'
+  },
+  {
+    channel: 'actions:unlinkStory',
+    description: 'actions: unlink story',
+    argsHint: '[{storyId, id...}]',
+    destructive: true
+  },
+  {
+    channel: 'scenes:aiFill',
+    description: 'scenes: ai fill',
+    argsHint: '[{idea?, locale?, existingDraft?}]'
+  },
+  {
+    channel: 'scenes:commitPlate',
+    description: 'scenes: commit plate',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'scenes:copyGalleryFrom',
+    description: 'scenes: copy gallery from',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'scenes:generateIntroVideo',
+    description: 'scenes: generate intro video',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'scenes:generatePlate',
+    description: 'scenes: generate plate',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'scenes:swapAtmosphere',
+    description: 'scenes: swap atmosphere',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'souls:categories',
+    description: 'souls: categories',
+    argsHint: '[]'
+  },
+  {
+    channel: 'souls:ensureIndex',
+    description: 'souls: ensure index',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'souls:get',
+    description: 'souls: get',
+    argsHint: '["id"]'
+  },
+  {
+    channel: 'souls:list',
+    description: 'souls: list',
+    argsHint: '[]'
+  },
+  {
+    channel: 'souls:searchLocal',
+    description: 'souls: search local',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'souls:suggestions',
+    description: 'souls: suggestions',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'stories:aiFillMeta',
+    description: 'stories: ai fill meta',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'stories:aiFillScript',
+    description: 'stories: ai fill script',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'stories:commitCover',
+    description: 'stories: commit cover',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'stories:generateCover',
+    description: 'stories: generate cover',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'stories:linkCharacter',
+    description: 'stories: link character',
+    argsHint: '[{storyId, id...}]'
+  },
+  {
+    channel: 'stories:linkProp',
+    description: 'stories: link prop',
+    argsHint: '[{storyId, id...}]'
+  },
+  {
+    channel: 'stories:linkScene',
+    description: 'stories: link scene',
+    argsHint: '[{storyId, id...}]'
+  },
+  {
+    channel: 'stories:linkAction',
+    description: 'stories: link action',
+    argsHint: '[{storyId, id...}]'
+  },
+  {
+    channel: 'stories:listCast',
+    description: 'stories: list cast',
+    argsHint: '["id"]'
+  },
+  {
+    channel: 'stories:setCharacterCostume',
+    description: 'stories: set character costume',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'stories:unlinkCharacter',
+    description: 'stories: unlink character',
+    argsHint: '[{storyId, id...}]',
+    destructive: true
+  },
+  {
+    channel: 'stories:unlinkProp',
+    description: 'stories: unlink prop',
+    argsHint: '[{storyId, id...}]',
+    destructive: true
+  },
+  {
+    channel: 'stories:unlinkScene',
+    description: 'stories: unlink scene',
+    argsHint: '[{storyId, id...}]',
+    destructive: true
+  },
+  {
+    channel: 'stories:unlinkAction',
+    description: 'stories: unlink action',
+    argsHint: '[{storyId, id...}]',
+    destructive: true
+  },
+  {
+    channel: 'support:exportReport',
+    description: 'support: export report',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'timeline:clearEntryStill',
+    description: 'timeline: clear entry still',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'timeline:getAdvancedPrep',
+    description: 'timeline: get advanced prep',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'timeline:setCastPrep',
+    description: 'timeline: set cast prep',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'timeline:setMedia',
+    description: 'timeline: set media',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'videoPrep:confirm',
+    description: 'videoPrep: confirm',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'videoPrep:create',
+    description: 'videoPrep: create',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'videoPrep:openFromStill',
+    description: 'videoPrep: open from still',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'videoPrep:regenStill',
+    description: 'videoPrep: regen still',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'webServer:generateToken',
+    description: 'webServer: generate token',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'webServer:start',
+    description: 'webServer: start',
+    argsHint: '[{...}]'
+  },
+  {
+    channel: 'webServer:status',
+    description: 'webServer: status',
+    argsHint: '[]'
+  },
+  {
+    channel: 'webServer:stop',
+    description: 'webServer: stop',
+    argsHint: '[{...}]'
+  }
 ]
 
-/** Full desktop IPC surface (~137) — used by tools schema even before web port */
 export const DESKTOP_CHANNEL_NAMES: string[] = [
   'activity:clear',
   'activity:getPath',
@@ -330,8 +816,10 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'timeline:setMedia',
   'timeline:update',
   'updates:check',
+  'updates:checkNpm',
   'updates:download',
   'updates:install',
+  'updates:openReleasePage',
   'updates:status',
   'videoPrep:confirm',
   'videoPrep:create',

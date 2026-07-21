@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildSceneIntroVideoPrompt,
   buildSceneMasterSystemPrompt,
-  buildSceneMasterUserPrompt
+  buildSceneMasterUserPrompt,
+  extractSceneProfileJson
 } from './sceneMasterPrompt'
 
 describe('sceneMasterPrompt', () => {
@@ -13,6 +14,25 @@ describe('sceneMasterPrompt', () => {
     expect(en).toMatch(/Sources of truth|invent freely/i)
     expect(zh).not.toMatch(/硬性禁止雨夜/)
   })
+
+  it('system prompt requires all keys', () => {
+    expect(buildSceneMasterSystemPrompt('zh-HK')).toMatch(/必須輸出|每一個鍵/)
+  })
+
+  it('extractSceneProfileJson coerces visualTags array', () => {
+    const s = extractSceneProfileJson(
+      JSON.stringify({
+        title: 'Pier',
+        description: 'Wet docks',
+        script: 'A waits',
+        locationType: 'exterior',
+        visualTags: ['dock', 'rain', 'night']
+      })
+    )
+    expect(s.title).toBe('Pier')
+    expect(s.visualTags).toBe('dock, rain, night')
+  })
+
 
   it('create mode with idea only does not invent extra cast when no story', () => {
     const u = buildSceneMasterUserPrompt({

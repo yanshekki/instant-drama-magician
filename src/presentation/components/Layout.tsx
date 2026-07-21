@@ -13,6 +13,10 @@ import {
   coerceUiLanguage,
   readStoredUiLanguage
 } from '../../domain/uiLanguages'
+import {
+  coerceLlmProviderPreset,
+  getLlmPresetDef
+} from '../../domain/openaiCompatible'
 import { changeUiLanguage } from '../../lib/i18n'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
@@ -178,6 +182,18 @@ export function Layout(): JSX.Element {
   const videoCh = aiStatus?.video
   const onlineLabel = t('common.onlineShort')
   const offlineLabel = t('common.offlineShort')
+  // Sidebar title follows the active chat LLM (not always “Grok CLI”).
+  const llmPreset = coerceLlmProviderPreset(
+    aiStatus?.llmProvider,
+    aiStatus?.baseUrl ?? ''
+  )
+  const llmDef = getLlmPresetDef(llmPreset)
+  const llmTitle = llmDef
+    ? t(`settings.llmPreset.${llmDef.labelKey}`)
+    : t('settings.llmPreset.custom')
+  const llmStatusLine = chatOk
+    ? t('ai.providerOnline', { name: llmTitle })
+    : t('ai.providerOffline', { name: llmTitle })
 
   const openYsk = (): void => {
     void getApi()
@@ -262,9 +278,14 @@ export function Layout(): JSX.Element {
                 : 'border-amber-600/30 bg-amber-950 text-amber-200'
             ].join(' ')}
           >
-            <div className="font-medium">
-              {chatOk ? t('ai.online') : t('ai.offline')}
+            <div className="font-medium" title={aiStatus?.baseUrl ?? undefined}>
+              {llmStatusLine}
             </div>
+            {aiStatus?.model ? (
+              <div className="mt-0.5 truncate font-mono text-[10px] opacity-70">
+                {aiStatus.model}
+              </div>
+            ) : null}
             <ChannelLine
               label={t('ai.channelChat')}
               available={chatOk}
@@ -275,7 +296,11 @@ export function Layout(): JSX.Element {
               <ChannelLine
                 label={t('ai.channelImage')}
                 available={imageCh.available}
-                detail={imageCh.provider}
+                detail={
+                  imageCh.provider === 'same-as-llm'
+                    ? llmTitle
+                    : imageCh.provider
+                }
                 onlineLabel={onlineLabel}
                 offlineLabel={offlineLabel}
               />
@@ -284,7 +309,11 @@ export function Layout(): JSX.Element {
               <ChannelLine
                 label={t('ai.channelVideo')}
                 available={videoCh.available}
-                detail={videoCh.provider}
+                detail={
+                  videoCh.provider === 'same-as-llm'
+                    ? llmTitle
+                    : videoCh.provider
+                }
                 onlineLabel={onlineLabel}
                 offlineLabel={offlineLabel}
               />

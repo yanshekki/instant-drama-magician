@@ -23,7 +23,7 @@ export class ProjectBackupService {
         timeline: { orderBy: { order: 'asc' } }
       }
     })
-    if (!story) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
+    if (!story) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(storyId))
 
     const payload = {
       title: story.title,
@@ -77,11 +77,11 @@ export class ProjectBackupService {
   async importZipAsNewStory(
     zipPath: string
   ): Promise<{ storyId: string; title: string }> {
-    if (!existsSync(zipPath)) throw new AppError('NOT_FOUND', 'Backup zip not found')
+    if (!existsSync(zipPath)) throw new AppError('NOT_FOUND', 'errors.backupZipNotFound')
     const zip = await JSZip.loadAsync(readFileSync(zipPath))
     const storyFile = zip.file('story.json')
     if (!storyFile) {
-      throw new AppError('VALIDATION', 'Invalid backup: missing story.json')
+      throw new AppError('VALIDATION', 'errors.backupMissingStoryJson')
     }
     const raw = JSON.parse(await storyFile.async('string')) as {
       title: string

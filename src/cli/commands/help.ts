@@ -25,7 +25,7 @@ COMMANDS
   help                This message
   version             Print version
   doctor              Health / connectivity check
-  update [check|install]  Check npm for CLI updates (install needs --yes)
+  update [check|install] [ver]  npm CLI updates (install needs --yes)
   config path|get|set Manage ~/.config/idm/config.json
   server start        Start web control server (foreground)
   build               Build desktop app (mac / linux / win)
@@ -79,6 +79,7 @@ EXAMPLES
   instant-drama doctor --json
   instant-drama update
   instant-drama update install --yes
+  instant-drama update install 1.3.0 --yes
   instant-drama --local stories list --json
   instant-drama invoke stories:create '{"title":"Demo"}' --json
   instant-drama --url http://127.0.0.1:8787 --token $IDM_TOKEN channels list

@@ -23,7 +23,7 @@ export class PropService {
             ]
           }
         : undefined,
-      orderBy: { name: 'asc' }
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
     })
   }
 
@@ -33,12 +33,12 @@ export class PropService {
 
   async get(id: string) {
     const row = await this.prisma.prop.findUnique({ where: { id } })
-    if (!row) throw new AppError('NOT_FOUND', `Prop not found: ${id}`)
+    if (!row) throw new AppError('NOT_FOUND', 'errors.propNotFound', String(id))
     return row
   }
 
   async create(input: CreatePropInput & { linkStoryId?: string | null }) {
-    if (!input.name.trim()) throw new AppError('VALIDATION', 'name is required')
+    if (!input.name.trim()) throw new AppError('VALIDATION', 'errors.nameRequired')
     const row = await this.prisma.prop.create({
       data: {
         name: input.name.trim(),
@@ -51,7 +51,8 @@ export class PropService {
         refImagePath: trimOrNull(input.refImagePath),
         refGalleryJson: trimOrNull(input.refGalleryJson),
         profileJson: trimOrNull(input.profileJson),
-        seedPrompt: trimOrNull(input.seedPrompt)
+        seedPrompt: trimOrNull(input.seedPrompt),
+        hardRules: trimOrNull(input.hardRules)
       }
     })
     const linkStoryId = input.linkStoryId ?? input.storyId
@@ -64,7 +65,7 @@ export class PropService {
   async update(id: string, data: UpdatePropInput) {
     await this.ensureExists(id)
     if (data.name !== undefined && !data.name.trim()) {
-      throw new AppError('VALIDATION', 'name is required')
+      throw new AppError('VALIDATION', 'errors.nameRequired')
     }
     return this.prisma.prop.update({
       where: { id },
@@ -99,6 +100,9 @@ export class PropService {
           : {}),
         ...(data.seedPrompt !== undefined
           ? { seedPrompt: trimOrNull(data.seedPrompt) }
+          : {}),
+        ...(data.hardRules !== undefined
+          ? { hardRules: trimOrNull(data.hardRules) }
           : {})
       }
     })
@@ -115,6 +119,6 @@ export class PropService {
       where: { id },
       select: { id: true }
     })
-    if (!found) throw new AppError('NOT_FOUND', `Prop not found: ${id}`)
+    if (!found) throw new AppError('NOT_FOUND', 'errors.propNotFound', String(id))
   }
 }

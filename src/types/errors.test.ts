@@ -66,4 +66,25 @@ describe('chat error mapping (Grok Gateway)', () => {
     expect(e.code).toBe('AI_FAILED')
     expect(e.details).toMatch(/IMAGE_NO_SANDBOX|imagesApi|base-layer|底衫/i)
   })
+
+  it('maps 502 Grok CLI exited to stable i18n keys', () => {
+    const e = mapChatHttpStatus(
+      502,
+      JSON.stringify({
+        error: {
+          message: 'Grok CLI exited with code 1',
+          code: 'grok_error'
+        }
+      })
+    )
+    expect(e.code).toBe('AI_FAILED')
+    expect(e.message).toBe('errors.grokCliFailed')
+    expect(e.details).toBe('errors.grokCliFailedHint')
+  })
+
+  it('maps grok_error body via mapChatMessage', () => {
+    const m = mapChatMessage('Grok CLI produced no stdout')
+    expect(m?.code).toBe('AI_FAILED')
+    expect(m?.message).toBe('errors.grokCliFailed')
+  })
 })

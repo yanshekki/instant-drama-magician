@@ -24,3 +24,18 @@ export const libraryMediaBadgeClass =
 
 /** Text + actions body under the media. */
 export const libraryBodyClass = 'flex min-h-0 flex-1 flex-col p-4'
+
+/** Footer row for Edit / Delete on library cards (every asset page). */
+export const libraryCardActionsRowClass =
+  'mt-auto flex items-center gap-2 pt-4'
+
+/**
+ * Equal-width compact card action button (secondary Edit, ghost Delete).
+ * Overrides Button h-10 so library grids stay dense and consistent.
+ */
+export const libraryCardActionBtnClass =
+  'min-w-0 flex-1 !h-8 !min-h-8 !py-0 text-xs'
+
+/** Delete / danger text on ghost card button */
+export const libraryCardActionDeleteClass =
+  `${libraryCardActionBtnClass} text-rose-300`

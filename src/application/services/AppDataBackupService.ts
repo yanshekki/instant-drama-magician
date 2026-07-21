@@ -101,17 +101,17 @@ function sqliteSidecars(dbPath: string): string[] {
 
 export function parseFullBackupManifest(raw: unknown): FullBackupManifest {
   if (!raw || typeof raw !== 'object') {
-    throw new AppError('VALIDATION', 'Invalid backup: missing manifest')
+    throw new AppError('VALIDATION', 'errors.backupInvalidManifest')
   }
   const m = raw as Record<string, unknown>
   if (m.kind !== FULL_BACKUP_KIND) {
     throw new AppError(
       'VALIDATION',
-      'Not a full app-data backup (wrong kind). Use story import for story zips.'
+      'errors.backupWrongKind'
     )
   }
   if (typeof m.version !== 'number' || m.version < 1) {
-    throw new AppError('VALIDATION', 'Unsupported full backup version')
+    throw new AppError('VALIDATION', 'errors.backupUnsupportedVersion')
   }
   return {
     version: m.version as number,
@@ -235,13 +235,13 @@ export class AppDataBackupService {
    */
   async importFromZip(zipPath: string): Promise<ImportFullResult> {
     if (!existsSync(zipPath)) {
-      throw new AppError('NOT_FOUND', 'Backup zip not found')
+      throw new AppError('NOT_FOUND', 'errors.backupZipNotFound')
     }
     const data = readFileSync(zipPath)
     const zip = await JSZip.loadAsync(data)
     const manifestEntry = zip.file('manifest.json')
     if (!manifestEntry) {
-      throw new AppError('VALIDATION', 'Backup missing manifest.json')
+      throw new AppError('VALIDATION', 'errors.backupMissingManifest')
     }
     const manifest = parseFullBackupManifest(
       JSON.parse(await manifestEntry.async('string'))
@@ -332,7 +332,7 @@ export class AppDataBackupService {
       }
 
       if (!restoredDatabase) {
-        throw new AppError('VALIDATION', 'Backup has no database.db')
+        throw new AppError('VALIDATION', 'errors.backupMissingDb')
       }
 
       return {

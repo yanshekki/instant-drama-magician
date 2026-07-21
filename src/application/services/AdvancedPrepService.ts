@@ -147,7 +147,7 @@ export class AdvancedPrepService {
         storyCharacters: { include: { character: true } }
       }
     })
-    if (!story) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
+    if (!story) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(storyId))
 
     const timeline = sortTimelineEntries(
       story.timeline as unknown as TimelineEntry[]
@@ -341,7 +341,7 @@ export class AdvancedPrepService {
   }> {
     const snap = await this.getSnapshot(options.storyId)
     const cell = snap.cells.find((c) => c.entryId === options.entryId)
-    if (!cell) throw new AppError('NOT_FOUND', 'Timeline entry not found')
+    if (!cell) throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound')
     if (!existsSync(cell.stillPath)) {
       throw new AppError('VALIDATION', 'errors.sourceImageRequired')
     }

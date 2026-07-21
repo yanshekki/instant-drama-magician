@@ -4,6 +4,7 @@ import {
   extractSpokenLines,
   parseBeatContent
 } from './beatContent'
+import { ensureHardRules } from './promptHardRules'
 
 export type ClipRefSource =
   | 'prev-clip'
@@ -225,20 +226,25 @@ export function buildClipPrompt(options: {
 /**
  * Append optional director revision notes for re-generate / fix-pass prompts.
  * Not video-to-video; text constraints only (e.g. "only two hands").
+ * Pass hardRules so they stay highest priority after revision.
  */
 export function appendRevisionToClipPrompt(
   basePrompt: string,
-  revisionPrompt?: string | null
+  revisionPrompt?: string | null,
+  hardRules?: string | null
 ): string {
   const note = revisionPrompt?.trim()
-  if (!note) return basePrompt
-  return [
-    basePrompt,
-    '',
-    'DIRECTOR REVISION (must follow; override conflicting earlier details):',
-    note,
-    'Anatomically correct humans unless the script requires otherwise: two hands, two arms, two legs; no extra limbs.'
-  ].join('\n')
+  let out = basePrompt
+  if (note) {
+    out = [
+      basePrompt,
+      '',
+      'DIRECTOR REVISION (supplement only — must not violate HARD RULES):',
+      note,
+      'Anatomically correct humans unless the script requires otherwise: two hands, two arms, two legs; no extra limbs.'
+    ].join('\n')
+  }
+  return ensureHardRules(out, hardRules)
 }
 
 /** Characters used on timeline that lack a reference image. */

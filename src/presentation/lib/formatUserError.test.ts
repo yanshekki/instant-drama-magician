@@ -50,4 +50,33 @@ describe('formatUserError', () => {
       'T:errors.networkFailed'
     )
   })
+
+  it('translates both message and details when combined errors.* keys', () => {
+    expect(
+      formatUserError('errors.networkFailed — errors.aiUnavailable', t)
+    ).toBe('T:errors.networkFailed — T:errors.aiUnavailable')
+  })
+
+  it('translates vision and grok CLI error keys', () => {
+    expect(formatUserError('errors.visionImageUnreadable', t)).toBe(
+      'T:errors.visionImageUnreadable'
+    )
+    expect(
+      formatUserError(
+        'errors.visionImageUnreadable — errors.visionImageUnreadableDetail',
+        t
+      )
+    ).toBe(
+      'T:errors.visionImageUnreadable — T:errors.visionImageUnreadableDetail'
+    )
+    expect(formatUserError('errors.grokCliFailed — errors.grokCliFailedHint', t)).toBe(
+      'T:errors.grokCliFailed — T:errors.grokCliFailedHint'
+    )
+  })
+
+  it('maps legacy grok CLI exit text', () => {
+    expect(formatUserError('Grok CLI exited with code 1', t)).toBe(
+      'T:errors.grokCliFailed'
+    )
+  })
 })

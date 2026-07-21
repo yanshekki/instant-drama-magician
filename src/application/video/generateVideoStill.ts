@@ -1,8 +1,10 @@
 /**
  * Generate a keyframe still for video-prep review.
+ * Re-seals hardRules onto the still prompt so user edits cannot drop 鐵則.
  */
 import { writeFileSync } from 'fs'
 import type { MediaStore } from '../../infrastructure/media/MediaStore'
+import { ensureHardRules } from '../../domain/promptHardRules'
 import { buildStillKeyframePrompt } from '../../domain/videoPrep'
 
 export interface ImageCapableAi {
@@ -28,13 +30,16 @@ export async function generateVideoStillKeyframe(options: {
   locale?: 'zh-HK' | 'en'
   aspectRatio?: string
   size?: string
+  /** Entity / timeline merged hard rules — forced onto still prompt. */
+  hardRules?: string | null
   /** Output path under media library */
   outputPath: string
 }): Promise<{ stillPath: string; stillPromptUsed: string }> {
-  const stillPrompt = buildStillKeyframePrompt(options.professionalPrompt, {
+  let stillPrompt = buildStillKeyframePrompt(options.professionalPrompt, {
     improvementNotes: options.improvementNotes,
     locale: options.locale
   })
+  stillPrompt = ensureHardRules(stillPrompt, options.hardRules)
   const size = options.size || '1024x1024'
   const aspectRatio = options.aspectRatio || '16:9'
   const ref =

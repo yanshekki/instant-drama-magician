@@ -347,6 +347,6 @@ export class TimelinePersistenceService {
       where: { id: storyId },
       select: { id: true }
     })
-    if (!story) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
+    if (!story) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(storyId))
   }
 }

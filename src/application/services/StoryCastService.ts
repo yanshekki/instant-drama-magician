@@ -129,7 +129,7 @@ export class StoryCastService {
     if (!link) {
       throw new AppError(
         'VALIDATION',
-        'Character is not in this story cast'
+        'errors.characterNotInCast'
       )
     }
     if (costumeId) {
@@ -335,7 +335,7 @@ export class StoryCastService {
     if (!link) {
       throw new AppError(
         'VALIDATION',
-        'Costume is not linked to this character'
+        'errors.costumeNotLinkedToCharacter'
       )
     }
   }
@@ -362,7 +362,7 @@ export class StoryCastService {
       if (!(await this.isCharacterLinked(storyId, id))) {
         throw new AppError(
           'VALIDATION',
-          'Character is not linked to this story'
+          'errors.characterNotLinked'
         )
       }
     }
@@ -372,7 +372,7 @@ export class StoryCastService {
     ]
     for (const id of [...new Set(sceneIds)]) {
       if (!(await this.isSceneLinked(storyId, id))) {
-        throw new AppError('VALIDATION', 'Scene is not linked to this story')
+        throw new AppError('VALIDATION', 'errors.sceneNotLinked')
       }
     }
     const propIds = [
@@ -381,7 +381,7 @@ export class StoryCastService {
     ]
     for (const id of [...new Set(propIds)]) {
       if (!(await this.isPropLinked(storyId, id))) {
-        throw new AppError('VALIDATION', 'Prop is not linked to this story')
+        throw new AppError('VALIDATION', 'errors.propNotLinked')
       }
     }
     const actionIds = [
@@ -390,7 +390,7 @@ export class StoryCastService {
     ]
     for (const id of [...new Set(actionIds)]) {
       if (!(await this.isActionLinked(storyId, id))) {
-        throw new AppError('VALIDATION', 'Action is not linked to this story')
+        throw new AppError('VALIDATION', 'errors.actionNotLinked')
       }
     }
   }
@@ -400,7 +400,7 @@ export class StoryCastService {
       where: { id: storyId },
       select: { id: true }
     })
-    if (!s) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
+    if (!s) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(storyId))
   }
 
   private async ensureCharacter(id: string): Promise<void> {
@@ -408,7 +408,7 @@ export class StoryCastService {
       where: { id },
       select: { id: true }
     })
-    if (!r) throw new AppError('NOT_FOUND', `Character not found: ${id}`)
+    if (!r) throw new AppError('NOT_FOUND', 'errors.characterNotFound', String(id))
   }
 
   private async ensureScene(id: string): Promise<void> {
@@ -416,7 +416,7 @@ export class StoryCastService {
       where: { id },
       select: { id: true }
     })
-    if (!r) throw new AppError('NOT_FOUND', `Scene not found: ${id}`)
+    if (!r) throw new AppError('NOT_FOUND', 'errors.sceneNotFound', String(id))
   }
 
   private async ensureProp(id: string): Promise<void> {
@@ -424,7 +424,7 @@ export class StoryCastService {
       where: { id },
       select: { id: true }
     })
-    if (!r) throw new AppError('NOT_FOUND', `Prop not found: ${id}`)
+    if (!r) throw new AppError('NOT_FOUND', 'errors.propNotFound', String(id))
   }
 
   private async ensureAction(id: string): Promise<void> {
@@ -432,6 +432,6 @@ export class StoryCastService {
       where: { id },
       select: { id: true }
     })
-    if (!r) throw new AppError('NOT_FOUND', `Action not found: ${id}`)
+    if (!r) throw new AppError('NOT_FOUND', 'errors.actionNotFound', String(id))
   }
 }

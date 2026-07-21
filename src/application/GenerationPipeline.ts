@@ -106,7 +106,7 @@ export class GenerationPipeline {
         results.push({
           step: activeSteps[i].name,
           success: false,
-          error: 'Cancelled'
+          error: 'errors.cancelled'
         })
         return { storyId: story.id, steps: results, success: false }
       }

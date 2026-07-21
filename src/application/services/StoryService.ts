@@ -8,7 +8,7 @@ export class StoryService {
 
   list() {
     return this.prisma.story.findMany({
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       include: {
         _count: {
           select: {
@@ -49,7 +49,7 @@ export class StoryService {
         timeline: { orderBy: { order: 'asc' } }
       }
     })
-    if (!story) throw new AppError('NOT_FOUND', `Story not found: ${id}`)
+    if (!story) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(id))
     // Flatten for consumers expecting characters/scenes/props/actions arrays
     const storyCharacters = story.storyCharacters ?? []
     const storyScenes = story.storyScenes ?? []
@@ -102,6 +102,7 @@ export class StoryService {
       data: {
         title,
         styleNote: input.styleNote?.trim() || null,
+        hardRules: input.hardRules?.trim() || null,
         artStyle: input.artStyle?.trim() || null
       }
     })
@@ -114,6 +115,7 @@ export class StoryService {
       status?: StoryStatus
       styleNote?: string | null
       artStyle?: string | null
+      hardRules?: string | null
       coverPath?: string | null
       refGalleryJson?: string | null
     } = {}
@@ -131,6 +133,9 @@ export class StoryService {
     }
     if (data.styleNote !== undefined) {
       patch.styleNote = data.styleNote?.trim() || null
+    }
+    if (data.hardRules !== undefined) {
+      patch.hardRules = data.hardRules?.trim() || null
     }
     if (data.artStyle !== undefined) {
       patch.artStyle = data.artStyle?.trim() || null
@@ -155,6 +160,6 @@ export class StoryService {
       where: { id },
       select: { id: true }
     })
-    if (!found) throw new AppError('NOT_FOUND', `Story not found: ${id}`)
+    if (!found) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(id))
   }
 }

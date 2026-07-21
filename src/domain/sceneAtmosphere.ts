@@ -4,6 +4,7 @@
 import type { SceneGalleryItem } from './sceneGallery'
 import { inferSceneGalleryLayer } from './sceneGallery'
 import { getArtStyle } from './characterArtStyles'
+import { appendHardRules } from './promptHardRules'
 
 export type AtmospherePose = 'wide' | 'hero' | 'detail'
 
@@ -66,13 +67,14 @@ export function buildAtmosphereSwapPrompt(input: {
   pose?: AtmospherePose | string | null
   setDressing?: string | null
   visualTags?: string | null
+  hardRules?: string | null
 }): string {
   const style = getArtStyle(input.artStyle ?? undefined)
   const pose = getAtmospherePose(input.pose)
   const atmo = input.atmosphereDescription.trim()
-  if (!atmo) throw new Error('Atmosphere description is required')
+  if (!atmo) throw new Error('errors.atmosphereRequired')
 
-  return [
+  const body = [
     'IMAGE EDIT / ATMOSPHERE SWAP TASK (highest priority):',
     style.promptBlock,
     `Repeat: medium MUST be style id "${style.id}" (${style.family}).`,
@@ -89,6 +91,7 @@ export function buildAtmosphereSwapPrompt(input: {
   ]
     .filter(Boolean)
     .join(' ')
+  return appendHardRules(body, input.hardRules)
 }
 
 export function atmosphereGalleryLabel(description: string): string {

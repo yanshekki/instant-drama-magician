@@ -28,7 +28,10 @@ import {
   shouldOmitSamplingForProvider
 } from '../../domain/chatCompletionBody'
 import { healthUrlFromBase } from '../../domain/gatewayDefaults'
-import type { LlmProviderPreset } from '../../domain/openaiCompatible'
+import {
+  coerceLlmProviderPreset,
+  type LlmProviderPreset
+} from '../../domain/openaiCompatible'
 import { CompositeVideoProvider } from './video/CompositeVideoProvider'
 import { SeedanceVideoProvider } from './video/SeedanceVideoProvider'
 import type { VideoProvider } from './video/types'
@@ -75,6 +78,7 @@ export class GrokCliClient implements AIProvider {
   private readonly imageModel: string
   private readonly imageProvider: string
   private readonly videoProviderMode: string
+  private readonly llmProvider: LlmProviderPreset
 
   constructor(settings?: Partial<AppSettings>) {
     const s = { ...DEFAULT_SETTINGS, ...settings }
@@ -89,10 +93,14 @@ export class GrokCliClient implements AIProvider {
     this.imageModel = image.model || chat.model
     this.imageProvider = s.imageProvider || 'same-as-llm'
     this.videoProviderMode = s.videoProvider || 'same-as-llm'
+    this.llmProvider = coerceLlmProviderPreset(
+      s.llmProvider as LlmProviderPreset | undefined,
+      chat.baseUrl
+    )
     this.chatTimeoutMs = s.chatTimeoutMs ?? 120_000
     this.imageTimeoutMs = s.imageTimeoutMs ?? DEFAULT_SETTINGS.imageTimeoutMs
     this.omitSampling = shouldOmitSamplingForProvider(
-      s.llmProvider as LlmProviderPreset | undefined,
+      this.llmProvider,
       chat.baseUrl
     )
     if (s.videoProvider === 'seedance') {
@@ -218,10 +226,11 @@ export class GrokCliClient implements AIProvider {
       baseUrl: this.baseUrl,
       model: this.model,
       message: parts.join('; '),
+      llmProvider: this.llmProvider,
       chat: {
         available: chat.available,
         message: chat.message,
-        provider: 'llm'
+        provider: this.llmProvider
       },
       image,
       video
@@ -333,7 +342,7 @@ export class GrokCliClient implements AIProvider {
     if (!this.apiKey.trim()) {
       throw new AppError(
         'AI_UNAUTHORIZED',
-        'No API key',
+        'errors.noApiKey',
         'Paste gk_live_… from Gateway Admin → Keys'
       )
     }
@@ -366,11 +375,33 @@ export class GrokCliClient implements AIProvider {
     }
   }
 
+  /**
+   * Local Grok gateway only: try ensureRunning once (no-op if already up).
+   * Best-effort — never throws into chat path.
+   */
+  private async tryEnsureLocalGateway(): Promise<void> {
+    if (!this.omitSampling) return
+    try {
+      const { getGrokGatewayService } = await import(
+        '../gateway/GrokGatewayService'
+      )
+      await getGrokGatewayService().ensureRunning()
+    } catch {
+      /* ignore — caller still surfaces AI_UNAVAILABLE */
+    }
+  }
+
+  private isNetworkFetchError(msg: string): boolean {
+    return /cannot reach|econnrefused|fetch failed|failed to fetch|networkerror|enotfound|net::err_|econnreset|socket hang up/i.test(
+      msg
+    )
+  }
+
   async chat(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
     if (!this.apiKey.trim()) {
       throw new AppError(
         'AI_UNAUTHORIZED',
-        'No API key',
+        'errors.noApiKey',
         'Set Settings → API Key (gk_live_… from Grok Gateway Admin)'
       )
     }
@@ -383,9 +414,8 @@ export class GrokCliClient implements AIProvider {
       omitSampling: this.omitSampling
     })
 
-    let res: Response
-    try {
-      res = await fetch(`${this.baseUrl}/chat/completions`, {
+    const doFetch = (): Promise<Response> =>
+      fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           ...this.headers(),
@@ -394,6 +424,10 @@ export class GrokCliClient implements AIProvider {
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(this.chatTimeoutMs)
       })
+
+    let res: Response
+    try {
+      res = await doFetch()
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       if (/abort|timeout/i.test(msg)) {
@@ -403,11 +437,34 @@ export class GrokCliClient implements AIProvider {
           'Raise chatTimeoutMs or check Gateway queue'
         )
       }
-      throw new AppError(
-        'AI_UNAVAILABLE',
-        `Cannot reach OpenAI-compatible API at ${this.baseUrl}`,
-        'For Grok gateway: gctoac start (default :3847). See docs/grok-gateway.md'
-      )
+      // One auto-recover: start local gateway then retry once
+      if (this.isNetworkFetchError(msg) && this.omitSampling) {
+        await this.tryEnsureLocalGateway()
+        try {
+          res = await doFetch()
+        } catch (retryErr) {
+          const retryMsg =
+            retryErr instanceof Error ? retryErr.message : String(retryErr)
+          if (/abort|timeout/i.test(retryMsg)) {
+            throw new AppError(
+              'AI_FAILED',
+              `Chat timed out after ${this.chatTimeoutMs}ms`,
+              'Raise chatTimeoutMs or check Gateway queue'
+            )
+          }
+          throw new AppError(
+            'AI_UNAVAILABLE',
+            'errors.networkFailed',
+            'errors.aiUnavailable'
+          )
+        }
+      } else {
+        throw new AppError(
+          'AI_UNAVAILABLE',
+          'errors.networkFailed',
+          'errors.aiUnavailable'
+        )
+      }
     }
 
     if (!res.ok) {
@@ -474,16 +531,18 @@ export class GrokCliClient implements AIProvider {
     this.assertImageKey()
     const { size, aspectRatio } = this.resolveImageSize(options)
 
-    const { readFileSync, existsSync } = await import('fs')
+    const { existsSync } = await import('fs')
     const { basename } = await import('path')
     if (!existsSync(options.imagePath)) {
       throw new AppError(
         'VALIDATION',
-        `Reference image not found: ${options.imagePath}`,
-        'Pick or generate a photo first'
+        'errors.visionImageUnreadable',
+        'errors.visionImageUnreadableDetail'
       )
     }
-    const buf = readFileSync(options.imagePath)
+    // Downscale large stills (same limits as chat vision) to avoid slow uploads
+    const { loadImageBytesForAi } = await import('../../domain/chatVision')
+    const prepared = loadImageBytesForAi(options.imagePath)
     const form = new FormData()
     form.append('prompt', options.prompt)
     form.append('model', this.imageModel || this.model)
@@ -492,12 +551,15 @@ export class GrokCliClient implements AIProvider {
     form.append('size', size)
     form.append('aspect_ratio', aspectRatio)
     // Do not set Content-Type — boundary must be set by fetch/FormData
+    const uploadName = prepared.resized
+      ? basename(options.imagePath).replace(/\.[^.]+$/, '') + '.jpg'
+      : basename(options.imagePath)
     form.append(
       'image',
-      new Blob([new Uint8Array(buf)], {
-        type: mimeFromPath(options.imagePath)
+      new Blob([new Uint8Array(prepared.bytes)], {
+        type: prepared.mime || mimeFromPath(options.imagePath)
       }),
-      basename(options.imagePath)
+      uploadName
     )
 
     const res = await fetch(`${this.imageBaseUrl}/images/edits`, {
@@ -513,7 +575,7 @@ export class GrokCliClient implements AIProvider {
     if (!this.imageApiKey.trim()) {
       throw new AppError(
         'AI_UNAUTHORIZED',
-        'No API key',
+        'errors.noApiKey',
         'Image gen needs a valid API key on the image provider'
       )
     }
@@ -556,7 +618,7 @@ export class GrokCliClient implements AIProvider {
     if (!b64) {
       throw new AppError(
         'AI_FAILED',
-        'Image API returned no b64_json',
+        'errors.imageApiNoB64',
         'IMAGE_NO_SANDBOX: Enable imagesApi on Gateway; if using body/nude plates, content filters may block — try base-layer or costume packages first.'
       )
     }

@@ -2,13 +2,17 @@
  * Global wardrobe library — costumes are independent (0..N characters).
  * AI “dress” uses a character reference image + costume description.
  */
+import { ensureHardRules } from '../../domain/promptHardRules'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   libraryBodyClass,
   libraryCardClass,
   libraryGridClass,
-  libraryMediaClass
+  libraryMediaClass,
+  libraryCardActionBtnClass,
+  libraryCardActionDeleteClass,
+  libraryCardActionsRowClass
 } from '../components/libraryCard'
 import {
   LibraryBrowseBar,
@@ -20,6 +24,7 @@ import {
   uniqueFacetValues
 } from '../components/LibraryFilterSelect'
 import { useLibraryBrowse } from '../hooks/useLibraryBrowse'
+import { compareUpdatedAtDesc, sortByUpdatedAtDesc } from '../lib/librarySort'
 import {
   artStylesByGroup,
   DEFAULT_ART_STYLE,
@@ -38,9 +43,16 @@ import {
 } from '../../domain/characterGallery'
 import { translateCharacterGalleryLabel } from '../../domain/galleryLabelI18n'
 import {
-  COSTUME_SWAP_POSES,
+  buildCostumeSwapPrompt,
+  costumePosesByGroup,
+  getCostumeSwapPose,
+  pickBestBaseImage,
   type CostumeSwapPose
 } from '../../domain/costumeSwap'
+import {
+  ImageGenConfirmModal,
+  type ImageGenConfirmPayload
+} from '../components/ImageGenConfirmModal'
 import { getAiLocale } from '../../lib/aiLocale'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
@@ -53,24 +65,27 @@ import { useAiJobs } from '../context/AiJobsContext'
 import { PageHeader } from '../components/PageHeader'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
-import { MultiIdPick } from '../components/MultiIdPick'
 import {
   EditorField,
   EditorSelect,
   EditorShell,
-  editorFormClass
+  editorFormClass,
+  editorFormWideClass
 } from '../components/EditorShell'
 import { Button, EmptyState, Input, Textarea } from '../components/ui'
 
-type CostumeEditorTab = 'profile' | 'dress'
+type CostumeEditorTab = 'profile' | 'links' | 'dress'
 
 type CostumeRow = {
   id: string
   name: string
   description: string
+  hardRules?: string | null
   artStyle?: string | null
   refImagePath?: string | null
   refGalleryJson?: string | null
+  createdAt?: string | Date
+  updatedAt?: string | Date
   characterLinks: Array<{
     characterId: string
     dressedImagePath?: string | null
@@ -105,17 +120,26 @@ export function CostumesPage(): JSX.Element {
   const [editId, setEditId] = useState<string | null>(null)
   const [lookName, setLookName] = useState('')
   const [lookDesc, setLookDesc] = useState('')
+  const [lookHardRules, setLookHardRules] = useState('')
   const [lookStyle, setLookStyle] = useState<ArtStyleId>(DEFAULT_ART_STYLE)
   const [lookImagePath, setLookImagePath] = useState<string | null>(null)
   const [linkedCharIds, setLinkedCharIds] = useState<string[]>([])
   const [dressCharId, setDressCharId] = useState('')
   const [dressPose, setDressPose] = useState<CostumeSwapPose>('hero_front')
   const [dressBasePath, setDressBasePath] = useState('')
+  const [dressNote, setDressNote] = useState('')
+  const [linksQ, setLinksQ] = useState('')
+  const [linksFilter, setLinksFilter] = useState<'all' | 'linked' | 'unlinked'>(
+    'all'
+  )
   const [aiIdea, setAiIdea] = useState('')
   const [gallery, setGallery] = useState<CharacterGalleryItem[]>([])
   const [selectedGalId, setSelectedGalId] = useState<string | null>(null)
+  const [imageGenConfirm, setImageGenConfirm] =
+    useState<ImageGenConfirmPayload | null>(null)
   const [busy, setBusy] = useState(false)
   const artGroups = useMemo(() => artStylesByGroup(), [])
+  const poseGroups = useMemo(() => costumePosesByGroup(), [])
 
   const reload = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -131,8 +155,8 @@ export function CostumesPage(): JSX.Element {
         ) as Promise<CostumeRow[]>,
         getApi().characters.list() as Promise<Character[]>
       ])
-      setItems(list)
-      setCharacters(chars)
+      setItems(sortByUpdatedAtDesc(list))
+      setCharacters(sortByUpdatedAtDesc(chars))
     } catch (e) {
       setError(parseIpcError(e).message)
     } finally {
@@ -170,7 +194,8 @@ export function CostumesPage(): JSX.Element {
         if (filterActive === 'active' && !isCostumeActive(c)) return false
         if (filterActive === 'inactive' && isCostumeActive(c)) return false
         return true
-      }
+      },
+      sort: compareUpdatedAtDesc
     }
   )
   const costumeStyleOptions = useMemo(() => {
@@ -205,6 +230,7 @@ export function CostumesPage(): JSX.Element {
     setEditId(null)
     setLookName('')
     setLookDesc('')
+    setLookHardRules('')
     setLookStyle(DEFAULT_ART_STYLE)
     setLookImagePath(null)
     setLinkedCharIds([])
@@ -222,6 +248,7 @@ export function CostumesPage(): JSX.Element {
     setEditId(c.id)
     setLookName(c.name)
     setLookDesc(c.description)
+    setLookHardRules(c.hardRules ?? '')
     setLookStyle(
       isArtStyleId(c.artStyle) ? c.artStyle : DEFAULT_ART_STYLE
     )
@@ -240,23 +267,54 @@ export function CostumesPage(): JSX.Element {
     setEditorOpen(true)
   }
 
-  const dressCharBaseOptions = useMemo(() => {
+  const dressCharGallery = useMemo((): CharacterGalleryItem[] => {
     const c = characters.find((x) => x.id === dressCharId)
-    if (!c) return [] as Array<{ path: string; label: string }>
-    const g = parseCharacterGallery(
+    if (!c) return []
+    return parseCharacterGallery(
       (c as { refGalleryJson?: string | null }).refGalleryJson,
       { refImagePath: c.refImagePath }
     )
-    if (g.length === 0 && c.refImagePath) {
-      return [{ path: c.refImagePath, label: c.name }]
+  }, [characters, dressCharId])
+
+  const dressCharBaseOptions = useMemo(() => {
+    const c = characters.find((x) => x.id === dressCharId)
+    if (!c) return [] as Array<{ path: string; label: string; id: string }>
+    if (dressCharGallery.length === 0 && c.refImagePath) {
+      return [
+        {
+          path: c.refImagePath,
+          label: c.name,
+          id: 'ref'
+        }
+      ]
     }
-    // Prefer identity sheets over old costume-swap gens (stale dress paths
-    // are filtered on main; labels still help user pick a real bible sheet).
-    return g.map((i) => ({
+    return dressCharGallery.map((i) => ({
       path: i.path,
-      label: translateCharacterGalleryLabel(i.label || i.path, t)
+      label: translateCharacterGalleryLabel(i.label || i.path, t),
+      id: i.id
     }))
-  }, [characters, dressCharId, t])
+  }, [characters, dressCharId, dressCharGallery, t])
+
+  const resolvedDressBasePath = useMemo(() => {
+    if (dressBasePath) return dressBasePath
+    const c = characters.find((x) => x.id === dressCharId)
+    const picked = pickBestBaseImage(dressCharGallery, {
+      ageRange: c?.ageRange,
+      preferredPath: null
+    })
+    return (
+      picked.item?.path ||
+      dressCharBaseOptions[0]?.path ||
+      c?.refImagePath ||
+      null
+    )
+  }, [
+    dressBasePath,
+    dressCharId,
+    dressCharGallery,
+    dressCharBaseOptions,
+    characters
+  ])
 
   // Default base pick to auto when character changes or selected path vanished from list.
   useEffect(() => {
@@ -266,9 +324,64 @@ export function CostumesPage(): JSX.Element {
     }
   }, [dressCharBaseOptions, dressBasePath])
 
+  const linksBrowser = useMemo(() => {
+    const q = linksQ.trim().toLowerCase()
+    const linked = new Set(linkedCharIds)
+    return characters
+      .filter((c) => {
+        const isLinked = linked.has(c.id)
+        if (linksFilter === 'linked' && !isLinked) return false
+        if (linksFilter === 'unlinked' && isLinked) return false
+        if (!q) return true
+        return (
+          c.name.toLowerCase().includes(q) ||
+          (c.description ?? '').toLowerCase().includes(q)
+        )
+      })
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, i18n.language))
+  }, [characters, linkedCharIds, linksFilter, linksQ, i18n.language])
+
+  const handleToggleLink = async (characterId: string): Promise<void> => {
+    if (!editId) {
+      toast.info(t('costumes.linksSaveFirst'))
+      return
+    }
+    const linked = linkedCharIds.includes(characterId)
+    setBusy(true)
+    try {
+      if (linked) {
+        await getApi().costumes.unlinkCharacter({
+          costumeId: editId,
+          characterId
+        })
+        setLinkedCharIds((ids) => ids.filter((id) => id !== characterId))
+        if (dressCharId === characterId) setDressCharId('')
+      } else {
+        await getApi().costumes.linkCharacter({
+          costumeId: editId,
+          characterId
+        })
+        setLinkedCharIds((ids) =>
+          ids.includes(characterId) ? ids : [...ids, characterId]
+        )
+      }
+      await reload()
+    } catch (e) {
+      toast.error(parseIpcError(e).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const closeEditor = (): void => {
     setEditorOpen(false)
     setEditId(null)
+    setDressNote('')
+    setLinksQ('')
+    setLinksFilter('all')
+    setDressBasePath('')
+    setDressPose('hero_front')
   }
 
   const handleAiFill = (): void => {
@@ -299,12 +412,13 @@ export function CostumesPage(): JSX.Element {
     const snapshot = {
       name: lookName,
       description: lookDesc,
-      artStyle: lookStyle
+      artStyle: lookStyle,
+      hardRules: lookHardRules
     }
     const costumeId = editId
     startJob({
       kind: 'costume-ai-fill',
-      label: t('costumes.aiFill'),
+      label: t('common.aiFill'),
       scope: { costumeId: costumeId ?? undefined },
       run: async ({ setProgress, signal }) => {
         setProgress(20, hasImage ? 'image' : 'llm')
@@ -314,7 +428,8 @@ export function CostumesPage(): JSX.Element {
           existingDraft: {
             name: snapshot.name,
             description: snapshot.description,
-            artStyle: snapshot.artStyle
+            artStyle: snapshot.artStyle,
+            hardRules: snapshot.hardRules
           },
           referenceImagePath: hasImage ? refPath : null
         })
@@ -325,6 +440,9 @@ export function CostumesPage(): JSX.Element {
           if (r.name) setLookName(r.name)
           if (r.description) setLookDesc(r.description)
           if (r.artStyle && isArtStyleId(r.artStyle)) setLookStyle(r.artStyle)
+          if (typeof r.hardRules === 'string' && r.hardRules.trim()) {
+            setLookHardRules(r.hardRules.trim())
+          }
         }
         setPageBanner(t('costumes.aiFillOk'))
         toast.success(t('costumes.aiFillOk'))
@@ -343,6 +461,7 @@ export function CostumesPage(): JSX.Element {
         await getApi().costumes.update(editId, {
           name: lookName.trim() || lookDesc.trim().slice(0, 32),
           description: lookDesc.trim(),
+          hardRules: lookHardRules.trim() || null,
           artStyle: lookStyle,
           refImagePath: lookImagePath,
           refGalleryJson: galJson,
@@ -352,6 +471,7 @@ export function CostumesPage(): JSX.Element {
         await getApi().costumes.create({
           name: lookName.trim() || lookDesc.trim().slice(0, 32),
           description: lookDesc.trim(),
+          hardRules: lookHardRules.trim() || null,
           artStyle: lookStyle,
           refImagePath: lookImagePath,
           refGalleryJson: galJson,
@@ -570,9 +690,53 @@ export function CostumesPage(): JSX.Element {
       toast.info(t('aiJobs.running'))
       return
     }
+    const char = characters.find((x) => x.id === dressCharId)
+    const pose = getCostumeSwapPose(dressPose)
+    const artStyle = getArtStyle(lookStyle).id
+    const base = resolvedDressBasePath
+    let prompt = buildCostumeSwapPrompt({
+      name: char?.name || 'Character',
+      newCostume: lookDesc.trim() || lookName.trim() || 'Costume',
+      artStyle,
+      pose: pose.id,
+      appearance: char?.appearance,
+      ageRange: char?.ageRange,
+      gender: char?.gender,
+      visualTags: char?.visualTags,
+      mannerisms: char?.mannerisms,
+      hardRules: lookHardRules.trim() || undefined
+    })
+    const note = dressNote.trim()
+    if (note) {
+      prompt = `${prompt}\n\nEXTRA DRESS DIRECTION: ${note}`
+    }
+    prompt = ensureHardRules(prompt, lookHardRules)
+    const poseLabel = t(`characters.${pose.labelKey}`)
+    const styleLabel = t(`characters.${getArtStyle(artStyle).labelKey}`)
+    const baseMode = dressBasePath
+      ? t('costumes.baseImageManual')
+      : t('costumes.baseImageAuto')
+    setImageGenConfirm({
+      prompt,
+      referencePaths: base ? [base] : [],
+      useIdentityEdit: Boolean(base),
+      summary: `${char?.name ?? '—'} · ${poseLabel} · ${styleLabel} · ${baseMode}`
+    })
+  }
+
+  const runCostumeDressJob = async (
+    confirm: ImageGenConfirmPayload
+  ): Promise<void> => {
+    setImageGenConfirm(null)
+    if (!editId || !dressCharId) return
+    if (isBlocked({ kind: ['costume-swap'], characterId: dressCharId })) {
+      toast.info(t('aiJobs.running'))
+      return
+    }
     const costumeId = editId
     const characterId = dressCharId
-    const base = dressBasePath || null
+    const base =
+      confirm.referencePaths[0] || resolvedDressBasePath || null
     const pose = dressPose
     setPageBanner(t('aiJobs.startedBackground'))
     toast.info(t('aiJobs.startedBackground'))
@@ -586,7 +750,8 @@ export function CostumesPage(): JSX.Element {
           costumeId,
           characterId,
           baseImagePath: base,
-          pose
+          pose,
+          promptOverride: confirm.prompt
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
@@ -615,11 +780,6 @@ export function CostumesPage(): JSX.Element {
       }
     })
   }
-
-  const charOptions = useMemo(
-    () => characters.map((c) => ({ id: c.id, label: c.name })),
-    [characters]
-  )
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
@@ -770,8 +930,8 @@ export function CostumesPage(): JSX.Element {
                           objectFit="cover"
                           className="h-full border-0 rounded-none"
                           actionsLayout="overlay"
-                          showActions={false}
-                          enableZoom={false}
+                          showActions
+                          enableZoom
                           onImageClick={() => openEdit(c)}
                         />
                       ) : (
@@ -809,10 +969,10 @@ export function CostumesPage(): JSX.Element {
                       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-400">
                         {c.description}
                       </p>
-                      <div className="mt-auto flex items-center gap-2 pt-4">
+                      <div className={libraryCardActionsRowClass}>
                         <Button
                           variant="secondary"
-                          className="min-w-0 flex-1 !py-1.5 text-xs"
+                          className={libraryCardActionBtnClass}
                           onClick={() => openEdit(c)}
                         >
                           {t('common.edit')}
@@ -820,7 +980,7 @@ export function CostumesPage(): JSX.Element {
                         {!isActiveAnywhere ? (
                           <Button
                             variant="ghost"
-                            className="min-w-0 flex-1 !py-1.5 text-xs text-rose-300"
+                            className={libraryCardActionDeleteClass}
                             onClick={() => void handleDelete(c)}
                           >
                             {t('common.delete')}
@@ -853,6 +1013,12 @@ export function CostumesPage(): JSX.Element {
         busy={busy}
         tabs={[
           { id: 'profile', label: t('costumes.tabProfile') },
+          {
+            id: 'links',
+            label: `${t('costumes.tabLinks')}${
+              linkedCharIds.length ? ` (${linkedCharIds.length})` : ''
+            }`
+          },
           { id: 'dress', label: t('costumes.tabDress') }
         ]}
         activeTab={editorTab}
@@ -892,6 +1058,22 @@ export function CostumesPage(): JSX.Element {
                           )
                       : undefined
                   }
+                  isCover={
+                    Boolean(
+                      selectedGalItem?.path &&
+                        lookImagePath === selectedGalItem.path
+                    )
+                  }
+                  onSetAsCover={
+                    selectedGalItem?.path
+                      ? () => handleSetCover(selectedGalItem.path)
+                      : undefined
+                  }
+                  onRemove={
+                    selectedGalItem
+                      ? () => handleRemoveImage(selectedGalItem.id)
+                      : undefined
+                  }
                 />
               ) : (
                 <div className="flex h-40 flex-col items-center justify-center gap-2 text-xs text-ink-600">
@@ -902,7 +1084,7 @@ export function CostumesPage(): JSX.Element {
                     className="!text-xs"
                     onClick={() => void handlePickImage()}
                   >
-                    {t('characters.addExternalRef')}
+                    {t('common.uploadRef')}
                   </Button>
                 </div>
               )}
@@ -932,30 +1114,8 @@ export function CostumesPage(): JSX.Element {
                 disabled={busy || costumeBusy(editId)}
                 onClick={() => void handlePickImage()}
               >
-                {t('characters.addExternalRef')}
+                {t('common.uploadRef')}
               </Button>
-              {selectedGalItem && lookImagePath !== selectedGalItem.path && (
-                <Button
-                  variant="secondary"
-                  onClick={() => handleSetCover(selectedGalItem.path)}
-                >
-                  {t('common.setAsCover')}
-                </Button>
-              )}
-              {selectedGalItem && lookImagePath === selectedGalItem.path && (
-                <span className="inline-flex items-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                  {t('common.isCover')}
-                </span>
-              )}
-              {selectedGalItem && (
-                <Button
-                  variant="ghost"
-                  className="text-rose-300"
-                  onClick={() => handleRemoveImage(selectedGalItem.id)}
-                >
-                  {t('characters.removePhoto')}
-                </Button>
-              )}
             </div>
             <p className="text-[11px] text-ink-500">{t('common.galleryReorderHint')}</p>
           </div>
@@ -978,7 +1138,7 @@ export function CostumesPage(): JSX.Element {
             {/* AI fill — character-page style brand card */}
             <section className="rounded-xl border border-brand-800/35 bg-gradient-to-br from-brand-950/40 via-ink-900/50 to-ink-950 p-4">
               <h3 className="text-sm font-semibold text-brand-100">
-                {t('costumes.aiTitle')}
+                {t('common.aiTitle')}
               </h3>
               <p className="mt-1 text-[11px] text-ink-400">
                 {t('common.aiHintWithImage')}
@@ -1002,7 +1162,7 @@ export function CostumesPage(): JSX.Element {
               >
                 {costumeBusy(editId)
                   ? t('common.generating')
-                  : t('costumes.aiFill')}
+                  : t('common.aiFill')}
               </Button>
             </section>
 
@@ -1023,6 +1183,17 @@ export function CostumesPage(): JSX.Element {
                   value={lookDesc}
                   onChange={(e) => setLookDesc(e.target.value)}
                   placeholder={t('characters.swapCostumePlaceholder')}
+                />
+              </EditorField>
+              <EditorField
+                label={t('common.hardRules')}
+                hint={t('common.hardRulesHint')}
+              >
+                <Textarea
+                  size="md"
+                  value={lookHardRules}
+                  onChange={(e) => setLookHardRules(e.target.value)}
+                  placeholder={t('common.hardRulesPh')}
                 />
               </EditorField>
               <EditorField label={t('characters.artStyle')}>
@@ -1054,85 +1225,412 @@ export function CostumesPage(): JSX.Element {
                   ))}
                 </EditorSelect>
               </EditorField>
-              <EditorField label={t('costumes.linkedCharacters')}>
-                <MultiIdPick
-                  options={charOptions}
-                  value={linkedCharIds}
-                  onChange={setLinkedCharIds}
-                  max={50}
-                  emptyLabel={t('costumes.noLinkedCharacters')}
-                />
-                <p className="mt-1 text-[10px] text-ink-500">
-                  {t('costumes.linkedCharactersHint')}
-                </p>
-              </EditorField>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-xl border border-ink-800 bg-ink-900/40 px-3 py-2.5 text-left text-[12px] text-ink-300 hover:border-brand-700/50"
+                onClick={() => setEditorTab('links')}
+              >
+                <span>
+                  {t('costumes.linksCount', { count: linkedCharIds.length })}
+                  <span className="mt-0.5 block text-[11px] text-ink-500">
+                    {t('costumes.linksManage')}
+                  </span>
+                </span>
+                <span className="text-ink-500">→</span>
+              </button>
             </section>
           </div>
         )}
-        {editorTab === 'dress' && (
-          <div className={editorFormClass}>
-            <section className="space-y-3 rounded-xl border border-brand-800/35 bg-brand-950/15 p-4">
-              <div>
-                <h3 className="text-sm font-semibold text-ink-100">
-                  {t('costumes.generateDressed')}
-                </h3>
-                <p className="mt-0.5 text-[11px] text-ink-500">
-                  {t('costumes.generateDressedHint')}
-                </p>
+
+        {editorTab === 'links' && (
+          <div className={`${editorFormWideClass} flex flex-col gap-3`}>
+            <p className="text-[11px] text-ink-500">{t('costumes.linksHint')}</p>
+            {!editId ? (
+              <p className="rounded-xl border border-ink-800 bg-ink-900/40 px-4 py-3 text-sm text-ink-400">
+                {t('costumes.linksSaveFirst')}
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                className="sm:flex-1"
+                value={linksQ}
+                onChange={(e) => setLinksQ(e.target.value)}
+                placeholder={t('costumes.linksSearch')}
+                disabled={!editId}
+              />
+              <div className="flex flex-wrap gap-1 rounded-xl border border-ink-800 bg-ink-950/50 p-1">
+                {(
+                  [
+                    { id: 'all' as const, label: t('costumes.linksFilterAll') },
+                    {
+                      id: 'linked' as const,
+                      label: t('costumes.linksFilterLinked')
+                    },
+                    {
+                      id: 'unlinked' as const,
+                      label: t('costumes.linksFilterUnlinked')
+                    }
+                  ] as const
+                ).map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    disabled={!editId}
+                    className={[
+                      'rounded-lg px-2.5 py-1 text-[11px] font-medium',
+                      linksFilter === f.id
+                        ? 'bg-brand-600 text-white'
+                        : 'text-ink-400 hover:bg-ink-800'
+                    ].join(' ')}
+                    onClick={() => setLinksFilter(f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
               </div>
-              <EditorField label={t('costumes.dressCharacter')}>
-                <EditorSelect
-                  value={dressCharId}
-                  onChange={(e) => {
-                    setDressCharId(e.target.value)
-                    setDressBasePath('')
-                  }}
-                >
-                  <option value="">{t('costumes.pickCharacterForDress')}</option>
-                  {(linkedCharIds.length
-                    ? characters.filter((c) => linkedCharIds.includes(c.id))
-                    : characters
-                  ).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </EditorSelect>
-              </EditorField>
-              <EditorField label={t('costumes.baseImageLabel')}>
-                <EditorSelect
-                  value={dressBasePath}
-                  onChange={(e) => setDressBasePath(e.target.value)}
-                >
-                  <option value="">{t('costumes.baseImageAuto')}</option>
-                  {dressCharBaseOptions.map((o) => (
-                    <option key={o.path} value={o.path}>
-                      {o.label}
-                    </option>
-                  ))}
-                </EditorSelect>
-              </EditorField>
-              <EditorField label={t('costumes.poseLabel')}>
-                <EditorSelect
-                  value={dressPose}
-                  onChange={(e) =>
-                    setDressPose(e.target.value as CostumeSwapPose)
-                  }
-                >
-                  {COSTUME_SWAP_POSES.map((p) => (
-                    <option key={p.id} value={p.id}>
+            </div>
+            {linksBrowser.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-ink-800 px-4 py-8 text-center text-sm text-ink-500">
+                {t('costumes.linksEmpty')}
+              </p>
+            ) : (
+              <ul className="divide-y divide-ink-800/80 overflow-hidden rounded-xl border border-ink-800 bg-ink-950/40">
+                {linksBrowser.map((c) => {
+                  const linked = linkedCharIds.includes(c.id)
+                  return (
+                    <li
+                      key={c.id}
+                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-ink-900/50"
+                    >
+                      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-ink-700 bg-ink-900">
+                        {c.refImagePath ? (
+                          <div className="pointer-events-none absolute inset-0">
+                            <LocalMediaImage
+                              filePath={c.refImagePath}
+                              alt={c.name}
+                              variant="thumb"
+                              objectFit="cover"
+                              className="border-0"
+                              showActions={false}
+                              enableZoom={false}
+                              hoverZoom={false}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[10px] text-ink-600">
+                            —
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-ink-100">
+                          {c.name}
+                        </p>
+                        <p className="truncate text-[11px] text-ink-500">
+                          {(c.description || '').slice(0, 80) || '—'}
+                        </p>
+                      </div>
+                      <Button
+                        variant={linked ? 'secondary' : 'primary'}
+                        className="!py-1 !text-xs shrink-0"
+                        disabled={!editId || busy}
+                        onClick={() => void handleToggleLink(c.id)}
+                      >
+                        {linked
+                          ? t('costumes.unlinkAction')
+                          : t('costumes.linkAction')}
+                      </Button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {editorTab === 'dress' && (
+          <div className={`${editorFormWideClass} space-y-4`}>
+            {/* Header */}
+            <div className="rounded-2xl border border-ink-800 bg-ink-950/50 px-4 py-3">
+              <h3 className="text-sm font-semibold text-ink-50">
+                {t('costumes.dressWorkstation')}
+              </h3>
+              <p className="mt-0.5 text-[12px] leading-relaxed text-ink-400">
+                {t('costumes.generateDressedHint')}
+              </p>
+              <ol className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-500">
+                <li>
+                  <span className="font-semibold text-brand-300">1</span>{' '}
+                  {t('costumes.dressStepChar')}
+                </li>
+                <li>
+                  <span className="font-semibold text-brand-300">2</span>{' '}
+                  {t('costumes.dressStepBase')}
+                </li>
+                <li>
+                  <span className="font-semibold text-brand-300">3</span>{' '}
+                  {t('costumes.dressStepPose')}
+                </li>
+                <li>
+                  <span className="font-semibold text-brand-300">4</span>{' '}
+                  {t('costumes.generateDressed')}
+                </li>
+              </ol>
+            </div>
+
+            {/* 1 · Character */}
+            <section className="rounded-2xl border border-ink-800 bg-ink-950/40 p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600/90 text-[11px] font-bold text-white">
+                  1
+                </span>
+                <h4 className="text-[13px] font-semibold text-ink-100">
+                  {t('costumes.dressCharacter')}
+                </h4>
+              </div>
+              <EditorSelect
+                value={dressCharId}
+                onChange={(e) => {
+                  setDressCharId(e.target.value)
+                  setDressBasePath('')
+                }}
+                aria-label={t('costumes.dressCharacter')}
+              >
+                <option value="">{t('costumes.pickCharacterForDress')}</option>
+                {(linkedCharIds.length
+                  ? characters.filter((c) => linkedCharIds.includes(c.id))
+                  : characters
+                ).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {linkedCharIds.includes(c.id)
+                      ? ` · ${t('costumes.linksFilterLinked')}`
+                      : ''}
+                  </option>
+                ))}
+              </EditorSelect>
+              {linkedCharIds.length === 0 ? (
+                <p className="mt-2 text-[11px] text-ink-500">
+                  {t('costumes.preferLinkedChars')}{' '}
+                  <button
+                    type="button"
+                    className="text-brand-300 underline-offset-2 hover:underline"
+                    onClick={() => setEditorTab('links')}
+                  >
+                    {t('costumes.tabLinks')}
+                  </button>
+                </p>
+              ) : null}
+            </section>
+
+            {/* 2 · Base still: selected hero + strip */}
+            <section className="rounded-2xl border border-ink-800 bg-ink-950/40 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600/90 text-[11px] font-bold text-white">
+                    2
+                  </span>
+                  <h4 className="text-[13px] font-semibold text-ink-100">
+                    {t('costumes.baseImageLabel')}
+                  </h4>
+                </div>
+                <div className="flex rounded-lg border border-ink-700 bg-ink-900/80 p-0.5">
+                  <button
+                    type="button"
+                    className={[
+                      'rounded-md px-2.5 py-1 text-[11px] font-medium transition',
+                      !dressBasePath
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'text-ink-400 hover:text-ink-200'
+                    ].join(' ')}
+                    onClick={() => setDressBasePath('')}
+                  >
+                    {t('costumes.baseImageAuto')}
+                  </button>
+                  <button
+                    type="button"
+                    className={[
+                      'rounded-md px-2.5 py-1 text-[11px] font-medium transition',
+                      dressBasePath
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'text-ink-400 hover:text-ink-200'
+                    ].join(' ')}
+                    disabled={dressCharBaseOptions.length === 0}
+                    onClick={() => {
+                      if (
+                        dressCharBaseOptions[0] &&
+                        !dressBasePath
+                      ) {
+                        setDressBasePath(dressCharBaseOptions[0].path)
+                      }
+                    }}
+                  >
+                    {t('costumes.baseImageManual')}
+                  </button>
+                </div>
+              </div>
+
+              {!dressCharId ? (
+                <p className="rounded-xl border border-dashed border-ink-700 bg-ink-900/30 px-3 py-6 text-center text-[12px] text-ink-500">
+                  {t('costumes.pickCharacterForDress')}
+                </p>
+              ) : dressCharBaseOptions.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-ink-700 bg-ink-900/30 px-3 py-6 text-center text-[12px] text-ink-500">
+                  {t('costumes.baseNoImages')}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                  {/* Hero selected base */}
+                  <div className="relative mx-auto aspect-[3/4] w-36 shrink-0 overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 shadow-inner sm:mx-0 sm:w-40">
+                    {resolvedDressBasePath ? (
+                      <div className="pointer-events-none absolute inset-0">
+                        <LocalMediaImage
+                          filePath={resolvedDressBasePath}
+                          alt={t('costumes.basePreview')}
+                          variant="thumb"
+                          objectFit="cover"
+                          className="border-0"
+                          showActions={false}
+                          enableZoom={false}
+                          hoverZoom={false}
+                        />
+                      </div>
+                    ) : null}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-6">
+                      <p className="text-[10px] font-medium text-white/95">
+                        {!dressBasePath
+                          ? t('costumes.baseImageAuto')
+                          : t('costumes.basePreview')}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Horizontal strip */}
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-1.5 text-[11px] text-ink-500">
+                      {t('costumes.baseStripHint')}
+                    </p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {dressCharBaseOptions.map((o) => {
+                        const selected =
+                          (dressBasePath || resolvedDressBasePath) === o.path
+                        return (
+                          <button
+                            key={o.id + o.path}
+                            type="button"
+                            title={o.label}
+                            className={[
+                              'relative h-20 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-ink-900 transition',
+                              selected
+                                ? 'border-brand-500 ring-2 ring-brand-500/25'
+                                : 'border-ink-700 hover:border-ink-500'
+                            ].join(' ')}
+                            onClick={() => setDressBasePath(o.path)}
+                          >
+                            <div className="pointer-events-none absolute inset-0">
+                              <LocalMediaImage
+                                filePath={o.path}
+                                alt={o.label}
+                                variant="thumb"
+                                objectFit="cover"
+                                className="border-0"
+                                showActions={false}
+                                enableZoom={false}
+                                hoverZoom={false}
+                              />
+                            </div>
+                            {selected ? (
+                              <span className="pointer-events-none absolute right-1 top-1 z-[2] flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white shadow">
+                                ✓
+                              </span>
+                            ) : null}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* 3 · Pose pills */}
+            <section className="rounded-2xl border border-ink-800 bg-ink-950/40 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600/90 text-[11px] font-bold text-white">
+                  3
+                </span>
+                <h4 className="text-[13px] font-semibold text-ink-100">
+                  {t('costumes.poseLabel')}
+                </h4>
+                <span className="ml-auto rounded-md bg-ink-800 px-2 py-0.5 text-[10px] text-ink-400">
+                  {t(`characters.${getCostumeSwapPose(dressPose).labelKey}`)}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ...poseGroups.fullbody,
+                  ...poseGroups.detail,
+                  ...poseGroups.multi
+                ]).map((p) => {
+                  const on = dressPose === p.id
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={[
+                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition',
+                        on
+                          ? 'border-brand-500 bg-brand-600 text-white shadow-sm'
+                          : 'border-ink-700 bg-ink-900/60 text-ink-300 hover:border-ink-500 hover:text-ink-100'
+                      ].join(' ')}
+                      onClick={() => setDressPose(p.id)}
+                    >
                       {t(`characters.${p.labelKey}`)}
-                    </option>
-                  ))}
-                </EditorSelect>
-              </EditorField>
+                      <span
+                        className={[
+                          'rounded px-1 py-px text-[9px] font-semibold',
+                          on ? 'bg-white/20 text-white' : 'bg-ink-800 text-ink-500'
+                        ].join(' ')}
+                      >
+                        {p.aspectBadge}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+
+            {/* Optional note — collapsed by default via details */}
+            <details className="rounded-2xl border border-ink-800 bg-ink-950/30 open:bg-ink-950/40">
+              <summary className="cursor-pointer list-none px-4 py-3 text-[12px] font-medium text-ink-300 marker:content-none [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-ink-500">▸</span>
+                  {t('costumes.dressNote')}
+                  <span className="text-[11px] font-normal text-ink-600">
+                    {t('costumes.dressNoteOptional')}
+                  </span>
+                </span>
+              </summary>
+              <div className="border-t border-ink-800 px-4 pb-4 pt-2">
+                <Textarea
+                  size="md"
+                  value={dressNote}
+                  onChange={(e) => setDressNote(e.target.value)}
+                  placeholder={t('costumes.dressNotePh')}
+                />
+              </div>
+            </details>
+
+            {/* CTA */}
+            <div className="sticky bottom-0 z-[1] -mx-1 space-y-2 rounded-2xl border border-brand-800/40 bg-ink-950/95 p-3 shadow-lg backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-none">
               <Button
+                className="w-full"
                 disabled={
                   !editId ||
                   !dressCharId ||
                   !lookDesc.trim() ||
                   busy ||
-                  costumeBusy(editId)
+                  costumeBusy(editId) ||
+                  !resolvedDressBasePath
                 }
                 onClick={() => handleGenerateDressed()}
               >
@@ -1140,15 +1638,30 @@ export function CostumesPage(): JSX.Element {
                   ? t('common.generating')
                   : t('costumes.generateDressed')}
               </Button>
-              {!editId && (
-                <p className="text-[10px] text-ink-500">
+              {!editId ? (
+                <p className="text-center text-[11px] text-ink-500">
                   {t('costumes.saveFirstForDress')}
                 </p>
-              )}
-            </section>
+              ) : !dressCharId || !resolvedDressBasePath ? (
+                <p className="text-center text-[11px] text-ink-500">
+                  {t('costumes.dressNeedCharBase')}
+                </p>
+              ) : !lookDesc.trim() ? (
+                <p className="text-center text-[11px] text-ink-500">
+                  {t('costumes.dressNeedDesc')}
+                </p>
+              ) : null}
+            </div>
           </div>
         )}
       </EditorShell>
+      <ImageGenConfirmModal
+        open={Boolean(imageGenConfirm)}
+        payload={imageGenConfirm}
+        busy={busy || costumeBusy(editId)}
+        onCancel={() => setImageGenConfirm(null)}
+        onConfirm={(p) => void runCostumeDressJob(p)}
+      />
     </div>
   )
 }

@@ -28,7 +28,7 @@ export class CharacterService {
             ]
           }
         : undefined,
-      orderBy: { name: 'asc' }
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
     })
   }
 
@@ -38,7 +38,7 @@ export class CharacterService {
 
   async get(id: string) {
     const row = await this.prisma.character.findUnique({ where: { id } })
-    if (!row) throw new AppError('NOT_FOUND', `Character not found: ${id}`)
+    if (!row) throw new AppError('NOT_FOUND', 'errors.characterNotFound', String(id))
     return row
   }
 
@@ -65,6 +65,7 @@ export class CharacterService {
         relationships: trimOrNull(input.relationships),
         visualTags: trimOrNull(input.visualTags),
         seedPrompt: trimOrNull(input.seedPrompt),
+        hardRules: trimOrNull(input.hardRules),
         profileJson: trimOrNull(input.profileJson),
         refSheetPath: trimOrNull(input.refSheetPath),
         refGalleryJson: trimOrNull(input.refGalleryJson),
@@ -136,6 +137,9 @@ export class CharacterService {
         ...(data.seedPrompt !== undefined
           ? { seedPrompt: trimOrNull(data.seedPrompt) }
           : {}),
+        ...(data.hardRules !== undefined
+          ? { hardRules: trimOrNull(data.hardRules) }
+          : {}),
         ...(data.profileJson !== undefined
           ? { profileJson: trimOrNull(data.profileJson) }
           : {}),
@@ -167,6 +171,6 @@ export class CharacterService {
       where: { id },
       select: { id: true }
     })
-    if (!found) throw new AppError('NOT_FOUND', `Character not found: ${id}`)
+    if (!found) throw new AppError('NOT_FOUND', 'errors.characterNotFound', String(id))
   }
 }

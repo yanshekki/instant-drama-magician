@@ -83,7 +83,8 @@ export function AiDraftModal(): JSX.Element | null {
                 alt={draft.label}
                 maxHeightClass="max-h-[40vh]"
                 showActions={false}
-                enableZoom
+                enableZoom={false}
+                hoverZoom={false}
                 showMeta
               />
               <p className="border-t border-ink-800 px-3 py-2 text-[11px] text-ink-500">
@@ -170,7 +171,8 @@ export function AiDraftModal(): JSX.Element | null {
                 alt={draft.label}
                 maxHeightClass="max-h-[40vh]"
                 showActions={false}
-                enableZoom
+                enableZoom={false}
+                hoverZoom={false}
                 showMeta
               />
               <p className="border-t border-ink-800 px-3 py-2 text-[11px] text-ink-500">
@@ -202,7 +204,8 @@ export function AiDraftModal(): JSX.Element | null {
                 alt={draft.label}
                 maxHeightClass="max-h-[40vh]"
                 showActions={false}
-                enableZoom
+                enableZoom={false}
+                hoverZoom={false}
                 showMeta
               />
               <p className="border-t border-ink-800 px-3 py-2 text-[11px] text-ink-500">
@@ -240,7 +243,8 @@ export function AiDraftModal(): JSX.Element | null {
                 alt={draft.label}
                 maxHeightClass="max-h-[40vh]"
                 showActions={false}
-                enableZoom
+                enableZoom={false}
+                hoverZoom={false}
                 showMeta
               />
               <p className="border-t border-ink-800 px-3 py-2 text-[11px] text-ink-500">

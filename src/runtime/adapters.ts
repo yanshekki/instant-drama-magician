@@ -27,7 +27,7 @@ export function createHeadlessDialog(): HandlerDialog {
       }
       throw new AppError(
         'VALIDATION',
-        'Headless mode: no file open dialog. Pass an absolute path in channel arguments, or set IDM_PICK_FILE to a file path.',
+        'errors.headlessPickFile',
         opts.title || 'open dialog'
       )
     },
@@ -43,7 +43,7 @@ export function createHeadlessDialog(): HandlerDialog {
       }
       throw new AppError(
         'VALIDATION',
-        'Headless mode: no save dialog. Set IDM_SAVE_PATH or pass destination path in channel args.',
+        'errors.headlessSavePath',
         opts.title || 'save dialog'
       )
     }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { sortByUpdatedAtDesc } from '../lib/librarySort'
 import type {
   CreateSceneInput,
   Scene,
@@ -32,7 +33,7 @@ export function useScenes(activeStoryId: string | null): {
     setError(null)
     try {
       const list = (await getApi().scenes.list()) as Scene[]
-      setItems(list)
+      setItems(sortByUpdatedAtDesc(list))
       if (activeStoryId) {
         const cast = (await getApi().scenes.list({
           storyId: activeStoryId,

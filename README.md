@@ -307,8 +307,9 @@ instant-drama version
 #### CLI updates (npm)
 
 ```bash
-instant-drama update              # check registry for a newer version
-instant-drama update install --yes   # run: npm install -g instant-drama-magician@latest
+instant-drama update              # check npm registry for a newer version
+instant-drama update install --yes   # global install latest (with post-verify)
+instant-drama update install 1.3.0 --yes   # pin a version
 ```
 
 `instant-drama doctor` also reports npm update status (skip with `IDM_SKIP_UPDATE=1`).

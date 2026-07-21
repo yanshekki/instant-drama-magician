@@ -25,6 +25,7 @@ export interface CreateCostumeInput {
   refImagePath?: string | null
   refGalleryJson?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
   /** Optional character ids to link on create */
   characterIds?: string[]
 }
@@ -36,6 +37,7 @@ export interface UpdateCostumeInput {
   refImagePath?: string | null
   refGalleryJson?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
   /** Replace full set of linked characters when provided */
   characterIds?: string[]
 }
@@ -139,7 +141,7 @@ export class CostumeService {
         const again = await this.prisma.costume.findFirst({
           where: { description: desc }
         })
-        if (!again) throw new AppError('INTERNAL', 'Failed to create costume')
+        if (!again) throw new AppError('INTERNAL', 'errors.costumeCreateFailed')
         costumeId = again.id
       }
     }
@@ -203,7 +205,7 @@ export class CostumeService {
           orderBy: { sortOrder: 'asc' }
         }
       },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
     })
   }
 
@@ -254,7 +256,7 @@ export class CostumeService {
   async create(input: CreateCostumeInput) {
     const description = input.description.trim()
     if (!description) {
-      throw new AppError('VALIDATION', 'description is required')
+      throw new AppError('VALIDATION', 'errors.descriptionRequired')
     }
     const name = (input.name.trim() || description.slice(0, 32)).trim()
     const characterIds = [
@@ -262,7 +264,7 @@ export class CostumeService {
     ]
     for (const cid of characterIds) {
       const c = await this.prisma.character.findUnique({ where: { id: cid } })
-      if (!c) throw new AppError('NOT_FOUND', `Character not found: ${cid}`)
+      if (!c) throw new AppError('NOT_FOUND', 'errors.characterNotFound', String(cid))
     }
     return this.prisma.costume.create({
       data: {
@@ -272,6 +274,7 @@ export class CostumeService {
         refImagePath: trimOrNull(input.refImagePath),
         refGalleryJson: trimOrNull(input.refGalleryJson),
         seedPrompt: trimOrNull(input.seedPrompt),
+        hardRules: trimOrNull(input.hardRules),
         characterLinks: characterIds.length
           ? {
               create: characterIds.map((characterId, i) => ({
@@ -296,13 +299,13 @@ export class CostumeService {
   async update(id: string, data: UpdateCostumeInput) {
     await this.get(id)
     if (data.description !== undefined && !data.description.trim()) {
-      throw new AppError('VALIDATION', 'description is required')
+      throw new AppError('VALIDATION', 'errors.descriptionRequired')
     }
     if (data.characterIds) {
       const characterIds = [...new Set(data.characterIds.filter(Boolean))]
       for (const cid of characterIds) {
         const c = await this.prisma.character.findUnique({ where: { id: cid } })
-        if (!c) throw new AppError('NOT_FOUND', `Character not found: ${cid}`)
+        if (!c) throw new AppError('NOT_FOUND', 'errors.characterNotFound', String(cid))
       }
       await this.prisma.characterCostume.deleteMany({
         where: { costumeId: id }
@@ -338,6 +341,9 @@ export class CostumeService {
           : {}),
         ...(data.seedPrompt !== undefined
           ? { seedPrompt: trimOrNull(data.seedPrompt) }
+          : {}),
+        ...(data.hardRules !== undefined
+          ? { hardRules: trimOrNull(data.hardRules) }
           : {})
       },
       include: {
@@ -360,7 +366,7 @@ export class CostumeService {
       if (active && active === row.description.trim().toLowerCase()) {
         throw new AppError(
           'CONFLICT',
-          'Costume is active on a character',
+          'errors.costumeActiveCannotDelete',
           `In use by: ${link.character.name}`
         )
       }
@@ -374,7 +380,7 @@ export class CostumeService {
     const c = await this.prisma.character.findUnique({
       where: { id: characterId }
     })
-    if (!c) throw new AppError('NOT_FOUND', `Character not found: ${characterId}`)
+    if (!c) throw new AppError('NOT_FOUND', 'errors.characterNotFound', String(characterId))
     await this.prisma.characterCostume.upsert({
       where: {
         characterId_costumeId: { characterId, costumeId }
@@ -393,7 +399,7 @@ export class CostumeService {
       if (active && active === row.description.trim().toLowerCase()) {
         throw new AppError(
           'CONFLICT',
-          'Cannot unlink active costume',
+          'errors.costumeActiveCannotUnlink',
           'Set another active costume on the character first'
         )
       }

@@ -54,7 +54,7 @@ export class FfmpegService {
 
     throw new AppError(
       'FFMPEG_UNAVAILABLE',
-      'Bundled FFmpeg not found. Reinstall the app or set FFMPEG_PATH to a working ffmpeg binary.'
+      'errors.ffmpegNotFound'
     )
   }
 
@@ -136,7 +136,7 @@ export class FfmpegService {
     void usedAss
 
     if (!existsSync(options.outputPath)) {
-      throw new AppError('FFMPEG_FAILED', 'Color clip missing after encode')
+      throw new AppError('FFMPEG_FAILED', 'errors.ffmpegColorClipMissing')
     }
     return options.outputPath
   }
@@ -367,7 +367,7 @@ export class FfmpegService {
     await this.run(args)
 
     if (!existsSync(outputPath)) {
-      throw new AppError('FFMPEG_FAILED', 'Final export missing output file')
+      throw new AppError('FFMPEG_FAILED', 'errors.ffmpegFinalMissing')
     }
     return outputPath
   }
@@ -395,7 +395,7 @@ export class FfmpegService {
       outputPath
     ])
     if (!existsSync(outputPath)) {
-      throw new AppError('FFMPEG_FAILED', 'Normalize clip failed')
+      throw new AppError('FFMPEG_FAILED', 'errors.ffmpegNormalizeFailed')
     }
   }
 
@@ -488,7 +488,7 @@ export class FfmpegService {
     if (!existsSync(options.outputPath)) {
       throw new AppError(
         'FFMPEG_FAILED',
-        'Could not extract still frame from video'
+        'errors.ffmpegStillExtractFailed'
       )
     }
     return options.outputPath
@@ -532,7 +532,7 @@ export class FfmpegService {
       ])
     }
     if (!existsSync(outputPath)) {
-      throw new AppError('FFMPEG_FAILED', 'Export finished but output file missing')
+      throw new AppError('FFMPEG_FAILED', 'errors.ffmpegExportMissing')
     }
     return outputPath
   }

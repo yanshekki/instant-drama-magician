@@ -106,13 +106,31 @@ export function SettingsPage(): JSX.Element {
     staticReady: boolean
   } | null>(null)
   const [updateState, setUpdateState] = useState<{
+    channel?: string
     status: string
     currentVersion: string
     latestVersion?: string
     progress?: number
     message?: string
+    messageKey?: string
+    releaseNotes?: string | null
+    releaseUrl?: string
+    installCommand?: string
+    canAutoInstall?: boolean
+    canDownload?: boolean
+    canCheck?: boolean
+    errorKind?: string
+    source?: string
   } | null>(null)
   const [updateBusy, setUpdateBusy] = useState(false)
+  const [npmUpdate, setNpmUpdate] = useState<{
+    latestVersion: string | null
+    updateAvailable: boolean
+    installCommand: string
+    error?: string
+  } | null>(null)
+  const [npmBusy, setNpmBusy] = useState(false)
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false)
 
   const refreshWebStatus = async (): Promise<void> => {
     if (!isElectron()) return
@@ -1436,36 +1454,105 @@ export function SettingsPage(): JSX.Element {
                   </div>
                 )}
 
-                {/* Desktop auto-update (GitHub Releases via electron-updater) */}
+                {/* Dual-channel updates: desktop GitHub Releases + CLI npm */}
                 <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 shadow-theme-sm">
-                  <p className="text-sm font-semibold text-ink-100">
-                    {t('settings.updates')}
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-400">
-                    {t('settings.updateHint')}
-                  </p>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-ink-100">
+                        {t('settings.updates')}
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-ink-400">
+                        {updateState?.channel === 'desktop-packaged'
+                          ? t('settings.updateHintPackaged')
+                          : updateState?.channel === 'web' ||
+                              updateState?.status === 'web-skipped'
+                            ? t('settings.updateHintWeb')
+                            : t('settings.updateHintDev')}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-ink-600 bg-ink-950 px-2 py-0.5 font-mono text-[10px] text-ink-300">
+                      {updateState?.channel === 'desktop-packaged'
+                        ? t('settings.channelDesktop')
+                        : updateState?.channel === 'web' ||
+                            updateState?.status === 'web-skipped'
+                          ? t('settings.channelWeb')
+                          : t('settings.channelDev')}
+                    </span>
+                  </div>
+
                   <p className="mt-2 font-mono text-[11px] text-ink-400">
                     {t('settings.version')}:{' '}
                     {updateState?.currentVersion ?? appInfo?.version ?? '—'}
-                    {updateState?.latestVersion
+                    {updateState?.latestVersion &&
+                    updateState.latestVersion !== updateState.currentVersion
                       ? ` → ${updateState.latestVersion}`
                       : ''}
                   </p>
+
                   <p className="mt-1 text-[11px] text-ink-500">
-                    {updateState?.message ||
-                      (updateState?.status
-                        ? `${t('settings.updateStatus')}: ${updateState.status}`
-                        : t('settings.updateIdle'))}
-                    {typeof updateState?.progress === 'number' &&
-                    updateState.status === 'downloading'
-                      ? ` (${updateState.progress}%)`
+                    {updateState?.messageKey
+                      ? t(`settings.${updateState.messageKey}`, {
+                          version: updateState.latestVersion ?? '',
+                          latest: updateState.latestVersion ?? '',
+                          current: updateState.currentVersion ?? ''
+                        })
+                      : updateState?.message ||
+                        (updateState?.status
+                          ? `${t('settings.updateStatus')}: ${updateState.status}`
+                          : t('settings.updateIdle'))}
+                    {updateState?.errorKind
+                      ? ` · ${t(`settings.updateError.${updateState.errorKind}`)}`
                       : ''}
                   </p>
+
+                  {typeof updateState?.progress === 'number' &&
+                    (updateState.status === 'downloading' ||
+                      updateState.status === 'downloaded') && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-[10px] text-ink-400">
+                          <span>{t('settings.updateDownloading')}</span>
+                          <span>{updateState.progress}%</span>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink-800">
+                          <div
+                            className="h-full rounded-full bg-brand-500 transition-all"
+                            style={{
+                              width: `${Math.min(100, Math.max(0, updateState.progress))}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                  {updateState?.releaseNotes ? (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        className="text-[11px] text-brand-300 hover:text-brand-200"
+                        onClick={() => setShowReleaseNotes((v) => !v)}
+                      >
+                        {showReleaseNotes
+                          ? t('settings.hideReleaseNotes')
+                          : t('settings.showReleaseNotes')}
+                      </button>
+                      {showReleaseNotes ? (
+                        <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg border border-ink-700 bg-ink-950 p-2 text-[10px] leading-relaxed text-ink-300">
+                          {updateState.releaseNotes}
+                        </pre>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       variant="secondary"
                       className="!h-8 !text-[11px]"
-                      disabled={updateBusy}
+                      disabled={
+                        updateBusy ||
+                        updateState?.canCheck === false ||
+                        updateState?.status === 'dev-skipped' ||
+                        updateState?.status === 'web-skipped'
+                      }
                       onClick={() => {
                         setUpdateBusy(true)
                         void getApi()
@@ -1480,8 +1567,17 @@ export function SettingsPage(): JSX.Element {
                               )
                             } else if (s.status === 'not-available') {
                               toast.success(t('settings.updateUpToDate'))
-                            } else if (s.status === 'dev-skipped') {
-                              toast.info(t('settings.updateDevSkipped'))
+                            } else if (
+                              s.status === 'dev-skipped' ||
+                              s.status === 'web-skipped'
+                            ) {
+                              toast.info(
+                                t(
+                                  s.messageKey
+                                    ? `settings.${s.messageKey}`
+                                    : 'settings.updateDevSkipped'
+                                )
+                              )
                             } else if (s.status === 'error') {
                               toast.error(
                                 s.message || t('settings.updateCheckFail')
@@ -1504,8 +1600,11 @@ export function SettingsPage(): JSX.Element {
                       className="!h-8 !text-[11px]"
                       disabled={
                         updateBusy ||
-                        (updateState?.status !== 'available' &&
-                          updateState?.status !== 'downloaded')
+                        !(
+                          updateState?.canDownload ||
+                          updateState?.status === 'available'
+                        ) ||
+                        updateState?.status === 'downloaded'
                       }
                       onClick={() => {
                         setUpdateBusy(true)
@@ -1515,6 +1614,10 @@ export function SettingsPage(): JSX.Element {
                             setUpdateState(s)
                             if (s.status === 'downloaded') {
                               toast.success(t('settings.updateDownloadedToast'))
+                            } else if (s.status === 'error') {
+                              toast.error(
+                                s.message || t('settings.updateDownloadFail')
+                              )
                             }
                           })
                           .catch((e) =>
@@ -1531,7 +1634,11 @@ export function SettingsPage(): JSX.Element {
                     <Button
                       className="!h-8 !text-[11px]"
                       disabled={
-                        updateBusy || updateState?.status !== 'downloaded'
+                        updateBusy ||
+                        !(
+                          updateState?.canAutoInstall ||
+                          updateState?.status === 'downloaded'
+                        )
                       }
                       onClick={() => {
                         void getApi()
@@ -1553,10 +1660,125 @@ export function SettingsPage(): JSX.Element {
                     >
                       {t('settings.installUpdate')}
                     </Button>
+                    <Button
+                      variant="secondary"
+                      className="!h-8 !text-[11px]"
+                      onClick={() => {
+                        const open = getApi().updates.openReleasePage
+                        if (open) {
+                          void open(updateState?.latestVersion)
+                            .then((r) => {
+                              if (!r.ok) {
+                                toast.error(
+                                  r.message || t('settings.openReleaseFail')
+                                )
+                              }
+                            })
+                            .catch(() =>
+                              toast.error(t('settings.openReleaseFail'))
+                            )
+                          return
+                        }
+                        const url =
+                          updateState?.releaseUrl ||
+                          'https://github.com/yanshekki/instant-drama-magician/releases'
+                        void getApi()
+                          .shell.openExternal(url)
+                          .catch(() =>
+                            toast.error(t('settings.openReleaseFail'))
+                          )
+                      }}
+                    >
+                      {t('settings.openReleasePage')}
+                    </Button>
                   </div>
-                  <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
-                    {t('settings.cliUpdateHint')}
-                  </p>
+
+                  <div className="mt-3 rounded-lg border border-ink-700/80 bg-ink-950/60 px-2.5 py-2">
+                    <p className="text-[11px] font-medium text-ink-200">
+                      {t('settings.cliUpdateTitle')}
+                    </p>
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-ink-500">
+                      {t('settings.cliUpdateHint')}
+                    </p>
+                    {npmUpdate ? (
+                      <p className="mt-1 font-mono text-[10px] text-ink-400">
+                        npm:{' '}
+                        {npmUpdate.latestVersion
+                          ? npmUpdate.updateAvailable
+                            ? `${updateState?.currentVersion ?? appInfo?.version ?? '?'} → ${npmUpdate.latestVersion}`
+                            : t('settings.updateUpToDate')
+                          : npmUpdate.error || '—'}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        className="!h-7 !text-[10px]"
+                        disabled={npmBusy}
+                        onClick={() => {
+                          setNpmBusy(true)
+                          const checkNpm = getApi().updates.checkNpm
+                          if (!checkNpm) {
+                            setNpmBusy(false)
+                            toast.error(t('settings.updateCheckFail'))
+                            return
+                          }
+                          void checkNpm()
+                            .then((r) => {
+                              setNpmUpdate({
+                                latestVersion: r.latestVersion,
+                                updateAvailable: r.updateAvailable,
+                                installCommand: r.installCommand,
+                                error: r.error
+                              })
+                              if (r.error) {
+                                toast.error(r.error)
+                              } else if (r.updateAvailable) {
+                                toast.info(
+                                  t('settings.npmUpdateAvailable', {
+                                    version: r.latestVersion ?? ''
+                                  })
+                                )
+                              } else {
+                                toast.success(t('settings.updateUpToDate'))
+                              }
+                            })
+                            .catch((e) =>
+                              toast.error(
+                                parseIpcError(e).message ||
+                                  t('settings.updateCheckFail')
+                              )
+                            )
+                            .finally(() => setNpmBusy(false))
+                        }}
+                      >
+                        {t('settings.checkNpmUpdate')}
+                      </Button>
+                      <code className="max-w-full truncate rounded bg-ink-900 px-1.5 py-0.5 font-mono text-[10px] text-ink-300">
+                        {npmUpdate?.installCommand ||
+                          updateState?.installCommand ||
+                          'npm install -g instant-drama-magician@latest'}
+                      </code>
+                      <button
+                        type="button"
+                        className="text-[10px] text-brand-300 hover:text-brand-200"
+                        onClick={() => {
+                          const cmd =
+                            npmUpdate?.installCommand ||
+                            updateState?.installCommand ||
+                            'npm install -g instant-drama-magician@latest'
+                          void navigator.clipboard
+                            ?.writeText(cmd)
+                            .then(() =>
+                              toast.success(t('settings.installCmdCopied'))
+                            )
+                            .catch(() => undefined)
+                        }}
+                      >
+                        {t('settings.copyInstallCmd')}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Creator · Support / Donate */}

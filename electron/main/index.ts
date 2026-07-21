@@ -7,6 +7,7 @@ import {
   protocol,
   nativeImage
 } from 'electron'
+import { homedir } from 'os'
 import { extname, join, resolve as pathResolve, sep } from 'path'
 import {
   createReadStream,
@@ -612,17 +613,24 @@ function setupApplicationMenu(): void {
         const lang = loadMenuLang()
         const win = mainWindow
         if (!win || win.isDestroyed()) return
+        const channel = state.channel || 'desktop-dev'
         void dialog.showMessageBox(win, {
-          type: 'info',
+          type: state.status === 'error' ? 'error' : 'info',
           title: lang === 'en' ? 'Updates' : '更新',
           message:
             lang === 'en'
-              ? `Status: ${state.status}`
-              : `狀態：${state.status}`,
-          detail:
+              ? `Status: ${state.status} (${channel})`
+              : `狀態：${state.status}（${channel}）`,
+          detail: [
             state.latestVersion != null
-              ? `Latest: ${state.latestVersion}\nCurrent: ${state.currentVersion}`
-              : `Current: ${state.currentVersion}${state.message ? `\n${state.message}` : ''}`
+              ? `Latest: ${state.latestVersion}`
+              : null,
+            `Current: ${state.currentVersion}`,
+            state.message || null,
+            state.releaseUrl ? `Releases: ${state.releaseUrl}` : null
+          ]
+            .filter(Boolean)
+            .join('\n')
         })
       })
     },
@@ -858,16 +866,51 @@ app.whenReady().then(() => {
   }
 
   const mediaRoot = join(app.getPath('userData'), 'media')
+  /**
+   * Allow preview of stills under this app's userData/media, plus sibling
+   * InstantDrama data dirs (dev vs packaged names, path migration). Without
+   * this, toPreviewUrl succeeds (file exists) but idm-media returns 403 →
+   * broken "dead" thumbs in confirm modals / galleries.
+   */
+  const isAllowedMediaPath = (resolved: string): boolean => {
+    const roots: string[] = [
+      pathResolve(mediaRoot),
+      pathResolve(app.getPath('userData'))
+    ]
+    try {
+      const cfg = pathResolve(join(homedir(), '.config'))
+      // e.g. ~/.config/instant-drama-magician / instant-drama-magician-dev
+      for (const name of [
+        'instant-drama-magician',
+        'instant-drama-magician-dev'
+      ]) {
+        roots.push(pathResolve(join(cfg, name)))
+        roots.push(pathResolve(join(cfg, name, 'media')))
+      }
+    } catch {
+      /* ignore */
+    }
+    // Project-local media (dev DATABASE / assets under cwd)
+    try {
+      const cwd = pathResolve(process.cwd())
+      roots.push(join(cwd, 'media'))
+      roots.push(join(cwd, 'data'))
+      roots.push(join(cwd, 'prisma'))
+    } catch {
+      /* ignore */
+    }
+    return roots.some(
+      (root) => resolved === root || resolved.startsWith(root + sep)
+    )
+  }
   protocol.handle('idm-media', (request) => {
     try {
       const u = new URL(request.url)
       const p = u.searchParams.get('p')
       if (!p) return new Response('missing path', { status: 400 })
       const filePath = decodeURIComponent(p)
-      // Path traversal protection: only allow files under userData/media
       const resolved = pathResolve(filePath)
-      const root = pathResolve(mediaRoot)
-      if (!resolved.startsWith(root + sep) && resolved !== root) {
+      if (!isAllowedMediaPath(resolved)) {
         return new Response('forbidden', { status: 403 })
       }
       if (!existsSync(resolved)) {
@@ -970,7 +1013,7 @@ app.whenReady().then(() => {
   // Packaged builds: quiet check a few seconds after launch (non-blocking)
   if (app.isPackaged) {
     setTimeout(() => {
-      void appUpdateService.check().catch(() => undefined)
+      void appUpdateService.check({ silent: true }).catch(() => undefined)
     }, 8000)
   }
 

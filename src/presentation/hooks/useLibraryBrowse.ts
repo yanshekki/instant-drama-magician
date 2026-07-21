@@ -18,7 +18,10 @@ export function useLibraryBrowse<T>(
     matchesExtra?: (item: T) => boolean
     /** Change when extra filter values change (resets page). */
     extraKey?: string | number | boolean | null
-    /** Optional sort after filter (stable for equal items). */
+    /**
+     * Optional sort after filter (stable for equal items).
+     * Prefer server `orderBy: { updatedAt: 'desc' }`; use this to re-apply after filters.
+     */
     sort?: (a: T, b: T) => number
   }
 ): {

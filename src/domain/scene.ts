@@ -19,7 +19,7 @@ export function validateSceneNumber(sceneNumber: number): string | null {
 }
 
 export function validateSceneDescription(description: string): string | null {
-  if (description.trim().length === 0) return 'description is required'
+  if (description.trim().length === 0) return 'errors.descriptionRequired'
   return null
 }
 

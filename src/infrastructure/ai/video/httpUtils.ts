@@ -52,7 +52,7 @@ export async function mapPool<T, R>(
 
   async function run(): Promise<void> {
     while (next < items.length) {
-      if (isCancelled?.()) throw new Error('Cancelled')
+      if (isCancelled?.()) throw new Error('errors.cancelled')
       const i = next++
       results[i] = await worker(items[i], i)
     }

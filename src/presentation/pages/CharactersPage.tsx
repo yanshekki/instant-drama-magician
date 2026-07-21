@@ -1,3 +1,4 @@
+import { ensureHardRules } from '../../domain/promptHardRules'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
@@ -12,7 +13,10 @@ import {
   libraryCardClass,
   libraryGridClass,
   libraryMediaBadgeClass,
-  libraryMediaClass
+  libraryMediaClass,
+  libraryCardActionBtnClass,
+  libraryCardActionDeleteClass,
+  libraryCardActionsRowClass
 } from '../components/libraryCard'
 import {
   LibraryBrowseBar,
@@ -24,15 +28,16 @@ import {
   uniqueFacetValues
 } from '../components/LibraryFilterSelect'
 import { useLibraryBrowse } from '../hooks/useLibraryBrowse'
+import { compareUpdatedAtDesc } from '../lib/librarySort'
 import { LanguageMultiPick } from '../components/LanguageMultiPick'
 import {
   appendGalleryItem,
   filterGalleryByLayer,
   isGalleryCoverPath,
-  listExternalRefs,
+
   parseCharacterGallery,
   moveGalleryItem,
-  pickExternalRefPath,
+
   primaryGalleryPath,
   removeGalleryItem,
   serializeCharacterGallery,
@@ -84,6 +89,19 @@ import {
   type CharacterCostumeEntry,
   upsertCostume
 } from '../../domain/characterCostumes'
+import {
+  appendMultiRefNote,
+  resolveIdentityPaths,
+  toggleGallerySelection
+} from '../../domain/imageGenConfirm'
+import {
+  buildCharacterSheetEditPrompt,
+  buildCharacterSheetImagePrompt
+} from '../../domain/characterMasterPrompt'
+import {
+  ImageGenConfirmModal,
+  type ImageGenConfirmPayload
+} from '../components/ImageGenConfirmModal'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
 import {
@@ -116,6 +134,7 @@ interface FormState {
   relationships: string
   visualTags: string
   seedPrompt: string
+  hardRules: string
   soulMdPath: string | null
   soulHubId: number | null
   soulPreview: string | null
@@ -141,6 +160,7 @@ const emptyForm = (): FormState => ({
   relationships: '',
   visualTags: '',
   seedPrompt: '',
+  hardRules: '',
   soulMdPath: null,
   soulHubId: null,
   soulPreview: null,
@@ -245,7 +265,8 @@ export function CharactersPage(): JSX.Element {
           if (!langs.includes(charLang)) return false
         }
         return true
-      }
+      },
+      sort: compareUpdatedAtDesc
     }
   )
   const charGenderOptions = useMemo(() => {
@@ -335,6 +356,9 @@ export function CharactersPage(): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
+  const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
+  const [imageGenConfirm, setImageGenConfirm] =
+    useState<ImageGenConfirmPayload | null>(null)
   const [busy, setBusy] = useState(false)
   const [pageBanner, setPageBanner] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -401,9 +425,16 @@ export function CharactersPage(): JSX.Element {
             : f.spokenLanguages,
         mannerisms: p.mannerisms ?? f.mannerisms,
         relationships: p.relationships ?? f.relationships,
-        visualTags: p.visualTags ?? f.visualTags,
+        visualTags:
+          typeof p.visualTags === 'string' && p.visualTags.trim()
+            ? p.visualTags.trim()
+            : f.visualTags,
         seedPrompt:
-          p.seedPrompt || f.seedPrompt || p.description || f.description
+          p.seedPrompt || f.seedPrompt || p.description || f.description,
+        hardRules:
+          (typeof p.hardRules === 'string' && p.hardRules.trim()
+            ? p.hardRules.trim()
+            : f.hardRules) || f.hardRules
       }))
       setAiIdea((prev) => prev || p.seedPrompt || p.description || '')
       setEditorOpen(true)
@@ -687,6 +718,7 @@ export function CharactersPage(): JSX.Element {
       relationships: c.relationships ?? '',
       visualTags: c.visualTags ?? '',
       seedPrompt: c.seedPrompt ?? '',
+      hardRules: c.hardRules ?? '',
       soulMdPath: c.soulMdPath,
       soulHubId: c.soulHubId ?? null,
       soulPreview: null,
@@ -741,6 +773,7 @@ export function CharactersPage(): JSX.Element {
       relationships: form.relationships || null,
       visualTags: form.visualTags || null,
       seedPrompt: form.seedPrompt || null,
+      hardRules: form.hardRules || null,
       soulHubId: form.soulHubId,
       artStyle: form.artStyle,
       costumesJson: costumes.length
@@ -822,6 +855,7 @@ export function CharactersPage(): JSX.Element {
           relationships: nextForm.relationships || null,
           visualTags: nextForm.visualTags || null,
           seedPrompt: nextForm.seedPrompt || null,
+          hardRules: nextForm.hardRules || null,
           soulHubId: nextForm.soulHubId,
           artStyle: nextForm.artStyle,
           costumesJson: costumes.length
@@ -834,6 +868,7 @@ export function CharactersPage(): JSX.Element {
         if (ok) {
           toast.success(t('common.saved'))
           await reload()
+          closeEditor()
         } else {
           toast.error(t('common.actionFailed'))
         }
@@ -842,15 +877,7 @@ export function CharactersPage(): JSX.Element {
         if (ok) {
           toast.success(t('common.saved'))
           await reload()
-          const list = (await getApi().characters.list(
-            activeStoryId!
-          )) as Character[]
-          const created = list.find((c) => c.name === nextForm.name.trim())
-          if (created) {
-            openEdit(created)
-          } else {
-            closeEditor()
-          }
+          closeEditor()
         } else {
           toast.error(t('common.actionFailed'))
         }
@@ -973,7 +1000,8 @@ export function CharactersPage(): JSX.Element {
           storyId: activeStoryId ?? null,
           profile: {
             ...r.profile,
-            seedPrompt: idea || r.profile.seedPrompt || r.profile.description
+            seedPrompt: idea || r.profile.seedPrompt || r.profile.description,
+            hardRules: r.profile.hardRules || form.hardRules || ''
           },
           profileJson: r.profileJson,
           isNew: !characterId
@@ -1136,16 +1164,10 @@ export function CharactersPage(): JSX.Element {
         return
       }
 
-      const externalBase =
-        useExternalRef
-          ? pickExternalRefPath(form.gallery, {
-              selectedId: selectedImageId
-            })
-          : null
       const auto = pickBestBaseImage(form.gallery, {
         ageRange: form.ageRange,
         preferredPath:
-          swapBasePath || externalBase || selectedImage?.path || null
+          swapBasePath || selectedImage?.path || null
       })
       if (!auto.item) {
         setActionError(t('characters.swapCostumeNoBase'))
@@ -1202,26 +1224,26 @@ export function CharactersPage(): JSX.Element {
     }
   }
 
-  /**
-   * When true, AI image/video gens may image_edit from external refs (uploads).
-   * User can turn off for pure invent.
-   */
-  const [useExternalRef, setUseExternalRef] = useState(true)
-  /** Legacy name kept for thumbnail re-gen identity lock on any selected still. */
+  /** Identity lock on selected gallery still(s). */
   const [useIdentityRef, setUseIdentityRef] = useState(false)
 
-  const externalRefs = useMemo(
-    () => listExternalRefs(form.gallery),
-    [form.gallery]
-  )
+  const selectedPathsForIdentity = useMemo(() => {
+    const ids =
+      selectedImageIds.length > 0
+        ? selectedImageIds
+        : selectedImageId
+          ? [selectedImageId]
+          : []
+    return ids
+      .map((id) => form.gallery.find((g) => g.id === id)?.path)
+      .filter((p): p is string => Boolean(p?.trim()))
+  }, [selectedImageIds, selectedImageId, form.gallery])
 
   const handleGenerateSheet = async (opts?: {
     characterId?: string
     referenceImagePath?: string | null
     /** When true, image_edit with ref (thumbnail re-gen). Default: false = new layout. */
     useIdentityEdit?: boolean
-    /** Override external-ref preference for this call */
-    useExternalRef?: boolean
     artStyle?: ArtStyleId
   }): Promise<void> => {
     setActionError(null)
@@ -1236,10 +1258,8 @@ export function CharactersPage(): JSX.Element {
       }
       if (characterAiBusy(id)) return
 
-      // Pure generate unless identity lock / external ref is on.
-      // Never auto-edit from gallery[0] alone — that clones the first sheet layout.
-      // Body / base / bare packages: ALWAYS pure generate. image_edit on a clothed
-      // or old sheet almost always returns the same old composition.
+      // Pure generate unless identity lock on selected gallery stills.
+      // Body / base / bare packages: ALWAYS pure generate.
       const variant = sheetVariant
       const variantDef = getSheetVariant(variant)
       const forcePureLayout =
@@ -1250,56 +1270,98 @@ export function CharactersPage(): JSX.Element {
         opts?.useIdentityEdit !== undefined
           ? opts.useIdentityEdit === true
           : useIdentityRef
-      const wantExternal =
-        opts?.useExternalRef !== undefined
-          ? opts.useExternalRef
-          : useExternalRef
-      const externalPath =
-        wantExternal && !forcePureLayout
-          ? pickExternalRefPath(form.gallery, {
-              selectedId: selectedImageId,
-              preferredPath: opts?.referenceImagePath
-            })
-          : null
-      const useIdentityEdit =
-        !forcePureLayout &&
-        (wantIdentity || Boolean(externalPath))
-      if (forcePureLayout && (useIdentityRef || useExternalRef)) {
-        // Keep UI honest: bare/body/base never use identity-edit clone path.
-        if (useIdentityRef) setUseIdentityRef(false)
+      const useIdentityEdit = !forcePureLayout && wantIdentity
+      if (forcePureLayout && useIdentityRef) {
+        setUseIdentityRef(false)
       }
-      const preferredRef = useIdentityEdit
-        ? (opts?.referenceImagePath ??
-            externalPath ??
-            (wantIdentity ? selectedImage?.path ?? null : null))
-        : null
+      const paths =
+        opts?.referenceImagePath?.trim()
+          ? [opts.referenceImagePath.trim()]
+          : selectedPathsForIdentity
+      const idRes = resolveIdentityPaths({
+        useIdentityRef: useIdentityEdit,
+        selectedPaths: paths
+      })
       const artStyle = opts?.artStyle ?? form.artStyle
-      const characterId = id
-      // Single toast only (avoid duplicate top-right alerts).
-      toast.info(
-        forcePureLayout
-          ? t('characters.forcePureGenHint')
-          : preferredRef
-            ? t('characters.genWithExternalRef')
-            : t('aiJobs.startedBackground')
+      const profile = {
+        name: form.name.trim() || 'Character',
+        description: form.description.trim() || form.name.trim() || 'Character',
+        appearance: form.appearance.trim() || undefined,
+        personality: form.personality.trim() || undefined,
+        costume: form.costume.trim() || undefined,
+        ageRange: form.ageRange.trim() || undefined,
+        gender: form.gender.trim() || undefined,
+        visualTags: form.visualTags.trim() || undefined,
+        hardRules: form.hardRules.trim() || undefined
+      }
+      let prompt = idRes.useEdit
+        ? buildCharacterSheetEditPrompt(profile, variant, artStyle)
+        : buildCharacterSheetImagePrompt(profile, variant, artStyle)
+      if (idRes.paths.length > 1) {
+        prompt = appendMultiRefNote(
+          prompt,
+          idRes.paths,
+          getAiLocale(i18n.language)
+        )
+      }
+      prompt = ensureHardRules(prompt, form.hardRules)
+      const variantLabel = t(
+        `characters.${getSheetVariant(variant).labelKey}`
       )
+      const styleLabel = t(`characters.${getArtStyle(artStyle).labelKey}`)
+      const modeLabel = forcePureLayout
+        ? t('characters.forcePureGenHint')
+        : idRes.useEdit
+          ? t('common.imageGenConfirmModeIdentity')
+          : t('common.imageGenConfirmModePure')
+      setImageGenConfirm({
+        prompt,
+        referencePaths: idRes.paths,
+        useIdentityEdit: idRes.useEdit,
+        summary: `${t('characters.sheetVariant')}: ${variantLabel} · ${t('characters.artStyle')}: ${styleLabel} · ${modeLabel}`
+      })
+    } catch (e) {
+      const err = parseIpcError(e)
+      setActionError(`${err.message}${err.details ? ` — ${err.details}` : ''}`)
+    }
+  }
 
+  const runCharacterSheetJob = async (
+    confirm: ImageGenConfirmPayload
+  ): Promise<void> => {
+    setImageGenConfirm(null)
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('characters.saveFirstForSheet'))
+        return
+      }
+      if (characterAiBusy(id)) return
+      const variant = sheetVariant
+      const artStyle = form.artStyle
+      toast.info(
+        confirm.useIdentityEdit
+          ? t('characters.genWithExternalRef')
+          : t('aiJobs.startedBackground')
+      )
       startJob({
         kind: 'character-sheet',
         label: t('characters.generateSheet'),
         scope: {
-          characterId,
+          characterId: id,
           storyId: activeStoryId ?? undefined
         },
         run: async ({ setProgress, signal }) => {
           setProgress(10, 'image')
           const r = await getApi().characters.generateSheet({
-            characterId,
+            characterId: id,
             variant,
-            referenceImagePath: preferredRef,
-            useIdentityEdit: Boolean(useIdentityEdit && preferredRef),
+            referenceImagePath: confirm.referencePaths[0] ?? null,
+            referenceImagePaths: confirm.referencePaths,
+            useIdentityEdit: confirm.useIdentityEdit,
             persist: false,
-            artStyle
+            artStyle,
+            promptOverride: confirm.prompt
           })
           if (signal.cancelled) {
             try {
@@ -1312,7 +1374,7 @@ export function CharactersPage(): JSX.Element {
           setProgress(100, 'done')
           return {
             type: 'character-sheet' as const,
-            characterId,
+            characterId: id,
             storyId: activeStoryId ?? '',
             path: r.path,
             variant: r.variant ?? variant,
@@ -1448,22 +1510,22 @@ export function CharactersPage(): JSX.Element {
     return () => window.removeEventListener('idm:video-prep-done', onDone)
   }, [editingId, reload])
 
-  /** Import a still from disk as an external AI reference. */
+  /** Import a still from disk into the unified gallery list. */
   const handlePickExternalRef = async (): Promise<void> => {
     const result = await getApi().media.pickRefImage()
     if (!result) return
     const next = appendGalleryItem(form.gallery, {
       path: result.filePath,
-      kind: 'external',
-      label: t('characters.externalRefLabel')
+      kind: 'upload',
+      label: t('common.uploadRef')
     })
+    const newId = next[next.length - 1]?.id ?? null
     setForm((f) => ({
       ...f,
       gallery: next,
       coverPath: f.coverPath ?? next[0]?.path ?? null
     }))
-    setSelectedImageId(next[0]?.id ?? null)
-    setUseExternalRef(true)
+    if (newId) setSelectedImageId(newId)
     toast.success(t('characters.externalRefAdded'))
   }
 
@@ -1490,6 +1552,7 @@ export function CharactersPage(): JSX.Element {
             : primaryGalleryPath(next)
     }))
     setSelectedImageId(next[0]?.id ?? null)
+    setSelectedImageIds((ids) => ids.filter((x) => x !== id))
   }
 
   const handleSetCover = (path: string): void => {
@@ -1930,24 +1993,7 @@ export function CharactersPage(): JSX.Element {
                                 objectFit="cover"
                                 className="h-full border-0 rounded-none"
                                 actionsLayout="overlay"
-                                regenerateBusy={characterAiBusy(c.id)}
                                 onImageClick={() => openEdit(c)}
-                                onRegenerate={() =>
-                                  void handleGenerateSheet({
-                                    characterId: c.id,
-                                    // Pure generate by default so package layout can change;
-                                    // only lock identity when user opted in via checkbox.
-                                    ...(useIdentityRef
-                                      ? {
-                                          referenceImagePath: cover,
-                                          useIdentityEdit: true
-                                        }
-                                      : { useIdentityEdit: false }),
-                                    artStyle: isArtStyleId(c.artStyle)
-                                      ? c.artStyle
-                                      : DEFAULT_ART_STYLE
-                                  })
-                                }
                               />
                             ) : (
                               <button
@@ -1996,17 +2042,17 @@ export function CharactersPage(): JSX.Element {
                                 <Chip>🎙 {t('characters.voiceShort')}</Chip>
                               )}
                             </div>
-                            <div className="mt-auto flex items-center gap-2 pt-4">
+                            <div className={libraryCardActionsRowClass}>
                               <Button
                                 variant="secondary"
-                                className="min-w-0 flex-1 !py-1.5 text-xs"
+                                className={libraryCardActionBtnClass}
                                 onClick={() => openEdit(c)}
                               >
                                 {t('common.edit')}
                               </Button>
                               <Button
                                 variant="ghost"
-                                className="min-w-0 flex-1 !py-1.5 text-xs text-rose-300"
+                                className={libraryCardActionDeleteClass}
                                 onClick={() => {
                                   void (async () => {
                                     const ok = await dialog.confirm({
@@ -2107,7 +2153,6 @@ export function CharactersPage(): JSX.Element {
                       showMeta
                       className="border-0 rounded-xl"
                       actionsLayout="bar"
-                      regenerateBusy={editorAiBusy}
                       introVideoBusy={editorAiBusy}
                       introVideoPath={selectedImage.introVideoPath}
                       introVideoHasDraft={
@@ -2126,17 +2171,9 @@ export function CharactersPage(): JSX.Element {
                               handleGenerateIntroVideo(selectedImage.path)
                           : undefined
                       }
-                      onRegenerate={() =>
-                        void handleGenerateSheet({
-                          characterId: editingId ?? undefined,
-                          ...(useIdentityRef
-                            ? {
-                                referenceImagePath: selectedImage.path,
-                                useIdentityEdit: true
-                              }
-                            : { useIdentityEdit: false })
-                        })
-                      }
+                      isCover={form.coverPath === selectedImage.path}
+                      onSetAsCover={() => handleSetCover(selectedImage.path)}
+                      onRemove={() => handleRemoveImage(selectedImage.id)}
                     />
                   ) : (
                     <div className="flex h-48 flex-col items-center justify-center gap-2 px-4 text-center text-ink-500">
@@ -2166,9 +2203,16 @@ export function CharactersPage(): JSX.Element {
                 <GalleryThumbStrip
                   items={filteredGallery}
                   selectedId={selectedImageId}
+                  selectedIds={selectedImageIds}
+                  multiSelect
                   coverPath={form.coverPath}
                   fallbackCoverPath={primaryGalleryPath(form.gallery)}
                   onSelect={setSelectedImageId}
+                  onToggleSelect={(id) =>
+                    setSelectedImageIds((ids) =>
+                      toggleGallerySelection(ids, id)
+                    )
+                  }
                   onReorder={handleReorderGallery}
                   labelOf={(g) =>
                     translateCharacterGalleryLabel(g.label, t)
@@ -2218,9 +2262,7 @@ export function CharactersPage(): JSX.Element {
                   >
                     {editorAiBusy
                       ? t('common.generating')
-                      : editingId
-                        ? t('characters.runMasterPromptImprove')
-                        : t('characters.runMasterPrompt')}
+                      : t('common.aiFill')}
                   </Button>
                 </section>
 
@@ -2258,6 +2300,17 @@ export function CharactersPage(): JSX.Element {
                       />
                     </Field>
                   </div>
+                  <Field
+                    label={t('common.hardRules')}
+                    hint={t('common.hardRulesHint')}
+                  >
+                    <Textarea
+                      size="md"
+                      value={form.hardRules}
+                      onChange={(e) => patch('hardRules', e.target.value)}
+                      placeholder={t('common.hardRulesPh')}
+                    />
+                  </Field>
                   <Field label={t('characters.description')}>
                     <Textarea
                       size="md"
@@ -2681,76 +2734,6 @@ export function CharactersPage(): JSX.Element {
                   </div>
                 )}
 
-                <section className="rounded-xl border border-ink-700/80 bg-ink-900/35 p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-semibold text-ink-100">
-                        {t('characters.externalRefTitle')}
-                      </h4>
-                      <p className="mt-0.5 text-[11px] leading-snug text-ink-500">
-                        {t('characters.externalRefHint')}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="!shrink-0 !py-1 !text-xs"
-                      disabled={editorAiBusy}
-                      onClick={() => void handlePickExternalRef()}
-                    >
-                      {t('characters.addExternalRef')}
-                    </Button>
-                  </div>
-                  {externalRefs.length > 0 ? (
-                    <ul className="mt-2 flex flex-wrap gap-2">
-                      {externalRefs.map((g) => (
-                        <li key={g.id}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedImageId(g.id)}
-                            className={[
-                              'rounded-lg border px-2 py-1 text-[11px] transition',
-                              selectedImageId === g.id
-                                ? 'border-brand-500 bg-brand-950/40 text-brand-100'
-                                : 'border-ink-700 bg-ink-950/60 text-ink-300 hover:border-ink-500'
-                            ].join(' ')}
-                          >
-                            {translateCharacterGalleryLabel(g.label, t)}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 text-[11px] text-ink-500">
-                      {t('characters.externalRefEmpty')}
-                    </p>
-                  )}
-                  <label
-                    className={[
-                      'mt-3 flex items-start gap-2.5 rounded-lg border px-3 py-2.5',
-                      externalRefs.length === 0
-                        ? 'cursor-not-allowed border-ink-800/60 bg-ink-950/30 opacity-60'
-                        : 'cursor-pointer border-ink-700 bg-ink-950/40'
-                    ].join(' ')}
-                  >
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 rounded border-ink-600"
-                      checked={useExternalRef && externalRefs.length > 0}
-                      disabled={externalRefs.length === 0}
-                      onChange={(e) => setUseExternalRef(e.target.checked)}
-                    />
-                    <span className="text-[12px] leading-snug text-ink-300">
-                      <span className="font-medium text-ink-100">
-                        {t('characters.useExternalRef')}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] text-ink-500">
-                        {t('characters.useExternalRefHint')}
-                      </span>
-                    </span>
-                  </label>
-                </section>
-
                 <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5">
                   <input
                     type="checkbox"
@@ -2760,10 +2743,10 @@ export function CharactersPage(): JSX.Element {
                   />
                   <span className="text-[12px] leading-snug text-ink-300">
                     <span className="font-medium text-ink-100">
-                      {t('characters.useIdentityRef')}
+                      {t('common.useIdentityRef')}
                     </span>
                     <span className="mt-0.5 block text-[11px] text-ink-500">
-                      {t('characters.useIdentityRefHintShort')}
+                      {t('common.useIdentityRefHint')}
                     </span>
                   </span>
                 </label>
@@ -2783,31 +2766,8 @@ export function CharactersPage(): JSX.Element {
                     disabled={editorAiBusy}
                     onClick={() => void handlePickExternalRef()}
                   >
-                    {t('characters.addExternalRef')}
+                    {t('common.uploadRef')}
                   </Button>
-                  {selectedImage &&
-                    form.coverPath !== selectedImage.path && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => handleSetCover(selectedImage.path)}
-                      >
-                        {t('characters.setAsCover')}
-                      </Button>
-                    )}
-                  {selectedImage && form.coverPath === selectedImage.path && (
-                    <span className="inline-flex items-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                      {t('characters.isCover')}
-                    </span>
-                  )}
-                  {selectedImage && (
-                    <Button
-                      variant="ghost"
-                      className="text-rose-300"
-                      onClick={() => handleRemoveImage(selectedImage.id)}
-                    >
-                      {t('characters.removePhoto')}
-                    </Button>
-                  )}
                 </div>
                 <p className="text-[11px] text-ink-500">
                   {t('characters.coverHint')}
@@ -3214,6 +3174,13 @@ export function CharactersPage(): JSX.Element {
           </EditorShell>
         )}
 
+        <ImageGenConfirmModal
+          open={Boolean(imageGenConfirm)}
+          payload={imageGenConfirm}
+          busy={editorAiBusy}
+          onCancel={() => setImageGenConfirm(null)}
+          onConfirm={(p) => void runCharacterSheetJob(p)}
+        />
       </div>
     </div>
   )
@@ -3221,14 +3188,19 @@ export function CharactersPage(): JSX.Element {
 
 function Field({
   label,
+  hint,
   children
 }: {
   label: string
+  hint?: string
   children: React.ReactNode
 }): JSX.Element {
   return (
     <div>
       <Label>{label}</Label>
+      {hint ? (
+        <p className="mb-1.5 text-[11px] leading-relaxed text-ink-500">{hint}</p>
+      ) : null}
       {children}
     </div>
   )

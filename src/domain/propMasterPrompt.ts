@@ -1,7 +1,21 @@
 import type { PropProfileFields } from '../types/domain'
 import { buildImproveUserPrompt } from './aiImprovePrompt'
 import { isArtStyleId, type ArtStyleId } from './characterArtStyles'
+import {
+  coerceProfileString,
+  coerceProfileStringFrom,
+  extractJsonObject,
+  profileCompletenessRules,
+  synthesizeVisualTagsFromText,
+  VISUAL_TAGS_KEYS
+} from './jsonProfileFields'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
+import {
+  appendHardRules,
+  defaultHardRulesFallback,
+  hardRulesAiInstruction,
+  normalizeHardRules
+} from './promptHardRules'
 
 export const PROP_PROFILE_JSON_KEYS = [
   'name',
@@ -10,7 +24,8 @@ export const PROP_PROFILE_JSON_KEYS = [
   'sizeNotes',
   'condition',
   'visualTags',
-  'artStyle'
+  'artStyle',
+  'hardRules'
 ] as const
 
 export function buildPropMasterSystemPrompt(
@@ -22,8 +37,13 @@ export function buildPropMasterSystemPrompt(
       'Return ONLY one JSON object with keys:',
       PROP_PROFILE_JSON_KEYS.join(', '),
       'Rules:',
+      ...profileCompletenessRules(PROP_PROFILE_JSON_KEYS, 'en').map(
+        (r) => `- ${r}`
+      ),
       ...inventFromProvidedSourcesRules('en').map((r) => `- ${r}`),
-      '- description: detailed look for image models; material/sizeNotes/condition concrete; visualTags English commas; artStyle optional id.'
+      '- description: detailed look for image models; material/sizeNotes/condition concrete.',
+      '- artStyle: optional known style id string, or "".',
+      hardRulesAiInstruction('en')
     ].join('\n')
   }
   return [
@@ -31,8 +51,13 @@ export function buildPropMasterSystemPrompt(
     '只回傳一個 JSON，鍵名：',
     PROP_PROFILE_JSON_KEYS.join(', '),
     '規則：',
+    ...profileCompletenessRules(PROP_PROFILE_JSON_KEYS, 'zh-HK').map(
+      (r) => `- ${r}`
+    ),
     ...inventFromProvidedSourcesRules('zh-HK').map((r) => `- ${r}`),
-    '- description：可畫細節；material／sizeNotes／condition 具體；visualTags 英文；artStyle 可選。'
+    '- description：可畫細節；material／sizeNotes／condition 具體。',
+    '- artStyle：可選已知風格 id 字串，或 ""。',
+    hardRulesAiInstruction('zh-HK')
   ].join('\n')
 }
 
@@ -61,8 +86,8 @@ export function buildPropMasterUserPrompt(options: {
       zh: '（全面潤飾道具外觀，利於出片 continuity）'
     },
     closing: {
-      en: 'Output the complete JSON prop profile now (every key filled when possible).',
-      zh: '請立即輸出完整 JSON 道具設定（各鍵盡量填滿）。'
+      en: `Output complete JSON now. Required keys: ${PROP_PROFILE_JSON_KEYS.join(', ')}. Missing keys = invalid. visualTags must be a comma-separated string, not an array.`,
+      zh: `請立即輸出完整 JSON。必填鍵：${PROP_PROFILE_JSON_KEYS.join(', ')}。缺鍵無效。visualTags 必須是逗號分隔字串，禁止陣列。`
     }
   })
 }
@@ -88,7 +113,8 @@ export function buildPropIntroVideoPrompt(
   const art = profile.artStyle?.trim()
 
   if (locale === 'en') {
-    return [
+    return appendHardRules(
+      [
       'IMAGE-TO-VIDEO: animate the exact prop in the reference still as a short product/hero intro clip for short-drama continuity.',
       'OBJECT LOCK: same silhouette, materials, colors, logos/engravings, wear, and proportions as the reference — do not invent a different object.',
       `Prop name: ${name}.`,
@@ -104,9 +130,12 @@ export function buildPropIntroVideoPrompt(
       'Duration fits a 6–10s prop intro clip.'
     ]
       .filter(Boolean)
-      .join(' ')
+      .join(' '),
+      profile.hardRules
+    )
   }
-  return [
+  return appendHardRules(
+    [
     '圖生影片：以參考靜幀中的同一道具，拍一段短劇 continuity 用「道具介紹／主視覺」短片。',
     '物件鎖定：輪廓、材質、顏色、刻字／紋樣、舊損與比例必須與參考圖一致，不可換成另一件。',
     `道具名稱：${name}。`,
@@ -122,32 +151,40 @@ export function buildPropIntroVideoPrompt(
     '適合 6–10 秒道具介紹短片。'
   ]
     .filter(Boolean)
-    .join(' ')
+    .join(' '),
+    profile.hardRules
+  )
 }
 
 export function extractPropProfileJson(
   text: string
 ): PropProfileFields & { artStyle?: ArtStyleId } {
-  let jsonStr = text.trim()
-  const fence = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (fence) jsonStr = fence[1].trim()
-  const brace = jsonStr.match(/\{[\s\S]*\}/)
-  if (brace) jsonStr = brace[0]
-  const parsed = JSON.parse(jsonStr) as Record<string, unknown>
-  const str = (k: string): string | undefined => {
-    const v = parsed[k]
-    return typeof v === 'string' && v.trim() ? v.trim() : undefined
+  const parsed = extractJsonObject(text)
+  const name = coerceProfileString(parsed.name) || 'Prop'
+  const description = coerceProfileString(parsed.description) || name
+  const material = coerceProfileString(parsed.material)
+  const sizeNotes = coerceProfileString(parsed.sizeNotes)
+  const condition = coerceProfileString(parsed.condition)
+  let visualTags = coerceProfileStringFrom(parsed, [...VISUAL_TAGS_KEYS])
+  if (!visualTags) {
+    visualTags = synthesizeVisualTagsFromText([
+      name,
+      description,
+      material,
+      condition
+    ])
   }
-  const name = str('name') || 'Prop'
-  const description = str('description') || name
-  const artRaw = str('artStyle')
+  const artRaw = coerceProfileString(parsed.artStyle)
   return {
     name,
     description,
-    material: str('material'),
-    sizeNotes: str('sizeNotes'),
-    condition: str('condition'),
-    visualTags: str('visualTags'),
-    artStyle: artRaw && isArtStyleId(artRaw) ? artRaw : undefined
+    material,
+    sizeNotes,
+    condition,
+    visualTags,
+    artStyle: artRaw && isArtStyleId(artRaw) ? artRaw : undefined,
+    hardRules:
+      normalizeHardRules(coerceProfileString(parsed.hardRules)) ||
+      defaultHardRulesFallback('prop', 'zh-HK')
   }
 }

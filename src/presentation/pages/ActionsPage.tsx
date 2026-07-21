@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ensureHardRules } from '../../domain/promptHardRules'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
 import { formatUserError } from '../lib/formatUserError'
 import {
   appendActionGalleryItem,
   isActionGalleryCoverPath,
-  listActionExternalRefs,
   moveActionGalleryItem,
   parseActionGallery,
-  pickActionExternalRefPath,
   primaryActionGalleryPath,
   removeActionGalleryItem,
   serializeActionGallery,
   type ActionGalleryItem
 } from '../../domain/actionGallery'
-import { ExternalRefSection } from '../components/ExternalRefSection'
 import {
   parseActionCastRefs,
   serializeActionCastRefs,
@@ -29,16 +27,33 @@ import {
 import {
   artStylesByGroup,
   DEFAULT_ART_STYLE,
+  getArtStyle,
   isArtStyleId,
   type ArtStyleId
 } from '../../domain/characterArtStyles'
+import {
+  appendMultiRefNote,
+  resolveIdentityPaths,
+  toggleGallerySelection
+} from '../../domain/imageGenConfirm'
+import {
+  buildActionPlateEditPrompt,
+  buildActionPlateImagePrompt
+} from '../../domain/actionMasterPrompt'
+import {
+  ImageGenConfirmModal,
+  type ImageGenConfirmPayload
+} from '../components/ImageGenConfirmModal'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import {
   libraryBodyClass,
   libraryCardClass,
   libraryGridClass,
   libraryMediaBadgeClass,
-  libraryMediaClass
+  libraryMediaClass,
+  libraryCardActionBtnClass,
+  libraryCardActionDeleteClass,
+  libraryCardActionsRowClass
 } from '../components/libraryCard'
 import {
   LibraryBrowseBar,
@@ -46,6 +61,7 @@ import {
   LibraryPagination
 } from '../components/LibraryBrowseBar'
 import { useLibraryBrowse } from '../hooks/useLibraryBrowse'
+import { compareUpdatedAtDesc } from '../lib/librarySort'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type { Action } from '../../types/domain'
@@ -72,6 +88,7 @@ type EditorPanel = 'profile' | 'refs'
 interface FormState {
   name: string
   description: string
+  hardRules: string
   motionNotes: string
   intention: string
   cameraNotes: string
@@ -86,6 +103,7 @@ interface FormState {
 const emptyForm = (): FormState => ({
   name: '',
   description: '',
+  hardRules: '',
   motionNotes: '',
   intention: '',
   cameraNotes: '',
@@ -104,6 +122,7 @@ function formFromAction(a: Action): FormState {
   return {
     name: a.name,
     description: a.description || '',
+    hardRules: a.hardRules || '',
     motionNotes: a.motionNotes || '',
     intention: a.intention || '',
     cameraNotes: a.cameraNotes || '',
@@ -153,14 +172,12 @@ export function ActionsPage(): JSX.Element {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [aiIdea, setAiIdea] = useState('')
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
+  const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
-  const [useExternalRef, setUseExternalRef] = useState(true)
+  const [imageGenConfirm, setImageGenConfirm] =
+    useState<ImageGenConfirmPayload | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const actionExternalRefs = useMemo(
-    () => listActionExternalRefs(form.gallery),
-    [form.gallery]
-  )
 
   const browse = useLibraryBrowse(
     items,
@@ -171,7 +188,8 @@ export function ActionsPage(): JSX.Element {
         a.motionNotes ?? '',
         a.intention ?? '',
         a.visualTags ?? ''
-      ].join(' ')
+      ].join(' '),
+    { sort: compareUpdatedAtDesc }
   )
 
   const selectedImage =
@@ -221,7 +239,15 @@ export function ActionsPage(): JSX.Element {
         motionNotes: p.motionNotes ?? f.motionNotes,
         intention: p.intention ?? f.intention,
         cameraNotes: p.cameraNotes ?? f.cameraNotes,
-        visualTags: p.visualTags ?? f.visualTags,
+        visualTags:
+          typeof p.visualTags === 'string' && p.visualTags.trim()
+            ? p.visualTags.trim()
+            : f.visualTags,
+        hardRules:
+          typeof (p as { hardRules?: string }).hardRules === 'string' &&
+          (p as { hardRules?: string }).hardRules!.trim()
+            ? (p as { hardRules: string }).hardRules.trim()
+            : f.hardRules,
         artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle
       }))
       if (draft.actionId) setEditingId(draft.actionId)
@@ -264,7 +290,6 @@ export function ActionsPage(): JSX.Element {
     setAiIdea('')
     setActionError(null)
     setUseIdentityRef(false)
-    setUseExternalRef(true)
     setEditorPanel('profile')
     setSelectedImageId(null)
     setEditorOpen(true)
@@ -295,6 +320,7 @@ export function ActionsPage(): JSX.Element {
     intention: form.intention.trim() || null,
     cameraNotes: form.cameraNotes.trim() || null,
     visualTags: form.visualTags.trim() || null,
+    hardRules: form.hardRules.trim() || null,
     panelLayout: form.panelLayout,
     artStyle: form.artStyle,
     refImagePath: form.coverPath,
@@ -344,18 +370,20 @@ export function ActionsPage(): JSX.Element {
         const ok = await update(editingId, persistPayload())
         if (ok) {
           toast.success(t('common.saved'))
+          await reload()
+          closeEditor()
         } else {
           toast.error(t('common.actionFailed'))
         }
         return
       }
-      const row = (await getApi().actions.create({
+      await getApi().actions.create({
         ...persistPayload(),
         linkStoryId: activeStoryId ?? undefined
-      })) as Action
+      })
       await reload()
-      setEditingId(row.id)
       toast.success(t('common.saved'))
+      closeEditor()
     } catch (e) {
       const msg = parseIpcError(e).message
       setActionError(msg)
@@ -401,7 +429,7 @@ export function ActionsPage(): JSX.Element {
     )
     startJob({
       kind: 'action-ai-fill',
-      label: t('actions.aiFill'),
+      label: t('common.aiFill'),
       scope: {
         actionId: editingId ?? undefined,
         storyId: activeStoryId ?? undefined
@@ -437,10 +465,21 @@ export function ActionsPage(): JSX.Element {
     })
   }
 
+  const selectedPathsForIdentity = useMemo(() => {
+    const ids =
+      selectedImageIds.length > 0
+        ? selectedImageIds
+        : selectedImageId
+          ? [selectedImageId]
+          : []
+    return ids
+      .map((id) => form.gallery.find((g) => g.id === id)?.path)
+      .filter((p): p is string => Boolean(p?.trim()))
+  }, [selectedImageIds, selectedImageId, form.gallery])
+
   const handleGeneratePlate = async (opts?: {
     referenceImagePath?: string | null
     useIdentityEdit?: boolean
-    useExternalRef?: boolean
   }): Promise<void> => {
     setActionError(null)
     try {
@@ -454,33 +493,104 @@ export function ActionsPage(): JSX.Element {
         opts?.useIdentityEdit !== undefined
           ? opts.useIdentityEdit === true
           : useIdentityRef
-      const wantExternal =
-        opts?.useExternalRef !== undefined
-          ? opts.useExternalRef
-          : useExternalRef
-      const externalPath = wantExternal
-        ? pickActionExternalRefPath(
-            form.gallery,
-            opts?.referenceImagePath ?? selectedImage?.path ?? null
+      // Gallery multi-select (指示圖庫) + cast stills (參考素材：角色／戲服／場景／道具)
+      const galleryPaths = opts?.referenceImagePath?.trim()
+        ? [opts.referenceImagePath.trim()]
+        : selectedPathsForIdentity
+      const castPaths = form.castRefs
+        .map((r) => r.imagePath?.trim())
+        .filter((p): p is string => Boolean(p))
+      const mergedPaths: string[] = []
+      for (const p of [...galleryPaths, ...castPaths]) {
+        if (p && !mergedPaths.includes(p)) mergedPaths.push(p)
+      }
+      // Identity lock: any gallery or cast still enables edit + shows in confirm.
+      // Pure generate: still pass cast into text prompt via buildActionPlateImagePrompt.
+      const idRes = resolveIdentityPaths({
+        useIdentityRef: wantIdentity,
+        selectedPaths: mergedPaths
+      })
+      const profile = {
+        name: form.name.trim() || 'Action',
+        description: form.description.trim() || form.name.trim() || 'Action',
+        motionNotes: form.motionNotes.trim() || undefined,
+        intention: form.intention.trim() || undefined,
+        cameraNotes: form.cameraNotes.trim() || undefined,
+        visualTags: form.visualTags.trim() || undefined,
+        hardRules: form.hardRules.trim() || undefined
+      }
+      let prompt = idRes.useEdit
+        ? buildActionPlateEditPrompt(profile, form.panelLayout, form.artStyle)
+        : buildActionPlateImagePrompt(
+            profile,
+            form.panelLayout,
+            form.artStyle,
+            form.castRefs
           )
-        : null
-      // Multi-still notes live in castRefsJson prompt; API edit accepts 1 primary path
-      const castStill =
-        form.castRefs.map((r) => r.imagePath).find((p) => Boolean(p?.trim())) ??
-        null
-      // Priority: explicit opts → external upload → identity selected → cast library still
-      const preferred = wantIdentity
-        ? (opts?.referenceImagePath ??
-          externalPath ??
-          selectedImage?.path ??
-          castStill ??
-          null)
-        : externalPath ?? castStill ?? null
-      toast.info(
-        preferred
-          ? t('characters.genWithExternalRef')
-          : t('aiJobs.startedBackground')
+      if (idRes.paths.length > 1) {
+        prompt = appendMultiRefNote(
+          prompt,
+          idRes.paths,
+          getAiLocale(i18n.language)
+        )
+      }
+      prompt = ensureHardRules(prompt, form.hardRules)
+      // When editing from gallery only, still remind cast identities in prompt text
+      if (idRes.useEdit && castPaths.length > 0) {
+        const castNote =
+          getAiLocale(i18n.language) === 'en'
+            ? `Cast identity stills (${castPaths.length}): match face/body of attached cast references in every panel.`
+            : `已附 ${castPaths.length} 張參考素材（角色／道具等）：每格人物身份須與參考素材一致。`
+        if (!prompt.includes(castNote)) {
+          prompt = `${prompt}\n\n${castNote}`
+        }
+      }
+      const layoutLabel = t(
+        `actions.${getActionPanelLayout(form.panelLayout).labelKey}`
       )
+      const styleLabel = t(
+        `characters.${getArtStyle(form.artStyle).labelKey}`
+      )
+      const modeLabel = idRes.useEdit
+        ? t('common.imageGenConfirmModeIdentity')
+        : t('common.imageGenConfirmModePure')
+      const castHint =
+        castPaths.length > 0
+          ? ` · ${t('actions.castRefsCount', { count: castPaths.length })}`
+          : ''
+      setImageGenConfirm({
+        prompt,
+        // Always surface cast stills in confirm thumbs when present, even if
+        // identity lock is off (pure gen still benefits from visual context).
+        referencePaths:
+          idRes.paths.length > 0
+            ? idRes.paths
+            : wantIdentity
+              ? mergedPaths
+              : castPaths,
+        useIdentityEdit: idRes.useEdit,
+        summary: `${t('actions.panelLayout')}: ${layoutLabel} · ${t('characters.artStyle')}: ${styleLabel} · ${modeLabel}${castHint}`
+      })
+    } catch (e) {
+      const err = parseIpcError(e)
+      const msg = `${err.message}${err.details ? ` — ${err.details}` : ''}`
+      setActionError(msg)
+      toast.error(msg)
+    }
+  }
+
+  const runActionPlateJob = async (
+    confirm: ImageGenConfirmPayload
+  ): Promise<void> => {
+    setImageGenConfirm(null)
+    try {
+      const id = await ensureSavedId()
+      if (!id) return
+      if (actionBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      toast.info(t('aiJobs.startedBackground'))
       startJob({
         kind: 'action-plate',
         label: t('actions.generatePlate'),
@@ -492,8 +602,10 @@ export function ActionsPage(): JSX.Element {
             panelLayout: form.panelLayout,
             artStyle: form.artStyle,
             persist: false,
-            referenceImagePath: preferred,
-            useIdentityEdit: Boolean(wantIdentity && preferred)
+            referenceImagePath: confirm.referencePaths[0] ?? null,
+            referenceImagePaths: confirm.referencePaths,
+            useIdentityEdit: confirm.useIdentityEdit,
+            promptOverride: confirm.prompt
           })
           if (signal.cancelled) {
             try {
@@ -523,14 +635,14 @@ export function ActionsPage(): JSX.Element {
     }
   }
 
-  /** Append a local still (external ref) and select the newest thumb. */
+  /** Append a local still into the unified gallery list. */
   const handlePickExternalRef = async (): Promise<void> => {
     const result = await getApi().media.pickRefImage()
     if (!result) return
     const next = appendActionGalleryItem(form.gallery, {
       path: result.filePath,
-      kind: 'external',
-      label: t('characters.externalRefLabel')
+      kind: 'upload',
+      label: t('common.uploadRef')
     })
     const added = next[next.length - 1]
     setForm((f) => ({
@@ -540,7 +652,6 @@ export function ActionsPage(): JSX.Element {
       coverPath: f.coverPath ?? added?.path ?? null
     }))
     setSelectedImageId(added?.id ?? null)
-    setUseExternalRef(true)
     toast.success(t('characters.externalRefAdded'))
   }
 
@@ -556,6 +667,7 @@ export function ActionsPage(): JSX.Element {
           : f.coverPath
       return { ...f, gallery: next, coverPath }
     })
+    setSelectedImageIds((ids) => ids.filter((x) => x !== removedId))
     setSelectedImageId((cur) => {
       if (cur !== removedId) return cur
       // Prefer neighbor after removal
@@ -696,8 +808,8 @@ export function ActionsPage(): JSX.Element {
                                 objectFit="cover"
                                 className="h-full border-0 rounded-none"
                                 actionsLayout="overlay"
-                                showActions={false}
-                                enableZoom={false}
+                                showActions
+                                enableZoom
                                 onImageClick={() => openEdit(a)}
                               />
                             ) : (
@@ -733,17 +845,17 @@ export function ActionsPage(): JSX.Element {
                                 </span>
                               ) : null}
                             </div>
-                            <div className="mt-auto flex items-center gap-2 pt-4">
+                            <div className={libraryCardActionsRowClass}>
                               <Button
                                 variant="secondary"
-                                className="flex-1"
+                                className={libraryCardActionBtnClass}
                                 onClick={() => openEdit(a)}
                               >
                                 {t('common.edit')}
                               </Button>
                               <Button
                                 variant="ghost"
-                                className="text-rose-300 hover:text-rose-200"
+                                className={libraryCardActionDeleteClass}
                                 onClick={() => void handleDelete(a)}
                               >
                                 {t('common.delete')}
@@ -798,7 +910,6 @@ export function ActionsPage(): JSX.Element {
                   showMeta
                   className="border-0 rounded-xl"
                   actionsLayout="bar"
-                  regenerateBusy={editorBusy}
                   introVideoBusy={editorBusy}
                   introVideoPath={selectedImage.introVideoPath}
                   introVideoHasDraft={
@@ -816,16 +927,14 @@ export function ActionsPage(): JSX.Element {
                       ? () => handleIntroVideo(selectedImage.path)
                       : undefined
                   }
-                  onRegenerate={() =>
-                    void handleGeneratePlate({
-                      // Keep identity lock only when user enabled it; pure
-                      // re-layout (e.g. 4→6 panels) needs a fresh generate.
-                      referenceImagePath: useIdentityRef
-                        ? selectedImage.path
-                        : undefined,
-                      useIdentityEdit: useIdentityRef
-                    })
+                  isCover={form.coverPath === selectedImage.path}
+                  onSetAsCover={() =>
+                    setForm((f) => ({
+                      ...f,
+                      coverPath: selectedImage.path
+                    }))
                   }
+                  onRemove={handleRemoveSelectedImage}
                 />
               ) : (
                 <div className="flex h-48 flex-col items-center justify-center gap-2 px-4 text-center text-ink-500">
@@ -837,7 +946,7 @@ export function ActionsPage(): JSX.Element {
                       disabled={editorBusy}
                       onClick={() => void handlePickExternalRef()}
                     >
-                      {t('characters.addExternalRef')}
+                      {t('common.uploadRef')}
                     </Button>
                     <Button
                       disabled={editorBusy}
@@ -856,56 +965,20 @@ export function ActionsPage(): JSX.Element {
               <GalleryThumbStrip
                 items={form.gallery}
                 selectedId={selectedImageId}
+                selectedIds={selectedImageIds}
+                multiSelect
                 coverPath={form.coverPath}
                 fallbackCoverPath={primaryActionGalleryPath(form.gallery)}
                 onSelect={setSelectedImageId}
+                onToggleSelect={(id) =>
+                  setSelectedImageIds((ids) =>
+                    toggleGallerySelection(ids, id)
+                  )
+                }
                 onReorder={handleReorderGallery}
                 labelOf={(g) => translateActionGalleryLabel(g.label, t)}
               />
             ) : null}
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <Button
-                className="sm:flex-1"
-                disabled={editorBusy}
-                onClick={() => void handleGeneratePlate()}
-              >
-                {t('actions.generatePlate')}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={editorBusy}
-                onClick={() => void handlePickExternalRef()}
-              >
-                {t('characters.addExternalRef')}
-              </Button>
-              {selectedImage && form.coverPath !== selectedImage.path ? (
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      coverPath: selectedImage.path
-                    }))
-                  }
-                >
-                  {t('common.setAsCover')}
-                </Button>
-              ) : null}
-              {selectedImage && form.coverPath === selectedImage.path ? (
-                <span className="inline-flex items-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                  {t('common.coverBadge')}
-                </span>
-              ) : null}
-              {selectedImage ? (
-                <Button
-                  variant="secondary"
-                  className="text-rose-200"
-                  onClick={handleRemoveSelectedImage}
-                >
-                  {t('common.remove')}
-                </Button>
-              ) : null}
-            </div>
             <p className="text-[11px] text-ink-500">
               {t('common.galleryReorderHint')}
             </p>
@@ -921,7 +994,7 @@ export function ActionsPage(): JSX.Element {
             )}
             <section className="rounded-xl border border-brand-800/35 bg-gradient-to-br from-brand-950/40 via-ink-900/50 to-ink-950 p-4">
               <h3 className="text-sm font-semibold text-brand-100">
-                {t('actions.aiFill')}
+                {t('common.aiFill')}
               </h3>
               <p className="mt-1 text-[11px] text-ink-400">
                 {t('common.aiHintWithImage')}
@@ -943,7 +1016,7 @@ export function ActionsPage(): JSX.Element {
                 disabled={editorBusy}
                 onClick={() => handleAiFill()}
               >
-                {t('actions.aiFill')}
+                {t('common.aiFill')}
               </Button>
             </section>
 
@@ -962,6 +1035,19 @@ export function ActionsPage(): JSX.Element {
                   setForm((f) => ({ ...f, description: e.target.value }))
                 }
                 rows={3}
+              />
+            </EditorField>
+            <EditorField
+              label={t('common.hardRules')}
+              hint={t('common.hardRulesHint')}
+            >
+              <Textarea
+                value={form.hardRules}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, hardRules: e.target.value }))
+                }
+                rows={4}
+                placeholder={t('common.hardRulesPh')}
               />
             </EditorField>
             <EditorField label={t('actions.motionNotes')}>
@@ -1089,27 +1175,6 @@ export function ActionsPage(): JSX.Element {
                 </span>
               </span>
             </label>
-            <ExternalRefSection
-              items={actionExternalRefs.map((g) => ({
-                id: g.id,
-                path: g.path,
-                label: g.label
-              }))}
-              useExternalRef={useExternalRef}
-              onUseExternalChange={setUseExternalRef}
-              onAdd={handlePickExternalRef}
-              onRemove={(id) => {
-                const next = removeActionGalleryItem(form.gallery, id)
-                setForm((f) => ({
-                  ...f,
-                  gallery: next,
-                  coverPath: isActionGalleryCoverPath(next, f.coverPath)
-                    ? f.coverPath
-                    : primaryActionGalleryPath(next)
-                }))
-              }}
-              disabled={editorBusy}
-            />
             <ActionCastRefPicker
               value={form.castRefs}
               disabled={editorBusy}
@@ -1128,12 +1193,19 @@ export function ActionsPage(): JSX.Element {
                 disabled={editorBusy}
                 onClick={() => void handlePickExternalRef()}
               >
-                {t('characters.addExternalRef')}
+                {t('common.uploadRef')}
               </Button>
             </div>
           </div>
         )}
       </EditorShell>
+      <ImageGenConfirmModal
+        open={Boolean(imageGenConfirm)}
+        payload={imageGenConfirm}
+        busy={editorBusy}
+        onCancel={() => setImageGenConfirm(null)}
+        onConfirm={(p) => void runActionPlateJob(p)}
+      />
     </div>
   )
 }

@@ -5,7 +5,7 @@ export class ExportStep implements PipelineStep {
 
   async run(context: PipelineContext): Promise<PipelineStepResult> {
     if (context.signal?.aborted) {
-      return { step: this.name, success: false, error: 'Cancelled' }
+      return { step: this.name, success: false, error: 'errors.cancelled' }
     }
 
     const summary = Object.entries(context.artifacts)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { sortByUpdatedAtDesc } from '../lib/librarySort'
 import type {
   CreateCharacterInput,
   Character,
@@ -36,7 +37,7 @@ export function useCharacters(activeStoryId: string | null): {
     setError(null)
     try {
       const list = (await getApi().characters.list()) as Character[]
-      setItems(list)
+      setItems(sortByUpdatedAtDesc(list))
       if (activeStoryId) {
         const cast = (await getApi().characters.list({
           storyId: activeStoryId,

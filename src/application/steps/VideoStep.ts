@@ -59,6 +59,9 @@ export class VideoStep implements PipelineStep {
     const charMap = new Map(story.characters.map((c) => [c.id, c]))
     const sceneMap = new Map(story.scenes.map((s) => [s.id, s]))
     const propMap = new Map(story.props.map((p) => [p.id, p]))
+    const actionMap = new Map(
+      (story.actions ?? []).map((a) => [a.id, a] as const)
+    )
 
     const lines: string[] = []
     let degraded = false
@@ -69,16 +72,45 @@ export class VideoStep implements PipelineStep {
       targets,
       concurrency,
       async (entry, i) => {
-        if (signal?.aborted) throw new Error('Cancelled')
+        if (signal?.aborted) throw new Error('errors.cancelled')
 
         const clipDur = Math.min(
           DEFAULT_MAX_CLIP_SECONDS,
           Math.max(0.5, entry.endTime - entry.startTime)
         )
         const seconds = snapVideoSeconds(clipDur)
-        const character = entry.characterId ? charMap.get(entry.characterId) : undefined
-        const scene = entry.sceneId ? sceneMap.get(entry.sceneId) : undefined
-        const prop = entry.propId ? propMap.get(entry.propId) : undefined
+        const charIds = [
+          entry.characterId,
+          ...((entry as { characterIds?: string[] }).characterIds ?? [])
+        ].filter(Boolean) as string[]
+        const sceneIds = [
+          entry.sceneId,
+          ...((entry as { sceneIds?: string[] }).sceneIds ?? [])
+        ].filter(Boolean) as string[]
+        const propIds = [
+          entry.propId,
+          ...((entry as { propIds?: string[] }).propIds ?? [])
+        ].filter(Boolean) as string[]
+        const actionIds = [
+          entry.actionId,
+          ...((entry as { actionIds?: string[] }).actionIds ?? [])
+        ].filter(Boolean) as string[]
+        const charsBound = charIds
+          .map((id) => charMap.get(id))
+          .filter(Boolean) as NonNullable<ReturnType<typeof charMap.get>>[]
+        const scenesBound = sceneIds
+          .map((id) => sceneMap.get(id))
+          .filter(Boolean) as NonNullable<ReturnType<typeof sceneMap.get>>[]
+        const propsBound = propIds
+          .map((id) => propMap.get(id))
+          .filter(Boolean) as NonNullable<ReturnType<typeof propMap.get>>[]
+        const actionsBound = actionIds
+          .map((id) => actionMap.get(id))
+          .filter(Boolean) as NonNullable<ReturnType<typeof actionMap.get>>[]
+        const character = charsBound[0]
+        const scene = scenesBound[0]
+        const prop = propsBound[0]
+        const action = actionsBound[0]
         const prev = previousClipContext(entries, entry.id, {
           characters: charMap,
           scenes: sceneMap,
@@ -152,23 +184,36 @@ export class VideoStep implements PipelineStep {
             ),
             entry.dialogue
           ) || entry.dialogue || null
-        const fallbackPrompt = [
-          buildClipPrompt({
-            storyTitle: story.title,
-            styleNote: story.styleNote,
-            character,
-            scene,
-            prop,
-            dialogue: entry.dialogue,
-            beatContentJson: (entry as { beatContentJson?: string | null })
-              .beatContentJson,
-            seconds,
-            previousContext: prevWithLock || prev
-          }),
-          charBlock
-        ]
-          .filter(Boolean)
-          .join('\n')
+        const { collectTimelineHardRules, ensureHardRules } = await import(
+          '../../domain/promptHardRules'
+        )
+        const clipHardRules = collectTimelineHardRules({
+          story: story as { hardRules?: string | null; title?: string | null },
+          characters: charsBound,
+          scenes: scenesBound,
+          props: propsBound,
+          actions: actionsBound
+        })
+        const fallbackPrompt = ensureHardRules(
+          [
+            buildClipPrompt({
+              storyTitle: story.title,
+              styleNote: story.styleNote,
+              character,
+              scene,
+              prop,
+              dialogue: entry.dialogue,
+              beatContentJson: (entry as { beatContentJson?: string | null })
+                .beatContentJson,
+              seconds,
+              previousContext: prevWithLock || prev
+            }),
+            charBlock
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          clipHardRules
+        )
 
         const outputPath =
           media?.clipOutputPath?.(story.id, entry.id) ?? `/tmp/idm-${entry.id}.mp4`
@@ -197,6 +242,7 @@ export class VideoStep implements PipelineStep {
             ai,
             locale,
             fallbackPrompt,
+            hardRules: clipHardRules,
             polishUserContent: buildClipVideoPolishUserPrompt({
               locale,
               seconds,
@@ -216,6 +262,10 @@ export class VideoStep implements PipelineStep {
                     .join('\n')
                 : null,
               propBlock: prop ? `${prop.name}: ${prop.description}` : null,
+              actionBlock: action
+                ? `Motion guide "${action.name}": ${action.description || ''}`
+                : null,
+              hardRules: clipHardRules,
               beatOrDialogue,
               previousContext: prevWithLock || prev
             }),
@@ -262,7 +312,7 @@ export class VideoStep implements PipelineStep {
       },
       () => Boolean(signal?.aborted)
     ).catch((error) => {
-      if (error instanceof Error && error.message === 'Cancelled') return null
+      if (error instanceof Error && error.message === 'errors.cancelled') return null
       throw error
     })
 
@@ -270,7 +320,7 @@ export class VideoStep implements PipelineStep {
       return {
         step: this.name,
         success: false,
-        error: 'Cancelled',
+        error: 'errors.cancelled',
         output: lines.join('\n')
       }
     }

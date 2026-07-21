@@ -17,6 +17,36 @@ import type {
 } from './domain'
 import type { AppSettings } from './settings'
 
+/** Unified auto-update state (desktop GitHub + informational channels). */
+export type UpdateStateDto = {
+  channel?: string
+  status: string
+  currentVersion: string
+  latestVersion?: string
+  progress?: number
+  message?: string
+  messageKey?: string
+  releaseNotes?: string | null
+  releaseUrl?: string
+  installCommand?: string
+  canAutoInstall?: boolean
+  canDownload?: boolean
+  canCheck?: boolean
+  errorKind?: string
+  source?: string
+}
+
+export type NpmUpdateCheckDto = {
+  packageName: string
+  currentVersion: string
+  latestVersion: string | null
+  updateAvailable: boolean
+  checkedAt: string
+  installCommand: string
+  error?: string
+  channel?: string
+}
+
 /** Actions pushed from the native application menu to the renderer. */
 export type MenuAction =
   | { type: 'navigate'; path: string }
@@ -47,6 +77,7 @@ export interface ElectronApi {
         title?: string
         status?: string
         styleNote?: string | null
+        hardRules?: string | null
         artStyle?: string | null
         coverPath?: string | null
         refGalleryJson?: string | null
@@ -56,9 +87,11 @@ export interface ElectronApi {
     generateCover: (payload: {
       storyId: string
       referenceImagePath?: string | null
+      referenceImagePaths?: string[] | null
       useIdentityEdit?: boolean
       idea?: string | null
       locale?: 'zh-HK' | 'en'
+      promptOverride?: string | null
     }) => Promise<{
       path: string
       draft?: boolean
@@ -80,8 +113,9 @@ export interface ElectronApi {
       title?: string
       idea?: string
       existingStyleNote?: string | null
+      existingHardRules?: string | null
       locale?: 'zh-HK' | 'en'
-    }) => Promise<{ styleNote: string; raw: string }>
+    }) => Promise<{ styleNote: string; hardRules: string; raw: string }>
     aiFillScript: (payload: {
       storyId: string
       idea?: string
@@ -210,6 +244,8 @@ export interface ElectronApi {
       variant?: string
       /** Identity-lock ref path; only used when useIdentityEdit is true. */
       referenceImagePath?: string | null
+      /** Multi-select identity stills; first path is edit base */
+      referenceImagePaths?: string[] | null
       /**
        * When true, image_edit with referenceImagePath.
        * When false/omit, pure generate so layout packages differ.
@@ -218,6 +254,8 @@ export interface ElectronApi {
       /** false = draft only (default for UI); true = write gallery immediately */
       persist?: boolean
       artStyle?: string | null
+      /** Full prompt override from pre-gen confirm modal */
+      promptOverride?: string | null
     }) => Promise<{
       character: unknown
       path: string
@@ -431,9 +469,11 @@ export interface ElectronApi {
       sceneId: string
       variant?: string
       referenceImagePath?: string | null
+      referenceImagePaths?: string[] | null
       useIdentityEdit?: boolean
       persist?: boolean
       artStyle?: string | null
+      promptOverride?: string | null
     }) => Promise<{
       scene: unknown
       path: string
@@ -529,10 +569,14 @@ export interface ElectronApi {
       propId: string
       variant?: string
       referenceImagePath?: string | null
+      /** Multi-select identity stills; first path is edit base */
+      referenceImagePaths?: string[] | null
       /** When true, image_edit with ref; default pure generate. */
       useIdentityEdit?: boolean
       persist?: boolean
       artStyle?: string | null
+      /** User-edited prompt from confirm modal */
+      promptOverride?: string | null
     }) => Promise<{
       prop: unknown
       path: string
@@ -600,9 +644,11 @@ export interface ElectronApi {
       actionId: string
       panelLayout?: string | null
       referenceImagePath?: string | null
+      referenceImagePaths?: string[] | null
       useIdentityEdit?: boolean
       persist?: boolean
       artStyle?: string | null
+      promptOverride?: string | null
     }) => Promise<{
       action: unknown
       path: string
@@ -642,6 +688,7 @@ export interface ElectronApi {
         id: string
         name: string
         description: string
+        hardRules?: string | null
         artStyle?: string | null
         refImagePath?: string | null
         characterLinks: Array<{
@@ -660,6 +707,7 @@ export interface ElectronApi {
     create: (input: {
       name: string
       description: string
+      hardRules?: string | null
       artStyle?: string | null
       refImagePath?: string | null
       refGalleryJson?: string | null
@@ -670,6 +718,7 @@ export interface ElectronApi {
       data: {
         name?: string
         description?: string
+        hardRules?: string | null
         artStyle?: string | null
         refImagePath?: string | null
         refGalleryJson?: string | null
@@ -708,6 +757,7 @@ export interface ElectronApi {
         name?: string | null
         description?: string | null
         artStyle?: string | null
+        hardRules?: string | null
       }
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
@@ -715,6 +765,7 @@ export interface ElectronApi {
       name: string
       description: string
       artStyle?: string | null
+      hardRules?: string
       raw?: string
     }>
     generateDressed: (payload: {
@@ -722,6 +773,7 @@ export interface ElectronApi {
       characterId: string
       baseImagePath?: string | null
       pose?: string | null
+      promptOverride?: string | null
     }) => Promise<{
       path: string
       costume: unknown
@@ -1073,40 +1125,21 @@ export interface ElectronApi {
     onMenuAction: (callback: (action: MenuAction) => void) => () => void
   }
   updates: {
-    status: () => Promise<{
-      status: string
-      currentVersion: string
-      latestVersion?: string
-      progress?: number
+    status: () => Promise<UpdateStateDto>
+    check: (opts?: { silent?: boolean }) => Promise<UpdateStateDto>
+    download: () => Promise<UpdateStateDto>
+    install: () => Promise<{
+      ok: boolean
       message?: string
-      releaseNotes?: string | null
+      messageKey?: string
     }>
-    check: () => Promise<{
-      status: string
-      currentVersion: string
-      latestVersion?: string
-      progress?: number
-      message?: string
-      releaseNotes?: string | null
-    }>
-    download: () => Promise<{
-      status: string
-      currentVersion: string
-      latestVersion?: string
-      progress?: number
-      message?: string
-    }>
-    install: () => Promise<{ ok: boolean; message?: string }>
-    onState: (
-      callback: (state: {
-        status: string
-        currentVersion: string
-        latestVersion?: string
-        progress?: number
-        message?: string
-        releaseNotes?: string | null
-      }) => void
-    ) => () => void
+    /** Probe npm registry (CLI package) — works in desktop/dev too */
+    checkNpm: () => Promise<NpmUpdateCheckDto>
+    /** Open GitHub Releases page (optional version tag) */
+    openReleasePage: (
+      version?: string
+    ) => Promise<{ ok: boolean; url: string; message?: string }>
+    onState: (callback: (state: UpdateStateDto) => void) => () => void
   }
   activity: {
     recent: (limit?: number) => Promise<

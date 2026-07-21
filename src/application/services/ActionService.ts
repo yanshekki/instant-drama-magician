@@ -23,14 +23,16 @@ export class ActionService {
             ]
           }
         : undefined,
-      orderBy: { updatedAt: 'desc' }
+      // Newest modified first (stable secondary key for equal timestamps).
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
     })
   }
 
   async listForStory(storyId: string) {
     const links = await this.prisma.storyAction.findMany({
       where: { storyId },
-      orderBy: { sortOrder: 'asc' },
+      // Library pickers / timeline cast: show recently updated actions first.
+      orderBy: { action: { updatedAt: 'desc' } },
       include: { action: true }
     })
     return links.map((l) => l.action)
@@ -38,12 +40,12 @@ export class ActionService {
 
   async get(id: string) {
     const row = await this.prisma.action.findUnique({ where: { id } })
-    if (!row) throw new AppError('NOT_FOUND', `Action not found: ${id}`)
+    if (!row) throw new AppError('NOT_FOUND', 'errors.actionNotFound', String(id))
     return row
   }
 
   async create(input: CreateActionInput & { linkStoryId?: string | null }) {
-    if (!input.name.trim()) throw new AppError('VALIDATION', 'name is required')
+    if (!input.name.trim()) throw new AppError('VALIDATION', 'errors.nameRequired')
     const row = await this.prisma.action.create({
       data: {
         name: input.name.trim(),
@@ -58,7 +60,8 @@ export class ActionService {
         refGalleryJson: trimOrNull(input.refGalleryJson),
         castRefsJson: trimOrNull(input.castRefsJson),
         profileJson: trimOrNull(input.profileJson),
-        seedPrompt: trimOrNull(input.seedPrompt)
+        seedPrompt: trimOrNull(input.seedPrompt),
+        hardRules: trimOrNull(input.hardRules)
       }
     })
     const linkStoryId = input.linkStoryId ?? input.storyId
@@ -71,7 +74,7 @@ export class ActionService {
   async update(id: string, data: UpdateActionInput) {
     await this.ensureExists(id)
     if (data.name !== undefined && !data.name.trim()) {
-      throw new AppError('VALIDATION', 'name is required')
+      throw new AppError('VALIDATION', 'errors.nameRequired')
     }
     return this.prisma.action.update({
       where: { id },
@@ -112,6 +115,9 @@ export class ActionService {
           : {}),
         ...(data.seedPrompt !== undefined
           ? { seedPrompt: trimOrNull(data.seedPrompt) }
+          : {}),
+        ...(data.hardRules !== undefined
+          ? { hardRules: trimOrNull(data.hardRules) }
           : {})
       }
     })
@@ -151,6 +157,6 @@ export class ActionService {
       where: { id },
       select: { id: true }
     })
-    if (!found) throw new AppError('NOT_FOUND', `Action not found: ${id}`)
+    if (!found) throw new AppError('NOT_FOUND', 'errors.actionNotFound', String(id))
   }
 }

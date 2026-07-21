@@ -416,19 +416,32 @@ const api: ElectronApi & {
   },
   updates: {
     status: () => ipcRenderer.invoke('updates:status'),
-    check: () => ipcRenderer.invoke('updates:check'),
+    check: (opts?: { silent?: boolean }) =>
+      ipcRenderer.invoke('updates:check', opts),
     download: () => ipcRenderer.invoke('updates:download'),
     install: () => ipcRenderer.invoke('updates:install'),
+    checkNpm: () => ipcRenderer.invoke('updates:checkNpm'),
+    openReleasePage: (version?: string) =>
+      ipcRenderer.invoke('updates:openReleasePage', version),
     onState: (callback) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
         state: {
+          channel?: string
           status: string
           currentVersion: string
           latestVersion?: string
           progress?: number
           message?: string
+          messageKey?: string
           releaseNotes?: string | null
+          releaseUrl?: string
+          installCommand?: string
+          canAutoInstall?: boolean
+          canDownload?: boolean
+          canCheck?: boolean
+          errorKind?: string
+          source?: string
         }
       ): void => {
         callback(state)

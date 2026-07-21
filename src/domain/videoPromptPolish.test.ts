@@ -138,4 +138,34 @@ describe('buildClipVideoPolishUserPrompt', () => {
     expect(u).toContain('only two hands')
     expect(u).toContain('CLIP TEMPLATE')
   })
+
+  it('includes labeled hardRules materials', () => {
+    const u = buildClipVideoPolishUserPrompt({
+      locale: 'en',
+      seconds: 10,
+      hasRefImage: false,
+      fallbackPrompt: 'CLIP',
+      storyTitle: 'S',
+      hardRules: '[Character · Keith]\n【必須】two hands'
+    })
+    expect(u).toContain('HARD RULES')
+    expect(u).toContain('[Character · Keith]')
+    expect(u).toContain('two hands')
+  })
+})
+
+describe('buildIntroVideoPolishUserPrompt hardRules', () => {
+  it('embeds entity hardRules for polish materials', () => {
+    const u = buildIntroVideoPolishUserPrompt({
+      locale: 'zh-HK',
+      seconds: 10,
+      hasRefImage: true,
+      fallbackPrompt: 'CHAR TEMPLATE',
+      name: '小雨',
+      hardRules: '【禁止】第三人臉'
+    })
+    expect(u).toContain('HARD RULES')
+    expect(u).toContain('第三人臉')
+    expect(u).toContain('CHAR TEMPLATE')
+  })
 })

@@ -307,8 +307,9 @@ instant-drama version
 #### CLI 更新（npm）
 
 ```bash
-instant-drama update              # 檢查 registry 是否有新版
-instant-drama update install --yes   # 執行：npm install -g instant-drama-magician@latest
+instant-drama update              # 檢查 npm registry 是否有新版
+instant-drama update install --yes   # 全域安裝 latest（會驗證版本）
+instant-drama update install 1.3.0 --yes   # 釘選版本
 ```
 
 `instant-drama doctor` 亦會報告 npm 更新狀態（可用 `IDM_SKIP_UPDATE=1` 略過）。

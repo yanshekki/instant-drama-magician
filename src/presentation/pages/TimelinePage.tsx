@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { TimelineService } from '../../application/TimelineService'
 import { charactersMissingRef } from '../../domain/promptContinuity'
+
 import {
   beatContentForEditor,
   commitBeatScriptEdit,
@@ -156,6 +157,8 @@ export function TimelinePage(): JSX.Element {
   )
 
   const selected = entries.find((e) => e.id === selectedId) ?? null
+  // Hard rules merge is server-side on video prep / generate (labeled per object).
+  // No separate amber callout — same product rule as ImageGenConfirmModal.
   const storyGenBusy = Boolean(
     activeStoryId &&
       isBlocked({

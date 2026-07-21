@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildChatCompletionBody,
+  rewriteVisionContentForGrokGateway,
   shouldOmitSamplingForProvider
 } from './chatCompletionBody'
 
@@ -49,5 +50,55 @@ describe('chatCompletionBody (Grok Gateway strictSampling)', () => {
     expect(
       shouldOmitSamplingForProvider('openai', 'https://api.openai.com/v1')
     ).toBe(false)
+  })
+
+  it('rewrites OpenAI image_url data URLs to Grok ACP image blocks when omitSampling', () => {
+    const dataUrl = 'data:image/png;base64,aaaBBB'
+    const body = buildChatCompletionBody({
+      model: 'grok-4.5',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'describe' },
+            { type: 'image_url', image_url: { url: dataUrl } }
+          ]
+        }
+      ],
+      max_tokens: 64,
+      omitSampling: true
+    })
+    const parts = body.messages[0].content as Array<Record<string, unknown>>
+    expect(parts[0]).toEqual({ type: 'text', text: 'describe' })
+    expect(parts[1]).toEqual({
+      type: 'image',
+      mimeType: 'image/png',
+      data: 'aaaBBB'
+    })
+  })
+
+  it('keeps OpenAI image_url when not omitSampling', () => {
+    const dataUrl = 'data:image/png;base64,xyz'
+    const body = buildChatCompletionBody({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'hi' },
+            { type: 'image_url', image_url: { url: dataUrl } }
+          ]
+        }
+      ],
+      omitSampling: false
+    })
+    expect(body.messages[0].content).toEqual([
+      { type: 'text', text: 'hi' },
+      { type: 'image_url', image_url: { url: dataUrl } }
+    ])
+  })
+
+  it('rewriteVisionContentForGrokGateway handles plain string', () => {
+    expect(rewriteVisionContentForGrokGateway('plain')).toBe('plain')
   })
 })

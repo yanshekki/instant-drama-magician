@@ -19,6 +19,30 @@ export function truncateForVideoPrompt(
 }
 
 /**
+ * Materials block so polish LLM keeps HARD RULES and ends output with them.
+ * Used by intro + timeline clip polish user prompts.
+ */
+export function hardRulesMaterialsBlock(
+  hardRules: string | null | undefined,
+  locale: 'zh-HK' | 'en' = 'zh-HK'
+): string | null {
+  const rules = (hardRules ?? '').trim()
+  if (!rules) return null
+  if (locale === 'en') {
+    return [
+      'HARD RULES (HIGHEST PRIORITY — keep every line; object labels like [Character · Name] must stay).',
+      'Place the full HARD RULES block at the END of your output. Do not weaken, drop, or reassign rules.',
+      rules
+    ].join('\n')
+  }
+  return [
+    'HARD RULES／生成鐵則（最高優先——保留每一行；[Character · 名] 等物件標籤不可刪）。',
+    '必須將完整 HARD RULES 區塊放在輸出最尾。不得削弱、刪除或套錯主體。',
+    rules
+  ].join('\n')
+}
+
+/**
  * System prompt for the video-prompt editor LLM.
  * Output should be English-first (gateway image-to-video works best),
  * with spoken-language constraints explicit when needed.
@@ -39,7 +63,8 @@ export function buildVideoPromptPolishSystemPrompt(
       '- Duration 6–10s; continuous action; cinematic; no text overlays, logos, watermarks, or extra unrelated people.',
       '- Anatomically correct humans unless the script requires otherwise (two hands, two arms, two legs).',
       '- If multi-character, keep each listed subject consistent; primary focus first.',
-      '- If a director revision is provided, it overrides conflicting earlier details.'
+      '- If HARD RULES appear in materials, keep them and place them at the end of your output (highest priority).',
+      '- Director revision may refine style/action but must NOT violate HARD RULES.'
     ].join('\n')
   }
   return [
@@ -53,7 +78,8 @@ export function buildVideoPromptPolishSystemPrompt(
     '- 時長 6–10 秒；動作連貫；電影感；無字幕、logo、浮水印、無關路人。',
     '- 除非劇情要求，否則解剖結構正常（雙手雙腳）。',
     '- 多角色時保持每位主體一致；主焦點優先。',
-    '- 若有導演修訂要求，須覆蓋與之衝突的前文細節。'
+    '- 若材料含 HARD RULES（生成鐵則），必須保留並放在輸出最尾（最高優先）。',
+    '- 導演修訂可調整氣氛／動作，但不得違反 HARD RULES。'
   ].join('\n')
 }
 
@@ -80,6 +106,7 @@ export interface IntroVideoPolishContext {
   seedPrompt?: string | null
   spokenLanguages?: string[] | null
   soulExcerpt?: string | null
+  hardRules?: string | null
 }
 
 export function buildIntroVideoPolishUserPrompt(
@@ -126,6 +153,7 @@ export function buildIntroVideoPolishUserPrompt(
         ? `soul.md (use fully as performance/identity source):\n${soul}`
         : `soul.md（作為表演／身份完整來源）：\n${soul}`
       : null,
+    hardRulesMaterialsBlock(ctx.hardRules, en ? 'en' : 'zh-HK'),
     en ? 'Template draft (improve; do not ignore dossier):' : '模板草稿（請改進；勿忽略檔案）：',
     ctx.fallbackPrompt
   ]
@@ -154,6 +182,7 @@ export interface SceneIntroVideoPolishContext {
   visualTags?: string | null
   artStyle?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
 }
 
 /** Materials for location / establishing intro clip polish. */
@@ -200,6 +229,7 @@ export function buildSceneIntroVideoPolishUserPrompt(
     en
       ? 'Prefer empty set; no new cast faces unless already in the still. No text overlays or logos.'
       : '空鏡為主；除非靜幀已有，否則勿新增角色臉。無字幕、logo。',
+    hardRulesMaterialsBlock(ctx.hardRules, en ? 'en' : 'zh-HK'),
     en ? 'Template draft (improve; do not ignore dossier):' : '模板草稿（請改進；勿忽略檔案）：',
     ctx.fallbackPrompt
   ]
@@ -221,6 +251,7 @@ export interface PropIntroVideoPolishContext {
   visualTags?: string | null
   artStyle?: string | null
   seedPrompt?: string | null
+  hardRules?: string | null
 }
 
 /** Materials for prop / object hero intro clip polish. */
@@ -252,6 +283,7 @@ export function buildPropIntroVideoPolishUserPrompt(
     en
       ? 'No new hands or cast faces unless already in the still. No text overlays or logos.'
       : '除非靜幀已有，否則勿新增手或角色臉。無字幕、logo。',
+    hardRulesMaterialsBlock(ctx.hardRules, en ? 'en' : 'zh-HK'),
     en ? 'Template draft (improve; do not ignore dossier):' : '模板草稿（請改進；勿忽略檔案）：',
     ctx.fallbackPrompt
   ]
@@ -268,6 +300,7 @@ export interface CostumeIntroVideoPolishContext {
   name: string
   description: string
   artStyle?: string | null
+  hardRules?: string | null
 }
 
 /** Materials for wardrobe / costume look intro clip polish. */
@@ -294,6 +327,7 @@ export function buildCostumeIntroVideoPolishUserPrompt(
     en
       ? 'Show fabric drape/motion subtly; no new cast faces; no text overlays or logos.'
       : '布料垂墜／微動即可；勿新增角色臉；無字幕、logo。',
+    hardRulesMaterialsBlock(ctx.hardRules, en ? 'en' : 'zh-HK'),
     en ? 'Template draft (improve; do not ignore dossier):' : '模板草稿（請改進；勿忽略檔案）：',
     ctx.fallbackPrompt
   ]
@@ -318,12 +352,18 @@ export interface ClipVideoPolishContext {
   previousContext?: string | null
   multiCastNote?: string | null
   revisionPrompt?: string | null
+  /**
+   * Merged HARD RULES from story + bound cast (already labeled per object).
+   * Must appear in materials so polish keeps them; final generate re-appends too.
+   */
+  hardRules?: string | null
 }
 
 export function buildClipVideoPolishUserPrompt(
   ctx: ClipVideoPolishContext
 ): string {
   const en = ctx.locale === 'en'
+  const rules = (ctx.hardRules ?? '').trim()
   return [
     en
       ? 'TASK: Short-drama timeline clip (image-to-video).'
@@ -366,6 +406,7 @@ export function buildClipVideoPolishUserPrompt(
         ? `DIRECTOR REVISION (must follow):\n${ctx.revisionPrompt.trim()}`
         : `導演修訂（必須遵守）：\n${ctx.revisionPrompt.trim()}`
       : null,
+    hardRulesMaterialsBlock(rules, en ? 'en' : 'zh-HK'),
     en ? 'Template draft (improve):' : '模板草稿（請改進）：',
     ctx.fallbackPrompt
   ]

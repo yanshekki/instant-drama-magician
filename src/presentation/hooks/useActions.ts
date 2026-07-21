@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { sortByUpdatedAtDesc } from '../lib/librarySort'
 import type {
   Action,
   CreateActionInput,
@@ -28,7 +29,8 @@ export function useActions(activeStoryId: string | null): {
     setError(null)
     try {
       const list = (await getApi().actions.list()) as Action[]
-      setItems(list)
+      // Always newest-first (server orderBy + client re-sort after IPC/JSON).
+      setItems(sortByUpdatedAtDesc(list))
     } catch (e) {
       setError(parseIpcError(e))
     } finally {

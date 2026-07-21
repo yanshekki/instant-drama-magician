@@ -43,10 +43,29 @@ Grok Gateway locked preset **禁止** `temperature`／`top_p`／`stop`（HTTP 40
 
 | 症狀 | 處理 |
 |------|------|
-| AI_UNAVAILABLE | 開閘道；檢查 3847 |
+| AI_UNAVAILABLE | 開閘道；檢查 3847（`gctoac start`／`gctoac start --pm2`） |
 | AI_UNAUTHORIZED／401 | 正確 `gk_live_` key |
 | AI_RATE_LIMIT／429 | 確認 preset；可能是上游限流 |
 | timeout | 加大 `chatTimeoutMs` |
+| 502 · Grok CLI exited | 多為 **vision** 或 CLI 崩潰：確認 Gateway 版本支援 ACP 圖塊（`type:image` + `data` + `mimeType`）；大圖由 app 自動壓細 |
+| 無法讀取參考圖 | 外部圖路徑失效：重新匯入靜圖 |
+
+### Vision（外部圖 → AI 填寫）
+
+- OpenAI 格式：`{ type: "image_url", image_url: { url: "data:image/…;base64,…" } }`  
+- Grok CLI 需要 ACP：`{ type: "image", data, mimeType }`  
+- InstantDrama 對 **grok-gateway** 會自動 rewrite；Gateway `buildPromptJson` 亦應正確轉換 data URL。  
+- **BODY_LIMIT** 建議 ≥ `10mb`（`~/.gctoac/.env`）；預設 1mb 可能卡住大 data URL。  
+- App 會將長邊 >1024 或過大 PNG 壓成 JPEG，避免 `grok --prompt-json` **E2BIG**。  
+- 失敗時 chat 會 **ensureRunning 一次再重試**（僅本機 Grok preset）。
+
+### 執行路徑（避免雙份 Gateway）
+
+| 項目 | 說明 |
+|------|------|
+| 建議 | 全機只用 **一個** 運行中的 gctoac（PM2 或 detached） |
+| 檢查 | `gctoac status` · `pm2 show grok-openai-gateway` |
+| 埠 | 預設 **3847**；Admin `http://127.0.0.1:3847/admin/` |
 
 ## 2. Video（同一 Gateway）
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ensureHardRules } from '../../domain/promptHardRules'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
 import { nextSceneNumber } from '../../domain/scene'
@@ -6,22 +7,22 @@ import {
   appendSceneGalleryItem,
   filterSceneGalleryByLayer,
   isSceneGalleryCoverPath,
-  listSceneExternalRefs,
   moveSceneGalleryItem,
   parseSceneGallery,
-  pickSceneExternalRefPath,
   primarySceneGalleryPath,
   removeSceneGalleryItem,
   serializeSceneGallery,
   type SceneGalleryItem
 } from '../../domain/sceneGallery'
-import { ExternalRefSection } from '../components/ExternalRefSection'
 import {
   libraryBodyClass,
   libraryCardClass,
   libraryGridClass,
   libraryMediaBadgeClass,
-  libraryMediaClass
+  libraryMediaClass,
+  libraryCardActionBtnClass,
+  libraryCardActionDeleteClass,
+  libraryCardActionsRowClass
 } from '../components/libraryCard'
 import {
   LibraryBrowseBar,
@@ -30,11 +31,24 @@ import {
 } from '../components/LibraryBrowseBar'
 import { LibraryFilterSelect } from '../components/LibraryFilterSelect'
 import { useLibraryBrowse } from '../hooks/useLibraryBrowse'
+import { compareUpdatedAtDesc } from '../lib/librarySort'
 import {
   DEFAULT_SCENE_PLATE,
+  buildScenePlateEditPrompt,
+  buildScenePlateImagePrompt,
+  getScenePlateVariant,
   scenePlatesByGroup,
   type ScenePlateVariantId
 } from '../../domain/scenePlateVariants'
+import {
+  appendMultiRefNote,
+  resolveIdentityPaths,
+  toggleGallerySelection
+} from '../../domain/imageGenConfirm'
+import {
+  ImageGenConfirmModal,
+  type ImageGenConfirmPayload
+} from '../components/ImageGenConfirmModal'
 import {
   ATMOSPHERE_POSES,
   pickBestSceneBaseImage,
@@ -86,7 +100,9 @@ import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
 import { translateSceneGalleryLabel } from '../../domain/galleryLabelI18n'
 import { tSceneLocationType } from '../lib/statusLabels'
 
-type EditorPanel = 'profile' | 'refs' | 'atmosphere'
+type EditorPanel = 'profile' | 'refs'
+/** Unified images tab: plate generate vs atmosphere swap (same gallery). */
+type SceneImageGenMode = 'plate' | 'atmosphere'
 
 const SCENE_STATUSES: SceneStatus[] = [
   'PENDING',
@@ -112,6 +128,7 @@ interface FormState {
   cameraNotes: string
   visualTags: string
   seedPrompt: string
+  hardRules: string
   artStyle: ArtStyleId
   gallery: SceneGalleryItem[]
   /** Cover path — stored as Scene.refImagePath */
@@ -137,6 +154,7 @@ const emptyForm = (n = 1): FormState => ({
   cameraNotes: '',
   visualTags: '',
   seedPrompt: '',
+  hardRules: '',
   artStyle: DEFAULT_ART_STYLE,
   gallery: [],
   coverPath: null,
@@ -203,7 +221,8 @@ export function ScenesPage(): JSX.Element {
         if (sceneImage === 'has' && !hasImg) return false
         if (sceneImage === 'none' && hasImg) return false
         return true
-      }
+      },
+      sort: compareUpdatedAtDesc
     }
   )
   const sceneStatusOptions = useMemo(
@@ -238,11 +257,15 @@ export function ScenesPage(): JSX.Element {
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorPanel, setEditorPanel] = useState<EditorPanel>('refs')
+  const [imageGenMode, setImageGenMode] =
+    useState<SceneImageGenMode>('plate')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(() => emptyForm())
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
+  const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
-  const [useExternalRef, setUseExternalRef] = useState(true)
+  const [imageGenConfirm, setImageGenConfirm] =
+    useState<ImageGenConfirmPayload | null>(null)
   const [plateVariant, setPlateVariant] =
     useState<ScenePlateVariantId>(DEFAULT_SCENE_PLATE)
   const [aiIdea, setAiIdea] = useState('')
@@ -330,7 +353,14 @@ export function ScenesPage(): JSX.Element {
         setDressing: p.setDressing ?? f.setDressing,
         soundscape: p.soundscape ?? f.soundscape,
         cameraNotes: p.cameraNotes ?? f.cameraNotes,
-        visualTags: p.visualTags ?? f.visualTags,
+        visualTags:
+          typeof p.visualTags === 'string' && p.visualTags.trim()
+            ? p.visualTags.trim()
+            : f.visualTags,
+        hardRules:
+          typeof p.hardRules === 'string' && p.hardRules.trim()
+            ? p.hardRules.trim()
+            : f.hardRules,
         artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle,
         seedPrompt: p.description || f.seedPrompt
       }))
@@ -436,6 +466,7 @@ export function ScenesPage(): JSX.Element {
       cameraNotes: s.cameraNotes ?? '',
       visualTags: s.visualTags ?? '',
       seedPrompt: s.seedPrompt ?? '',
+      hardRules: s.hardRules ?? '',
       artStyle: style,
       gallery,
       coverPath: primarySceneGalleryPath(gallery, s.refImagePath),
@@ -491,6 +522,7 @@ export function ScenesPage(): JSX.Element {
         : null,
       looksJson: looks.length ? serializeSceneLooks(looks) : null,
       seedPrompt: form.seedPrompt || null,
+      hardRules: form.hardRules || null,
       locationKey:
         form.locationKey.trim() || form.title.trim() || null
     }
@@ -505,6 +537,8 @@ export function ScenesPage(): JSX.Element {
         if (ok) {
           toast.success(t('common.saved'))
           setPageBanner(t('scenes.saved'))
+          await reload()
+          closeEditor()
         } else {
           toast.error(t('common.actionFailed'))
         }
@@ -514,20 +548,7 @@ export function ScenesPage(): JSX.Element {
           toast.success(t('common.saved'))
           setPageBanner(t('scenes.saved'))
           await reload()
-          const list = activeStoryId
-            ? ((await getApi().scenes.list(activeStoryId)) as Scene[])
-            : []
-          const created = list.find(
-            (s) =>
-              s.sceneNumber === form.sceneNumber &&
-              s.description === (form.description.trim() || form.title)
-          )
-          if (created) {
-            setEditingId(created.id)
-            openEdit(created)
-          } else {
-            closeEditor()
-          }
+          closeEditor()
         } else {
           toast.error(t('common.actionFailed'))
         }
@@ -615,9 +636,7 @@ export function ScenesPage(): JSX.Element {
       kind: 'scene-ai-fill',
       label: opts?.suggestFromStory
         ? t('scenes.suggestFromStory')
-        : hasDraft
-          ? t('scenes.aiFill')
-          : t('scenes.aiFill'),
+        : t('common.aiFill'),
       scope: {
         sceneId: editingId ?? undefined,
         storyId: storyIdForJob
@@ -672,28 +691,25 @@ export function ScenesPage(): JSX.Element {
     }, 0)
   }
 
-  const sceneExternalRefs = useMemo(
-    () => listSceneExternalRefs(form.gallery),
-    [form.gallery]
-  )
 
   const handlePickExternalRef = async (): Promise<void> => {
     const result = await getApi().media.pickRefImage()
     if (!result) return
     const next = appendSceneGalleryItem(form.gallery, {
       path: result.filePath,
-      kind: 'external',
-      label: t('characters.externalRefLabel')
+      kind: 'upload',
+      label: t('common.uploadRef')
     })
+    const newId = next[next.length - 1]?.id ?? null
     setForm((f) => ({
       ...f,
       gallery: next,
       coverPath: f.coverPath ?? next[0]?.path ?? null
     }))
-    setSelectedImageId(next[next.length - 1]?.id ?? null)
-    setUseExternalRef(true)
+    if (newId) setSelectedImageId(newId)
     toast.success(t('characters.externalRefAdded'))
   }
+
 
   /** Animate the selected still into a location intro video using scene bible. */
   const handleGenerateIntroVideo = (sourceImagePath: string): void => {
@@ -781,10 +797,22 @@ export function ScenesPage(): JSX.Element {
     return () => window.removeEventListener('idm:video-prep-done', onDone)
   }, [editingId, reload])
 
+  const selectedPathsForIdentity = useMemo(() => {
+    const ids =
+      selectedImageIds.length > 0
+        ? selectedImageIds
+        : selectedImageId
+          ? [selectedImageId]
+          : []
+    return ids
+      .map((id) => form.gallery.find((g) => g.id === id)?.path)
+      .filter((p): p is string => Boolean(p?.trim()))
+  }, [selectedImageIds, selectedImageId, form.gallery])
+
+  /** Open confirm modal, then generate on confirm. */
   const handleGeneratePlate = async (opts?: {
     referenceImagePath?: string | null
     useIdentityEdit?: boolean
-    useExternalRef?: boolean
   }): Promise<void> => {
     setActionError(null)
     try {
@@ -794,30 +822,76 @@ export function ScenesPage(): JSX.Element {
         return
       }
       if (sceneBusy(id)) return
-      // Pure generate unless identity lock is on (checkbox or explicit opts).
       const wantIdentity =
         opts?.useIdentityEdit !== undefined
           ? opts.useIdentityEdit === true
           : useIdentityRef
-      const wantExternal =
-        opts?.useExternalRef !== undefined
-          ? opts.useExternalRef
-          : useExternalRef
       if (useIdentityRef && opts?.useIdentityEdit === false) {
         setUseIdentityRef(false)
       }
-      const externalPath = wantExternal
-        ? pickSceneExternalRefPath(
-            form.gallery,
-            opts?.referenceImagePath ?? selectedImage?.path
-          )
-        : null
-      const preferred = wantIdentity
-        ? (opts?.referenceImagePath ??
-          externalPath ??
-          selectedImage?.path ??
-          null)
-        : externalPath
+      const paths =
+        opts?.referenceImagePath?.trim()
+          ? [opts.referenceImagePath.trim()]
+          : selectedPathsForIdentity
+      const idRes = resolveIdentityPaths({
+        useIdentityRef: wantIdentity,
+        selectedPaths: paths
+      })
+      const profile = {
+        title: form.title.trim() || undefined,
+        description: form.description.trim() || form.title.trim() || 'Scene',
+        locationType: form.locationType.trim() || undefined,
+        timeOfDay: form.timeOfDay.trim() || undefined,
+        weather: form.weather.trim() || undefined,
+        mood: form.mood.trim() || undefined,
+        lighting: form.lighting.trim() || undefined,
+        colorPalette: form.colorPalette.trim() || undefined,
+        setDressing: form.setDressing.trim() || undefined,
+        visualTags: form.visualTags.trim() || undefined,
+        hardRules: form.hardRules.trim() || undefined
+      }
+      let prompt = idRes.useEdit
+        ? buildScenePlateEditPrompt(profile, plateVariant, form.artStyle)
+        : buildScenePlateImagePrompt(profile, plateVariant, form.artStyle)
+      if (idRes.paths.length > 1) {
+        prompt = appendMultiRefNote(
+          prompt,
+          idRes.paths,
+          getAiLocale(i18n.language)
+        )
+      }
+      prompt = ensureHardRules(prompt, form.hardRules)
+      const variantLabel = t(
+        `scenes.${getScenePlateVariant(plateVariant).labelKey}`
+      )
+      const styleLabel = t(
+        `characters.${getArtStyle(form.artStyle).labelKey}`
+      )
+      const modeLabel = idRes.useEdit
+        ? t('common.imageGenConfirmModeIdentity')
+        : t('common.imageGenConfirmModePure')
+      setImageGenConfirm({
+        prompt,
+        referencePaths: idRes.paths,
+        useIdentityEdit: idRes.useEdit,
+        summary: `${t('scenes.plateVariant')}: ${variantLabel} · ${t('scenes.artStyle')}: ${styleLabel} · ${modeLabel}`
+      })
+    } catch (e) {
+      setActionError(parseIpcError(e).message)
+    }
+  }
+
+  const runScenePlateJob = async (
+    confirm: ImageGenConfirmPayload
+  ): Promise<void> => {
+    setImageGenConfirm(null)
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('scenes.saveFirstForPlate'))
+        return
+      }
+      if (sceneBusy(id)) return
       toast.info(t('aiJobs.startedBackground'))
       startJob({
         kind: 'scene-plate',
@@ -828,10 +902,12 @@ export function ScenesPage(): JSX.Element {
           const r = await getApi().scenes.generatePlate({
             sceneId: id,
             variant: plateVariant,
-            referenceImagePath: preferred,
-            useIdentityEdit: Boolean(preferred),
+            referenceImagePath: confirm.referencePaths[0] ?? null,
+            referenceImagePaths: confirm.referencePaths,
+            useIdentityEdit: confirm.useIdentityEdit,
             persist: false,
-            artStyle: form.artStyle
+            artStyle: form.artStyle,
+            promptOverride: confirm.prompt
           })
           if (signal.cancelled) {
             try {
@@ -1133,51 +1209,7 @@ export function ScenesPage(): JSX.Element {
                               objectFit="cover"
                               className="h-full border-0 rounded-none"
                               actionsLayout="overlay"
-                              regenerateBusy={sceneBusy(s.id)}
                               onImageClick={() => openEdit(s)}
-                              onRegenerate={() => {
-                                toast.info(t('aiJobs.startedBackground'))
-                                startJob({
-                                  kind: 'scene-plate',
-                                  label: t('scenes.generatePlate'),
-                                  scope: {
-                                    sceneId: s.id,
-                                    storyId: activeStoryId ?? undefined
-                                  },
-                                  run: async ({ setProgress, signal }) => {
-                                    setProgress(10, 'image')
-                                    const r =
-                                      await getApi().scenes.generatePlate({
-                                        sceneId: s.id,
-                                        variant: plateVariant,
-                                        useIdentityEdit: false,
-                                        persist: false,
-                                        artStyle: s.artStyle ?? undefined
-                                      })
-                                    if (signal.cancelled) {
-                                      try {
-                                        await getApi().media.discardSheetDraft(
-                                          r.path
-                                        )
-                                      } catch {
-                                        /* ignore */
-                                      }
-                                      return
-                                    }
-                                    setProgress(100, 'done')
-                                    return {
-                                      type: 'scene-plate' as const,
-                                      sceneId: s.id,
-                                      storyId: activeStoryId ?? '',
-                                      path: r.path,
-                                      variant: r.variant ?? plateVariant,
-                                      label: r.label ?? plateVariant,
-                                      layer: r.layer,
-                                      enhance: r.enhance
-                                    }
-                                  }
-                                })
-                              }}
                             />
                           ) : (
                             <button
@@ -1221,17 +1253,17 @@ export function ScenesPage(): JSX.Element {
                           <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-400">
                             {s.description}
                           </p>
-                          <div className="mt-auto flex items-center gap-2 pt-4">
+                          <div className={libraryCardActionsRowClass}>
                             <Button
                               variant="secondary"
-                              className="min-w-0 flex-1 !py-1.5 text-xs"
+                              className={libraryCardActionBtnClass}
                               onClick={() => openEdit(s)}
                             >
                               {t('common.edit')}
                             </Button>
                             <Button
                               variant="ghost"
-                              className="min-w-0 flex-1 !py-1.5 text-xs text-rose-300"
+                              className={libraryCardActionDeleteClass}
                               onClick={() => {
                                 void (async () => {
                                   const ok = await dialog.confirm({
@@ -1274,8 +1306,7 @@ export function ScenesPage(): JSX.Element {
           busy={editorBusy}
           tabs={[
             { id: 'profile', label: t('scenes.tabProfile') },
-            { id: 'refs', label: t('scenes.tabRefs') },
-            { id: 'atmosphere', label: t('scenes.tabAtmosphere') }
+            { id: 'refs', label: t('scenes.tabImages') }
           ]}
           activeTab={editorPanel}
           onTabChange={(id) => setEditorPanel(id as EditorPanel)}
@@ -1327,7 +1358,6 @@ export function ScenesPage(): JSX.Element {
                     showMeta
                     className="border-0 rounded-xl"
                     actionsLayout="bar"
-                    regenerateBusy={editorBusy}
                     introVideoBusy={editorBusy}
                     introVideoPath={selectedImage.introVideoPath}
                     introVideoHasDraft={
@@ -1345,12 +1375,28 @@ export function ScenesPage(): JSX.Element {
                         ? () => handleGenerateIntroVideo(selectedImage.path)
                         : undefined
                     }
-                    onRegenerate={() =>
-                      void handleGeneratePlate({
-                        useIdentityEdit: useIdentityRef,
-                        referenceImagePath: selectedImage.path
-                      })
-                    }
+                    isCover={form.coverPath === selectedImage.path}
+                    onSetAsCover={() => handleSetCover(selectedImage.path)}
+                    onRemove={() => {
+                      const next = removeSceneGalleryItem(
+                        form.gallery,
+                        selectedImage.id
+                      )
+                      setForm((f) => ({
+                        ...f,
+                        gallery: next,
+                        coverPath:
+                          f.coverPath === selectedImage.path
+                            ? primarySceneGalleryPath(next)
+                            : isSceneGalleryCoverPath(next, f.coverPath)
+                              ? f.coverPath
+                              : primarySceneGalleryPath(next)
+                      }))
+                      setSelectedImageId(next[0]?.id ?? null)
+                      setSelectedImageIds((ids) =>
+                        ids.filter((x) => x !== selectedImage.id)
+                      )
+                    }}
                   />
                 ) : (
                   <div className="flex h-40 flex-col items-center justify-center gap-2 px-3 text-xs text-ink-500">
@@ -1373,7 +1419,7 @@ export function ScenesPage(): JSX.Element {
                           void handlePickExternalRef()
                         }}
                       >
-                        {t('characters.externalRefTitle')}
+{t('common.uploadRef')}
                       </Button>
                     </div>
                   </div>
@@ -1382,9 +1428,16 @@ export function ScenesPage(): JSX.Element {
               <GalleryThumbStrip
                 items={filteredGallery}
                 selectedId={selectedImageId}
+                selectedIds={selectedImageIds}
+                multiSelect
                 coverPath={form.coverPath}
                 fallbackCoverPath={primarySceneGalleryPath(form.gallery)}
                 onSelect={setSelectedImageId}
+                onToggleSelect={(id) =>
+                  setSelectedImageIds((ids) =>
+                    toggleGallerySelection(ids, id)
+                  )
+                }
                 onReorder={handleReorderGallery}
                 labelOf={(g) => translateSceneGalleryLabel(g.label, t)}
               />
@@ -1395,7 +1448,7 @@ export function ScenesPage(): JSX.Element {
             <div className={editorFormClass}>
               <section className="rounded-xl border border-brand-800/35 bg-brand-950/20 p-4">
                 <h3 className="text-sm font-semibold text-ink-100">
-                  {t('scenes.aiTitle')}
+                  {t('common.aiTitle')}
                 </h3>
                 <p className="mt-1 text-[11px] text-ink-500">
                   {t('common.aiHintWithImage')}
@@ -1414,7 +1467,7 @@ export function ScenesPage(): JSX.Element {
                 />
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button disabled={editorBusy} onClick={() => handleAiFill()}>
-                    {t('scenes.aiFill')}
+                    {t('common.aiFill')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -1501,6 +1554,20 @@ export function ScenesPage(): JSX.Element {
                       setForm((f) => ({ ...f, description: e.target.value }))
                     }
                     placeholder={t('scenes.descriptionPlaceholder')}
+                  />
+                </div>
+                <div>
+                  <Label>{t('common.hardRules')}</Label>
+                  <p className="mb-1.5 text-[11px] leading-relaxed text-ink-500">
+                    {t('common.hardRulesHint')}
+                  </p>
+                  <Textarea
+                    size="md"
+                    value={form.hardRules}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, hardRules: e.target.value }))
+                    }
+                    placeholder={t('common.hardRulesPh')}
                   />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1604,313 +1671,323 @@ export function ScenesPage(): JSX.Element {
             <div className={editorFormClass}>
               <div>
                 <h3 className="text-sm font-semibold text-ink-100">
-                  {t('scenes.tabRefs')}
+                  {t('scenes.tabImages')}
                 </h3>
                 <p className="mt-1 text-[11px] text-ink-500">
-                  {t('scenes.plateHintShort')}
+                  {t('scenes.imagesHint')}
                 </p>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <EditorField label={t('scenes.plateVariant')}>
-                  <EditorSelect
-                    value={plateVariant}
-                    onChange={(e) => {
-                      setPlateVariant(e.target.value as ScenePlateVariantId)
-                      setUseIdentityRef(false)
-                    }}
-                  >
-                    {(
-                      [
-                        'sceneGroupCore',
-                        'sceneGroupAngles',
-                        'sceneGroupAtmosphere',
-                        'sceneGroupDetail'
-                      ] as const
-                    ).map((gk) => (
-                      <optgroup key={gk} label={t(`scenes.${gk}`)}>
-                        {plateGroups[gk].map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {t(`scenes.${v.labelKey}`)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </EditorSelect>
-                </EditorField>
-                <EditorField label={t('scenes.artStyle')}>
-                  <EditorSelect
-                    value={form.artStyle}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        artStyle: e.target.value as ArtStyleId
-                      }))
-                    }
-                  >
-                    {(
-                      [
-                        'artGroupPhoto',
-                        'artGroup3d',
-                        'artGroupAnime',
-                        'artGroupIllust'
-                      ] as const
-                    ).map((gk) => (
-                      <optgroup key={gk} label={t(`characters.${gk}`)}>
-                        {artGroups[gk].map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {t(`characters.${s.labelKey}`)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </EditorSelect>
-                </EditorField>
+
+              {/* Generation mode: plate vs atmosphere */}
+              <div className="flex rounded-xl border border-ink-700 bg-ink-900/80 p-1">
+                <button
+                  type="button"
+                  className={[
+                    'flex-1 rounded-lg px-3 py-2 text-[12px] font-medium transition',
+                    imageGenMode === 'plate'
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : 'text-ink-400 hover:text-ink-200'
+                  ].join(' ')}
+                  onClick={() => setImageGenMode('plate')}
+                >
+                  {t('scenes.genModePlate')}
+                </button>
+                <button
+                  type="button"
+                  className={[
+                    'flex-1 rounded-lg px-3 py-2 text-[12px] font-medium transition',
+                    imageGenMode === 'atmosphere'
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : 'text-ink-400 hover:text-ink-200'
+                  ].join(' ')}
+                  onClick={() => setImageGenMode('atmosphere')}
+                >
+                  {t('scenes.genModeAtmosphere')}
+                </button>
               </div>
-              <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 rounded border-ink-600"
-                  checked={useIdentityRef}
-                  onChange={(e) => setUseIdentityRef(e.target.checked)}
-                />
-                <span className="text-[12px] leading-snug text-ink-300">
-                  <span className="font-medium text-ink-100">
-                    {t('common.useIdentityRef')}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] text-ink-500">
-                    {t('common.useIdentityRefHint')}
-                  </span>
-                </span>
-              </label>
-              <ExternalRefSection
-                items={sceneExternalRefs.map((g) => ({
-                  id: g.id,
-                  path: g.path,
-                  label: g.label
-                }))}
-                useExternalRef={useExternalRef}
-                onUseExternalChange={setUseExternalRef}
-                onAdd={handlePickExternalRef}
-                onRemove={(id) => {
-                  const next = removeSceneGalleryItem(form.gallery, id)
-                  setForm((f) => ({
-                    ...f,
-                    gallery: next,
-                    coverPath: isSceneGalleryCoverPath(next, f.coverPath)
-                      ? f.coverPath
-                      : primarySceneGalleryPath(next)
-                  }))
-                }}
-                disabled={editorBusy}
-              />
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button
-                  className="sm:flex-1"
-                  disabled={editorBusy}
-                  onClick={() => void handleGeneratePlate()}
-                >
-                  {editorBusy
-                    ? t('common.generating')
-                    : t('scenes.generatePlate')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => void handlePickImage()}
-                >
-                  {t('scenes.pickImage')}
-                </Button>
-                {selectedImage &&
-                  form.coverPath !== selectedImage.path && (
+
+              {imageGenMode === 'plate' ? (
+                <>
+                  <p className="text-[11px] text-ink-500">
+                    {t('scenes.plateHintShort')}
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <EditorField label={t('scenes.plateVariant')}>
+                      <EditorSelect
+                        value={plateVariant}
+                        onChange={(e) => {
+                          setPlateVariant(e.target.value as ScenePlateVariantId)
+                          setUseIdentityRef(false)
+                        }}
+                      >
+                        {(
+                          [
+                            'sceneGroupCore',
+                            'sceneGroupAngles',
+                            'sceneGroupAtmosphere',
+                            'sceneGroupDetail'
+                          ] as const
+                        ).map((gk) => (
+                          <optgroup key={gk} label={t(`scenes.${gk}`)}>
+                            {plateGroups[gk].map((v) => (
+                              <option key={v.id} value={v.id}>
+                                {t(`scenes.${v.labelKey}`)}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </EditorSelect>
+                    </EditorField>
+                    <EditorField label={t('scenes.artStyle')}>
+                      <EditorSelect
+                        value={form.artStyle}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            artStyle: e.target.value as ArtStyleId
+                          }))
+                        }
+                      >
+                        {(
+                          [
+                            'artGroupPhoto',
+                            'artGroup3d',
+                            'artGroupAnime',
+                            'artGroupIllust'
+                          ] as const
+                        ).map((gk) => (
+                          <optgroup key={gk} label={t(`characters.${gk}`)}>
+                            {artGroups[gk].map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {t(`characters.${s.labelKey}`)}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </EditorSelect>
+                    </EditorField>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 rounded border-ink-600"
+                      checked={useIdentityRef}
+                      onChange={(e) => setUseIdentityRef(e.target.checked)}
+                    />
+                    <span className="text-[12px] leading-snug text-ink-300">
+                      <span className="font-medium text-ink-100">
+                        {t('common.useIdentityRef')}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] text-ink-500">
+                        {t('common.useIdentityRefHint')}
+                      </span>
+                    </span>
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <Button
+                      className="sm:flex-1"
+                      disabled={editorBusy}
+                      onClick={() => void handleGeneratePlate()}
+                    >
+                      {editorBusy
+                        ? t('common.generating')
+                        : t('scenes.generatePlate')}
+                    </Button>
                     <Button
                       variant="secondary"
-                      onClick={() => handleSetCover(selectedImage.path)}
+                      onClick={() => void handlePickImage()}
                     >
-                      {t('common.setAsCover')}
+                      {t('common.uploadRef')}
                     </Button>
-                  )}
-                {selectedImage && form.coverPath === selectedImage.path && (
-                  <span className="inline-flex items-center rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                    {t('common.isCover')}
-                  </span>
-                )}
-                {selectedImage && (
-                  <Button
-                    variant="ghost"
-                    className="text-rose-300"
-                    onClick={() => {
-                      const next = removeSceneGalleryItem(
-                        form.gallery,
-                        selectedImage.id
-                      )
-                      setForm((f) => ({
-                        ...f,
-                        gallery: next,
-                        coverPath:
-                          f.coverPath === selectedImage.path
-                            ? primarySceneGalleryPath(next)
-                            : isSceneGalleryCoverPath(next, f.coverPath)
-                              ? f.coverPath
-                              : primarySceneGalleryPath(next)
-                      }))
-                      setSelectedImageId(next[0]?.id ?? null)
-                    }}
-                  >
-                    {t('scenes.removePhoto')}
-                  </Button>
-                )}
-              </div>
-              {siblingLocations.length > 0 && (
-                <div className="rounded-lg border border-ink-700 bg-ink-900/50 p-3">
-                  <p className="text-[11px] text-ink-400">
-                    {t('scenes.copyGalleryHint')}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {siblingLocations.map((s) => (
-                      <Button
-                        key={s.id}
-                        variant="secondary"
-                        className="!py-0.5 !text-xs"
-                        type="button"
-                        onClick={() => void handleCopyGallery(s.id)}
-                      >
-                        #{s.sceneNumber}{' '}
-                        {s.title || s.description.slice(0, 20)}
-                      </Button>
-                    ))}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {editorPanel === 'atmosphere' && (
-            <div className={editorFormClass}>
-              <section className="rounded-xl border border-brand-800/35 bg-brand-950/15 p-4">
-                <h3 className="text-sm font-semibold text-ink-100">
-                  {t('scenes.swapAtmosphereTitle')}
-                </h3>
-                <p className="mt-1 text-[11px] text-ink-500">
-                  {t('scenes.swapAtmosphereHintShort')}
-                </p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <EditorField label={t('scenes.atmoBase')}>
-                    <EditorSelect
-                      value={atmoBase}
-                      onChange={(e) => setAtmoBase(e.target.value)}
-                    >
-                      <option value="">{t('scenes.atmoBaseAuto')}</option>
-                      {form.gallery.map((g) => (
-                        <option key={g.id} value={g.path}>
-                          {translateSceneGalleryLabel(g.label, t)}
-                        </option>
-                      ))}
-                    </EditorSelect>
-                  </EditorField>
-                  <EditorField label={t('scenes.atmoPose')}>
-                    <EditorSelect
-                      value={atmoPose}
-                      onChange={(e) =>
-                        setAtmoPose(e.target.value as AtmospherePose)
-                      }
-                    >
-                      {ATMOSPHERE_POSES.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {t(`scenes.${p.labelKey}`)}
-                        </option>
-                      ))}
-                    </EditorSelect>
-                  </EditorField>
-                </div>
-                <EditorField className="mt-3" label={t('scenes.atmoDesc')}>
-                  <Textarea
-                    size="md"
-                    value={atmoText}
-                    onChange={(e) => setAtmoText(e.target.value)}
-                    placeholder={t('scenes.atmoPlaceholder')}
-                  />
-                </EditorField>
-                <Button
-                  className="mt-3"
-                  disabled={editorBusy || form.gallery.length === 0}
-                  onClick={() => void handleSwapAtmosphere()}
-                >
-                  {t('scenes.swapAtmosphere')}
-                </Button>
-              </section>
-
-              <section className="rounded-xl border border-ink-700 bg-ink-900/35 p-4">
-                <h3 className="text-sm font-semibold">
-                  {t('scenes.looksTitle')}
-                </h3>
-                <p className="mt-1 text-[11px] text-ink-500">
-                  {t('scenes.looksHintShort')}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Input
-                    className="min-w-[8rem] flex-1"
-                    value={lookName}
-                    onChange={(e) => setLookName(e.target.value)}
-                    placeholder={t('scenes.lookNamePh')}
-                  />
-                  <Button variant="secondary" type="button" onClick={addLook}>
-                    {t('scenes.lookAdd')}
-                  </Button>
-                </div>
-                <ul className="mt-3 space-y-2">
-                  {form.looks.map((look) => {
-                    const displayName =
-                      !look.name.trim() || /^default$/i.test(look.name.trim())
-                        ? t('scenes.lookDefault')
-                        : look.name
-                    const styleLabel = look.artStyle
-                      ? t(
-                          `characters.${getArtStyle(look.artStyle).labelKey}`
-                        )
-                      : null
-                    return (
-                      <li
-                        key={look.id}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-ink-800 px-3 py-2 text-sm"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 font-medium text-ink-100">
-                            <span>{displayName}</span>
-                            {styleLabel && (
-                              <span className="text-[10px] font-normal text-ink-500">
-                                {styleLabel}
-                              </span>
-                            )}
-                          </div>
-                          <div className="truncate text-[11px] text-ink-500">
-                            {look.description}
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 gap-1">
+                  {siblingLocations.length > 0 && (
+                    <div className="rounded-lg border border-ink-700 bg-ink-900/50 p-3">
+                      <p className="text-[11px] text-ink-400">
+                        {t('scenes.copyGalleryHint')}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {siblingLocations.map((s) => (
                           <Button
+                            key={s.id}
                             variant="secondary"
                             className="!py-0.5 !text-xs"
-                            onClick={() => applyLook(look)}
+                            type="button"
+                            onClick={() => void handleCopyGallery(s.id)}
                           >
-                            {t('scenes.lookUse')}
+                            #{s.sceneNumber}{' '}
+                            {s.title || s.description.slice(0, 20)}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            className="!py-0.5 !text-xs text-rose-300"
-                            onClick={() =>
-                              setForm((f) => ({
-                                ...f,
-                                looks: removeSceneLook(f.looks, look.id)
-                              }))
-                            }
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-[11px] text-ink-500">
+                    {t('scenes.swapAtmosphereHintShort')}
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <EditorField label={t('scenes.atmoBase')}>
+                      <EditorSelect
+                        value={atmoBase}
+                        onChange={(e) => setAtmoBase(e.target.value)}
+                      >
+                        <option value="">{t('scenes.atmoBaseAuto')}</option>
+                        {form.gallery.map((g) => (
+                          <option key={g.id} value={g.path}>
+                            {translateSceneGalleryLabel(g.label, t)}
+                          </option>
+                        ))}
+                      </EditorSelect>
+                    </EditorField>
+                    <EditorField label={t('scenes.atmoPose')}>
+                      <EditorSelect
+                        value={atmoPose}
+                        onChange={(e) =>
+                          setAtmoPose(e.target.value as AtmospherePose)
+                        }
+                      >
+                        {ATMOSPHERE_POSES.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {t(`scenes.${p.labelKey}`)}
+                          </option>
+                        ))}
+                      </EditorSelect>
+                    </EditorField>
+                  </div>
+                  <EditorField label={t('scenes.artStyle')}>
+                    <EditorSelect
+                      value={form.artStyle}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          artStyle: e.target.value as ArtStyleId
+                        }))
+                      }
+                    >
+                      {(
+                        [
+                          'artGroupPhoto',
+                          'artGroup3d',
+                          'artGroupAnime',
+                          'artGroupIllust'
+                        ] as const
+                      ).map((gk) => (
+                        <optgroup key={gk} label={t(`characters.${gk}`)}>
+                          {artGroups[gk].map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {t(`characters.${s.labelKey}`)}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </EditorSelect>
+                  </EditorField>
+                  <EditorField label={t('scenes.atmoDesc')}>
+                    <Textarea
+                      size="md"
+                      value={atmoText}
+                      onChange={(e) => setAtmoText(e.target.value)}
+                      placeholder={t('scenes.atmoPlaceholder')}
+                    />
+                  </EditorField>
+                  <Button
+                    className="w-full sm:w-auto"
+                    disabled={editorBusy || form.gallery.length === 0}
+                    onClick={() => void handleSwapAtmosphere()}
+                  >
+                    {t('scenes.swapAtmosphere')}
+                  </Button>
+                  {form.gallery.length === 0 ? (
+                    <p className="text-[11px] text-ink-500">
+                      {t('scenes.atmoNeedPlate')}
+                    </p>
+                  ) : null}
+
+                  <section className="rounded-xl border border-ink-700 bg-ink-900/35 p-4">
+                    <h3 className="text-sm font-semibold text-ink-100">
+                      {t('scenes.looksTitle')}
+                    </h3>
+                    <p className="mt-1 text-[11px] text-ink-500">
+                      {t('scenes.looksHintShort')}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Input
+                        className="min-w-[8rem] flex-1"
+                        value={lookName}
+                        onChange={(e) => setLookName(e.target.value)}
+                        placeholder={t('scenes.lookNamePh')}
+                      />
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        onClick={addLook}
+                      >
+                        {t('scenes.lookAdd')}
+                      </Button>
+                    </div>
+                    <ul className="mt-3 space-y-2">
+                      {form.looks.map((look) => {
+                        const displayName =
+                          !look.name.trim() ||
+                          /^default$/i.test(look.name.trim())
+                            ? t('scenes.lookDefault')
+                            : look.name
+                        const styleLabel = look.artStyle
+                          ? t(
+                              `characters.${getArtStyle(look.artStyle).labelKey}`
+                            )
+                          : null
+                        return (
+                          <li
+                            key={look.id}
+                            className="flex items-center justify-between gap-2 rounded-lg border border-ink-800 px-3 py-2 text-sm"
                           >
-                            {t('common.delete')}
-                          </Button>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </section>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 font-medium text-ink-100">
+                                <span>{displayName}</span>
+                                {styleLabel && (
+                                  <span className="text-[10px] font-normal text-ink-500">
+                                    {styleLabel}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="truncate text-[11px] text-ink-500">
+                                {look.description}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 gap-1">
+                              <Button
+                                variant="secondary"
+                                className="!py-0.5 !text-xs"
+                                onClick={() => {
+                                  applyLook(look)
+                                  setImageGenMode('atmosphere')
+                                }}
+                              >
+                                {t('scenes.lookUse')}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="!py-0.5 !text-xs text-rose-300"
+                                onClick={() =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    looks: removeSceneLook(f.looks, look.id)
+                                  }))
+                                }
+                              >
+                                {t('common.delete')}
+                              </Button>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </section>
+                </>
+              )}
             </div>
           )}
         </EditorShell>
@@ -1965,6 +2042,13 @@ export function ScenesPage(): JSX.Element {
           </div>
         </div>
       )}
+      <ImageGenConfirmModal
+        open={Boolean(imageGenConfirm)}
+        payload={imageGenConfirm}
+        busy={editorBusy}
+        onCancel={() => setImageGenConfirm(null)}
+        onConfirm={(p) => void runScenePlateJob(p)}
+      />
     </div>
   )
 }

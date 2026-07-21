@@ -85,7 +85,7 @@ export class GenerationService {
     opts?: { revisionPrompt?: string | null }
   ): Promise<{ entryId: string; mediaPath: string; jobId?: string; degraded?: boolean }> {
     if (!this.ai.generateVideo) {
-      throw new AppError('AI_UNAVAILABLE', 'AI provider has no generateVideo')
+      throw new AppError('AI_UNAVAILABLE', 'errors.videoUnavailable')
     }
     const story = await this.loadStory(storyId)
     const entry = story.timeline.find((e) => e.id === entryId)
@@ -162,7 +162,7 @@ export class GenerationService {
 
     try {
       if (signal.aborted) {
-        throw new AppError('CANCELLED', 'Cancelled')
+        throw new AppError('CANCELLED', 'errors.cancelled')
       }
 
       const parseLangs = (c: (typeof chars)[0]): string[] | undefined => {
@@ -274,6 +274,16 @@ export class GenerationService {
           ),
           entry.dialogue
         ) || entry.dialogue || null
+      const { collectTimelineHardRules } = await import(
+        '../../domain/promptHardRules'
+      )
+      const clipHardRules = collectTimelineHardRules({
+        story,
+        characters: chars,
+        scenes: scenesBound,
+        props: propsBound,
+        actions: actionsBound
+      })
       const fallbackPrompt = appendRevisionToClipPrompt(
         [
           buildClipPrompt({
@@ -293,7 +303,8 @@ export class GenerationService {
         ]
           .filter(Boolean)
           .join('\n'),
-        opts?.revisionPrompt
+        opts?.revisionPrompt,
+        clipHardRules
       )
       const ref = resolveClipRefImage({
         character: char,
@@ -321,6 +332,7 @@ export class GenerationService {
         ai: this.ai,
         locale,
         fallbackPrompt,
+        hardRules: clipHardRules,
         polishUserContent: buildClipVideoPolishUserPrompt({
           locale,
           seconds,
@@ -343,6 +355,7 @@ export class GenerationService {
           propBlock: prop
             ? `${prop.name}: ${prop.description}`
             : null,
+          hardRules: clipHardRules,
           actionBlock: action
             ? [
                 `Motion guide "${action.name}": ${action.description || ''}`,
@@ -387,7 +400,7 @@ export class GenerationService {
       })
 
       if (signal.aborted) {
-        throw new AppError('CANCELLED', 'Cancelled')
+        throw new AppError('CANCELLED', 'errors.cancelled')
       }
 
       await this.prisma.timelineEntry.update({
@@ -420,7 +433,7 @@ export class GenerationService {
         (error instanceof AppError && error.code === 'CANCELLED') ||
         (error instanceof Error && /cancell?ed/i.test(error.message))
       const message = cancelled
-        ? 'Cancelled'
+        ? 'errors.cancelled'
         : error instanceof Error
           ? error.message
           : String(error)
@@ -439,7 +452,7 @@ export class GenerationService {
         entryId,
         mediaStatus: 'FAILED'
       })
-      if (cancelled) throw new AppError('CANCELLED', 'Cancelled')
+      if (cancelled) throw new AppError('CANCELLED', 'errors.cancelled')
       throw error
     } finally {
       this.abort = null
@@ -663,7 +676,7 @@ export class GenerationService {
       select: { id: true, title: true, exportPath: true }
     })
     if (!story) {
-      throw new AppError('NOT_FOUND', 'Story not found')
+      throw new AppError('NOT_FOUND', 'errors.storyNotFound')
     }
     const prefix = safeAsciiExportName(story.title, storyId)
     const items = this.store.listExportHistory(storyId, {
@@ -693,14 +706,14 @@ export class GenerationService {
     latestPath: string | null
   }> {
     if (!exportId?.trim()) {
-      throw new AppError('VALIDATION', 'exportId is required')
+      throw new AppError('VALIDATION', 'errors.exportIdRequired')
     }
     const story = await this.prisma.story.findUnique({
       where: { id: storyId },
       select: { id: true, title: true, exportPath: true }
     })
     if (!story) {
-      throw new AppError('NOT_FOUND', 'Story not found')
+      throw new AppError('NOT_FOUND', 'errors.storyNotFound')
     }
     const before = this.store.listExportHistory(storyId, {
       publicDir: resolvePublicExportDir(),
@@ -915,7 +928,7 @@ export class GenerationService {
         timeline: { orderBy: { order: 'asc' } }
       }
     })
-    if (!story) throw new AppError('NOT_FOUND', `Story not found: ${storyId}`)
+    if (!story) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(storyId))
     return {
       ...story,
       characters: story.storyCharacters.map((l) => {

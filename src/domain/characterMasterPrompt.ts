@@ -14,8 +14,22 @@ import {
   buildSheetIdentityLock,
   getSheetVariant
 } from './characterSheetVariants'
+import {
+  coerceProfileString,
+  coerceProfileStringFrom,
+  extractJsonObject,
+  profileCompletenessRules,
+  synthesizeVisualTagsFromText,
+  VISUAL_TAGS_KEYS
+} from './jsonProfileFields'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
 import { normalizeLanguageCodes } from './worldLanguages'
+import {
+  appendHardRules,
+  defaultHardRulesFallback,
+  hardRulesAiInstruction,
+  normalizeHardRules
+} from './promptHardRules'
 
 export const CHARACTER_PROFILE_JSON_KEYS = [
   'name',
@@ -30,7 +44,8 @@ export const CHARACTER_PROFILE_JSON_KEYS = [
   'spokenLanguages',
   'mannerisms',
   'relationships',
-  'visualTags'
+  'visualTags',
+  'hardRules'
 ] as const
 
 export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK'): string {
@@ -42,6 +57,10 @@ export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK
       'Return ONLY a single JSON object (no markdown fences, no commentary) with keys:',
       CHARACTER_PROFILE_JSON_KEYS.join(', '),
       'Rules:',
+      ...profileCompletenessRules(
+        CHARACTER_PROFILE_JSON_KEYS.filter((k) => k !== 'spokenLanguages'),
+        'en'
+      ).map((r) => `- ${r}`),
       ...inventFromProvidedSourcesRules('en').map((r) => `- ${r}`),
       '- description: 1–3 sentence public summary (role, vibe, personality)',
       '- appearance: head/face (or equivalent), body plan, colors, distinctive marks (detailed)',
@@ -51,7 +70,7 @@ export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK
       '- voiceDesc: pitch, pace, accent, speech or vocalization habits',
       '- spokenLanguages: JSON array of BCP-47/ISO codes this character SPEAKS (multi OK), e.g. ["yue","en"] or ["ja"]. Prefer: yue=Cantonese, cmn/zh-Hant=Mandarin/Trad. Chinese, en, ja, ko, etc. Empty array if non-verbal.',
       '- mannerisms: small habits, micro-gestures, posture ticks (very specific)',
-      '- visualTags: comma-separated English tags for image models',
+      hardRulesAiInstruction('en'),
       '- Keep identity consistent for multi-angle reference sheets and video gen.',
       '- Prefer vivid, concrete sensory detail over vague adjectives.'
     ].join('\n')
@@ -63,6 +82,10 @@ export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK
     '只輸出一個 JSON 物件（不要 markdown 代碼塊、不要解說），鍵名必須是：',
     CHARACTER_PROFILE_JSON_KEYS.join(', '),
     '規則：',
+    ...profileCompletenessRules(
+      CHARACTER_PROFILE_JSON_KEYS.filter((k) => k !== 'spokenLanguages'),
+      'zh-HK'
+    ).map((r) => `- ${r}`),
     ...inventFromProvidedSourcesRules('zh-HK').map((r) => `- ${r}`),
     '- description：1–3 句對外摘要（繁體中文）',
     '- appearance：頭部／五官（或對應部位）、體型結構、顏色、辨識特徵（具體、可畫）',
@@ -72,7 +95,7 @@ export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK
     '- voiceDesc：聲線高低、語速、口音、說話或發聲習慣（為配音／表演用）',
     '- spokenLanguages：角色使用的語言，JSON 字串陣列（可多選），BCP-47／ISO 代碼，例如 ["yue","en"]。常用：yue=粵語、cmn 或 zh-Hant=普通話／國語、en、ja、ko。非語言角色用 []。',
     '- mannerisms：小習慣、小動作、站姿／手勢癖好（越具體越好）',
-    '- visualTags：逗號分隔英文標籤，方便 image model',
+    hardRulesAiInstruction('zh-HK'),
     '- 同一角色必須視覺一致，方便之後多角度參考圖與影片生成。',
     '- 避免空泛形容；用可拍攝的細節。'
   ].join('\n')
@@ -120,47 +143,50 @@ export function buildCharacterMasterUserPrompt(options: {
       zh: '（全面潤飾：將 soul 與表單合併進完整 Profile）'
     },
     closing: {
-      en: 'Output the complete JSON character profile now (every key filled when possible).',
-      zh: '請立即輸出完整 JSON 角色設定（各鍵盡量填滿）。'
+      en: `Output complete JSON now. Required keys: ${CHARACTER_PROFILE_JSON_KEYS.join(', ')}. visualTags = comma-separated string (not array). spokenLanguages may be a code array.`,
+      zh: `請立即輸出完整 JSON。必填鍵：${CHARACTER_PROFILE_JSON_KEYS.join(', ')}。visualTags 為逗號分隔字串（禁止標籤陣列）；spokenLanguages 可以是代碼陣列。`
     }
   })
 }
 
 /** Extract first JSON object from model text (tolerates ```json fences). */
 export function extractCharacterProfileJson(text: string): CharacterProfileFields {
-  let raw = text.trim()
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (fenced) raw = fenced[1].trim()
-  const start = raw.indexOf('{')
-  const end = raw.lastIndexOf('}')
-  if (start < 0 || end <= start) {
-    throw new Error('No JSON object in model response')
-  }
-  const parsed = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>
-  const str = (k: string): string => {
-    const v = parsed[k]
-    return typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim()
-  }
-  const name = str('name')
+  const parsed = extractJsonObject(text)
+  const name = coerceProfileString(parsed.name)
   if (!name) throw new Error('Character JSON missing name')
   const spokenLanguages = normalizeLanguageCodes(
     parsed.spokenLanguages ?? parsed.languages ?? parsed.spoken_languages
   )
+  const description = coerceProfileString(parsed.description) || name
+  const appearance = coerceProfileString(parsed.appearance)
+  const costume = coerceProfileString(parsed.costume)
+  let visualTags = coerceProfileStringFrom(parsed, [...VISUAL_TAGS_KEYS])
+  if (!visualTags) {
+    visualTags = synthesizeVisualTagsFromText([
+      name,
+      description,
+      appearance,
+      costume
+    ])
+  }
   return {
     name,
-    description: str('description') || name,
-    appearance: str('appearance') || undefined,
-    personality: str('personality') || undefined,
-    backstory: str('backstory') || undefined,
-    costume: str('costume') || undefined,
-    ageRange: str('ageRange') || undefined,
-    gender: str('gender') || undefined,
-    voiceDesc: str('voiceDesc') || undefined,
+    description,
+    appearance,
+    personality: coerceProfileString(parsed.personality),
+    backstory: coerceProfileString(parsed.backstory),
+    costume,
+    ageRange: coerceProfileString(parsed.ageRange),
+    gender: coerceProfileString(parsed.gender),
+    voiceDesc: coerceProfileString(parsed.voiceDesc),
     spokenLanguages:
       spokenLanguages.length > 0 ? spokenLanguages : undefined,
-    mannerisms: str('mannerisms') || undefined,
-    relationships: str('relationships') || undefined,
-    visualTags: str('visualTags') || undefined
+    mannerisms: coerceProfileString(parsed.mannerisms),
+    relationships: coerceProfileString(parsed.relationships),
+    visualTags,
+    hardRules:
+      normalizeHardRules(coerceProfileString(parsed.hardRules)) ||
+      defaultHardRulesFallback('character', 'zh-HK')
   }
 }
 
@@ -193,8 +219,8 @@ export function buildCharacterSheetImagePrompt(
     qualityBlockForFamily(style.family),
     { skipOuterCostume }
   )
-  // Order: STYLE (×2) → identity → layout → style reminder
-  return [
+  // Order: STYLE (×2) → identity → layout → style reminder → HARD RULES last
+  const body = [
     style.promptBlock,
     `Repeat: the final image medium MUST be exactly style id "${style.id}" (${style.family}).`,
     identity,
@@ -202,6 +228,7 @@ export function buildCharacterSheetImagePrompt(
     `LAYOUT: ${def.layout}`,
     `Final check: if the image looks like the wrong medium, regenerate in the correct medium: ${style.promptBlock}`
   ].join(' ')
+  return appendHardRules(body, profile.hardRules)
 }
 
 /**
@@ -319,37 +346,43 @@ export function buildCharacterIntroVideoPrompt(
   const relationships = profile.relationships?.trim().slice(0, 160)
 
   if (locale === 'en') {
-    return [
-      'IMAGE-TO-VIDEO: animate the exact person in the reference image as a short self-introduction clip for short-drama casting.',
-      'IDENTITY LOCK: same face, hair, body, age, wardrobe, and colors as the reference still — do not invent a different person.',
+    return appendHardRules(
+      [
+        'IMAGE-TO-VIDEO: animate the exact person in the reference image as a short self-introduction clip for short-drama casting.',
+        'IDENTITY LOCK: same face, hair, body, age, wardrobe, and colors as the reference still — do not invent a different person.',
+        identity,
+        `Personality / vibe: ${personality}.`,
+        backstory ? `Backstory cue: ${backstory}.` : null,
+        relationships ? `Relationships cue: ${relationships}.` : null,
+        soul ? `Soul bible excerpt (performance source): ${soul}` : null,
+        `Performance: gentle camera push-in or subtle handheld; character looks toward camera or slightly off-camera; ${manner}.`,
+        `Speech: mouth moves as if introducing themselves briefly; voice tone: ${voice}; languages: ${langs}.`,
+        'Action beat: natural idle → small smile or nod → short spoken intro gesture (hand optional) → hold.',
+        'Cinematic lighting consistent with the still; no text overlays, no logos, no extra people.',
+        'Duration fits a 6–10s vertical-or-horizontal casting self-intro clip.'
+      ]
+        .filter(Boolean)
+        .join(' '),
+      profile.hardRules
+    )
+  }
+  return appendHardRules(
+    [
+      '圖生影片：以參考圖中的同一人物，拍一段短劇選角用「自我介紹」短片。',
+      '身份鎖定：臉、髮型、體型、年齡感、服裝與顏色必須與參考靜幀一致，不可換成另一個人。',
       identity,
-      `Personality / vibe: ${personality}.`,
-      backstory ? `Backstory cue: ${backstory}.` : null,
-      relationships ? `Relationships cue: ${relationships}.` : null,
-      soul ? `Soul bible excerpt (performance source): ${soul}` : null,
-      `Performance: gentle camera push-in or subtle handheld; character looks toward camera or slightly off-camera; ${manner}.`,
-      `Speech: mouth moves as if introducing themselves briefly; voice tone: ${voice}; languages: ${langs}.`,
-      'Action beat: natural idle → small smile or nod → short spoken intro gesture (hand optional) → hold.',
-      'Cinematic lighting consistent with the still; no text overlays, no logos, no extra people.',
-      'Duration fits a 6–10s vertical-or-horizontal casting self-intro clip.'
+      `性格／氣場：${personality}。`,
+      backstory ? `背景要點：${backstory}。` : null,
+      relationships ? `關係要點：${relationships}。` : null,
+      soul ? `Soul 摘要（表演來源）：${soul}` : null,
+      `表演：輕微推近或手持晃動；角色望向鏡頭或略偏鏡頭；${manner}。`,
+      `口白：嘴唇自然開合像在簡短自我介紹；聲線：${voice}；語言：${langs}。`,
+      '動作節奏：自然站定 → 微笑或輕點頭 → 簡短介紹手勢（可空手）→ 定格。',
+      '光線與靜幀一致；無字幕、無 logo、無其他人入鏡。',
+      '適合 6–10 秒自我介紹短片。'
     ]
       .filter(Boolean)
-      .join(' ')
-  }
-  return [
-    '圖生影片：以參考圖中的同一人物，拍一段短劇選角用「自我介紹」短片。',
-    '身份鎖定：臉、髮型、體型、年齡感、服裝與顏色必須與參考靜幀一致，不可換成另一個人。',
-    identity,
-    `性格／氣場：${personality}。`,
-    backstory ? `背景要點：${backstory}。` : null,
-    relationships ? `關係要點：${relationships}。` : null,
-    soul ? `Soul 摘要（表演來源）：${soul}` : null,
-    `表演：輕微推近或手持晃動；角色望向鏡頭或略偏鏡頭；${manner}。`,
-    `口白：嘴唇自然開合像在簡短自我介紹；聲線：${voice}；語言：${langs}。`,
-    '動作節奏：自然站定 → 微笑或輕點頭 → 簡短介紹手勢（可空手）→ 定格。',
-    '光線與靜幀一致；無字幕、無 logo、無其他人入鏡。',
-    '適合 6–10 秒自我介紹短片。'
-  ]
-    .filter(Boolean)
-    .join(' ')
+      .join(' '),
+    profile.hardRules
+  )
 }

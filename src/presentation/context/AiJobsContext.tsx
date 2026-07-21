@@ -182,6 +182,7 @@ export type AiDraft =
         cameraNotes?: string
         visualTags?: string
         artStyle?: string
+        hardRules?: string
       }
       profileJson: string
       isNew: boolean

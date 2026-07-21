@@ -1,9 +1,59 @@
 /**
  * Multimodal (vision) helpers for AI fill — attach local stills as data URLs.
+ *
+ * Large stills are downscaled (via bundled ffmpeg) so Grok Gateway can pass
+ * them through `grok --prompt-json` without hitting OS ARG_MAX (E2BIG).
  */
-import { existsSync, readFileSync } from 'fs'
-import { extname } from 'path'
+import { spawnSync } from 'child_process'
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync
+} from 'fs'
+import { createRequire } from 'module'
+import { tmpdir } from 'os'
+import { extname, join } from 'path'
 import type { ChatContentPart } from '../types/domain'
+import { AppError } from '../types/errors'
+
+function tryResolveFfmpeg(): string | null {
+  try {
+    const req = createRequire(join(process.cwd(), 'package.json'))
+    const mod = req('ffmpeg-static') as string | { default?: string } | null
+    const p =
+      typeof mod === 'string'
+        ? mod
+        : typeof mod?.default === 'string'
+          ? mod.default
+          : null
+    if (p && existsSync(p)) return p
+  } catch {
+    /* ignore */
+  }
+  const candidate = join(
+    process.cwd(),
+    'node_modules',
+    'ffmpeg-static',
+    process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+  )
+  return existsSync(candidate) ? candidate : null
+}
+
+/**
+ * Longest edge for vision / image-edit stills (keeps Grok CLI argv / payload modest).
+ * Shared by every AI-fill path (character / scene / prop / action / costume).
+ */
+export const VISION_MAX_EDGE = 768
+/**
+ * Prefer re-encode when original exceeds this many bytes.
+ * ~100–150KB JPEG stills still failed gateway (“Grok CLI produced no stdout”);
+ * keep the threshold low so typical 1–2k uploads are always compressed.
+ */
+export const VISION_MAX_BYTES = 100_000
+/** Skip ffmpeg only for already-tiny files (icons / 1×1 tests). */
+export const VISION_SKIP_RESIZE_BYTES = 80_000
 
 export function resolveReadableImagePath(
   path: string | null | undefined
@@ -14,19 +64,125 @@ export function resolveReadableImagePath(
   return p
 }
 
+/** True when caller intended to attach an image (non-empty path string). */
+export function isReferenceImagePathClaimed(
+  path: string | null | undefined
+): boolean {
+  return typeof path === 'string' && path.trim().length > 0
+}
+
+function mimeFromExt(filePath: string): string {
+  const ext = extname(filePath).toLowerCase()
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg'
+  if (ext === '.webp') return 'image/webp'
+  if (ext === '.gif') return 'image/gif'
+  return 'image/png'
+}
+
+export function mimeFromImagePath(filePath: string): string {
+  return mimeFromExt(filePath)
+}
+
+/**
+ * Best-effort downscale + JPEG re-encode for vision / image-edit payloads.
+ * Returns original buffer/mime when ffmpeg unavailable or already small.
+ */
+export function prepareVisionImageBytes(filePath: string): {
+  bytes: Buffer
+  mime: string
+  resized: boolean
+} {
+  const original = readFileSync(filePath)
+  const mime = mimeFromExt(filePath)
+  // Any non-tiny still (JPEG/PNG/WebP) goes through the same ffmpeg path so
+  // action / prop / scene / character / costume vision fill stay consistent.
+  const needsResize = original.length > VISION_SKIP_RESIZE_BYTES
+
+  if (!needsResize) {
+    return { bytes: original, mime, resized: false }
+  }
+
+  const ffmpegBin = tryResolveFfmpeg()
+  if (!ffmpegBin) return { bytes: original, mime, resized: false }
+
+  let dir: string | null = null
+  try {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vision-'))
+    const outPath = join(dir, 'vision.jpg')
+    const r = spawnSync(
+      ffmpegBin,
+      [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-y',
+        '-i',
+        filePath,
+        '-vf',
+        `scale='min(${VISION_MAX_EDGE},iw)':'min(${VISION_MAX_EDGE},ih)':force_original_aspect_ratio=decrease`,
+        '-q:v',
+        '5',
+        outPath
+      ],
+      { encoding: 'utf8', timeout: 60_000 }
+    )
+    if (r.status === 0 && existsSync(outPath)) {
+      const bytes = readFileSync(outPath)
+      // Prefer re-encoded even if slightly larger than a tiny original PNG
+      // (JPEG header), as long as payload is non-empty and under MAX_BYTES
+      // or smaller than the original.
+      if (
+        bytes.length > 0 &&
+        (bytes.length < original.length || bytes.length <= VISION_MAX_BYTES)
+      ) {
+        return { bytes, mime: 'image/jpeg', resized: true }
+      }
+    }
+  } catch {
+    /* fall through */
+  } finally {
+    if (dir) {
+      try {
+        rmSync(dir, { recursive: true, force: true })
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return { bytes: original, mime, resized: false }
+}
+
+/**
+ * Bytes for image edit / vision: always prefer prepareVisionImageBytes when large.
+ */
+export function loadImageBytesForAi(filePath: string): {
+  bytes: Buffer
+  mime: string
+  resized: boolean
+} {
+  if (!existsSync(filePath)) {
+    throw new AppError(
+      'VALIDATION',
+      'errors.visionImageUnreadable',
+      'errors.visionImageUnreadableDetail'
+    )
+  }
+  try {
+    if (statSync(filePath).size <= VISION_SKIP_RESIZE_BYTES) {
+      const bytes = readFileSync(filePath)
+      return { bytes, mime: mimeFromExt(filePath), resized: false }
+    }
+  } catch {
+    /* prepareVisionImageBytes */
+  }
+  return prepareVisionImageBytes(filePath)
+}
+
 export function imagePathToDataUrl(filePath: string): string | null {
   try {
-    const buf = readFileSync(filePath)
-    const ext = extname(filePath).toLowerCase()
-    const mime =
-      ext === '.jpg' || ext === '.jpeg'
-        ? 'image/jpeg'
-        : ext === '.webp'
-          ? 'image/webp'
-          : ext === '.gif'
-            ? 'image/gif'
-            : 'image/png'
-    return `data:${mime};base64,${buf.toString('base64')}`
+    if (!existsSync(filePath)) return null
+    const { bytes, mime } = loadImageBytesForAi(filePath)
+    return `data:${mime};base64,${bytes.toString('base64')}`
   } catch {
     return null
   }
@@ -34,19 +190,50 @@ export function imagePathToDataUrl(filePath: string): string | null {
 
 /**
  * OpenAI-compatible user content: plain text, or text + image when path is readable.
+ *
+ * If a non-empty reference path was claimed but the file cannot be read into a
+ * data URL, throws (never silently drops the image — that made image-only fill
+ * look broken).
  */
 export function buildVisionUserContent(
   textPrompt: string,
   referenceImagePath?: string | null
 ): string | ChatContentPart[] {
+  const claimed = isReferenceImagePathClaimed(referenceImagePath)
+  if (!claimed) return textPrompt
+
   const path = resolveReadableImagePath(referenceImagePath)
-  if (!path) return textPrompt
+  if (!path) {
+    throw new AppError(
+      'VALIDATION',
+      'errors.visionImageUnreadable',
+      'errors.visionImageUnreadableDetail'
+    )
+  }
   const dataUrl = imagePathToDataUrl(path)
-  if (!dataUrl) return textPrompt
+  if (!dataUrl) {
+    throw new AppError(
+      'VALIDATION',
+      'errors.visionImageUnreadable',
+      'errors.visionImageUnreadableDetail'
+    )
+  }
   return [
     { type: 'text', text: textPrompt },
     { type: 'image_url', image_url: { url: dataUrl } }
   ]
+}
+
+/**
+ * Grok CLI ACP image block (via Gateway pass-through when type === 'image').
+ * OpenAI `image_url` is converted for grok-gateway in buildChatCompletionBody.
+ */
+export function dataUrlToGrokImagePart(
+  dataUrl: string
+): { type: 'image'; mimeType: string; data: string } | null {
+  const m = /^data:([^;]+);base64,(.+)$/s.exec(dataUrl.trim())
+  if (!m) return null
+  return { type: 'image', mimeType: m[1], data: m[2] }
 }
 
 export function visionFillUserPreamble(

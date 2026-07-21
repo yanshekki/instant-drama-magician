@@ -4,7 +4,21 @@
 import type { SceneProfileFields } from '../types/domain'
 import { buildImproveUserPrompt } from './aiImprovePrompt'
 import { isArtStyleId, type ArtStyleId } from './characterArtStyles'
+import {
+  coerceProfileString,
+  coerceProfileStringFrom,
+  extractJsonObject,
+  profileCompletenessRules,
+  synthesizeVisualTagsFromText,
+  VISUAL_TAGS_KEYS
+} from './jsonProfileFields'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
+import {
+  appendHardRules,
+  defaultHardRulesFallback,
+  hardRulesAiInstruction,
+  normalizeHardRules
+} from './promptHardRules'
 
 export const SCENE_PROFILE_JSON_KEYS = [
   'title',
@@ -20,7 +34,8 @@ export const SCENE_PROFILE_JSON_KEYS = [
   'soundscape',
   'cameraNotes',
   'visualTags',
-  'artStyle'
+  'artStyle',
+  'hardRules'
 ] as const
 
 export function buildSceneMasterSystemPrompt(
@@ -33,15 +48,18 @@ export function buildSceneMasterSystemPrompt(
       'Return ONLY one JSON object (no markdown) with keys:',
       SCENE_PROFILE_JSON_KEYS.join(', '),
       'Rules:',
+      ...profileCompletenessRules(SCENE_PROFILE_JSON_KEYS, 'en').map(
+        (r) => `- ${r}`
+      ),
       ...inventFromProvidedSourcesRules('en').map((r) => `- ${r}`),
+      hardRulesAiInstruction('en'),
       '- title: short location name',
       '- description: what the place looks like (architecture, materials, landmarks)',
       '- script: dialogue + action + camera cues for THIS scene (concise)',
       '- locationType: interior|exterior|mixed|vehicle|virtual',
       '- timeOfDay, weather, mood, lighting, colorPalette, setDressing: concrete; invent freely if the idea is thin',
       '- cameraNotes: blocking / lens language',
-      '- visualTags: English comma tags for image models',
-      '- artStyle: optional id like photo_cinematic or anime_modern',
+      '- artStyle: optional id like photo_cinematic or anime_modern, or ""',
       '- Focus on space + this beat; only cast people who appear in provided cast lists when those lists are given.'
     ].join('\n')
   }
@@ -51,15 +69,18 @@ export function buildSceneMasterSystemPrompt(
     '只回傳一個 JSON 物件（不要 markdown），鍵名：',
     SCENE_PROFILE_JSON_KEYS.join(', '),
     '規則：',
+    ...profileCompletenessRules(SCENE_PROFILE_JSON_KEYS, 'zh-HK').map(
+      (r) => `- ${r}`
+    ),
     ...inventFromProvidedSourcesRules('zh-HK').map((r) => `- ${r}`),
+    hardRulesAiInstruction('zh-HK'),
     '- title：短地名',
     '- description：空間外觀（建築、物料、地標）',
     '- script：本場對白／動作／鏡頭（精煉）',
     '- locationType：interior|exterior|mixed|vehicle|virtual',
     '- timeOfDay、weather、mood、lighting、colorPalette、setDressing：具體可畫；idea 不足時可自由補齊',
     '- cameraNotes：走位／鏡頭語言',
-    '- visualTags：英文逗號標籤',
-    '- artStyle：可選如 photo_cinematic、anime_modern',
+    '- artStyle：可選如 photo_cinematic、anime_modern，或 ""',
     '- 聚焦空間與本場戲；若有提供角色列表，只在需要時使用列表中的人。'
   ].join('\n')
 }
@@ -115,8 +136,8 @@ export function buildSceneMasterUserPrompt(options: {
       zh: '（全面潤飾地點與本場劇本，利於出片 continuity）'
     },
     closing: {
-      en: 'Output the complete JSON scene profile now (every key filled when possible).',
-      zh: '請立即輸出完整 JSON 場景設定（各鍵盡量填滿）。'
+      en: `Output complete JSON now. Required keys: ${SCENE_PROFILE_JSON_KEYS.join(', ')}. Missing keys = invalid. visualTags must be a comma-separated string, not an array.`,
+      zh: `請立即輸出完整 JSON。必填鍵：${SCENE_PROFILE_JSON_KEYS.join(', ')}。缺鍵無效。visualTags 必須是逗號分隔字串，禁止陣列。`
     }
   })
 }
@@ -124,33 +145,41 @@ export function buildSceneMasterUserPrompt(options: {
 export function extractSceneProfileJson(text: string): SceneProfileFields & {
   artStyle?: ArtStyleId
 } {
-  let jsonStr = text.trim()
-  const fence = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (fence) jsonStr = fence[1].trim()
-  const brace = jsonStr.match(/\{[\s\S]*\}/)
-  if (brace) jsonStr = brace[0]
-  const parsed = JSON.parse(jsonStr) as Record<string, unknown>
-  const str = (k: string): string | undefined => {
-    const v = parsed[k]
-    return typeof v === 'string' && v.trim() ? v.trim() : undefined
-  }
-  const description = str('description') || str('title') || ''
+  const parsed = extractJsonObject(text)
+  const description =
+    coerceProfileString(parsed.description) ||
+    coerceProfileString(parsed.title) ||
+    ''
   if (!description) throw new Error('Missing description in scene profile')
-  const artRaw = str('artStyle')
+  const artRaw = coerceProfileString(parsed.artStyle)
+  const title = coerceProfileString(parsed.title)
+  let visualTags = coerceProfileStringFrom(parsed, [...VISUAL_TAGS_KEYS])
+  if (!visualTags) {
+    visualTags = synthesizeVisualTagsFromText([
+      title,
+      description,
+      coerceProfileString(parsed.locationType),
+      coerceProfileString(parsed.mood),
+      coerceProfileString(parsed.lighting)
+    ])
+  }
   return {
-    title: str('title'),
+    title,
     description,
-    script: str('script'),
-    locationType: str('locationType'),
-    timeOfDay: str('timeOfDay'),
-    weather: str('weather'),
-    mood: str('mood'),
-    lighting: str('lighting'),
-    colorPalette: str('colorPalette'),
-    setDressing: str('setDressing'),
-    soundscape: str('soundscape'),
-    cameraNotes: str('cameraNotes'),
-    visualTags: str('visualTags'),
+    script: coerceProfileString(parsed.script),
+    locationType: coerceProfileString(parsed.locationType),
+    timeOfDay: coerceProfileString(parsed.timeOfDay),
+    weather: coerceProfileString(parsed.weather),
+    mood: coerceProfileString(parsed.mood),
+    lighting: coerceProfileString(parsed.lighting),
+    colorPalette: coerceProfileString(parsed.colorPalette),
+    setDressing: coerceProfileString(parsed.setDressing),
+    soundscape: coerceProfileString(parsed.soundscape),
+    cameraNotes: coerceProfileString(parsed.cameraNotes),
+    visualTags,
+    hardRules:
+      normalizeHardRules(coerceProfileString(parsed.hardRules)) ||
+      defaultHardRulesFallback('scene', 'zh-HK'),
     artStyle: artRaw && isArtStyleId(artRaw) ? artRaw : undefined
   }
 }
@@ -251,49 +280,57 @@ export function buildSceneIntroVideoPrompt(
   const scriptCue = profile.script?.trim().slice(0, 200)
 
   if (locale === 'en') {
-    return [
-      'IMAGE-TO-VIDEO: animate the exact location in the reference still as a short location-intro / establishing clip for short-drama production.',
-      'SPACE LOCK: same architecture, materials, signage, layout, and color language as the reference plate — do not invent a different place.',
-      `Location name: ${name}.`,
-      `Place description: ${place}.`,
-      locationType ? `Space type: ${locationType}.` : null,
-      time ? `Time of day: ${time}.` : null,
-      weather ? `Weather: ${weather}.` : null,
-      `Mood: ${mood}. Lighting: ${lighting}.`,
-      palette ? `Color palette: ${palette}.` : null,
-      setDressing ? `Set dressing: ${setDressing}.` : null,
-      tags ? `Visual tags: ${tags}.` : null,
-      art ? `Art style: ${art}.` : null,
-      soundscape ? `Ambient feel (no UI text): ${soundscape}.` : null,
-      scriptCue ? `Beat cue (atmosphere only, no hero faces unless already in still): ${scriptCue}.` : null,
-      `Camera: ${camera}; continuous gentle motion; empty-set preferred — no new cast faces, no logos, no text overlays.`,
-      'Action beat: hold establishing → subtle environmental life (light shift, weather particles, fabric/tree if already present) → settle.',
-      'Duration fits a 6–10s establishing intro clip.'
+    return appendHardRules(
+      [
+        'IMAGE-TO-VIDEO: animate the exact location in the reference still as a short location-intro / establishing clip for short-drama production.',
+        'SPACE LOCK: same architecture, materials, signage, layout, and color language as the reference plate — do not invent a different place.',
+        `Location name: ${name}.`,
+        `Place description: ${place}.`,
+        locationType ? `Space type: ${locationType}.` : null,
+        time ? `Time of day: ${time}.` : null,
+        weather ? `Weather: ${weather}.` : null,
+        `Mood: ${mood}. Lighting: ${lighting}.`,
+        palette ? `Color palette: ${palette}.` : null,
+        setDressing ? `Set dressing: ${setDressing}.` : null,
+        tags ? `Visual tags: ${tags}.` : null,
+        art ? `Art style: ${art}.` : null,
+        soundscape ? `Ambient feel (no UI text): ${soundscape}.` : null,
+        scriptCue
+          ? `Beat cue (atmosphere only, no hero faces unless already in still): ${scriptCue}.`
+          : null,
+        `Camera: ${camera}; continuous gentle motion; empty-set preferred — no new cast faces, no logos, no text overlays.`,
+        'Action beat: hold establishing → subtle environmental life (light shift, weather particles, fabric/tree if already present) → settle.',
+        'Duration fits a 6–10s establishing intro clip.'
+      ]
+        .filter(Boolean)
+        .join(' '),
+      profile.hardRules
+    )
+  }
+  return appendHardRules(
+    [
+      '圖生影片：以參考靜幀中的同一場地，拍一段短劇用「場景介紹／建立鏡頭」短片。',
+      '空間鎖定：建築、材質、招牌、格局與色彩語言必須與參考靜幀一致，不可換成另一個地方。',
+      `地點名稱：${name}。`,
+      `場地描述：${place}。`,
+      locationType ? `空間類型：${locationType}。` : null,
+      time ? `時段：${time}。` : null,
+      weather ? `天氣：${weather}。` : null,
+      `氣氛：${mood}。燈光：${lighting}。`,
+      palette ? `色盤：${palette}。` : null,
+      setDressing ? `陳設：${setDressing}。` : null,
+      tags ? `視覺標籤：${tags}。` : null,
+      art ? `藝術風格：${art}。` : null,
+      soundscape ? `環境氛圍（無 UI 字幕）：${soundscape}。` : null,
+      scriptCue
+        ? `本場提示（只作氣氛，勿新增角色臉，除非靜幀已有）：${scriptCue}。`
+        : null,
+      `運鏡：${camera}；連續輕微動態；空鏡為主——勿新增路人臉、logo、字幕。`,
+      '動作節奏：建立鏡頭定場 → 環境微動（光影、天氣粒子、已有的布料／樹影）→ 定格。',
+      '適合 6–10 秒場景介紹短片。'
     ]
       .filter(Boolean)
-      .join(' ')
-  }
-  return [
-    '圖生影片：以參考靜幀中的同一場地，拍一段短劇用「場景介紹／建立鏡頭」短片。',
-    '空間鎖定：建築、材質、招牌、格局與色彩語言必須與參考靜幀一致，不可換成另一個地方。',
-    `地點名稱：${name}。`,
-    `場地描述：${place}。`,
-    locationType ? `空間類型：${locationType}。` : null,
-    time ? `時段：${time}。` : null,
-    weather ? `天氣：${weather}。` : null,
-    `氣氛：${mood}。燈光：${lighting}。`,
-    palette ? `色盤：${palette}。` : null,
-    setDressing ? `陳設：${setDressing}。` : null,
-    tags ? `視覺標籤：${tags}。` : null,
-    art ? `藝術風格：${art}。` : null,
-    soundscape ? `環境氛圍（無 UI 字幕）：${soundscape}。` : null,
-    scriptCue
-      ? `本場提示（只作氣氛，勿新增角色臉，除非靜幀已有）：${scriptCue}。`
-      : null,
-    `運鏡：${camera}；連續輕微動態；空鏡為主——勿新增路人臉、logo、字幕。`,
-    '動作節奏：建立鏡頭定場 → 環境微動（光影、天氣粒子、已有的布料／樹影）→ 定格。',
-    '適合 6–10 秒場景介紹短片。'
-  ]
-    .filter(Boolean)
-    .join(' ')
+      .join(' '),
+    profile.hardRules
+  )
 }

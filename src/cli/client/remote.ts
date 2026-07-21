@@ -52,7 +52,7 @@ export function createRemoteClient(opts: RemoteClientOptions): IdmClient {
     if (res.status === 401) {
       throw new AppError(
         'AI_UNAUTHORIZED',
-        'Unauthorized — set --token / IDM_TOKEN / config token'
+        'errors.cliUnauthorizedToken'
       )
     }
     const obj = body as {
@@ -86,7 +86,7 @@ export function createRemoteClient(opts: RemoteClientOptions): IdmClient {
       )
     }
     if (res.status === 401) {
-      throw new AppError('AI_UNAUTHORIZED', 'Unauthorized')
+      throw new AppError('AI_UNAUTHORIZED', 'errors.unauthorized')
     }
     const body = (await res.json()) as { channels?: string[] }
     return Array.isArray(body.channels) ? body.channels : []

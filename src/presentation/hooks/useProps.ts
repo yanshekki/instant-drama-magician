@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { sortByUpdatedAtDesc } from '../lib/librarySort'
 import type {
   CreatePropInput,
   Prop,
@@ -32,7 +33,7 @@ export function useProps(activeStoryId: string | null): {
     setError(null)
     try {
       const list = (await getApi().props.list()) as Prop[]
-      setItems(list)
+      setItems(sortByUpdatedAtDesc(list))
       if (activeStoryId) {
         const cast = (await getApi().props.list({
           storyId: activeStoryId,
