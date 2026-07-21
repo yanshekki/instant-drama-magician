@@ -80,7 +80,8 @@ export function resolveImageEndpoint(s: AppSettings): ResolvedEndpoint {
   const applied = applyLlmPreset(
     {
       llmProvider: preset,
-      baseUrl: s.imageBaseUrl || def?.baseUrl || chat.baseUrl,
+      // Leave empty so outer fallback can hit def / chat for custom+blank base
+      baseUrl: s.imageBaseUrl?.trim() || '',
       videoPath: s.videoPath,
       model: s.model
     },
@@ -197,7 +198,8 @@ export function resolveVideoEndpoint(s: AppSettings): ResolvedVideoEndpoint {
   const applied = applyLlmPreset(
     {
       llmProvider: preset,
-      baseUrl: s.videoBaseUrl || def?.baseUrl || chat.baseUrl,
+      // Leave empty so outer fallback can hit def / chat for custom+blank base
+      baseUrl: s.videoBaseUrl?.trim() || '',
       videoPath: s.videoPath,
       model: s.model
     },

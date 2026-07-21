@@ -39,10 +39,11 @@ export function migrateGatewayDefaults<T extends GatewayUrlFields>(
     videoPath = GROK_GATEWAY_VIDEO_PATH
     migrated = true
   }
-  // If base moved but video still empty/legacy relative — keep consistent
+  // If base moved but video still empty (or leftover legacy after partial migrate)
   if (
     migrated &&
-    normalizeUrl(videoPath) === normalizeUrl(LEGACY_GROK_VIDEO_PATH)
+    (!videoPath.trim() ||
+      normalizeUrl(videoPath) === normalizeUrl(LEGACY_GROK_VIDEO_PATH))
   ) {
     videoPath = GROK_GATEWAY_VIDEO_PATH
   }
