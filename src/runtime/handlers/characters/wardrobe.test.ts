@@ -100,4 +100,101 @@ describe('registerCharactersWardrobe', () => {
     expect(get).toHaveBeenCalledWith('c1')
     expect(r.suggestion.name).toBeTruthy()
   })
+
+  function storyBundle() {
+    return {
+      id: 's1',
+      title: 'Rain',
+      styleNote: 'noir',
+      storyScenes: [
+        {
+          sceneId: 'sc1',
+          sceneNumber: 1,
+          scriptOverride: null,
+          scene: {
+            title: 'Alley',
+            description: 'wet alley',
+            script: 'wait',
+            mood: 'tense',
+            timeOfDay: 'night',
+            weather: 'rain'
+          }
+        }
+      ],
+      timeline: [
+        {
+          id: 'e1',
+          order: 0,
+          sceneId: 'sc1',
+          dialogue: '走',
+          character: { name: 'Ming' },
+          scene: { title: 'Alley', description: 'wet' },
+          prop: { name: 'Bag' }
+        }
+      ]
+    }
+  }
+
+  it('uses story segments all/scene/beat for wardrobe context', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: SUGGEST_JSON } }]
+    }))
+    const prisma = {
+      story: { findUnique: vi.fn(async () => storyBundle()) }
+    }
+    const ctx = makeHandlerContext({ aiClient: { chat } })
+    ;(ctx.host as { getPrisma: () => unknown }).getPrisma = () => prisma
+    registerCharactersWardrobe(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    await invokeRegistered(h as never, 'characters:suggestWardrobe', {
+      name: 'Ming',
+      storyId: 's1',
+      segmentKey: 'all',
+      locale: 'en'
+    })
+    await invokeRegistered(h as never, 'characters:suggestWardrobe', {
+      name: 'Ming',
+      storyId: 's1',
+      segmentKey: 'scene:sc1',
+      locale: 'zh-HK'
+    })
+    await invokeRegistered(h as never, 'characters:suggestWardrobe', {
+      name: 'Ming',
+      storyId: 's1',
+      segmentKey: 'beat:e1',
+      locale: 'en'
+    })
+    expect(chat.mock.calls.length).toBeGreaterThanOrEqual(3)
+
+    await expect(
+      invokeRegistered(h as never, 'characters:suggestWardrobe', {
+        name: 'Ming',
+        storyId: 's1',
+        segmentKey: 'scene:nope'
+      })
+    ).rejects.toMatchObject({ message: 'errors.sceneNotLinked' })
+    await expect(
+      invokeRegistered(h as never, 'characters:suggestWardrobe', {
+        name: 'Ming',
+        storyId: 's1',
+        segmentKey: 'beat:nope'
+      })
+    ).rejects.toMatchObject({ message: 'errors.timelineBeatNotFound' })
+    await expect(
+      invokeRegistered(h as never, 'characters:suggestWardrobe', {
+        name: 'Ming',
+        storyId: 's1',
+        segmentKey: 'x:y'
+      })
+    ).rejects.toMatchObject({ message: 'errors.unknownSegmentKey' })
+
+    prisma.story.findUnique.mockResolvedValueOnce(null)
+    await expect(
+      invokeRegistered(h as never, 'characters:suggestWardrobe', {
+        name: 'Ming',
+        storyId: 'missing'
+      })
+    ).rejects.toMatchObject({ message: 'errors.storyNotFound' })
+  })
 })

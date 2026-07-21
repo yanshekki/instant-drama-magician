@@ -7,6 +7,7 @@ import {
   mkdirSync,
   readFileSync
 } from 'fs'
+// rmSync used for unreadable cast-prep path
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { MediaStore } from './MediaStore'
@@ -96,5 +97,142 @@ describe('MediaStore', () => {
     mkdirSync(join(dest, '..'), { recursive: true })
     writeFileSync(dest, 'img')
     expect(existsSync(dest)).toBe(true)
+  })
+
+  it('video path helpers for library entities', () => {
+    expect(store.characterVideoPath('c1')).toContain('intro')
+    expect(store.characterVideoPath('c1', 'casting', '.webm')).toContain(
+      'casting'
+    )
+    expect(store.sceneVideoPath('sc1')).toMatch(/sc1_intro/)
+    expect(store.propVideoPath('p1', 'detail')).toContain('detail')
+    expect(store.costumeVideoPath('k1')).toContain('library')
+    expect(store.actionVideoPath('a1', 'demo')).toContain('demo')
+    expect(store.storyImagePath('s1', 'poster')).toContain('poster')
+    expect(store.tmpImagePath('draft')).toContain('tmp')
+  })
+
+  it('promoteTmp* copies drafts into library and removes tmp', () => {
+    store.ensureTmpDir()
+    store.ensureLibraryDirs()
+    const tmp = store.tmpImagePath('char')
+    writeFileSync(tmp, 'draft-img')
+    const dest = store.promoteTmpImage(null, 'c1', tmp, 'sheet')
+    expect(existsSync(dest)).toBe(true)
+    expect(readFileSync(dest, 'utf8')).toBe('draft-img')
+    expect(existsSync(tmp)).toBe(false)
+
+    const tmpSc = store.tmpImagePath('sc')
+    writeFileSync(tmpSc, 'sc')
+    expect(existsSync(store.promoteTmpSceneImage(null, 'sc1', tmpSc, 'plate'))).toBe(
+      true
+    )
+
+    const tmpP = store.tmpImagePath('pr')
+    writeFileSync(tmpP, 'pr')
+    expect(existsSync(store.promoteTmpPropImage(null, 'p1', tmpP, 'hero'))).toBe(
+      true
+    )
+
+    const tmpSt = store.tmpImagePath('st')
+    writeFileSync(tmpSt, 'st')
+    expect(existsSync(store.promoteTmpStoryImage('s1', tmpSt, 'cover'))).toBe(
+      true
+    )
+  })
+
+  it('promoteTmpTo no-op when src already dest; throws when missing', () => {
+    store.ensureLibraryDirs()
+    const dest = store.characterImagePath('c1', 'x')
+    mkdirSync(join(dest, '..'), { recursive: true })
+    writeFileSync(dest, 'same')
+    // re-promote same path
+    expect(store.promoteTmpImage(null, 'c1', dest, 'x2')).toBeTruthy()
+
+    expect(() =>
+      store.promoteTmpImage(null, 'c1', join(root, 'missing.png'), 'y')
+    ).toThrow()
+  })
+
+  it('discardTmp only unlinks under tmp/', () => {
+    store.ensureTmpDir()
+    const tmp = store.tmpImagePath('d')
+    writeFileSync(tmp, 't')
+    store.discardTmp(tmp)
+    expect(existsSync(tmp)).toBe(false)
+
+    const outside = join(root, 'outside.png')
+    writeFileSync(outside, 'o')
+    store.discardTmp(outside)
+    expect(existsSync(outside)).toBe(true)
+
+    store.discardTmp('')
+    store.discardTmp(join(root, 'nope.png'))
+  })
+
+  it('readStoryCastPrepJson returns null on unreadable path', () => {
+    store.writeStoryCastPrepJson('s1', '{ok}')
+    // overwrite with a directory to force read failure
+    const p = store.storyCastPrepPath('s1')
+    rmSync(p, { force: true })
+    mkdirSync(p, { recursive: true })
+    expect(store.readStoryCastPrepJson('s1')).toBeNull()
+  })
+
+  it('export history read/write/list/record/delete', () => {
+    expect(store.readExportHistory('s1')).toEqual([])
+    store.writeExportHistory('s1', [
+      {
+        id: 'exp_bad',
+        storyId: 's1',
+        kind: 'final',
+        fileName: 'bad.json',
+        path: join(root, 'missing.mp4'),
+        workPath: null,
+        createdAt: new Date().toISOString(),
+        sizeBytes: null
+      }
+    ])
+    // corrupt history → empty
+    writeFileSync(store.exportHistoryPath('s1'), '{not-json')
+    expect(store.readExportHistory('s1')).toEqual([])
+
+    store.ensureStoryDirs('s1')
+    const workName = 'Rain_Demo_final_1.mp4'
+    const workPath = join(store.exportsDir('s1'), workName)
+    writeFileSync(workPath, 'vid')
+
+    const publicDir = join(root, 'public')
+    mkdirSync(publicDir, { recursive: true })
+    const pubName = 'Rain_Demo_final_2.mp4'
+    const pubPath = join(publicDir, pubName)
+    writeFileSync(pubPath, 'vid2')
+
+    const recorded = store.recordExportHistory('s1', {
+      kind: 'final',
+      path: pubPath,
+      workPath,
+      fileName: workName
+    })
+    expect(recorded.fileName).toBe(workName)
+
+    const listed = store.listExportHistory('s1', {
+      publicDir,
+      latestPath: pubPath,
+      fileNamePrefix: 'Rain_Demo'
+    })
+    expect(listed.length).toBeGreaterThan(0)
+
+    // also list without prefix
+    expect(
+      store.listExportHistory('s1', { publicDir, fileNamePrefix: null }).length
+    ).toBeGreaterThan(0)
+
+    store.deleteIfExists(join(root, 'nope'))
+    const del = store.deleteExportHistoryItem('s1', recorded.id)
+    expect(del.deleted).toBe(true)
+    expect(
+      store.deleteExportHistoryItem('s1', 'missing-id').deleted
+    ).toBe(false)
   })
 })

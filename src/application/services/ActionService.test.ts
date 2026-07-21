@@ -99,6 +99,8 @@ describe('ActionService', () => {
     })
     // partial update hits false branches of optional field ternaries
     await svc.update('a1', { description: 'only-desc' })
+    // description omitted → false branch of description ternary
+    await svc.update('a1', { motionNotes: 'only-motion' })
     await svc.update('a1', {
       name: '  Punch  ',
       description: '  d  ',

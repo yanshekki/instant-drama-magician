@@ -104,6 +104,95 @@ describe('registerCharactersSheet', () => {
     )
   })
 
+  it('generateSheet persist + edit + multi-ref + override', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sheet-p-'))
+    const out = join(dir, 'sheet.png')
+    const ref1 = join(dir, 'r1.png')
+    const ref2 = join(dir, 'r2.png')
+    writeFileSync(ref1, 'a')
+    writeFileSync(ref2, 'b')
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('SHEET').toString('base64'),
+      sizeUsed: '1024x1024',
+      aspectUsed: '1:1'
+    }))
+    const editImage = vi.fn(async () => ({
+      b64: Buffer.from('EDIT').toString('base64'),
+      sizeUsed: '1024x1024',
+      aspectUsed: '1:1'
+    }))
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      name: 'Ming',
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'hero',
+      appearance: 'short hair',
+      costume: 'jacket',
+      hardRules: 'NO logo',
+      artStyle: 'anime',
+      refGalleryJson: JSON.stringify([
+        { path: ref1, kind: 'sheet', label: 'a' },
+        { path: ref2, kind: 'sheet', label: 'b' }
+      ]),
+      refImagePath: ref1,
+      refSheetPath: null
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateImage, editImage, chat: vi.fn() },
+      characters: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => out,
+            characterImagePath: () => out
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageEnhance: false,
+        imageSizeSquare: '1024x1024',
+        imageSizeWide: '1792x1024',
+        imageSizeTall: '1024x1792'
+      })
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    const persisted = (await invokeRegistered(
+      h as never,
+      'characters:generateSheet',
+      {
+        characterId: 'c1',
+        variant: 'bible',
+        persist: true,
+        artStyle: 'photo_cinematic',
+        promptOverride: 'custom sheet',
+        referenceImagePath: ref1,
+        referenceImagePaths: [ref1, ref2]
+      }
+    )) as { draft: boolean }
+    expect(persisted.draft).toBe(false)
+    expect(generateImage).toHaveBeenCalled()
+
+    await invokeRegistered(h as never, 'characters:generateSheet', {
+      characterId: 'c1',
+      variant: 'bible',
+      persist: false,
+      useIdentityEdit: true,
+      referenceImagePath: ref1
+    })
+    expect(editImage).toHaveBeenCalled()
+  })
+
   it('commitSheet appends draft to gallery', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-commit-'))
     const draft = join(dir, 'draft.png')

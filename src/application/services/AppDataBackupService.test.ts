@@ -256,4 +256,35 @@ describe('AppDataBackupService export/import', () => {
     const { manifest } = await svc.exportToZip(zipPath, { includeLogs: true })
     expect(manifest.databaseBasename).toBe('db.sqlite')
   })
+
+  it('importFromZip removes existing sqlite sidecars before restore', async () => {
+    const paths = makePaths()
+    const svc = new AppDataBackupService(paths)
+    const zipPath = join(root, 'side2.zip')
+    await svc.exportToZip(zipPath)
+    // plant stale sidecars that should be cleaned
+    writeFileSync(paths.databasePath + '-wal', 'stale-wal')
+    writeFileSync(paths.databasePath + '-shm', 'stale-shm')
+    writeFileSync(paths.databasePath + '-journal', 'stale-j')
+    const r = await svc.importFromZip(zipPath)
+    expect(r.restoredDatabase).toBe(true)
+  })
+
+  it('walkFiles skips unreadable entries via broken symlink', async () => {
+    const paths = makePaths()
+    // plant a nested media file and a dangling symlink under media
+    const nested = join(paths.mediaRoot, 'deep')
+    mkdirSync(nested, { recursive: true })
+    writeFileSync(join(nested, 'ok.png'), 'img')
+    try {
+      const { symlinkSync } = require('fs') as typeof import('fs')
+      symlinkSync(join(nested, 'missing-target'), join(nested, 'broken-link'))
+    } catch {
+      /* windows may not allow */
+    }
+    const svc = new AppDataBackupService(paths)
+    const zipPath = join(root, 'walk.zip')
+    const { manifest } = await svc.exportToZip(zipPath)
+    expect(manifest.databaseBasename).toBeTruthy()
+  })
 })

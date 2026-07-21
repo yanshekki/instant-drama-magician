@@ -91,6 +91,13 @@ describe('server entry', () => {
     expect(exitSpy).toHaveBeenCalledWith(0)
   })
 
+  it('accepts IDM_AUTH_DISABLED=true (string true branch)', async () => {
+    vi.stubEnv('IDM_AUTH_DISABLED', 'true')
+    await import('./index')
+    await vi.waitFor(() => expect(start).toHaveBeenCalled())
+    expect(start.mock.calls[0][0]).toMatchObject({ authDisabled: true })
+  })
+
   it('survives migration failure', async () => {
     migrate.mockImplementation(() => {
       throw new Error('mig fail')

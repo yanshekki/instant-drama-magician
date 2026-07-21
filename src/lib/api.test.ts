@@ -86,6 +86,24 @@ describe('getApi', () => {
     expect(getApi().stories).toBe(bare.stories)
   })
 
+  it('ensureWebServer catch returns original api when createHttpAppClient throws', async () => {
+    vi.resetModules()
+    vi.doMock('./httpAppClient', () => ({
+      createHttpAppClient: () => {
+        throw new Error('no http')
+      }
+    }))
+    const bare = { stories: { list: vi.fn() } }
+    vi.stubGlobal('window', { api: bare })
+    const { getApi } = await import('./api')
+    const api = getApi()
+    expect(api.stories).toBe(bare.stories)
+    // no webServer rebuilt — original bare has none
+    expect((api as { webServer?: unknown }).webServer).toBeUndefined()
+    vi.doUnmock('./httpAppClient')
+    vi.resetModules()
+  })
+
   it('falls back to http client without window.api', async () => {
     vi.stubGlobal('window', {
       localStorage: {

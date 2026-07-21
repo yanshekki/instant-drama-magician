@@ -102,27 +102,76 @@ describe('cli bin main routing', () => {
     await run(['--version'])
     await run(['doctor'])
     await run(['invoke', 'stories:list'])
+    await run(['call', 'stories:list'])
     await run(['channels'])
+    await run(['channel', 'list'])
     await run(['config', 'get'])
+    await run(['server', 'status'])
     await run(['tools'])
+    await run(['tool', 'list'])
     await run(['stories', 'list'])
+    await run(['story', 'get', 's1'])
+    await run(['stories', 'seed-demo'])
+    // domain path for stories unknown subcommand
+    await run(['stories', 'custom-action'])
     await run(['settings', 'get'])
+    await run(['settings', 'list-keys'])
     await run(['ai', 'status'])
+    await run(['ai', 'custom'])
     await run(['app', 'info'])
+    await run(['app', 'open'])
+    await run(['app', 'build'])
+    await run(['app', 'other'])
     await run(['characters', 'list'])
     await run(['build', 'dir'])
     await run(['update', 'check'])
     await run(['open'])
+    await run(['launch'])
     await run(['desktop', 'build'])
     await run(['desktop', 'open'])
+    await run(['desktop', 'launch'])
     await run(['video-prep', 'x'])
     await run(['web-server', 'status'])
     await run(['help'])
+    await run(['--help'])
 
     expect(handlers.cmdDoctor).toHaveBeenCalled()
     expect(handlers.cmdInvoke).toHaveBeenCalled()
+    expect(handlers.cmdServer).toHaveBeenCalled()
     expect(handlers.cmdStories).toHaveBeenCalled()
     expect(handlers.cmdDomain).toHaveBeenCalled()
+    expect(handlers.cmdBuild).toHaveBeenCalled()
+    expect(handlers.cmdOpen).toHaveBeenCalled()
     expect(handlers.printHelp).toHaveBeenCalled()
+  })
+
+  it('desktop without subcommand emits usage failure', async () => {
+    const { emitFailure } = await import('./output')
+    await run(['desktop'])
+    expect(emitFailure).toHaveBeenCalled()
+  })
+
+  it('unknown command emits usage failure', async () => {
+    const { emitFailure } = await import('./output')
+    await run(['totally-unknown-cmd'])
+    expect(emitFailure).toHaveBeenCalled()
+  })
+
+  it('version with --json prints json payload', async () => {
+    const { printHuman } = await import('./output')
+    await run(['version', '--json'])
+    expect(printHuman).toHaveBeenCalled()
+  })
+
+  it('IDM_JSON env forces json globals for doctor', async () => {
+    const prev = process.env.IDM_JSON
+    process.env.IDM_JSON = '1'
+    try {
+      await run(['doctor'])
+      expect(handlers.cmdDoctor).toHaveBeenCalled()
+    } finally {
+      if (prev === undefined) delete process.env.IDM_JSON
+      else process.env.IDM_JSON = prev
+    }
   })
 })

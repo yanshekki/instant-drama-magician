@@ -64,4 +64,142 @@ describe('registerScenesAiFill', () => {
     expect(chat).toHaveBeenCalled()
     expect(r.profile.description || r.profile.title).toBeTruthy()
   })
+
+  function storyBundle() {
+    return {
+      id: 's1',
+      title: 'Rain',
+      styleNote: 'noir',
+      storyCharacters: [
+        {
+          character: {
+            name: 'Ming',
+            description: 'courier',
+            costume: 'jacket'
+          }
+        }
+      ],
+      storyProps: [{ prop: { name: 'Bag', description: 'leather' } }],
+      storyScenes: [
+        {
+          sceneId: 'sc1',
+          sceneNumber: 1,
+          scriptOverride: null,
+          scene: {
+            title: 'Alley',
+            description: 'wet alley',
+            script: 'wait',
+            mood: 'tense',
+            timeOfDay: 'night',
+            weather: 'rain'
+          }
+        }
+      ],
+      timeline: [
+        {
+          id: 'e1',
+          order: 0,
+          sceneId: 'sc1',
+          dialogue: '走',
+          character: { name: 'Ming' },
+          scene: { title: 'Alley', description: 'wet' },
+          prop: { name: 'Bag' }
+        }
+      ]
+    }
+  }
+
+  it('suggestFromStory requires storyId and covers all/scene/beat segments', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: SCENE_JSON } }]
+    }))
+    const prisma = {
+      story: {
+        findUnique: vi.fn(async () => storyBundle())
+      }
+    }
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() }
+    })
+    ;(ctx.host as { getPrisma: () => unknown }).getPrisma = () => prisma
+    registerScenesAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    await expect(
+      invokeRegistered(h as never, 'scenes:aiFill', {
+        suggestFromStory: true
+      })
+    ).rejects.toMatchObject({ message: 'errors.storyIdRequired' })
+
+    // all
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      suggestFromStory: true,
+      storyId: 's1',
+      segmentKey: 'all',
+      locale: 'en'
+    })
+    // scene
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      suggestFromStory: true,
+      storyId: 's1',
+      segmentKey: 'scene:sc1',
+      locale: 'zh-HK'
+    })
+    // beat
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      suggestFromStory: true,
+      storyId: 's1',
+      segmentKey: 'beat:e1',
+      locale: 'en'
+    })
+    expect(chat.mock.calls.length).toBeGreaterThanOrEqual(3)
+
+    await expect(
+      invokeRegistered(h as never, 'scenes:aiFill', {
+        suggestFromStory: true,
+        storyId: 's1',
+        segmentKey: 'scene:missing'
+      })
+    ).rejects.toMatchObject({ message: 'errors.sceneNotLinked' })
+
+    await expect(
+      invokeRegistered(h as never, 'scenes:aiFill', {
+        suggestFromStory: true,
+        storyId: 's1',
+        segmentKey: 'beat:missing'
+      })
+    ).rejects.toMatchObject({ message: 'errors.timelineBeatNotFound' })
+
+    await expect(
+      invokeRegistered(h as never, 'scenes:aiFill', {
+        suggestFromStory: true,
+        storyId: 's1',
+        segmentKey: 'weird:x'
+      })
+    ).rejects.toMatchObject({ message: 'errors.unknownSegmentKey' })
+
+    prisma.story.findUnique.mockResolvedValueOnce(null)
+    await expect(
+      invokeRegistered(h as never, 'scenes:aiFill', {
+        suggestFromStory: true,
+        storyId: 'missing'
+      })
+    ).rejects.toMatchObject({ message: 'errors.storyNotFound' })
+  })
+
+  it('refines existing draft without idea', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: SCENE_JSON } }]
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() }
+    })
+    registerScenesAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'scenes:aiFill', {
+      existingDraft: { title: 'Dock', description: 'wet' },
+      locale: 'en'
+    })) as { profile: { title?: string } }
+    expect(r.profile.title).toBeTruthy()
+  })
 })

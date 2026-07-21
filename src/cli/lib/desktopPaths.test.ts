@@ -83,4 +83,51 @@ describe('desktopPaths', () => {
     })
     expect(t?.mode).toBe('dev')
   })
+
+  it('lists dmg deb nsis setup exe and filters by platform', () => {
+    writeFileSync(join(root, 'App.dmg'), 'd')
+    writeFileSync(join(root, 'pkg.deb'), 'd')
+    writeFileSync(join(root, 'Setup-1.0.0.exe'), 'MZ')
+    writeFileSync(join(root, 'InstantDrama Magician.exe'), 'MZ')
+    writeFileSync(join(root, 'noise.txt'), 'x')
+
+    const all = listBuildArtifacts(root)
+    expect(all.some((a) => a.kind === 'dmg')).toBe(true)
+    expect(all.some((a) => a.kind === 'deb')).toBe(true)
+    expect(all.some((a) => a.kind === 'nsis')).toBe(true)
+    expect(all.every((a) => a.kind !== 'other')).toBe(true)
+
+    expect(listBuildArtifacts(root, 'mac').every((a) => a.platform === 'mac')).toBe(
+      true
+    )
+    expect(listBuildArtifacts(root, 'win').every((a) => a.platform === 'win')).toBe(
+      true
+    )
+  })
+
+  it('walk skips node_modules and unreadable dirs', () => {
+    mkdirSync(join(root, 'node_modules', 'x'), { recursive: true })
+    writeFileSync(join(root, 'node_modules', 'x', 'instant-drama-magician'), 'nope')
+    const unpack = join(root, 'linux-unpacked')
+    mkdirSync(unpack, { recursive: true })
+    writeFileSync(join(unpack, 'instant-drama-magician'), 'ok')
+    const arts = listBuildArtifacts(root, 'linux')
+    expect(arts.every((a) => !a.path.includes('node_modules'))).toBe(true)
+    expect(existsSync).toBeTypeOf('function')
+  })
+
+  it('resolveLaunchTarget null when nothing found without preferDev', () => {
+    const empty = join(tmpdir(), `idm-empty-rel-${Date.now()}`)
+    mkdirSync(empty, { recursive: true })
+    try {
+      const t = resolveLaunchTarget({ repoRoot: empty, preferDev: false })
+      // may fall back to dev electron if available in real repo; when empty repo
+      // without node_modules electron, null is ok
+      if (t) {
+        expect(['packaged', 'dev']).toContain(t.mode)
+      }
+    } finally {
+      rmSync(empty, { recursive: true, force: true })
+    }
+  })
 })

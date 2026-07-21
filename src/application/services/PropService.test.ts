@@ -120,6 +120,8 @@ describe('PropService', () => {
       code: 'VALIDATION'
     })
     await svc.update('p1', { description: 'only' })
+    // omit description to hit false branch of description ternary
+    await svc.update('p1', { material: 'only-mat' })
     await svc.update('p1', {
       name: '  Cup  ',
       description: '  d  ',

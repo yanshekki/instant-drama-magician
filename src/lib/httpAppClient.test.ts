@@ -273,4 +273,30 @@ describe('httpAppClient', () => {
     await expect(api.app.importFullBackup()).resolves.toBeNull()
     await expect(api.media.pickRefImage()).resolves.toBeNull()
   })
+
+  it('openPath directory clipboard write failure is ignored', async () => {
+    mockFetchSequence([
+      {
+        status: 200,
+        json: {
+          ok: true,
+          result: { isDirectory: true, path: '/some/dir' }
+        }
+      }
+    ])
+    const clipboard = {
+      writeText: vi.fn().mockRejectedValue(new Error('denied'))
+    }
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: clipboard
+    })
+    const { createHttpAppClient } = await import('./httpAppClient')
+    const api = createHttpAppClient()
+    await expect(api.shell.openPath('/some/dir')).resolves.toMatchObject({
+      isDirectory: true,
+      path: '/some/dir'
+    })
+    expect(clipboard.writeText).toHaveBeenCalledWith('/some/dir')
+  })
 })

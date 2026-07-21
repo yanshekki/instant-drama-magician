@@ -161,6 +161,8 @@ describe('CharacterService', () => {
     ).rejects.toMatchObject({ code: 'VALIDATION' })
     // partial — false branches of optional ternaries
     await svc.update('c1', { description: 'only' } as never)
+    // soulMdPath alone (covers soulMdPath true + description false)
+    await svc.update('c1', { soulMdPath: null } as never)
     await svc.update('c1', {
       name: '  New  ',
       description: '  d  ',

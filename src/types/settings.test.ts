@@ -146,6 +146,49 @@ describe('settings defaults', () => {
     expect(aspectFromImageSize('other')).toBe('16:9')
   })
 
+  it('imageSizeForPropPlate covers square/tall/wide branches via mock', async () => {
+    const { vi } = await import('vitest')
+    vi.resetModules()
+    vi.doMock('../domain/propPlateVariants', () => ({
+      getPropPlateVariant: (id?: string) => {
+        if (id === 'tall') return { sizeClass: 'tall' }
+        if (id === 'square') return { sizeClass: 'square' }
+        return { sizeClass: 'wide' }
+      }
+    }))
+    const mod = await import('./settings')
+    const s = mod.DEFAULT_SETTINGS
+    expect(mod.imageSizeForPropPlate(s, 'tall')).toBe(s.imageSizeTall)
+    expect(mod.imageSizeForPropPlate(s, 'square')).toBe(s.imageSizeSquare)
+    expect(mod.imageSizeForPropPlate(s, 'wide')).toBe(s.imageSizeWide)
+    vi.doUnmock('../domain/propPlateVariants')
+    vi.resetModules()
+  })
+
+  it('legal fields: undefined backfill vs explicit null vs keep value', () => {
+    // DEFAULT_SETTINGS already sets legal* to null; force undefined after spread
+    const withUndef = mergeSettings({
+      legalAcceptedVersion: undefined,
+      legalAcceptedAt: undefined
+    } as Partial<typeof DEFAULT_SETTINGS>)
+    expect(withUndef.legalAcceptedVersion).toBeNull()
+    expect(withUndef.legalAcceptedAt).toBeNull()
+
+    const kept = mergeSettings({
+      legalAcceptedVersion: 'v2',
+      legalAcceptedAt: '2020-01-01'
+    })
+    expect(kept.legalAcceptedVersion).toBe('v2')
+    expect(kept.legalAcceptedAt).toBe('2020-01-01')
+
+    const nulls = mergeSettings({
+      legalAcceptedVersion: null,
+      legalAcceptedAt: null
+    })
+    expect(nulls.legalAcceptedVersion).toBeNull()
+    expect(nulls.legalAcceptedAt).toBeNull()
+  })
+
   it('backfills multi-channel provider and uiLanguage', () => {
     const m = mergeSettings({
       llmProvider: 'openai',

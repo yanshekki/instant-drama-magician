@@ -396,4 +396,49 @@ describe('VideoStep', () => {
       )
     ).toBe(true)
   })
+
+  it('re-throws non-cancelled mapPool errors', async () => {
+    vi.resetModules()
+    vi.doMock('../../infrastructure/ai/video/httpUtils', async () => {
+      const actual = await vi.importActual<
+        typeof import('../../infrastructure/ai/video/httpUtils')
+      >('../../infrastructure/ai/video/httpUtils')
+      return {
+        ...actual,
+        mapPool: async () => {
+          throw new Error('pool exploded')
+        }
+      }
+    })
+    const { VideoStep: VS } = await import('./VideoStep')
+    const step = new VS()
+    const storyWithClips = {
+      ...baseStory,
+      timeline: [
+        {
+          id: 'e1',
+          order: 0,
+          startTime: 0,
+          endTime: 6,
+          characterId: 'c1',
+          dialogue: 'hi',
+          mediaStatus: 'EMPTY'
+        }
+      ]
+    }
+    await expect(
+      step.run({
+        story: storyWithClips,
+        ai: {
+          chat: vi.fn(),
+          generateVideo: vi.fn()
+        },
+        media: { clipOutputPath: () => join(dir, 'c.mp4') },
+        persistence: { updateEntryMedia: vi.fn() },
+        artifacts: {}
+      } as never)
+    ).rejects.toThrow(/pool exploded/)
+    vi.doUnmock('../../infrastructure/ai/video/httpUtils')
+    vi.resetModules()
+  })
 })

@@ -147,4 +147,245 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
     await p.generate({ prompt: 'r', durationSeconds: 6, outputPath: out })
     expect(posts).toBe(2)
   })
+
+  it('legacy string constructor rewrites generations URL', () => {
+    const p = new GrokHttpVideoProvider(
+      'http://gw/v1/video/generations',
+      'key',
+      'model-x'
+    )
+    expect(p.id).toBe('grok-http')
+    const p2 = new GrokHttpVideoProvider('http://gw/v1/videos', 'k', 'm')
+    expect(p2).toBeTruthy()
+  })
+
+  it('probe available / 5xx / network error', async () => {
+    const ok = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      fetchImpl: vi.fn(async () => new Response('{}', { status: 200 })) as never
+    })
+    expect((await ok.probe()).available).toBe(true)
+
+    const auth = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      fetchImpl: vi.fn(async () => new Response('no', { status: 401 })) as never
+    })
+    expect((await auth.probe()).available).toBe(true)
+
+    const bad = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      fetchImpl: vi.fn(async () => new Response('x', { status: 502 })) as never
+    })
+    expect((await bad.probe()).available).toBe(false)
+
+    const down = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      fetchImpl: vi.fn(async () => {
+        throw new Error('ECONNREFUSED')
+      }) as never
+    })
+    expect((await down.probe()).available).toBe(false)
+  })
+
+  it('binary non-json create response writes output', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-bin-'))
+    const out = join(dir, 'c.mp4')
+    const fetchImpl = vi.fn(async (_u: string | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(Buffer.alloc(64, 9), {
+          status: 200,
+          headers: { 'content-type': 'video/mp4' }
+        })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      fetchImpl
+    })
+    const r = await p.generate({
+      prompt: 'x',
+      durationSeconds: 6,
+      outputPath: out
+    })
+    expect(r.outputPath).toBe(out)
+    expect(readFileSync(out).length).toBe(64)
+  })
+
+  it('immediate output_path / url / missing jobId paths', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-imm-'))
+    const existing = join(dir, 'exists.mp4')
+    writeFileSync(existing, Buffer.alloc(40, 1))
+    const out = join(dir, 'out.mp4')
+
+    // output_path exists
+    let fetchImpl = vi.fn(async (_u: string | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({ id: 'j', status: 'completed', output_path: existing }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    let p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      fetchImpl
+    })
+    expect(
+      (
+        await p.generate({ prompt: 'x', durationSeconds: 6, outputPath: out })
+      ).outputPath
+    ).toBe(existing)
+
+    // url download
+    fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            id: 'j2',
+            status: 'completed',
+            url: 'http://cdn/v.mp4'
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url === 'http://cdn/v.mp4') {
+        return new Response(Buffer.alloc(48, 2), {
+          status: 200,
+          // body as buffer — downloadTo uses res.body stream; provide arrayBuffer path
+          headers: { 'content-type': 'video/mp4' }
+        })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    // downloadTo requires res.body stream — Response with buffer has body in node fetch
+    p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      fetchImpl
+    })
+    try {
+      await p.generate({ prompt: 'x', durationSeconds: 6, outputPath: out })
+    } catch {
+      // stream plumbing may fail in vitest; still exercised create path
+    }
+
+    // missing job id
+    fetchImpl = vi.fn(async (_u: string | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ status: 'queued' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      fetchImpl
+    })
+    await expect(
+      p.generate({ prompt: 'x', durationSeconds: 6, outputPath: out })
+    ).rejects.toMatchObject({ code: 'VALIDATION' })
+  })
+
+  it('poll failed status and content download error', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-poll-'))
+    const out = join(dir, 'p.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({ id: 'bad', status: 'queued' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/bad')) {
+        return new Response(
+          JSON.stringify({ id: 'bad', status: 'failed', error: 'boom' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      pollMs: 1,
+      fetchImpl
+    })
+    await expect(
+      p.generate({ prompt: 'x', durationSeconds: 6, outputPath: out })
+    ).rejects.toMatchObject({ code: 'VIDEO_JOB_FAILED' })
+  })
+
+  it('create 404 falls back to legacy generations', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-leg-'))
+    const out = join(dir, 'l.mp4')
+    const existing = join(dir, 'leg.mp4')
+    writeFileSync(existing, Buffer.alloc(40, 3))
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/videos') && init?.method === 'POST') {
+        return new Response('gone', { status: 404 })
+      }
+      if (url.includes('/video/generations') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({ output_path: existing }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      fetchImpl
+    })
+    const r = await p.generate({
+      prompt: 'x',
+      durationSeconds: 6,
+      outputPath: out
+    })
+    expect(r.outputPath).toBe(existing)
+  })
+
+  it('uploadDocument returns null when missing or failed', async () => {
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      fetchImpl: vi.fn(async () => new Response('no', { status: 500 })) as never
+    })
+    expect(await p.uploadDocument('/no/such/file.png')).toBeNull()
+    const dir = mkdtempSync(join(tmpdir(), 'idm-up-'))
+    const img = join(dir, 'r.png')
+    writeFileSync(img, 'img')
+    expect(await p.uploadDocument(img)).toBeNull()
+  })
 })

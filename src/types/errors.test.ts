@@ -76,6 +76,11 @@ describe('video error mapping', () => {
     expect(e.code).toBe('VIDEO_UNAUTHORIZED')
     expect(e.message).toBe('errors.videoUnauthorized')
 
+    // Body has no heuristic match — exercise raw status===401 branch
+    const e401 = mapHttpStatusToVideoError(401, 'token rejected by peer')
+    expect(e401.code).toBe('VIDEO_UNAUTHORIZED')
+    expect(e401.details).toContain('token rejected')
+
     expect(mapHttpStatusToVideoError(403, 'nope').code).toBe('VIDEO_KEY_MODE')
     expect(
       mapHttpStatusToVideoError(403, 'requires agent-mode').code
@@ -86,6 +91,13 @@ describe('video error mapping', () => {
     expect(
       mapHttpStatusToVideoError(500, 'Video API is disabled').code
     ).toBe('VIDEO_FEATURE_OFF')
+
+    // No body/status heuristics and prefixed message does not match either
+    // (avoid "video http" / gateway / timeout tokens).
+    const generic = mapHttpStatusToVideoError(418, 'teapot body only')
+    expect(generic.code).toBe('AI_FAILED')
+    expect(generic.message).toBe('errors.videoHttpFailed')
+    expect(String(generic.details)).toMatch(/418/)
   })
 })
 

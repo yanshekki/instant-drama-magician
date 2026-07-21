@@ -119,6 +119,31 @@ describe('webTransfer', () => {
     )
     await expect(uploadBrowserFile(file)).rejects.toThrow('up fail')
 
+    // Prefer nested error.message when present
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 413,
+        text: async () =>
+          JSON.stringify({ error: { message: 'payload too large' } })
+      })
+    )
+    await expect(uploadBrowserFile(file)).rejects.toThrow('payload too large')
+
+    // Fall back to generic HTTP status when body has no message
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        text: async () => JSON.stringify({ code: 'x' })
+      })
+    )
+    await expect(uploadBrowserFile(file)).rejects.toThrow(
+      'Upload failed HTTP 502'
+    )
+
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValueOnce({

@@ -1467,4 +1467,163 @@ describe('GenerationService', () => {
       ])
     )
   })
+
+  it('generateClip multi-action prompt block and multi-cast with empty chars', async () => {
+    const prisma = createMockPrisma()
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({
+        characters: [],
+        scenes: [
+          {
+            id: 'sc1',
+            sceneNumber: 1,
+            title: 'Yard',
+            description: 'open',
+            script: null,
+            status: 'PENDING'
+          },
+          {
+            id: 'sc2',
+            sceneNumber: 2,
+            title: 'Hall',
+            description: 'long',
+            script: null,
+            status: 'PENDING'
+          }
+        ],
+        props: [
+          { id: 'p1', name: 'Box', description: 'wood' },
+          { id: 'p2', name: 'Rope', description: 'thick' }
+        ],
+        actions: [
+          {
+            id: 'a1',
+            name: 'Lift',
+            description: 'pick up',
+            motionNotes: 'slow',
+            intention: null,
+            cameraNotes: null,
+            refImagePath: null
+          },
+          {
+            id: 'a2',
+            name: 'Drop',
+            description: 'release',
+            motionNotes: 'fast',
+            intention: null,
+            cameraNotes: null,
+            refImagePath: null
+          }
+        ],
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 6,
+            characterId: null,
+            sceneId: 'sc1',
+            propId: 'p1',
+            actionId: 'a1',
+            characterIds: '[]',
+            sceneIds: JSON.stringify(['sc1', 'sc2']),
+            propIds: JSON.stringify(['p1', 'p2']),
+            actionIds: JSON.stringify(['a1', 'a2']),
+            dialogue: null,
+            beatContentJson: null,
+            mediaPath: null,
+            mediaStatus: 'EMPTY',
+            mediaError: null
+          }
+        ]
+      })
+    )
+    ;(prisma.timelineEntry.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {}
+    )
+    const long =
+      'POLISHED MULTI ACTION CLIP PROMPT WITH ENOUGH LENGTH TO BE ACCEPTED HERE'
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => {
+      writeFileSync(req.outputPath, 'vid')
+      return { outputPath: req.outputPath, jobId: 'j-multi' }
+    })
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const { svc } = makeSvc({
+      prisma,
+      ai: { generateVideo, chat }
+    })
+    const r = await svc.generateClip('s1', 'e1')
+    expect(r.jobId).toBe('j-multi')
+    expect(generateVideo).toHaveBeenCalled()
+  })
+
+  it('deleteExport matches fileName via basename when exportPath uses basename', async () => {
+    const prisma = createMockPrisma()
+    const fileName = `${safeAsciiExportName('Rain Demo', 's1')}_final_9.mp4`
+    const abs = join(dir, 'exports-public', fileName)
+    mkdirSync(join(dir, 'exports-public'), { recursive: true })
+    writeFileSync(abs, 'v')
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({
+        exportPath: abs,
+        timeline: []
+      })
+    )
+    ;(prisma.story.update as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    const { svc } = makeSvc({ prisma })
+    // seed history so delete finds by fileName
+    const store = (svc as unknown as { store: { recordExportHistory: Function } })
+      .store
+    store.recordExportHistory('s1', {
+      kind: 'final',
+      path: abs,
+      fileName
+    })
+    const del = await svc.deleteExport('s1', fileName)
+    expect(del.ok).toBe(true)
+  })
+
+  it('publishExport falls back to workPath when public copy fails', async () => {
+    // resolvePublicExportDir is pure path; exercise exportFinal path that
+    // calls publishExportToVideos via real exportFinal
+    const prisma = createMockPrisma()
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 3,
+            characterId: null,
+            sceneId: null,
+            propId: null,
+            actionId: null,
+            dialogue: null,
+            mediaPath: join(dir, 'clip.mp4'),
+            mediaStatus: 'READY'
+          }
+        ]
+      })
+    )
+    writeFileSync(join(dir, 'clip.mp4'), 'c')
+    ;(prisma.story.update as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    const exportFinal = vi.fn(async (opts: { fileName: string; outDir: string }) => {
+      const p = join(opts.outDir, opts.fileName)
+      mkdirSync(opts.outDir, { recursive: true })
+      writeFileSync(p, 'final')
+      return p
+    })
+    const { svc } = makeSvc({
+      prisma,
+      ffmpeg: {
+        ensureAvailable: vi.fn().mockResolvedValue(undefined),
+        exportFinal
+      }
+    })
+    const r = await svc.exportFinal('s1')
+    expect(r.outputPath).toBeTruthy()
+  })
 })

@@ -39,5 +39,86 @@ describe('createRemoteClient', () => {
     expect(isNetworkError(new AppError('IO', 'Cannot reach IDM server'))).toBe(
       true
     )
+    expect(isAuthError(new Error('Unauthorized'))).toBe(true)
+    expect(isNetworkError(new Error('fetch failed ECONNREFUSED'))).toBe(true)
+    expect(isAuthError(new Error('other'))).toBe(false)
+    expect(isNetworkError(new Error('other'))).toBe(false)
+  })
+
+  it('network error on invoke fetch failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+    )
+    const c = createRemoteClient({ url: 'http://down/' })
+    await expect(c.invoke('stories:list')).rejects.toMatchObject({
+      code: 'IO'
+    })
+  })
+
+  it('invalid JSON body throws IO', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        status: 200,
+        text: async () => 'not-json{'
+      })
+    )
+    const c = createRemoteClient({ url: 'http://x', token: null })
+    await expect(c.invoke('x')).rejects.toMatchObject({ code: 'IO' })
+  })
+
+  it('ok:false with error payload and without token header', async () => {
+    mockFetchSequence([
+      {
+        status: 400,
+        json: {
+          ok: false,
+          error: { code: 'VALIDATION', message: 'bad', details: 'd' }
+        }
+      }
+    ])
+    const c = createRemoteClient({ url: 'http://x' })
+    await expect(c.invoke('stories:create', [{}])).rejects.toMatchObject({
+      code: 'VALIDATION',
+      message: 'bad'
+    })
+  })
+
+  it('ok:false falls back to message / HTTP status', async () => {
+    mockFetchSequence([
+      { status: 500, json: { ok: false, message: 'server down' } }
+    ])
+    const c = createRemoteClient({ url: 'http://x', token: 't' })
+    await expect(c.invoke('x')).rejects.toMatchObject({ message: 'server down' })
+  })
+
+  it('channels network failure and 401', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new Error('offline'))
+    )
+    const c = createRemoteClient({ url: 'http://x', token: 't' })
+    await expect(c.channels()).rejects.toMatchObject({ code: 'IO' })
+
+    mockFetchSequence([{ status: 401, json: {} }])
+    await expect(c.channels()).rejects.toMatchObject({
+      code: 'AI_UNAUTHORIZED'
+    })
+  })
+
+  it('channels empty body yields []', async () => {
+    mockFetchSequence([{ status: 200, json: {} }])
+    const c = createRemoteClient({ url: 'http://x', token: 't' })
+    expect(await c.channels()).toEqual([])
+  })
+
+  it('describe reports remote url and auth', () => {
+    const c = createRemoteClient({ url: 'http://x/', token: 't' })
+    expect(c.describe?.()).toMatchObject({
+      mode: 'remote',
+      url: 'http://x',
+      auth: true
+    })
   })
 })
