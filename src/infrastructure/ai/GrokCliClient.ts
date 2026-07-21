@@ -632,7 +632,7 @@ export class GrokCliClient implements AIProvider {
   }
 }
 
-function mimeFromPath(filePath: string): string {
+export function mimeFromPath(filePath: string): string {
   const lower = filePath.toLowerCase()
   if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
   if (lower.endsWith('.webp')) return 'image/webp'

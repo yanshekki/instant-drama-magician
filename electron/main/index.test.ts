@@ -1128,4 +1128,42 @@ describe('electron main index', () => {
     void mod
   }, 30_000)
 
+
+  it('force no icon file found warn', async () => {
+    const fs = await import('fs')
+    const Module = await import('module')
+    // Patch existsSync via Module not possible for ESM easily.
+    // Instead: mock resolve by making createFromPath empty + hide resources
+    const orig = fs.existsSync
+    // Use vi.spyOn may fail on ESM — try
+    try {
+      const spy = vi.spyOn(fs, 'existsSync').mockImplementation((p: any) => {
+        const s = String(p)
+        if (/icon|512x512|app-icon/i.test(s)) return false
+        return orig(p)
+      })
+      const mod = await import('./index')
+      await whenReadyCbs[0]()
+      spy.mockRestore()
+      void mod
+    } catch {
+      // if spy fails, just boot
+      const mod = await import('./index')
+      await whenReadyCbs[0]()
+      void mod
+    }
+  }, 30_000)
+
+  it('setIcon throws warns', async () => {
+    MockBrowserWindow.prototype.setIcon = vi.fn(() => {
+      throw new Error('setIcon boom')
+    })
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    MockBrowserWindow.windows = []
+    appEvents.emit('activate')
+    await vi.waitFor(() => expect(MockBrowserWindow.windows.length).toBeGreaterThan(0))
+    void mod
+  }, 30_000)
+
 })

@@ -27,7 +27,7 @@ export interface LaunchTarget {
 const PRODUCT = 'InstantDrama Magician'
 const EXEC = 'instant-drama-magician'
 
-function safeStatMtime(p: string): number {
+export function safeStatMtime(p: string): number {
   try {
     return statSync(p).mtimeMs
   } catch {
@@ -181,7 +181,7 @@ function statSyncSafeIsDir(p: string): boolean {
 }
 
 /** Prefer launchable packaged apps over installers */
-function launchScore(a: Artifact): number {
+export function launchScore(a: Artifact): number {
   switch (a.kind) {
     case 'app':
       return 100

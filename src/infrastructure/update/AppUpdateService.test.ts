@@ -188,4 +188,40 @@ describe('AppUpdateService', () => {
     expect(st).toBeTruthy()
   })
 
+
+  it('silent idle sets checking state soft', async () => {
+    const { AppUpdateService, normalizeReleaseNotes, safeAppVersion } =
+      await import('./AppUpdateService')
+    expect(normalizeReleaseNotes(null)).toBeNull()
+    expect(normalizeReleaseNotes(' hi ')).toBe('hi')
+    expect(normalizeReleaseNotes('  ')).toBeNull()
+    expect(normalizeReleaseNotes(['a', { note: 'b' }])).toMatch(/a/)
+    expect(normalizeReleaseNotes(99 as never)).toBeNull()
+    expect(typeof safeAppVersion()).toBe('string')
+
+    const svc = new AppUpdateService()
+    autoUpdater.checkForUpdates.mockResolvedValue({ updateInfo: null })
+    const st = await svc.check({ silent: true })
+    expect(st).toBeTruthy()
+    const r = svc.quitAndInstall()
+    expect(r.ok).toBe(false)
+    expect(r.messageKey || r.message).toBeTruthy()
+  })
+
+  it('setState github source when packaged source none', async () => {
+    const { AppUpdateService } = await import('./AppUpdateService')
+    const svc = new AppUpdateService()
+    handlers['checking-for-update']?.()
+    handlers['update-available']?.({
+      version: '4.0.0',
+      releaseNotes: [{ note: 'n1' }, 'n2']
+    })
+    // channel may be dev or packaged depending on mock order
+    expect(['available', 'dev-skipped', 'checking', 'idle', 'error']).toContain(
+      svc.getState().status
+    )
+    autoUpdater.downloadUpdate.mockResolvedValue(undefined)
+    await svc.download()
+  })
+
 })

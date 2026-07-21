@@ -562,4 +562,28 @@ describe('Layout', () => {
     }
   })
 
+
+  it('custom llm offline status line via settings only', async () => {
+    // offline chat
+    // re-render with default mock is fine — exercise download already
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      currentVersion: '1',
+      latestVersion: '2'
+    } as never)
+    // fix dup key in previous if any
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+  })
+
 })

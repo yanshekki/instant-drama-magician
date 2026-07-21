@@ -323,7 +323,7 @@ export class AppUpdateService {
   }
 }
 
-function safeAppVersion(): string {
+export function safeAppVersion(): string {
   try {
     return app.getVersion()
   } catch {
@@ -331,7 +331,7 @@ function safeAppVersion(): string {
   }
 }
 
-function normalizeReleaseNotes(
+export function normalizeReleaseNotes(
   notes: UpdateInfo['releaseNotes']
 ): string | null {
   if (notes == null) return null
