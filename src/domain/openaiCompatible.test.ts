@@ -157,5 +157,61 @@ describe('openaiCompatible presets', () => {
     expect(s.model).toBe('my-custom-model')
     expect(s.baseUrl).toMatch(/deepseek/)
   })
+
+  it('modelLooksForeign resets foreign models for kimi/openai/ollama/xai', () => {
+    expect(
+      applyLlmPreset(
+        {
+          llmProvider: 'custom',
+          baseUrl: 'x',
+          videoPath: 'x',
+          model: 'gpt-4o'
+        },
+        'kimi'
+      ).model
+    ).not.toBe('gpt-4o')
+    expect(
+      applyLlmPreset(
+        {
+          llmProvider: 'custom',
+          baseUrl: 'x',
+          videoPath: 'x',
+          model: 'grok-4.5'
+        },
+        'openai'
+      ).model
+    ).toBe('gpt-4o-mini')
+    expect(
+      applyLlmPreset(
+        {
+          llmProvider: 'custom',
+          baseUrl: 'x',
+          videoPath: 'x',
+          model: 'gpt-4o'
+        },
+        'ollama'
+      ).model
+    ).not.toBe('gpt-4o')
+    expect(
+      applyLlmPreset(
+        {
+          llmProvider: 'custom',
+          baseUrl: 'x',
+          videoPath: 'x',
+          model: 'gpt-4o'
+        },
+        'xai'
+      ).model
+    ).not.toBe('gpt-4o')
+  })
+
+  it('providerCaps fallback for unknown preset id cast', () => {
+    expect(providerCaps('not-real' as never)).toEqual({
+      chat: true,
+      image: false,
+      video: false
+    })
+    expect(providerDocsUrl('custom')).toBeTruthy()
+  })
 })
 

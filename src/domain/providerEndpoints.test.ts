@@ -277,4 +277,91 @@ describe('seedream / seedance and same-as-llm branches', () => {
     )
     expect(ep.videoPath).toContain('custom')
   })
+
+  it('seedream inherits chat model when model contains seedream', () => {
+    const ep = resolveImageEndpoint(
+      s({
+        imageProvider: 'seedream',
+        model: 'doubao-seedream-custom',
+        imageModel: '',
+        imageApiKey: '',
+        apiKey: 'k'
+      })
+    )
+    expect(ep.model).toMatch(/seedream/i)
+    expect(ep.apiKey).toBe('k')
+  })
+
+  it('image provider uses imageApiKey when preset matches llm', () => {
+    const ep = resolveImageEndpoint(
+      s({
+        llmProvider: 'openai',
+        apiKey: 'chat-k',
+        imageProvider: 'openai',
+        imageBaseUrl: '',
+        imageApiKey: '',
+        imageModel: 'gpt-image'
+      })
+    )
+    expect(ep.apiKey).toBe('chat-k')
+    expect(ep.model).toBe('gpt-image')
+  })
+
+  it('video same-as-llm non-gateway modes and seedance model inherit', () => {
+    expect(
+      resolveVideoEndpoint(
+        s({
+          llmProvider: 'openai',
+          baseUrl: 'https://api.openai.com/v1',
+          videoProvider: 'same-as-llm',
+          videoMode: 'auto'
+        })
+      ).mode
+    ).toBe('auto')
+    expect(
+      resolveVideoEndpoint(
+        s({
+          llmProvider: 'openai',
+          baseUrl: 'https://api.openai.com/v1',
+          videoProvider: 'same-as-llm',
+          videoMode: 'stub'
+        })
+      ).mode
+    ).toBe('stub')
+    expect(
+      resolveVideoEndpoint(
+        s({
+          llmProvider: 'openai',
+          baseUrl: 'https://api.openai.com/v1',
+          videoProvider: 'same-as-llm',
+          videoMode: undefined as never
+        })
+      ).mode
+    ).toBe('http')
+
+    const seed = resolveVideoEndpoint(
+      s({
+        videoProvider: 'seedance',
+        model: 'doubao-seedance-x',
+        videoModel: '',
+        videoApiKey: '',
+        apiKey: 'ark'
+      })
+    )
+    expect(seed.model).toMatch(/seedance/i)
+  })
+
+  it('grok-gateway video path override and mode http', () => {
+    const ep = resolveVideoEndpoint(
+      s({
+        videoProvider: 'grok-gateway',
+        videoBaseUrl: GROK_GATEWAY_BASE_URL,
+        videoPath: `${GROK_GATEWAY_BASE_URL}/videos/extra`,
+        videoMode: 'http',
+        videoApiKey: 'gk'
+      })
+    )
+    expect(ep.mode).toBe('http')
+    expect(ep.videoPath).toContain('videos')
+  })
 })

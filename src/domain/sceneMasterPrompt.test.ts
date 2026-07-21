@@ -129,4 +129,88 @@ describe('sceneMasterPrompt', () => {
     expect(s.timeOfDay).toBe('dusk')
     expect(s.hardRules).toMatch(/logo/i)
   })
+
+  it('user prompt with character/prop/prior snippets', () => {
+    const u = buildSceneMasterUserPrompt({
+      idea: 'more wet',
+      locale: 'en',
+      existingDraft: { title: 'Pier', description: 'docks' },
+      characterSnippets: ['Ming: courier'],
+      propSnippets: ['Umbrella: red'],
+      priorSceneSnippets: ['#1 Alley'],
+      storyTitle: 'Rain',
+      styleNote: 'neon'
+    })
+    expect(u).toMatch(/IMPROVE|Characters|Props|Prior|Ming|Umbrella|Alley/i)
+  })
+
+  it('extract synthesizes visualTags and title-only description', () => {
+    const s = extractSceneProfileJson(
+      JSON.stringify({
+        title: 'Golden Harbor Warehouse',
+        mood: 'lonely',
+        lighting: 'sodium vapor'
+      })
+    )
+    expect(s.description).toBe('Golden Harbor Warehouse')
+    expect(s.visualTags).toBeTruthy()
+    expect(() => extractSceneProfileJson('{"mood":"x"}')).toThrow()
+  })
+
+  it('suggest from story en with style and existing titles', () => {
+    const en = buildSceneSuggestFromStoryUserPrompt({
+      locale: 'en',
+      storyTitle: 'Rain',
+      styleNote: 'neon nights',
+      sceneNumber: 3,
+      existingSceneTitles: ['Alley'],
+      characterSnippets: ['Ming'],
+      propSnippets: [],
+      priorSceneSnippets: ['beat 1'],
+      segmentLabel: 'reunion'
+    })
+    expect(en).toMatch(/Rain|neon|Alley|reunion|LOCATION/i)
+  })
+
+  it('intro video en uses full dossier and defaults without title', () => {
+    const en = buildSceneIntroVideoPrompt(
+      {
+        description: 'wet docks',
+        locationType: 'exterior',
+        timeOfDay: 'night',
+        weather: 'rain',
+        mood: 'tense',
+        lighting: 'neon',
+        colorPalette: 'teal/orange',
+        setDressing: 'crates',
+        soundscape: 'harbor horns',
+        cameraNotes: 'slow pan',
+        visualTags: 'industrial',
+        artStyle: 'photo_cinematic',
+        script: 'A waits under light',
+        hardRules: 'NO logo'
+      },
+      'en'
+    )
+    expect(en).toMatch(/SPACE LOCK|wet docks|neon|NO logo/i)
+
+    const bare = buildSceneIntroVideoPrompt({ description: '  ' }, 'en')
+    expect(bare).toMatch(/Location|IMAGE-TO-VIDEO/i)
+
+    const zhFull = buildSceneIntroVideoPrompt(
+      {
+        title: '碼頭',
+        description: '鏽鐵',
+        locationType: 'exterior',
+        colorPalette: '冷色',
+        setDressing: '木箱',
+        soundscape: '海浪',
+        script: '等待',
+        artStyle: 'anime_modern',
+        visualTags: 'wet'
+      },
+      'zh-HK'
+    )
+    expect(zhFull).toMatch(/碼頭|鏽鐵|空間鎖定/)
+  })
 })

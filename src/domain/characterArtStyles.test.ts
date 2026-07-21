@@ -23,6 +23,13 @@ describe('characterArtStyles', () => {
     expect(q).not.toMatch(/skin pores/)
   })
 
+  it('qualityBlockForFamily covers all families', () => {
+    expect(qualityBlockForFamily('photo')).toMatch(/photoreal|studio/i)
+    expect(qualityBlockForFamily('cgi')).toMatch(/3D|PBR|CG/i)
+    expect(qualityBlockForFamily('illust')).toMatch(/illustration|silhouette/i)
+    expect(qualityBlockForFamily('illust' as never)).toBeTruthy()
+  })
+
   it('front-loads mandatory medium and repeats style id', () => {
     const photo = buildCharacterSheetImagePrompt(
       { name: 'Miko', appearance: 'fox spirit' },

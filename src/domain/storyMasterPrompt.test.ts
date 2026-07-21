@@ -233,4 +233,74 @@ describe('storyMasterPrompt', () => {
     expect(r.characterId).toBeNull()
     expect(r.propId).toBeNull()
   })
+
+  it('beats user prompt empty lists and style/idea optional', () => {
+    const en = buildStoryBeatsUserPrompt({
+      title: 'T',
+      styleNote: '  neon  ',
+      idea: '  conflict  ',
+      characters: [{ name: 'A', description: 'd'.repeat(200) }],
+      scenes: [{ title: 'Roof', description: 'city' }],
+      props: [{ name: 'Key' }],
+      locale: 'en'
+    })
+    expect(en).toMatch(/neon|conflict|Style:|User direction|Cast|Roof/i)
+
+    const zhThin = buildStoryBeatsUserPrompt({
+      title: '薄',
+      characters: [],
+      scenes: [],
+      props: [],
+      locale: 'zh-HK'
+    })
+    expect(zhThin).toMatch(/無角色|無場景|無/)
+  })
+
+  it('extractStoryBeatsJson legacy script field and characterNames from units', () => {
+    const beats = extractStoryBeatsJson(
+      JSON.stringify([
+        {
+          characterName: 'Ming',
+          characterNames: ['Yu'],
+          sceneHint: 'rooftop rain',
+          propName: 'umbrella',
+          script: 'Ming runs through rain and calls Yu'
+        }
+      ]),
+      'en'
+    )
+    expect(beats[0].characterNames).toContain('Ming')
+    expect(beats[0].content.units.length).toBeGreaterThan(0)
+
+    const shortSpeech = extractStoryBeatsJson(
+      '[{"characterName":"A","dialogue":"Go now!"}]'
+    )
+    expect(shortSpeech[0].content.units[0]?.type).toBe('dialogue')
+  })
+
+  it('resolveBeatIds partial prop match and no scenes', () => {
+    const r = resolveBeatIds(
+      {
+        characterName: 'Xiao',
+        characterNames: [],
+        sceneHint: '',
+        propName: 'silv',
+        dialogue: 'hi',
+        content: {
+          version: 1,
+          units: [{ type: 'dialogue', who: 'Xiao', line: 'hi' }]
+        },
+        scriptText: 'hi',
+        beatContentJson: '{}'
+      },
+      {
+        characters: [{ id: 'c1', name: 'Xiao Mei' }],
+        scenes: [],
+        props: [{ id: 'p1', name: 'Silver key' }]
+      }
+    )
+    expect(r.characterId).toBe('c1')
+    expect(r.propId).toBe('p1')
+    expect(r.sceneId).toBeNull()
+  })
 })

@@ -262,4 +262,108 @@ describe('other polish prompts en without ref', () => {
       })
     ).toMatch(/雨夜|走|CLIP|HARD|鐵則/i)
   })
+
+  it('intro polish full dossier without spokenLanguages', () => {
+    const u = buildIntroVideoPolishUserPrompt({
+      locale: 'en',
+      seconds: 8,
+      hasRefImage: false,
+      fallbackPrompt: 'T',
+      name: 'Ming',
+      ageRange: '20s',
+      gender: 'm',
+      description: 'courier',
+      costume: 'jacket',
+      personality: 'stubborn',
+      voiceDesc: 'low',
+      mannerisms: 'helmet',
+      relationships: 'Yu',
+      visualTags: 'urban',
+      artStyle: 'photo_cinematic',
+      seedPrompt: 'seed',
+      soulExcerpt: '## Id\nCourier'
+    })
+    expect(u).toMatch(/Ming|courier|soul|match character bible/i)
+  })
+
+  it('scene polish title fallback and hasRefImage true en', () => {
+    const u = buildSceneIntroVideoPolishUserPrompt({
+      locale: 'en',
+      seconds: 10,
+      hasRefImage: true,
+      fallbackPrompt: 'S',
+      description: 'only description place name here',
+      script: 'A waits',
+      locationType: 'exterior',
+      timeOfDay: 'dusk',
+      weather: 'fog',
+      colorPalette: 'teal',
+      setDressing: 'crates',
+      soundscape: 'waves',
+      cameraNotes: 'pan',
+      visualTags: 'wet',
+      artStyle: 'anime_modern',
+      seedPrompt: 'seed'
+    })
+    expect(u).toMatch(/only description|lock SPACE|dusk|fog/i)
+  })
+
+  it('prop/costume/clip full optional blocks', () => {
+    expect(
+      buildPropIntroVideoPolishUserPrompt({
+        locale: 'zh-HK',
+        seconds: 8,
+        hasRefImage: true,
+        fallbackPrompt: 'P',
+        name: '傘',
+        description: '紅',
+        material: 'nylon',
+        sizeNotes: 'hand',
+        condition: 'worn',
+        visualTags: 'wet',
+        artStyle: 'photo_cinematic',
+        seedPrompt: 's'
+      })
+    ).toMatch(/傘|物件|nylon/)
+
+    expect(
+      buildCostumeIntroVideoPolishUserPrompt({
+        locale: 'en',
+        seconds: 8,
+        hasRefImage: true,
+        fallbackPrompt: 'C',
+        name: 'Coat',
+        description: 'leather',
+        artStyle: 'anime_modern'
+      })
+    ).toMatch(/Coat|IDENTITY|wardrobe/i)
+
+    const clip = buildClipVideoPolishUserPrompt({
+      locale: 'en',
+      seconds: 6,
+      hasRefImage: true,
+      fallbackPrompt: 'CLIP',
+      storyTitle: 'Rain',
+      styleNote: 'neon bible note',
+      characterBlocks: ['Ming: courier'],
+      sceneBlock: 'Alley',
+      propBlock: 'Umbrella',
+      actionBlock: 'Draw sword',
+      beatOrDialogue: 'Hello',
+      previousContext: 'Prev beat',
+      multiCastNote: '2 cast',
+      revisionPrompt: 'darker',
+      hardRules: 'NO logo'
+    })
+    expect(clip).toMatch(
+      /Rain|neon|Ming|Alley|Umbrella|Draw|Hello|Prev|darker|NO logo/i
+    )
+  })
+
+  it('extractPolishedVideoPrompt strips quotes', () => {
+    expect(extractPolishedVideoPrompt('"quoted prompt here"')).toBe(
+      'quoted prompt here'
+    )
+    expect(extractPolishedVideoPrompt("'single'")).toBe('single')
+  })
 })

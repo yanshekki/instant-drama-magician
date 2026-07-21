@@ -139,4 +139,41 @@ describe('actionMasterPrompt', () => {
     )
     expect(edit).toMatch(/EDIT|Slash|anime|NO logo/i)
   })
+
+  it('user prompt en with story/style and empty cast plate path', () => {
+    const u = buildActionMasterUserPrompt({
+      locale: 'en',
+      idea: 'kick door',
+      storyTitle: 'Rain',
+      styleNote: 'neon',
+      existingDraft: { name: 'Kick' }
+    })
+    expect(u).toMatch(/Story context|Style note|Existing draft|kick door/i)
+
+    const emptyCast = buildActionPlateImagePrompt(
+      { name: 'X' },
+      'grid-2x3',
+      null,
+      []
+    )
+    expect(emptyCast).toMatch(/No cast stills|SIX|2x3/i)
+  })
+
+  it('extractActionProfileJson synthesizes tags and falls back on garbage', () => {
+    const a = extractActionProfileJson(
+      JSON.stringify({
+        name: 'Draw Sword Combat Spin',
+        description: 'hero draws steel in rain',
+        motionNotes: 'hip to high',
+        intention: 'threat'
+      })
+    )
+    expect(a.visualTags).toBeTruthy()
+    expect(a.name).toMatch(/Draw/)
+
+    const fb = extractActionProfileJson('totally not json at all just prose')
+    expect(fb.name).toBe('Untitled action')
+    expect(fb.description).toMatch(/prose|totally/)
+    expect(fb.hardRules).toBeTruthy()
+  })
 })
