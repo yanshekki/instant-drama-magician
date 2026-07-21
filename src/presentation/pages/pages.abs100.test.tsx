@@ -74,6 +74,7 @@ import {
   propsApplyIpcError,
   propsApplySimpleIpc,
   propsClearFilters,
+  propsMakeClearFilters,
   propsDiscardDraftSafe,
   propsGalleryPathsFromOpts,
   propsGuardAiNeed,
@@ -86,7 +87,9 @@ import {
   propsMaybeContinueDraft,
   propsNextCoverAfterGallery,
   propsResolveWantIdentity,
+  propsRunAiFill,
   propsRunCreateForEnsure,
+  propsRunPlateJob,
   propsRunSave,
   propsSuggestIdeaLabel
 } from './PropsPage'
@@ -2081,7 +2084,8 @@ describe('abs100 Props absolute', () => {
       (q) => msgs.push('q:' + q),
       (v) => msgs.push('i:' + v)
     )
-    expect(msgs).toEqual(['q:', 'i:'])
+    propsMakeClearFilters((q) => msgs.push('q2:' + q), (v) => msgs.push('i2:' + v))()
+    expect(msgs).toEqual(['q:', 'i:', 'q2:', 'i2:'])
 
     expect(propsGuardEmptyName('', (m) => msgs.push(m), 'empty')).toBe(true)
     expect(propsGuardEmptyName('x', (m) => msgs.push(m), 'empty')).toBe(false)
@@ -2296,6 +2300,169 @@ describe('abs100 Props absolute', () => {
       reload: () => undefined,
       closeEditor: () => undefined
     })
+
+    expect(
+      propsRunAiFill({
+        busy: true,
+        idea: '',
+        formSnapshot: {},
+        refPath: '',
+        setError: () => undefined,
+        needMsg: 'n',
+        setBanner: () => undefined,
+        toastInfo: () => undefined,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      propsRunAiFill({
+        busy: false,
+        idea: '',
+        formSnapshot: {},
+        refPath: '',
+        setError: () => undefined,
+        needMsg: 'n',
+        setBanner: () => undefined,
+        toastInfo: () => undefined,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => undefined
+      })
+    ).toBe('need')
+    expect(
+      propsRunAiFill({
+        busy: false,
+        idea: '',
+        formSnapshot: {},
+        refPath: '/p.png',
+        setError: () => undefined,
+        needMsg: 'n',
+        setBanner: () => undefined,
+        toastInfo: () => undefined,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => undefined
+      })
+    ).toBe('started')
+    expect(
+      propsRunAiFill({
+        busy: false,
+        idea: 'idea',
+        formSnapshot: { name: 'x' },
+        refPath: '',
+        setError: () => undefined,
+        needMsg: 'n',
+        setBanner: () => undefined,
+        toastInfo: () => undefined,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        startJob: () => undefined
+      })
+    ).toBe('started')
+
+    expect(
+      await propsRunPlateJob({
+        ensureSavedId: async () => null,
+        isBusy: () => false,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        startedMsg: 'S',
+        setError: () => undefined,
+        toastError: () => undefined,
+        startJob: () => undefined,
+        generatePlate: async () => ({ path: '/p' }),
+        discardDraft: async () => undefined,
+        plateVariant: 'hero',
+        storyId: 's'
+      })
+    ).toBe('no-id')
+    expect(
+      await propsRunPlateJob({
+        ensureSavedId: async () => 'p1',
+        isBusy: () => true,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        startedMsg: 'S',
+        setError: () => undefined,
+        toastError: () => undefined,
+        startJob: () => undefined,
+        generatePlate: async () => ({ path: '/p' }),
+        discardDraft: async () => undefined,
+        plateVariant: 'hero',
+        storyId: 's'
+      })
+    ).toBe('busy')
+    let cancelDone = false
+    expect(
+      await propsRunPlateJob({
+        ensureSavedId: async () => 'p1',
+        isBusy: () => false,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        startedMsg: 'S',
+        setError: () => undefined,
+        toastError: () => undefined,
+        startJob: (_id, run) => {
+          void run({
+            setProgress: () => undefined,
+            signal: { cancelled: true }
+          }).then(() => {
+            cancelDone = true
+          })
+        },
+        generatePlate: async () => ({ path: '/p' }),
+        discardDraft: async () => {
+          throw new Error('d')
+        },
+        plateVariant: 'hero',
+        storyId: 's'
+      })
+    ).toBe('started')
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20))
+    })
+    expect(cancelDone).toBe(true)
+    expect(
+      await propsRunPlateJob({
+        ensureSavedId: async () => 'p1',
+        isBusy: () => false,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        startedMsg: 'S',
+        setError: () => undefined,
+        toastError: () => undefined,
+        startJob: (_id, run) => {
+          void run({
+            setProgress: () => undefined,
+            signal: { cancelled: false }
+          })
+        },
+        generatePlate: async () => ({ path: '/p', label: 'L' }),
+        discardDraft: async () => undefined,
+        plateVariant: 'hero',
+        storyId: 's'
+      })
+    ).toBe('started')
+    expect(
+      await propsRunPlateJob({
+        ensureSavedId: async () => {
+          throw new Error('setup')
+        },
+        isBusy: () => false,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        startedMsg: 'S',
+        setError: () => undefined,
+        toastError: () => undefined,
+        startJob: () => undefined,
+        generatePlate: async () => ({ path: '/p' }),
+        discardDraft: async () => undefined,
+        plateVariant: 'hero',
+        storyId: 's'
+      })
+    ).toBe('error')
   })
 
   it('filters busy intro draft update fail plate profile cover remove', async () => {

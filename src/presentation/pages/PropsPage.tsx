@@ -159,9 +159,10 @@ export function PropsPage(): JSX.Element {
       sort: compareUpdatedAtDesc
     }
   )
-  const clearPropFilters = (): void => {
-    propsClearFilters(propBrowse.setQ, setPropImage)
-  }
+  const clearPropFilters = propsMakeClearFilters(
+    propBrowse.setQ,
+    setPropImage
+  )
   const propHasFilters =
     propBrowse.hasSearch || Boolean(propImage)
 
@@ -434,70 +435,58 @@ export function PropsPage(): JSX.Element {
   }
 
   const handleAiFill = (): void => {
-    if (editorBusy) return
-    const idea = aiIdea.trim()
-    const snapshot = {
-      name: form.name.trim() || undefined,
-      description: form.description.trim() || undefined,
-      material: form.material.trim() || undefined,
-      sizeNotes: form.sizeNotes.trim() || undefined,
-      condition: form.condition.trim() || undefined,
-      visualTags: form.visualTags.trim() || undefined,
-      artStyle: form.artStyle || undefined
-    }
-    const hasDraft = Object.values(snapshot).some(
-      (v) => typeof v === 'string' && v.length > 0
-    )
-    const refPath =
-      selectedImage?.path?.trim() ||
-      form.coverPath?.trim() ||
-      form.gallery[0]?.path?.trim() ||
-      ''
-    const hasImage = Boolean(refPath)
-    if (
-      propsGuardAiNeed(
-        idea,
-        hasDraft,
-        hasImage,
-        setActionError,
-        t('common.aiNeedIdeaOrImage')
-      )
-    ) {
-      return
-    }
-    setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(
-      propsAiFillToastKey(hasImage, idea, hasDraft) === 'fromImage'
-        ? t('common.aiFillFromImage')
-        : t('aiJobs.startedBackground')
-    )
-    startJob({
-      kind: 'prop-ai-fill',
-      label: t('common.aiFill'),
-      scope: {
-        propId: editingId ?? undefined,
-        storyId: activeStoryId ?? undefined
+    propsRunAiFill({
+      busy: editorBusy,
+      idea: aiIdea,
+      formSnapshot: {
+        name: form.name.trim() || undefined,
+        description: form.description.trim() || undefined,
+        material: form.material.trim() || undefined,
+        sizeNotes: form.sizeNotes.trim() || undefined,
+        condition: form.condition.trim() || undefined,
+        visualTags: form.visualTags.trim() || undefined,
+        artStyle: form.artStyle || undefined
       },
-      run: async ({ setProgress, signal }) => {
-        setProgress(20, hasImage ? 'image' : 'llm')
-        const r = await getApi().props.aiFill({
-          idea: idea || undefined,
-          storyId: activeStoryId ?? undefined,
-          locale: getAiLocale(i18n.language),
-          existingDraft: hasDraft ? snapshot : undefined,
-          referenceImagePath: hasImage ? refPath : null
+      refPath:
+        selectedImage?.path?.trim() ||
+        form.coverPath?.trim() ||
+        form.gallery[0]?.path?.trim() ||
+        '',
+      setError: setActionError,
+      needMsg: t('common.aiNeedIdeaOrImage'),
+      setBanner: setPageBanner,
+      toastInfo: toast.info,
+      fromImageMsg: t('common.aiFillFromImage'),
+      backgroundMsg: t('aiJobs.startedBackground'),
+      startJob: (idea, hasDraft, hasImage, refPath, snapshot) =>
+        startJob({
+          kind: 'prop-ai-fill',
+          label: t('common.aiFill'),
+          scope: {
+            propId: editingId ?? undefined,
+            storyId: activeStoryId ?? undefined
+          },
+          run: async ({ setProgress, signal }) => {
+            setProgress(20, hasImage ? 'image' : 'llm')
+            const r = await getApi().props.aiFill({
+              idea: idea || undefined,
+              storyId: activeStoryId ?? undefined,
+              locale: getAiLocale(i18n.language),
+              existingDraft: hasDraft ? snapshot : undefined,
+              referenceImagePath: hasImage ? refPath : null
+            })
+            if (signal.cancelled) return
+            setProgress(100, 'done')
+            return {
+              type: 'prop-profile' as const,
+              propId: editingId,
+              storyId: activeStoryId,
+              profile: r.profile,
+              profileJson: r.profileJson,
+              isNew: !editingId
+            }
+          }
         })
-        if (signal.cancelled) return
-        setProgress(100, 'done')
-        return {
-          type: 'prop-profile' as const,
-          propId: editingId,
-          storyId: activeStoryId,
-          profile: r.profile,
-          profileJson: r.profileJson,
-          isNew: !editingId
-        }
-      }
     })
   }
 
@@ -673,51 +662,36 @@ export function PropsPage(): JSX.Element {
     confirm: ImageGenConfirmPayload
   ): Promise<void> => {
     setImageGenConfirm(null)
-    try {
-      const id = await ensureSavedId()
-      if (!id) return
-      if (propsGuardBusy(propBusy(id), toast.info, t('common.loading'))) {
-        return
-      }
-      toast.info(t('aiJobs.startedBackground'))
-      startJob({
-        kind: 'prop-plate',
-        label: t('props.generatePlate'),
-        scope: { propId: id, storyId: activeStoryId ?? undefined },
-        run: async ({ setProgress, signal }) => {
-          setProgress(10, 'image')
-          const r = await getApi().props.generatePlate({
-            propId: id,
-            variant: plateVariant,
-            referenceImagePath: confirm.referencePaths[0] ?? null,
-            referenceImagePaths: confirm.referencePaths,
-            useIdentityEdit: confirm.useIdentityEdit,
-            persist: false,
-            artStyle: form.artStyle,
-            promptOverride: confirm.prompt
-          })
-          if (signal.cancelled) {
-            await propsDiscardDraftSafe(
-              (p) => getApi().media.discardSheetDraft(p),
-              r.path
-            )
-            return
-          }
-          setProgress(100, 'done')
-          return {
-            type: 'prop-plate' as const,
-            propId: id,
-            storyId: activeStoryId ?? '',
-            path: r.path,
-            variant: r.variant ?? plateVariant,
-            label: r.label ?? plateVariant,
-            enhance: r.enhance
-          }
-        }
-      })
-    } catch (e) {
-      propsApplyIpcError(e, setActionError, toast.error)
-    }
+    await propsRunPlateJob({
+      ensureSavedId,
+      isBusy: (id) => propBusy(id),
+      toastInfo: toast.info,
+      loadingMsg: t('common.loading'),
+      startedMsg: t('aiJobs.startedBackground'),
+      setError: setActionError,
+      toastError: toast.error,
+      startJob: (id, run) =>
+        startJob({
+          kind: 'prop-plate',
+          label: t('props.generatePlate'),
+          scope: { propId: id, storyId: activeStoryId ?? undefined },
+          run
+        }),
+      generatePlate: (id) =>
+        getApi().props.generatePlate({
+          propId: id,
+          variant: plateVariant,
+          referenceImagePath: confirm.referencePaths[0] ?? null,
+          referenceImagePaths: confirm.referencePaths,
+          useIdentityEdit: confirm.useIdentityEdit,
+          persist: false,
+          artStyle: form.artStyle,
+          promptOverride: confirm.prompt
+        }),
+      discardDraft: (p) => getApi().media.discardSheetDraft(p),
+      plateVariant,
+      storyId: activeStoryId ?? ''
+    })
   }
 
   const handlePickImage = async (): Promise<void> => {
@@ -1406,6 +1380,13 @@ export function propsClearFilters(
   setImage('')
 }
 
+export function propsMakeClearFilters(
+  setQ: (q: string) => void,
+  setImage: (v: string) => void
+): () => void {
+  return () => propsClearFilters(setQ, setImage)
+}
+
 export function propsGuardEmptyName(
   name: string,
   toastError: (m: string) => void,
@@ -1601,6 +1582,102 @@ export async function propsRunCreateForEnsure(
     setError(msg)
     toastError(msg)
     return null
+  }
+}
+
+export function propsRunAiFill(ops: {
+  busy: boolean
+  idea: string
+  formSnapshot: Record<string, string | undefined>
+  refPath: string
+  setError: (m: string) => void
+  needMsg: string
+  setBanner: (m: string) => void
+  toastInfo: (m: string) => void
+  fromImageMsg: string
+  backgroundMsg: string
+  startJob: (
+    idea: string,
+    hasDraft: boolean,
+    hasImage: boolean,
+    refPath: string,
+    snapshot: Record<string, string | undefined>
+  ) => void
+}): 'busy' | 'need' | 'started' {
+  if (ops.busy) return 'busy'
+  const idea = ops.idea.trim()
+  const snapshot = ops.formSnapshot
+  const hasDraft = Object.values(snapshot).some(
+    (v) => typeof v === 'string' && v.length > 0
+  )
+  const hasImage = Boolean(ops.refPath)
+  if (propsGuardAiNeed(idea, hasDraft, hasImage, ops.setError, ops.needMsg)) {
+    return 'need'
+  }
+  ops.setBanner(ops.backgroundMsg)
+  ops.toastInfo(
+    propsAiFillToastKey(hasImage, idea, hasDraft) === 'fromImage'
+      ? ops.fromImageMsg
+      : ops.backgroundMsg
+  )
+  ops.startJob(idea, hasDraft, hasImage, ops.refPath, snapshot)
+  return 'started'
+}
+
+export async function propsRunPlateJob(ops: {
+  ensureSavedId: () => Promise<string | null>
+  isBusy: (id: string) => boolean
+  toastInfo: (m: string) => void
+  loadingMsg: string
+  startedMsg: string
+  setError: (m: string) => void
+  toastError: (m: string) => void
+  startJob: (
+    id: string,
+    run: (ctx: {
+      setProgress: (n: number, s?: string) => void
+      signal: { cancelled: boolean }
+    }) => Promise<unknown>
+  ) => void
+  generatePlate: (id: string) => Promise<{
+    path: string
+    variant?: string
+    label?: string
+    enhance?: unknown
+  }>
+  discardDraft: (path: string) => Promise<unknown>
+  plateVariant: string
+  storyId: string
+}): Promise<'no-id' | 'busy' | 'started' | 'error'> {
+  try {
+    const id = await ops.ensureSavedId()
+    if (!id) return 'no-id'
+    if (propsGuardBusy(ops.isBusy(id), ops.toastInfo, ops.loadingMsg)) {
+      return 'busy'
+    }
+    ops.toastInfo(ops.startedMsg)
+    ops.startJob(id, async ({ setProgress, signal }) => {
+      setProgress(10, 'image')
+      const r = await ops.generatePlate(id)
+      if (signal.cancelled) {
+        await propsDiscardDraftSafe(ops.discardDraft, r.path)
+        return
+      }
+      setProgress(100, 'done')
+      return {
+        type: 'prop-plate' as const,
+        propId: id,
+        storyId: ops.storyId,
+        path: r.path,
+        variant: r.variant ?? ops.plateVariant,
+        label: r.label ?? ops.plateVariant,
+        enhance: r.enhance
+      }
+    })
+    return 'started'
+  } catch (e) {
+    propsApplyIpcError(e, ops.setError, ops.toastError)
+    return 'error'
   }
 }
 
