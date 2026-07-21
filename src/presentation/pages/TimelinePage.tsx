@@ -69,6 +69,24 @@ const mediaBadge: Record<MediaStatus, string> = {
   FAILED: 'bg-rose-900/50 text-rose-200'
 }
 
+/** Pure helpers exported for unit coverage of size/date formatting branches. */
+export function formatExportSize(n?: number | null): string {
+  if (n == null || !Number.isFinite(n) || n < 0) return ''
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
+
+export function formatExportWhen(iso: string, lang?: string): string {
+  const d = Date.parse(iso)
+  if (!Number.isFinite(d)) return iso
+  try {
+    return new Date(d).toLocaleString(lang || undefined)
+  } catch {
+    return new Date(d).toLocaleString()
+  }
+}
+
 export function TimelinePage(): JSX.Element {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -995,23 +1013,6 @@ export function TimelinePage(): JSX.Element {
     }
   }
 
-  const formatExportSize = (n?: number | null): string => {
-    if (n == null || !Number.isFinite(n) || n < 0) return ''
-    if (n < 1024) return `${n} B`
-    if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`
-    return `${(n / (1024 * 1024)).toFixed(1)} MB`
-  }
-
-  const formatExportWhen = (iso: string): string => {
-    const d = Date.parse(iso)
-    if (!Number.isFinite(d)) return iso
-    try {
-      return new Date(d).toLocaleString(i18n.language || undefined)
-    } catch {
-      return new Date(d).toLocaleString()
-    }
-  }
-
   const handleRunClip = async (entryId: string): Promise<void> => {
     if (!activeStoryId || busy) return
     if (videoMode !== 'stub' && missingRefs.length > 0) {
@@ -1790,7 +1791,7 @@ export function TimelinePage(): JSX.Element {
                           {item.fileName}
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-500">
-                          {formatExportWhen(item.createdAt)}
+                          {formatExportWhen(item.createdAt, i18n.language)}
                           {item.sizeBytes != null
                             ? ` · ${formatExportSize(item.sizeBytes)}`
                             : ''}

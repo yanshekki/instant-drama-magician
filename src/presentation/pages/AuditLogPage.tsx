@@ -124,11 +124,14 @@ export function AuditLogPage(): JSX.Element {
   }, [load])
 
   useEffect(() => {
-    if (!autoRefresh) return
-    const id = window.setInterval(() => {
+    if (!autoRefresh) return undefined
+    const refresh = (): void => {
       void load()
-    }, 5000)
-    return () => window.clearInterval(id)
+    }
+    const id = window.setInterval(refresh, 5000)
+    return () => {
+      window.clearInterval(id)
+    }
   }, [autoRefresh, load])
 
   const kindOptions = useMemo(() => {
@@ -514,7 +517,11 @@ export function AuditLogPage(): JSX.Element {
                       { value: 'ts:desc', label: t('audit.sortNewest') },
                       { value: 'ts:asc', label: t('audit.sortOldest') },
                       { value: 'ms:desc', label: t('audit.sortSlowest') },
-                      { value: 'level:desc', label: t('audit.sortByLevel') }
+                      { value: 'ms:asc', label: t('audit.sortFastest', { defaultValue: 'Fastest first' }) },
+                      { value: 'level:desc', label: t('audit.sortByLevel') },
+                      { value: 'level:asc', label: t('audit.sortByLevelAsc', { defaultValue: 'Severity ↑' }) },
+                      { value: 'kind:asc', label: t('audit.sortByKind', { defaultValue: 'By kind' }) },
+                      { value: 'message:asc', label: t('audit.sortByMessage', { defaultValue: 'By message' }) }
                     ]}
                   />
                 </div>
@@ -846,7 +853,8 @@ function DetailField({
   )
 }
 
-function formatTs(iso: string, lang?: string): string {
+/** Exported for unit coverage of pure helpers (catch + format branches). */
+export function formatTs(iso: string, lang?: string): string {
   try {
     const d = new Date(iso)
     return d.toLocaleString(lang || undefined, {
@@ -861,7 +869,7 @@ function formatTs(iso: string, lang?: string): string {
   }
 }
 
-function formatTsFull(iso: string, lang?: string): string {
+export function formatTsFull(iso: string, lang?: string): string {
   try {
     return new Date(iso).toLocaleString(lang || undefined, {
       year: 'numeric',
@@ -876,13 +884,13 @@ function formatTsFull(iso: string, lang?: string): string {
   }
 }
 
-function formatMs(ms: number): string {
+export function formatMs(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)} ms`
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`
   return `${(ms / 60_000).toFixed(1)} min`
 }
 
-function prettifyChannel(raw: string): string {
+export function prettifyChannel(raw: string): string {
   return raw
     .replace(/^media:|^stories:|^characters:|^scenes:|^props:|^timeline:|^ai:|^app:|^settings:|^generation:/, '')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
