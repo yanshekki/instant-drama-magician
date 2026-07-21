@@ -90,8 +90,9 @@ describe('cli bin main routing', () => {
     const prev = process.argv
     process.argv = ['node', 'bin', ...argv]
     try {
+      vi.resetModules()
       await import('./bin')
-      await new Promise((r) => setTimeout(r, 40))
+      await new Promise((r) => setTimeout(r, 30))
     } finally {
       process.argv = prev
     }
