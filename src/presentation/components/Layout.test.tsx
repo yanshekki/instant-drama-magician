@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -275,4 +276,94 @@ describe('Layout', () => {
       await waitFor(() => expect(api.shell.openExternal).toHaveBeenCalled())
     }
   })
+
+  it('download success updates banner and install catch', async () => {
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      currentVersion: '1.0.0',
+      latestVersion: '1.3.0'
+    })
+    api.updates.install = vi.fn().mockRejectedValue(new Error('inst'))
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const dl = Array.from(document.querySelectorAll('button')).find((b) =>
+      /downloadUpdate|download/i.test(b.textContent || '')
+    )
+    if (dl) {
+      await act(async () => {
+        fireEvent.click(dl)
+      })
+      await waitFor(() => expect(api.updates.download).toHaveBeenCalled())
+    }
+    const inst = Array.from(document.querySelectorAll('button')).find((el) =>
+      /installUpdate|install/i.test(el.textContent || '')
+    )
+    if (inst) {
+      await act(async () => {
+        fireEvent.click(inst)
+      })
+      await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    }
+  })
+
+  it('dismiss update banner', async () => {
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const bannerBtns = Array.from(
+      document.querySelectorAll('[role="status"] button')
+    )
+    if (bannerBtns.length) {
+      await act(async () => {
+        fireEvent.click(bannerBtns[bannerBtns.length - 1])
+      })
+    }
+  })
+
+  it('donate openExternal failure falls back', async () => {
+    api.shell.openExternal = vi.fn().mockRejectedValue(new Error('no'))
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const donate = Array.from(document.querySelectorAll('button')).find((b) =>
+      /sidebarDonate|☕/i.test(b.textContent || '')
+    )
+    if (donate) {
+      await act(async () => {
+        fireEvent.click(donate)
+      })
+      await waitFor(() => expect(open).toHaveBeenCalled())
+    }
+    open.mockRestore()
+  })
+
 })

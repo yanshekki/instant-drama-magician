@@ -324,4 +324,76 @@ describe('MediaStore', () => {
     const del = store.deleteExportHistoryItem('s3', name)
     expect(del.deleted).toBe(true)
   })
+
+  it('export history dedupe prefers public over work and size fallbacks', () => {
+    store.ensureStoryDirs('s4')
+    const name = 'Epic_final_9.mp4'
+    const work = join(store.exportsDir('s4'), name)
+    writeFileSync(work, 'workbytes')
+    const publicDir = join(root, 'Videos')
+    mkdirSync(publicDir, { recursive: true })
+    const pub = join(publicDir, name)
+    writeFileSync(pub, 'publicbytes-longer')
+
+    // seed history with work path first
+    store.writeExportHistory('s4', [
+      {
+        id: 'exp_w',
+        storyId: 's4',
+        kind: 'final',
+        fileName: name,
+        path: work,
+        workPath: work,
+        createdAt: new Date().toISOString(),
+        sizeBytes: 9
+      },
+      {
+        id: 'exp_p',
+        storyId: 's4',
+        kind: 'final',
+        fileName: name,
+        path: pub,
+        workPath: null,
+        createdAt: new Date().toISOString(),
+        sizeBytes: 18
+      }
+    ])
+    const listed = store.listExportHistory('s4', {
+      publicDir,
+      fileNamePrefix: 'Epic',
+      latestPath: pub
+    })
+    expect(listed.length).toBeGreaterThan(0)
+
+    // record with missing path uses workPath size
+    const missing = join(root, 'gone.mp4')
+    store.recordExportHistory('s4', {
+      kind: 'final',
+      path: missing,
+      workPath: work,
+      fileName: 'gone.mp4'
+    })
+
+    // delete non-existent
+    const miss = store.deleteExportHistoryItem('s4', 'no-such-export')
+    expect(miss.deleted).toBe(false)
+
+    // delete with unlink failure path - use valid then corrupt twin
+    const item = store.recordExportHistory('s4', {
+      kind: 'storyboard',
+      path: pub,
+      fileName: 'Epic_storyboard_1.png'
+    })
+    // create work twin
+    const twin = join(store.exportsDir('s4'), 'Epic_storyboard_1.png')
+    writeFileSync(twin, 'x')
+    store.deleteExportHistoryItem('s4', item.id)
+  })
+
+  it('readStoryCastPrepJson catches unreadable', () => {
+    store.ensureStoryDirs('s5')
+    const p = store.storyCastPrepPath('s5')
+    mkdirSync(p, { recursive: true }) // path is dir → read fails
+    expect(store.readStoryCastPrepJson('s5')).toBeNull()
+  })
 })

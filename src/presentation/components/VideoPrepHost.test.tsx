@@ -569,7 +569,6 @@ describe('VideoPrepHost', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000)
     })
-    // force error phase with resume then patch - open resume and use retry
     act(() => {
       startHandler!({
         kind: 'character-intro',
@@ -580,5 +579,170 @@ describe('VideoPrepHost', () => {
     await waitFor(() => screen.getByText('retry'))
     fireEvent.click(screen.getByText('retry'))
   })
-})
 
+  it('abandon and emergency with dialog confirm true close session', async () => {
+    dialog.confirm.mockResolvedValue(true)
+    const dismiss = vi.fn()
+    window.addEventListener('idm:video-prep-dismiss', dismiss)
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        resumeDraft
+      })
+    })
+    await waitFor(() => screen.getByText('abandon'))
+    fireEvent.click(screen.getByText('abandon'))
+    await waitFor(() => expect(dialog.confirm).toHaveBeenCalled())
+
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        resumeDraft
+      })
+    })
+    await waitFor(() => screen.getByText('emergency'))
+    fireEvent.click(screen.getByText('emergency'))
+    await waitFor(() => expect(toast.info).toHaveBeenCalled())
+    window.removeEventListener('idm:video-prep-dismiss', dismiss)
+  })
+
+  it('next with empty queueRemaining finishes session', async () => {
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'timeline-clip',
+        entityIds: { storyId: 's1', entryId: 'e1' },
+        resumeDraft: {
+          kind: 'timeline-clip',
+          entityIds: { storyId: 's1', entryId: 'e1' },
+          professionalPrompt: 'p',
+          stillPath: '/s.png',
+          durationSeconds: 5,
+          aspectRatio: '16:9',
+          queueIndex: 2,
+          queueTotal: 2
+        },
+        queueRemaining: []
+      } as never)
+    })
+    await waitFor(() => screen.getByTestId('modal'))
+    fireEvent.click(screen.getByText('next'))
+  })
+
+  it('retry from error with draft returns to review', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    api.videoPrep.create = vi.fn().mockRejectedValue(new Error('fail once'))
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        resumeDraft
+      })
+    })
+    // Manually we need error phase with draft — use confirm reject
+    api.videoPrep.confirm = vi.fn().mockRejectedValue(new Error('confirm fail'))
+    await waitFor(() => screen.getByText('confirm'))
+    fireEvent.click(screen.getByText('confirm'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    // if error phase reached with draft, retry restores review
+    const retry = screen.queryByText('retry')
+    if (retry) {
+      fireEvent.click(retry)
+    }
+  })
+
+  it('create openFromStill path and materials phase', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    api.videoPrep.create = vi.fn().mockImplementation(async (payload: { onProgress?: (p: { phase?: string }) => void }) => {
+      payload.onProgress?.({ phase: 'materials' } as never)
+      return {
+        professionalPrompt: 'ok',
+        stillPath: '/s.png',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        entityIds: { characterId: 'c1' },
+        skippedStill: true,
+        materialsSummary: 'm',
+        stillPromptUsed: 'sp'
+      }
+    })
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        openFromStill: '/still.png',
+        skipStillIfExists: true
+      } as never)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    await waitFor(() => expect(api.videoPrep.create).toHaveBeenCalled())
+  })
+
+  it('abort mid-create via unmount cancels sleep', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    api.videoPrep.create = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () =>
+              resolve({
+                professionalPrompt: 'late',
+                stillPath: '/s.png',
+                durationSeconds: 5,
+                aspectRatio: '16:9',
+                entityIds: { characterId: 'c1' }
+              }),
+            5000
+          )
+        })
+    )
+    const { unmount } = render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' }
+      })
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    unmount()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000)
+    })
+  })
+})

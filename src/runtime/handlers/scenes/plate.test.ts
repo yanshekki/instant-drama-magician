@@ -226,4 +226,183 @@ describe('registerScenesPlate', () => {
       })
     ).rejects.toMatchObject({ message: 'errors.draftNotFound' })
   })
+
+  it('commitPlate with atmosphereDescription updates looksJson', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-plate-atmo-'))
+    const draft = join(dir, 'draft.png')
+    writeFileSync(draft, 'x')
+    const lib = join(dir, 'lib.png')
+    writeFileSync(lib, 'lib')
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'sc1',
+      title: 'Pier',
+      description: 'd',
+      refGalleryJson: null,
+      refImagePath: null,
+      looksJson: JSON.stringify([
+        {
+          id: 'l1',
+          name: 'Rain',
+          description: 'heavy rain night',
+          imagePath: null,
+          createdAt: 'a',
+          updatedAt: 'a'
+        }
+      ])
+    }))
+    const promoteTmpSceneImage = vi.fn(() => lib)
+    const ctx = makeHandlerContext({
+      scenes: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            sceneImagePath: () => lib,
+            promoteTmpSceneImage
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerScenesPlate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'scenes:commitPlate', {
+      sceneId: 'sc1',
+      path: draft,
+      variant: 'atmosphere_swap',
+      label: 'Atmosphere · Rain',
+      atmosphereDescription: 'heavy rain night'
+    })
+    expect(update).toHaveBeenCalledWith(
+      'sc1',
+      expect.objectContaining({ looksJson: expect.any(String) })
+    )
+
+    // new atmosphere not in library
+    await invokeRegistered(h as never, 'scenes:commitPlate', {
+      sceneId: 'sc1',
+      path: draft,
+      variant: 'establishing',
+      layer: 'hero',
+      atmosphereDescription: 'dusty noon market'
+    })
+    expect(update).toHaveBeenCalled()
+  })
+
+  it('generatePlate multi-ref appends note without override', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-plate-mref-'))
+    const out = join(dir, 'plate.png')
+    const ref1 = join(dir, 'r1.png')
+    const ref2 = join(dir, 'r2.png')
+    writeFileSync(ref1, 'a')
+    writeFileSync(ref2, 'b')
+    const generateImage = vi.fn(async (opts: { prompt: string }) => {
+      expect(opts.prompt.length).toBeGreaterThan(10)
+      return {
+        b64: Buffer.from('P').toString('base64'),
+        sizeUsed: '1792x1024',
+        aspectUsed: '16:9'
+      }
+    })
+    const get = vi.fn(async () => ({
+      id: 'sc1',
+      title: 'Pier',
+      description: 'wet docks',
+      hardRules: 'no people',
+      artStyle: 'photo_cinematic',
+      refGalleryJson: null,
+      refImagePath: null
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateImage, editImage: vi.fn(), chat: vi.fn() },
+      scenes: () =>
+        ({
+          get,
+          update: vi.fn(async (id: string, d: unknown) => ({ id, ...(d as object) }))
+        }) as never,
+      activity: {
+        append: vi.fn(),
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => out,
+            sceneImagePath: () => out
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageEnhance: false,
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024',
+        imageSizeTall: '1024x1792'
+      })
+    })
+    registerScenesPlate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'scenes:generatePlate', {
+      sceneId: 'sc1',
+      variant: 'establishing',
+      persist: false,
+      referenceImagePaths: [ref1, ref2],
+      useIdentityEdit: false
+    })
+    expect(generateImage).toHaveBeenCalled()
+  })
+
+  it('commitPlate derives plateLayer from variant id', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-plate-layer-'))
+    const draft = join(dir, 'draft.png')
+    writeFileSync(draft, 'x')
+    const lib = join(dir, 'lib.png')
+    writeFileSync(lib, 'lib')
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'sc1',
+      title: 'Pier',
+      description: 'd',
+      refGalleryJson: null,
+      refImagePath: null,
+      looksJson: null
+    }))
+    const ctx = makeHandlerContext({
+      scenes: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            sceneImagePath: () => lib,
+            promoteTmpSceneImage: vi.fn(() => lib)
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerScenesPlate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'scenes:commitPlate', {
+      sceneId: 'sc1',
+      path: draft,
+      variant: 'establishing',
+      label: 'Est'
+    })
+    expect(update).toHaveBeenCalled()
+  })
 })

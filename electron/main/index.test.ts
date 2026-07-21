@@ -630,4 +630,91 @@ describe('electron main index', () => {
 
     void mod
   }, 30_000)
+
+  it('benign pipe errors on process handlers and multi mime protocol', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    // fire uncaughtException / unhandledRejection with EPIPE
+    const listeners = process.listeners('uncaughtException')
+    const rej = process.listeners('unhandledRejection')
+    for (const l of listeners) {
+      try {
+        ;(l as (e: unknown) => void)(Object.assign(new Error('pipe'), { code: 'EPIPE' }))
+      } catch { /* */ }
+    }
+    for (const l of rej) {
+      try {
+        ;(l as (e: unknown, p: Promise<unknown>) => void)(
+          Object.assign(new Error('io'), { code: 'EIO' }),
+          Promise.resolve()
+        )
+      } catch { /* */ }
+    }
+    // non-benign still logs
+    for (const l of listeners) {
+      try {
+        ;(l as (e: unknown) => void)(new Error('real boom'))
+      } catch { /* */ }
+    }
+
+    const protocolHandler = protocol.handle.mock.calls.find(
+      (c: unknown[]) => c[0] === 'idm-media'
+    )?.[1] as ((req: Request) => Promise<Response>) | undefined
+    if (protocolHandler) {
+      const types = ['.webm', '.mov', '.mkv', '.webp', '.gif', '.svg', '.wav', '.mp3', '.m4v', '.jpeg', '.unknown']
+      for (const ext of types) {
+        const f = join(ud, `media${ext}`)
+        writeFileSync(f, 'x')
+        const r = await protocolHandler(
+          new Request(`idm-media://local/?p=${encodeURIComponent(f)}`)
+        )
+        expect(r.status).toBeLessThan(500)
+      }
+      // bad request missing p
+      const bad = await protocolHandler(new Request('idm-media://local/'))
+      expect([400, 404, 500]).toContain(bad.status)
+    }
+    void mod
+  }, 30_000)
+
+  it('import backup dialog without main window + cancel confirm', async () => {
+    MockBrowserWindow.windows = []
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    // no windows
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'b.zip')]
+    })
+    writeFileSync(join(ud, 'b.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 }) // cancel
+    menuHandlers.importFullBackup()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+
+    // en lang about / support strings via menuHandlers
+    if (typeof menuHandlers.showAbout === 'function') {
+      menuHandlers.showAbout()
+    }
+    if (typeof menuHandlers.openCreatorLinktree === 'function') {
+      menuHandlers.openCreatorLinktree()
+    }
+    void mod
+  }, 30_000)
+
+  it('packaged app auto update silent check path', async () => {
+    app.isPackaged = true
+    const update = await import('../../src/infrastructure/update/AppUpdateService')
+    // appUpdateService may be object with check
+    if (update.appUpdateService?.check) {
+      vi.spyOn(update.appUpdateService, 'check').mockResolvedValue(undefined as never)
+    }
+    vi.useFakeTimers()
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    await vi.advanceTimersByTimeAsync(9000)
+    vi.useRealTimers()
+    app.isPackaged = false
+    void mod
+  }, 30_000)
+
 })

@@ -7,28 +7,95 @@ vi.mock('react-i18next', () => ({
   , i18n: { language: 'en' } })
 }))
 
-// Lightweight react-konva mock that still runs prop callbacks
+// Lightweight react-konva mock that still runs prop callbacks + Stage ref
 vi.mock('react-konva', () => {
   const React = require('react')
+  const Stage = React.forwardRef(function Stage(
+    { children, onMouseDown, width, height, ...rest }: any,
+    ref: any
+  ) {
+    const elRef = React.useRef(null)
+    const stageApi = React.useMemo(
+      () => ({
+        container: () => {
+          const el = elRef.current as HTMLElement | null
+          if (!el) {
+            return {
+              getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 200 }),
+              parentElement: { scrollLeft: 0 }
+            }
+          }
+          return el
+        },
+        getStage: function getStage() {
+          return this
+        }
+      }),
+      []
+    )
+    React.useImperativeHandle(ref, () => stageApi, [stageApi])
+    return React.createElement(
+      'div',
+      {
+        ref: elRef,
+        'data-konva': 'Stage',
+        'data-width': width,
+        'data-height': height,
+        onMouseDown: (e: any) => {
+          if (onMouseDown) {
+            const fake = {
+              target: {
+                getStage: () => stageApi
+              }
+            }
+            // when clicking stage itself, target === stage
+            fake.target = stageApi as any
+            onMouseDown(fake)
+          }
+        }
+      },
+      children
+    )
+  })
   const passthrough =
     (name: string) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ({ children, ...props }: any) =>
-      React.createElement(
+    ({ children, ...props }: any) => {
+      const dragBound = props.dragBoundFunc
+      const onDragMove = props.onDragMove
+      const onDragEnd = props.onDragEnd
+      let x = typeof props.x === 'number' ? props.x : 0
+      const target = {
+        x: (v?: number) => {
+          if (typeof v === 'number') {
+            x = v
+            return x
+          }
+          return x
+        }
+      }
+      return React.createElement(
         'div',
         {
           'data-konva': name,
+          'data-draggable': props.draggable ? '1' : undefined,
           onClick: props.onClick,
           onMouseDown: props.onMouseDown,
-          onDragEnd: props.onDragEnd,
-          onDragMove: props.onDragMove,
           onWheel: props.onWheel,
-          onTap: props.onTap
+          onTap: props.onTap,
+          onPointerDown: () => {
+            if (onDragMove) {
+              if (dragBound) dragBound({ x: x + 40, y: 0 })
+              onDragMove({ target })
+            }
+            if (onDragEnd) onDragEnd({ target })
+          }
         },
         children
       )
+    }
   return {
-    Stage: passthrough('Stage'),
+    Stage,
     Layer: passthrough('Layer'),
     Rect: passthrough('Rect'),
     Text: passthrough('Text'),
@@ -346,5 +413,54 @@ describe('KonvaTimeline', () => {
       /packAbut/i.test(b.textContent || '')
     )
     if (pack) expect((pack as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('invokes drag move/end on clips and playhead + stage deselect', () => {
+    const onMove = vi.fn()
+    const onSelect = vi.fn()
+    const onPlayhead = vi.fn()
+    const onDrop = vi.fn()
+    const { container } = render(
+      <KonvaTimeline
+        entries={entries}
+        labels={{ t1: 'Hero', t2: 'Scene' }}
+        selectedId="t1"
+        playhead={1}
+        pxPerSec={48}
+        onPxPerSecChange={() => undefined}
+        onPlayheadChange={onPlayhead}
+        onSelect={onSelect}
+        onMove={onMove}
+        onDropAsset={onDrop}
+        width={800}
+        snapEnabled
+        snapGridSec={0.5}
+      />
+    )
+    const stage = container.querySelector('[data-konva="Stage"]')
+    expect(stage).toBeTruthy()
+    fireEvent.mouseDown(stage!)
+
+    const groups = container.querySelectorAll('[data-konva="Group"][data-draggable="1"]')
+    expect(groups.length).toBeGreaterThan(0)
+    for (const g of Array.from(groups).slice(0, 3)) {
+      fireEvent.pointerDown(g)
+    }
+    // drop with stage ref available
+    const track = container.querySelector('.overflow-x-auto')
+    if (track) {
+      fireEvent.drop(track, {
+        clientX: 200,
+        clientY: 40,
+        dataTransfer: {
+          getData: (type: string) =>
+            type === 'application/x-idm-asset'
+              ? JSON.stringify({ type: 'character', id: 'c9', name: 'Bob' })
+              : ''
+        }
+      })
+    }
+    // onMove and/or onPlayhead may fire depending on which groups dragged
+    expect(onSelect.mock.calls.length + onMove.mock.calls.length + onPlayhead.mock.calls.length).toBeGreaterThan(0)
   })
 })

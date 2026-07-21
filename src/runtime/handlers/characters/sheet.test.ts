@@ -405,4 +405,250 @@ describe('registerCharactersSheet', () => {
     expect(update).toHaveBeenCalled()
     expect(r.path).toBeTruthy()
   })
+
+  it('commitSheet with costumeDescription links costume library', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-commit-cos-'))
+    const draft = join(dir, 'draft.png')
+    writeFileSync(draft, 'x')
+    const libPath = join(dir, 'lib.png')
+    writeFileSync(libPath, 'lib')
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      refGalleryJson: JSON.stringify([
+        { id: 'g0', path: '/old.png', kind: 'sheet', label: 'Old' }
+      ]),
+      refImagePath: '/old.png',
+      refSheetPath: null,
+      costumesJson: JSON.stringify([
+        {
+          id: 'cos1',
+          name: 'Rain',
+          description: 'yellow raincoat',
+          imagePath: null,
+          createdAt: 'a',
+          updatedAt: 'a'
+        }
+      ])
+    }))
+    const promoteTmpImage = vi.fn(() => libPath)
+    const ctx = makeHandlerContext({
+      characters: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            characterImagePath: () => libPath,
+            promoteTmpImage
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    // match existing costume description
+    await invokeRegistered(h as never, 'characters:commitSheet', {
+      characterId: 'c1',
+      path: draft,
+      variant: 'costume_swap',
+      label: 'Costume swap · Rain look',
+      layer: 'costume',
+      costumeDescription: 'yellow raincoat'
+    })
+    expect(update).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({
+        costume: 'yellow raincoat',
+        costumesJson: expect.any(String)
+      })
+    )
+
+    // new costume description (no hit)
+    await invokeRegistered(h as never, 'characters:commitSheet', {
+      characterId: 'c1',
+      path: draft,
+      variant: 'bible',
+      layer: 'identity',
+      costumeDescription: 'brand new look never seen'
+    })
+    expect(update).toHaveBeenCalled()
+
+    // missing draft path
+    await expect(
+      invokeRegistered(h as never, 'characters:commitSheet', {
+        characterId: 'c1',
+        path: join(dir, 'missing.png')
+      })
+    ).rejects.toMatchObject({ message: 'errors.draftNotFound' })
+  })
+
+  it('generateSheet forcePureLayout nude skips identity ref', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sheet-nude-'))
+    const out = join(dir, 'sheet.png')
+    const ref1 = join(dir, 'r1.png')
+    writeFileSync(ref1, 'a')
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('N').toString('base64'),
+      sizeUsed: '1024x1024',
+      aspectUsed: '1:1'
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'hero',
+      appearance: 'short hair',
+      costume: 'jacket',
+      hardRules: null,
+      artStyle: 'photo_cinematic',
+      refGalleryJson: null,
+      refImagePath: ref1,
+      refSheetPath: null
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateImage, editImage: vi.fn(), chat: vi.fn() },
+      characters: () =>
+        ({
+          get,
+          update: vi.fn(async (id: string, d: unknown) => ({ id, ...(d as object) }))
+        }) as never,
+      activity: {
+        append: vi.fn(),
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => out,
+            characterImagePath: () => out
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageEnhance: false,
+        imageSizeSquare: '1024x1024',
+        imageSizeWide: '1792x1024',
+        imageSizeTall: '1024x1792'
+      })
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'characters:generateSheet', {
+      characterId: 'c1',
+      variant: 'body_nude_front',
+      referenceImagePath: ref1,
+      persist: false,
+      useIdentityEdit: true
+    })) as { usedEdit: boolean }
+    expect(generateImage).toHaveBeenCalled()
+    expect(r.usedEdit).toBe(false)
+  })
+
+  it('commitSheet derives layer from sheet variant id', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-commit-var-'))
+    const draft = join(dir, 'draft.png')
+    writeFileSync(draft, 'x')
+    const libPath = join(dir, 'lib.png')
+    writeFileSync(libPath, 'lib')
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      refGalleryJson: null,
+      refImagePath: null,
+      refSheetPath: null,
+      costumesJson: null
+    }))
+    const ctx = makeHandlerContext({
+      characters: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            characterImagePath: () => libPath,
+            promoteTmpImage: vi.fn(() => libPath)
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'characters:commitSheet', {
+      characterId: 'c1',
+      path: draft,
+      variant: 'bible',
+      label: 'Bible'
+    })
+    expect(update).toHaveBeenCalled()
+  })
+
+  it('commitSheet costume else when ensure does not add match', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-commit-else-'))
+    const draft = join(dir, 'draft.png')
+    writeFileSync(draft, 'x')
+    const libPath = join(dir, 'lib.png')
+    writeFileSync(libPath, 'lib')
+    const costumes = await import('../../../domain/characterCostumes')
+    const spy = vi
+      .spyOn(costumes, 'ensureCostumeInLibrary')
+      .mockImplementation((items) => items)
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      refGalleryJson: null,
+      refImagePath: null,
+      refSheetPath: null,
+      costumesJson: '[]'
+    }))
+    const ctx = makeHandlerContext({
+      characters: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            characterImagePath: () => libPath,
+            promoteTmpImage: vi.fn(() => libPath)
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'characters:commitSheet', {
+      characterId: 'c1',
+      path: draft,
+      costumeDescription: 'unique unlisted look'
+    })
+    expect(update).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ costumesJson: expect.any(String) })
+    )
+    spy.mockRestore()
+  })
 })

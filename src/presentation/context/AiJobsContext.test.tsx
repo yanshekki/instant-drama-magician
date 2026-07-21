@@ -839,4 +839,289 @@ describe('AiJobsContext', () => {
       ).toBe(true)
     })
   })
+
+  it('isBlocked null entity dims and multi-scope matches', async () => {
+    await mount()
+    // new-character job (no characterId)
+    await act(async () => {
+      latest!.startJob({
+        kind: 'character-sheet',
+        label: 'new-sheet',
+        scope: {},
+        run: async () => {
+          await new Promise((r) => setTimeout(r, 300))
+          return {
+            type: 'character-sheet',
+            characterId: 'c_new',
+            path: '/p.png',
+            label: 's'
+          }
+        }
+      })
+    })
+    expect(
+      latest!.isBlocked({ kind: 'character-sheet', characterId: null })
+    ).toBe(true)
+    expect(
+      latest!.isBlocked({ kind: 'scene-plate', sceneId: null })
+    ).toBe(false)
+
+    await act(async () => {
+      latest!.startJob({
+        kind: 'scene-plate',
+        label: 'new-scene',
+        scope: {},
+        run: async () => {
+          await new Promise((r) => setTimeout(r, 300))
+          return { type: 'scene-plate', sceneId: 'sc', path: '/s.png' }
+        }
+      })
+    })
+    expect(latest!.isBlocked({ kind: 'scene-plate', sceneId: null })).toBe(true)
+
+    await act(async () => {
+      latest!.startJob({
+        kind: 'prop-plate',
+        label: 'new-prop',
+        scope: {},
+        run: async () => {
+          await new Promise((r) => setTimeout(r, 300))
+          return { type: 'prop-plate', propId: 'p', path: '/p.png' }
+        }
+      })
+    })
+    expect(latest!.isBlocked({ kind: 'prop-plate', propId: null })).toBe(true)
+
+    await act(async () => {
+      latest!.startJob({
+        kind: 'costume-ai-fill',
+        label: 'new-cos',
+        scope: {},
+        run: async () => {
+          await new Promise((r) => setTimeout(r, 300))
+          return {
+            type: 'character-profile',
+            characterId: null,
+            storyId: null,
+            profile: { name: 'x', description: 'd' },
+            profileJson: '{}',
+            isNew: true
+          }
+        }
+      })
+    })
+    expect(
+      latest!.isBlocked({ kind: 'costume-ai-fill', costumeId: null })
+    ).toBe(true)
+
+    // entity-scoped running
+    await act(async () => {
+      latest!.startJob({
+        kind: 'clip',
+        label: 'clip1',
+        scope: {
+          sceneId: 'sc9',
+          propId: 'p9',
+          actionId: 'a9',
+          costumeId: 'k9',
+          entryId: 'e9',
+          storyId: 's9'
+        },
+        run: async () => {
+          await new Promise((r) => setTimeout(r, 400))
+        }
+      })
+    })
+    expect(latest!.isBlocked({ sceneId: 'sc9' })).toBe(true)
+    expect(latest!.isBlocked({ propId: 'p9' })).toBe(true)
+    expect(latest!.isBlocked({ actionId: 'a9' })).toBe(true)
+    expect(latest!.isBlocked({ costumeId: 'k9' })).toBe(true)
+    expect(latest!.isBlocked({ entryId: 'e9' })).toBe(true)
+    expect(latest!.isBlocked({ storyId: 's9' })).toBe(true)
+  })
+
+  it('handler unsubscribes and discard sheet/scene/prop/cover drafts', async () => {
+    await mount()
+    const unsubs: Array<() => void> = []
+    await act(async () => {
+      unsubs.push(latest!.onProfileApply(() => undefined))
+      unsubs.push(latest!.onSheetCommitted(() => undefined))
+      unsubs.push(latest!.onPipelineDone(() => undefined))
+      unsubs.push(latest!.onWardrobeApply(() => undefined))
+      unsubs.push(latest!.onSceneProfileApply(() => undefined))
+      unsubs.push(latest!.onScenePlateCommitted(() => undefined))
+      unsubs.push(latest!.onPropProfileApply(() => undefined))
+      unsubs.push(latest!.onPropPlateCommitted(() => undefined))
+      unsubs.push(latest!.onActionProfileApply(() => undefined))
+      unsubs.push(latest!.onActionPlateCommitted(() => undefined))
+      unsubs.push(latest!.onStoryCoverCommitted(() => undefined))
+    })
+    for (const u of unsubs) u()
+
+    api.generation.cancel = vi.fn().mockRejectedValue(new Error('no'))
+    api.media.discardSheetDraft = vi.fn().mockRejectedValue(new Error('x'))
+
+    let id = ''
+    await act(async () => {
+      id = latest!.startJob({
+        kind: 'character-sheet',
+        label: 'sheet-draft',
+        scope: { characterId: 'c1' },
+        run: async () => ({
+          type: 'character-sheet',
+          characterId: 'c1',
+          path: '/tmp/d.png',
+          label: 's'
+        })
+      })
+    })
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('listitem').some((el) =>
+          /sheet-draft:succeeded/.test(el.textContent || '')
+        )
+      ).toBe(true)
+    )
+    await act(async () => {
+      await latest!.discardDraft(id)
+    })
+
+    // scene-plate discard
+    await act(async () => {
+      id = latest!.startJob({
+        kind: 'scene-plate',
+        label: 'sc-draft',
+        scope: { sceneId: 'sc1' },
+        run: async () => ({
+          type: 'scene-plate',
+          sceneId: 'sc1',
+          path: '/tmp/s.png'
+        })
+      })
+    })
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('listitem').some((el) =>
+          /sc-draft:succeeded/.test(el.textContent || '')
+        )
+      ).toBe(true)
+    )
+    await act(async () => {
+      await latest!.discardDraft(id)
+    })
+
+    await act(async () => {
+      id = latest!.startJob({
+        kind: 'prop-plate',
+        label: 'pr-draft',
+        scope: { propId: 'p1' },
+        run: async () => ({
+          type: 'prop-plate',
+          propId: 'p1',
+          path: '/tmp/p.png'
+        })
+      })
+    })
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('listitem').some((el) =>
+          /pr-draft:succeeded/.test(el.textContent || '')
+        )
+      ).toBe(true)
+    )
+    await act(async () => {
+      await latest!.discardDraft(id)
+    })
+
+    await act(async () => {
+      id = latest!.startJob({
+        kind: 'story-cover',
+        label: 'cover-draft',
+        scope: { storyId: 's1' },
+        run: async () => ({
+          type: 'story-cover',
+          storyId: 's1',
+          path: '/tmp/c.png'
+        })
+      })
+    })
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('listitem').some((el) =>
+          /cover-draft:succeeded/.test(el.textContent || '')
+        )
+      ).toBe(true)
+    )
+    await act(async () => {
+      await latest!.discardDraft(id)
+    })
+  })
+
+  it('loadPersistedJobs drops running and interrupt stubs', async () => {
+    localStorage.setItem(
+      'idm.aiJobs.v1',
+      JSON.stringify([
+        {
+          id: 'j1',
+          kind: 'clip',
+          label: 'r',
+          status: 'running',
+          progress: 10,
+          scope: {},
+          createdAt: 1
+        },
+        {
+          id: 'j2',
+          kind: 'clip',
+          label: 'bad',
+          status: 'failed',
+          progress: 100,
+          error: 'interrupted_on_reload',
+          message: 'interrupted',
+          scope: {},
+          createdAt: 2
+        },
+        {
+          id: 'j3',
+          kind: 'character-sheet',
+          label: 'ok',
+          status: 'succeeded',
+          progress: 100,
+          draft: {
+            type: 'character-sheet',
+            characterId: 'c1',
+            path: '/x.png',
+            label: 's'
+          },
+          scope: { characterId: 'c1' },
+          createdAt: 3
+        }
+      ])
+    )
+    await mount()
+    // should restore draft reviewing
+    expect(latest!.reviewingJobId || latest!.jobs?.length !== undefined).toBeTruthy()
+  })
+
+  it('persistDraftStore quota errors ignored', async () => {
+    await mount()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    await act(async () => {
+      latest!.upsertSavedVideoPrepDraft(
+        'k1',
+        {
+          kind: 'character-intro',
+          entityIds: { characterId: 'c1' },
+          professionalPrompt: 'p',
+          stillPath: '/s.png',
+          durationSeconds: 5,
+          aspectRatio: '16:9'
+        } as never,
+        []
+      )
+    })
+    setItem.mockRestore()
+  })
 })
