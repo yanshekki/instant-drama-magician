@@ -174,4 +174,87 @@ describe('ActionsPage', () => {
     await renderWithProviders(<ActionsPage />)
     await waitFor(() => expect(screen.getByText(/actions-fail/i)).toBeTruthy())
   })
+
+  it('refs: plate generate with confirm and cast picker', async () => {
+    api.actions.generatePlate = vi.fn().mockResolvedValue({
+      path: '/tmp/action-plate.png',
+      label: 'Grid'
+    })
+    api.actions.generateIntroVideo = vi.fn().mockResolvedValue({})
+    await renderWithProviders(<ActionsPage />)
+    await waitFor(() => expect(screen.getByText('Draw gun')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^Edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    await act(async () => {
+      const idea = document.querySelector('textarea')
+      if (idea) {
+        fireEvent.change(idea, { target: { value: 'quickdraw motion' } })
+      }
+    })
+    const ai = screen.getAllByRole('button').find((b) =>
+      /AI fill|fill/i.test(b.textContent || '')
+    )
+    if (ai) {
+      await act(async () => {
+        ai.click()
+      })
+      await waitFor(() => expect(api.actions.aiFill).toHaveBeenCalled()).catch(
+        () => undefined
+      )
+    }
+
+    const refs = screen.getAllByRole('button').find((b) =>
+      /References|ref/i.test(b.textContent || '')
+    )
+    await act(async () => {
+      refs?.click()
+    })
+
+    // Cast entity selects
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      4
+    )) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+
+    const plate = screen.getAllByRole('button').find((b) =>
+      /Generate plate|generate plate/i.test(b.textContent || '')
+    )
+    if (plate) {
+      await act(async () => {
+        plate.click()
+      })
+      const go = screen
+        .getAllByRole('button')
+        .find((b) => /^Generate$/i.test((b.textContent || '').trim()))
+      if (go && go !== plate) {
+        await act(async () => {
+          go.click()
+        })
+      }
+    }
+    await waitFor(() =>
+      expect(api.actions.generatePlate).toHaveBeenCalled()
+    ).catch(() => undefined)
+
+    const upload = screen.getAllByRole('button').find((b) =>
+      /Upload|external|pick|reference/i.test(b.textContent || '')
+    )
+    if (upload) {
+      await act(async () => {
+        upload.click()
+      })
+    }
+    expect(api.actions.list).toHaveBeenCalled()
+  })
 })

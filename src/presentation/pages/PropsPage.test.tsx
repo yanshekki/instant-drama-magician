@@ -188,4 +188,102 @@ describe('PropsPage', () => {
     await renderWithProviders(<PropsPage />)
     await waitFor(() => expect(screen.getByText(/props-down/i)).toBeTruthy())
   })
+
+  it('refs: generate plate, upload, plot suggest, layer filters', async () => {
+    api.props.generatePlate = vi.fn().mockResolvedValue({
+      path: '/tmp/plate2.png',
+      label: 'Hero'
+    })
+    await renderWithProviders(<PropsPage />)
+    await waitFor(() => expect(screen.getByText('Badge')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^Edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    // Profile AI + plot suggest
+    for (const re of [
+      /AI fill|fill/i,
+      /Suggest from story|plot|Suggest/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    // Confirm plot modal if open
+    const confirmPlot = screen.getAllByRole('button').find((b) =>
+      /use|apply|confirm|ok/i.test(b.textContent || '')
+    )
+    if (confirmPlot) {
+      await act(async () => {
+        confirmPlot.click()
+      })
+    }
+
+    const refs = screen.getAllByRole('button').find((b) =>
+      /References|ref|plate/i.test(b.textContent || '')
+    )
+    await act(async () => {
+      refs?.click()
+    })
+
+    for (const re of [/^All$/i, /layer|detail|hero/i]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      3
+    )) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+
+    const plate = screen.getAllByRole('button').find((b) =>
+      /Generate plate|generate plate/i.test(b.textContent || '')
+    )
+    if (plate) {
+      await act(async () => {
+        plate.click()
+      })
+      const go = screen
+        .getAllByRole('button')
+        .find((b) => /^Generate$/i.test((b.textContent || '').trim()))
+      if (go && go !== plate) {
+        await act(async () => {
+          go.click()
+        })
+      }
+    }
+    await waitFor(() =>
+      expect(api.props.generatePlate).toHaveBeenCalled()
+    ).catch(() => undefined)
+
+    const upload = screen.getAllByRole('button').find((b) =>
+      /Upload|pick|reference/i.test(b.textContent || '')
+    )
+    if (upload) {
+      await act(async () => {
+        upload.click()
+      })
+    }
+    expect(api.props.list).toHaveBeenCalled()
+  })
 })

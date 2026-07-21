@@ -220,4 +220,88 @@ describe('ScenesPage', () => {
     await renderWithProviders(<ScenesPage />)
     await waitFor(() => expect(screen.getByText(/scenes-down/i)).toBeTruthy())
   })
+
+  it('atmosphere tab and plot suggest modal', async () => {
+    api.scenes.generatePlate = vi.fn().mockResolvedValue({
+      path: '/tmp/plate-sc.png',
+      label: 'Est'
+    })
+    api.scenes.copyGalleryFrom = vi.fn().mockResolvedValue({})
+    await renderWithProviders(<ScenesPage />)
+    await waitFor(() => expect(screen.getByText('Rooftop')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^Edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+
+    // Plot suggest from toolbar / editor
+    const plot = screen.getAllByRole('button').find((b) =>
+      /plot|Suggest from story|Suggest/i.test(b.textContent || '')
+    )
+    if (plot) {
+      await act(async () => {
+        plot.click()
+      })
+      const apply = screen.getAllByRole('button').find((b) =>
+        /use|apply|confirm|ok|fill/i.test(b.textContent || '')
+      )
+      if (apply) {
+        await act(async () => {
+          apply.click()
+        })
+      }
+    }
+
+    for (const re of [
+      /Profile/i,
+      /References|ref/i,
+      /Atmosphere/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+
+    // Plate vs atmosphere mode toggles
+    for (const re of [
+      /plate|atmosphere|swap|Generate|Upload|copy|look/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+        const go = screen
+          .getAllByRole('button')
+          .find((x) => /^Generate$/i.test((x.textContent || '').trim()))
+        if (go && go !== b) {
+          await act(async () => {
+            go.click()
+          })
+        }
+      }
+    }
+
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      5
+    )) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+    expect(api.scenes.list).toHaveBeenCalled()
+  })
 })

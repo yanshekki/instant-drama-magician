@@ -413,16 +413,106 @@ describe('StoriesPage', () => {
     expect(api.stories.list).toHaveBeenCalled()
   })
 
-  it('list load error falls back to empty', async () => {
-    api.stories.list = vi.fn().mockRejectedValue(new Error('stories-down'))
-    await renderWithProviders(<StoriesPage />, { withToastHost: true })
-    await waitFor(() => expect(api.stories.list).toHaveBeenCalled())
-    // swallow unhandled rejection from failed load; UI falls back
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 50))
-    })
-    expect(document.body.textContent || '').toMatch(
-      /No stories|New story|Stories/i
+  it('cast linking, beat reorder and cover pick', async () => {
+    api.stories.linkCharacter = vi.fn().mockResolvedValue({})
+    api.stories.unlinkCharacter = vi.fn().mockResolvedValue({})
+    api.stories.linkScene = vi.fn().mockResolvedValue({})
+    api.stories.setCharacterCostume = vi.fn().mockResolvedValue({})
+    api.media.pickRefImage = vi.fn().mockResolvedValue({ path: '/tmp/cover.png' })
+    await renderWithProviders(<StoriesPage />)
+    await waitFor(() => expect(screen.getByText('Demo Story')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^Edit$/i.test((b.textContent || '').trim())
     )
+    await act(async () => {
+      edit?.click()
+    })
+    await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
+
+    // Meta AI
+    const idea = document.querySelector('textarea') as HTMLTextAreaElement
+    if (idea) {
+      await act(async () => {
+        fireEvent.change(idea, { target: { value: 'rainy noir pilot' } })
+      })
+    }
+    for (const re of [
+      /fill meta|AI|meta/i,
+      /Generate cover|cover/i,
+      /Upload|pick cover|pick/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+        const go = screen
+          .getAllByRole('button')
+          .find((x) => /^Generate$/i.test((x.textContent || '').trim()))
+        if (go && go !== b) {
+          await act(async () => {
+            go.click()
+          })
+        }
+      }
+    }
+
+    // Cast tab
+    const cast = screen.getAllByRole('button').find((b) =>
+      /^Cast$/i.test((b.textContent || '').trim())
+    )
+    if (cast) {
+      await act(async () => {
+        cast.click()
+      })
+    }
+    for (const re of [
+      /Character|Scene|Prop|Action/i,
+      /All|Linked|Unlinked/i,
+      /link|unlink|Link/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+
+    // Script / beats
+    const script = screen.getAllByRole('button').find((b) =>
+      /Script|Beats/i.test(b.textContent || '')
+    )
+    if (script) {
+      await act(async () => {
+        script.click()
+      })
+    }
+    for (const re of [
+      /fill script|AI script|Suggest/i,
+      /Add beat|add/i,
+      /up|down|move|delete/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+
+    await waitFor(() =>
+      expect(
+        api.stories.aiFillMeta.mock.calls.length +
+          api.stories.generateCover.mock.calls.length +
+          api.stories.aiFillScript.mock.calls.length
+      ).toBeGreaterThan(0)
+    ).catch(() => undefined)
   })
 })

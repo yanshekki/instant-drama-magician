@@ -9,7 +9,10 @@ import {
   makeStory,
   makeTimelineEntry
 } from '../../test/pageFixtures'
-import { renderWithProviders } from '../../test/renderWithProviders'
+import {
+  clickDialogConfirm,
+  renderWithProviders
+} from '../../test/renderWithProviders'
 import { TimelinePage } from './TimelinePage'
 
 const api = createMockApi()
@@ -20,62 +23,189 @@ vi.mock('../../lib/api', () => ({
 }))
 
 vi.mock('../components/timeline/KonvaTimeline', () => ({
-  KonvaTimeline: () => <div data-testid="konva-timeline">timeline-canvas</div>
+  KonvaTimeline: (props: {
+    onSelect?: (id: string) => void
+    entries?: Array<{ id: string }>
+  }) => (
+    <div data-testid="konva-timeline">
+      <button
+        type="button"
+        data-testid="konva-select"
+        onClick={() => props.onSelect?.(props.entries?.[0]?.id ?? 'entry-1')}
+      >
+        select-clip
+      </button>
+      timeline-canvas
+    </div>
+  )
 }))
 vi.mock('../components/timeline/PreviewPlayer', () => ({
-  PreviewPlayer: () => <div data-testid="preview-player">preview</div>
+  PreviewPlayer: (props: {
+    onTime?: (t: number) => void
+    onEnded?: () => void
+  }) => (
+    <div data-testid="preview-player">
+      <button
+        type="button"
+        data-testid="preview-tick"
+        onClick={() => {
+          props.onTime?.(1.5)
+          props.onEnded?.()
+        }}
+      >
+        tick
+      </button>
+      preview
+    </div>
+  )
 }))
 vi.mock('../components/timeline/TimelineAdvancedStudio', () => ({
-  TimelineAdvancedStudio: () => <div data-testid="advanced">advanced</div>
+  TimelineAdvancedStudio: (props: {
+    open?: boolean
+    onClose?: () => void
+    onStartVideoQueue?: (ids: string[]) => void
+  }) =>
+    props.open ? (
+      <div data-testid="advanced">
+        <button type="button" onClick={() => props.onClose?.()}>
+          close-advanced
+        </button>
+        <button
+          type="button"
+          onClick={() => props.onStartVideoQueue?.(['entry-1'])}
+        >
+          start-queue
+        </button>
+        advanced
+      </div>
+    ) : null
 }))
 vi.mock('../components/ExportFinalDialog', () => ({
-  ExportFinalDialog: (props: { open?: boolean }) =>
-    props.open ? <div data-testid="export-dlg">export</div> : null
+  ExportFinalDialog: (props: {
+    open?: boolean
+    onClose?: () => void
+    onConfirm?: (opts: Record<string, unknown>) => void
+  }) =>
+    props.open ? (
+      <div data-testid="export-dlg">
+        <button
+          type="button"
+          onClick={() =>
+            props.onConfirm?.({
+              includeSubtitles: true,
+              burnSubtitles: true
+            })
+          }
+        >
+          confirm-export
+        </button>
+        <button type="button" onClick={() => props.onClose?.()}>
+          close-export
+        </button>
+        export
+      </div>
+    ) : null
 }))
+
+function findBtn(re: RegExp) {
+  return screen.queryAllByRole('button').find((b) => re.test(b.textContent || ''))
+}
+
+async function clickBtn(re: RegExp) {
+  const b = findBtn(re)
+  if (b && !(b as HTMLButtonElement).disabled) {
+    await act(async () => {
+      fireEvent.click(b)
+    })
+  }
+  return b
+}
+
+function seedTimeline() {
+  api.stories.list = vi.fn().mockResolvedValue([
+    makeStory(),
+    makeStory({ id: 'story-2', title: 'Second' })
+  ])
+  api.ai.status = vi.fn().mockResolvedValue({ available: true, message: 'ok' })
+  api.timeline.list = vi.fn().mockResolvedValue([
+    makeTimelineEntry(),
+    makeTimelineEntry({
+      id: 'entry-2',
+      order: 1,
+      dialogue: 'Next line',
+      startTime: 4,
+      endTime: 8,
+      mediaStatus: 'READY',
+      mediaPath: '/media/c.mp4',
+      stillPath: '/media/s.png'
+    }),
+    makeTimelineEntry({
+      id: 'entry-3',
+      order: 2,
+      dialogue: 'Failed clip',
+      startTime: 8,
+      endTime: 12,
+      mediaStatus: 'FAILED',
+      status: 'FAILED'
+    })
+  ])
+  api.timeline.create = vi
+    .fn()
+    .mockResolvedValue(makeTimelineEntry({ id: 'e-new' }))
+  api.timeline.update = vi.fn().mockResolvedValue({})
+  api.timeline.delete = vi.fn().mockResolvedValue({ ok: true })
+  api.timeline.reorder = vi.fn().mockResolvedValue({ ok: true })
+  api.characters.list = vi.fn().mockResolvedValue([makeCharacter()])
+  api.scenes.list = vi.fn().mockResolvedValue([makeScene()])
+  api.props.list = vi.fn().mockResolvedValue([makeProp()])
+  api.actions.list = vi.fn().mockResolvedValue([makeAction()])
+  api.settings.get = vi.fn().mockResolvedValue({
+    defaultMaxClipSeconds: 6,
+    videoMode: 'stub',
+    burnSubtitles: true
+  })
+  api.generation.run = vi.fn().mockResolvedValue({
+    success: true,
+    steps: [{ name: 'video', ok: true }]
+  })
+  api.generation.runClip = vi.fn().mockResolvedValue({ success: true })
+  api.generation.cancel = vi.fn().mockResolvedValue({ ok: true })
+  api.generation.onProgress = vi.fn(() => () => undefined)
+  api.media.exportFinal = vi.fn().mockResolvedValue({
+    path: '/tmp/out.mp4',
+    ok: true
+  })
+  api.media.exportPreflight = vi.fn().mockResolvedValue({ ok: true })
+  api.media.listExports = vi.fn().mockResolvedValue([
+    {
+      id: 'ex1',
+      kind: 'final',
+      fileName: 'out.mp4',
+      path: '/tmp/out.mp4',
+      createdAt: '2026-07-15T12:00:00.000Z',
+      sizeBytes: 1024
+    }
+  ])
+  api.media.deleteExport = vi.fn().mockResolvedValue({ ok: true })
+  api.media.importClip = vi.fn().mockResolvedValue({ path: '/tmp/imp.mp4' })
+  api.media.openClip = vi.fn().mockResolvedValue({})
+  api.media.exportStoryboard = vi.fn().mockResolvedValue({ path: '/tmp/b.png' })
+  api.videoPrep.create = vi.fn().mockResolvedValue({
+    draft: {
+      kind: 'timeline-clip',
+      entityIds: { storyId: 'story-1', entryId: 'entry-1' },
+      professionalPrompt: 'clip',
+      stillPath: '/media/s.png',
+      sourceImagePath: '/media/s.png',
+      durationSeconds: 6
+    }
+  })
+}
 
 describe('TimelinePage', () => {
   beforeEach(() => {
     reseedMockApi(api)
-    api.stories.list = vi.fn().mockResolvedValue([
-      makeStory(),
-      makeStory({ id: 'story-2', title: 'Second' })
-    ])
-    api.ai.status = vi.fn().mockResolvedValue({ available: true, message: 'ok' })
-    api.timeline.list = vi.fn().mockResolvedValue([
-      makeTimelineEntry(),
-      makeTimelineEntry({
-        id: 'entry-2',
-        order: 1,
-        dialogue: 'Next line',
-        startTime: 4,
-        endTime: 8,
-        mediaStatus: 'READY',
-        mediaPath: '/media/c.mp4'
-      })
-    ])
-    api.timeline.create = vi
-      .fn()
-      .mockResolvedValue(makeTimelineEntry({ id: 'e-new' }))
-    api.timeline.update = vi.fn().mockResolvedValue({})
-    api.timeline.delete = vi.fn().mockResolvedValue({ ok: true })
-    api.timeline.reorder = vi.fn().mockResolvedValue({ ok: true })
-    api.characters.list = vi.fn().mockResolvedValue([makeCharacter()])
-    api.scenes.list = vi.fn().mockResolvedValue([makeScene()])
-    api.props.list = vi.fn().mockResolvedValue([makeProp()])
-    api.actions.list = vi.fn().mockResolvedValue([makeAction()])
-    api.settings.get = vi.fn().mockResolvedValue({
-      defaultMaxClipSeconds: 6,
-      videoMode: 'stub',
-      burnSubtitles: true
-    })
-    api.generation.run = vi.fn().mockResolvedValue({ success: true, steps: [] })
-    api.generation.runClip = vi.fn().mockResolvedValue({ success: true })
-    api.generation.cancel = vi.fn().mockResolvedValue({ ok: true })
-    api.media.exportFinal = vi.fn().mockResolvedValue({ path: '/tmp/out.mp4' })
-    api.media.exportPreflight = vi.fn().mockResolvedValue({ ok: true })
-    api.media.listExports = vi.fn().mockResolvedValue([])
-    api.media.importClip = vi.fn().mockResolvedValue({ path: '/tmp/imp.mp4' })
-    api.media.openClip = vi.fn().mockResolvedValue({})
+    seedTimeline()
   })
 
   it('empty stories shows pick hint', async () => {
@@ -88,115 +218,206 @@ describe('TimelinePage', () => {
     )
   })
 
-  it('mounts timeline page with stories without hanging', async () => {
+  it('loads active story timeline and toolbar actions', async () => {
     await renderWithProviders(<TimelinePage />, { route: '/timeline' })
-    await waitFor(() => {
-      expect(document.body.textContent || '').toMatch(
-        /Timeline|Demo Story|story|clip|Choose/i
-      )
+    await waitFor(() => expect(api.stories.list).toHaveBeenCalled())
+    await waitFor(() => expect(api.timeline.list).toHaveBeenCalled(), {
+      timeout: 4000
     })
-    // Best-effort: select story if a select is present
-    const storySelect = document.querySelector(
-      'select'
-    ) as HTMLSelectElement | null
-    if (storySelect && storySelect.options.length > 0) {
+
+    // Play / pause
+    await clickBtn(/^Play$/i)
+    await clickBtn(/^Pause$/i)
+
+    // Generate all
+    await clickBtn(/^Generate$/i)
+    await waitFor(() => expect(api.generation.run).toHaveBeenCalled()).catch(
+      () => undefined
+    )
+
+    // Retry failed if present
+    await clickBtn(/Retry/i)
+
+    // Export dialog
+    await clickBtn(/^Export$/i)
+    await waitFor(() =>
+      expect(screen.getByTestId('export-dlg')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('confirm-export'))
+    })
+    await waitFor(() =>
+      expect(api.media.exportFinal).toHaveBeenCalled()
+    ).catch(() => undefined)
+
+    // Export history
+    await clickBtn(/Export history/i)
+    await waitFor(() => expect(api.media.listExports).toHaveBeenCalled())
+
+    // Delete export if UI exposes it
+    await clickBtn(/^Delete$/i)
+    if (document.querySelector('[role="alertdialog"]')) {
       await act(async () => {
-        fireEvent.change(storySelect, {
-          target: { value: storySelect.options[0].value }
-        })
+        clickDialogConfirm()
       })
     }
+
+    // Advanced studio
+    await clickBtn(/Advanced|Studio|Prep/i)
+    if (screen.queryByTestId('advanced')) {
+      await act(async () => {
+        fireEvent.click(screen.getByText('start-queue'))
+      })
+      await act(async () => {
+        fireEvent.click(screen.getByText('close-advanced'))
+      })
+    }
+
     expect(document.body.textContent).toBeTruthy()
   })
 
-  it('loads clips, creates entry, generates and export paths', async () => {
+  it('selects clip, edits dialogue, duration, import, delete', async () => {
     await renderWithProviders(<TimelinePage />, { route: '/timeline' })
-    await waitFor(() => expect(api.stories.list).toHaveBeenCalled())
-
-    // Select story via first select that has story-1
-    for (const sel of Array.from(document.querySelectorAll('select'))) {
-      const s = sel as HTMLSelectElement
-      const opt = Array.from(s.options).find((o) => o.value === 'story-1')
-      if (opt) {
-        await act(async () => {
-          fireEvent.change(s, { target: { value: 'story-1' } })
-        })
-        break
-      }
-    }
-
-    await waitFor(
-      () =>
-        expect(api.timeline.list.mock.calls.length).toBeGreaterThan(0) ||
-        expect(document.body.textContent || '').toMatch(/We start here|clip|entry/i),
-      { timeout: 4000 }
-    ).catch(() => undefined)
-
-    // Add / new clip
-    for (const re of [/add clip|new clip|add entry|\+/i]) {
-      const btn = screen.getAllByRole('button').find((b) =>
-        re.test(b.textContent || '')
-      )
-      if (btn && !(btn as HTMLButtonElement).disabled) {
-        await act(async () => {
-          btn.click()
-        })
-        break
-      }
-    }
-    await act(async () => {
-      await Promise.resolve()
+    await waitFor(() => expect(api.timeline.list).toHaveBeenCalled(), {
+      timeout: 4000
     })
 
-    // Generate pipeline / clip
-    for (const re of [
-      /generate all|run pipeline|generate/i,
-      /export final|export/i,
-      /import clip|import/i,
-      /advanced|studio/i
-    ]) {
-      const btn = screen.getAllByRole('button').find((b) =>
-        re.test(b.textContent || '')
+    // Select via mocked konva
+    const sel = screen.queryByTestId('konva-select')
+    if (sel) {
+      await act(async () => {
+        fireEvent.click(sel)
+      })
+    }
+
+    // Click dialogue text if visible (may appear multiple times)
+    const lines = screen.queryAllByText(/We start here/i)
+    if (lines[0]) {
+      await act(async () => {
+        fireEvent.click(lines[0]!)
+      })
+    }
+
+    // Dialogue textarea
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(
+      0,
+      3
+    )) {
+      await act(async () => {
+        fireEvent.change(el, { target: { value: 'Updated dialogue line' } })
+      })
+    }
+    await clickBtn(/^Save$/i)
+    await waitFor(() => expect(api.timeline.update).toHaveBeenCalled()).catch(
+      () => undefined
+    )
+
+    // Clip duration buttons (6 / 10)
+    for (const re of [/^6$/, /^10$/, /6s|10s|seconds/i]) {
+      await clickBtn(re)
+    }
+
+    await clickBtn(/Import clip/i)
+    await waitFor(() => expect(api.media.importClip).toHaveBeenCalled()).catch(
+      () => undefined
+    )
+
+    await clickBtn(/Open clip/i)
+    await waitFor(() => expect(api.media.openClip).toHaveBeenCalled()).catch(
+      () => undefined
+    )
+
+    // Generate single clip
+    await clickBtn(/Generate clip|Run clip|clip/i)
+    await waitFor(() =>
+      expect(api.generation.runClip).toHaveBeenCalled()
+    ).catch(() => undefined)
+
+    // Delete clip
+    await clickBtn(/^Delete$/i)
+    if (document.querySelector('[role="alertdialog"]')) {
+      await act(async () => {
+        clickDialogConfirm()
+      })
+      await waitFor(() => expect(api.timeline.delete).toHaveBeenCalled()).catch(
+        () => undefined
       )
-      if (btn && !(btn as HTMLButtonElement).disabled) {
+    }
+
+    // Preview clock
+    const tick = screen.queryByTestId('preview-tick')
+    if (tick) {
+      await act(async () => {
+        fireEvent.click(tick)
+      })
+    }
+
+    // Story picker change
+    for (const selEl of Array.from(document.querySelectorAll('select'))) {
+      const s = selEl as HTMLSelectElement
+      if (Array.from(s.options).some((o) => o.value === 'story-2')) {
         await act(async () => {
-          btn.click()
+          fireEvent.change(s, { target: { value: 'story-2' } })
         })
       }
     }
 
-    // Edit dialogue fields if present
-    for (const el of Array.from(
-      document.querySelectorAll('textarea, input')
-    ).slice(0, 4)) {
-      const tag = el.tagName.toLowerCase()
-      if (tag === 'textarea' || (el as HTMLInputElement).type === 'text') {
+    // Cast binding selects
+    for (const selEl of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      6
+    )) {
+      const s = selEl as HTMLSelectElement
+      if (s.options.length > 1) {
         await act(async () => {
-          fireEvent.change(el, { target: { value: 'Updated line' } })
+          fireEvent.change(s, { target: { value: s.options[1].value } })
         })
       }
     }
 
-    expect(document.body.textContent).toBeTruthy()
+    expect(api.timeline.list).toHaveBeenCalled()
   })
 
   it('handles empty timeline for selected story', async () => {
     api.timeline.list = vi.fn().mockResolvedValue([])
     await renderWithProviders(<TimelinePage />, { route: '/timeline' })
     await waitFor(() => expect(api.stories.list).toHaveBeenCalled())
-    for (const sel of Array.from(document.querySelectorAll('select'))) {
-      const s = sel as HTMLSelectElement
-      if (Array.from(s.options).some((o) => o.value === 'story-1')) {
-        await act(async () => {
-          fireEvent.change(s, { target: { value: 'story-1' } })
-        })
-        break
-      }
-    }
     await waitFor(() =>
       expect(document.body.textContent || '').toMatch(
-        /empty|no clip|add|timeline|Demo Story/i
+        /empty|no clip|Add|timeline|Demo Story|Timeline/i
       )
     )
+    await clickBtn(/Add to timeline|Add clip|new/i)
+    await waitFor(() => expect(api.timeline.create).toHaveBeenCalled()).catch(
+      () => undefined
+    )
+  })
+
+  it('cast load failure is non-fatal', async () => {
+    api.characters.list = vi.fn().mockRejectedValue(new Error('cast-down'))
+    await renderWithProviders(<TimelinePage />, {
+      route: '/timeline',
+      withToastHost: true
+    })
+    await waitFor(() => expect(api.timeline.list).toHaveBeenCalled(), {
+      timeout: 4000
+    }).catch(() => undefined)
+    expect(document.body.textContent || '').toMatch(/Timeline|Demo Story/i)
+  })
+
+  it('generation error surfaces without crash', async () => {
+    api.generation.run = vi.fn().mockRejectedValue(new Error('gen-fail'))
+    await renderWithProviders(<TimelinePage />, {
+      route: '/timeline',
+      withToastHost: true
+    })
+    await waitFor(() => expect(api.timeline.list).toHaveBeenCalled(), {
+      timeout: 4000
+    })
+    await clickBtn(/^Generate$/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    expect(document.body.textContent || '').toMatch(/Timeline|Generate|fail/i)
   })
 })

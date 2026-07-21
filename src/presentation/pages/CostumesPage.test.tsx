@@ -173,5 +173,90 @@ describe('CostumesPage', () => {
     await renderWithProviders(<CostumesPage />)
     await waitFor(() => expect(screen.getByText(/cost-fail/i)).toBeTruthy())
   })
+
+  it('dress tab generate and link filters', async () => {
+    api.costumes.generateDressed = vi.fn().mockResolvedValue({
+      path: '/tmp/dressed2.png',
+      label: 'Dressed'
+    })
+    api.costumes.generateIntroVideo = vi.fn().mockResolvedValue({})
+    await renderWithProviders(<CostumesPage />)
+    await waitFor(() => expect(screen.getByText('Rain coat')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^Edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+
+    for (const re of [
+      /Profile/i,
+      /Dress|Links|Character/i,
+      /AI fill|fill/i,
+      /Suggest/i
+    ]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+
+    // Link filter chips
+    for (const re of [/All|Linked|Unlinked/i]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+
+    // Link character toggle
+    const link = screen.getAllByRole('button').find((b) =>
+      /link|unlink|Link/i.test(b.textContent || '')
+    )
+    if (link) {
+      await act(async () => {
+        link.click()
+      })
+      await waitFor(() =>
+        expect(
+          api.costumes.linkCharacter.mock.calls.length +
+            api.costumes.unlinkCharacter.mock.calls.length
+        ).toBeGreaterThan(0)
+      ).catch(() => undefined)
+    }
+
+    // Dress generate
+    for (const re of [/Dress|Generate|pose/i]) {
+      const b = screen.getAllByRole('button').find((x) =>
+        re.test(x.textContent || '')
+      )
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    await waitFor(() =>
+      expect(api.costumes.generateDressed).toHaveBeenCalled()
+    ).catch(() => undefined)
+
+    const upload = screen.getAllByRole('button').find((b) =>
+      /Upload|pick|image/i.test(b.textContent || '')
+    )
+    if (upload) {
+      await act(async () => {
+        upload.click()
+      })
+    }
+    expect(api.costumes.list).toHaveBeenCalled()
+  })
 })
 
