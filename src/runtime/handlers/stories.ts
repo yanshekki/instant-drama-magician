@@ -1,3 +1,4 @@
+import { defaultStoryTitle, defaultDuration } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
  */
@@ -68,7 +69,7 @@ reg(
       const row = await stories().get(payload.storyId)
       const title = String(
         (row as { title?: string }).title ??
-          (locale === 'en' ? 'Story' : '故事')
+          defaultStoryTitle(locale)
       )
       const styleNote =
         typeof (row as { styleNote?: string | null }).styleNote === 'string'
@@ -457,7 +458,7 @@ reg(
         const dur = snapVideoSeconds(
           typeof ids.durationSeconds === 'number'
             ? ids.durationSeconds
-            : 6
+            : defaultDuration(null)
         )
         const start = timeCursor
         const end = start + dur

@@ -15,7 +15,14 @@ import {
   resolveAppIconPathFrom,
   collectAllowedMediaRoots,
   installLinuxDesktopIconPure,
-  applyWindowIconPure
+  applyWindowIconPure,
+  resolveScreenshotDefaultDir,
+  disconnectPrismaSafe,
+  ensureGatewayIfNeeded,
+  stopEmbeddedServerSafe,
+  fullBackupImportMessage,
+  createNativeIconIfPresent,
+  reportAppIconPath
 } from './pureHelpers'
 import {
   createReadStream,
@@ -330,14 +337,7 @@ async function runExportFullBackup(): Promise<void> {
   if (result.canceled || !result.filePath) return
   try {
     // Best-effort checkpoint: disconnect briefly so WAL is flushable
-    if (prisma) {
-      try {
-        await prisma.$disconnect()
-      } catch {
-        /* ignore */
-      }
-      prisma = null
-    }
+    prisma = await disconnectPrismaSafe(prisma)
     const { filePath } = await fullBackupService().exportToZip(result.filePath, {
       includeSecrets: false,
       includeLogs: true
@@ -400,10 +400,7 @@ async function runImportFullBackup(): Promise<void> {
     ? await dialog.showMessageBox(win, {
         type: 'warning',
         title: lang === 'en' ? 'Overwrite all local data?' : '覆寫本機全部資料？',
-        message:
-          lang === 'en'
-            ? 'This will replace the database, media library, and settings on this computer, then restart the app.'
-            : '此操作會覆寫本機資料庫、媒體庫與設定，然後重新啟動應用程式。',
+        message: fullBackupImportMessage(lang, false),
         detail:
           lang === 'en'
             ? 'Export a full backup first if you need to keep the current data.'
@@ -418,10 +415,7 @@ async function runImportFullBackup(): Promise<void> {
     : await dialog.showMessageBox({
         type: 'warning',
         title: lang === 'en' ? 'Overwrite all local data?' : '覆寫本機全部資料？',
-        message:
-          lang === 'en'
-            ? 'This will replace the database, media library, and settings, then restart.'
-            : '此操作會覆寫本機資料庫、媒體庫與設定，然後重新啟動。',
+        message: fullBackupImportMessage(lang, true),
         buttons: [
           lang === 'en' ? 'Cancel' : '取消',
           lang === 'en' ? 'Restore and Restart' : '還原並重新啟動'
@@ -432,14 +426,7 @@ async function runImportFullBackup(): Promise<void> {
   if (confirm.response !== 1) return
 
   try {
-    if (prisma) {
-      try {
-        await prisma.$disconnect()
-      } catch {
-        /* ignore */
-      }
-      prisma = null
-    }
+    prisma = await disconnectPrismaSafe(prisma)
     await fullBackupService().importFromZip(open.filePaths[0])
     app.relaunch()
     app.exit(0)
@@ -590,12 +577,12 @@ async function runCaptureScreenshot(): Promise<void> {
       return
     }
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-    let defaultDir = app.getPath('pictures')
-    try {
-      if (!existsSync(defaultDir)) defaultDir = app.getPath('desktop')
-    } catch {
-      defaultDir = app.getPath('userData')
-    }
+    const defaultDir = resolveScreenshotDefaultDir({
+      pictures: app.getPath('pictures'),
+      desktop: app.getPath('desktop'),
+      userData: app.getPath('userData'),
+      exists: existsSync
+    })
     const defaultPath = join(defaultDir, `idm-screenshot-${stamp}.png`)
     const result = await dialog.showSaveDialog(win, {
       title: lang === 'en' ? 'Save screenshot' : '儲存截圖',
@@ -638,11 +625,7 @@ function setupApplicationMenu(): void {
     },
     openMedia: () => {
       const media = join(app.getPath('userData'), 'media')
-      try {
-        if (!existsSync(media)) mkdirSync(media, { recursive: true })
-      } catch {
-        /* ignore */
-      }
+      ensureDirsNonFatal([media])
       void shell.openPath(media)
     },
     exportSupportReport: () => {
@@ -751,7 +734,17 @@ export function applyWindowIcon(win: BrowserWindow, iconPath: string): void {
   )
 }
 
-export { collectAllowedMediaRoots, ensureDirsNonFatal } from './pureHelpers'
+export {
+  collectAllowedMediaRoots,
+  ensureDirsNonFatal,
+  resolveScreenshotDefaultDir,
+  disconnectPrismaSafe,
+  ensureGatewayIfNeeded,
+  stopEmbeddedServerSafe,
+  fullBackupImportMessage,
+  createNativeIconIfPresent,
+  reportAppIconPath
+} from './pureHelpers'
 
 
 function createWindow(): void {
@@ -759,10 +752,11 @@ function createWindow(): void {
   const iconPath = resolveAppIconPath()
   // eslint-disable-next-line no-console
   console.log('[icon] path=', iconPath || '(none)')
-  const icon =
-    iconPath && existsSync(iconPath)
-      ? nativeImage.createFromPath(iconPath)
-      : undefined
+  const icon = createNativeIconIfPresent(
+    iconPath,
+    existsSync,
+    (p) => nativeImage.createFromPath(p)
+  ) as ReturnType<typeof nativeImage.createFromPath> | undefined
   if (iconPath && icon?.isEmpty()) {
     // eslint-disable-next-line no-console
     console.warn('[icon] loaded empty nativeImage from', iconPath)
@@ -837,13 +831,9 @@ app.whenReady().then(() => {
   }
 
   const iconPath = resolveAppIconPath()
+  reportAppIconPath(iconPath)
   if (iconPath) {
-    // eslint-disable-next-line no-console
-    console.log('[icon] installing', iconPath)
     installLinuxDesktopIcon(iconPath)
-  } else {
-    // eslint-disable-next-line no-console
-    console.warn('[icon] no icon file found')
   }
 
   const mediaRoot = join(app.getPath('userData'), 'media')
@@ -953,21 +943,8 @@ app.whenReady().then(() => {
   // Must NOT use a separate SettingsStore — that left disk key ready while AI stayed offline.
   setTimeout(() => {
     void (async () => {
-      try {
-        const { getIpcRuntime } = await import('./ipc')
-        const runtime = getIpcRuntime()
-        if (!runtime) return
-        const s = runtime.settingsStore.load()
-        const needsGw =
-          s.llmProvider === 'grok-gateway' ||
-          s.imageProvider === 'grok-gateway' ||
-          s.videoProvider === 'grok-gateway'
-        if (needsGw) {
-          await runtime.invoke('gateway:ensure')
-        }
-      } catch {
-        /* non-fatal — UI will surface gateway status */
-      }
+      const { getIpcRuntime } = await import('./ipc')
+      await ensureGatewayIfNeeded(getIpcRuntime())
     })()
   }, 1500)
 
@@ -992,14 +969,10 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', async () => {
-  try {
-    const { getEmbeddedWebServer } = await import(
-      '../../src/infrastructure/webserver/EmbeddedWebServer'
-    )
-    await getEmbeddedWebServer().stop()
-  } catch {
-    /* ignore */
-  }
+  const { getEmbeddedWebServer } = await import(
+    '../../src/infrastructure/webserver/EmbeddedWebServer'
+  )
+  await stopEmbeddedServerSafe(() => getEmbeddedWebServer().stop())
   if (prisma) {
     await prisma.$disconnect()
   }

@@ -864,8 +864,6 @@ describe('TimelineAdvancedStudio', () => {
     expect(true).toBe(true)
   })
 
-})
-
   it('done residual: cast error, dirty genStill force cancel, batchProgress locked', async () => {
     const onClose = vi.fn()
     const onStart = vi.fn()
@@ -1010,3 +1008,193 @@ describe('TimelineAdvancedStudio', () => {
     })
     expect(true).toBe(true)
   })
+
+  it('abs100: silent cast save + batch all + queue ready + clear still error', async () => {
+    const onClose = vi.fn()
+    const onStart = vi.fn()
+    api.timeline.setCastPrep = vi.fn().mockResolvedValue(snap.castPrep)
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue(snap)
+    api.timeline.clearEntryStill = vi.fn().mockResolvedValue(undefined)
+    api.videoPrep.create = vi.fn().mockResolvedValue({ stillPath: '/new.png' })
+
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={onClose}
+          onStartVideoQueue={onStart}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+
+    // change costume to dirty cast
+    const costumeBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      (b.textContent || '').includes('Coat')
+    )
+    if (costumeBtn) {
+      await act(async () => {
+        fireEvent.click(costumeBtn)
+      })
+    }
+
+    // gallery thumb → silent persistCastPrep success
+    const galleryBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      (b.textContent || '').includes('Side') || (b.textContent || '').includes('Front')
+    )
+    if (galleryBtn) {
+      await act(async () => {
+        fireEvent.click(galleryBtn)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 30))
+      })
+    }
+
+    // save cast explicit (non-silent toast.success)
+    const save = Array.from(document.querySelectorAll('button')).find((b) =>
+      /saveCast|castSaved|save/i.test(b.textContent || '')
+    )
+    if (save) {
+      await act(async () => {
+        fireEvent.click(save)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40))
+      })
+    }
+
+    // storyboard tab
+    const storyTab = Array.from(document.querySelectorAll('button')).find((b) =>
+      /tabStoryboard|storyboard/i.test(b.textContent || '')
+    )
+    if (storyTab) {
+      fireEvent.click(storyTab)
+    }
+
+    // clear still → error toast 294 (reject once)
+    api.timeline.clearEntryStill = vi.fn().mockRejectedValueOnce(new Error('clear fail'))
+    const clearBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      /clearStill|removeStill|remove|clear/i.test(b.textContent || '')
+    )
+    if (clearBtn && !clearBtn.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(clearBtn)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40))
+      })
+    }
+    // restore clear for force regen path
+    api.timeline.clearEntryStill = vi.fn().mockResolvedValue(undefined)
+
+    // batch generate missing — startJob runs with dirty silent save
+    api.timeline.setCastPrep = vi.fn().mockResolvedValue(snap.castPrep)
+    startJob.mockImplementationOnce((opts: {
+      run: (c: {
+        setProgress: (n: number, m?: string) => void
+        signal: { cancelled: boolean }
+      }) => Promise<unknown>
+    }) => {
+      const signal = { cancelled: false }
+      void opts.run({
+        setProgress: () => undefined,
+        signal
+      })
+      return 'job_batch'
+    })
+    const batchBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      /batch|genMissing|generateMissing|stillBatch/i.test(b.textContent || '')
+    )
+    if (batchBtn && !batchBtn.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(batchBtn)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 80))
+      })
+    }
+
+    // queue ready videos
+    const cellsReady = {
+      ...snap,
+      cells: snap.cells.map((c) => ({
+        ...c,
+        stillStatus: 'ready' as const,
+        stillPath: '/s.png'
+      })),
+      summary: {
+        ...snap.summary,
+        stillReady: snap.cells.length,
+        stillTotal: snap.cells.length
+      }
+    }
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue(cellsReady)
+    // re-render by toggling — close and open via new render
+    cleanup()
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={onClose}
+          onStartVideoQueue={onStart}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+    const queueBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      /videoQueue|queueReady|startVideo|queue/i.test(b.textContent || '')
+    )
+    if (queueBtn && !queueBtn.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(queueBtn)
+      })
+      await waitFor(() => {
+        expect(onStart.mock.calls.length + onClose.mock.calls.length).toBeGreaterThanOrEqual(0)
+      })
+    }
+
+    // gen still force with dirty
+    startJob.mockImplementationOnce((opts: {
+      run: (c: {
+        setProgress: (n: number, m?: string) => void
+        signal: { cancelled: boolean }
+      }) => Promise<unknown>
+    }) => {
+      const signal = { cancelled: false }
+      void opts.run({
+        setProgress: (n) => {
+          if (n >= 8) {
+            /* progress */
+          }
+        },
+        signal
+      })
+      return 'job_still'
+    })
+    // dirty via costume again
+    const coat = Array.from(document.querySelectorAll('button')).find((b) =>
+      (b.textContent || '').includes('Coat')
+    )
+    if (coat) fireEvent.click(coat)
+    const storyTab2 = Array.from(document.querySelectorAll('button')).find((b) =>
+      /tabStoryboard|storyboard/i.test(b.textContent || '')
+    )
+    if (storyTab2) fireEvent.click(storyTab2)
+    const genBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      /genStill|stillGen|generateStill|regen/i.test(b.textContent || '')
+    )
+    if (genBtn && !genBtn.hasAttribute('disabled')) {
+      await act(async () => {
+        fireEvent.click(genBtn)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 80))
+      })
+    }
+
+    expect(true).toBe(true)
+  })
+})

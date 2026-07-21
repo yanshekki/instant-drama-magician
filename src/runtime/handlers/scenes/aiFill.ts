@@ -1,3 +1,4 @@
+import { sceneLinkLabel, beatSegmentLabel, unknownCharacterName, whereFromScene, locationSnippet } from '../../../domain/residualLabels'
 /**
  * registerScenesAiFill
  */
@@ -193,7 +194,7 @@ reg(
             }
             const who =
               beat.character?.name ??
-              (locale === 'en' ? 'Unknown' : '未指定')
+              unknownCharacterName(locale)
             const where =
               beat.scene?.title ||
               beat.scene?.description?.slice(0, 40) ||

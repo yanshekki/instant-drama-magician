@@ -10,6 +10,24 @@ export const NPM_PACKAGE_NAME = 'instant-drama-magician'
 
 export const NPM_INSTALL_CMD = `npm install -g ${NPM_PACKAGE_NAME}@latest`
 
+/** Exported for residual unit tests (win32 vs unix no-write hint). */
+export function formatNoWriteHint(prefix: string, platform: string): string {
+  return platform === 'win32'
+    ? `No write access to ${prefix}. Run the terminal as Administrator, or use a user-owned prefix (nvm-windows / fnm).`
+    : `No write access to ${prefix}. Fix with: npm config set prefix ~/.local && ensure PATH includes ~/.local/bin — or re-run with sudo (not recommended).`
+}
+
+/** Coerce spawnSync stderr which may be string | Buffer | null. */
+export function coerceSpawnText(
+  value: unknown,
+  fallback?: string
+): string | undefined {
+  if (typeof value === 'string') return value
+  if (value) return String(value)
+  return fallback
+}
+
+
 export type NpmUpdateCheck = {
   packageName: string
   currentVersion: string
@@ -159,10 +177,7 @@ export function probeNpmGlobalWrite(
       return {
         ok: false,
         prefix,
-        hint:
-          process.platform === 'win32'
-            ? `No write access to ${prefix}. Run the terminal as Administrator, or use a user-owned prefix (nvm-windows / fnm).`
-            : `No write access to ${prefix}. Fix with: npm config set prefix ~/.local && ensure PATH includes ~/.local/bin — or re-run with sudo (not recommended).`
+        hint: formatNoWriteHint(prefix, process.platform)
       }
     }
   } catch (e) {
@@ -227,12 +242,7 @@ export function installNpmPackageUpdate(opts: {
   )
 
   const exitCode = r.status
-  const stderr =
-    typeof r.stderr === 'string'
-      ? r.stderr
-      : r.stderr
-        ? String(r.stderr)
-        : r.error?.message
+  const stderr = coerceSpawnText(r.stderr, r.error?.message)
   const stdout = typeof r.stdout === 'string' ? r.stdout : undefined
 
   if (exitCode !== 0) {

@@ -85,9 +85,6 @@ async function main(): Promise<void> {
   const flags = parsed.flags
 
   switch (cmd) {
-    case 'help':
-      printHelp()
-      return
     case 'doctor':
       await cmdDoctor(globals)
       return

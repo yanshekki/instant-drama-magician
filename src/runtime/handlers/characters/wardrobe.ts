@@ -1,3 +1,4 @@
+import { sceneLinkLabel, beatSegmentLabel, locationSnippet } from '../../../domain/residualLabels'
 /**
  * registerCharactersWardrobe
  */

@@ -8,6 +8,15 @@ import { AppError } from '../../types/errors'
 import type { OpenDialogOptionsLike } from '../HandlerHost'
 import type { HandlerContext } from './context'
 
+/** Cache-bust token for local media URLs (mtime, or now on race). Exported for tests. */
+export function mediaCacheBust(filePath: string, now = Date.now()): number {
+  try {
+    return statSync(filePath).mtimeMs
+  } catch {
+    return now
+  }
+}
+
 export function registerMediaHandlers(ctx: HandlerContext): void {
   const {
     reg,
@@ -142,12 +151,7 @@ reg(
       throw new AppError('NOT_FOUND', 'errors.mediaNotFound')
     }
     // Bust Chromium cache when the same path is rewritten (mtime changes).
-    let bust = Date.now()
-    try {
-      bust = statSync(filePath).mtimeMs
-    } catch {
-      /* keep Date.now() */
-    }
+    const bust = mediaCacheBust(filePath)
     const url = `idm-media://local/?p=${encodeURIComponent(filePath)}&t=${bust}`
     return { url, filePath }
   })

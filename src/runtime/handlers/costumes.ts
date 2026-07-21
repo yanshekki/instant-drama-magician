@@ -1,3 +1,4 @@
+import { imageSizeForClass, draftHasNameOrDescription, mergeCostumeRaw } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
  */
@@ -362,11 +363,18 @@ reg(
       })
       prompt = ensureHardRules(prompt, cos.hardRules ?? row.hardRules)
       const size =
-        pose.sizeClass === 'wide'
-          ? ctx.settings.imageSizeWide
-          : pose.sizeClass === 'square'
-            ? ctx.settings.imageSizeSquare
-            : ctx.settings.imageSizeTall
+        imageSizeForClass(
+          pose.sizeClass === 'wide'
+            ? 'wide'
+            : pose.sizeClass === 'square'
+              ? 'square'
+              : 'tall',
+          {
+            tall: ctx.settings.imageSizeTall,
+            square: ctx.settings.imageSizeSquare,
+            wide: ctx.settings.imageSizeWide
+          }
+        )
       const aspectRatio = aspectFromImageSize(size)
       const img = await ctx.aiClient.editImage({
         prompt,

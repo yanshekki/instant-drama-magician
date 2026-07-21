@@ -18,6 +18,7 @@ import { LocalMediaImage } from '../LocalMediaImage'
 import { Button, Select } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAiJobs } from '../../context/AiJobsContext'
+import { castSaveToast, stillReadyDecrement, batchTargets, genLockedExtra, readyVideoEntryIds } from './timelineAdvancedPure'
 
 export interface AdvancedPrepSnapshot {
   storyId: string
@@ -169,7 +170,7 @@ export function TimelineAdvancedStudio({
       )) as StoryCastPrep
       setCastPrep(next)
       setSnap((prev) => (prev ? { ...prev, castPrep: next } : prev))
-      if (!opts?.silent) {
+      if (castSaveToast(opts?.silent) === 'success') {
         toast.success(t('timeline.advanced.castSaved'))
       }
       return next
@@ -280,10 +281,10 @@ export function TimelineAdvancedStudio({
             stillReady: Math.max(
               0,
               prev.summary.stillReady -
-                (prev.cells.find((c) => c.entryId === entryId)
-                  ?.stillStatus !== 'missing'
-                  ? 1
-                  : 0)
+                stillReadyDecrement(
+                  prev.cells.find((c) => c.entryId === entryId)?.stillStatus ||
+                    'missing'
+                )
             )
           }
         }
@@ -300,10 +301,7 @@ export function TimelineAdvancedStudio({
   const handleBatchStills = (mode: 'missing' | 'all'): void => {
     const current = snapRef.current
     if (!current || genLocked) return
-    const targets =
-      mode === 'all'
-        ? current.cells
-        : current.cells.filter((c) => c.stillStatus !== 'ready')
+    const targets = batchTargets(current.cells, mode)
     if (targets.length === 0) {
       toast.info(t('timeline.advanced.batchNothing'))
       return
@@ -369,9 +367,7 @@ export function TimelineAdvancedStudio({
 
   const handleVideoQueueReady = (): void => {
     if (!snap) return
-    const ids = snap.cells
-      .filter((c) => c.stillStatus === 'ready' || c.stillStatus === 'stale')
-      .map((c) => c.entryId)
+    const ids = readyVideoEntryIds(snap.cells)
     if (ids.length === 0) {
       toast.info(t('timeline.advanced.needStills'))
       return
@@ -546,14 +542,17 @@ export function TimelineAdvancedStudio({
               />
               <p className="text-[11px] font-medium text-amber-100">
                 {t('timeline.advanced.genLockedHint')}
-                {batchProgress
-                  ? ` · ${t('timeline.advanced.batchProgress', {
-                      current: batchProgress.current,
-                      total: batchProgress.total
-                    })}`
-                  : cellBusyId
-                    ? ` · ${t('common.generating')}`
-                    : ''}
+                {genLockedExtra(
+                  batchProgress,
+                  cellBusyId,
+                  batchProgress
+                    ? t('timeline.advanced.batchProgress', {
+                        current: batchProgress.current,
+                        total: batchProgress.total
+                      })
+                    : '',
+                  t('common.generating')
+                )}
               </p>
             </div>
           ) : null}

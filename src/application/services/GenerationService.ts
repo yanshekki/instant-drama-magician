@@ -1,3 +1,4 @@
+import { errorMessageOf, multiActionBoundNote } from '../../domain/residualLabels'
 import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
@@ -211,9 +212,7 @@ export class GenerationService {
               propsBound.length > 1
                 ? `Props: ${propsBound.map((p) => p.name).join(', ')}.`
                 : null,
-              actionsBound.length
-                ? `Motion / action library (perform as instructed): ${actionsBound.map((a) => a.name).join(', ')}.`
-                : null,
+              multiActionBoundNote(actionsBound),
               'Keep all listed subjects visible/consistent; primary character is the action focus.'
             ]
               .filter(Boolean)
@@ -428,7 +427,7 @@ export class GenerationService {
         ? 'errors.cancelled'
         : error instanceof Error
           ? error.message
-          : String(error)
+          : errorMessageOf(error)
       await this.prisma.timelineEntry.update({
         where: { id: entryId },
         data: {
@@ -468,7 +467,7 @@ export class GenerationService {
       await this.ffmpeg.ensureAvailable()
     } catch (error) {
       ffmpeg = false
-      ffmpegMessage = error instanceof Error ? error.message : String(error)
+      ffmpegMessage = error instanceof Error ? error.message : errorMessageOf(error)
       warnings.push(ffmpegMessage)
     }
 

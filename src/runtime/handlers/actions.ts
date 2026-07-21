@@ -1,3 +1,4 @@
+import { imageSizeForClass } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
  */
@@ -255,12 +256,11 @@ reg(
       ).id
       // Match canvas aspect to layout: 2×3 / strips need wide so models
       // don't collapse to a square 2×2 four-panel board.
-      const size =
-        layout.sizeClass === 'tall'
-          ? ctx.settings.imageSizeTall
-          : layout.sizeClass === 'square'
-            ? ctx.settings.imageSizeSquare
-            : ctx.settings.imageSizeWide
+      const size = imageSizeForClass(layout.sizeClass, {
+        tall: ctx.settings.imageSizeTall,
+        square: ctx.settings.imageSizeSquare,
+        wide: ctx.settings.imageSizeWide
+      })
       const aspectRatio = aspectFromImageSize(size)
       const profile = {
         name: row.name,

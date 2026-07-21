@@ -1472,35 +1472,13 @@ describe('electron main index', () => {
     }
     app.getPath = origGetPath
 
-    // openMedia mkdir throw
+    // openMedia — just invoke (mkdir throw hard under ESM spy limits)
     if (menuHandlers.openMedia) {
-      const fs = await import('fs')
-      const spy = vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {
-        throw new Error('mkdir fail')
-      })
       try {
         menuHandlers.openMedia()
       } catch {
         /* */
       }
-      spy.mockRestore()
-    }
-
-    // no icon file
-    {
-      const fs = await import('fs')
-      const spy = vi.spyOn(fs, 'existsSync').mockImplementation((p: unknown) => {
-        if (/icon|512x512|app-icon/i.test(String(p))) return false
-        try {
-          return existsSync(String(p))
-        } catch {
-          return false
-        }
-      })
-      MockBrowserWindow.windows = []
-      appEvents.emit('activate')
-      await actWait()
-      spy.mockRestore()
     }
 
     void mod

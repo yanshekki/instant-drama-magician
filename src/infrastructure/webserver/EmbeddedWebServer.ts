@@ -101,6 +101,33 @@ export function generateWebServerToken(): string {
   return randomBytes(24).toString('hex')
 }
 
+
+/** Exported for residual unit tests. */
+export function isLoopbackRemote(ra: string | undefined): boolean {
+  return (
+    ra === '127.0.0.1' ||
+    ra === '::1' ||
+    ra === '::ffff:127.0.0.1'
+  )
+}
+
+
+/** Bearer token from Authorization or ?token= query (exported for residual tests). */
+export function tokenFromRequestUrl(
+  authorization: string | undefined,
+  url: string | undefined,
+  host: string | undefined
+): string {
+  const h = authorization || ''
+  if (h.toLowerCase().startsWith('bearer ')) return h.slice(7).trim()
+  try {
+    const u = new URL(url || '/', `http://${host || 'localhost'}`)
+    return (u.searchParams.get('token') || '').trim()
+  } catch {
+    return ''
+  }
+}
+
 export class EmbeddedWebServer {
   private server: Server | null = null
   private runtime: AppRuntime | null = null
@@ -172,26 +199,13 @@ export class EmbeddedWebServer {
       if (authDisabled) return true
       if (!authToken) {
         const ra = req.socket.remoteAddress || ''
-        return (
-          ra === '127.0.0.1' ||
-          ra === '::1' ||
-          ra === '::ffff:127.0.0.1'
-        )
+        return isLoopbackRemote(ra)
       }
-      const h = req.headers.authorization || ''
-      let bearer = ''
-      if (h.toLowerCase().startsWith('bearer ')) bearer = h.slice(7).trim()
-      if (!bearer) {
-        try {
-          const u = new URL(
-            req.url || '/',
-            `http://${req.headers.host || 'localhost'}`
-          )
-          bearer = (u.searchParams.get('token') || '').trim()
-        } catch {
-          /* ignore */
-        }
-      }
+      const bearer = tokenFromRequestUrl(
+        req.headers.authorization,
+        req.url,
+        req.headers.host
+      )
       return bearer === authToken
     }
 

@@ -1,3 +1,4 @@
+import { imageSizeForAspect } from '../../../domain/residualLabels'
 /**
  * Video prep — registerVideoPrepCreate
  */
@@ -878,9 +879,10 @@ reg(
 
       // aspectRatio already coerced to 9:16 | 16:9 above
       const size =
-        aspectRatio === '9:16'
-          ? ctx.settings.imageSizeTall
-          : ctx.settings.imageSizeWide
+        imageSizeForAspect(aspectRatio, {
+          tall: ctx.settings.imageSizeTall,
+          wide: ctx.settings.imageSizeWide
+        })
 
       const still = await generateVideoStillKeyframe({
         ai: ctx.aiClient,

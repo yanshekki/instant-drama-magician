@@ -37,7 +37,14 @@ import {
   resolveAppIconPathFrom,
   collectAllowedMediaRoots,
   installLinuxDesktopIconPure,
-  applyWindowIconPure
+  applyWindowIconPure,
+  resolveScreenshotDefaultDir,
+  disconnectPrismaSafe,
+  ensureGatewayIfNeeded,
+  stopEmbeddedServerSafe,
+  fullBackupImportMessage,
+  createNativeIconIfPresent,
+  reportAppIconPath
 } from './pureHelpers'
 
 describe('pureHelpers', () => {
@@ -174,5 +181,117 @@ describe('pureHelpers', () => {
         'darwin'
       )
     ).not.toThrow()
+  })
+
+  it('resolveScreenshotDefaultDir / disconnectPrismaSafe / ensureGatewayIfNeeded', async () => {
+    const {
+      resolveScreenshotDefaultDir,
+      disconnectPrismaSafe,
+      ensureGatewayIfNeeded
+    } = await import('./pureHelpers')
+
+    expect(
+      resolveScreenshotDefaultDir({
+        pictures: '/pics',
+        desktop: '/desk',
+        userData: '/ud',
+        exists: (p) => p === '/pics'
+      })
+    ).toBe('/pics')
+    expect(
+      resolveScreenshotDefaultDir({
+        pictures: '/pics',
+        desktop: '/desk',
+        userData: '/ud',
+        exists: () => false
+      })
+    ).toBe('/desk')
+    expect(
+      resolveScreenshotDefaultDir({
+        pictures: '/pics',
+        desktop: '/desk',
+        userData: '/ud',
+        exists: () => {
+          throw new Error('x')
+        }
+      })
+    ).toBe('/ud')
+
+    expect(await disconnectPrismaSafe(null)).toBeNull()
+    expect(
+      await disconnectPrismaSafe({
+        $disconnect: async () => undefined
+      })
+    ).toBeNull()
+    expect(
+      await disconnectPrismaSafe({
+        $disconnect: async () => {
+          throw new Error('disc')
+        }
+      })
+    ).toBeNull()
+
+    await ensureGatewayIfNeeded(null)
+    const invoke = vi.fn(async () => ({}))
+    await ensureGatewayIfNeeded({
+      settingsStore: {
+        load: () => ({
+          llmProvider: 'openai',
+          imageProvider: 'openai',
+          videoProvider: 'openai'
+        })
+      },
+      invoke
+    })
+    expect(invoke).not.toHaveBeenCalled()
+    await ensureGatewayIfNeeded({
+      settingsStore: {
+        load: () => ({
+          llmProvider: 'openai',
+          imageProvider: 'openai',
+          videoProvider: 'grok-gateway'
+        })
+      },
+      invoke
+    })
+    expect(invoke).toHaveBeenCalledWith('gateway:ensure')
+    await ensureGatewayIfNeeded({
+      settingsStore: {
+        load: () => ({
+          llmProvider: 'grok-gateway',
+          imageProvider: 'grok-gateway',
+          videoProvider: 'grok-gateway'
+        })
+      },
+      invoke: async () => {
+        throw new Error('gw down')
+      }
+    })
+    await stopEmbeddedServerSafe(async () => undefined)
+    await stopEmbeddedServerSafe(async () => {
+      throw new Error('stop fail')
+    })
+
+    expect(fullBackupImportMessage('en', true)).toMatch(/then restart\.$/)
+    expect(fullBackupImportMessage('en', false)).toMatch(/this computer/)
+    expect(fullBackupImportMessage('zh-HK', true)).toMatch(/重新啟動/)
+    expect(fullBackupImportMessage('zh-HK', false)).toMatch(/應用程式/)
+
+    expect(
+      createNativeIconIfPresent(undefined, () => true, () => 'i')
+    ).toBeUndefined()
+    expect(
+      createNativeIconIfPresent('/x.png', () => false, () => 'i')
+    ).toBeUndefined()
+    expect(
+      createNativeIconIfPresent('/x.png', () => true, () => 'icon')
+    ).toBe('icon')
+
+    const log = vi.fn()
+    const warn = vi.fn()
+    reportAppIconPath('/a.png', log, warn)
+    expect(log).toHaveBeenCalled()
+    reportAppIconPath(undefined, log, warn)
+    expect(warn).toHaveBeenCalled()
   })
 })

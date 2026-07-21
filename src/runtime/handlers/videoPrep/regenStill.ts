@@ -1,3 +1,4 @@
+import { squareOrDefault } from '../../../domain/residualLabels'
 /**
  * Video prep — registerVideoPrepRegenStill
  */
@@ -211,7 +212,7 @@ reg(
           ? ctx.settings.imageSizeTall
           : aspectRatio === '16:9'
             ? ctx.settings.imageSizeWide
-            : ctx.settings.imageSizeSquare || '1024x1024'
+            : squareOrDefault(ctx.settings.imageSizeSquare)
 
       const still = await generateVideoStillKeyframe({
         ai: ctx.aiClient,

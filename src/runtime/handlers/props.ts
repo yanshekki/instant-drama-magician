@@ -1,3 +1,4 @@
+import { aspectOrDefault } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
  */
@@ -430,10 +431,11 @@ reg(
         typeof payload.durationSeconds === 'number'
           ? payload.durationSeconds
           : 10
-      const aspectRatio =
+      const aspectRatio = aspectOrDefault(
         ctx.settings.aspectRatio === '9:16' || ctx.settings.aspectRatio === '16:9'
           ? ctx.settings.aspectRatio
-          : '16:9'
+          : null
+      )
 
       const {
         polishThenGenerateVideo

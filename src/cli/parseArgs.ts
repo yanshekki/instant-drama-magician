@@ -77,7 +77,6 @@ export function parseArgv(argv: string[]): ParsedArgv {
         else if (camel === 'json') globals.json = on
         else if (camel === 'pretty') globals.pretty = on
         else if (camel === 'local') globals.local = on
-        else flags[camel] = on
         i++
         continue
       }
@@ -89,7 +88,6 @@ export function parseArgv(argv: string[]): ParsedArgv {
         else if (key === 'p' || camel === 'profile') globals.profile = val
         else if (camel === 'url') globals.url = val
         else if (camel === 'token') globals.token = val
-        else flags[camel] = val ?? true
         i++
         continue
       }

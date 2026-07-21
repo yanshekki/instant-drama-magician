@@ -72,6 +72,38 @@ export interface GrokGatewayStatus {
 
 const DEFAULT_PORT = 3847
 
+
+/** PATH lookup for residual unit tests (catch → null). */
+export function whichOnPath(
+  command: string,
+  opts: {
+    platform?: string
+    execSync?: (cmd: string, o: { encoding: string }) => string
+    exists?: (p: string) => boolean
+  } = {}
+): string | null {
+  const platform = opts.platform ?? process.platform
+  const exec =
+    opts.execSync ??
+    ((cmd: string, o: { encoding: string }) => {
+      const { execSync } = require('child_process') as typeof import('child_process')
+      return execSync(cmd, o)
+    })
+  const exists = opts.exists ?? ((p: string) => existsSync(p))
+  try {
+    const which = exec(
+      platform === 'win32' ? `where ${command}` : `command -v ${command}`,
+      { encoding: 'utf-8' }
+    )
+      .trim()
+      .split('\n')[0]
+    if (which && exists(which)) return which
+  } catch {
+    /* not on PATH */
+  }
+  return null
+}
+
 export class GrokGatewayService {
   private child: ChildProcess | null = null
   private starting: Promise<GrokGatewayStatus> | null = null
@@ -105,36 +137,13 @@ export class GrokGatewayService {
       if (p && existsSync(p)) return p
     }
     // PATH
-    try {
-      // sync which via command -v in shell is awkward; try common global
-      const { execSync } = require('child_process') as typeof import('child_process')
-      const which = execSync(
-        process.platform === 'win32' ? 'where gctoac' : 'command -v gctoac',
-        { encoding: 'utf-8' }
-      )
-        .trim()
-        .split('\n')[0]
-      if (which && existsSync(which)) return which
-    } catch {
-      /* not on PATH */
-    }
-    return null
+    return whichOnPath('gctoac')
   }
 
   /** Resolve Grok Build TUI binary (`grok`). */
   resolveGrokBuildPath(): string | null {
-    try {
-      const { execSync } = require('child_process') as typeof import('child_process')
-      const which = execSync(
-        process.platform === 'win32' ? 'where grok' : 'command -v grok',
-        { encoding: 'utf-8' }
-      )
-        .trim()
-        .split('\n')[0]
-      if (which && existsSync(which)) return which
-    } catch {
-      /* missing */
-    }
+    const which = whichOnPath('grok')
+    if (which) return which
     // Common install locations
     const home = process.env.HOME || process.env.USERPROFILE || ''
     const candidates = [

@@ -153,3 +153,97 @@ export function applyWindowIconPure(
     /* setIcon failed */
   }
 }
+
+/** Screenshot default dir: pictures → desktop → userData. */
+export function resolveScreenshotDefaultDir(opts: {
+  pictures: string
+  desktop: string
+  userData: string
+  exists: (p: string) => boolean
+}): string {
+  try {
+    if (opts.exists(opts.pictures)) return opts.pictures
+    return opts.desktop
+  } catch {
+    return opts.userData
+  }
+}
+
+/** Best-effort prisma disconnect for backup checkpoint. */
+export async function disconnectPrismaSafe(
+  client: { $disconnect: () => Promise<void> } | null
+): Promise<null> {
+  if (!client) return null
+  try {
+    await client.$disconnect()
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+/** Non-fatal gateway ensure when any provider is grok-gateway. */
+export async function ensureGatewayIfNeeded(runtime: {
+  settingsStore: { load: () => Record<string, unknown> }
+  invoke: (channel: string) => Promise<unknown>
+} | null): Promise<void> {
+  if (!runtime) return
+  try {
+    const s = runtime.settingsStore.load()
+    const needsGw =
+      s.llmProvider === 'grok-gateway' ||
+      s.imageProvider === 'grok-gateway' ||
+      s.videoProvider === 'grok-gateway'
+    if (needsGw) {
+      await runtime.invoke('gateway:ensure')
+    }
+  } catch {
+    /* non-fatal — UI will surface gateway status */
+  }
+}
+
+/** Best-effort stop for embedded web server on quit. */
+export async function stopEmbeddedServerSafe(
+  stop: () => Promise<void>
+): Promise<void> {
+  try {
+    await stop()
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Import-overwrite confirm copy (windowed vs bare dialog). */
+export function fullBackupImportMessage(
+  lang: 'en' | string,
+  bare: boolean
+): string {
+  if (lang === 'en') {
+    return bare
+      ? 'This will replace the database, media library, and settings, then restart.'
+      : 'This will replace the database, media library, and settings on this computer, then restart the app.'
+  }
+  return bare
+    ? '此操作會覆寫本機資料庫、媒體庫與設定，然後重新啟動。'
+    : '此操作會覆寫本機資料庫、媒體庫與設定，然後重新啟動應用程式。'
+}
+
+/** Create nativeImage only when path exists; else undefined. */
+export function createNativeIconIfPresent(
+  iconPath: string | undefined,
+  exists: (p: string) => boolean,
+  createFromPath: (p: string) => unknown
+): unknown {
+  if (iconPath && exists(iconPath)) return createFromPath(iconPath)
+  return undefined
+}
+
+/** Log icon install or missing-file warn. */
+export function reportAppIconPath(
+  iconPath: string | undefined,
+  log: (...a: unknown[]) => void = console.log,
+  warn: (...a: unknown[]) => void = console.warn
+): void {
+  if (iconPath) log('[icon] installing', iconPath)
+  else warn('[icon] no icon file found')
+}
