@@ -90,5 +90,9 @@ describe('galleryLabelI18n', () => {
     expect(translateActionGalleryLabel('My freeform action', t)).toBe(
       'My freeform action'
     )
+    // prefix match: full en galleryLabel + suffix
+    expect(
+      translateActionGalleryLabel('Instruction board 2×2 · take 2', t)
+    ).toMatch(/panelLayout|grid/)
   })
 })

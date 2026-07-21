@@ -4,6 +4,7 @@ import {
   buildScenePlateEditPrompt,
   buildScenePlateImagePrompt,
   getScenePlateVariant,
+  isScenePlateVariantId,
   scenePlatesByGroup
 } from './scenePlateVariants'
 
@@ -27,6 +28,9 @@ describe('scenePlateVariants', () => {
     expect(getScenePlateVariant('nope').id).toBe('establishing')
     expect(getScenePlateVariant(null).id).toBe('establishing')
     expect(getScenePlateVariant('night_neon').id).toBe('night_neon')
+    expect(isScenePlateVariantId('establishing')).toBe(true)
+    expect(isScenePlateVariantId('nope')).toBe(false)
+    expect(isScenePlateVariantId(1)).toBe(false)
   })
 
   it('buildScenePlateImagePrompt includes atmosphere fields and hard rules', () => {

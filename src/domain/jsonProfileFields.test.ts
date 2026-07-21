@@ -69,6 +69,9 @@ describe('jsonProfileFields', () => {
     )
     expect(() => extractJsonObject('[1,2,3]')).toThrow()
     expect(() => extractJsonObject('{"broken"')).toThrow()
+    // object braces but JSON.parse yields array
+    expect(() => extractJsonObject('{"a":1} trailing {not')).not.toThrow()
+    expect(() => extractJsonObject('{]')).toThrow()
   })
 
   it('synthesizeVisualTagsFromText latin + cjk + empty', () => {

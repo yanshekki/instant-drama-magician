@@ -99,4 +99,21 @@ describe('soulGenerate', () => {
     expect(u).toMatch(/truncated|改進/)
     expect(u.length).toBeLessThan(long.length + 500)
   })
+
+  it('en create mode and zh user request without existing soul', () => {
+    const en = buildSoulGenerateUserPrompt({
+      profile: { name: 'Ming' },
+      locale: 'en'
+    })
+    expect(en).toMatch(/Build a full soul|profile/i)
+    expect(en).not.toMatch(/IMPROVE/)
+
+    const zhReq = buildSoulGenerateUserPrompt({
+      profile: { name: '阿明' },
+      locale: 'zh-HK',
+      userRequest: '更柔軟'
+    })
+    expect(zhReq).toContain('用戶指示')
+    expect(zhReq).toContain('更柔軟')
+  })
 })

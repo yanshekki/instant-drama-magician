@@ -49,5 +49,8 @@ describe('character domain', () => {
     const d = extractDescriptionFromSoulMd(long, 50)
     expect(d.endsWith('…')).toBe(true)
     expect(d.length).toBeLessThanOrEqual(50)
+
+    const noTags = parseSoulMd('---\nname: X\n---\n# X\n\nBody.')
+    expect(noTags.tags).toEqual([])
   })
 })

@@ -203,6 +203,12 @@ describe('characterMasterPrompt', () => {
     )
     expect(en).toContain('Ming')
     expect(en).toMatch(/intro|self|character/i)
+
+    const zhDefaults = buildCharacterIntroVideoPrompt(
+      { name: '阿明' },
+      'zh-HK'
+    )
+    expect(zhDefaults).toMatch(/跟從角色人設|溫暖清晰|自然微動作|清晰聲線/)
   })
 
   it('extractCharacterProfileJson rejects empty / invalid', () => {

@@ -170,6 +170,17 @@ describe('sceneMasterPrompt', () => {
       segmentLabel: 'reunion'
     })
     expect(en).toMatch(/Rain|neon|Alley|reunion|LOCATION/i)
+
+    const zhFocus = buildSceneSuggestFromStoryUserPrompt({
+      locale: 'zh-HK',
+      storyTitle: '雨',
+      sceneNumber: 1,
+      characterSnippets: [],
+      propSnippets: [],
+      priorSceneSnippets: [],
+      focusSnippets: ['重逢段落']
+    })
+    expect(zhFocus).toMatch(/選定劇情段落|重逢/)
   })
 
   it('intro video en uses full dossier and defaults without title', () => {

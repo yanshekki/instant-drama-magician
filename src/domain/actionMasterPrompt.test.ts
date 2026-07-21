@@ -150,6 +150,14 @@ describe('actionMasterPrompt', () => {
     })
     expect(u).toMatch(/Story context|Style note|Existing draft|kick door/i)
 
+    const zh = buildActionMasterUserPrompt({
+      locale: 'zh-HK',
+      idea: '踢門',
+      storyTitle: '雨夜',
+      styleNote: 'neon'
+    })
+    expect(zh).toMatch(/故事脈絡|風格備註|雨夜|踢門/)
+
     const emptyCast = buildActionPlateImagePrompt(
       { name: 'X' },
       'grid-2x3',
