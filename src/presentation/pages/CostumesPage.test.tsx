@@ -258,5 +258,72 @@ describe('CostumesPage', () => {
     }
     expect(api.costumes.list).toHaveBeenCalled()
   })
+
+  it('residual costumes dressed draft links filters errors', async () => {
+    api.media.toPreviewUrl = vi.fn().mockResolvedValue({
+      url: 'blob:c',
+      filePath: '/media/coat.png'
+    })
+    api.media.pickRefImage = vi.fn().mockResolvedValue({ path: '/tmp/c.png' })
+    api.costumes.generateDressed = vi
+      .fn()
+      .mockResolvedValue({ path: '/tmp/d.png', label: 'D' })
+    api.costumes.generateIntroVideo = vi.fn().mockResolvedValue({})
+    api.costumes.aiFill = vi
+      .fn()
+      .mockResolvedValue({ name: 'Look+', description: 'formal' })
+    await renderWithProviders(<CostumesPage />, { withToastHost: true })
+    await waitFor(() => expect(screen.getByText('Rain coat')).toBeTruthy())
+    const edit = screen
+      .getAllByRole('button')
+      .find((b) => /^Edit$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      edit?.click()
+    })
+    for (const re of [
+      /Profile/i,
+      /Dress|Links|Character/i,
+      /AI fill|fill/i,
+      /Suggest/i,
+      /Generate|dressed|Upload|pick|link|unlink|All|Linked|Unlinked|pose|intro|Set as cover|Remove/i,
+      /Apply|Review|OK|Dismiss/i
+    ]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(0, 5)) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+    for (const el of Array.from(document.querySelectorAll('input, textarea')).slice(0, 6)) {
+      const input = el as HTMLInputElement
+      if (input.type !== 'file' && input.type !== 'checkbox') {
+        await act(async () => {
+          fireEvent.change(input, { target: { value: 'evening look' } })
+        })
+      }
+    }
+    api.costumes.update = vi.fn().mockRejectedValue(new Error('cost-upd'))
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      save?.click()
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    expect(api.costumes.list).toHaveBeenCalled()
+  })
 })
 

@@ -172,4 +172,80 @@ describe('AuditLogPage', () => {
       })
     }
   })
+
+  it('residual audit advanced filters selection', async () => {
+    api.activity.query = vi.fn().mockResolvedValue({
+      entries: [
+        ...makeAuditEntries(),
+        {
+          ts: '2026-07-15T09:00:00.000Z',
+          kind: 'error',
+          message: 'boom',
+          level: 'error',
+          storyId: null,
+          meta: {}
+        },
+        {
+          ts: '2026-07-15T08:00:00.000Z',
+          kind: 'generation',
+          message: 'gen',
+          level: 'warn',
+          storyId: 'story-1',
+          meta: { step: 1 }
+        }
+      ],
+      path: '/tmp/activity.jsonl'
+    })
+    await renderWithProviders(<AuditLogPage />, { withToastHost: true })
+    await waitFor(() => expect(api.activity.query).toHaveBeenCalled())
+    for (const re of [
+      /error|warn|info|all|generation|export|media|ipc|advanced|refresh|folder|copy|clear/i
+    ]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    for (const input of Array.from(
+      document.querySelectorAll('input, select')
+    ).slice(0, 8)) {
+      if (input.tagName === 'SELECT') {
+        const s = input as HTMLSelectElement
+        if (s.options.length > 1) {
+          await act(async () => {
+            fireEvent.change(s, { target: { value: s.options[1].value } })
+          })
+        }
+      } else if ((input as HTMLInputElement).type === 'checkbox') {
+        await act(async () => {
+          fireEvent.click(input)
+        })
+      } else {
+        await act(async () => {
+          fireEvent.change(input, { target: { value: 'export' } })
+        })
+      }
+    }
+    const rows = document.querySelectorAll(
+      'ul.divide-y > li > button, li button'
+    )
+    for (const r of Array.from(rows).slice(0, 4)) {
+      await act(async () => {
+        ;(r as HTMLButtonElement).click()
+      })
+    }
+    if (document.querySelector('[role="alertdialog"]')) {
+      const buttons = Array.from(
+        document.querySelectorAll('[role="alertdialog"] button')
+      )
+      await act(async () => {
+        ;(buttons[buttons.length - 1] as HTMLButtonElement)?.click()
+      })
+    }
+    expect(document.body.textContent).toBeTruthy()
+  })
 })

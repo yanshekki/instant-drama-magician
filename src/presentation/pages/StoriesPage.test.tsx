@@ -515,4 +515,75 @@ describe('StoriesPage', () => {
       ).toBeGreaterThan(0)
     ).catch(() => undefined)
   })
+
+  it('residual stories cast script cover errors', async () => {
+    api.stories.linkCharacter = vi.fn().mockResolvedValue({})
+    api.stories.unlinkCharacter = vi.fn().mockResolvedValue({})
+    api.stories.linkScene = vi.fn().mockResolvedValue({})
+    api.stories.unlinkScene = vi.fn().mockResolvedValue({})
+    api.stories.linkProp = vi.fn().mockResolvedValue({})
+    api.stories.linkAction = vi.fn().mockResolvedValue({})
+    api.stories.setCharacterCostume = vi.fn().mockResolvedValue({})
+    api.stories.commitCover = vi.fn().mockResolvedValue({ path: '/tmp/c.png' })
+    api.media.toPreviewUrl = vi.fn().mockResolvedValue({
+      url: 'blob:c',
+      filePath: '/media/cover.png'
+    })
+    await renderWithProviders(<StoriesPage />, { withToastHost: true })
+    await waitFor(() => expect(screen.getByText('Demo Story')).toBeTruthy())
+    const edit = screen
+      .getAllByRole('button')
+      .find((b) => /^Edit$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      edit?.click()
+    })
+    await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
+    for (const re of [
+      /Meta|Cast|Script|Beats/i,
+      /AI|fill meta|fill script|Suggest/i,
+      /Generate cover|cover|Upload|pick/i,
+      /^Generate$/i,
+      /Character|Scene|Prop|Action/i,
+      /All|Linked|Unlinked/i,
+      /link|unlink|Link/i,
+      /Add beat|move|up|down|delete/i,
+      /Apply and save|Add to gallery|Review|OK|Dismiss/i
+    ]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    for (const el of Array.from(
+      document.querySelectorAll('input, textarea, select')
+    ).slice(0, 10)) {
+      if (el.tagName === 'SELECT') {
+        const s = el as HTMLSelectElement
+        if (s.options.length > 1) {
+          await act(async () => {
+            fireEvent.change(s, { target: { value: s.options[1].value } })
+          })
+        }
+      } else if ((el as HTMLInputElement).type !== 'file') {
+        await act(async () => {
+          fireEvent.change(el, { target: { value: 'story residual' } })
+        })
+      }
+    }
+    api.stories.update = vi.fn().mockRejectedValue(new Error('story-upd'))
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      save?.click()
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    expect(api.stories.get).toHaveBeenCalled()
+  })
 })

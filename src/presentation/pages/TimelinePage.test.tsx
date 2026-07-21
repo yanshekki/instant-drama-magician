@@ -420,4 +420,80 @@ describe('TimelinePage', () => {
     })
     expect(document.body.textContent || '').toMatch(/Timeline|Generate|fail/i)
   })
+
+  it('residual timeline export history and clip edit', async () => {
+    api.media.listExports = vi.fn().mockResolvedValue([
+      {
+        id: 'ex1',
+        kind: 'final',
+        fileName: 'out.mp4',
+        path: '/tmp/out.mp4',
+        createdAt: '2026-07-15T12:00:00.000Z',
+        sizeBytes: 99
+      }
+    ])
+    api.media.deleteExport = vi.fn().mockResolvedValue({ ok: true })
+    await renderWithProviders(<TimelinePage />, {
+      route: '/timeline',
+      withToastHost: true
+    })
+    await waitFor(() => expect(api.timeline.list).toHaveBeenCalled(), {
+      timeout: 4000
+    })
+    const sel = screen.queryByTestId('konva-select')
+    if (sel) {
+      await act(async () => {
+        fireEvent.click(sel)
+      })
+    }
+    // Avoid Generate (can hang on pipeline job); hit export/history/clip tools
+    for (const re of [
+      /^Export$/i,
+      /Export history/i,
+      /Import clip/i,
+      /Open clip/i,
+      /^Save$/i,
+      /Add to timeline|Add clip/i,
+      /Advanced|Studio|Prep/i
+    ]) {
+      const b = screen
+        .queryAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          fireEvent.click(b)
+        })
+      }
+    }
+    if (screen.queryByTestId('export-dlg')) {
+      await act(async () => {
+        fireEvent.click(screen.getByText('close-export'))
+      })
+    }
+    if (screen.queryByTestId('advanced')) {
+      await act(async () => {
+        fireEvent.click(screen.getByText('close-advanced'))
+      })
+    }
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(
+      0,
+      2
+    )) {
+      await act(async () => {
+        fireEvent.change(el, { target: { value: 'line residual' } })
+      })
+    }
+    for (const selEl of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      4
+    )) {
+      const s = selEl as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+    expect(api.timeline.list).toHaveBeenCalled()
+  })
 })

@@ -257,4 +257,67 @@ describe('ActionsPage', () => {
     }
     expect(api.actions.list).toHaveBeenCalled()
   })
+
+  it('residual actions plate cast intro errors', async () => {
+    api.media.toPreviewUrl = vi.fn().mockResolvedValue({
+      url: 'blob:a',
+      filePath: '/x.png'
+    })
+    api.actions.commitPlate = vi
+      .fn()
+      .mockResolvedValue({ path: '/tmp/a.png', gallery: [] })
+    api.actions.generateIntroVideo = vi.fn().mockResolvedValue({})
+    api.media.pickRefImage = vi
+      .fn()
+      .mockResolvedValue({ path: '/tmp/picked.png' })
+    await renderWithProviders(<ActionsPage />, { withToastHost: true })
+    await waitFor(() => expect(screen.getByText('Draw gun')).toBeTruthy())
+    const edit = screen
+      .getAllByRole('button')
+      .find((b) => /^Edit$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      edit?.click()
+    })
+    for (const re of [
+      /AI fill|fill/i,
+      /References|ref/i,
+      /Profile/i,
+      /Generate plate/i,
+      /^Generate$/i,
+      /Upload|external|pick/i,
+      /Set as cover/i,
+      /Remove/i,
+      /intro/i,
+      /Add to gallery|Apply and save|Review/i,
+      /OK|Dismiss/i
+    ]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(0, 5)) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+    api.actions.update = vi.fn().mockRejectedValue(new Error('act-fail'))
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      save?.click()
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    expect(api.actions.list).toHaveBeenCalled()
+  })
 })

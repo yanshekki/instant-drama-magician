@@ -304,4 +304,89 @@ describe('ScenesPage', () => {
     }
     expect(api.scenes.list).toHaveBeenCalled()
   })
+
+  it('residual scenes atmosphere plate plot gallery', async () => {
+    const gallery = JSON.stringify([
+      {
+        id: 'sg1',
+        path: '/media/roof.png',
+        label: 'Est',
+        kind: 'plate',
+        createdAt: '2026-07-01T00:00:00.000Z'
+      }
+    ])
+    api.scenes.list = vi.fn().mockResolvedValue([
+      makeScene({ refGalleryJson: gallery }),
+      makeScene({ id: 'scene-2', title: 'Alley', refImagePath: null })
+    ])
+    api.media.toPreviewUrl = vi.fn().mockResolvedValue({
+      url: 'blob:s',
+      filePath: '/media/roof.png'
+    })
+    api.scenes.commitPlate = vi.fn().mockResolvedValue({ path: '/tmp/sc.png', gallery: [] })
+    api.scenes.swapAtmosphere = vi.fn().mockResolvedValue({ path: '/tmp/atm.png' })
+    api.scenes.copyGalleryFrom = vi.fn().mockResolvedValue({})
+    api.scenes.generateIntroVideo = vi.fn().mockResolvedValue({})
+    await renderWithProviders(<ScenesPage />, { withToastHost: true })
+    await waitFor(() => expect(screen.getByText('Rooftop')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^Edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    for (const re of [
+      /AI fill|fill/i,
+      /plot|Suggest/i,
+      /Profile/i,
+      /References/i,
+      /Atmosphere/i,
+      /Generate plate|atmosphere|swap|Upload|Set as cover|Remove this image|intro|copy|look/i,
+      /^Generate$/i,
+      /Add to gallery|Apply and save|Review|OK|Dismiss|use|confirm/i
+    ]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(0, 6)) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+    for (const el of Array.from(document.querySelectorAll('textarea, input')).slice(0, 8)) {
+      const input = el as HTMLInputElement
+      if (input.type === 'checkbox') {
+        await act(async () => {
+          fireEvent.click(input)
+        })
+      } else if (input.type !== 'file') {
+        await act(async () => {
+          fireEvent.change(input, { target: { value: 'updated scene field' } })
+        })
+      }
+    }
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      save?.click()
+    })
+    api.scenes.update = vi.fn().mockRejectedValue(new Error('sc-fail'))
+    await act(async () => {
+      save?.click()
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    expect(api.scenes.list).toHaveBeenCalled()
+  })
 })

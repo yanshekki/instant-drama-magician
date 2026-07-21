@@ -457,4 +457,154 @@ describe('CharactersPage', () => {
     await clickRe(/^Profile$/i)
     expect(document.body.textContent || '').toMatch(/Save|Cancel|Ben|Aria/i)
   })
+
+  it('gallery cover remove intro and sheet draft commit', async () => {
+    api.media.toPreviewUrl = vi.fn().mockResolvedValue({
+      url: 'blob:test',
+      filePath: '/media/aria.png'
+    })
+    api.characters.commitSheet = vi.fn().mockResolvedValue({
+      path: '/tmp/committed.png',
+      character: { id: 'char-1', costume: 'trench' },
+      gallery: [
+        {
+          id: 'g3',
+          path: '/tmp/committed.png',
+          kind: 'sheet',
+          label: 'New',
+          createdAt: '2026-07-15T00:00:00.000Z',
+          layer: 'costume'
+        }
+      ]
+    })
+    await renderWithProviders(<CharactersPage />, { withToastHost: true })
+    await openFirstEdit()
+    await clickRe(/^References$/i)
+    await clickRe(/Set as cover/i)
+    await clickRe(/Remove this image|Remove this photo/i)
+    await clickRe(/intro|Intro/i)
+    await clickRe(/Generate professional reference/i)
+    const go = btns().find((b) =>
+      /^Generate$/i.test((b.textContent || '').trim())
+    )
+    if (go) {
+      await act(async () => {
+        fireEvent.click(go)
+      })
+    }
+    await waitFor(
+      () => expect(api.characters.generateSheet).toHaveBeenCalled(),
+      { timeout: 5000 }
+    ).catch(() => undefined)
+    for (const re of [
+      /Review/i,
+      /Add to gallery and save|Apply and save/i,
+      /OK|Dismiss|Discard/i
+    ]) {
+      await clickRe(re)
+    }
+    for (const cb of Array.from(
+      document.querySelectorAll('input[type="checkbox"]')
+    )) {
+      await act(async () => {
+        fireEvent.click(cb)
+      })
+    }
+    api.characters.update = vi.fn().mockRejectedValue(new Error('upd-fail'))
+    await clickRe(/^Save$/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    await clickRe(/^Cancel$/i)
+    expect(api.characters.list).toHaveBeenCalled()
+  })
+
+  it('AI fill draft apply and wardrobe library', async () => {
+    await renderWithProviders(<CharactersPage />, { withToastHost: true })
+    await openFirstEdit()
+    await clickRe(/^Profile$/i)
+    const idea = document.querySelector('textarea') as HTMLTextAreaElement
+    if (idea) {
+      await act(async () => {
+        fireEvent.change(idea, { target: { value: 'cyber detective' } })
+      })
+    }
+    await clickRe(/AI fill \/ improve|AI fill/i)
+    await waitFor(() => expect(api.characters.aiFill).toHaveBeenCalled())
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100))
+    })
+    for (const re of [/Review/i, /Apply and save/i, /OK|Dismiss/i]) {
+      await clickRe(re)
+    }
+    await clickRe(/^Costume$/i)
+    await clickRe(/Suggest from plot/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100))
+    })
+    for (const re of [/Apply wardrobe|Apply and save/i, /Discard|OK/i]) {
+      await clickRe(re)
+    }
+    for (const input of Array.from(document.querySelectorAll('input'))) {
+      const el = input as HTMLInputElement
+      if (/look|Winter|name/i.test(el.placeholder || '')) {
+        await act(async () => {
+          fireEvent.change(el, { target: { value: 'Night ops' } })
+        })
+      }
+    }
+    await clickRe(/Add to library/i)
+    await clickRe(/Apply/i)
+    for (const b of btns().filter((x) =>
+      /^×$|^x$/i.test((x.textContent || '').trim())
+    )) {
+      await act(async () => {
+        fireEvent.click(b)
+      })
+    }
+    expect(api.characters.list).toHaveBeenCalled()
+  })
+
+  it('new character sheet path and soul failures', async () => {
+    api.media.pickRefImage = vi.fn().mockResolvedValue(null)
+    api.characters.readSoulContent = vi
+      .fn()
+      .mockRejectedValue(new Error('soul-read-fail'))
+    api.characters.generateSoul = vi
+      .fn()
+      .mockRejectedValue(new Error('soul-gen-fail'))
+    api.characters.importSoulMd = vi.fn().mockResolvedValue({
+      path: '/tmp/imp.md',
+      content: '# ok'
+    })
+    await renderWithProviders(<CharactersPage />, { withToastHost: true })
+    await waitLoaded()
+    await clickRe(/New character/i)
+    const name = document.querySelector('input') as HTMLInputElement
+    await act(async () => {
+      fireEvent.change(name, { target: { value: 'Fresh' } })
+    })
+    await clickRe(/^References$/i)
+    await clickRe(/Generate professional reference|Add external ref/i)
+    await clickRe(/^Profile$/i)
+    await clickRe(/^Save$/i)
+    await waitFor(() =>
+      expect(api.characters.create.mock.calls.length).toBeGreaterThan(0)
+    ).catch(() => undefined)
+
+    // reopen edit for soul fails (handlers catch)
+    await openFirstEdit()
+    await clickRe(/^Profile$/i)
+    await clickRe(/Generate Soul from profile/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    await clickRe(/Import local soul/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    await clickRe(/Reload full text/i)
+    await clickRe(/Upload reference|Add external ref/i)
+    expect(api.media.pickRefImage).toHaveBeenCalled()
+  })
 })

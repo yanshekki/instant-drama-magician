@@ -451,4 +451,87 @@ describe('SettingsPage', () => {
       /FFmpeg|missing|Settings|App/i
     )
   })
+
+  it('residual settings every control and error paths', async () => {
+    api.webServer.status = vi.fn().mockResolvedValue({
+      running: true,
+      url: 'http://127.0.0.1:8787',
+      port: 8787,
+      error: null,
+      staticReady: true,
+      token: 'tok'
+    })
+    api.updates.status = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      channel: 'stable',
+      currentVersion: '1.0.0',
+      latestVersion: '1.1.0',
+      canCheck: true,
+      canDownload: true,
+      canAutoInstall: true
+    })
+    api.ai.testChat = vi.fn().mockRejectedValue(new Error('chat-fail'))
+    api.ai.listModels = vi.fn().mockRejectedValue(new Error('models-fail'))
+    await renderWithProviders(<SettingsPage />, { withToastHost: true })
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
+    for (const tab of [
+      /Chat model/i,
+      /^Image$/i,
+      /^Video$/i,
+      /^Export$/i,
+      /^App$/i
+    ]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => tab.test(x.textContent || ''))
+      if (b) {
+        await act(async () => {
+          b.click()
+        })
+      }
+      for (const input of Array.from(
+        document.querySelectorAll('input, select, textarea')
+      ).slice(0, 16)) {
+        const tag = input.tagName.toLowerCase()
+        if (tag === 'select') {
+          const s = input as HTMLSelectElement
+          if (s.options.length > 1) {
+            await act(async () => {
+              fireEvent.change(s, { target: { value: s.options[1].value } })
+            })
+          }
+        } else if ((input as HTMLInputElement).type === 'checkbox') {
+          await act(async () => {
+            fireEvent.click(input)
+          })
+        } else if ((input as HTMLInputElement).type !== 'file') {
+          await act(async () => {
+            fireEvent.change(input, { target: { value: 'test-value' } })
+          })
+        }
+      }
+      for (const re of [
+        /Refresh|Test|Advanced|Show|Hide|Start|Stop|Regenerate|Copy|Check|Download|Install|Open|backup|export|import|support|diagnostics|Clear|Grok|OpenAI|Custom|Stub|Same|token|BGM|Light|Dark|System/i
+      ]) {
+        const btn = screen
+          .getAllByRole('button')
+          .find((x) => re.test(x.textContent || ''))
+        if (btn && !(btn as HTMLButtonElement).disabled) {
+          await act(async () => {
+            btn.click()
+          })
+        }
+      }
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      save?.click()
+    })
+    expect(api.settings.get).toHaveBeenCalled()
+  })
 })

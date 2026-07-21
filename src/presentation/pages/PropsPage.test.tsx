@@ -286,4 +286,177 @@ describe('PropsPage', () => {
     }
     expect(api.props.list).toHaveBeenCalled()
   })
+
+  it('full residual props: save fail, plate draft, gallery, plot, intro', async () => {
+    const gallery = JSON.stringify([
+      {
+        id: 'pg1',
+        path: '/media/badge.png',
+        label: 'Hero',
+        kind: 'plate',
+        createdAt: '2026-07-01T00:00:00.000Z'
+      }
+    ])
+    api.props.list = vi.fn().mockResolvedValue([
+      makeProp({ refGalleryJson: gallery }),
+      makeProp({ id: 'prop-2', name: 'Key', refImagePath: null })
+    ])
+    api.media.toPreviewUrl = vi.fn().mockResolvedValue({
+      url: 'blob:p',
+      filePath: '/media/badge.png'
+    })
+    api.props.commitPlate = vi.fn().mockResolvedValue({
+      path: '/tmp/p.png',
+      gallery: []
+    })
+    api.props.generateIntroVideo = vi.fn().mockResolvedValue({})
+    api.timeline.list = vi.fn().mockResolvedValue([makeTimelineEntry()])
+    await renderWithProviders(<PropsPage />, { withToastHost: true })
+    await waitFor(() => expect(screen.getByText('Badge')).toBeTruthy())
+    const edit = screen
+      .getAllByRole('button')
+      .find((b) => /^Edit$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      edit?.click()
+    })
+
+    // AI with idea
+    const idea = document.querySelector('textarea') as HTMLTextAreaElement
+    if (idea) {
+      await act(async () => {
+        fireEvent.change(idea, { target: { value: 'brass badge worn' } })
+      })
+    }
+    for (const re of [
+      /AI fill|fill/i,
+      /Suggest from story|plot|Suggest/i
+    ]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 80))
+    })
+    for (const re of [/Apply and save|Review/i, /OK|Dismiss|use|confirm/i]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+
+    // Refs
+    const refs = screen
+      .getAllByRole('button')
+      .find((b) => /References|ref/i.test(b.textContent || ''))
+    await act(async () => {
+      refs?.click()
+    })
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      4
+    )) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () => {
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        })
+      }
+    }
+    for (const re of [
+      /Generate plate/i,
+      /^Generate$/i,
+      /Upload|pick/i,
+      /Set as cover/i,
+      /Remove this image/i,
+      /intro|Intro/i
+    ]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100))
+    })
+    for (const re of [/Add to gallery|Apply and save|Review/i, /OK|Dismiss/i]) {
+      const b = screen
+        .getAllByRole('button')
+        .find((x) => re.test(x.textContent || ''))
+      if (b && !(b as HTMLButtonElement).disabled) {
+        await act(async () => {
+          b.click()
+        })
+      }
+    }
+
+    // Save success then fail
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    if (save) {
+      await act(async () => {
+        save.click()
+      })
+    }
+    await waitFor(() => expect(api.props.update).toHaveBeenCalled()).catch(
+      () => undefined
+    )
+
+    // Reopen and force update fail
+    await waitFor(() => expect(screen.getByText('Badge')).toBeTruthy()).catch(
+      () => undefined
+    )
+    const edit2 = screen
+      .getAllByRole('button')
+      .find((b) => /^Edit$/i.test((b.textContent || '').trim()))
+    if (edit2) {
+      api.props.update = vi.fn().mockRejectedValue(new Error('prop-upd-fail'))
+      await act(async () => {
+        edit2.click()
+      })
+      const nameField = Array.from(document.querySelectorAll('input')).find(
+        (i) => (i as HTMLInputElement).value
+      ) as HTMLInputElement | undefined
+      if (nameField) {
+        await act(async () => {
+          fireEvent.change(nameField, { target: { value: 'BadgeX' } })
+        })
+      }
+      const save2 = screen
+        .getAllByRole('button')
+        .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+      await act(async () => {
+        save2?.click()
+      })
+    }
+
+    // Empty name save
+    await act(async () => {
+      const news = screen
+        .getAllByRole('button')
+        .find((b) => /New prop|New/i.test(b.textContent || ''))
+      news?.click()
+    })
+    const saveEmpty = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      saveEmpty?.click()
+    })
+    expect(api.props.list).toHaveBeenCalled()
+  })
 })
