@@ -2,11 +2,9 @@
  * Domain IPC handlers (split for maintainability).
  */
 import { existsSync, writeFileSync } from 'fs'
-import { join } from 'path'
 import { DemoSeedService } from '../../application/services'
 import type { CreateStoryInput } from '../../types/domain'
 import { chatContentText } from '../../types/domain'
-import { appendGalleryItem, parseCharacterGallery, serializeCharacterGallery } from '../../domain/characterGallery'
 import { AppError } from '../../types/errors'
 import type { HandlerContext } from './context'
 
@@ -15,17 +13,8 @@ export function registerStoriesHandlers(ctx: HandlerContext): void {
     reg,
     host,
     stories,
-    characters,
-    scenes,
-    props,
-    actions,
-    costumes,
-    timeline,
     generation,
-    rebindAi,
-    mediaRoot,
     activity,
-    userDataPath,
     settingsStore
   } = ctx
 

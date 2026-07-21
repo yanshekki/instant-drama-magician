@@ -2,31 +2,24 @@
  * Domain IPC handlers (split for maintainability).
  */
 import { existsSync, writeFileSync } from 'fs'
-import { join } from 'path'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import { chatContentText } from '../../types/domain'
 import { buildCostumeIntroVideoPrompt } from '../../domain/costumeSwap'
-import { appendGalleryItem, parseCharacterGallery, serializeCharacterGallery, setGalleryIntroVideo } from '../../domain/characterGallery'
+import {
+  parseCharacterGallery,
+  serializeCharacterGallery,
+  setGalleryIntroVideo
+} from '../../domain/characterGallery'
 import { AppError } from '../../types/errors'
 import type { HandlerContext } from './context'
 
 export function registerCostumesHandlers(ctx: HandlerContext): void {
   const {
     reg,
-    host,
-    stories,
     characters,
-    scenes,
-    props,
-    actions,
     costumes,
-    timeline,
     generation,
-    rebindAi,
-    mediaRoot,
-    activity,
-    userDataPath,
-    settingsStore
+    activity
   } = ctx
 
 // ─── Costumes (global wardrobe) ─────────────────────────────

@@ -14,10 +14,7 @@ export function registerVideoPrepRegenStill(ctx: HandlerContext): void {
     props,
     actions,
     costumes,
-    timeline,
-    generation,
-    mediaRoot,
-    activity
+    generation
   } = ctx
 
 reg(

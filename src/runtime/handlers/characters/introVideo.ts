@@ -5,14 +5,8 @@ import { existsSync, readFileSync } from 'fs'
 import type { HandlerContext } from '../context'
 import { AppError } from '../../../types/errors'
 import { SoulMdHubClient } from '../../../infrastructure/soulmd/SoulMdHubClient'
-import {
-  buildCharacterIntroVideoPrompt
-} from '../../../domain/characterMasterPrompt'
-import {
-  parseCharacterGallery,
-  serializeCharacterGallery,
-  setGalleryIntroVideo
-} from '../../../domain/characterGallery'
+import { buildCharacterIntroVideoPrompt } from '../../../domain/characterMasterPrompt'
+import { parseCharacterGallery, serializeCharacterGallery, setGalleryIntroVideo } from '../../../domain/characterGallery'
 
 export function registerCharactersIntroVideo(ctx: HandlerContext): void {
   const {

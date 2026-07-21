@@ -1,3 +1,5 @@
+# Deprecated: tests now run in ci.yml (quality job).
+# Kept as a thin alias so old branch protection rules pointing at "Test" still work.
 name: Test
 
 on:
@@ -5,9 +7,14 @@ on:
     branches: [main, master]
   pull_request:
 
+concurrency:
+  group: test-alias-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,11 +24,5 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npm run locales:verify
+      - run: npm run typecheck
       - run: npm run test:ci
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage
-          path: coverage/
-          if-no-files-found: ignore

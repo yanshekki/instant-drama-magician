@@ -12,18 +12,9 @@ export function registerActivityHandlers(ctx: HandlerContext): void {
   const {
     reg,
     host,
-    stories,
-    characters,
-    scenes,
-    props,
-    actions,
-    costumes,
-    timeline,
-    generation,
     rebindAi,
     mediaRoot,
     activity,
-    userDataPath,
     settingsStore
   } = ctx
 

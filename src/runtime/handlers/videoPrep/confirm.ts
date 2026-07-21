@@ -3,7 +3,6 @@
  */
 import { copyFileSync, existsSync } from 'fs'
 import type { HandlerContext } from '../context'
-import { appendGalleryItem, parseCharacterGallery, serializeCharacterGallery, setGalleryIntroVideo } from '../../../domain/characterGallery'
 import { AppError } from '../../../types/errors'
 
 export function registerVideoPrepConfirm(ctx: HandlerContext): void {
@@ -18,7 +17,6 @@ export function registerVideoPrepConfirm(ctx: HandlerContext): void {
     costumes,
     timeline,
     generation,
-    mediaRoot,
     activity
   } = ctx
 

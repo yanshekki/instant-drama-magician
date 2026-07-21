@@ -5,10 +5,7 @@ import { existsSync, writeFileSync } from 'fs'
 import type { HandlerContext } from '../context'
 import { AppError } from '../../../types/errors'
 import { ensureHardRules } from '../../../domain/promptHardRules'
-import {
-  buildCharacterSheetEditPrompt,
-  buildCharacterSheetImagePrompt
-} from '../../../domain/characterMasterPrompt'
+import { buildCharacterSheetEditPrompt, buildCharacterSheetImagePrompt } from '../../../domain/characterMasterPrompt'
 import {
   appendGalleryItem,
   MAX_IMAGE_EDIT_REFERENCES,

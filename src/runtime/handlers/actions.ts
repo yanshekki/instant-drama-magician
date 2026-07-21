@@ -2,7 +2,7 @@
  * Domain IPC handlers (split for maintainability).
  */
 import { copyFileSync, existsSync, writeFileSync } from 'fs'
-import { extname, join } from 'path'
+import { extname } from 'path'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import type { CreateActionInput, UpdateActionInput } from '../../types/domain'
 import { chatContentText } from '../../types/domain'
@@ -13,19 +13,9 @@ export function registerActionsHandlers(ctx: HandlerContext): void {
   const {
     reg,
     host,
-    stories,
-    characters,
-    scenes,
-    props,
     actions,
-    costumes,
-    timeline,
     generation,
-    rebindAi,
-    mediaRoot,
-    activity,
-    userDataPath,
-    settingsStore
+    activity
   } = ctx
 
 // ─── Actions (motion direction library) ────────────────────

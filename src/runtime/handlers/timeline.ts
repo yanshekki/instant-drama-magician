@@ -7,20 +7,7 @@ import type { HandlerContext } from './context'
 export function registerTimelineHandlers(ctx: HandlerContext): void {
   const {
     reg,
-    host,
-    stories,
-    characters,
-    scenes,
-    props,
-    actions,
-    costumes,
-    timeline,
-    generation,
-    rebindAi,
-    mediaRoot,
-    activity,
-    userDataPath,
-    settingsStore
+    timeline
   } = ctx
 
 // ─── Timeline ──────────────────────────────────────────────

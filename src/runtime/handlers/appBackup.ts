@@ -13,19 +13,9 @@ export function registerAppBackupHandlers(ctx: HandlerContext): void {
   const {
     reg,
     host,
-    stories,
-    characters,
-    scenes,
-    props,
-    actions,
-    costumes,
     timeline,
     generation,
-    rebindAi,
-    mediaRoot,
-    activity,
-    userDataPath,
-    settingsStore
+    mediaRoot
   } = ctx
 
 // ─── Full app-data backup (menu / Settings / CLI headless) ─

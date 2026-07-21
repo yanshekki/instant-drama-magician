@@ -2,24 +2,19 @@
  * Video prep — registerVideoPrepCreate
  */
 import { existsSync, readFileSync } from 'fs'
-import { join } from 'path'
 import type { HandlerContext } from '../context'
-import { ensureHardRules } from '../../../domain/promptHardRules'
 import { AppError } from '../../../types/errors'
 
 export function registerVideoPrepCreate(ctx: HandlerContext): void {
   const {
     reg,
-    host,
     stories,
     characters,
     scenes,
     props,
     actions,
     costumes,
-    timeline,
     generation,
-    mediaRoot,
     activity
   } = ctx
 

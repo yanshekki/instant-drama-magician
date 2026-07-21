@@ -9,19 +9,7 @@ export function registerUpdatesHandlers(ctx: HandlerContext): void {
   const {
     reg,
     host,
-    stories,
-    characters,
-    scenes,
-    props,
-    actions,
-    costumes,
-    timeline,
-    generation,
-    rebindAi,
-    mediaRoot,
-    activity,
-    userDataPath,
-    settingsStore
+    activity
   } = ctx
 
 // ─── Auto-update (electron-updater; headless/web returns channel-aware state) ─

@@ -2,7 +2,6 @@
  * Domain IPC handlers (split for maintainability).
  */
 import { existsSync, writeFileSync } from 'fs'
-import { join } from 'path'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import type { CreatePropInput, PropProfileFields, UpdatePropInput } from '../../types/domain'
 import { chatContentText } from '../../types/domain'
@@ -14,19 +13,9 @@ export function registerPropsHandlers(ctx: HandlerContext): void {
   const {
     reg,
     host,
-    stories,
-    characters,
-    scenes,
     props,
-    actions,
-    costumes,
-    timeline,
     generation,
-    rebindAi,
-    mediaRoot,
-    activity,
-    userDataPath,
-    settingsStore
+    activity
   } = ctx
 
 // ─── Props ─────────────────────────────────────────────────

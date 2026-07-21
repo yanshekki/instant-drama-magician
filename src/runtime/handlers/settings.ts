@@ -3,23 +3,14 @@
  */
 import type { AppSettings } from '../../types/settings'
 import type { HandlerContext } from './context'
+import { syncEmbeddedWebServer } from './embeddedWebServerSync'
 
 export function registerSettingsHandlers(ctx: HandlerContext): void {
   const {
     reg,
     host,
-    stories,
-    characters,
-    scenes,
-    props,
-    actions,
-    costumes,
-    timeline,
-    generation,
     rebindAi,
-    mediaRoot,
     activity,
-    userDataPath,
     settingsStore
   } = ctx
 
@@ -75,7 +66,12 @@ reg(
       partial.webServerHost !== undefined ||
       partial.webServerAuthToken !== undefined
     if (webTouched) {
-      void syncEmbeddedWebServer(next).catch(() => undefined)
+      void syncEmbeddedWebServer(next, {
+        settingsStore,
+        userData: host.userData,
+        appVersion: host.appVersion,
+        isPackaged: host.isPackaged
+      }).catch(() => undefined)
     }
     return next
   })

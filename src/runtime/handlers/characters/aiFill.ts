@@ -4,11 +4,7 @@
 import type { HandlerContext } from '../context'
 import { chatContentText } from '../../../types/domain'
 import { AppError } from '../../../types/errors'
-import {
-  buildCharacterMasterSystemPrompt,
-  buildCharacterMasterUserPrompt,
-  extractCharacterProfileJson
-} from '../../../domain/characterMasterPrompt'
+import { buildCharacterMasterSystemPrompt, buildCharacterMasterUserPrompt, extractCharacterProfileJson } from '../../../domain/characterMasterPrompt'
 
 export function registerCharactersAiFill(ctx: HandlerContext): void {
   const {
