@@ -6,6 +6,7 @@ import {
   buildVisionUserContent,
   dataUrlToGrokImagePart,
   isReferenceImagePathClaimed,
+  mimeFromImagePath,
   prepareVisionImageBytes,
   resolveReadableImagePath,
   VISION_MAX_BYTES,
@@ -30,6 +31,18 @@ describe('chatVision', () => {
 
   it('resolveReadableImagePath returns null for missing files', () => {
     expect(resolveReadableImagePath('/no/such/file-xyz.png')).toBeNull()
+    expect(resolveReadableImagePath(null)).toBeNull()
+    expect(resolveReadableImagePath('  ')).toBeNull()
+    expect(resolveReadableImagePath(123 as unknown as string)).toBeNull()
+  })
+
+  it('mimeFromImagePath maps common extensions', () => {
+    expect(mimeFromImagePath('/a.jpg')).toBe('image/jpeg')
+    expect(mimeFromImagePath('/a.jpeg')).toBe('image/jpeg')
+    expect(mimeFromImagePath('/a.webp')).toBe('image/webp')
+    expect(mimeFromImagePath('/a.gif')).toBe('image/gif')
+    expect(mimeFromImagePath('/a.png')).toBe('image/png')
+    expect(mimeFromImagePath('/a.unknown')).toBe('image/png')
   })
 
   it('buildVisionUserContent returns text only when no path claimed', () => {

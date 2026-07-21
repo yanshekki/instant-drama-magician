@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCharacterIntroVideoPrompt,
   buildCharacterMasterSystemPrompt,
   buildCharacterMasterUserPrompt,
   buildCharacterSheetEditPrompt,
   buildCharacterSheetImagePrompt,
+  characterVideoPromptBlock,
   extractCharacterProfileJson,
   resolveSheetGenMode
 } from './characterMasterPrompt'
@@ -140,5 +142,73 @@ describe('characterMasterPrompt', () => {
       'edit'
     )
     expect(resolveSheetGenMode({})).toBe('generate')
+  })
+
+  it('sheet image prompt for base layer skips outer costume wording path', () => {
+    const p = buildCharacterSheetImagePrompt(
+      {
+        name: 'Ming',
+        appearance: 'short hair',
+        costume: 'delivery jacket',
+        hardRules: '【禁止】水印'
+      },
+      'body_base_turnaround',
+      'anime_modern'
+    )
+    expect(p).toMatch(/anime_modern|medium/i)
+    expect(p).toContain('Ming')
+    expect(p).toMatch(/禁止|水印/)
+  })
+
+  it('characterVideoPromptBlock and intro video prompts', () => {
+    const block = characterVideoPromptBlock({
+      name: 'Ming',
+      ageRange: '20s',
+      gender: 'm',
+      appearance: 'short hair',
+      costume: 'jacket',
+      personality: 'stubborn',
+      backstory: 'rides at night',
+      relationships: 'knows Yu',
+      mannerisms: 'touches helmet',
+      voiceDesc: 'low',
+      visualTags: 'urban',
+      artStyle: 'photo_cinematic',
+      spokenLanguages: ['yue', 'en']
+    })
+    expect(block).toContain('Ming')
+    expect(block).toContain('short hair')
+    expect(block).toContain('yue')
+
+    const zh = buildCharacterIntroVideoPrompt(
+      {
+        name: '阿明',
+        appearance: '短髮',
+        personality: '固執',
+        mannerisms: '摸頭盔',
+        voiceDesc: '低沉',
+        spokenLanguages: ['yue'],
+        backstory: '夜雨送單',
+        relationships: '與小雨有過往'
+      },
+      'zh-HK',
+      { soulExcerpt: '## 身份\n外賣仔' }
+    )
+    expect(zh).toContain('阿明')
+    expect(zh).toMatch(/身份|soul|外賣/i)
+
+    const en = buildCharacterIntroVideoPrompt(
+      { name: 'Ming', description: 'courier' },
+      'en'
+    )
+    expect(en).toContain('Ming')
+    expect(en).toMatch(/intro|self|character/i)
+  })
+
+  it('extractCharacterProfileJson rejects empty / invalid', () => {
+    expect(() => extractCharacterProfileJson('no json here')).toThrow()
+    expect(() =>
+      extractCharacterProfileJson(JSON.stringify({ description: 'only' }))
+    ).toThrow()
   })
 })

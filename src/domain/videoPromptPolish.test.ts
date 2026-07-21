@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   extractPolishedVideoPrompt,
   truncateForVideoPrompt,
+  hardRulesMaterialsBlock,
+  buildVideoPromptPolishSystemPrompt,
   buildIntroVideoPolishUserPrompt,
   buildSceneIntroVideoPolishUserPrompt,
   buildPropIntroVideoPolishUserPrompt,
@@ -37,6 +39,32 @@ describe('truncateForVideoPrompt', () => {
     const out = truncateForVideoPrompt(s, 50)
     expect(out.length).toBeLessThan(s.length)
     expect(out).toContain('[truncated]')
+  })
+
+  it('returns short text unchanged and empty for blank', () => {
+    expect(truncateForVideoPrompt('short', 50)).toBe('short')
+    expect(truncateForVideoPrompt('  ', 10)).toBe('')
+    expect(truncateForVideoPrompt(null, 10)).toBe('')
+  })
+})
+
+describe('hardRulesMaterialsBlock + system polish prompt', () => {
+  it('formats hard rules materials for en/zh', () => {
+    expect(hardRulesMaterialsBlock(null, 'en')).toBeNull()
+    expect(hardRulesMaterialsBlock('  ', 'zh-HK')).toBeNull()
+    const en = hardRulesMaterialsBlock('NO watermark', 'en')
+    expect(en).toMatch(/HARD RULES/)
+    expect(en).toContain('NO watermark')
+    const zh = hardRulesMaterialsBlock('【禁止】水印', 'zh-HK')
+    expect(zh).toMatch(/HARD RULES|鐵則/)
+    expect(zh).toContain('水印')
+  })
+
+  it('buildVideoPromptPolishSystemPrompt en/zh', () => {
+    const zh = buildVideoPromptPolishSystemPrompt('zh-HK')
+    expect(zh.length).toBeGreaterThan(40)
+    const en = buildVideoPromptPolishSystemPrompt('en')
+    expect(en).toMatch(/image-to-video|director|prompt/i)
   })
 })
 
@@ -167,5 +195,71 @@ describe('buildIntroVideoPolishUserPrompt hardRules', () => {
     expect(u).toContain('HARD RULES')
     expect(u).toContain('第三人臉')
     expect(u).toContain('CHAR TEMPLATE')
+  })
+
+  it('en locale without ref image', () => {
+    const u = buildIntroVideoPolishUserPrompt({
+      locale: 'en',
+      seconds: 8,
+      aspectRatio: '9:16',
+      hasRefImage: false,
+      fallbackPrompt: 'FALLBACK',
+      name: 'Ming'
+    })
+    expect(u).toContain('Ming')
+    expect(u).toContain('FALLBACK')
+    expect(u).toMatch(/8|9:16/)
+  })
+})
+
+describe('other polish prompts en without ref', () => {
+  it('scene / prop / costume / clip en variants', () => {
+    expect(
+      buildSceneIntroVideoPolishUserPrompt({
+        locale: 'en',
+        seconds: 10,
+        hasRefImage: false,
+        fallbackPrompt: 'S',
+        title: 'Pier',
+        description: 'wet',
+        hardRules: 'NO logo'
+      })
+    ).toMatch(/Pier|SPACE|HARD/i)
+
+    expect(
+      buildPropIntroVideoPolishUserPrompt({
+        locale: 'en',
+        seconds: 10,
+        hasRefImage: false,
+        fallbackPrompt: 'P',
+        name: 'Watch',
+        description: 'silver',
+        hardRules: 'NO brand'
+      })
+    ).toMatch(/Watch|PROP|HARD/i)
+
+    expect(
+      buildCostumeIntroVideoPolishUserPrompt({
+        locale: 'zh-HK',
+        seconds: 10,
+        hasRefImage: false,
+        fallbackPrompt: 'C',
+        name: '雨衣',
+        description: '黑皮',
+        hardRules: '禁止 logo'
+      })
+    ).toMatch(/雨衣|服裝|HARD|鐵則/i)
+
+    expect(
+      buildClipVideoPolishUserPrompt({
+        locale: 'zh-HK',
+        seconds: 6,
+        hasRefImage: false,
+        fallbackPrompt: 'CLIP',
+        storyTitle: '雨夜',
+        beatOrDialogue: '走',
+        hardRules: '必須雙手'
+      })
+    ).toMatch(/雨夜|走|CLIP|HARD|鐵則/i)
   })
 })

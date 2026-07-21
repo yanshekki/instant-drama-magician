@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { AppError } from '../types/errors'
 import {
+  buildStoryBeatsSystemPrompt,
+  buildStoryBeatsUserPrompt,
+  buildStoryMetaSystemPrompt,
+  buildStoryMetaUserPrompt,
   extractStoryBeatsJson,
   extractStoryMetaJson,
   extractStyleNoteJson,
@@ -90,5 +95,142 @@ describe('storyMasterPrompt', () => {
     expect(r.propId).toBe('p1')
     expect(r.characterIds).toContain('c1')
     expect(r.durationSeconds).toBeGreaterThanOrEqual(4)
+  })
+
+  it('builds meta system/user prompts for zh and en', () => {
+    const zhSys = buildStoryMetaSystemPrompt('zh-HK')
+    expect(zhSys).toMatch(/短劇|風格/)
+    const enSys = buildStoryMetaSystemPrompt('en')
+    expect(enSys).toMatch(/showrunner|style bible/i)
+
+    const zhUser = buildStoryMetaUserPrompt({
+      title: '雨夜',
+      idea: '重逢',
+      existingStyleNote: 'neon',
+      existingHardRules: 'no logo',
+      contextSnippets: ['阿明：鐵工', '', '場景：巷'],
+      locale: 'zh-HK'
+    })
+    expect(zhUser).toMatch(/雨夜|重逢|neon|no logo|鐵工/)
+
+    const enUser = buildStoryMetaUserPrompt({
+      title: 'Rain',
+      locale: 'en'
+    })
+    expect(enUser).toMatch(/Rain|styleNote|hardRules/i)
+  })
+
+  it('extracts meta from fenced json and rejects empty styleNote', () => {
+    const m = extractStoryMetaJson(
+      '```json\n{"styleNote":"  fog  ","hardRules":"must: wet asphalt"}\n```',
+      'en'
+    )
+    expect(m.styleNote).toBe('fog')
+    expect(m.hardRules.length).toBeGreaterThan(0)
+
+    expect(() => extractStoryMetaJson('{"styleNote":""}')).toThrow(AppError)
+    expect(() => extractStoryMetaJson('{"styleNote":"  "}')).toThrow(AppError)
+  })
+
+  it('builds beats system/user prompts', () => {
+    const zh = buildStoryBeatsSystemPrompt('zh-HK')
+    expect(zh).toMatch(/劇情段落|units/)
+    const en = buildStoryBeatsSystemPrompt('en')
+    expect(en).toMatch(/TIMELINE BEATS|dialogue/)
+
+    const userZh = buildStoryBeatsUserPrompt({
+      title: '雨夜',
+      styleNote: 'neon',
+      idea: '重逢',
+      characters: [{ name: '阿明', description: '鐵工' }],
+      scenes: [{ sceneNumber: 1, description: '巷口' }],
+      props: [{ name: '傘', description: '紅傘' }],
+      locale: 'zh-HK'
+    })
+    expect(userZh).toMatch(/阿明|巷口|傘|neon|重逢/)
+
+    const userEnEmpty = buildStoryBeatsUserPrompt({
+      title: 'Rain',
+      characters: [],
+      scenes: [],
+      props: [],
+      locale: 'en'
+    })
+    expect(userEnEmpty).toMatch(/no cast|no scenes|none/i)
+  })
+
+  it('extracts beats from fenced array and sceneNumber hint', () => {
+    const beats = extractStoryBeatsJson(
+      '```json\n[{"characterName":"Ming","sceneNumber":3,"propName":"Key","dialogue":"Open it."}]\n```',
+      'en'
+    )
+    expect(beats).toHaveLength(1)
+    expect(beats[0].sceneHint).toBe('3')
+    expect(beats[0].dialogue).toMatch(/Open/)
+
+    expect(() => extractStoryBeatsJson('{"not":"array"}')).toThrow(AppError)
+    expect(() => extractStoryBeatsJson('[]')).toThrow(AppError)
+    expect(() =>
+      extractStoryBeatsJson('[{"characterName":"x"}]')
+    ).toThrow(AppError)
+  })
+
+  it('resolveBeatIds matches title/description and partial names', () => {
+    const r = resolveBeatIds(
+      {
+        characterName: '',
+        characterNames: ['Mei'],
+        sceneHint: 'rooftop',
+        propName: 'blade',
+        dialogue: 'hi',
+        content: {
+          version: 1,
+          units: [{ type: 'dialogue', who: 'Mei', line: 'hi' }]
+        },
+        scriptText: 'hi',
+        beatContentJson: '{}'
+      },
+      {
+        characters: [
+          { id: 'c1', name: 'Xiao Mei' },
+          { id: 'c2', name: 'Other' }
+        ],
+        scenes: [
+          {
+            id: 's1',
+            sceneNumber: 1,
+            title: 'Rooftop rain',
+            description: 'city roof'
+          }
+        ],
+        props: [{ id: 'p1', name: 'Silver Blade' }]
+      }
+    )
+    expect(r.characterId).toBe('c1')
+    expect(r.sceneId).toBe('s1')
+    expect(r.propId).toBe('p1')
+  })
+
+  it('resolveBeatIds falls back to first scene when hint empty', () => {
+    const r = resolveBeatIds(
+      {
+        characterName: '',
+        characterNames: [],
+        sceneHint: '',
+        propName: '',
+        dialogue: 'x',
+        content: { version: 1, units: [{ type: 'action', text: 'walks' }] },
+        scriptText: 'walks',
+        beatContentJson: '{}'
+      },
+      {
+        characters: [],
+        scenes: [{ id: 's0', description: 'default' }],
+        props: []
+      }
+    )
+    expect(r.sceneId).toBe('s0')
+    expect(r.characterId).toBeNull()
+    expect(r.propId).toBeNull()
   })
 })

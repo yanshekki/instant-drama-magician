@@ -6,7 +6,8 @@ import {
   charactersMissingRef,
   getPreviousTimelineEntry,
   previousClipContext,
-  resolveClipRefImage
+  resolveClipRefImage,
+  timelineBeatDisplayIndex
 } from './promptContinuity'
 import type { Character, TimelineEntry } from '../types/domain'
 
@@ -236,5 +237,77 @@ describe('promptContinuity', () => {
     ]
     const missing = charactersMissingRef(entries, characters)
     expect(missing.map((c) => c.id)).toEqual(['c1'])
+  })
+
+  it('timelineBeatDisplayIndex is 1-based order rank', () => {
+    const entries = [
+      baseEntry({ id: 'e0', order: 0 }),
+      baseEntry({ id: 'e1', order: 1, startTime: 6, endTime: 12 }),
+      baseEntry({ id: 'e2', order: 2, startTime: 12, endTime: 18 })
+    ]
+    expect(timelineBeatDisplayIndex(entries, 'e0')).toBe(1)
+    expect(timelineBeatDisplayIndex(entries, 'e2')).toBe(3)
+    expect(timelineBeatDisplayIndex(entries, 'missing')).toBe(0)
+  })
+
+  it('buildClipPrompt without character and with scene/prop context', () => {
+    const p = buildClipPrompt({
+      storyTitle: 'Rain',
+      styleNote: null,
+      character: null,
+      scene: {
+        id: 'sc',
+        storyId: 's',
+        sceneNumber: 1,
+        title: 'Alley',
+        description: 'alley rain',
+        script: 'A waits',
+        status: 'PENDING',
+        refImagePath: '/sc.png',
+        locationType: 'exterior',
+        mood: 'tense',
+        lighting: 'neon',
+        weather: 'rain',
+        timeOfDay: 'night',
+        setDressing: 'puddles',
+        cameraNotes: 'handheld'
+      } as never,
+      prop: {
+        id: 'p',
+        storyId: 's',
+        name: 'umbrella',
+        description: 'red',
+        material: 'nylon',
+        refImagePath: '/p.png'
+      } as never,
+      dialogue: null,
+      seconds: 5,
+      previousContext: 'Prev: Ming said hi'
+    })
+    expect(p).toContain('Rain')
+    expect(p).toMatch(/alley|umbrella|Prev|nylon|handheld/i)
+    const withRev = appendRevisionToClipPrompt(p, 'darker', 'NO logo')
+    expect(withRev).toMatch(/darker|NO logo|DIRECTOR REVISION/)
+  })
+
+  it('previousClipContext returns null for first entry', () => {
+    const entries = [baseEntry({ id: 'e0', order: 0 })]
+    expect(
+      previousClipContext(entries, 'e0', {
+        characters: new Map(),
+        scenes: new Map(),
+        props: new Map()
+      })
+    ).toBeNull()
+  })
+
+  it('buildContinuityLockPrompt without image still warns', () => {
+    const lock = buildContinuityLockPrompt({
+      previousBeatIndex: 2,
+      sameCharacter: false,
+      sameScene: false,
+      hasContinuityImage: false
+    })
+    expect(lock).toMatch(/CONTINUITY|beat/i)
   })
 })

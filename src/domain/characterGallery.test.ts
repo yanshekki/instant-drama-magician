@@ -2,13 +2,19 @@ import { describe, expect, it } from 'vitest'
 import {
   appendGalleryItem,
   filterGalleryByLayer,
+  isExternalRefItem,
+  isGalleryCoverPath,
+  listExternalRefs,
   MAX_IMAGE_EDIT_REFERENCES,
   moveGalleryItem,
   parseCharacterGallery,
+  pickExternalRefPath,
   pickGalleryReferencePaths,
   primaryGalleryPath,
   removeGalleryItem,
-  serializeCharacterGallery
+  serializeCharacterGallery,
+  setGalleryIntroVideo,
+  shiftGalleryItem
 } from './characterGallery'
 
 describe('characterGallery', () => {
@@ -143,12 +149,93 @@ describe('characterGallery', () => {
         label: 'Base',
         createdAt: '2',
         layer: 'base' as const
+      },
+      {
+        id: '3',
+        path: '/x.png',
+        kind: 'gen' as const,
+        label: 'No layer',
+        createdAt: '3'
       }
     ]
     expect(filterGalleryByLayer(g, 'base')).toHaveLength(1)
-    expect(filterGalleryByLayer(g, 'all', { hideNude: true })).toHaveLength(1)
+    expect(filterGalleryByLayer(g, 'all', { hideNude: true })).toHaveLength(2)
     expect(filterGalleryByLayer(g, 'all', { hideNude: true })[0].path).toBe(
       '/b.png'
     )
+    expect(
+      filterGalleryByLayer(g, 'costume', {
+        inferLayer: (it) => (it.path === '/x.png' ? 'costume' : null)
+      })
+    ).toHaveLength(1)
+  })
+
+  it('external refs pick / intro video / cover / shift', () => {
+    const g = [
+      {
+        id: 's',
+        path: '/s.png',
+        kind: 'sheet' as const,
+        label: 'S',
+        createdAt: '1'
+      },
+      {
+        id: 'u',
+        path: '/u.png',
+        kind: 'upload' as const,
+        label: 'U',
+        createdAt: '2'
+      },
+      {
+        id: 'e',
+        path: '/e.png',
+        kind: 'external' as const,
+        label: 'E',
+        createdAt: '3'
+      }
+    ]
+    expect(isExternalRefItem(g[1])).toBe(true)
+    expect(listExternalRefs(g)).toHaveLength(2)
+    expect(pickExternalRefPath(g, { preferredPath: '/e.png' })).toBe('/e.png')
+    expect(pickExternalRefPath(g, { selectedId: 'u' })).toBe('/u.png')
+    expect(pickExternalRefPath(g)).toBe('/u.png')
+    expect(pickExternalRefPath([], {})).toBeNull()
+
+    expect(isGalleryCoverPath(g, '/s.png')).toBe(true)
+    expect(isGalleryCoverPath(g, null)).toBe(false)
+    expect(primaryGalleryPath([])).toBeNull()
+    expect(primaryGalleryPath(g.filter((i) => i.kind !== 'sheet'))).toBe(
+      '/u.png'
+    )
+
+    const withVid = setGalleryIntroVideo(g, '/s.png', '/intro.mp4')
+    expect(withVid.find((i) => i.id === 's')?.introVideoPath).toBe('/intro.mp4')
+    expect(setGalleryIntroVideo(g, '', '/v.mp4')).toBe(g)
+    expect(setGalleryIntroVideo(g, '/missing.png', '/v.mp4')).toBe(g)
+
+    expect(shiftGalleryItem(g, 'u', -1).map((i) => i.id)).toEqual([
+      'u',
+      's',
+      'e'
+    ])
+  })
+
+  it('parse ignores corrupt json and invalid kinds', () => {
+    expect(parseCharacterGallery('not-json')).toEqual([])
+    expect(parseCharacterGallery('{}')).toEqual([])
+    const g = parseCharacterGallery(
+      JSON.stringify([
+        { path: '/a.png', kind: 'weird', introVideoPath: ' /v.mp4 ' },
+        { path: '/a.png' },
+        null,
+        { path: '' },
+        { path: '/b.png', layer: 'nope', label: 1 }
+      ])
+    )
+    expect(g).toHaveLength(2)
+    expect(g[0].kind).toBe('gen')
+    expect(g[0].introVideoPath).toBe('/v.mp4')
+    expect(g[0].label).toBe('Image')
+    expect(g[1].layer).toBeUndefined()
   })
 })

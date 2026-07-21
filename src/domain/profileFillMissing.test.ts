@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   buildFillMissingSystemPrompt,
+  buildFillMissingUserPrompt,
   fillMissingProfileFields,
   isProfileFieldEmpty,
   listMissingProfileKeys,
@@ -96,5 +97,46 @@ describe('profileFillMissing', () => {
     expect(r.patchedKeys).toEqual(
       expect.arrayContaining(['visualTags', 'material'])
     )
+  })
+
+  it('buildFillMissingSystemPrompt / user prompt en locale', () => {
+    const sys = buildFillMissingSystemPrompt('en', ['visualTags', 'material'])
+    expect(sys).toContain('visualTags')
+    expect(sys).toMatch(/JSON|missing/i)
+    const user = buildFillMissingUserPrompt('en', { name: 'Watch' }, [
+      'material'
+    ])
+    expect(user).toContain('Watch')
+    expect(user).toContain('material')
+  })
+
+  it('fillMissingProfileFields tolerates chat failure and synthesizes visualTags', async () => {
+    const chat = vi.fn().mockRejectedValue(new Error('network'))
+    const r = await fillMissingProfileFields({
+      profile: {
+        name: 'Golden heart pendant necklace',
+        description: 'shiny gold jewelry',
+        visualTags: ''
+      },
+      requiredKeys: ['name', 'description', 'visualTags'],
+      locale: 'en',
+      chat
+    })
+    expect(chat).toHaveBeenCalled()
+    // salvage may fill visualTags from name/description keywords
+    expect(r.profile.name).toBe('Golden heart pendant necklace')
+  })
+
+  it('fillMissingProfileFields ignores non-json LLM body', async () => {
+    const chat = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: 'sorry no json' } }]
+    })
+    const r = await fillMissingProfileFields({
+      profile: { name: 'A', material: '' },
+      requiredKeys: ['name', 'material'],
+      locale: 'zh-HK',
+      chat
+    })
+    expect(r.profile.name).toBe('A')
   })
 })
