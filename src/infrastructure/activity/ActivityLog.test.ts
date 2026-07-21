@@ -3,7 +3,8 @@ import {
   appendFileSync,
   mkdtempSync,
   readFileSync,
-  writeFileSync
+  writeFileSync,
+  rmSync
 } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -97,4 +98,17 @@ describe('ActivityLog', () => {
       log.append({ kind: 'k', message: 'm', level: 'debug' })
     ).not.toThrow()
   })
+
+  it('force100 trim max lines on append flood', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-act-'))
+    const log = new ActivityLog(join(dir, 'a.jsonl'))
+    // MAX_LINES is 5000 — push past to hit trimIfNeeded write path
+    for (let i = 0; i < 5010; i++) {
+      log.append({ kind: 'x', message: `m${i}` })
+    }
+    const recent = log.readRecent(20)
+    expect(recent.length).toBeLessThanOrEqual(20)
+    rmSync(dir, { recursive: true, force: true })
+  }, 60_000)
+
 })

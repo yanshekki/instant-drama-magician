@@ -90,4 +90,22 @@ describe('domain sugar', () => {
     } catch { /* */ }
   })
 
+
+  it('force100 resolveDomainChannel alt and bare id auth exit', async () => {
+    // alt channel: action already camelCase that exists in DESKTOP list
+    const ch = resolveDomainChannel('media', 'checkFfmpeg')
+    expect(ch).toMatch(/media:/)
+    // bare id arg path
+    await cmdDomain(g, 'characters', ['get', 'char_1'], {})
+    // auth error exit
+    vi.mocked(resolveClient).mockResolvedValue(
+      mockClient({
+        invoke: vi.fn().mockRejectedValue(new Error('401 Unauthorized'))
+      }) as never
+    )
+    await expect(cmdDomain(g, 'stories', ['list'], {})).rejects.toThrow(
+      /process.exit/
+    )
+  })
+
 })

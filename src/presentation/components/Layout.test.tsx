@@ -50,10 +50,10 @@ vi.mock('../context/AppContext', () => ({
   useApp: () => ({
     aiStatus: {
       available: true,
-      chat: { available: true },
-      image: { available: false, message: 'off', provider: 'same-as-llm' },
-      video: { available: true, message: 'ok', provider: 'seedance' },
-      llmProvider: 'grok-cli',
+      chat: { available: false },
+      image: { available: true, message: 'ok', provider: 'dalle' },
+      video: { available: false, message: 'off', provider: 'same-as-llm' },
+      llmProvider: 'my-custom-provider',
       baseUrl: 'http://127.0.0.1:3847/v1',
       model: 'grok'
     },

@@ -47,3 +47,30 @@ describe('nonpage final pure helpers', () => {
     expect(ffmpegRequireBase(false)).toContain('package.json')
   })
 })
+
+  it('Seedance mimeFromPath all types', async () => {
+    const { mimeFromPath } = await import(
+      '../infrastructure/ai/video/SeedanceVideoProvider'
+    )
+    expect(mimeFromPath('a.webp')).toBe('image/webp')
+    expect(mimeFromPath('a.gif')).toBe('image/gif')
+    expect(mimeFromPath('a.jpg')).toBe('image/jpeg')
+    expect(mimeFromPath('x')).toBe('image/jpeg')
+  })
+
+  it('httpUtils withRetries exhausts and throws lastError', async () => {
+    const { withRetries } = await import(
+      '../infrastructure/ai/video/httpUtils'
+    )
+    let n = 0
+    await expect(
+      withRetries(
+        async () => {
+          n++
+          throw new Error('always')
+        },
+        { maxRetries: 1, shouldRetry: () => true }
+      )
+    ).rejects.toThrow(/always/)
+    expect(n).toBeGreaterThan(1)
+  })

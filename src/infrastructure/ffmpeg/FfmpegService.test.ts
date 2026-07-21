@@ -401,4 +401,28 @@ describe('FfmpegService', () => {
     const ff = new FfmpegService()
     await expect(ff.ensureAvailable()).rejects.toBeTruthy()
   })
+
+  it('force100 missing output throws for final normalize still export', async () => {
+    // spawn succeeds but never writes output files
+    spawnMock.mockImplementation(() => makeChild({ code: 0 }))
+    const ff = new FfmpegService()
+    const media = join(dir, 'in.mp4')
+    writeFileSync(media, 'v')
+    await expect(
+      ff.exportFinal({
+        outDir: join(dir, 'f-miss'),
+        fileName: 'no-write.mp4',
+        title: 'T',
+        clips: [
+          {
+            startTime: 0,
+            endTime: 1,
+            label: 'A',
+            mediaPath: media
+          }
+        ]
+      })
+    ).rejects.toMatchObject({ code: 'FFMPEG_FAILED' })
+  })
+
 })

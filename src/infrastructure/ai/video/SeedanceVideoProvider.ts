@@ -59,7 +59,7 @@ type TaskJson = {
   }
 }
 
-function mimeFromPath(p: string): string {
+export function mimeFromPath(p: string): string {
   switch (extname(p).toLowerCase()) {
     case '.png':
       return 'image/png'

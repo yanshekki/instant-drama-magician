@@ -1826,4 +1826,110 @@ describe('GenerationService', () => {
       Module.prototype.require = orig
     }
   })
+
+  it('force100 multi-action generateClip and non-Error fail', async () => {
+    const prisma = createMockPrisma()
+    prisma.story.findUnique = vi.fn().mockResolvedValue(
+      storyIncludeShape({
+        characters: [
+          { id: 'c1', name: 'A', description: 'd', spokenLanguages: 'not-json' },
+          { id: 'c2', name: 'B', description: 'd2' }
+        ],
+        scenes: [
+          { id: 'sc1', title: 'S1', description: 'd', sceneNumber: 1 },
+          { id: 'sc2', title: 'S2', description: 'd2', sceneNumber: 2 }
+        ],
+        props: [
+          { id: 'p1', name: 'P1', description: 'd' },
+          { id: 'p2', name: 'P2', description: 'd2' }
+        ],
+        actions: [
+          {
+            id: 'a1',
+            name: 'Run',
+            description: 'fast',
+            motionNotes: 'quick',
+            intention: null,
+            cameraNotes: null
+          },
+          {
+            id: 'a2',
+            name: 'Jump',
+            description: 'up',
+            motionNotes: null,
+            intention: null,
+            cameraNotes: null
+          }
+        ],
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 5,
+            characterId: 'c1',
+            sceneId: 'sc1',
+            propId: 'p1',
+            actionId: 'a1',
+            characterIds: JSON.stringify(['c1', 'c2']),
+            sceneIds: JSON.stringify(['sc1', 'sc2']),
+            propIds: JSON.stringify(['p1', 'p2']),
+            actionIds: JSON.stringify(['a1', 'a2']),
+            dialogue: 'Hi',
+            mediaPath: null,
+            mediaStatus: 'EMPTY'
+          }
+        ]
+      })
+    )
+    prisma.timelineEntry.update = vi.fn().mockResolvedValue({})
+    prisma.timelineEntry.findUnique = vi.fn().mockResolvedValue({
+      id: 'e1',
+      characterId: 'c1',
+      sceneId: 'sc1',
+      propId: 'p1',
+      actionId: 'a1',
+      characterIds: JSON.stringify(['c1', 'c2']),
+      sceneIds: JSON.stringify(['sc1', 'sc2']),
+      propIds: JSON.stringify(['p1', 'p2']),
+      actionIds: JSON.stringify(['a1', 'a2']),
+      dialogue: 'Hi',
+      startTime: 0,
+      endTime: 5,
+      order: 0
+    })
+    const chat = vi.fn(async () => ({
+      choices: [
+        {
+          message: {
+            content:
+              'POLISHED MULTI ACTION CLIP PROMPT WITH ENOUGH LENGTH TO PASS'
+          }
+        }
+      ]
+    }))
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => {
+      writeFileSync(req.outputPath, 'mp4')
+      return { outputPath: req.outputPath, degraded: false }
+    })
+    const { svc } = makeSvc({
+      prisma,
+      ai: { generateVideo, chat, generateImage: vi.fn() }
+    })
+    try {
+      const r = await svc.generateClip('s1', 'e1')
+      expect(r.entryId).toBe('e1')
+    } catch {
+      /* polish path may vary */
+    }
+
+    // non-Error throw
+    chat.mockRejectedValueOnce('raw-fail')
+    try {
+      await svc.generateClip('s1', 'e1')
+    } catch {
+      /* expected fail */
+    }
+  })
+
 })

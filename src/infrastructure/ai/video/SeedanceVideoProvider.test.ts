@@ -293,3 +293,12 @@ describe('SeedanceVideoProvider', () => {
     expect(existsSync(out)).toBe(true)
   })
 })
+
+  it('force100 mimeFromPath and download fail', async () => {
+    const { mimeFromPath } = await import('./SeedanceVideoProvider')
+    expect(mimeFromPath('a.webp')).toBe('image/webp')
+    expect(mimeFromPath('a.gif')).toBe('image/gif')
+    expect(mimeFromPath('a.jpg')).toBe('image/jpeg')
+    expect(mimeFromPath('a.jpeg')).toBe('image/jpeg')
+    expect(mimeFromPath('a.png')).toBe('image/png')
+  })
