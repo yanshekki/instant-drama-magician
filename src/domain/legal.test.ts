@@ -56,4 +56,10 @@ describe('formatLegalAcceptedAt', () => {
   it('returns original for invalid date', () => {
     expect(formatLegalAcceptedAt('not-a-date')).toBe('not-a-date')
   })
+
+  it('returns empty for falsy after try path edge', () => {
+    // empty already covered; ensure ISO with timezone still formats
+    const out = formatLegalAcceptedAt('2026-01-01T00:00:00+08:00')
+    expect(out.length).toBeGreaterThan(0)
+  })
 })

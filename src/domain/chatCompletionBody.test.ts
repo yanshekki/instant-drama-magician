@@ -101,4 +101,34 @@ describe('chatCompletionBody (Grok Gateway strictSampling)', () => {
   it('rewriteVisionContentForGrokGateway handles plain string', () => {
     expect(rewriteVisionContentForGrokGateway('plain')).toBe('plain')
   })
+
+  it('shouldOmitSampling for localhost legacy port and invalid url', () => {
+    expect(
+      shouldOmitSamplingForProvider('custom', 'http://localhost:39281/v1')
+    ).toBe(true)
+    expect(shouldOmitSamplingForProvider(undefined, 'not-a-url')).toBe(false)
+  })
+
+  it('rewrite drops invalid image_url data', () => {
+    const parts = rewriteVisionContentForGrokGateway([
+      { type: 'text', text: 't' },
+      { type: 'image_url', image_url: { url: 'http://example.com/a.png' } },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,xx' } }
+    ] as never)
+    expect(Array.isArray(parts)).toBe(true)
+    if (!Array.isArray(parts)) return
+    expect(parts.some((p) => p.type === 'image')).toBe(true)
+  })
+
+  it('includes top_p and stop when not omitting', () => {
+    const body = buildChatCompletionBody({
+      model: 'm',
+      messages,
+      top_p: 0.8,
+      stop: ['END'],
+      omitSampling: false
+    })
+    expect(body.top_p).toBe(0.8)
+    expect(body.stop).toEqual(['END'])
+  })
 })

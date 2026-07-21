@@ -36,4 +36,18 @@ describe('character domain', () => {
     expect(doc.tags).toEqual(['hero', 'kind'])
     expect(doc.title).toBe('阿明')
   })
+
+  it('parseSoulMd falls back to frontmatter title and truncates description', () => {
+    const doc = parseSoulMd(
+      '---\ntitle: Fallback\ntag: alone\n---\n\nOnly body paragraph without heading.'
+    )
+    expect(doc.title).toBe('Fallback')
+    expect(doc.tags).toEqual(['alone'])
+    expect(extractNameFromSoulMd('no heading')).toBeNull()
+    expect(extractNameFromSoulMd('#   ')).toBeNull()
+    const long = '# N\n\n' + 'a'.repeat(600)
+    const d = extractDescriptionFromSoulMd(long, 50)
+    expect(d.endsWith('…')).toBe(true)
+    expect(d.length).toBeLessThanOrEqual(50)
+  })
 })
