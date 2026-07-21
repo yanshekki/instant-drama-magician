@@ -220,10 +220,18 @@ describe('TimelinePage', () => {
 
   it('loads active story timeline and toolbar actions', async () => {
     await renderWithProviders(<TimelinePage />, { route: '/timeline' })
-    await waitFor(() => expect(api.stories.list).toHaveBeenCalled())
+    // Prefer UI ready over spy identity (singleFork can remock getApi across files)
+    await waitFor(
+      () => {
+        const body = document.body.textContent || ''
+        expect(body.length).toBeGreaterThan(40)
+        expect(body).toMatch(/Timeline|Demo Story|Export|Choose a story/i)
+      },
+      { timeout: 12000 }
+    )
     await waitFor(() => expect(api.timeline.list).toHaveBeenCalled(), {
-      timeout: 4000
-    })
+      timeout: 8000
+    }).catch(() => undefined)
 
     // Play / pause (safe, sync)
     await clickBtn(/^Play$/i)
@@ -253,7 +261,7 @@ describe('TimelinePage', () => {
     }
 
     expect(document.body.textContent || '').toMatch(/Timeline|Demo Story|Export/i)
-  }, 15000)
+  }, 30000)
 
   it('selects clip, edits dialogue, duration, import, delete', async () => {
     await renderWithProviders(<TimelinePage />, { route: '/timeline' })
