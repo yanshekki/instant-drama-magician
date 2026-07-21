@@ -405,4 +405,28 @@ describe('registerMediaHandlers', () => {
     // dynamic import is cached — force fresh module path via re-register still uses cache
     // so we only assert happy path shape above; failure path covered when service throws
   })
+
+  it('checkFfmpeg unavailable path', async () => {
+    vi.resetModules()
+    vi.doMock('../../infrastructure/ffmpeg/FfmpegService', () => ({
+      FfmpegService: class {
+        binaryPath = '/x'
+        async ensureAvailable() {
+          throw new Error('no ffmpeg binary')
+        }
+      }
+    }))
+    const { registerMediaHandlers: reg } = await import('./media')
+    const ctx = makeHandlerContext()
+    reg(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'media:checkFfmpeg')) as {
+      available: boolean
+      message: string
+    }
+    expect(r.available).toBe(false)
+    expect(r.message).toMatch(/ffmpeg|no ffmpeg/i)
+    vi.doUnmock('../../infrastructure/ffmpeg/FfmpegService')
+  })
+
 })

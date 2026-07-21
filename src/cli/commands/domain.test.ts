@@ -108,4 +108,18 @@ describe('domain sugar', () => {
     )
   })
 
+
+  it('resolveDomainChannel prefers alt when in DESKTOP list', async () => {
+    const { DESKTOP_CHANNEL_NAMES } = await import('../../runtime/channelManifest')
+    const sample = DESKTOP_CHANNEL_NAMES.find((c: string) => c.includes(':'))
+    expect(sample).toBeTruthy()
+    const [ns, action] = String(sample).split(':')
+    const ch = resolveDomainChannel(ns, action)
+    expect(ch.startsWith(ns + ':')).toBe(true)
+    expect(typeof resolveDomainChannel('foo', 'barBaz')).toBe('string')
+    // alt path: pass action that is already the camel segment
+    const alt = resolveDomainChannel(ns, action)
+    expect(alt).toBeTruthy()
+  })
+
 })

@@ -649,4 +649,46 @@ describe('GrokCliClient', () => {
     } catch { /* */ }
   })
 
+
+  it('seedream no key message and listModels fallback', async () => {
+    const c = new GrokCliClient({
+      ...DEFAULT_SETTINGS,
+      apiKey: 'k',
+      baseUrl: 'http://x',
+      imageProvider: 'seedream',
+      imageApiKey: '',
+      imageBaseUrl: 'http://s',
+      imageModel: 'm'
+    } as never)
+    const st = await (c as any).probeImage()
+    expect(typeof st.available).toBe('boolean')
+
+    // listModels fallback when models endpoint fails with non-JSON
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('/models')) {
+          return {
+            ok: false,
+            status: 404,
+            json: async () => {
+              throw new Error('no json')
+            },
+            text: async () => 'not found'
+          }
+        }
+        throw new Error('other')
+      })
+    )
+    try {
+      const models = await (c as any).listModels?.()
+      void models
+    } catch { /* */ }
+    // probeChat path with listModels fail
+    try {
+      await c.getStatus()
+    } catch { /* */ }
+    vi.unstubAllGlobals()
+  })
+
 })

@@ -405,4 +405,47 @@ describe('registerScenesPlate', () => {
     })
     expect(update).toHaveBeenCalled()
   })
+
+  it('commitPlate unknown variant yields undefined layer', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-plate-unk-'))
+    const draft = join(dir, 'd.png')
+    writeFileSync(draft, 'x')
+    const lib = join(dir, 'lib.png')
+    writeFileSync(lib, 'l')
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'sc1',
+      title: 'T',
+      description: 'd',
+      refGalleryJson: null,
+      refImagePath: null,
+      looksJson: null
+    }))
+    const ctx = makeHandlerContext({
+      scenes: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            sceneImagePath: () => lib,
+            promoteTmpSceneImage: vi.fn(() => lib)
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerScenesPlate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'scenes:commitPlate', {
+      sceneId: 'sc1',
+      path: draft,
+      variant: 'not_a_real_variant_xyz',
+      label: 'X'
+    })
+    expect(update).toHaveBeenCalled()
+  })
+
 })

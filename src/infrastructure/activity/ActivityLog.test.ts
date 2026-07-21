@@ -4,7 +4,8 @@ import {
   mkdtempSync,
   readFileSync,
   writeFileSync,
-  rmSync
+  rmSync,
+  mkdirSync
 } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -110,5 +111,16 @@ describe('ActivityLog', () => {
     expect(recent.length).toBeLessThanOrEqual(20)
     rmSync(dir, { recursive: true, force: true })
   }, 60_000)
+
+
+  it('append catch swallows write errors', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-act-bad-'))
+    // filePath is a directory → appendFileSync throws inside try
+    const asDir = join(dir, 'log-as-dir')
+    mkdirSync(asDir, { recursive: true })
+    const log = new ActivityLog(asDir)
+    expect(() => log.append({ kind: 'x', message: 'm' })).not.toThrow()
+    rmSync(dir, { recursive: true, force: true })
+  })
 
 })

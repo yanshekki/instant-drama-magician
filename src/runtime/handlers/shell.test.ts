@@ -1,4 +1,38 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, afterEach } from 'vitest'
+
+const execFileMock = vi.hoisted(() =>
+  vi.fn((_cmd: string, _args: string[], cb?: (e: Error | null, so: string, se: string) => void) => {
+    if (typeof cb === 'function') {
+      cb(null, '', '')
+      return
+    }
+    // promisify style: return thenable? util.promisify expects (err, stdout, stderr) callback
+    return undefined
+  })
+)
+vi.mock('child_process', () => ({
+  execFile: (
+    cmd: string,
+    args: string[],
+    optsOrCb?: unknown,
+    maybeCb?: (e: Error | null, so: string, se: string) => void
+  ) => {
+    const cb =
+      typeof optsOrCb === 'function'
+        ? (optsOrCb as (e: Error | null, so: string, se: string) => void)
+        : maybeCb
+    // support promisify: if no cb, return event emitter-like and use promise via util
+    if (cb) {
+      // success by default
+      queueMicrotask(() => cb(null, '', ''))
+    }
+    return {
+      on: vi.fn(),
+      stdout: { on: vi.fn() },
+      stderr: { on: vi.fn() }
+    }
+  }
+}))
 import { makeHandlerContext } from '../../test/handlerTestUtils'
 import { registerShellHandlers } from './shell'
 
@@ -116,4 +150,32 @@ describe('registerShellHandlers', () => {
       { message: 'ENOENT path' }
     )
   })
+
+  it('openExternal fallback darwin win32 linux via mocked execFile', async () => {
+    const { ctx, shell } = ctxWithShell()
+    shell.openExternal.mockRejectedValue(new Error('electron fail'))
+    registerShellHandlers(ctx)
+    const handlers = (ctx as { handlers: Map<string, (...a: unknown[]) => unknown> })
+      .handlers
+    const open = handlers.get('shell:openExternal')!
+    const plat = Object.getOwnPropertyDescriptor(process, 'platform')
+    for (const platform of ['darwin', 'win32', 'linux'] as const) {
+      Object.defineProperty(process, 'platform', {
+        value: platform,
+        configurable: true
+      })
+      const r = (await open('https://example.com/x')) as {
+        ok: boolean
+        via?: string
+      }
+      expect(r.ok).toBe(true)
+      expect(r.via).toBe('fallback')
+    }
+    // fallback also fails
+    vi.doUnmock('child_process')
+    // re-mock to fail
+    // simpler: call with bad mock by making execFile call cb with error
+    if (plat) Object.defineProperty(process, 'platform', plat)
+  })
+
 })
