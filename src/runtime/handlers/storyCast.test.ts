@@ -110,4 +110,84 @@ describe('registerStorycastHandlers', () => {
     expect(unlinkCharacter).toHaveBeenCalled()
     expect(linkScene).toHaveBeenCalled()
   })
+
+  it('delegates linkAction unlinkAction listCast', async () => {
+    const linkAction = vi.fn(async () => ({ ok: true }))
+    const unlinkAction = vi.fn(async () => ({ ok: true }))
+    const listCharactersForStory = vi.fn(async () => [{ id: 'c1' }])
+    const listScenesForStory = vi.fn(async () => [{ id: 'sc1' }])
+    const listPropsForStory = vi.fn(async () => [{ id: 'p1' }])
+    const listActionsForStory = vi.fn(async () => [{ id: 'a1' }])
+
+    const { StoryCastService } = await import(
+      '../../application/services/StoryCastService'
+    )
+    vi.spyOn(StoryCastService.prototype, 'linkAction').mockImplementation(
+      linkAction as never
+    )
+    vi.spyOn(StoryCastService.prototype, 'unlinkAction').mockImplementation(
+      unlinkAction as never
+    )
+    vi.spyOn(
+      StoryCastService.prototype,
+      'listCharactersForStory'
+    ).mockImplementation(listCharactersForStory as never)
+    vi.spyOn(StoryCastService.prototype, 'listScenesForStory').mockImplementation(
+      listScenesForStory as never
+    )
+    vi.spyOn(StoryCastService.prototype, 'listPropsForStory').mockImplementation(
+      listPropsForStory as never
+    )
+    vi.spyOn(
+      StoryCastService.prototype,
+      'listActionsForStory'
+    ).mockImplementation(listActionsForStory as never)
+
+    const ctx = makeHandlerContext({
+      host: {
+        mode: 'headless',
+        userData: '/tmp/u',
+        mediaRoot: '/tmp/m',
+        appVersion: '1',
+        isPackaged: false,
+        platform: 'linux',
+        getPrisma: vi.fn(() => ({})),
+        settingsStore: { load: vi.fn(() => ({})), save: vi.fn() },
+        activity: { append: vi.fn() },
+        dialog: {},
+        shell: {},
+        getMainWindow: () => null
+      } as never
+    })
+    registerStorycastHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    await invokeRegistered(h as never, 'stories:linkAction', {
+      storyId: 's1',
+      actionId: 'a1'
+    })
+    expect(linkAction).toHaveBeenCalledWith('s1', 'a1')
+
+    await invokeRegistered(h as never, 'stories:unlinkAction', {
+      storyId: 's1',
+      actionId: 'a1'
+    })
+    expect(unlinkAction).toHaveBeenCalledWith('s1', 'a1')
+
+    const cast = (await invokeRegistered(
+      h as never,
+      'stories:listCast',
+      's1'
+    )) as {
+      characters: unknown[]
+      scenes: unknown[]
+      props: unknown[]
+      actions: unknown[]
+    }
+    expect(cast.characters).toHaveLength(1)
+    expect(cast.scenes).toHaveLength(1)
+    expect(cast.props).toHaveLength(1)
+    expect(cast.actions).toHaveLength(1)
+    expect(listCharactersForStory).toHaveBeenCalledWith('s1')
+  })
 })

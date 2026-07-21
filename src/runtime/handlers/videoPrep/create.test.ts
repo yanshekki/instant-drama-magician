@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { writeFileSync, mkdtempSync, rmSync } from 'fs'
+import { writeFileSync, mkdtempSync, rmSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import {
@@ -1457,6 +1457,263 @@ describe('registerVideoPrepCreate', () => {
       stillOnly: true,
       sourceImagePath: src
     })
+    expect(chat).toHaveBeenCalled()
+  })
+
+  it('residual aspect fallback soul catch multi cast and size square', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-res-'))
+    const stillOut = join(dir, 'still.png')
+    const soul = join(dir, 'soul.md')
+    writeFileSync(stillOut, 's')
+    // soul path points at a directory so readFileSync throws → catch
+    mkdirSync(soul, { recursive: true })
+    const long =
+      'POLISHED RESIDUAL CLIP PROMPT WITH ENOUGH LENGTH FOR ACCEPTANCE PATH XX'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('X').toString('base64')
+    }))
+
+    // action-intro en locale polish strings (309/313)
+    const getAction = vi.fn(async () => ({
+      id: 'a1',
+      name: 'Run',
+      description: 'sprint',
+      motionNotes: 'fast',
+      intention: 'escape',
+      cameraNotes: 'hand',
+      hardRules: null,
+      artStyle: null,
+      refImagePath: null
+    }))
+    const ctxAct = makeHandlerContext({
+      settings: {
+        aspectRatio: '1:1' as never, // forces 16:9 default at line 56
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024'
+      } as never,
+      aiClient: {
+        chat,
+        generateImage,
+        editImage: generateImage,
+        generateVideo: vi.fn()
+      },
+      actions: () => ({ get: getAction }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => stillOut,
+            actionImagePath: () => stillOut
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctxAct)
+    await invokeRegistered(
+      (ctxAct as { handlers: Map<string, unknown> }).handlers as never,
+      'videoPrep:create',
+      {
+        kind: 'action-intro',
+        actionId: 'a1',
+        stillOnly: true,
+        locale: 'en'
+      }
+    )
+
+    // character-intro with soul path that throws on read
+    const getChar = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      appearance: null,
+      personality: null,
+      backstory: null,
+      costume: null,
+      ageRange: null,
+      gender: null,
+      voiceDesc: null,
+      mannerisms: null,
+      relationships: null,
+      visualTags: null,
+      hardRules: 'NO LOGO',
+      soulMdPath: soul,
+      spokenLanguages: JSON.stringify({ not: 'array' }),
+      refImagePath: null
+    }))
+    const ctxCh = makeHandlerContext({
+      settings: {
+        aspectRatio: '9:16',
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024'
+      } as never,
+      aiClient: {
+        chat,
+        generateImage,
+        editImage: generateImage,
+        generateVideo: vi.fn()
+      },
+      characters: () => ({ get: getChar }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => stillOut,
+            characterImagePath: () => stillOut
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctxCh)
+    await invokeRegistered(
+      (ctxCh as { handlers: Map<string, unknown> }).handlers as never,
+      'videoPrep:create',
+      {
+        kind: 'character-intro',
+        characterId: 'c1',
+        stillOnly: true,
+        locale: 'zh-HK'
+      }
+    )
+
+    // multi-subject timeline: multi chars/scenes/props + multi actions + clearStill throw
+    const story = {
+      id: 's1',
+      title: 'S',
+      styleNote: null,
+      hardRules: null,
+      characters: [
+        {
+          id: 'c1',
+          name: 'A',
+          description: 'desc only',
+          appearance: null,
+          costume: null,
+          hardRules: null,
+          spokenLanguages: JSON.stringify({ x: 1 }),
+          refImagePath: null
+        },
+        {
+          id: 'c2',
+          name: 'B',
+          description: 'd2',
+          appearance: 'look',
+          costume: null,
+          hardRules: null,
+          spokenLanguages: '  ',
+          refImagePath: null
+        }
+      ],
+      scenes: [
+        { id: 'sc1', title: 'T1', description: 'd1', hardRules: null },
+        { id: 'sc2', title: null, description: 'longdesc', hardRules: null }
+      ],
+      props: [
+        { id: 'p1', name: 'P1', description: 'd', hardRules: null },
+        { id: 'p2', name: 'P2', description: 'd2', hardRules: null }
+      ],
+      actions: [
+        {
+          id: 'a1',
+          name: 'W',
+          description: 'walk a lot of text for slice',
+          motionNotes: 'm',
+          intention: 'i',
+          cameraNotes: 'c',
+          hardRules: null,
+          refImagePath: null
+        },
+        {
+          id: 'a2',
+          name: 'J',
+          description: 'jump',
+          motionNotes: null,
+          intention: null,
+          cameraNotes: null,
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      timeline: [
+        {
+          id: 'e1',
+          order: 0,
+          startTime: 0,
+          endTime: 8,
+          characterId: 'c1',
+          sceneId: 'sc1',
+          propId: 'p1',
+          actionId: 'a1',
+          characterIds: JSON.stringify(['c1', 'c2']),
+          sceneIds: JSON.stringify(['sc1', 'sc2']),
+          propIds: JSON.stringify(['p1', 'p2']),
+          actionIds: JSON.stringify(['a1', 'a2']),
+          dialogue: 'hi',
+          beatContentJson: null,
+          mediaStatus: 'EMPTY'
+        }
+      ]
+    }
+    const ctxTl = makeHandlerContext({
+      settings: {
+        aspectRatio: '4:3' as never, // fallback + square size branch via force
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '900x900'
+      } as never,
+      aiClient: {
+        chat,
+        generateImage,
+        editImage: generateImage,
+        generateVideo: vi.fn()
+      },
+      stories: () => ({ get: vi.fn(async () => story) }) as never,
+      characters: () =>
+        ({
+          get: vi.fn(async () => {
+            throw new Error('hr fail')
+          })
+        }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            ensureStoryDirs: vi.fn(),
+            tmpImagePath: () => stillOut,
+            clipContinuityStillPath: () => stillOut,
+            readStoryCastPrepJson: vi.fn(() => null),
+            writeEntryStillPromptJson: vi.fn(),
+            readEntryStillPromptJson: vi.fn(() => null),
+            clearEntryStillUserCleared: vi.fn(() => {
+              throw new Error('clear fail')
+            }),
+            isEntryStillUserCleared: vi.fn(() => false)
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctxTl)
+    await invokeRegistered(
+      (ctxTl as { handlers: Map<string, unknown> }).handlers as never,
+      'videoPrep:create',
+      {
+        kind: 'timeline-clip',
+        storyId: 's1',
+        entryId: 'e1',
+        stillOnly: true,
+        locale: 'en'
+      }
+    )
     expect(chat).toHaveBeenCalled()
   })
 

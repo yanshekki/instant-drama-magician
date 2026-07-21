@@ -1,15 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 
-const execFileMock = vi.hoisted(() =>
-  vi.fn((_cmd: string, _args: string[], cb?: (e: Error | null, so: string, se: string) => void) => {
-    if (typeof cb === 'function') {
-      cb(null, '', '')
-      return
-    }
-    // promisify style: return thenable? util.promisify expects (err, stdout, stderr) callback
-    return undefined
-  })
-)
+const execFileShouldFail = vi.hoisted(() => ({ value: false }))
 vi.mock('child_process', () => ({
   execFile: (
     cmd: string,
@@ -21,10 +12,14 @@ vi.mock('child_process', () => ({
       typeof optsOrCb === 'function'
         ? (optsOrCb as (e: Error | null, so: string, se: string) => void)
         : maybeCb
-    // support promisify: if no cb, return event emitter-like and use promise via util
     if (cb) {
-      // success by default
-      queueMicrotask(() => cb(null, '', ''))
+      queueMicrotask(() => {
+        if (execFileShouldFail.value) {
+          cb(new Error('exec fail'), '', '')
+        } else {
+          cb(null, '', '')
+        }
+      })
     }
     return {
       on: vi.fn(),
@@ -159,6 +154,7 @@ describe('registerShellHandlers', () => {
       .handlers
     const open = handlers.get('shell:openExternal')!
     const plat = Object.getOwnPropertyDescriptor(process, 'platform')
+    execFileShouldFail.value = false
     for (const platform of ['darwin', 'win32', 'linux'] as const) {
       Object.defineProperty(process, 'platform', {
         value: platform,
@@ -171,11 +167,27 @@ describe('registerShellHandlers', () => {
       expect(r.ok).toBe(true)
       expect(r.via).toBe('fallback')
     }
-    // fallback also fails
-    vi.doUnmock('child_process')
-    // re-mock to fail
-    // simpler: call with bad mock by making execFile call cb with error
     if (plat) Object.defineProperty(process, 'platform', plat)
+  })
+
+  it('openExternal throws IO when electron and fallback both fail', async () => {
+    const { ctx, shell } = ctxWithShell()
+    shell.openExternal.mockRejectedValue(new Error('electron fail'))
+    execFileShouldFail.value = true
+    registerShellHandlers(ctx)
+    const handlers = (ctx as { handlers: Map<string, (...a: unknown[]) => unknown> })
+      .handlers
+    const open = handlers.get('shell:openExternal')!
+    await expect(open('https://example.com/fail')).rejects.toMatchObject({
+      message: 'errors.openUrlFailed',
+      code: 'IO'
+    })
+    // non-Error first rejection still stringifies
+    shell.openExternal.mockRejectedValue('bare-string-fail')
+    await expect(open('https://example.com/fail2')).rejects.toMatchObject({
+      message: 'errors.openUrlFailed'
+    })
+    execFileShouldFail.value = false
   })
 
 })

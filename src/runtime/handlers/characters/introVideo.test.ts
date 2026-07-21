@@ -219,4 +219,77 @@ describe('registerCharactersIntroVideo', () => {
       durationSeconds: 6
     })
   })
+
+  it('residual soulmd-hub invalid id, missing path, aspect fallback', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-cint-res-'))
+    const src = join(dir, 'src.png')
+    const out = join(dir, 'out.mp4')
+    writeFileSync(src, 'png')
+    const long =
+      'POLISHED CHARACTER INTRO RESIDUAL PROMPT WITH ENOUGH CHARACTERS HERE'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => ({
+      outputPath: req.outputPath
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'courier',
+      spokenLanguages: null,
+      soulMdPath: 'soulmd-hub://not-a-number',
+      soulHubId: null,
+      hardRules: 'NO LOGO',
+      refGalleryJson: null,
+      refImagePath: src,
+      refSheetPath: src
+    }))
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateVideo },
+      characters: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            characterVideoPath: () => out
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({ aspectRatio: '4:3' })
+    })
+    registerCharactersIntroVideo(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'characters:generateIntroVideo', {
+      characterId: 'c1',
+      sourceImagePath: src,
+      locale: 'en'
+    })
+    expect(generateVideo).toHaveBeenCalled()
+
+    // missing soul file path → empty
+    get.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      spokenLanguages: null,
+      soulMdPath: join(dir, 'no-such-soul.md'),
+      soulHubId: null,
+      hardRules: null,
+      refGalleryJson: null,
+      refImagePath: src,
+      refSheetPath: src
+    })
+    await invokeRegistered(h as never, 'characters:generateIntroVideo', {
+      characterId: 'c1',
+      sourceImagePath: src
+    })
+  })
 })

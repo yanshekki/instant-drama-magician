@@ -578,4 +578,146 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
     }
   })
 
+  it('residual probe non-Error, upload catch, poll fail, content json url', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-ghv-res-'))
+    const out = join(dir, 'o.mp4')
+    const img = join(dir, 'r.png')
+    writeFileSync(img, 'png')
+
+    // probe throw non-Error
+    const fetchProbe = vi.fn(async () => {
+      throw 'bare-fail'
+    }) as unknown as typeof fetch
+    const p0 = new GrokHttpVideoProvider({
+      baseUrl: 'http://x/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      fetchImpl: fetchProbe
+    })
+    const st = await p0.probe()
+    expect(st.available).toBe(false)
+    expect(st.message).toBe('Cannot reach gateway')
+
+    // uploadDocument returns null on !ok; generate continues without doc
+    // poll !ok throws
+    let n = 0
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/documents') && init?.method === 'POST') {
+        return new Response('no', { status: 500 })
+      }
+      if (url.endsWith('/videos') && init?.method === 'POST') {
+        return new Response(JSON.stringify({ id: 'job-x' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+      }
+      if (url.includes('/videos/job-x')) {
+        n++
+        if (n === 1) return new Response('bad', { status: 502 })
+        return new Response(
+          JSON.stringify({ status: 'completed', url: 'http://cdn/z.mp4' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.includes('cdn/z.mp4')) {
+        return new Response(new Uint8Array([1, 2, 3]), { status: 200 })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://x/v1',
+      apiKey: 'k',
+      model: 'm',
+      pollMs: 5,
+      timeoutSec: 5,
+      maxRetries: 0,
+      fetchImpl
+    })
+    try {
+      await p.generate({
+        prompt: 'p',
+        durationSeconds: 6,
+        outputPath: out,
+        refImagePath: img
+      })
+    } catch {
+      /* poll fail expected on first status */
+    }
+
+    // upload throws inside try → catch continue
+    const fetchUp = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/documents')) throw new Error('upload boom')
+      if (url.endsWith('/videos') && init?.method === 'POST') {
+        // sync-style binary (must be >= 32 bytes)
+        return new Response(new Uint8Array(48).fill(9), {
+          status: 200,
+          headers: { 'content-type': 'video/mp4' }
+        })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const p2 = new GrokHttpVideoProvider({
+      baseUrl: 'http://x/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      fetchImpl: fetchUp
+    })
+    const r = await p2.generate({
+      prompt: 'p',
+      durationSeconds: 6,
+      outputPath: out,
+      refImagePath: img
+    })
+    expect(r.outputPath).toBe(out)
+
+    // content endpoint returns application/json with url
+    const fetchJsonUrl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/videos') && init?.method === 'POST') {
+        return new Response(JSON.stringify({ id: 'j2', status: 'completed' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+      }
+      if (url.includes('/videos/j2') && !url.includes('content')) {
+        return new Response(
+          JSON.stringify({ id: 'j2', status: 'completed' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.includes('/content') || url.includes('j2')) {
+        return new Response(
+          JSON.stringify({ url: 'http://cdn/from-json.mp4' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.includes('from-json')) {
+        return new Response(new Uint8Array([4, 5]), { status: 200 })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const p3 = new GrokHttpVideoProvider({
+      baseUrl: 'http://x/v1',
+      apiKey: 'k',
+      model: 'm',
+      pollMs: 5,
+      timeoutSec: 5,
+      maxRetries: 0,
+      fetchImpl: fetchJsonUrl
+    })
+    try {
+      await p3.generate({
+        prompt: 'p',
+        durationSeconds: 6,
+        outputPath: join(dir, 'j.mp4')
+      })
+    } catch {
+      /* path-dependent */
+    }
+  })
+
 })

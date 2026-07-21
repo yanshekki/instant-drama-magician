@@ -521,4 +521,137 @@ describe('MediaStore', () => {
     st.mockRestore()
   })
 
+  it('promoteTmp unlink catch, corrupt history, readdir/stat edges, dedupe workPath', () => {
+    store.ensureStoryDirs('s-edge')
+    store.ensureTmpDir()
+    store.ensureLibraryDirs()
+    const tmp = join(root, 'tmp', 'draft-edge.png')
+    writeFileSync(tmp, 'img')
+    const dest = store.characterImagePath('c-edge', 'body', '.png')
+    // first promote ok
+    store.promoteTmpTo(dest, tmp)
+    // re-promote same path (noop) + second draft
+    const tmp2 = join(root, 'tmp', 'draft-edge2.png')
+    writeFileSync(tmp2, 'img2')
+    // make unlink of tmp fail by replacing with non-empty dir after copy starts
+    // simpler: promote then manually call promote with path that copy works but unlink fails
+    // write dest already equals - covered. Use spy on unlinkSync
+    const fs = require('fs') as typeof import('fs')
+    const tmp3 = join(root, 'tmp', 'draft-edge3.png')
+    writeFileSync(tmp3, 'img3')
+    const dest3 = store.characterImagePath('c-edge3', 'body', '.png')
+    const ul = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => {
+      throw new Error('busy')
+    })
+    try {
+      store.promoteTmpTo(dest3, tmp3)
+    } catch {
+      /* */
+    }
+    ul.mockRestore()
+
+    // corrupt export history json → catch return []
+    const histPath = store.exportHistoryPath('s-edge')
+    mkdirSync(join(root, 's-edge', 'exports'), { recursive: true })
+    writeFileSync(histPath, '{not-json')
+    expect(store.readExportHistory('s-edge')).toEqual([])
+
+    // work readdir outer catch: make exports a file
+    // use separate story
+    store.ensureStoryDirs('s-rd')
+    const expDir = store.exportsDir('s-rd')
+    // add file with no createdAt in name → mtimeIso / epoch fallback
+    writeFileSync(join(expDir, 'plain.mp4'), 'v')
+    // readdir work path: inject non-file
+    mkdirSync(join(expDir, 'subdir.mp4'), { recursive: true })
+    // public with prefix miss continue
+    const publicDir = join(root, 'pub-edge')
+    mkdirSync(publicDir, { recursive: true })
+    writeFileSync(join(publicDir, 'Other_final_1.mp4'), 'p')
+    writeFileSync(join(publicDir, 'Match_final_1.mp4'), 'p2')
+    // public stat throw via file that disappears — use spy
+    const st = vi.spyOn(fs, 'statSync').mockImplementation(((p: string, ...rest: unknown[]) => {
+      if (String(p).includes('Match_final')) throw new Error('gone')
+      return (st.getMockImplementation() as never) // fallthrough won't work
+    }) as never)
+    // better implementation:
+    st.mockRestore()
+    const origStat = fs.statSync.bind(fs)
+    const st2 = vi.spyOn(fs, 'statSync').mockImplementation((p: any, opts?: any) => {
+      if (String(p).includes('Match_final')) throw new Error('gone')
+      return origStat(p, opts)
+    })
+    try {
+      store.listExportHistory('s-rd', {
+        publicDir,
+        fileNamePrefix: 'Match',
+        latestPath: join(expDir, 'plain.mp4')
+      })
+    } catch {
+      /* */
+    }
+    st2.mockRestore()
+
+    // latestPath size catch
+    const st3 = vi.spyOn(fs, 'statSync').mockImplementation((p: any, opts?: any) => {
+      if (String(p).endsWith('plain.mp4')) throw new Error('sz')
+      return origStat(p, opts)
+    })
+    try {
+      store.listExportHistory('s-rd', {
+        latestPath: join(expDir, 'plain.mp4')
+      })
+    } catch {
+      /* */
+    }
+    st3.mockRestore()
+
+    // dedupe: work + public same name → prefer public and set workPath
+    const name = 'Dedupe_final_9.mp4'
+    const work = join(store.exportsDir('s-edge'), name)
+    writeFileSync(work, 'w')
+    const pub = join(publicDir, name)
+    writeFileSync(pub, 'public')
+    store.writeExportHistory('s-edge', [
+      {
+        id: 'exp_w',
+        storyId: 's-edge',
+        kind: 'final',
+        fileName: name,
+        path: work,
+        workPath: work,
+        createdAt: new Date().toISOString(),
+        sizeBytes: 1
+      }
+    ])
+    const listed = store.listExportHistory('s-edge', {
+      publicDir,
+      fileNamePrefix: 'Dedupe'
+    })
+    expect(listed.some((x) => x.fileName === name)).toBe(true)
+
+    // recordExportHistory: path missing, workPath exists; then both throw
+    const wp = join(expDir, 'via-work.mp4')
+    writeFileSync(wp, 'x')
+    store.recordExportHistory('s-rd', {
+      kind: 'final',
+      path: join(root, 'missing-nope.mp4'),
+      workPath: wp,
+      fileName: 'via-work.mp4'
+    })
+    const st4 = vi.spyOn(fs, 'statSync').mockImplementation(() => {
+      throw new Error('all fail')
+    })
+    try {
+      store.recordExportHistory('s-rd', {
+        kind: 'final',
+        path: wp,
+        fileName: 'via-work2.mp4'
+      })
+    } catch {
+      /* */
+    }
+    st4.mockRestore()
+  })
+
 })

@@ -280,4 +280,96 @@ describe('registerActivityHandlers', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('diagnostics and support cover ffmpeg fail tips and bare dialogs', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-sup3-'))
+    try {
+      const append = vi.fn()
+      const showSaveDialog = vi.fn(async () => ({
+        canceled: false,
+        filePath: join(dir, 'ok.json')
+      }))
+      const showOpenDialog = vi.fn(async () => ({
+        canceled: false,
+        filePaths: [join(dir, 'b.mp3')]
+      }))
+      const { writeFileSync } = await import('fs')
+      writeFileSync(join(dir, 'b.mp3'), 'x')
+
+      vi.doMock('../../infrastructure/ffmpeg/FfmpegService', () => ({
+        FfmpegService: class {
+          async ensureAvailable() {
+            throw 'ffmpeg-string-error'
+          }
+        }
+      }))
+
+      const ctx = makeHandlerContext({
+        activity: {
+          append,
+          readRecent: vi.fn(() => []),
+          query: vi.fn(() => []),
+          clear: vi.fn(),
+          kinds: vi.fn(() => []),
+          path: join(dir, 'a.jsonl')
+        } as never,
+        settingsStore: {
+          load: vi.fn(() => ({
+            apiKey: '',
+            videoMode: 'auto',
+            ttsHttpUrl: ''
+          })),
+          save: vi.fn((p: unknown) => p),
+          lastLoadMigrated: false
+        } as never,
+        mediaRoot: () => join(dir, 'media'),
+        host: {
+          ...(makeHandlerContext().host as object),
+          mode: 'headless',
+          isPackaged: true,
+          userData: dir,
+          getMainWindow: () => null,
+          dialog: { showSaveDialog, showOpenDialog }
+        } as never,
+        aiClient: {
+          probeChat: vi.fn(async () => ({ ok: false })),
+          getStatus: vi.fn(async () => ({ available: false, message: 'down' })),
+          videoProvider: {
+            probe: vi.fn(async () => ({
+              id: 'v',
+              available: false,
+              message: 'no'
+            }))
+          },
+          chat: vi.fn(),
+          generateImage: vi.fn()
+        },
+        rebindAi: vi.fn()
+      })
+      registerActivityHandlers(ctx)
+      const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+      const d = (await invokeRegistered(h as never, 'diagnostics:full')) as {
+        ffmpeg: { available: boolean; message: string }
+        tips: string[]
+      }
+      expect(d.ffmpeg.available).toBe(false)
+      expect(d.tips.some((t) => /FFmpeg/i.test(t))).toBe(true)
+
+      // support export: dialog with win=null (bare showSaveDialog) + success path
+      const r = (await invokeRegistered(h as never, 'support:exportReport')) as {
+        filePath: string
+      }
+      expect(r.filePath).toContain('ok.json')
+
+      // pickBgm with win=null uses bare showOpenDialog
+      const bgm = (await invokeRegistered(h as never, 'media:pickBgm')) as {
+        filePath: string
+      }
+      expect(bgm.filePath).toContain('bgm')
+    } finally {
+      vi.doUnmock('../../infrastructure/ffmpeg/FfmpegService')
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

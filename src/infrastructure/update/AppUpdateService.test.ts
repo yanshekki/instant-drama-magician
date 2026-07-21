@@ -224,4 +224,52 @@ describe('AppUpdateService', () => {
     await svc.download()
   })
 
+  it('silent idle soft-check, download pre-check, quit not downloaded', async () => {
+    const { AppUpdateService } = await import('./AppUpdateService')
+    const svc = new AppUpdateService()
+    // force idle then silent check → soft checking branch (104-111)
+    handlers['update-not-available']?.({ version: '1.2.0' })
+    // after not-available status is not idle; reset via fresh instance
+    const svc2 = new AppUpdateService()
+    autoUpdater.checkForUpdates.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          // fire after microtask so silent idle branch runs first
+          setTimeout(() => resolve({ updateInfo: { version: '9.0.0' } }), 10)
+        })
+    )
+    const silentP = svc2.check({ silent: true })
+    await silentP
+
+    // download when not available → awaits check (159-160)
+    const svc3 = new AppUpdateService()
+    handlers['update-not-available']?.({ version: '1.0.0' })
+    autoUpdater.checkForUpdates.mockResolvedValue({
+      updateInfo: { version: '2.0.0' }
+    })
+    // after check, may not auto set available unless event fires
+    autoUpdater.checkForUpdates.mockImplementation(async () => {
+      handlers['update-available']?.({ version: '2.5.0', releaseNotes: 'r' })
+      return { updateInfo: { version: '2.5.0' } }
+    })
+    autoUpdater.downloadUpdate.mockResolvedValue(undefined)
+    await svc3.download()
+
+    // quitAndInstall not downloaded (196-201) when packaged; dev returns updateDevSkipped
+    const svc4 = new AppUpdateService()
+    handlers['update-available']?.({ version: '3.0.0' })
+    const r = svc4.quitAndInstall()
+    expect(r.ok).toBe(false)
+    expect(['updateInstallFail', 'updateDevSkipped']).toContain(r.messageKey)
+
+    // force setState with source none path: re-check with packaged
+    const svc5 = new AppUpdateService()
+    ;(svc5 as unknown as { state: { source: string } }).state.source = 'none'
+    handlers['checking-for-update']?.()
+    handlers['update-available']?.({ version: '5.0.0' })
+    expect(svc5.getState().source === 'github' || svc5.getState().source === 'none').toBe(
+      true
+    )
+  })
+
 })

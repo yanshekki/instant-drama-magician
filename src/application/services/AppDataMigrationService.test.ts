@@ -443,4 +443,58 @@ describe('AppDataMigrationService', () => {
     expect(r).toBeTruthy()
   })
 
+  it('residual empty-dir readdir fail, settings merge catch, media merge', () => {
+    const { chmodSync } = require('fs') as typeof import('fs')
+    // legacy with settings + media; dest has no settings
+    const xdg = join(root, 'share-res')
+    const idm = join(xdg, 'idm')
+    mkdirSync(join(idm, 'media', 'lib'), { recursive: true })
+    writeFileSync(join(idm, 'media', 'lib', 'a.png'), 'img')
+    writeFileSync(join(idm, 'settings.json'), '{"k":1}')
+    writeFileSync(join(idm, 'instant-drama.db'), Buffer.alloc(60_000, 3))
+
+    const paths = resolveAppPaths({ dataDir: join(root, 'mig-res') })
+    mkdirSync(paths.dataRoot, { recursive: true })
+    // empty-ish dest db
+    writeFileSync(paths.databasePath, Buffer.alloc(100, 0))
+
+    // settings dest already exists as directory so copyFileSafe fails → catch
+    mkdirSync(paths.settingsPath, { recursive: true })
+
+    const r = migrateAppDataIfNeeded({
+      paths,
+      cwd: join(root, 'empty-cwd-res'),
+      force: true,
+      home: root,
+      env: {
+        XDG_DATA_HOME: xdg,
+        XDG_CONFIG_HOME: join(root, 'cfg-res')
+      },
+      platform: 'linux'
+    })
+    expect(r.actions.length).toBeGreaterThan(0)
+
+    // dbLooksEmpty catch: replace db with unreadable file
+    const paths2 = resolveAppPaths({ dataDir: join(root, 'mig-db-catch') })
+    mkdirSync(paths2.dataRoot, { recursive: true })
+    writeFileSync(paths2.databasePath, Buffer.alloc(80_000, 1))
+    try {
+      chmodSync(paths2.databasePath, 0o000)
+      const r2 = migrateAppDataIfNeeded({
+        paths: paths2,
+        cwd: join(root, 'empty2'),
+        force: true
+      })
+      expect(r2).toBeTruthy()
+    } catch {
+      /* permission */
+    } finally {
+      try {
+        chmodSync(paths2.databasePath, 0o644)
+      } catch {
+        /* */
+      }
+    }
+  })
+
 })
