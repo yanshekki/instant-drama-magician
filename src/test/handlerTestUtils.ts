@@ -32,47 +32,135 @@ export function makeHandlerContext(
     listForStory: vi.fn(async () => []),
     get: vi.fn(async (id: string) => ({ id })),
     create: vi.fn(async (input: unknown) => input),
-    update: vi.fn(async (id: string, data: unknown) => ({ id, ...(data as object) })),
-    delete: vi.fn(async (id: string) => ({ id }))
+    update: vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    })),
+    delete: vi.fn(async (id: string) => ({ id })),
+    reorder: vi.fn(async () => ({ ok: true })),
+    setMedia: vi.fn(async (id: string, data: unknown) => ({ id, ...(data as object) }))
   })
+
+  const defaultActivity = {
+    append: vi.fn(),
+    readRecent: vi.fn(() => [{ kind: 'x', message: 'm', ts: 't' }]),
+    query: vi.fn(() => [{ kind: 'ipc', message: 'q', ts: 't' }]),
+    clear: vi.fn(() => ({ ok: true as const, path: '/tmp/log' })),
+    kinds: vi.fn(() => ['ipc', 'generation']),
+    path: '/tmp/idm-test/logs/activity.jsonl'
+  }
+
+  const defaultGeneration = {
+    getMediaStore: () => ({
+      tmpPath: () => '/tmp/x.png',
+      characterImagePath: () => '/tmp/c.png',
+      sceneImagePath: () => '/tmp/s.png',
+      ensureLibraryDirs: vi.fn()
+    }),
+    cancel: vi.fn(),
+    rebindAi: vi.fn(),
+    run: vi.fn(async () => ({
+      success: true,
+      steps: [{ name: 'x', degraded: false }]
+    })),
+    generateClip: vi.fn(async () => ({
+      path: '/tmp/clip.mp4',
+      degraded: false
+    })),
+    exportStoryboard: vi.fn(async () => ({ outputPath: '/tmp/sb.mp4' })),
+    exportConcat: vi.fn(async () => ({ outputPath: '/tmp/cat.mp4' })),
+    exportFinal: vi.fn(async () => ({ outputPath: '/tmp/final.mp4' })),
+    listExports: vi.fn(async () => []),
+    deleteExport: vi.fn(async () => ({ ok: true })),
+    exportPreflight: vi.fn(async () => ({ ok: true, clips: 0 }))
+  }
+
+  const defaultSettingsStore = {
+    load: vi.fn(() => ({
+      uiLanguage: 'zh-HK',
+      llmProvider: 'grok-gateway',
+      videoMode: 'auto',
+      apiKey: '',
+      webServerEnabled: false
+    })),
+    save: vi.fn((p: unknown) => ({
+      uiLanguage: 'zh-HK',
+      llmProvider: 'grok-gateway',
+      videoMode: 'auto',
+      apiKey: '',
+      webServerEnabled: false,
+      ...(p as object)
+    })),
+    lastLoadMigrated: false
+  }
+
+  const defaultHost = {
+    mode: 'headless' as const,
+    userData: '/tmp/idm-test',
+    mediaRoot: '/tmp/idm-test/media',
+    appVersion: 'test',
+    isPackaged: false,
+    platform: 'linux',
+    getPrisma: vi.fn(),
+    settingsStore: defaultSettingsStore,
+    activity: defaultActivity,
+    dialog: {
+      showOpenDialog: vi.fn(async () => ({
+        canceled: true,
+        filePaths: [] as string[]
+      })),
+      showSaveDialog: vi.fn(async () => ({
+        canceled: true,
+        filePath: undefined as string | undefined
+      }))
+    },
+    shell: {
+      openExternal: vi.fn(async () => undefined),
+      openPath: vi.fn(async () => ''),
+      showItemInFolder: vi.fn()
+    },
+    getMainWindow: () => null,
+    emitGenerationProgress: vi.fn(),
+    getLastGenerationProgress: vi.fn(() => null),
+    rebuildApplicationMenu: vi.fn()
+  }
+
+  let settingsSnapshot = defaultSettingsStore.load()
+  const rebindAi =
+    overrides.rebindAi ??
+    vi.fn((next: unknown) => {
+      settingsSnapshot = next as never
+    })
 
   const ctx = {
     reg: overrides.reg ?? reg,
-    host: overrides.host ?? ({
-      mode: 'headless',
-      userData: '/tmp/idm-test',
-      mediaRoot: '/tmp/idm-test/media',
-      appVersion: 'test',
-      isPackaged: false,
-      platform: 'linux',
-      getPrisma: vi.fn(),
-      settingsStore: {
-        load: vi.fn(() => ({})),
-        save: vi.fn((p: unknown) => p),
-        lastLoadMigrated: false
-      },
-      activity: { append: vi.fn() },
-      dialog: {},
-      shell: {},
-      getMainWindow: () => null
-    } as never),
-    settingsStore: overrides.settingsStore ?? ({
-      load: vi.fn(() => ({})),
-      save: vi.fn((p: unknown) => p),
-      lastLoadMigrated: false
-    } as never),
-    activity: overrides.activity ?? ({ append: vi.fn() } as never),
+    host: overrides.host ?? (defaultHost as never),
+    settingsStore: overrides.settingsStore ?? (defaultSettingsStore as never),
+    activity: overrides.activity ?? (defaultActivity as never),
     get settings() {
-      return {} as never
+      return settingsSnapshot as never
     },
     get aiClient() {
       return {
         chat: vi.fn(),
         generateImage: vi.fn(),
-        generateVideo: undefined
+        generateVideo: undefined,
+        getStatus: vi.fn(async () => ({
+          available: true,
+          message: 'ok'
+        })),
+        probeChat: vi.fn(async () => ({ ok: true })),
+        videoProvider: {
+          probe: vi.fn(async () => ({
+            id: 'stub',
+            available: true,
+            message: 'ok'
+          }))
+        },
+        listModels: vi.fn(async () => [])
       } as never
     },
-    rebindAi: overrides.rebindAi ?? vi.fn(),
+    rebindAi,
     mediaRoot: overrides.mediaRoot ?? (() => '/tmp/idm-test/media'),
     userDataPath: overrides.userDataPath ?? (() => '/tmp/idm-test'),
     stories: overrides.stories ?? (noopService as never),
@@ -82,15 +170,7 @@ export function makeHandlerContext(
     actions: overrides.actions ?? (noopService as never),
     costumes: overrides.costumes ?? (noopService as never),
     timeline: overrides.timeline ?? (noopService as never),
-    generation: overrides.generation ?? (() => ({
-      getMediaStore: () => ({
-        tmpPath: () => '/tmp/x.png',
-        characterImagePath: () => '/tmp/c.png',
-        sceneImagePath: () => '/tmp/s.png'
-      }),
-      cancel: vi.fn(),
-      rebindAi: vi.fn()
-    }) as never)
+    generation: overrides.generation ?? (() => defaultGeneration as never)
   } as HandlerContext
 
   return Object.assign(ctx, { handlers })

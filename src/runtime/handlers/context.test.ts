@@ -30,8 +30,22 @@ describe('createHandlerContext', () => {
       const ctx = createHandlerContext(() => undefined, host)
       expect(typeof ctx.stories).toBe('function')
       expect(typeof ctx.characters).toBe('function')
+      expect(typeof ctx.scenes).toBe('function')
+      expect(typeof ctx.props).toBe('function')
+      expect(typeof ctx.actions).toBe('function')
+      expect(typeof ctx.costumes).toBe('function')
+      expect(typeof ctx.timeline).toBe('function')
+      expect(typeof ctx.generation).toBe('function')
       expect(ctx.mediaRoot()).toContain('media')
       expect(ctx.userDataPath()).toBe(dir)
+      expect(ctx.settings).toBeTruthy()
+      expect(ctx.aiClient).toBeTruthy()
+      // rebind updates settings snapshot
+      const next = { ...ctx.settings, uiLanguage: 'en' as const }
+      ctx.rebindAi(next)
+      expect(ctx.settings.uiLanguage).toBe('en')
+      // generation is cached
+      expect(ctx.generation()).toBe(ctx.generation())
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
