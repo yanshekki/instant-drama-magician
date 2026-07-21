@@ -10,21 +10,25 @@ describe('video error mapping', () => {
   it('maps feature disabled', () => {
     const m = mapVideoHttpMessage('Video API is disabled (videoApi)')
     expect(m?.code).toBe('VIDEO_FEATURE_OFF')
+    expect(m?.message).toBe('errors.videoFeatureOff')
   })
 
   it('maps agent key requirement', () => {
     const m = mapVideoHttpMessage('requires agent-mode or admin API key')
     expect(m?.code).toBe('VIDEO_KEY_MODE')
+    expect(m?.message).toBe('errors.videoKeyMode')
   })
 
   it('maps http 401', () => {
     const e = mapHttpStatusToVideoError(401, 'unauthorized')
     expect(e.code).toBe('VIDEO_UNAUTHORIZED')
+    expect(e.message).toBe('errors.videoUnauthorized')
   })
 
   it('maps timeout', () => {
     const m = mapVideoHttpMessage('Video job timed out after 300s')
     expect(m?.code).toBe('VIDEO_TIMEOUT')
+    expect(m?.message).toBe('errors.videoJobTimedOut')
   })
 })
 
@@ -55,7 +59,8 @@ describe('chat error mapping (Grok Gateway)', () => {
       'Sampling parameters (temperature/top_p/stop) are not supported by Grok CLI'
     )
     expect(m?.code).toBe('AI_FAILED')
-    expect(m?.details).toMatch(/strictSampling/i)
+    expect(m?.message).toBe('errors.strictSamplingFailed')
+    expect(m?.details).toBe('errors.strictSamplingHint')
   })
 
   it('maps no_image_in_sandbox (image tool blocked or empty)', () => {
@@ -64,7 +69,8 @@ describe('chat error mapping (Grok Gateway)', () => {
       'Grok finished but no image file was found in the sandbox. The image generation or edit tool may have failed or been blocked. (no_image_in_sandbox)'
     )
     expect(e.code).toBe('AI_FAILED')
-    expect(e.details).toMatch(/IMAGE_NO_SANDBOX|imagesApi|base-layer|底衫/i)
+    expect(e.message).toBe('errors.imageNoSandbox')
+    expect(e.details).toBe('errors.imageNoSandboxHint')
   })
 
   it('maps 502 Grok CLI exited to stable i18n keys', () => {

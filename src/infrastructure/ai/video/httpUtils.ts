@@ -32,6 +32,17 @@ export async function withRetries<T>(
 }
 
 export function isRetryableError(error: unknown): boolean {
+  if (error instanceof AppError) {
+    if (error.code === 'AI_RATE_LIMIT' || error.code === 'VIDEO_RATE_LIMIT') {
+      return true
+    }
+    const blob = `${error.message} ${error.details ?? ''}`
+    if (/\b(429|502|503|504)\b/.test(blob)) return true
+    if (/network|fetch failed|ECONNRESET|ETIMEDOUT|timeout/i.test(blob)) {
+      return true
+    }
+    return false
+  }
   if (error instanceof Error) {
     const m = error.message
     if (/\b(429|502|503|504)\b/.test(m)) return true

@@ -68,21 +68,21 @@ export function mapChatHttpStatus(status: number, bodyText: string): AppError {
     return new AppError(
       'AI_UNAUTHORIZED',
       'errors.apiKeyRejected',
-      'The gateway refused the key. Re-select Grok so the app can issue a new key.'
+      'errors.reselectGrokHint'
     )
   }
   if (status === 403) {
     return new AppError(
       'AI_KEY_MODE',
       'errors.keyNotAllowed',
-      'The app key may need agent permissions. Re-select Grok to refresh automatically.'
+      'errors.reselectGrokAgentHint'
     )
   }
   if (status === 429) {
     return new AppError(
       'AI_RATE_LIMIT',
       'errors.tooManyRequests',
-      'The gateway rate limit was hit. Wait a few seconds and try again.'
+      'errors.rateLimitHint'
     )
   }
   // Gateway up but Grok CLI failed (vision format, crash, empty stdout)
@@ -120,29 +120,28 @@ export function mapChatMessage(message: string): AppErrorBody | null {
     return {
       code: 'AI_UNAUTHORIZED',
       message: 'errors.noApiKey',
-      details:
-        'Open Settings → re-select Grok so the app can auto-create a gateway key.'
+      details: 'errors.reselectGrokHint'
     }
   }
   if (/\b401\b|unauthorized|invalid api key/.test(m)) {
     return {
       code: 'AI_UNAUTHORIZED',
       message: 'errors.apiKeyRejected',
-      details: 'Re-select Grok so the app can issue a new key automatically.'
+      details: 'errors.reselectGrokHint'
     }
   }
   if (/\b403\b|forbidden|safe.?mode|key mode/.test(m)) {
     return {
       code: 'AI_KEY_MODE',
       message: 'errors.keyNotAllowed',
-      details: 'Re-select Grok to refresh access automatically.'
+      details: 'errors.reselectGrokAgentHint'
     }
   }
   if (/\b429\b|rate limit/.test(m)) {
     return {
       code: 'AI_RATE_LIMIT',
       message: 'errors.tooManyRequests',
-      details: 'Wait a few seconds and try again.'
+      details: 'errors.rateLimitHint'
     }
   }
   // Grok CLI process failed under gateway (vision / argv / crash)
@@ -157,9 +156,8 @@ export function mapChatMessage(message: string): AppErrorBody | null {
   if (/strictsampling|sampling parameters|temperature\/top_p\/stop/.test(m)) {
     return {
       code: 'AI_FAILED',
-      message,
-      details:
-        'Gateway strictSampling is on. App omits temperature for Grok preset; ensure you are on latest build, or disable strictSampling in Admin → API features.'
+      message: 'errors.strictSamplingFailed',
+      details: 'errors.strictSamplingHint'
     }
   }
   // Image gen tool finished without writing a file (policy block, imagesApi off, or tool fail)
@@ -170,28 +168,30 @@ export function mapChatMessage(message: string): AppErrorBody | null {
   ) {
     return {
       code: 'AI_FAILED',
-      message,
-      details:
-        'IMAGE_NO_SANDBOX: Gateway imagesApi ran but returned no image. Enable imagesApi in Admin → API features; use agent/admin key. Body/nude plates are often content-filtered — try「底衫褲」or「戲服」packages first, or simplify the character description.'
+      message: 'errors.imageNoSandbox',
+      details: 'errors.imageNoSandboxHint'
     }
   }
   if (/imagesapi|image api is disabled|image.?api.?disabled/.test(m)) {
     return {
       code: 'AI_FAILED',
-      message,
-      details:
-        'IMAGE_API_OFF: Enable imagesApi in Gateway Admin → API features, then retry.'
+      message: 'errors.imageApiDisabled',
+      details: 'errors.imageApiDisabledHint'
     }
   }
   if (/timed out|timeout|aborted/.test(m)) {
     return {
       code: 'AI_FAILED',
-      message,
-      details: 'Increase chatTimeoutMs or check Gateway chat queue'
+      message: 'errors.chatTimedOut',
+      details: 'errors.chatTimeoutHint'
     }
   }
   if (/chat http|grok cli chat failed|gateway|validation_error/.test(m)) {
-    return { code: 'AI_FAILED', message }
+    return {
+      code: 'AI_FAILED',
+      message: 'errors.aiRequestFailed',
+      details: message.slice(0, 300)
+    }
   }
   return null
 }
@@ -200,52 +200,56 @@ export function mapChatMessage(message: string): AppErrorBody | null {
 export function mapVideoHttpMessage(message: string): AppErrorBody | null {
   const m = message.toLowerCase()
   if (/^cancell?ed$|aborted|user cancelled/.test(m)) {
-    return { code: 'CANCELLED', message: message }
+    return { code: 'CANCELLED', message: 'errors.cancelled' }
   }
   if (/videoapi|video api is disabled|featuredisabled|feature.?disabled/.test(m)) {
     return {
       code: 'VIDEO_FEATURE_OFF',
-      message: message,
-      details: 'Enable videoApi in Gateway Admin → API features.'
+      message: 'errors.videoFeatureOff',
+      details: 'errors.videoFeatureOffHint'
     }
   }
   if (/agent-mode|admin api key|mediaforbidden|forbidden.*video/.test(m)) {
     return {
       code: 'VIDEO_KEY_MODE',
-      message: message,
-      details: 'Use an agent-mode or admin API key for video.'
+      message: 'errors.videoKeyMode',
+      details: 'errors.videoKeyModeHint'
     }
   }
   if (/\b401\b|unauthorized/.test(m)) {
     return {
       code: 'VIDEO_UNAUTHORIZED',
-      message: message,
-      details: 'Check API key in Settings.'
+      message: 'errors.videoUnauthorized',
+      details: 'errors.videoUnauthorizedHint'
     }
   }
   if (/\b429\b|rate limit/.test(m)) {
     return {
       code: 'VIDEO_RATE_LIMIT',
-      message: message,
-      details: 'Wait and retry; lower videoConcurrency.'
+      message: 'errors.videoRateLimit',
+      details: 'errors.videoRateLimitHint'
     }
   }
   if (/timed out|timeout/.test(m)) {
     return {
       code: 'VIDEO_TIMEOUT',
-      message: message,
-      details: 'Increase videoTimeoutSec or check Gateway job queue.'
+      message: 'errors.videoJobTimedOut',
+      details: 'errors.videoTimeoutHint'
     }
   }
   if (/job failed|video job|status failed/.test(m)) {
     return {
       code: 'VIDEO_JOB_FAILED',
-      message: message,
-      details: 'Open Gateway logs; retry this clip.'
+      message: 'errors.videoJobFailed',
+      details: 'errors.videoJobFailedHint'
     }
   }
   if (/video http|cannot reach gateway|gateway/.test(m)) {
-    return { code: 'AI_FAILED', message: message }
+    return {
+      code: 'AI_FAILED',
+      message: 'errors.videoHttpFailed',
+      details: message.slice(0, 300)
+    }
   }
   return null
 }
