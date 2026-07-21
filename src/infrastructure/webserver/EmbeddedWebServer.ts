@@ -74,15 +74,18 @@ function readBody(req: IncomingMessage): Promise<string> {
   return readBodyBuffer(req).then((b) => b.toString('utf8'))
 }
 
-function readBodyBuffer(req: IncomingMessage): Promise<Buffer> {
+/** Exported for unit tests (upload size limit). */
+export function readBodyBuffer(
+  req: IncomingMessage,
+  maxBytes = 512 * 1024 * 1024
+): Promise<Buffer> {
   return new Promise((resolveBody, reject) => {
     const chunks: Buffer[] = []
     let total = 0
-    const MAX = 512 * 1024 * 1024 // 512MB
     req.on('data', (c) => {
       const buf = Buffer.from(c)
       total += buf.length
-      if (total > MAX) {
+      if (total > maxBytes) {
         reject(new Error('Upload too large (max 512MB)'))
         req.destroy()
         return

@@ -287,7 +287,7 @@ export class GrokGatewayService {
       (m) => m[1]
     )
     if (all.length === 0) return null
-    return all.sort((a, b) => b.length - a.length)[0] ?? null
+    return all.sort((a, b) => b.length - a.length)[0]
   }
 
   /** Name used for the app-managed API key (findable via `gctoac key list`). */

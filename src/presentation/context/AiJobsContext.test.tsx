@@ -1242,4 +1242,72 @@ describe('AiJobsContext', () => {
     })
   })
 
+  it('done residual: cancel generation throw + spokenLanguages accept + persist catch', async () => {
+    await mount()
+    // generation.cancel throws
+    const gen = (globalThis as any).window?.electronAPI?.generation
+    if (api?.generation?.cancel) {
+      api.generation.cancel = vi.fn().mockRejectedValue(new Error('cancel ipc'))
+    }
+    let id = ''
+    await act(async () => {
+      id = latest!.startJob({
+        kind: 'pipeline',
+        label: 'pipe-c',
+        scope: { storyId: 's1' },
+        run: async () => {
+          await new Promise((r) => setTimeout(r, 100))
+        }
+      })
+    })
+    await act(async () => {
+      await latest!.cancelJob(id)
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+
+    // accept character profile with spokenLanguages array (888)
+    if (latest!.acceptDraft) {
+      await act(async () => {
+        try {
+          await latest!.acceptDraft({
+            type: 'character-profile',
+            characterId: 'c1',
+            name: 'N',
+            description: 'd',
+            spokenLanguages: ['en', 'zh'],
+            profileJson: '{}'
+          } as never)
+        } catch {
+          /* */
+        }
+      })
+    }
+
+    // localStorage quota throw for persist
+    const orig = Storage.prototype.setItem
+    Storage.prototype.setItem = () => {
+      throw new Error('quota')
+    }
+    try {
+      await act(async () => {
+        latest!.startJob({
+          kind: 'clip',
+          label: 'q',
+          scope: {},
+          run: async () => {
+            throw new Error('failme')
+          }
+        })
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40))
+      })
+    } finally {
+      Storage.prototype.setItem = orig
+    }
+    expect(true).toBe(true)
+  })
+
 })

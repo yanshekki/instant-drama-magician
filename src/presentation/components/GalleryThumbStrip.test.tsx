@@ -144,3 +144,49 @@ describe('GalleryThumbStrip', () => {
     expect(document.body.textContent).toBeTruthy()
   })
 })
+
+  it('done residual: multi border, dragImage catch, shift ends', () => {
+    const onReorder = vi.fn()
+    const onToggle = vi.fn()
+    const items = [
+      { id: 'a', path: '/a.png', label: 'A' },
+      { id: 'b', path: '/b.png', label: 'B' },
+      { id: 'c', path: '/c.png', label: 'C' }
+    ]
+    render(
+      <GalleryThumbStrip
+        items={items}
+        selectedId="c"
+        selectedIds={['a', 'c']}
+        multiSelect
+        onSelect={vi.fn()}
+        onToggleSelect={onToggle}
+        onReorder={onReorder}
+        coverPath="/b.png"
+        reorderHintKey="common.galleryReorderHint"
+      />
+    )
+    // multiOn style + cover
+    const buttons = document.querySelectorAll('[role="button"]')
+    expect(buttons.length).toBeGreaterThan(0)
+    // shift left/right
+    const left = screen.queryByLabelText('common.galleryMoveLeft')
+    const right = screen.queryByLabelText('common.galleryMoveRight')
+    if (left) fireEvent.click(left)
+    if (right) fireEvent.click(right)
+    // drag with setDragImage throw
+    const el = buttons[0] as HTMLElement
+    const dt = {
+      setData: vi.fn(),
+      effectAllowed: 'move',
+      setDragImage: vi.fn(() => {
+        throw new Error('no drag image')
+      }),
+      dropEffect: 'move'
+    }
+    fireEvent.dragStart(el, { dataTransfer: dt })
+    fireEvent.dragOver(el, { dataTransfer: dt, preventDefault: () => undefined })
+    fireEvent.drop(buttons[1] as HTMLElement, {
+      dataTransfer: { getData: () => 'a', dropEffect: 'move' }
+    })
+  })

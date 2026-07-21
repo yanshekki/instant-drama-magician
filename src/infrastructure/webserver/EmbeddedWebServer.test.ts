@@ -68,7 +68,8 @@ describe('EmbeddedWebServer', () => {
     const token = 'tok123'
     const st = await server.start({
       dataDir,
-      port: 0, // will clamp
+      // Avoid default 8787 (may be held by a live InstantDrama process)
+      port: 19100,
       host: '127.0.0.1',
       authToken: token,
       authDisabled: false,
@@ -76,7 +77,6 @@ describe('EmbeddedWebServer', () => {
       appVersion: '9.9.9',
       isPackaged: false
     })
-    // port 0 clamps to 8787 via Math.max(1, Math.min(...)) — actually Math.floor(0)||8787
     expect(st.running).toBe(true)
     expect(st.authRequired).toBe(true)
     expect(st.staticReady).toBe(true)

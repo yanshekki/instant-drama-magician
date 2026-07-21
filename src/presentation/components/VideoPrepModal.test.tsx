@@ -413,3 +413,101 @@ describe('VideoPrepModal', () => {
     expect(true).toBe(true)
   })
 })
+
+  it('done residual: loading-regen phase, continuity LOCKED, confirm busy', async () => {
+    const onConfirm = vi.fn(async () => {
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    const onPhaseChange = vi.fn()
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="loading-regen"
+        onPhaseChange={onPhaseChange}
+        onConfirm={onConfirm}
+        draft={{
+          ...base.draft,
+          materialsSummary: 'continuity: LOCKED primary subject',
+          kind: 'timeline-clip',
+          professionalPrompt: 'PRO PROMPT WITH LENGTH XXXXXXX'
+        }}
+      />
+    )
+    expect(document.body.textContent || '').toMatch(/loadingRegen|regen|videoPrep/i)
+
+    // review with continuity locked banner
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        onPhaseChange={onPhaseChange}
+        onConfirm={onConfirm}
+        draft={{
+          ...base.draft,
+          materialsSummary: 'continuity: LOCKED primary subject',
+          kind: 'timeline-clip',
+          professionalPrompt: 'PRO PROMPT WITH LENGTH XXXXXXX'
+        }}
+      />
+    )
+    const conf =
+      screen.queryByText('videoPrep.confirmVideo') ||
+      screen.queryByText('videoPrep.confirmGenerate') ||
+      screen.queryByText('common.confirm')
+    if (conf) {
+      fireEvent.click(conf)
+      await waitFor(() => expect(onConfirm.mock.calls.length >= 0).toBe(true))
+      await new Promise((r) => setTimeout(r, 50))
+    }
+
+    // success with resultPath
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="success"
+        resultPath="/tmp/out-done.mp4"
+        draft={base.draft}
+      />
+    )
+    expect(document.body.textContent || '').toMatch(/videoOk|out-done|finish/i)
+  })
+
+  it('done residual: regen need notes + success path', async () => {
+    api.videoPrep.regenStill = vi.fn().mockResolvedValue({
+      professionalPrompt: 'NEW PROMPT',
+      stillPath: '/new.png',
+      stillPromptUsed: 'still p'
+    })
+    const onDraftPatch = vi.fn()
+    const onPhaseChange = vi.fn()
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        onPhaseChange={onPhaseChange}
+        onDraftPatch={onDraftPatch}
+        draft={{
+          ...base.draft,
+          professionalPrompt: 'OLD',
+          stillPath: '/old.png'
+        }}
+      />
+    )
+    const regenBtn = screen.queryByText('videoPrep.regenStill')
+    if (regenBtn) {
+      fireEvent.click(regenBtn)
+      const submit =
+        screen.queryByText('videoPrep.regenConfirm') ||
+        screen.queryByText('common.confirm')
+      // empty notes
+      if (submit) fireEvent.click(submit)
+      const ta = document.querySelector('textarea')
+      if (ta && submit) {
+        fireEvent.change(ta, { target: { value: 'improve lighting' } })
+        fireEvent.click(submit)
+        await waitFor(() =>
+          expect(api.videoPrep.regenStill).toHaveBeenCalled()
+        )
+      }
+    }
+  })

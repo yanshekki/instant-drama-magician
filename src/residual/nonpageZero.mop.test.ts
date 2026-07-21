@@ -747,7 +747,7 @@ describe('nonpageZero Ffmpeg EWS Gateway migration mop', () => {
     try {
       await s.start({
         dataDir: dir,
-        port: 0,
+        port: 19201,
         host: '127.0.0.1',
         authToken: 'tok',
         authDisabled: true,
@@ -759,7 +759,11 @@ describe('nonpageZero Ffmpeg EWS Gateway migration mop', () => {
     } catch {
       /* */
     }
-    rmSync(dir, { recursive: true, force: true })
+    try {
+      rmSync(dir, { recursive: true, force: true })
+    } catch {
+      /* dir busy */
+    }
   })
 
   it('GrokGateway probe residual', async () => {

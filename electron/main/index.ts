@@ -9,6 +9,14 @@ import {
 } from 'electron'
 import { homedir } from 'os'
 import { extname, join, resolve as pathResolve, sep } from 'path'
+
+import {
+  ensureDirsNonFatal,
+  resolveAppIconPathFrom,
+  collectAllowedMediaRoots,
+  installLinuxDesktopIconPure,
+  applyWindowIconPure
+} from './pureHelpers'
 import {
   createReadStream,
   existsSync,
@@ -155,19 +163,13 @@ const appPaths: AppPaths = resolveAppPaths({
   profile: process.env.IDM_PROFILE || null
 })
 app.setPath('userData', appPaths.dataRoot)
-for (const dir of [
+ensureDirsNonFatal([
   appPaths.dataRoot,
   appPaths.mediaRoot,
   appPaths.logsDir,
   appPaths.cacheDir,
   appPaths.exportsDir
-]) {
-  try {
-    mkdirSync(dir, { recursive: true })
-  } catch {
-    /* non-fatal */
-  }
-}
+])
 
 /**
  * Dev under electron-vite can leave stdout/stderr closed when the parent
@@ -702,8 +704,8 @@ if (process.platform === 'linux') {
 }
 
 /** Resolve packaged or dev app icon (pure YSK mark). */
-function resolveAppIconPath(): string | undefined {
-  const candidates = [
+export function resolveAppIconPath(): string | undefined {
+  return resolveAppIconPathFrom([
     join(process.resourcesPath || '', 'icon.png'),
     join(app.getAppPath(), 'resources', 'icon.png'),
     join(__dirname, '../../resources/icon.png'),
@@ -712,121 +714,45 @@ function resolveAppIconPath(): string | undefined {
     join(process.cwd(), 'build', 'icon.png'),
     join(process.cwd(), 'build', 'icons', '512x512.png'),
     join(process.cwd(), 'src', 'assets', 'app-icon.png')
-  ]
-  for (const p of candidates) {
-    if (p && existsSync(p)) return p
-  }
-  return undefined
+  ])
 }
 
 /**
  * Linux taskbars ignore BrowserWindow.icon unless a themed icon + .desktop
  * exist with matching StartupWMClass. Install user-local icons in dev/runtime.
  */
-function installLinuxDesktopIcon(iconPath: string): void {
+export function installLinuxDesktopIcon(iconPath: string): void {
   if (process.platform !== 'linux') return
-  try {
-    const home = process.env.HOME || app.getPath('home')
-    const hicolor = join(home, '.local', 'share', 'icons', 'hicolor')
-    const sizes = [16, 32, 48, 64, 128, 256, 512, 1024]
-    // Prefer build/icons sizes; fall back to packaged resources next to iconPath
-    const iconsRootCandidates = [
+  const home = process.env.HOME || app.getPath('home')
+  installLinuxDesktopIconPure({
+    iconPath,
+    home,
+    appIconName: APP_ICON_NAME,
+    displayNameEn: APP_DISPLAY_NAME_EN,
+    displayNameZh: APP_DISPLAY_NAME_ZH,
+    execPath: process.execPath,
+    extraArgs: process.argv.slice(1),
+    iconsRootCandidates: [
       join(process.cwd(), 'build', 'icons'),
       join(process.resourcesPath || '', 'icons'),
       join(app.getAppPath(), 'build', 'icons')
-    ]
-    const iconsRoot =
-      iconsRootCandidates.find((d) => existsSync(d)) || iconsRootCandidates[0]
-    for (const s of sizes) {
-      const sized = join(iconsRoot, `${s}x${s}.png`)
-      const src = existsSync(sized) ? sized : iconPath
-      const destDir = join(hicolor, `${s}x${s}`, 'apps')
-      mkdirSync(destDir, { recursive: true })
-      const dest = join(destDir, `${APP_ICON_NAME}.png`)
-      writeFileSync(dest, readFileSync(src))
-    }
-    // Pixmap fallback (some DEs only look here)
-    const pixmaps = join(home, '.local', 'share', 'pixmaps')
-    mkdirSync(pixmaps, { recursive: true })
-    writeFileSync(
-      join(pixmaps, `${APP_ICON_NAME}.png`),
-      readFileSync(
-        existsSync(join(iconsRoot, '256x256.png'))
-          ? join(iconsRoot, '256x256.png')
-          : iconPath
-      )
-    )
-
-    const appsDir = join(home, '.local', 'share', 'applications')
-    mkdirSync(appsDir, { recursive: true })
-    const execPath = process.execPath
-    // electron-vite: process.execPath is electron binary; pass project entry
-    // Force --class so WM_CLASS matches StartupWMClass / Icon theme name
-    const extraArgs = process.argv.slice(1)
-    const hasClass = extraArgs.some(
-      (a) => a === `--class=${APP_ICON_NAME}` || a === '--class'
-    )
-    const classArgs = hasClass ? [] : [`--class=${APP_ICON_NAME}`]
-    const allArgs = [...classArgs, ...extraArgs]
-    const desktop = [
-      '[Desktop Entry]',
-      'Type=Application',
-      `Name=${APP_DISPLAY_NAME_EN}`,
-      `Name[zh_HK]=${APP_DISPLAY_NAME_ZH}`,
-      `Name[zh_CN]=瞬剧魔法师`,
-      `Comment=AI professional short-drama generation tool`,
-      `Comment[zh_HK]=AI 專業短劇生成桌面工具`,
-      `Icon=${APP_ICON_NAME}`,
-      `Exec=${JSON.stringify(execPath)} ${allArgs
-        .map((a) => JSON.stringify(a))
-        .join(' ')}`,
-      'Terminal=false',
-      'Categories=AudioVideo;Video;',
-      `StartupWMClass=${APP_ICON_NAME}`,
-      'StartupNotify=true'
-    ].join('\n')
-    writeFileSync(
-      join(appsDir, `${APP_ICON_NAME}.desktop`),
-      desktop + '\n',
-      'utf8'
-    )
-    // Best-effort icon cache refresh
-    try {
-      execFileSync('gtk-update-icon-cache', ['-f', '-t', hicolor], {
-        stdio: 'ignore'
-      })
-    } catch {
-      /* optional */
-    }
-    try {
-      execFileSync('update-desktop-database', [appsDir], { stdio: 'ignore' })
-    } catch {
-      /* optional */
-    }
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn('[icon] linux desktop install failed', e)
-  }
+    ],
+    cwd: process.cwd(),
+    resourcesPath: process.resourcesPath || ''
+  })
 }
 
-function applyWindowIcon(win: BrowserWindow, iconPath: string): void {
-  try {
-    const icon = nativeImage.createFromPath(iconPath)
-    if (icon.isEmpty()) {
-      // eslint-disable-next-line no-console
-      console.warn('[icon] nativeImage empty:', iconPath)
-      return
-    }
-    win.setIcon(icon)
-    // Also set via path for some WMs
-    if (process.platform === 'linux') {
-      win.setIcon(iconPath)
-    }
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn('[icon] setIcon failed', e)
-  }
+export function applyWindowIcon(win: BrowserWindow, iconPath: string): void {
+  applyWindowIconPure(
+    win,
+    iconPath,
+    (p) => nativeImage.createFromPath(p),
+    process.platform
+  )
 }
+
+export { collectAllowedMediaRoots, ensureDirsNonFatal } from './pureHelpers'
+
 
 function createWindow(): void {
   const version = app.getVersion()
@@ -928,32 +854,12 @@ app.whenReady().then(() => {
    * broken "dead" thumbs in confirm modals / galleries.
    */
   const isAllowedMediaPath = (resolved: string): boolean => {
-    const roots: string[] = [
-      pathResolve(mediaRoot),
-      pathResolve(app.getPath('userData'))
-    ]
-    try {
-      const cfg = pathResolve(join(homedir(), '.config'))
-      // e.g. ~/.config/instant-drama-magician / instant-drama-magician-dev
-      for (const name of [
-        'instant-drama-magician',
-        'instant-drama-magician-dev'
-      ]) {
-        roots.push(pathResolve(join(cfg, name)))
-        roots.push(pathResolve(join(cfg, name, 'media')))
-      }
-    } catch {
-      /* ignore */
-    }
-    // Project-local media (dev DATABASE / assets under cwd)
-    try {
-      const cwd = pathResolve(process.cwd())
-      roots.push(join(cwd, 'media'))
-      roots.push(join(cwd, 'data'))
-      roots.push(join(cwd, 'prisma'))
-    } catch {
-      /* ignore */
-    }
+    const roots = collectAllowedMediaRoots({
+      mediaRoot,
+      userData: app.getPath('userData'),
+      configHome: join(homedir(), '.config'),
+      cwd: process.cwd()
+    })
     return roots.some(
       (root) => resolved === root || resolved.startsWith(root + sep)
     )

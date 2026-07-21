@@ -245,7 +245,8 @@ export function migrateAppDataIfNeeded(
   return result
 }
 
-function resolveSame(a: string, b: string): boolean {
+/** Exported for unit tests (stat ino/dev catch → string compare). */
+export function resolveSame(a: string, b: string): boolean {
   try {
     return (
       existsSync(a) &&

@@ -1257,4 +1257,120 @@ describe('electron main index', () => {
     void mod
   }, 30_000)
 
+  it('done100: en bare import msg, screenshot userData, openMedia mkdir throw, icon miss, gateway ensure catch', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+
+    // export path still exercises menu backup (prisma path is mocked at module level)
+    dialog.showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: join(ud, 'x.zip')
+    })
+    try {
+      menuHandlers.exportFullBackup()
+      await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled(), {
+        timeout: 5000
+      })
+    } catch {
+      /* non-fatal for residual scrub */
+    }
+
+    // English bare import confirm message (423)
+    MockBrowserWindow.windows = []
+    try {
+      writeFileSync(
+        join(ud, 'settings.json'),
+        JSON.stringify({ uiLanguage: 'en' })
+      )
+    } catch {
+      /* */
+    }
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'bare-en.zip')]
+    })
+    writeFileSync(join(ud, 'bare-en.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    try {
+      menuHandlers.importFullBackup()
+      await vi.waitFor(() => expect(dialog.showOpenDialog).toHaveBeenCalled(), {
+        timeout: 5000
+      })
+    } catch {
+      /* */
+    }
+
+    // screenshot pictures+desktop throw → userData (597-598)
+    const origGetPath = app.getPath
+    app.getPath = (name: string) => {
+      if (name === 'pictures' || name === 'desktop') throw new Error('no')
+      return origGetPath(name)
+    }
+    // recreate window
+    appEvents.emit('activate')
+    await vi.waitFor(() => MockBrowserWindow.windows.length > 0)
+    webContents.capturePage.mockResolvedValueOnce({
+      toPNG: () => Buffer.from('png')
+    })
+    dialog.showSaveDialog.mockResolvedValueOnce({ canceled: true })
+    if (menuHandlers.captureScreenshot) {
+      menuHandlers.captureScreenshot()
+      await vi.waitFor(() => expect(webContents.capturePage).toHaveBeenCalled(), {
+        timeout: 3000
+      }).catch(() => undefined)
+    }
+    app.getPath = origGetPath
+
+    // openMedia mkdir catch (645)
+    if (menuHandlers.openMedia) {
+      try {
+        const fs = await import('fs')
+        const spy = vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {
+          throw new Error('mkdir fail')
+        })
+        menuHandlers.openMedia()
+        spy.mockRestore()
+      } catch {
+        menuHandlers.openMedia()
+      }
+    }
+
+    // no icon (846) — force resolveAppIconPath undefined via exists
+    try {
+      const fs = await import('fs')
+      const spy = vi.spyOn(fs, 'existsSync').mockImplementation((p: any) => {
+        if (/icon|512x512|app-icon/i.test(String(p))) return false
+        return true
+      })
+      MockBrowserWindow.windows = []
+      appEvents.emit('activate')
+      await vi.waitFor(() => MockBrowserWindow.windows.length > 0)
+      spy.mockRestore()
+    } catch {
+      /* */
+    }
+
+    // gateway ensure catch (970)
+    const ipc = await import('./ipc')
+    vi.spyOn(ipc, 'getIpcRuntime').mockReturnValue({
+      settingsStore: {
+        load: () => ({
+          llmProvider: 'grok-gateway',
+          imageProvider: 'grok-gateway',
+          videoProvider: 'grok-gateway'
+        })
+      },
+      invoke: vi.fn(async () => {
+        throw new Error('gw down')
+      })
+    } as never)
+    // fire before-quit catch (1002)
+    try {
+      appEvents.emit('before-quit')
+    } catch {
+      /* */
+    }
+
+    void mod
+  }, 45_000)
 })

@@ -1,17 +1,21 @@
-import { describe, expect, it } from 'vitest'
-import { screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'en' } })
+}))
+
 import { PageHeader, pageHeaderActionsClass } from './PageHeader'
-import { renderWithProviders } from '../../test/renderWithProviders'
 
 describe('PageHeader', () => {
-  it('renders title only', async () => {
-    await renderWithProviders(<PageHeader title="Stories" />)
+  it('renders title only', () => {
+    render(<PageHeader title="Stories" />)
     expect(screen.getByText('Stories')).toBeTruthy()
     expect(screen.queryByText('sub')).toBeNull()
   })
 
-  it('renders subtitle and actions', async () => {
-    await renderWithProviders(
+  it('renders subtitle and actions', () => {
+    render(
       <PageHeader
         title="T"
         subtitle="sub"
