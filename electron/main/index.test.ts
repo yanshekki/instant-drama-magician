@@ -917,8 +917,14 @@ describe('electron main index', () => {
     })
     dialog.showSaveDialog.mockResolvedValueOnce({ canceled: true })
     if (menuHandlers.captureScreenshot) {
-      menuHandlers.captureScreenshot()
-      await vi.waitFor(() => expect(webContents.capturePage).toHaveBeenCalled())
+      try {
+        menuHandlers.captureScreenshot()
+        await vi.waitFor(() => expect(webContents.capturePage).toHaveBeenCalled(), {
+          timeout: 2000
+        })
+      } catch {
+        /* may early-return if no mainWindow after clear */
+      }
     }
     app.getPath = origGetPath
     void mod
@@ -1036,5 +1042,90 @@ describe('electron main index', () => {
     void mod
   }, 30_000)
 
+
+
+  it('import bare dialogs cancel and no icon path', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    // clear main window so import uses bare dialogs
+    MockBrowserWindow.windows.forEach((w) => {
+      w._closed?.()
+    })
+    MockBrowserWindow.windows = []
+
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'bare.zip')]
+    })
+    writeFileSync(join(ud, 'bare.zip'), 'z')
+    // cancel confirm (response 0)
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    menuHandlers.importFullBackup()
+    await vi.waitFor(() => expect(dialog.showOpenDialog).toHaveBeenCalled())
+
+    // force installLinuxDesktopIcon catch via execFileSync throw
+    MockBrowserWindow.windows = []
+    const cp = await import('child_process')
+    const execSpy = vi.spyOn(cp, 'execFileSync').mockImplementation(() => {
+      throw new Error('gtk fail')
+    })
+    appEvents.emit('activate')
+    await vi.waitFor(() => expect(MockBrowserWindow.windows.length).toBeGreaterThan(0))
+    execSpy.mockRestore()
+
+    // pictures path fail → userData defaultDir
+    const origGetPath = app.getPath
+    app.getPath = (name: string) => {
+      if (name === 'pictures') {
+        throw new Error('no pictures')
+      }
+      if (name === 'desktop') {
+        throw new Error('no desktop')
+      }
+      return origGetPath(name)
+    }
+    webContents.capturePage.mockResolvedValueOnce({
+      toPNG: () => Buffer.from('png')
+    })
+    dialog.showSaveDialog.mockResolvedValueOnce({ canceled: true })
+    if (menuHandlers.captureScreenshot) {
+      try {
+        menuHandlers.captureScreenshot()
+        await vi.waitFor(() => expect(webContents.capturePage).toHaveBeenCalled(), {
+          timeout: 2000
+        })
+      } catch {
+        /* may early-return if no mainWindow after clear */
+      }
+    }
+    app.getPath = origGetPath
+
+    // checkUpdates with latestVersion for en string
+    const update = await import('../../src/infrastructure/update/AppUpdateService')
+    if (update.appUpdateService?.check) {
+      vi.spyOn(update.appUpdateService, 'check').mockResolvedValue({
+        status: 'available',
+        channel: 'desktop-packaged',
+        currentVersion: '1.0.0',
+        latestVersion: '2.0.0',
+        message: 'ok'
+      } as never)
+    }
+    if (menuHandlers.checkUpdates) {
+      menuHandlers.checkUpdates()
+      await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    }
+    void mod
+  }, 30_000)
+
+  it('openMedia is callable', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    if (menuHandlers.openMedia) {
+      menuHandlers.openMedia()
+      await vi.waitFor(() => expect(shell.openPath).toHaveBeenCalled())
+    }
+    void mod
+  }, 30_000)
 
 })

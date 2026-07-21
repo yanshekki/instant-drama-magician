@@ -526,4 +526,40 @@ describe('Layout', () => {
     }
   })
 
+
+  it('download status downloaded updates banner state', async () => {
+    api.updates.status = vi.fn().mockResolvedValue({
+      status: 'available',
+      currentVersion: '1.0.0',
+      latestVersion: '1.9.0'
+    })
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      currentVersion: '1.0.0',
+      latestVersion: '1.9.0'
+    })
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const dl = Array.from(document.querySelectorAll('button')).find((b) =>
+      /downloadUpdate|download/i.test(b.textContent || '')
+    )
+    if (dl) {
+      await act(async () => {
+        fireEvent.click(dl)
+      })
+      await waitFor(() => expect(api.updates.download).toHaveBeenCalled())
+      await waitFor(() => expect(toast.success).toHaveBeenCalled())
+    }
+  })
+
 })

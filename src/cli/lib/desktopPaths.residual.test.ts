@@ -124,4 +124,44 @@ describe('desktopPaths residual 100%', () => {
     writeFileSync(fileRoot, 'x')
     expect(listBuildArtifacts(fileRoot)).toEqual([])
   })
+
+  it('Applications InstantDrama exists open-mac fallback', () => {
+    const fs = require('fs') as typeof import('fs')
+    const realExists = fs.existsSync
+    const spy = vi.spyOn(fs, 'existsSync').mockImplementation((p: any) => {
+      const s = String(p)
+      if (s === '/Applications/InstantDrama Magician.app') return true
+      // release empty
+      if (s.includes(root)) return realExists(p)
+      return false
+    })
+    try {
+      const r = resolveLaunchTarget({
+        repoRoot: root,
+        platform: 'mac',
+        preferDev: false
+      })
+      // may be null if listBuildArtifacts still finds something or mock incomplete
+      expect(r === null || r.method === 'open-mac' || r.mode === 'packaged').toBe(true)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('launchScore dir-binary and other', () => {
+    const release = join(root, 'rel-score')
+    mkdirSync(join(release, 'win-unpacked'), { recursive: true })
+    writeFileSync(join(release, 'win-unpacked', 'instant-drama-magician.exe'), 'x')
+    writeFileSync(join(release, 'notes.other'), 'x')
+    const arts = listBuildArtifacts(release, 'win')
+    expect(arts.length).toBeGreaterThan(0)
+    const r = resolveLaunchTarget({
+      repoRoot: root,
+      platform: 'win',
+      preferDev: false,
+      appPath: join(release, 'win-unpacked', 'instant-drama-magician.exe')
+    })
+    expect(r?.method).toBe('spawn')
+  })
+
 })

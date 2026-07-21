@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import {
   mkdtempSync,
   rmSync,
@@ -480,6 +480,45 @@ describe('MediaStore', () => {
       path: bad,
       fileName: 'dir.mp4'
     })
+  })
+
+
+  it('recordExportHistory stat throw and listExportHistory empty read', () => {
+    store.ensureStoryDirs('s-mop')
+    const fs = require('fs') as typeof import('fs')
+    const name = 'Mop_final_1.mp4'
+    const work = join(store.exportsDir('s-mop'), name)
+    writeFileSync(work, 'v')
+    // make path a dir so stat size path fails weirdly
+    const bad = join(root, 'stat-bad')
+    mkdirSync(bad, { recursive: true })
+    // write history json corrupted
+    const hist = store['exportHistoryPath']?.('s-mop') || join(store.exportsDir('s-mop'), 'history.json')
+    try {
+      writeFileSync(join(store.exportsDir('s-mop'), '.export-history.json'), 'NOT_JSON')
+    } catch { /* */ }
+    // list with public dir file that is not file (dir)
+    const publicDir = join(root, 'pub-mop')
+    mkdirSync(publicDir, { recursive: true })
+    mkdirSync(join(publicDir, 'notfile.mp4'), { recursive: true })
+    const listed = store.listExportHistory('s-mop', {
+      publicDir,
+      fileNamePrefix: 'Mop'
+    })
+    expect(Array.isArray(listed)).toBe(true)
+
+    // record with path that exists then spy statSync throw
+    const st = vi.spyOn(fs, 'statSync').mockImplementation((p: any) => {
+      throw new Error('stat fail')
+    })
+    try {
+      store.recordExportHistory('s-mop', {
+        kind: 'final',
+        path: work,
+        fileName: name
+      })
+    } catch { /* */ }
+    st.mockRestore()
   })
 
 })

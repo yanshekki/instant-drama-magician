@@ -163,4 +163,29 @@ describe('AppUpdateService', () => {
     } catch { /* */ }
   })
 
+
+  it('quitAndInstall without downloaded returns fail', async () => {
+    const { AppUpdateService } = await import('./AppUpdateService')
+    const svc = new AppUpdateService()
+    // ensure not in downloaded state
+    handlers['update-not-available']?.({ version: '1.2.0' })
+    const r = svc.quitAndInstall()
+    expect(r.ok).toBe(false)
+    expect(r.messageKey || r.message).toBeTruthy()
+  })
+
+  it('silent false checking state path', async () => {
+    const { AppUpdateService } = await import('./AppUpdateService')
+    const svc = new AppUpdateService()
+    autoUpdater.checkForUpdates.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          handlers['checking-for-update']?.()
+          setTimeout(() => resolve({ updateInfo: null }), 5)
+        })
+    )
+    const st = await svc.check({ silent: false })
+    expect(st).toBeTruthy()
+  })
+
 })

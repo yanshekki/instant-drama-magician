@@ -1266,4 +1266,198 @@ describe('registerVideoPrepCreate', () => {
     expect(chat).toHaveBeenCalled()
   })
 
+
+  it('mop action-intro and 9:16 still size', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-mop-'))
+    const stillOut = join(dir, 's.png')
+    const long =
+      'POLISHED ACTION INTRO MOTION GUIDE PROMPT WITH ENOUGH LENGTH FOR ACCEPT'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('X').toString('base64')
+    }))
+    const get = vi.fn(async () => ({
+      id: 'a1',
+      name: 'Run',
+      description: 'sprint',
+      motionNotes: 'fast',
+      intention: 'escape',
+      cameraNotes: 'hand',
+      hardRules: 'NO LOGO',
+      artStyle: null,
+      refImagePath: null
+    }))
+    const ctx = makeHandlerContext({
+      settings: {
+        aspectRatio: '9:16',
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024'
+      } as never,
+      aiClient: {
+        chat,
+        generateImage,
+        editImage: generateImage,
+        generateVideo: vi.fn()
+      },
+      actions: () => ({ get }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => stillOut,
+            actionImagePath: () => stillOut
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'action-intro',
+      actionId: 'a1',
+      stillOnly: true,
+      professionalDraft: '  draft text  '
+    })
+    expect(chat).toHaveBeenCalled()
+  })
+
+  it('mop timeline prev-clip sourceImagePath sets resolvedRefSource', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-prev-'))
+    const stillOut = join(dir, 'e1.png')
+    const prev = join(dir, 'prev.png')
+    const src = join(dir, 'src.png')
+    writeFileSync(stillOut, 's')
+    writeFileSync(prev, 'p')
+    writeFileSync(src, 'r')
+    const long =
+      'POLISHED PREV CLIP SOURCE PROMPT WITH ENOUGH LENGTH FOR ACCEPTANCE XX'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('X').toString('base64')
+    }))
+    const story = {
+      id: 's1',
+      title: 'S',
+      styleNote: null,
+      hardRules: null,
+      characters: [
+        {
+          id: 'c1',
+          name: 'A',
+          description: 'd',
+          appearance: null,
+          costume: null,
+          hardRules: null,
+          spokenLanguages: null,
+          refImagePath: null
+        }
+      ],
+      scenes: [],
+      props: [],
+      actions: [
+        {
+          id: 'a1',
+          name: 'W',
+          description: 'walk',
+          motionNotes: null,
+          intention: null,
+          cameraNotes: null,
+          hardRules: null,
+          refImagePath: null
+        },
+        {
+          id: 'a2',
+          name: 'J',
+          description: 'jump',
+          motionNotes: null,
+          intention: null,
+          cameraNotes: null,
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      timeline: [
+        {
+          id: 'e0',
+          order: 0,
+          startTime: 0,
+          endTime: 3,
+          characterId: 'c1',
+          sceneId: null,
+          propId: null,
+          actionId: 'a1',
+          characterIds: null,
+          dialogue: null,
+          beatContentJson: null,
+          mediaStatus: 'READY'
+        },
+        {
+          id: 'e1',
+          order: 1,
+          startTime: 3,
+          endTime: 8,
+          characterId: 'c1',
+          sceneId: null,
+          propId: null,
+          actionId: 'a1',
+          actionIds: JSON.stringify(['a1', 'a2']),
+          characterIds: null,
+          dialogue: null,
+          beatContentJson: null,
+          mediaStatus: 'EMPTY'
+        }
+      ]
+    }
+    const ctx = makeHandlerContext({
+      settings: {
+        aspectRatio: '16:9',
+        imageSizeWide: '1792x1024',
+        imageSizeTall: '1024x1792',
+        imageSizeSquare: '1024x1024'
+      } as never,
+      aiClient: {
+        chat,
+        generateImage,
+        editImage: generateImage,
+        generateVideo: vi.fn()
+      },
+      stories: () => ({ get: vi.fn(async () => story) }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            ensureStoryDirs: vi.fn(),
+            tmpImagePath: () => stillOut,
+            clipContinuityStillPath: (_s: string, eid: string) =>
+              eid === 'e0' ? prev : stillOut,
+            readStoryCastPrepJson: vi.fn(() => null),
+            writeEntryStillPromptJson: vi.fn(),
+            readEntryStillPromptJson: vi.fn(() => null),
+            clearEntryStillUserCleared: vi.fn(),
+            isEntryStillUserCleared: vi.fn(() => false)
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      stillOnly: true,
+      sourceImagePath: src
+    })
+    expect(chat).toHaveBeenCalled()
+  })
+
 })

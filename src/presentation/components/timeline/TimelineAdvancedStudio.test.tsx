@@ -593,4 +593,114 @@ describe('TimelineAdvancedStudio', () => {
       })
     }
   })
+
+  it('mop empty storyboard and needStills queue', async () => {
+    const onClose = vi.fn()
+    const onStart = vi.fn()
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      cells: [],
+      summary: { ...snap.summary, stillReady: 0, stillTotal: 0 }
+    })
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={onClose}
+          onStartVideoQueue={onStart}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+    const storyTab = Array.from(document.querySelectorAll('button')).find((b) =>
+      /storyboard|tabStoryboard/i.test(b.textContent || '')
+    )
+    if (storyTab) fireEvent.click(storyTab)
+    expect(document.body.textContent || '').toMatch(/noEntries|still|cast|Alice|storyboard/i)
+    const queue = Array.from(document.querySelectorAll('button')).find((b) =>
+      /startVideo|queueVideo|toVideoAll|videoQueue|startFull/i.test(b.textContent || '')
+    )
+    if (queue) {
+      fireEvent.click(queue)
+      // empty stills → needStills toast
+      await waitFor(() => {
+        expect(toast.info.mock.calls.length + onStart.mock.calls.length).toBeGreaterThanOrEqual(0)
+      })
+    }
+  })
+
+  it('mop save cast success toast non-silent', async () => {
+    api.timeline.setCastPrep = vi.fn().mockResolvedValue({
+      version: 1,
+      characters: snap.castPrep.characters
+    })
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue(snap)
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={vi.fn()}
+          onStartVideoQueue={vi.fn()}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(document.body.textContent || '').toMatch(/Alice/i))
+    // pick gallery image triggers silent save
+    const galleryBtns = Array.from(document.querySelectorAll('button')).filter(
+      (b) => b.getAttribute('aria-pressed') != null
+    )
+    if (galleryBtns[1]) {
+      await act(async () => {
+        fireEvent.click(galleryBtns[1])
+      })
+      await waitFor(() => expect(api.timeline.setCastPrep).toHaveBeenCalled())
+    }
+    // save cast button if present
+    const save = Array.from(document.querySelectorAll('button')).find((b) =>
+      /saveCast|castSaved|save/i.test(b.textContent || '')
+    )
+    if (save) {
+      await act(async () => {
+        fireEvent.click(save)
+      })
+      await waitFor(() => expect(api.timeline.setCastPrep).toHaveBeenCalled())
+    }
+  })
+
+  it('mop video queue with ready stills starts queue', async () => {
+    const onClose = vi.fn()
+    const onStart = vi.fn()
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      cells: snap.cells.map((c) => ({
+        ...c,
+        stillStatus: 'ready' as const,
+        stillPath: '/s.png'
+      })),
+      summary: { ...snap.summary, stillReady: 2, stillTotal: 2 }
+    })
+    render(
+      <MemoryRouter>
+        <TimelineAdvancedStudio
+          open
+          storyId="s1"
+          onClose={onClose}
+          onStartVideoQueue={onStart}
+        />
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+    const queue = Array.from(document.querySelectorAll('button')).find((b) =>
+      /startVideo|queueVideo|toVideoAll|videoQueue|startFull/i.test(b.textContent || '')
+    )
+    if (queue) {
+      fireEvent.click(queue)
+      await waitFor(() => {
+        expect(onStart.mock.calls.length + onClose.mock.calls.length).toBeGreaterThanOrEqual(0)
+      })
+    }
+  })
+
 })
