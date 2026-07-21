@@ -44,11 +44,12 @@ afterEach(() => {
   jobs = null
   try {
     localStorage.clear()
+    localStorage.removeItem('idm.aiJobs.v1')
+    localStorage.removeItem('idm.videoPrepDraft.v1')
+    localStorage.removeItem('idm.videoPrepDrafts.v2')
   } catch {
     /* ignore */
   }
-  // Drop any leftover dialogs / portals so later page files stay clean
-  document.body.innerHTML = ''
 })
 vi.mock('../../lib/i18n', async () => {
   const actual = await vi.importActual<typeof import('../../lib/i18n')>(
