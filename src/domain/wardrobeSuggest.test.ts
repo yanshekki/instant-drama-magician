@@ -42,4 +42,38 @@ describe('wardrobeSuggest', () => {
     )
     expect(r.artStyle).toBe('photo_cinematic')
   })
+
+  it('user prompt includes full character extras and empty scenes', () => {
+    const u = buildWardrobeSuggestUserPrompt({
+      characterName: '阿明',
+      description: '外賣',
+      appearance: '短髮',
+      personality: '固執',
+      ageRange: '20s',
+      gender: 'm',
+      mannerisms: '摸頭盔',
+      visualTags: 'urban',
+      currentCostume: '雨衣',
+      existingCostumeNames: ['日常'],
+      soulExcerpt: '## 身份\n鐵工',
+      storyTitle: '雨夜',
+      styleNote: 'neon',
+      segmentLabel: '重逢',
+      userRequest: '更正式',
+      sceneSnippets: [],
+      locale: 'zh-HK'
+    })
+    expect(u).toContain('阿明')
+    expect(u).toContain('雨衣')
+    expect(u).toContain('雨夜')
+    expect(u).toContain('更正式')
+    expect(u).toMatch(/尚無場景|no scenes/i)
+  })
+
+  it('extractWardrobeSuggestionJson rejects empty costume', () => {
+    expect(() =>
+      extractWardrobeSuggestionJson('{"name":"X","costume":"","artStyle":"photo_cinematic"}')
+    ).toThrow()
+    expect(() => extractWardrobeSuggestionJson('not json')).toThrow()
+  })
 })

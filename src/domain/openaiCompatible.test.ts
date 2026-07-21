@@ -4,8 +4,20 @@ import {
   OPENAI_API_BASE_URL,
   applyLlmPreset,
   coerceLlmProviderPreset,
+  getLlmPresetDef,
+  imageCapablePresets,
   inferLlmPreset,
-  providerCaps
+  isImageCapableProvider,
+  isLlmProviderPreset,
+  isSpecialChannelProvider,
+  isVideoCapableProvider,
+  llmPresetHintKey,
+  providerCaps,
+  providerDocsUrl,
+  providerKeyOptional,
+  supportsLocalAdmin,
+  supportsOpenAiVideosPath,
+  videoCapablePresets
 } from './openaiCompatible'
 import { GROK_GATEWAY_BASE_URL } from './gatewayDefaults'
 
@@ -88,4 +100,62 @@ describe('openaiCompatible presets', () => {
     expect(providerCaps('openrouter').image).toBe(false)
     expect(providerCaps('ollama').video).toBe(false)
   })
+
+  it('isLlmProviderPreset and getLlmPresetDef', () => {
+    expect(isLlmProviderPreset('openai')).toBe(true)
+    expect(isLlmProviderPreset('seedream')).toBe(false)
+    expect(getLlmPresetDef('openai')?.baseUrl).toBe(OPENAI_API_BASE_URL)
+    expect(getLlmPresetDef('nope' as never)).toBeUndefined()
+  })
+
+  it('infers more hosts and coerce defaults', () => {
+    expect(inferLlmPreset('https://api.x.ai/v1')).toBe('xai')
+    expect(inferLlmPreset('https://api.deepseek.com/v1')).toBe('deepseek')
+    expect(inferLlmPreset('https://api.mistral.ai/v1')).toBe('mistral')
+    expect(inferLlmPreset('http://127.0.0.1:1234/v1')).toBe('lmstudio')
+    expect(coerceLlmProviderPreset(null as unknown as string)).toBe(
+      'grok-gateway'
+    )
+    expect(coerceLlmProviderPreset('custom')).toBe('custom')
+  })
+
+  it('admin / docs / key optional helpers', () => {
+    expect(supportsLocalAdmin('grok-gateway')).toBe(true)
+    expect(supportsLocalAdmin('openai')).toBe(false)
+    expect(supportsOpenAiVideosPath('grok-gateway')).toBe(true)
+    expect(supportsOpenAiVideosPath('custom')).toBe(true)
+    expect(supportsOpenAiVideosPath('openai')).toBe(false)
+    expect(providerDocsUrl('openai')).toMatch(/openai/)
+    expect(providerKeyOptional('ollama')).toBe(true)
+    expect(providerKeyOptional('openai')).toBe(false)
+    expect(llmPresetHintKey('openai')).toBeTruthy()
+  })
+
+  it('image/video capable filters and special channels', () => {
+    expect(imageCapablePresets().every((p) => p.caps.image)).toBe(true)
+    expect(videoCapablePresets().every((p) => p.caps.video)).toBe(true)
+    expect(isSpecialChannelProvider('seedance')).toBe(true)
+    expect(isSpecialChannelProvider('openai')).toBe(false)
+    expect(isImageCapableProvider('openai')).toBe(true)
+    expect(isImageCapableProvider('seedream')).toBe(true)
+    expect(isImageCapableProvider('openrouter')).toBe(false)
+    expect(isVideoCapableProvider('seedance')).toBe(true)
+    expect(isVideoCapableProvider('openai')).toBe(true)
+    expect(isVideoCapableProvider('xai')).toBe(false)
+  })
+
+  it('applyLlmPreset keeps non-empty model when not grok for openai', () => {
+    const s = applyLlmPreset(
+      {
+        llmProvider: 'custom',
+        baseUrl: 'http://x',
+        videoPath: 'http://x/videos',
+        model: 'my-custom-model'
+      },
+      'deepseek'
+    )
+    expect(s.model).toBe('my-custom-model')
+    expect(s.baseUrl).toMatch(/deepseek/)
+  })
 })
+

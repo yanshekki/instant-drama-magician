@@ -3,8 +3,10 @@ import {
   clampDuration,
   DEFAULT_MAX_CLIP_SECONDS,
   isTimelineAlreadyPacked,
+  moveClip,
   packTimelineEntriesAbutting,
   reindexOrders,
+  resizeClipEnd,
   sortTimelineEntries,
   suggestNextSlot,
   totalDuration,
@@ -92,5 +94,40 @@ describe('timeline domain', () => {
       entry({ ...p, storyId: 's1' })
     )
     expect(isTimelineAlreadyPacked(packed)).toBe(true)
+  })
+
+  it('empty timeline helpers', () => {
+    expect(totalDuration([])).toBe(0)
+    expect(suggestNextSlot([], 4)).toEqual({
+      startTime: 0,
+      endTime: 4,
+      order: 0
+    })
+    expect(suggestNextSlot([], -2).endTime).toBe(0)
+    expect(packTimelineEntriesAbutting([])).toEqual([])
+    expect(isTimelineAlreadyPacked([])).toBe(true)
+  })
+
+  it('moveClip and resizeClipEnd preserve duration bounds', () => {
+    expect(moveClip(2, 8, 3)).toEqual({ startTime: 5, endTime: 11 })
+    expect(moveClip(0, 5, -10)).toEqual({ startTime: 0, endTime: 5 })
+    expect(moveClip(0, 20, 0, 10)).toEqual({ startTime: 0, endTime: 10 })
+    expect(resizeClipEnd(0, 30, 10)).toEqual({ startTime: 0, endTime: 10 })
+    expect(clampDuration(-2, 5, 10)).toEqual({ startTime: 0, endTime: 5 })
+  })
+
+  it('validateTimeRange covers finite / negative / order', () => {
+    expect(validateTimeRange(NaN, 5)).toBe('errors.timelineTimesInvalid')
+    expect(validateTimeRange(0, Infinity)).toBe('errors.timelineTimesInvalid')
+    expect(validateTimeRange(-1, 5)).toBe('errors.startTimeNegative')
+    expect(validateTimeRange(5, 5)).toBe('errors.endTimeOrder')
+  })
+
+  it('isTimelineAlreadyPacked fails on order/time mismatch', () => {
+    const entries = [
+      entry({ id: 'a', order: 1, startTime: 0, endTime: 5 }),
+      entry({ id: 'b', order: 0, startTime: 5, endTime: 10 })
+    ]
+    expect(isTimelineAlreadyPacked(entries)).toBe(false)
   })
 })

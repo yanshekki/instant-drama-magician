@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  antiDefaultIdentityRules,
   inventFromProvidedSourcesRules,
   shouldInjectStoryContext,
   shouldInjectStoryContextForCharacter
@@ -30,5 +31,17 @@ describe('storyContextPolicy', () => {
 
   it('never injects story context into character invent', () => {
     expect(shouldInjectStoryContextForCharacter()).toBe(false)
+  })
+
+  it('antiDefaultIdentityRules aliases invent rules', () => {
+    expect(antiDefaultIdentityRules('en')).toEqual(
+      inventFromProvidedSourcesRules('en')
+    )
+    expect(antiDefaultIdentityRules('zh-HK')).toEqual(
+      inventFromProvidedSourcesRules('zh-HK')
+    )
+    expect(antiDefaultIdentityRules()).toEqual(
+      inventFromProvidedSourcesRules('zh-HK')
+    )
   })
 })

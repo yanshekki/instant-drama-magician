@@ -5,10 +5,13 @@ import { join } from 'path'
 import {
   buildVisionUserContent,
   dataUrlToGrokImagePart,
+  imagePathToDataUrl,
   isReferenceImagePathClaimed,
+  loadImageBytesForAi,
   mimeFromImagePath,
   prepareVisionImageBytes,
   resolveReadableImagePath,
+  visionFillUserPreamble,
   VISION_MAX_BYTES,
   VISION_MAX_EDGE,
   VISION_SKIP_RESIZE_BYTES
@@ -126,6 +129,47 @@ describe('chatVision', () => {
       expect(r.bytes.length).toBeGreaterThan(0)
       // Either re-encoded smaller, or original fallback
       expect(r.bytes.length).toBeLessThanOrEqual(pad.length + TINY_PNG.length)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('loadImageBytesForAi and imagePathToDataUrl for tiny stills', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-cv-load-'))
+    const p = join(dir, 't.png')
+    try {
+      writeFileSync(p, TINY_PNG)
+      const loaded = loadImageBytesForAi(p)
+      expect(loaded.resized).toBe(false)
+      expect(loaded.mime).toBe('image/png')
+      const url = imagePathToDataUrl(p)
+      expect(url).toMatch(/^data:image\/png;base64,/)
+      expect(imagePathToDataUrl('/no/such.png')).toBeNull()
+      expect(() => loadImageBytesForAi('/no/such.png')).toThrow(AppError)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('visionFillUserPreamble covers all kinds en/zh', () => {
+    for (const kind of [
+      'character',
+      'scene',
+      'prop',
+      'action',
+      'costume'
+    ] as const) {
+      expect(visionFillUserPreamble('en', kind)).toMatch(/reference still|image/i)
+      expect(visionFillUserPreamble('zh-HK', kind)).toMatch(/參考|圖片/)
+    }
+  })
+
+  it('resolveReadableImagePath returns existing tiny file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-cv-res-'))
+    const p = join(dir, 'ok.png')
+    try {
+      writeFileSync(p, TINY_PNG)
+      expect(resolveReadableImagePath(p)).toBe(p)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

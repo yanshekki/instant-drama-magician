@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildImproveUserPrompt,
   compactDraft,
-  draftHasContent
+  draftHasContent,
+  truncateForPrompt
 } from './aiImprovePrompt'
 
 describe('aiImprovePrompt', () => {
@@ -56,6 +57,55 @@ describe('aiImprovePrompt', () => {
     expect(p).toContain('鋼琴老師')
     expect(p).toContain('校巴最後一站')
     expect(p).toContain('午後金光')
+  })
+
+  it('truncateForPrompt and draftHasContent edge cases', () => {
+    expect(truncateForPrompt('short')).toBe('short')
+    expect(truncateForPrompt('x'.repeat(20), 10)).toMatch(/truncated/)
+    expect(draftHasContent({ n: 0 })).toBe(true)
+    expect(draftHasContent({ o: { a: 1 } })).toBe(true)
+    expect(draftHasContent({ n: null })).toBe(false)
+    expect(compactDraft({ a: '', b: null as unknown as string, c: 1 })).toEqual(
+      { c: 1 }
+    )
+  })
+
+  it('improve mode empty idea polish and custom closing', () => {
+    const p = buildImproveUserPrompt({
+      locale: 'en',
+      idea: '',
+      draft: { name: 'A' },
+      emptyIdeaPolish: { en: '(polish me)', zh: '（潤飾）' },
+      closing: { en: 'Return JSON only.', zh: '只回 JSON' }
+    })
+    expect(p).toContain('(polish me)')
+    expect(p).toContain('Return JSON only.')
+  })
+
+  it('create mode with idea and closing', () => {
+    const p = buildImproveUserPrompt({
+      locale: 'en',
+      idea: 'cat spirit',
+      createLabel: { en: 'Idea:', zh: '構想：' },
+      closing: { en: 'Return JSON only.', zh: '只回 JSON' }
+    })
+    expect(p).toContain('Idea:')
+    expect(p).toContain('cat spirit')
+    expect(p).toContain('Return JSON only.')
+  })
+
+  it('filters empty extra blocks', () => {
+    const p = buildImproveUserPrompt({
+      locale: 'en',
+      idea: 'x',
+      draft: { name: 'A' },
+      extraBlocks: [
+        { labelEn: 'soul', labelZh: 'soul', body: '  ' },
+        { labelEn: 'ok', labelZh: 'ok', body: 'keep' }
+      ]
+    })
+    expect(p).toContain('keep')
+    expect(p).not.toMatch(/\bsoul\b/)
   })
 })
 
