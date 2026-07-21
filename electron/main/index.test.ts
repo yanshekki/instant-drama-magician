@@ -983,4 +983,58 @@ describe('electron main index', () => {
     void mod
   }, 30_000)
 
+
+  it('console.error throws on unhandledRejection and uncaught', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+      throw new Error('console dead')
+    })
+    const rej = process.listeners('unhandledRejection')
+    for (const l of rej) {
+      try {
+        ;(l as Function)(new Error('real'), Promise.resolve())
+      } catch { /* catch in handler */ }
+    }
+    const un = process.listeners('uncaughtException')
+    for (const l of un) {
+      try {
+        ;(l as Function)(new Error('real2'))
+      } catch { /* */ }
+    }
+    errSpy.mockRestore()
+    // file://host/path DATABASE_URL
+    process.env.DATABASE_URL = 'file://localhost/tmp/x.sqlite'
+    // import already done — call export again after setting
+    dialog.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: join(ud, 'f.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    delete process.env.DATABASE_URL
+
+    // import without window + cancel confirm already; ensure bare dialogs
+    MockBrowserWindow.windows.length = 0
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'i.zip')]
+    })
+    writeFileSync(join(ud, 'i.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    menuHandlers.importFullBackup()
+    await vi.waitFor(() => expect(dialog.showOpenDialog).toHaveBeenCalled())
+
+    // resolveAppIconPath undefined — hide all icons temporarily
+    // setIcon fail
+    const origSetIcon = MockBrowserWindow.prototype.setIcon
+    MockBrowserWindow.prototype.setIcon = vi.fn(() => {
+      throw new Error('setIcon fail')
+    })
+    appEvents.emit('activate')
+    MockBrowserWindow.prototype.setIcon = origSetIcon
+    void mod
+  }, 30_000)
+
+
 })

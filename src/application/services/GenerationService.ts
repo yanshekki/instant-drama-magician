@@ -962,7 +962,7 @@ export class GenerationService {
   }
 }
 
-function basenameMatch(path: string, fileName: string): boolean {
+export function basenameMatch(path: string, fileName: string): boolean {
   const base = path.split(/[/\\]/).pop() || path
   return base === fileName
 }

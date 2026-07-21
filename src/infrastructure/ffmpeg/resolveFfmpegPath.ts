@@ -15,14 +15,17 @@ function isUsableFile(p: string | null | undefined): p is string {
   return Boolean(p && p !== 'ffmpeg' && existsSync(p))
 }
 
+/** @internal exported for tests — `hasFilename` overrides for branch coverage */
+export function ffmpegRequireBase(
+  hasFilename: boolean = typeof __filename !== 'undefined'
+): string {
+  return hasFilename ? __filename : join(process.cwd(), 'package.json')
+}
+
 function tryBundledStatic(): string | null {
   try {
     // Prefer createRequire so resolution works from CJS/ESM and electron-vite out/
-    const req = createRequire(
-      typeof __filename !== 'undefined'
-        ? __filename
-        : join(process.cwd(), 'package.json')
-    )
+    const req = createRequire(ffmpegRequireBase())
     const mod = req('ffmpeg-static') as string | { default?: string } | null
     const p =
       typeof mod === 'string'

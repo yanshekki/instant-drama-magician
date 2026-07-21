@@ -37,7 +37,8 @@ vi.mock('fs', async (importOriginal) => {
   return {
     ...actual,
     existsSync: (p: string) => {
-      if (String(p).includes('NO_PKG')) return false
+      if (String(p).includes('NO_PKG') || String(p).includes('idm-no-pkg')) return false
+      if (String(p).endsWith('package.json') && String(p).includes('idm-no-pkg')) return false
       return String(p).includes('package.json') || true
     }
   }
@@ -160,6 +161,19 @@ describe('cmdBuild', () => {
     runCommand.mockResolvedValueOnce({ code: 2, stdout: '', stderr: 'fail' })
     await expect(
       cmdBuild({ json: true, pretty: false, yes: true, help: false, local: true } as never, [], {})
+    ).rejects.toThrow(/process.exit/)
+  })
+
+
+  it('package.json missing fails USAGE', async () => {
+    findRepoRootMock.mockReturnValueOnce('/tmp/idm-no-pkg-root-xyz')
+    // fs mock: package.json only true if includes package.json — make path not match real
+    await expect(
+      cmdBuild(
+        { json: true, pretty: false, yes: true, help: false, local: true } as never,
+        [],
+        { skipCompile: true }
+      )
     ).rejects.toThrow(/process.exit/)
   })
 

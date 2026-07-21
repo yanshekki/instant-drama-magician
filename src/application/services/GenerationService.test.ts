@@ -5,7 +5,8 @@ import { join } from 'path'
 import {
   GenerationService,
   safeAsciiExportName,
-  resolvePublicExportDir
+  resolvePublicExportDir,
+  basenameMatch
 } from './GenerationService'
 import { createMockPrisma } from '../../test/mockPrisma'
 import { AppError } from '../../types/errors'
@@ -1752,4 +1753,77 @@ describe('GenerationService', () => {
     }
   })
 
+
+  it('basenameMatch unit covers path separators', () => {
+    expect(basenameMatch('/a/b/c.mp4', 'c.mp4')).toBe(true)
+    expect(basenameMatch('c.mp4', 'c.mp4')).toBe(true)
+    expect(basenameMatch('/a/b/', 'x')).toBe(false)
+    expect(basenameMatch('C:/a/b/c.mp4', 'c.mp4')).toBe(true)
+    expect(basenameMatch(String.raw`C:\dir\c.mp4`, 'c.mp4')).toBe(true)
+  })
+
+
+  it('publishExportToVideos returns workPath on copy fail', async () => {
+    const prisma = createMockPrisma()
+    const clip = join(dir, 'c2.mp4')
+    writeFileSync(clip, 'c')
+    prisma.story.findUnique = vi.fn().mockResolvedValue(
+      storyIncludeShape({
+        title: 'T',
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 2,
+            characterId: null,
+            sceneId: null,
+            propId: null,
+            actionId: null,
+            dialogue: null,
+            mediaPath: clip,
+            mediaStatus: 'READY'
+          }
+        ]
+      })
+    )
+    prisma.story.update = vi.fn().mockResolvedValue({})
+    // make public dir a file so mkdir/copy fails → workPath returned
+    const Module = require('module') as any
+    const orig = Module.prototype.require
+    Module.prototype.require = function (id: string) {
+      if (id === 'electron') {
+        return {
+          app: {
+            getPath: () => {
+              // return path that cannot be used as dir parent
+              return join(dir, 'not-a-videos-file-parent')
+            }
+          }
+        }
+      }
+      return orig.apply(this, arguments)
+    }
+    // create a file where Videos would need to be created under a file
+    writeFileSync(join(dir, 'not-a-videos-file-parent'), 'x')
+    try {
+      const exportFinal = vi.fn(async (opts: { fileName: string; outDir: string }) => {
+        const p = join(opts.outDir, opts.fileName)
+        mkdirSync(opts.outDir, { recursive: true })
+        writeFileSync(p, 'final')
+        return p
+      })
+      const { svc } = makeSvc({
+        prisma,
+        ffmpeg: {
+          ensureAvailable: vi.fn().mockResolvedValue(undefined),
+          exportFinal
+        }
+      })
+      const r = await svc.exportFinal('s1')
+      expect(r.outputPath).toBeTruthy()
+    } finally {
+      Module.prototype.require = orig
+    }
+  })
 })

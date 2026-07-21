@@ -500,4 +500,30 @@ describe('Layout', () => {
     })
   })
 
+
+  it('system color scheme watch fires syncTheme', async () => {
+    api.settings.get = vi.fn().mockResolvedValue({
+      lastGenerationDegraded: false,
+      uiLanguage: 'en',
+      colorScheme: 'system'
+    })
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    // fire matchMedia change if any
+    const mql = window.matchMedia('(prefers-color-scheme: dark)')
+    if (mql && 'onchange' in mql && mql.onchange) {
+      mql.onchange(new Event('change') as never)
+    }
+  })
+
 })

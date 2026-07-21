@@ -210,4 +210,12 @@ describe('resolveFfmpegPath scrub branches', () => {
     expect(mod.resolveFfmpegPathFresh()).toBeTruthy()
   })
 
+
+
 })
+
+  it('ffmpegRequireBase returns a string path', async () => {
+    const mod = await import('./resolveFfmpegPath')
+    expect(typeof mod.ffmpegRequireBase(true)).toBe('string')
+    expect(mod.ffmpegRequireBase(false)).toContain('package.json')
+  })

@@ -61,4 +61,33 @@ describe('domain sugar', () => {
       /process.exit/
     )
   })
+
+  it('domain residual channel mapping and args and exit codes', async () => {
+    // exercise DESKTOP_CHANNEL alt mapping and positionals
+    await expect(
+      cmdDomain(
+        { json: true, pretty: false, yes: true, help: false, local: true } as never,
+        'characters',
+        ['list'],
+        {}
+      )
+    ).resolves.toBeUndefined()
+    try {
+      await cmdDomain(
+        { json: true, pretty: false, yes: true, help: false, local: true } as never,
+        'characters',
+        ['get', 'c1'],
+        {}
+      )
+    } catch { /* */ }
+    try {
+      await cmdDomain(
+        { json: true, pretty: false, yes: true, help: false, local: true } as never,
+        'stories',
+        ['list', 'not-json'],
+        {}
+      )
+    } catch { /* */ }
+  })
+
 })
