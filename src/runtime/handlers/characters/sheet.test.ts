@@ -1,8 +1,22 @@
-import { describe, expect, it } from 'vitest'
-import { makeHandlerContext } from '../../../test/handlerTestUtils'
+import { describe, expect, it, vi, afterEach } from 'vitest'
+import { writeFileSync, mkdtempSync, rmSync, existsSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
+import {
+  makeHandlerContext,
+  invokeRegistered
+} from '../../../test/handlerTestUtils'
 import { registerCharactersSheet } from './sheet'
 
 describe('registerCharactersSheet', () => {
+  let dir: string | undefined
+  afterEach(() => {
+    if (dir) {
+      rmSync(dir, { recursive: true, force: true })
+      dir = undefined
+    }
+  })
+
   it('registers expected channels', () => {
     const ctx = makeHandlerContext()
     registerCharactersSheet(ctx)
@@ -10,5 +24,130 @@ describe('registerCharactersSheet', () => {
     expect(handlers.has('characters:generateSheet')).toBe(true)
     expect(handlers.has('characters:commitSheet')).toBe(true)
     expect(handlers.has('media:discardSheetDraft')).toBe(true)
+  })
+
+  it('generateSheet draft path writes tmp and does not persist gallery', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sheet-'))
+    const out = join(dir, 'sheet.png')
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('SHEET').toString('base64'),
+      sizeUsed: '1024x1024',
+      aspectUsed: '1:1'
+    }))
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      name: 'Ming',
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'hero',
+      appearance: 'short hair',
+      costume: 'jacket',
+      hardRules: 'NO logo',
+      artStyle: 'photo_cinematic',
+      refGalleryJson: null,
+      refImagePath: null,
+      refSheetPath: null
+    }))
+    const append = vi.fn()
+    const ctx = makeHandlerContext({
+      aiClient: {
+        generateImage,
+        editImage: vi.fn(),
+        chat: vi.fn()
+      },
+      characters: () => ({ get, update }) as never,
+      activity: {
+        append,
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => out,
+            characterImagePath: () => out
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    // disable enhance via settings on aiClient path — enhance may no-op
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageEnhance: false,
+        imageSizeSquare: '1024x1024',
+        imageSizeWide: '1792x1024',
+        imageSizeTall: '1024x1792'
+      })
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'characters:generateSheet', {
+      characterId: 'c1',
+      variant: 'bible',
+      persist: false,
+      artStyle: 'photo_cinematic'
+    })) as { draft: boolean; path: string; usedEdit: boolean }
+    expect(generateImage).toHaveBeenCalled()
+    expect(r.draft).toBe(true)
+    expect(existsSync(r.path)).toBe(true)
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'generateSheetDraft' })
+    )
+  })
+
+  it('commitSheet appends draft to gallery', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-commit-'))
+    const draft = join(dir, 'draft.png')
+    writeFileSync(draft, 'x')
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      name: 'Ming',
+      ...(data as object)
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      refGalleryJson: null,
+      refImagePath: null,
+      refSheetPath: null,
+      artStyle: null
+    }))
+    const libPath = join(dir, 'lib.png')
+    const promoteTmpImage = vi.fn(() => libPath)
+    writeFileSync(libPath, 'lib')
+    const ctx = makeHandlerContext({
+      characters: () => ({ get, update }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            characterImagePath: () => libPath,
+            promoteTmpImage
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'characters:commitSheet', {
+      characterId: 'c1',
+      path: draft,
+      variant: 'bible',
+      label: 'Bible sheet'
+    })) as { character: unknown; path: string }
+    expect(promoteTmpImage).toHaveBeenCalled()
+    expect(update).toHaveBeenCalled()
+    expect(r.path).toBeTruthy()
   })
 })
