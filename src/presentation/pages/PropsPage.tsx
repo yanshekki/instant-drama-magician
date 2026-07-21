@@ -240,85 +240,37 @@ export function PropsPage(): JSX.Element {
 
   useEffect(() => {
     return onPropProfileApply((draft) => {
-      if (draft.propId && editingId && draft.propId !== editingId) {
-        void reload()
-        return
-      }
-      const p = draft.profile
-      setForm((f) => ({
-        ...f,
-        name: p.name || f.name,
-        description: p.description || f.description,
-        material: p.material?.trim() ? p.material : f.material,
-        sizeNotes: p.sizeNotes?.trim() ? p.sizeNotes : f.sizeNotes,
-        condition: p.condition?.trim() ? p.condition : f.condition,
-        // Prefer AI visualTags even when previously empty; never keep blank if AI sent tags
-        visualTags:
-          typeof p.visualTags === 'string' && p.visualTags.trim()
-            ? p.visualTags.trim()
-            : f.visualTags,
-        hardRules:
-          typeof p.hardRules === 'string' && p.hardRules.trim()
-            ? p.hardRules.trim()
-            : f.hardRules,
-        artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle
-      }))
-      setEditorOpen(true)
-      setEditorPanel('profile')
-      setPageBanner(t('props.aiFillOk')); toast.success(t('props.aiFillOk'))
-      // Do not reload list immediately — it can race and leave form looking stale.
-      void reload()
+      propsHandleProfileApply(draft, editingId, {
+        reload,
+        setForm,
+        setEditorOpen,
+        setEditorPanel,
+        setBanner: (m) => {
+          setPageBanner(m)
+          toast.success(m)
+        },
+        okMsg: t('props.aiFillOk')
+      })
     })
-  }, [onPropProfileApply, editingId, reload, t])
+  }, [onPropProfileApply, editingId, reload, t, toast])
 
   useEffect(() => {
     return onPropPlateCommitted(({ propId, path, gallery }) => {
-      if (editingId === propId) {
-        if (gallery && gallery.length > 0) {
-          const g = gallery.map((item) => ({
-            id: item.id,
-            path: item.path,
-            kind: (item.kind === 'sheet' ||
-            item.kind === 'upload' ||
-            item.kind === 'gen'
-              ? item.kind
-              : 'sheet') as 'sheet' | 'upload' | 'gen',
-            label: item.label,
-            createdAt: item.createdAt,
-            ...(item.layer ? { layer: item.layer } : {}),
-            ...((item as { introVideoPath?: string | null }).introVideoPath
-              ? {
-                  introVideoPath: (item as { introVideoPath?: string | null })
-                    .introVideoPath
-                }
-              : {})
-          }))
-          setForm((f) => ({ ...f, gallery: g }))
-          const newest =
-            g.find((item) => item.path === path) ?? g[0] ?? null
-          setSelectedImageId(newest?.id ?? null)
-        } else {
-          void getApi()
-            .props.list()
-            .then((list) => {
-              const p = (list as Prop[]).find((x) => x.id === propId)
-              if (!p) return
-              const g = galleryFromProp(p)
-              setForm((f) => ({
-                ...f,
-                gallery: g,
-                coverPath: primarySceneGalleryPath(g, p.refImagePath)
-              }))
-              const newest =
-                g.find((item) => item.path === path) ?? g[0] ?? null
-              setSelectedImageId(newest?.id ?? null)
-            })
+      void propsHandlePlateCommitted(
+        { propId, path, gallery },
+        editingId,
+        {
+          reload,
+          setForm,
+          setSelectedImageId,
+          toastSuccess: () => toast.success(t('props.plateOkShort')),
+          listProps: () => getApi().props.list() as Promise<Prop[]>,
+          galleryFromProp,
+          primaryPath: primarySceneGalleryPath
         }
-      }
-      void reload()
-      toast.success(t('props.plateOkShort'))
+      )
     })
-  }, [onPropPlateCommitted, editingId, reload, t])
+  }, [onPropPlateCommitted, editingId, reload, t, toast])
 
   const closeEditor = (): void => {
     setEditorOpen(false)
@@ -521,79 +473,43 @@ export function PropsPage(): JSX.Element {
     ) {
       return
     }
-    void (async () => {
-      try {
-        await update(propId, payload())
-      } catch (e) {
-        propsApplySimpleIpc(e, toast.error)
-        return
-      }
-      startVideoPrep({
-        kind: 'prop-intro',
-        entityIds: { propId, storyId: activeStoryId ?? undefined },
-        sourceImagePath: sourcePath,
-        durationSeconds: 10,
-        locale: getAiLocale(i18n.language)
-      })
-    })()
+    void propsStartIntroAfterSave({
+      update: () => update(propId, payload()),
+      toastError: toast.error,
+      start: () =>
+        startVideoPrep({
+          kind: 'prop-intro',
+          entityIds: { propId, storyId: activeStoryId ?? undefined },
+          sourceImagePath: sourcePath,
+          durationSeconds: 10,
+          locale: getAiLocale(i18n.language)
+        })
+    })
   }
 
   // After video confirm, reload gallery introVideoPath
   useEffect(() => {
     const onDone = (ev: Event): void => {
-      const d = (ev as CustomEvent).detail as {
-        kind?: string
-        entityIds?: { propId?: string }
-        gallery?: Array<{
-          id: string
-          path: string
-          kind: string
-          label: string
-          createdAt: string
-          layer?: string
-          introVideoPath?: string | null
-        }>
-      }
-      if (d?.kind !== 'prop-intro') return
-      if (!editingId || d.entityIds?.propId !== editingId) return
-      if (d.gallery?.length) {
-        setForm((f) => ({
-          ...f,
-          gallery: d.gallery!.map((item) => ({
-            id: item.id,
-            path: item.path,
-            kind: (item.kind === 'sheet' ||
-            item.kind === 'upload' ||
-            item.kind === 'gen'
-              ? item.kind
-              : 'sheet') as 'sheet' | 'upload' | 'gen',
-            label: item.label,
-            createdAt: item.createdAt,
-            ...(item.layer ? { layer: item.layer } : {}),
-            ...(item.introVideoPath
-              ? { introVideoPath: item.introVideoPath }
-              : {})
-          }))
-        }))
-      } else {
-        void reload()
-      }
+      propsHandleVideoPrepDone(
+        (ev as CustomEvent).detail,
+        editingId,
+        setForm,
+        reload
+      )
     }
     window.addEventListener('idm:video-prep-done', onDone)
     return () => window.removeEventListener('idm:video-prep-done', onDone)
   }, [editingId, reload])
 
-  const selectedPathsForIdentity = useMemo(() => {
-    const ids =
-      selectedImageIds.length > 0
-        ? selectedImageIds
-        : selectedImageId
-          ? [selectedImageId]
-          : []
-    return ids
-      .map((id) => form.gallery.find((g) => g.id === id)?.path)
-      .filter((p): p is string => Boolean(p?.trim()))
-  }, [selectedImageIds, selectedImageId, form.gallery])
+  const selectedPathsForIdentity = useMemo(
+    () =>
+      propsSelectedPathsForIdentity(
+        selectedImageIds,
+        selectedImageId,
+        form.gallery
+      ),
+    [selectedImageIds, selectedImageId, form.gallery]
+  )
 
   /** Open confirm modal, then generate on confirm. */
   const handleGeneratePlate = async (opts?: {
@@ -697,33 +613,22 @@ export function PropsPage(): JSX.Element {
   const handlePickImage = async (): Promise<void> => {
     const result = await getApi().media.pickRefImage()
     if (!result) return
-    const next = appendSceneGalleryItem(form.gallery, {
-      path: result.filePath,
-      kind: 'upload',
-      label: t('common.uploadRef')
+    propsApplyPickedImage({
+      filePath: result.filePath,
+      uploadLabel: t('common.uploadRef'),
+      gallery: form.gallery,
+      setForm,
+      setSelectedImageId,
+      setSelectedImageIds,
+      toastSuccess: () => toast.success(t('characters.externalRefAdded')),
+      appendItem: appendSceneGalleryItem
     })
-    const newId = next[next.length - 1]?.id ?? null
-    setForm((f) => ({
-      ...f,
-      gallery: next,
-      coverPath: f.coverPath ?? next[0]?.path ?? null
-    }))
-    if (newId) {
-      setSelectedImageId(newId)
-      setSelectedImageIds((ids) =>
-        ids.includes(newId) ? ids : [...ids, newId]
-      )
-    }
-    toast.success(t('characters.externalRefAdded'))
   }
 
-  const handleReorderGallery = (fromId: string, toId: string): void => {
-    if (!propsShouldReorder(fromId, toId)) return
-    setForm((f) => ({
-      ...f,
-      gallery: moveSceneGalleryItem(f.gallery, fromId, toId)
-    }))
-  }
+  const handleReorderGallery = propsMakeReorderHandler(
+    setForm,
+    moveSceneGalleryItem
+  )
 
   const handleSetCover = (path: string): void => {
     setForm((f) => ({ ...f, coverPath: path }))
@@ -988,20 +893,20 @@ export function PropsPage(): JSX.Element {
                     <div className="flex flex-wrap justify-center gap-2">
                       <Button
                         disabled={editorBusy}
-                        onClick={() => {
-                          setEditorPanel('refs')
-                          void handleGeneratePlate()
-                        }}
+                        onClick={propsMakeEmptyGalleryAction(
+                          setEditorPanel,
+                          () => void handleGeneratePlate()
+                        )}
                       >
                         {t('props.generatePlate')}
                       </Button>
                       <Button
                         variant="secondary"
                         disabled={editorBusy}
-                        onClick={() => {
-                          setEditorPanel('refs')
-                          void handlePickImage()
-                        }}
+                        onClick={propsMakeEmptyGalleryAction(
+                          setEditorPanel,
+                          () => void handlePickImage()
+                        )}
                       >
                         {t('common.uploadRef')}
                       </Button>
@@ -1389,6 +1294,281 @@ export function propsMakeClearFilters(
 
 export function propsShouldReorder(fromId: string, toId: string): boolean {
   return Boolean(fromId && toId && fromId !== toId)
+}
+
+export function propsSelectedPathsForIdentity(
+  selectedImageIds: string[],
+  selectedImageId: string | null,
+  gallery: { id: string; path: string }[]
+): string[] {
+  const ids =
+    selectedImageIds.length > 0
+      ? selectedImageIds
+      : selectedImageId
+        ? [selectedImageId]
+        : []
+  return ids
+    .map((id) => gallery.find((g) => g.id === id)?.path)
+    .filter((p): p is string => Boolean(p?.trim()))
+}
+
+export type PropGalleryItemLike = {
+  id: string
+  path: string
+  kind: 'sheet' | 'upload' | 'gen'
+  label: string
+  createdAt: string
+  layer?: string
+  introVideoPath?: string | null
+}
+
+export function propsMapVideoPrepGalleryItem(item: {
+  id: string
+  path: string
+  kind: string
+  label: string
+  createdAt: string
+  layer?: string
+  introVideoPath?: string | null
+}): PropGalleryItemLike {
+  return {
+    id: item.id,
+    path: item.path,
+    kind: (item.kind === 'sheet' ||
+    item.kind === 'upload' ||
+    item.kind === 'gen'
+      ? item.kind
+      : 'sheet') as 'sheet' | 'upload' | 'gen',
+    label: item.label,
+    createdAt: item.createdAt,
+    ...(item.layer ? { layer: item.layer } : {}),
+    ...(item.introVideoPath ? { introVideoPath: item.introVideoPath } : {})
+  }
+}
+
+export function propsHandleVideoPrepDone(
+  d: {
+    kind?: string
+    entityIds?: { propId?: string }
+    gallery?: Array<{
+      id: string
+      path: string
+      kind: string
+      label: string
+      createdAt: string
+      layer?: string
+      introVideoPath?: string | null
+    }>
+  } | null
+    | undefined,
+  editingId: string | null,
+  setForm: (fn: (f: { gallery: PropGalleryItemLike[] }) => unknown) => void,
+  reload: () => void
+): 'skip' | 'gallery' | 'reload' {
+  if (d?.kind !== 'prop-intro') return 'skip'
+  if (!editingId || d.entityIds?.propId !== editingId) return 'skip'
+  if (d.gallery?.length) {
+    setForm((f) => ({
+      ...f,
+      gallery: d.gallery!.map(propsMapVideoPrepGalleryItem)
+    }))
+    return 'gallery'
+  }
+  void reload()
+  return 'reload'
+}
+
+export async function propsStartIntroAfterSave(ops: {
+  update: () => Promise<unknown>
+  toastError: (m: string) => void
+  start: () => void
+}): Promise<'error' | 'started'> {
+  try {
+    await ops.update()
+  } catch (e) {
+    propsApplySimpleIpc(e, ops.toastError)
+    return 'error'
+  }
+  ops.start()
+  return 'started'
+}
+
+export function propsApplyPickedImage(ops: {
+  filePath: string
+  uploadLabel: string
+  gallery: PropGalleryItemLike[]
+  setForm: (fn: (f: {
+    gallery: PropGalleryItemLike[]
+    coverPath: string | null
+  }) => unknown) => void
+  setSelectedImageId: (id: string | null) => void
+  setSelectedImageIds: (fn: (ids: string[]) => string[]) => void
+  toastSuccess: () => void
+  appendItem: (
+    gallery: PropGalleryItemLike[],
+    item: { path: string; kind: 'upload'; label: string }
+  ) => PropGalleryItemLike[]
+}): string | null {
+  const next = ops.appendItem(ops.gallery, {
+    path: ops.filePath,
+    kind: 'upload',
+    label: ops.uploadLabel
+  })
+  const newId = next[next.length - 1]?.id ?? null
+  ops.setForm((f) => ({
+    ...f,
+    gallery: next,
+    coverPath: f.coverPath ?? next[0]?.path ?? null
+  }))
+  if (newId) {
+    ops.setSelectedImageId(newId)
+    ops.setSelectedImageIds((ids) =>
+      ids.includes(newId) ? ids : [...ids, newId]
+    )
+  }
+  ops.toastSuccess()
+  return newId
+}
+
+export function propsMakeReorderHandler(
+  setForm: (fn: (f: { gallery: PropGalleryItemLike[] }) => unknown) => void,
+  moveItem: (
+    gallery: PropGalleryItemLike[],
+    fromId: string,
+    toId: string
+  ) => PropGalleryItemLike[]
+): (fromId: string, toId: string) => void {
+  return (fromId, toId) => {
+    if (!propsShouldReorder(fromId, toId)) return
+    setForm((f) => ({
+      ...f,
+      gallery: moveItem(f.gallery, fromId, toId)
+    }))
+  }
+}
+
+export function propsMakeEmptyGalleryAction(
+  setPanel: (p: string) => void,
+  action: () => void
+): () => void {
+  return () => {
+    setPanel('refs')
+    action()
+  }
+}
+
+export function propsPickField(
+  ai: string | undefined | null,
+  fallback: string
+): string {
+  return ai?.trim() ? ai : fallback
+}
+
+export function propsHandleProfileApply(
+  draft: {
+    propId: string | null
+    profile: {
+      name: string
+      description: string
+      material?: string
+      sizeNotes?: string
+      condition?: string
+      visualTags?: string
+      hardRules?: string
+      artStyle?: string
+    }
+  },
+  editingId: string | null,
+  ops: {
+    reload: () => void
+    setForm: (fn: (f: FormState) => FormState) => void
+    setEditorOpen: (v: boolean) => void
+    setEditorPanel: (p: EditorPanel) => void
+    setBanner: (m: string) => void
+    okMsg: string
+  }
+): 'mismatch' | 'applied' {
+  if (draft.propId && editingId && draft.propId !== editingId) {
+    void ops.reload()
+    return 'mismatch'
+  }
+  const p = draft.profile
+  ops.setForm((f) => ({
+    ...f,
+    name: p.name || f.name,
+    description: p.description || f.description,
+    material: propsPickField(p.material, f.material),
+    sizeNotes: propsPickField(p.sizeNotes, f.sizeNotes),
+    condition: propsPickField(p.condition, f.condition),
+    visualTags: propsPickField(p.visualTags, f.visualTags),
+    hardRules: propsPickField(p.hardRules, f.hardRules),
+    artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle
+  }))
+  ops.setEditorOpen(true)
+  ops.setEditorPanel('profile')
+  ops.setBanner(ops.okMsg)
+  void ops.reload()
+  return 'applied'
+}
+
+export async function propsHandlePlateCommitted(
+  payload: {
+    propId: string
+    path: string
+    gallery?: Array<{
+      id: string
+      path: string
+      kind: string
+      label: string
+      createdAt: string
+      layer?: string
+      introVideoPath?: string | null
+    }>
+  },
+  editingId: string | null,
+  ops: {
+    reload: () => void
+    setForm: (fn: (f: FormState) => FormState) => void
+    setSelectedImageId: (id: string | null) => void
+    toastSuccess: () => void
+    listProps: () => Promise<Prop[]>
+    galleryFromProp: (p: Prop) => PropGalleryItemLike[]
+    primaryPath: (
+      gal: PropGalleryItemLike[],
+      ref?: string | null
+    ) => string | null
+  }
+): Promise<'other' | 'gallery' | 'listed' | 'listed-miss'> {
+  const { propId, path, gallery } = payload
+  let result: 'other' | 'gallery' | 'listed' | 'listed-miss' = 'other'
+  if (editingId === propId) {
+    if (gallery && gallery.length > 0) {
+      const g = gallery.map(propsMapVideoPrepGalleryItem)
+      ops.setForm((f) => ({ ...f, gallery: g as FormState['gallery'] }))
+      const newest = g.find((item) => item.path === path) ?? g[0] ?? null
+      ops.setSelectedImageId(newest?.id ?? null)
+      result = 'gallery'
+    } else {
+      const list = await ops.listProps()
+      const p = list.find((x) => x.id === propId)
+      if (!p) {
+        result = 'listed-miss'
+      } else {
+        const g = ops.galleryFromProp(p)
+        ops.setForm((f) => ({
+          ...f,
+          gallery: g as FormState['gallery'],
+          coverPath: ops.primaryPath(g, p.refImagePath)
+        }))
+        const newest = g.find((item) => item.path === path) ?? g[0] ?? null
+        ops.setSelectedImageId(newest?.id ?? null)
+        result = 'listed'
+      }
+    }
+  }
+  void ops.reload()
+  ops.toastSuccess()
+  return result
 }
 
 export async function propsRemoveWithFeedback(ops: {

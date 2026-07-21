@@ -425,20 +425,20 @@ export function TimelinePage(): JSX.Element {
       last = now
       setPlayhead((t) => {
         const next = t + dt
-        if (next >= Math.max(totalDuration, 0.1)) {
-          setIsPlaying(false)
-          return Math.max(totalDuration, 0)
-        }
         const list = entriesRef.current
         const hit = list.find((e) => next >= e.startTime && next < e.endTime)
-        if (hit) {
-          if (hit.id !== selectedIdRef.current) setSelectedId(hit.id)
-          // Entered a READY clip — video clock takes over
-          if (hit.mediaStatus === 'READY' && hit.mediaPath) {
-            return Math.max(next, hit.startTime)
-          }
+        const r = timelineRafTickValue(
+          next,
+          totalDuration,
+          hit,
+          selectedIdRef.current
+        )
+        if (r.stop) {
+          setIsPlaying(false)
+          return r.value
         }
-        return next
+        if (r.selectId) setSelectedId(r.selectId)
+        return r.value
       })
       raf = requestAnimationFrame(tick)
     }
@@ -763,8 +763,7 @@ export function TimelinePage(): JSX.Element {
       opts?: { skipStillIfExists?: boolean }
     ): void => {
       const ids = entryIds.filter(Boolean)
-      if (ids.length === 0) {
-        toast.info(t('pipeline.noFailedClips'))
+      if (timelineNoFailedClips(ids.length, toast.info, t('pipeline.noFailedClips'))) {
         return
       }
       const [first, ...rest] = ids
@@ -803,8 +802,9 @@ export function TimelinePage(): JSX.Element {
           (e) => e.mediaStatus === 'FAILED' || e.mediaStatus === 'EMPTY'
         )
         .sort((a, b) => a.order - b.order)
-      if (need.length === 0) {
-        toast.info(t('pipeline.noFailedClips'))
+      if (
+        timelineNoFailedClips(need.length, toast.info, t('pipeline.noFailedClips'))
+      ) {
         return
       }
     } else if (entries.length === 0) {
@@ -993,17 +993,16 @@ export function TimelinePage(): JSX.Element {
       variant: 'danger'
     })
     if (!ok) return
-    setExportDeleteBusyId(exportId)
-    try {
-      const r = await getApi().media.deleteExport(activeStoryId, exportId)
-      setExportHistory(r.items)
-      setLastExportPath(r.latestPath)
-      toast.success(t('timeline.exportDeleted'))
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    } finally {
-      setExportDeleteBusyId(null)
-    }
+    await timelineRunDeleteExport({
+      exportId,
+      storyId: activeStoryId,
+      setBusy: setExportDeleteBusyId,
+      deleteExport: (sid, eid) => getApi().media.deleteExport(sid, eid),
+      setHistory: setExportHistory,
+      setLatest: setLastExportPath,
+      toastSuccess: () => toast.success(t('timeline.exportDeleted')),
+      toastError: (m) => toast.error(m)
+    })
   }
 
   const handleRunClip = async (entryId: string): Promise<void> => {
@@ -1022,8 +1021,11 @@ export function TimelinePage(): JSX.Element {
       storyId: activeStoryId,
       entryId
     })
-    if (hasVideoPrepDraft(draftKey)) {
-      continueVideoPrepDraft(draftKey)
+    if (
+      timelineContinueClipDraft(hasVideoPrepDraft(draftKey), () =>
+        continueVideoPrepDraft(draftKey)
+      )
+    ) {
       return
     }
     // Prefer reusing advanced-prep / continuity still when present
@@ -1037,12 +1039,14 @@ export function TimelinePage(): JSX.Element {
       storyId: activeStoryId ?? '',
       entryId
     })
-    if (activeStoryId && hasVideoPrepDraft(draftKey)) {
-      return t('videoPrep.continueVideo')
-    }
-    return status === 'FAILED' || status === 'EMPTY'
-      ? t('timeline.generateClip')
-      : t('timeline.regenClip')
+    const hasDraft = Boolean(activeStoryId && hasVideoPrepDraft(draftKey))
+    return timelineClipGenerateLabel(
+      hasDraft,
+      status,
+      t('videoPrep.continueVideo'),
+      t('timeline.generateClip'),
+      t('timeline.regenClip')
+    )
   }
 
   // After timeline-clip video confirm — refresh media (wizard owns「下一格」)
@@ -1958,6 +1962,46 @@ export function timelineClipButtonLabel(
   return hasDraft ? continueMsg : genMsg
 }
 
+export function timelineClipGenerateLabel(
+  hasDraft: boolean,
+  status: string,
+  continueMsg: string,
+  genMsg: string,
+  regenMsg: string
+): string {
+  if (hasDraft) return continueMsg
+  return status === 'FAILED' || status === 'EMPTY' ? genMsg : regenMsg
+}
+
+export async function timelineRunDeleteExport(ops: {
+  exportId: string
+  storyId: string
+  setBusy: (id: string | null) => void
+  deleteExport: (
+    storyId: string,
+    exportId: string
+  ) => Promise<{ items: unknown[]; latestPath: string | null }>
+  setHistory: (items: never[]) => void
+  setLatest: (path: string | null) => void
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): Promise<'ok' | 'error'> {
+  ops.setBusy(ops.exportId)
+  try {
+    const r = await ops.deleteExport(ops.storyId, ops.exportId)
+    ops.setHistory(r.items as never[])
+    ops.setLatest(r.latestPath)
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    ops.toastError(msg)
+    return 'error'
+  } finally {
+    ops.setBusy(null)
+  }
+}
+
 export function timelineSpokenPreview(spoken: string, max = 60): string {
   return spoken.length > max ? `${spoken.slice(0, max)}…` : spoken
 }
@@ -1968,6 +2012,33 @@ export function timelineGeneratingLabel(
   idle: string
 ): string {
   return busy ? generating : idle
+}
+
+export function timelineRafTickValue(
+  next: number,
+  totalDuration: number,
+  hit: { id: string; startTime: number; mediaStatus: string; mediaPath?: string | null } | undefined,
+  selectedId: string | null
+): {
+  stop: boolean
+  value: number
+  selectId?: string
+} {
+  if (next >= Math.max(totalDuration, 0.1)) {
+    return { stop: true, value: Math.max(totalDuration, 0) }
+  }
+  if (hit) {
+    const selectId = hit.id !== selectedId ? hit.id : undefined
+    if (hit.mediaStatus === 'READY' && hit.mediaPath) {
+      return {
+        stop: false,
+        value: Math.max(next, hit.startTime),
+        selectId
+      }
+    }
+    return { stop: false, value: next, selectId }
+  }
+  return { stop: false, value: next }
 }
 
 export function timelineExportSizeOrEmpty(

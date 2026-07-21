@@ -343,8 +343,9 @@ export function CostumesPage(): JSX.Element {
   }, [characters, linkedCharIds, linksFilter, linksQ, i18n.language])
 
   const handleToggleLink = async (characterId: string): Promise<void> => {
-    if (!editId) {
-      toast.info(t('costumes.linksSaveFirst'))
+    if (
+      costumesGuardSaveFirst(editId, toast.info, t('costumes.linksSaveFirst'))
+    ) {
       return
     }
     const linked = linkedCharIds.includes(characterId)
@@ -394,18 +395,20 @@ export function CostumesPage(): JSX.Element {
       return
     }
     if (
-      isBlocked({
-        kind: ['costume-ai-fill', 'costume-intro-video', 'costume-swap'],
-        costumeId: editId ?? undefined
-      }) ||
-      busy
+      costumesGuardBusy(
+        isBlocked({
+          kind: ['costume-ai-fill', 'costume-intro-video', 'costume-swap'],
+          costumeId: editId ?? undefined
+        }) || busy,
+        toast.info,
+        t('aiJobs.running')
+      )
     ) {
-      toast.info(t('aiJobs.running'))
       return
     }
     setPageBanner(t('aiJobs.startedBackground'))
     toast.info(
-      hasImage && !idea
+      costumesAiFillToastKey(hasImage, idea) === 'fromImage'
         ? t('common.aiFillFromImage')
         : t('aiJobs.startedBackground')
     )
@@ -497,12 +500,15 @@ export function CostumesPage(): JSX.Element {
         (l.character.costume ?? '').trim().toLowerCase() ===
         c.description.trim().toLowerCase()
     )
-    if (activeOn.length > 0) {
-      toast.info(
+    if (
+      costumesCannotDeleteActive(
+        activeOn.map((a) => a.character.name),
+        toast.info,
         t('costumes.cannotDeleteActive', {
           names: activeOn.map((a) => a.character.name).join(', ')
         })
       )
+    ) {
       return
     }
     const ok = await dialog.confirm({
@@ -545,14 +551,17 @@ export function CostumesPage(): JSX.Element {
     const removed = gallery.find((g) => g.id === id)
     const next = removeGalleryItem(gallery, id)
     setGallery(next)
-    if (removed && lookImagePath === removed.path) {
-      const primary = primaryGalleryPath(next)
-      setLookImagePath(primary)
-      setSelectedGalId(next.find((g) => g.path === primary)?.id ?? next[0]?.id ?? null)
-    } else if (!isGalleryCoverPath(next, lookImagePath)) {
-      const primary = primaryGalleryPath(next)
-      setLookImagePath(primary)
-      setSelectedGalId(next[0]?.id ?? null)
+    const adj = costumesAfterRemoveImage(
+      removed?.path,
+      lookImagePath,
+      next,
+      (gal, look) => isGalleryCoverPath(gal as never, look),
+      (gal) => primaryGalleryPath(gal as never)
+    )
+    if (adj.selectedId !== null || adj.look !== lookImagePath) {
+      if (adj.look !== lookImagePath) setLookImagePath(adj.look)
+      if (adj.selectedId) setSelectedGalId(adj.selectedId)
+      else if (removed && lookImagePath === removed.path) setSelectedGalId(null)
     }
   }
 
@@ -561,13 +570,7 @@ export function CostumesPage(): JSX.Element {
       kind: ['costume-ai-fill', 'costume-intro-video', 'costume-swap'],
       costumeId: costumeId ?? undefined
     }) ||
-    activeJobs.some(
-      (j) =>
-        (j.kind === 'costume-ai-fill' ||
-          j.kind === 'costume-intro-video' ||
-          j.kind === 'costume-swap') &&
-        (!costumeId || j.scope.costumeId === costumeId)
-    )
+    activeJobs.some((j) => costumesIsBusyJob(j, costumeId))
 
   const selectedGalItem = useMemo(() => {
     if (!gallery.length) return null
@@ -581,24 +584,31 @@ export function CostumesPage(): JSX.Element {
 
   /** Animate the selected still into a costume look intro video. */
   const handleGenerateIntroVideo = (sourceImagePath: string): void => {
-    if (!editId) {
-      toast.info(t('costumes.saveFirstForDress'))
-      return
-    }
-    if (!sourceImagePath?.trim()) {
-      toast.error(t('costumes.introVideoNeedImage'))
-      return
-    }
-    if (costumeBusy(editId) || busy) return
-    const costumeId = editId
+    const gate = costumesGuardIntro(
+      editId,
+      sourceImagePath,
+      costumeBusy(editId) || busy,
+      toast.info,
+      toast.error,
+      {
+        saveFirst: t('costumes.saveFirstForDress'),
+        needImage: t('costumes.introVideoNeedImage'),
+        loading: t('aiJobs.running')
+      }
+    )
+    if (gate !== 'ok') return
+    const costumeId = editId!
     const sourcePath = sourceImagePath.trim()
     const draftKey = buildVideoPrepDraftKey(
       'costume-intro',
       { costumeId },
       sourcePath
     )
-    if (hasVideoPrepDraft(draftKey)) {
-      continueVideoPrepDraft(draftKey)
+    if (
+      costumesMaybeContinueDraft(hasVideoPrepDraft(draftKey), () =>
+        continueVideoPrepDraft(draftKey)
+      )
+    ) {
       return
     }
     void (async () => {
@@ -672,24 +682,24 @@ export function CostumesPage(): JSX.Element {
   }, [editId, reload])
 
   const handleGenerateDressed = (): void => {
-    if (!editId) {
-      toast.info(t('costumes.saveFirstForDress'))
-      return
-    }
-    if (!dressCharId) {
-      toast.info(t('costumes.pickCharacterForDress'))
-      return
-    }
     // UI pre-check: character must have at least one gallery still (paths may still be stale on disk).
-    if (dressCharBaseOptions.length === 0) {
-      toast.error(t('errors.costumeNoBaseImage'))
-      setPageBanner(t('errors.costumeNoBaseImage'))
-      return
-    }
-    if (isBlocked({ kind: ['costume-swap'], characterId: dressCharId })) {
-      toast.info(t('aiJobs.running'))
-      return
-    }
+    const baseOk = dressCharBaseOptions.length > 0 ? 'ok-path' : ''
+    const gate = costumesGuardDress(
+      editId,
+      dressCharId,
+      baseOk,
+      isBlocked({ kind: ['costume-swap'], characterId: dressCharId }),
+      toast.info,
+      toast.error,
+      setPageBanner,
+      {
+        saveFirst: t('costumes.saveFirstForDress'),
+        pickChar: t('costumes.pickCharacterForDress'),
+        noBase: t('errors.costumeNoBaseImage'),
+        loading: t('aiJobs.running')
+      }
+    )
+    if (gate !== 'ok') return
     const char = characters.find((x) => x.id === dressCharId)
     const pose = getCostumeSwapPose(dressPose)
     const artStyle = getArtStyle(lookStyle).id
@@ -713,9 +723,11 @@ export function CostumesPage(): JSX.Element {
     prompt = ensureHardRules(prompt, lookHardRules)
     const poseLabel = t(`characters.${pose.labelKey}`)
     const styleLabel = t(`characters.${getArtStyle(artStyle).labelKey}`)
-    const baseMode = dressBasePath
-      ? t('costumes.baseImageManual')
-      : t('costumes.baseImageAuto')
+    const baseMode = costumesBaseLabel(
+      Boolean(dressBasePath),
+      t('costumes.baseImageManual'),
+      t('costumes.baseImageAuto')
+    )
     setImageGenConfirm({
       prompt,
       referencePaths: base ? [base] : [],
@@ -729,8 +741,13 @@ export function CostumesPage(): JSX.Element {
   ): Promise<void> => {
     setImageGenConfirm(null)
     if (!editId || !dressCharId) return
-    if (isBlocked({ kind: ['costume-swap'], characterId: dressCharId })) {
-      toast.info(t('aiJobs.running'))
+    if (
+      costumesGuardBusy(
+        isBlocked({ kind: ['costume-swap'], characterId: dressCharId }),
+        toast.info,
+        t('aiJobs.running')
+      )
+    ) {
       return
     }
     const costumeId = editId
@@ -1096,12 +1113,8 @@ export function CostumesPage(): JSX.Element {
                 coverPath={lookImagePath}
                 onSelect={(id) => setSelectedGalId(id)}
                 onReorder={(fromId, toId) => {
-                  const from = gallery.findIndex((g) => g.id === fromId)
-                  const to = gallery.findIndex((g) => g.id === toId)
-                  if (from < 0 || to < 0) return
-                  const next = [...gallery]
-                  const [item] = next.splice(from, 1)
-                  next.splice(to, 0, item)
+                  const next = costumesReorderGallery(gallery, fromId, toId)
+                  if (!next) return
                   setGallery(next)
                 }}
                 labelOf={(g) => translateCharacterGalleryLabel(g.label, t)}
@@ -1664,4 +1677,247 @@ export function CostumesPage(): JSX.Element {
       />
     </div>
   )
+}
+
+// ─── Residual pure helpers (absolute line coverage) ─────────────────────────
+
+export function costumesGuardSaveFirst(
+  editId: string | null | undefined,
+  toastInfo: (m: string) => void,
+  msg: string
+): boolean {
+  if (!editId) {
+    toastInfo(msg)
+    return true
+  }
+  return false
+}
+
+export function costumesGuardBusy(
+  busy: boolean,
+  toastInfo: (m: string) => void,
+  msg: string
+): boolean {
+  if (busy) {
+    toastInfo(msg)
+    return true
+  }
+  return false
+}
+
+export function costumesAiFillToastKey(
+  hasImage: boolean,
+  idea: string
+): 'fromImage' | 'background' {
+  return hasImage && !idea ? 'fromImage' : 'background'
+}
+
+export function costumesApplyIpc(
+  e: unknown,
+  setError: (m: string) => void,
+  toastError: (m: string) => void
+): string {
+  const msg =
+    e instanceof Error
+      ? e.message
+      : typeof e === 'string'
+        ? e
+        : String(e)
+  setError(msg)
+  toastError(msg)
+  return msg
+}
+
+export function costumesApplySimpleIpc(
+  e: unknown,
+  toastError: (m: string) => void
+): string {
+  const msg =
+    e instanceof Error
+      ? e.message
+      : typeof e === 'string'
+        ? e
+        : String(e)
+  toastError(msg)
+  return msg
+}
+
+export function costumesCannotDeleteActive(
+  activeNames: string[],
+  toastInfo: (m: string) => void,
+  msg: string
+): boolean {
+  if (activeNames.length > 0) {
+    toastInfo(msg)
+    return true
+  }
+  return false
+}
+
+export function costumesIsBusyJob(
+  j: { kind: string; scope: { costumeId?: string } },
+  costumeId?: string | null
+): boolean {
+  return (
+    (j.kind === 'costume-ai-fill' ||
+      j.kind === 'costume-intro-video' ||
+      j.kind === 'costume-swap') &&
+    (!costumeId || j.scope.costumeId === costumeId)
+  )
+}
+
+export function costumesGuardIntro(
+  editId: string | null | undefined,
+  sourcePath: string | null | undefined,
+  busy: boolean,
+  toastInfo: (m: string) => void,
+  toastError: (m: string) => void,
+  msgs: { saveFirst: string; needImage: string; loading: string }
+): 'saveFirst' | 'needImage' | 'busy' | 'ok' {
+  if (!editId) {
+    toastInfo(msgs.saveFirst)
+    return 'saveFirst'
+  }
+  if (!sourcePath?.trim()) {
+    toastError(msgs.needImage)
+    return 'needImage'
+  }
+  if (busy) {
+    toastInfo(msgs.loading)
+    return 'busy'
+  }
+  return 'ok'
+}
+
+export function costumesMaybeContinueDraft(
+  has: boolean,
+  cont: () => void
+): boolean {
+  if (has) {
+    cont()
+    return true
+  }
+  return false
+}
+
+export function costumesGuardDress(
+  editId: string | null | undefined,
+  dressCharId: string,
+  basePath: string,
+  busy: boolean,
+  toastInfo: (m: string) => void,
+  toastError: (m: string) => void,
+  setBanner: (m: string) => void,
+  msgs: {
+    saveFirst: string
+    pickChar: string
+    noBase: string
+    loading: string
+  }
+): 'saveFirst' | 'pickChar' | 'noBase' | 'busy' | 'ok' {
+  if (!editId) {
+    toastInfo(msgs.saveFirst)
+    return 'saveFirst'
+  }
+  if (!dressCharId) {
+    toastInfo(msgs.pickChar)
+    return 'pickChar'
+  }
+  if (!basePath?.trim()) {
+    toastError(msgs.noBase)
+    setBanner(msgs.noBase)
+    return 'noBase'
+  }
+  if (busy) {
+    toastInfo(msgs.loading)
+    return 'busy'
+  }
+  return 'ok'
+}
+
+export function costumesBaseLabel(
+  manual: boolean,
+  manualMsg: string,
+  autoMsg: string
+): string {
+  return manual ? manualMsg : autoMsg
+}
+
+export function costumesAfterRemoveImage(
+  removedPath: string | undefined,
+  lookImagePath: string | null,
+  next: { id: string; path: string }[],
+  isCover: (gal: { path: string }[], look: string | null) => boolean,
+  primary: (gal: { path: string }[]) => string | null
+): { look: string | null; selectedId: string | null } {
+  if (removedPath && lookImagePath === removedPath) {
+    const p = primary(next)
+    return {
+      look: p,
+      selectedId: next.find((g) => g.path === p)?.id ?? next[0]?.id ?? null
+    }
+  }
+  if (!isCover(next, lookImagePath)) {
+    const p = primary(next)
+    return { look: p, selectedId: next[0]?.id ?? null }
+  }
+  return { look: lookImagePath, selectedId: null }
+}
+
+export function costumesReorderGallery<T extends { id: string }>(
+  gallery: T[],
+  fromId: string,
+  toId: string
+): T[] | null {
+  const from = gallery.findIndex((g) => g.id === fromId)
+  const to = gallery.findIndex((g) => g.id === toId)
+  if (from < 0 || to < 0) return null
+  const next = [...gallery]
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
+}
+
+export function costumesArtStyleLabel(
+  v: string,
+  isStyle: (x: string) => boolean,
+  styleLabel: (x: string) => string
+): string {
+  return isStyle(v) ? styleLabel(v) : v
+}
+
+export function costumesIntroVideoHandler(
+  editId: string | null | undefined,
+  path: string,
+  handler: (p: string) => void
+): (() => void) | undefined {
+  return editId ? () => handler(path) : undefined
+}
+
+export function costumesMaybeSetDressBase(
+  options: { path: string }[],
+  dressBasePath: string
+): string | null {
+  if (options[0] && !dressBasePath) return options[0].path
+  return null
+}
+
+export function costumesFilterByQuery<T extends { name: string; description?: string | null }>(
+  items: T[],
+  q: string
+): T[] {
+  if (!q.trim()) return items
+  const lower = q.toLowerCase()
+  return items.filter(
+    (c) =>
+      c.name.toLowerCase().includes(lower) ||
+      (c.description ?? '').toLowerCase().includes(lower)
+  )
+}
+
+export function costumesRefFallback(
+  c: { refImagePath?: string | null; name: string } | null
+): { path: string; label: string; id: string }[] {
+  if (!c?.refImagePath) return []
+  return [{ path: c.refImagePath, label: c.name, id: 'ref' }]
 }

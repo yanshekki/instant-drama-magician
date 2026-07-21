@@ -1,5 +1,12 @@
 import { ensureHardRules } from '../../domain/promptHardRules'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
 import {
@@ -342,12 +349,12 @@ export function CharactersPage(): JSX.Element {
     Boolean(charLang)
 
   const removeWithFeedback = async (id: string): Promise<void> => {
-    try {
-      await remove(id)
-      toast.success(t('common.deleted'))
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
+    await charactersRemoveWithFeedback({
+      remove,
+      id,
+      toastSuccess: () => toast.success(t('common.deleted')),
+      toastError: toast.error
+    })
   }
 
 
@@ -363,185 +370,73 @@ export function CharactersPage(): JSX.Element {
   const [pageBanner, setPageBanner] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const CHARACTER_AI_KINDS = [
-    'character-ai-fill',
-    'character-sheet',
-    'character-intro-video',
-    'costume-swap',
-    'wardrobe-suggest'
-  ] as const
-
   /** null / undefined = "new character" scope (only block other new-char jobs). */
   const characterAiBusy = (characterId?: string | null): boolean => {
     const id = characterId ?? null
-    if (
+    return charactersAiBusyFromJobs(
+      activeJobs,
+      id,
       isBlocked({
         kind: [...CHARACTER_AI_KINDS],
         characterId: id
       })
-    ) {
-      return true
-    }
-    return activeJobs.some((j) => {
-      if (!(CHARACTER_AI_KINDS as readonly string[]).includes(j.kind)) {
-        return false
-      }
-      if (id) {
-        return j.scope.characterId === id
-      }
-      // New character: only block concurrent jobs that also have no characterId
-      return !j.scope.characterId
-    })
+    )
   }
 
   const editorAiBusy = characterAiBusy(editingId)
 
   useEffect(() => {
     return onProfileApply((draft) => {
-      // Apply to open form when matching character or new
-      if (
-        draft.characterId &&
-        editingId &&
-        draft.characterId !== editingId
-      ) {
-        void reload()
-        return
-      }
-      const p = draft.profile
-      setForm((f) => ({
-        ...f,
-        name: p.name || f.name,
-        description: p.description || f.description,
-        appearance: p.appearance ?? f.appearance,
-        personality: p.personality ?? f.personality,
-        backstory: p.backstory ?? f.backstory,
-        costume: p.costume ?? f.costume,
-        ageRange: p.ageRange ?? f.ageRange,
-        gender: p.gender ?? f.gender,
-        voiceDesc: p.voiceDesc ?? f.voiceDesc,
-        spokenLanguages:
-          Array.isArray(p.spokenLanguages) && p.spokenLanguages.length
-            ? p.spokenLanguages
-            : f.spokenLanguages,
-        mannerisms: p.mannerisms ?? f.mannerisms,
-        relationships: p.relationships ?? f.relationships,
-        visualTags:
-          typeof p.visualTags === 'string' && p.visualTags.trim()
-            ? p.visualTags.trim()
-            : f.visualTags,
-        seedPrompt:
-          p.seedPrompt || f.seedPrompt || p.description || f.description,
-        hardRules:
-          (typeof p.hardRules === 'string' && p.hardRules.trim()
-            ? p.hardRules.trim()
-            : f.hardRules) || f.hardRules
-      }))
-      setAiIdea((prev) => prev || p.seedPrompt || p.description || '')
-      setEditorOpen(true)
-      setEditorPanel('profile')
-      setActionError(null)
-      setPageBanner(t('characters.aiFillOk'))
-      toast.success(t('characters.aiFillOk'))
-      void reload()
+      charactersHandleProfileApply(draft as never, editingId, {
+        reload,
+        setForm,
+        setAiIdea,
+        setEditorOpen,
+        setEditorPanel,
+        setActionError,
+        setPageBanner: (m) => setPageBanner(m || t('characters.aiFillOk')),
+        toastSuccess: () => {
+          setPageBanner(t('characters.aiFillOk'))
+          toast.success(t('characters.aiFillOk'))
+        }
+      })
     })
   }, [onProfileApply, editingId, reload, t])
 
   useEffect(() => {
     return onSheetCommitted(({ characterId, path, gallery, costume }) => {
-      // Instant form update from commit payload (tmp path already promoted)
-      if (editingId === characterId) {
-        if (gallery && gallery.length > 0) {
-          const g = gallery.map((item) => ({
-            id: item.id,
-            path: item.path,
-            kind: (item.kind === 'sheet' ||
-            item.kind === 'upload' ||
-            item.kind === 'gen'
-              ? item.kind
-              : 'sheet') as 'sheet' | 'upload' | 'gen',
-            label: item.label,
-            createdAt: item.createdAt,
-            ...(item.layer
-              ? {
-                  layer: item.layer as
-                    | 'identity'
-                    | 'nude'
-                    | 'base'
-                    | 'costume'
-                    | 'detail'
-                }
-              : {})
-          }))
-          setForm((f) => {
-            const costumes = costume
-              ? ensureCostumeInLibrary(f.costumes, costume, {
-                  artStyle: f.artStyle
-                })
-              : f.costumes
-            return {
-              ...f,
-              gallery: g,
-              costume: costume ?? f.costume,
-              costumes
-              // Keep cover unless missing; user sets cover explicitly
-            }
-          })
-          // Select the just-committed image (by path), not an older gallery[0] edge case
-          const newest =
-            g.find((item) => item.path === path) ?? g[0] ?? null
-          setSelectedImageId(newest?.id ?? null)
-          if (costume) setSwapCostumeText(costume)
-        } else {
-          // Fallback: reload global library row
-          void getApi()
-            .characters.list()
-            .then((list) => {
-              const c = (list as Character[]).find((x) => x.id === characterId)
-              if (!c) return
-              const g = galleryFromCharacter(c)
-              setForm((f) => ({
-                ...f,
-                gallery: g,
-                costume: c.costume ?? f.costume
-              }))
-              const newest =
-                g.find((item) => item.path === path) ?? g[0] ?? null
-              setSelectedImageId(newest?.id ?? null)
-            })
+      charactersHandleSheetCommitted(
+        { characterId, path, gallery, costume },
+        editingId,
+        {
+          setForm,
+          setSelectedImageId,
+          setSwapCostumeText,
+          reload,
+          toastSuccess: () => toast.success(t('characters.sheetOkShort')),
+          setPageBanner: () => setPageBanner(t('characters.sheetOkShort')),
+          listCharacter: (id) =>
+            charactersFindInList(
+              () => getApi().characters.list() as Promise<Character[]>,
+              id
+            ),
+          ensureCostume: ensureCostumeInLibrary
         }
-      }
-      void reload()
-      setPageBanner(t('characters.sheetOkShort')); toast.success(t('characters.sheetOkShort'))
-      // ensure path is used so no unused lint
-      void path
+      )
     })
   }, [onSheetCommitted, editingId, reload, t])
 
   useEffect(() => {
     return onWardrobeApply((draft) => {
-      if (
-        draft.characterId &&
-        editingId &&
-        draft.characterId !== editingId
-      ) {
-        return
-      }
-      const s = draft.suggestion
-      const artStyle = isArtStyleId(s.artStyle) ? s.artStyle : form.artStyle
-      const entry = createCostumeEntry({
-        name: s.name,
-        description: s.costume,
-        artStyle
+      charactersHandleWardrobeApply(draft, editingId, form.artStyle, {
+        setForm,
+        setSwapCostumeText,
+        setPageBanner: () => setPageBanner(t('characters.suggestWardrobeOk')),
+        setEditorOpen,
+        toastSuccess: () => toast.success(t('characters.suggestWardrobeOk')),
+        createEntry: createCostumeEntry,
+        upsert: upsertCostume
       })
-      setForm((f) => ({
-        ...f,
-        costume: s.costume,
-        artStyle,
-        costumes: upsertCostume(f.costumes, entry)
-      }))
-      setSwapCostumeText(s.costume)
-      setPageBanner(t('characters.suggestWardrobeOk')); toast.success(t('characters.suggestWardrobeOk'))
-      setEditorOpen(true)
     })
   }, [onWardrobeApply, editingId, form.artStyle, t])
 
@@ -600,10 +495,12 @@ export function CharactersPage(): JSX.Element {
 
   // If nude variants hidden for age, reset selection
   useEffect(() => {
-    const all = Object.values(sheetGroups).flat()
-    if (!all.some((v) => v.id === sheetVariant)) {
-      setSheetVariant(DEFAULT_SHEET_VARIANT)
-    }
+    const next = charactersResetSheetIfHidden(
+      sheetGroups,
+      sheetVariant,
+      DEFAULT_SHEET_VARIANT
+    )
+    if (next) setSheetVariant(next as SheetVariantId)
   }, [sheetGroups, sheetVariant])
 
   // Hub
@@ -669,7 +566,7 @@ export function CharactersPage(): JSX.Element {
       soulHubId?: number | null
     }): Promise<void> => {
       if (!opts.soulHubId && !opts.soulMdPath?.trim()) {
-        setForm((f) => ({ ...f, soulPreview: null }))
+        charactersLoadSoulPreviewForm(null, setForm)
         return
       }
       try {
@@ -677,15 +574,9 @@ export function CharactersPage(): JSX.Element {
           soulMdPath: opts.soulMdPath,
           soulHubId: opts.soulHubId
         })
-        setForm((f) => ({
-          ...f,
-          soulPreview: r.content?.trim() ? r.content : null
-        }))
+        charactersLoadSoulPreviewForm(r.content, setForm)
       } catch (e) {
-        setForm((f) => ({
-          ...f,
-          soulPreview: null
-        }))
+        charactersLoadSoulPreviewForm(null, setForm)
         setActionError(parseIpcError(e).message)
       }
     },
@@ -783,41 +674,44 @@ export function CharactersPage(): JSX.Element {
   }
 
   const handleSave = async (): Promise<void> => {
-    if (!form.name.trim()) return
-    setBusy(true)
-    setActionError(null)
-    try {
-      // Persist soul textarea edits to a local .md so they survive reload
-      let nextForm = form
-      const soulText = form.soulPreview?.trim() ?? ''
-      if (soulText) {
-        try {
-          const localPath =
-            form.soulMdPath &&
-            !form.soulMdPath.startsWith('soulmd-hub://') &&
-            !form.soulMdPath.startsWith('http')
-              ? form.soulMdPath
-              : null
-          const written = await getApi().characters.writeSoulContent({
-            content: form.soulPreview ?? '',
-            filePath: localPath,
-            characterId: editingId
-          })
+    await charactersRunSave({
+      name: form.name,
+      emptyMsg: t('common.nameRequired'),
+      savedMsg: t('common.saved'),
+      failedMsg: t('common.actionFailed'),
+      editingId,
+      toastError: toast.error,
+      toastSuccess: toast.success,
+      setError: setActionError,
+      setBusy,
+      prepareForm: async () => {
+        let nextForm = form
+        const soulText = form.soulPreview?.trim() ?? ''
+        const written = await charactersWriteSoulIfNeeded({
+          soulText,
+          soulMdPath: form.soulMdPath,
+          editingId,
+          write: (args) =>
+            getApi().characters.writeSoulContent({
+              content: args.content,
+              filePath: args.filePath,
+              characterId: args.characterId
+            }),
+          onWarn: (e) => console.warn('[characters] writeSoulContent failed', e)
+        })
+        if (written) {
           nextForm = {
             ...form,
-            soulMdPath: written.filePath,
-            soulPreview: written.content,
-            // Prefer local file on next open (edited text over hub original)
-            soulHubId: null
+            soulMdPath: written.soulMdPath,
+            soulPreview: written.soulPreview,
+            soulHubId: written.soulHubId
           }
           setForm(nextForm)
-          setCatalogPickBody(written.content)
-        } catch (e) {
-          // Non-fatal: still save character profile without path update
-          console.warn('[characters] writeSoulContent failed', e)
+          setCatalogPickBody(written.soulPreview ?? '')
         }
-      }
-      const buildPayload = (): Omit<CreateCharacterInput, 'storyId'> => {
+        return nextForm
+      },
+      buildPayload: (nextForm) => {
         const primary = primaryGalleryPath(
           nextForm.gallery,
           nextForm.coverPath
@@ -862,38 +756,15 @@ export function CharactersPage(): JSX.Element {
             ? serializeCharacterCostumes(costumes)
             : null
         }
-      }
-      if (editingId) {
-        const ok = await update(editingId, buildPayload())
-        if (ok) {
-          toast.success(t('common.saved'))
-          await reload()
-          closeEditor()
-        } else {
-          toast.error(t('common.actionFailed'))
-        }
-      } else {
-        const ok = await create(buildPayload())
-        if (ok) {
-          toast.success(t('common.saved'))
-          await reload()
-          closeEditor()
-        } else {
-          toast.error(t('common.actionFailed'))
-        }
-      }
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    } finally {
-      setBusy(false)
-    }
+      },
+      update,
+      create,
+      reload,
+      closeEditor
+    })
   }
 
   const handleAiFill = (fromEditor = false): void => {
-    const idea = aiIdea.trim() || form.seedPrompt.trim()
-    // All profile inputs — button always improves when anything is filled
     const snapshot = {
       name: form.name.trim() || undefined,
       description: form.description.trim() || undefined,
@@ -904,176 +775,140 @@ export function CharactersPage(): JSX.Element {
       ageRange: form.ageRange.trim() || undefined,
       gender: form.gender.trim() || undefined,
       voiceDesc: form.voiceDesc.trim() || undefined,
-      spokenLanguages:
-        form.spokenLanguages.length > 0
-          ? form.spokenLanguages
-          : undefined,
+      spokenLanguages: charactersSpokenOrUndefined(form.spokenLanguages),
       mannerisms: form.mannerisms.trim() || undefined,
       relationships: form.relationships.trim() || undefined,
       visualTags: form.visualTags.trim() || undefined
     }
-    const hasDraft = Object.values(snapshot).some((v) => {
-      if (typeof v === 'string') return v.length > 0
-      if (Array.isArray(v)) return v.length > 0
-      return false
-    })
-    const soulContent =
-      form.soulPreview?.trim() || catalogPickBody?.trim() || ''
-    const hasSoul = soulContent.length > 0
-    const refPath =
-      selectedImage?.path?.trim() ||
-      form.coverPath?.trim() ||
-      form.gallery[0]?.path?.trim() ||
-      ''
-    const hasImage = Boolean(refPath)
-    if (!idea && !hasDraft && !hasSoul && !hasImage) {
-      const msg = t('common.aiNeedIdeaOrImage')
-      setActionError(msg)
-      toast.error(msg)
-      return
-    }
-    if (characterAiBusy(editingId)) {
-      toast.info(t('aiJobs.running'))
-      return
-    }
-    setActionError(null)
-    // Stay visible: open profile editor so results / progress are obvious
-    if (!fromEditor) {
-      setEditorOpen(true)
-      setEditorPanel('profile')
-    } else {
-      setEditorPanel('profile')
-    }
-    setPageBanner(t('aiJobs.startedBackground'))
-    toast.info(
-      hasImage && !idea && !hasDraft && !hasSoul
-        ? t('common.aiFillFromImage')
-        : t('aiJobs.startedBackground')
+    const soulContent = charactersSoulContent(
+      form.soulPreview,
+      catalogPickBody
     )
-
-    const characterId = editingId
-    const locale = getAiLocale(i18n.language)
-    const isImprove = hasDraft || hasSoul
-
-    startJob({
-      kind: 'character-ai-fill',
-      label: isImprove
-        ? t('characters.aiImproveTitle')
-        : t('characters.aiCreate'),
-      scope: {
-        characterId: characterId ?? undefined,
-        storyId: activeStoryId ?? undefined
-      },
-      run: async ({ setProgress, signal }) => {
-        setProgress(15, hasImage ? 'image' : 'chat')
-        // If soul is linked but preview not loaded yet, try fetch once
-        let soul = soulContent
-        if (
-          !soul &&
-          (form.soulHubId != null || form.soulMdPath)
-        ) {
-          try {
-            const r = await getApi().characters.readSoulContent({
-              soulMdPath: form.soulMdPath,
-              soulHubId: form.soulHubId
-            })
-            soul = r.content?.trim() ?? ''
-          } catch {
-            // optional — continue without soul
-          }
-        }
-        if (signal.cancelled) return
-        setProgress(35, 'merge')
-        const r = await getApi().characters.aiFill({
-          idea: idea || undefined,
-          storyId: activeStoryId ?? undefined,
-          locale,
-          existingDraft: hasDraft ? snapshot : undefined,
-          soulContent: soul || undefined,
-          referenceImagePath: hasImage ? refPath : null
-        })
-        if (signal.cancelled) return
-        setProgress(100, 'done')
-        return {
-          type: 'character-profile' as const,
-          characterId: characterId ?? null,
-          storyId: activeStoryId ?? null,
-          profile: {
-            ...r.profile,
-            seedPrompt: idea || r.profile.seedPrompt || r.profile.description,
-            hardRules: r.profile.hardRules || form.hardRules || ''
+    const refPath = charactersAiFillRefPath({
+      selectedPath: selectedImage?.path,
+      coverPath: form.coverPath,
+      gallery0: form.gallery[0]?.path
+    })
+    charactersRunAiFill({
+      busy: characterAiBusy(editingId),
+      idea: aiIdea.trim() || form.seedPrompt.trim(),
+      formSnapshot: snapshot,
+      soulContent,
+      refPath,
+      fromEditor,
+      setError: setActionError,
+      needMsg: t('common.aiNeedIdeaOrImage'),
+      setBanner: setPageBanner,
+      toastInfo: toast.info,
+      toastError: toast.error,
+      fromImageMsg: t('common.aiFillFromImage'),
+      backgroundMsg: t('aiJobs.startedBackground'),
+      runningMsg: t('aiJobs.running'),
+      setEditorOpen,
+      setEditorPanel,
+      startJob: (idea, hasDraft, _hasSoul, hasImage, ref, snap, isImprove) => {
+        const characterId = editingId
+        const locale = getAiLocale(i18n.language)
+        startJob({
+          kind: 'character-ai-fill',
+          label: charactersAiCreateLabel(
+            isImprove,
+            t('characters.aiImproveTitle'),
+            t('characters.aiCreate')
+          ),
+          scope: {
+            characterId: characterId ?? undefined,
+            storyId: activeStoryId ?? undefined
           },
-          profileJson: r.profileJson,
-          isNew: !characterId
-        }
+          run: async ({ setProgress, signal }) => {
+            setProgress(15, hasImage ? 'image' : 'chat')
+            let soul = soulContent
+            if (
+              !soul &&
+              (form.soulHubId != null || form.soulMdPath)
+            ) {
+              soul = await charactersReadSoulSafe(() =>
+                getApi().characters.readSoulContent({
+                  soulMdPath: form.soulMdPath,
+                  soulHubId: form.soulHubId
+                })
+              )
+            }
+            if (signal.cancelled) return
+            setProgress(35, 'merge')
+            const r = await getApi().characters.aiFill({
+              idea: idea || undefined,
+              storyId: activeStoryId ?? undefined,
+              locale,
+              existingDraft: hasDraft ? (snap as never) : undefined,
+              soulContent: soul || undefined,
+              referenceImagePath: hasImage ? ref : null
+            })
+            if (signal.cancelled) return
+            setProgress(100, 'done')
+            return {
+              type: 'character-profile' as const,
+              characterId: characterId ?? null,
+              storyId: activeStoryId ?? null,
+              profile: {
+                ...r.profile,
+                seedPrompt: idea || r.profile.seedPrompt || r.profile.description,
+                hardRules: r.profile.hardRules || form.hardRules || ''
+              },
+              profileJson: r.profileJson,
+              isNew: !characterId
+            }
+          }
+        })
       }
     })
   }
 
   const ensureSavedId = async (): Promise<string | null> => {
-    if (editingId) {
-      await update(editingId, payload())
-      return editingId
-    }
-    if (!form.name.trim() || !activeStoryId) return null
-    const ok = await create(payload())
-    if (!ok) return null
-    await reload()
-    const list = (await getApi().characters.list(activeStoryId)) as Character[]
-    const created = list.find((c) => c.name === form.name.trim())
-    if (created) {
-      setEditingId(created.id)
-      return created.id
-    }
-    return null
+    return charactersEnsureSavedId({
+      editingId,
+      name: form.name,
+      activeStoryId,
+      update: () => update(editingId!, payload()),
+      create: () => create(payload()),
+      reload,
+      list: () =>
+        getApi().characters.list(activeStoryId!) as Promise<Character[]>,
+      setEditingId
+    })
   }
 
   const applyCostumeLook = (entry: CharacterCostumeEntry): void => {
-    setForm((f) => ({
-      ...f,
-      costume: entry.description,
-      artStyle: isArtStyleId(entry.artStyle)
-        ? entry.artStyle
-        : f.artStyle
-    }))
-    setSwapCostumeText(entry.description)
-    if (entry.imagePath) {
-      const hit = form.gallery.find((g) => g.path === entry.imagePath)
-      if (hit) setSelectedImageId(hit.id)
-    }
-    setPageBanner(t('characters.costumeApplied', { name: entry.name })); toast.success(t('characters.costumeApplied', { name: entry.name }))
+    charactersApplyCostumeLook(entry, form.gallery, {
+      setForm,
+      setSwapCostumeText,
+      setSelectedImageId,
+      setPageBanner,
+      toastSuccess: toast.success,
+      appliedMsg: t('characters.costumeApplied', { name: entry.name })
+    })
   }
 
   const handleAddCostumeToLibrary = (): void => {
-    const description = (
-      swapCostumeText.trim() ||
-      form.costume.trim()
-    )
-    if (!description) {
-      setActionError(t('characters.swapCostumeRequired'))
-      return
-    }
-    try {
-      const entry = createCostumeEntry({
-        name: newCostumeName.trim() || undefined,
-        description,
-        artStyle: form.artStyle
-      })
-      setForm((f) => ({
-        ...f,
-        costume: description,
-        costumes: upsertCostume(f.costumes, entry)
-      }))
-      setSwapCostumeText(description)
-      setNewCostumeName('')
-      setPageBanner(t('characters.costumeLibSaved')); toast.success(t('characters.costumeLibSaved'))
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e))
-    }
+    charactersAddCostumeToLibrary({
+      description: charactersCostumeDesc(swapCostumeText, form.costume),
+      name: newCostumeName,
+      artStyle: form.artStyle,
+      setError: setActionError,
+      requiredMsg: t('characters.swapCostumeRequired'),
+      savedMsg: t('characters.costumeLibSaved'),
+      setForm,
+      setSwapCostumeText,
+      setNewCostumeName,
+      setPageBanner,
+      toastSuccess: toast.success,
+      createEntry: createCostumeEntry,
+      upsert: upsertCostume
+    })
   }
 
   const handleRemoveCostumeLook = (id: string): void => {
-    setForm((f) => ({ ...f, costumes: removeCostume(f.costumes, id) }))
+    charactersRemoveCostumeLook(setForm, id, removeCostume)
   }
 
   // Default plot context to active story when editor opens costume tab
@@ -1083,11 +918,13 @@ export function CharactersPage(): JSX.Element {
 
   const handleSuggestWardrobe = (): void => {
     setActionError(null)
-    if (!form.name.trim()) {
-      setActionError(t('characters.suggestNeedName'))
-      return
-    }
-    if (characterAiBusy(editingId)) return
+    const g = charactersGuardSuggest(
+      form.name,
+      characterAiBusy(editingId),
+      setActionError,
+      t('characters.suggestNeedName')
+    )
+    if (g !== 'ok') return
     const storyId = plotStoryId || activeStoryId || undefined
     setPageBanner(t('aiJobs.startedBackground')); toast.info(t('aiJobs.startedBackground'))
     startJob({
@@ -1104,15 +941,12 @@ export function CharactersPage(): JSX.Element {
           !soulExcerpt &&
           (form.soulHubId != null || form.soulMdPath)
         ) {
-          try {
-            const sr = await getApi().characters.readSoulContent({
+          soulExcerpt = await charactersReadSoulSafe(() =>
+            getApi().characters.readSoulContent({
               soulMdPath: form.soulMdPath,
               soulHubId: form.soulHubId
             })
-            soulExcerpt = sr.content?.trim() ?? ''
-          } catch {
-            /* optional */
-          }
+          )
         }
         if (signal.cancelled) return
         const r = await getApi().characters.suggestWardrobe({
@@ -1147,93 +981,73 @@ export function CharactersPage(): JSX.Element {
 
   const handleSwapCostume = async (): Promise<void> => {
     setActionError(null)
-    try {
-      let id = editingId
-      if (!id) {
-        id = await ensureSavedId()
-      }
-      if (!id) {
-        setActionError(t('characters.saveFirstForSheet'))
-        return
-      }
-      if (characterAiBusy(id)) return
-
-      const costumeDescription = swapCostumeText.trim() || form.costume.trim()
-      if (!costumeDescription) {
-        setActionError(t('characters.swapCostumeRequired'))
-        return
-      }
-
-      const auto = pickBestBaseImage(form.gallery, {
-        ageRange: form.ageRange,
-        preferredPath:
-          swapBasePath || selectedImage?.path || null
-      })
-      if (!auto.item) {
-        setActionError(t('characters.swapCostumeNoBase'))
-        return
-      }
-
-      const characterId = id
-      const baseImagePath = auto.item.path
-      const artStyle = form.artStyle
-      setPageBanner(t('aiJobs.startedBackground')); toast.info(t('aiJobs.startedBackground'))
-
-      startJob({
-        kind: 'costume-swap',
-        label: t('characters.swapCostume'),
-        scope: {
-          characterId,
-          storyId: activeStoryId ?? undefined
-        },
-        run: async ({ setProgress, signal }) => {
-          setProgress(10, 'edit')
-          const r = await getApi().characters.swapCostume({
+    await charactersRunSwapCostume({
+      ensureSavedId,
+      isBusy: characterAiBusy,
+      costumeDescription: charactersCostumeDesc(swapCostumeText, form.costume),
+      setError: setActionError,
+      saveFirstMsg: t('characters.saveFirstForSheet'),
+      requiredMsg: t('characters.swapCostumeRequired'),
+      noBaseMsg: t('characters.swapCostumeNoBase'),
+      startedMsg: t('aiJobs.startedBackground'),
+      toastInfo: toast.info,
+      setBanner: setPageBanner,
+      pickBase: () =>
+        pickBestBaseImage(form.gallery, {
+          ageRange: form.ageRange,
+          preferredPath: swapBasePath || selectedImage?.path || null
+        }),
+      startJob: (characterId, baseImagePath, costumeDescription) => {
+        const artStyle = form.artStyle
+        startJob({
+          kind: 'costume-swap',
+          label: t('characters.swapCostume'),
+          scope: {
             characterId,
-            costumeDescription,
-            baseImagePath,
-            artStyle,
-            pose: swapPose,
-            persist: false
-          })
-          if (signal.cancelled) {
-            try {
-              await getApi().media.discardSheetDraft(r.path)
-            } catch {
-              /* ignore */
+            storyId: activeStoryId ?? undefined
+          },
+          run: async ({ setProgress, signal }) => {
+            setProgress(10, 'edit')
+            const r = await getApi().characters.swapCostume({
+              characterId,
+              costumeDescription,
+              baseImagePath,
+              artStyle,
+              pose: swapPose,
+              persist: false
+            })
+            if (
+              await charactersJobCancelDiscard(
+                signal.cancelled,
+                (p) => getApi().media.discardSheetDraft(p),
+                r.path
+              )
+            ) {
+              return
             }
-            return
+            setProgress(100, 'done')
+            return {
+              type: 'character-sheet' as const,
+              characterId,
+              storyId: activeStoryId ?? '',
+              path: r.path,
+              variant: r.variant ?? 'costume_swap',
+              label: r.label ?? t('characters.swapCostume'),
+              layer: r.layer ?? 'costume',
+              costumeDescription,
+              enhance: r.enhance
+            }
           }
-          setProgress(100, 'done')
-          return {
-            type: 'character-sheet' as const,
-            characterId,
-            storyId: activeStoryId ?? '',
-            path: r.path,
-            variant: r.variant ?? 'costume_swap',
-            label: r.label ?? t('characters.swapCostume'),
-            layer: r.layer ?? 'costume',
-            costumeDescription,
-            enhance: r.enhance
-          }
-        }
-      })
-    } catch (e) {
-      const err = parseIpcError(e)
-      setActionError(`${err.message}${err.details ? ` — ${err.details}` : ''}`)
-    }
+        })
+      }
+    })
   }
 
   /** Identity lock on selected gallery still(s). */
   const [useIdentityRef, setUseIdentityRef] = useState(false)
 
   const selectedPathsForIdentity = useMemo(() => {
-    const ids =
-      selectedImageIds.length > 0
-        ? selectedImageIds
-        : selectedImageId
-          ? [selectedImageId]
-          : []
+    const ids = charactersSelectedIds(selectedImageIds, selectedImageId)
     return ids
       .map((id) => form.gallery.find((g) => g.id === id)?.path)
       .filter((p): p is string => Boolean(p?.trim()))
@@ -1247,179 +1061,169 @@ export function CharactersPage(): JSX.Element {
     artStyle?: ArtStyleId
   }): Promise<void> => {
     setActionError(null)
-    try {
-      let id = opts?.characterId ?? null
-      if (!id) {
-        id = await ensureSavedId()
-      }
-      if (!id) {
-        setActionError(t('characters.saveFirstForSheet'))
-        return
-      }
-      if (characterAiBusy(id)) return
-
-      // Pure generate unless identity lock on selected gallery stills.
-      // Body / base / bare packages: ALWAYS pure generate.
-      const variant = sheetVariant
-      const variantDef = getSheetVariant(variant)
-      const forcePureLayout =
-        variantDef.wardrobeLayer === 'nude' ||
-        variantDef.wardrobeLayer === 'base' ||
-        Boolean(variantDef.requiresUnclothedSupport)
-      const wantIdentity =
-        opts?.useIdentityEdit !== undefined
-          ? opts.useIdentityEdit === true
-          : useIdentityRef
-      const useIdentityEdit = !forcePureLayout && wantIdentity
-      if (forcePureLayout && useIdentityRef) {
-        setUseIdentityRef(false)
-      }
-      const paths =
-        opts?.referenceImagePath?.trim()
-          ? [opts.referenceImagePath.trim()]
-          : selectedPathsForIdentity
-      const idRes = resolveIdentityPaths({
-        useIdentityRef: useIdentityEdit,
-        selectedPaths: paths
-      })
-      const artStyle = opts?.artStyle ?? form.artStyle
-      const profile = {
-        name: form.name.trim() || 'Character',
-        description: form.description.trim() || form.name.trim() || 'Character',
-        appearance: form.appearance.trim() || undefined,
-        personality: form.personality.trim() || undefined,
-        costume: form.costume.trim() || undefined,
-        ageRange: form.ageRange.trim() || undefined,
-        gender: form.gender.trim() || undefined,
-        visualTags: form.visualTags.trim() || undefined,
-        hardRules: form.hardRules.trim() || undefined
-      }
-      let prompt = idRes.useEdit
-        ? buildCharacterSheetEditPrompt(profile, variant, artStyle)
-        : buildCharacterSheetImagePrompt(profile, variant, artStyle)
-      if (idRes.paths.length > 1) {
-        prompt = appendMultiRefNote(
-          prompt,
-          idRes.paths,
-          getAiLocale(i18n.language)
-        )
-      }
-      prompt = ensureHardRules(prompt, form.hardRules)
-      const variantLabel = t(
-        `characters.${getSheetVariant(variant).labelKey}`
-      )
-      const styleLabel = t(`characters.${getArtStyle(artStyle).labelKey}`)
-      const modeLabel = forcePureLayout
-        ? t('characters.forcePureGenHint')
-        : idRes.useEdit
-          ? t('common.imageGenConfirmModeIdentity')
-          : t('common.imageGenConfirmModePure')
-      setImageGenConfirm({
-        prompt,
-        referencePaths: idRes.paths,
-        useIdentityEdit: idRes.useEdit,
-        summary: `${t('characters.sheetVariant')}: ${variantLabel} · ${t('characters.artStyle')}: ${styleLabel} · ${modeLabel}`
-      })
-    } catch (e) {
-      const err = parseIpcError(e)
-      setActionError(`${err.message}${err.details ? ` — ${err.details}` : ''}`)
+    const variant = sheetVariant
+    const variantDef = getSheetVariant(variant)
+    const forcePure = charactersForcePureLayout(variantDef)
+    const wantIdentity = charactersResolveWantIdentity(
+      opts?.useIdentityEdit,
+      useIdentityRef
+    )
+    const paths = charactersGalleryPathsFromOpts(
+      opts?.referenceImagePath,
+      selectedPathsForIdentity
+    )
+    const artStyle = opts?.artStyle ?? form.artStyle
+    const profile = {
+      name: form.name.trim() || 'Character',
+      description: form.description.trim() || form.name.trim() || 'Character',
+      appearance: form.appearance.trim() || undefined,
+      personality: form.personality.trim() || undefined,
+      costume: form.costume.trim() || undefined,
+      ageRange: form.ageRange.trim() || undefined,
+      gender: form.gender.trim() || undefined,
+      visualTags: form.visualTags.trim() || undefined,
+      hardRules: form.hardRules.trim() || undefined
     }
+    const variantLabel = t(
+      `characters.${getSheetVariant(variant).labelKey}`
+    )
+    const styleLabel = t(`characters.${getArtStyle(artStyle).labelKey}`)
+    await charactersRunGenerateSheetSetup({
+      ensureSavedId,
+      characterId: opts?.characterId,
+      isBusy: characterAiBusy,
+      setError: setActionError,
+      saveFirstMsg: t('characters.saveFirstForSheet'),
+      forcePure,
+      wantIdentity,
+      useIdentityRef,
+      setUseIdentityRef,
+      paths,
+      resolveIdentity: resolveIdentityPaths,
+      buildPrompt: (useEdit) =>
+        useEdit
+          ? buildCharacterSheetEditPrompt(profile, variant, artStyle)
+          : buildCharacterSheetImagePrompt(profile, variant, artStyle),
+      maybeAppendMulti: (prompt, pths) =>
+        charactersBuildSheetMultiAppend(
+          prompt,
+          pths,
+          getAiLocale(i18n.language),
+          appendMultiRefNote as (p: string, paths: string[], locale?: string) => string
+        ),
+      ensureRules: (prompt) => ensureHardRules(prompt, form.hardRules),
+      modeLabel: '',
+      summaryParts: `${t('characters.sheetVariant')}: ${variantLabel} · ${t('characters.artStyle')}: ${styleLabel} · ${charactersSheetModeLabel(
+        forcePure,
+        charactersUseIdentityEdit(forcePure, wantIdentity),
+        {
+          force: t('characters.forcePureGenHint'),
+          identity: t('common.imageGenConfirmModeIdentity'),
+          pure: t('common.imageGenConfirmModePure')
+        }
+      )}`,
+      setConfirm: setImageGenConfirm
+    })
   }
 
   const runCharacterSheetJob = async (
     confirm: ImageGenConfirmPayload
   ): Promise<void> => {
     setImageGenConfirm(null)
-    try {
-      const id = await ensureSavedId()
-      if (!id) {
-        setActionError(t('characters.saveFirstForSheet'))
-        return
-      }
-      if (characterAiBusy(id)) return
-      const variant = sheetVariant
-      const artStyle = form.artStyle
-      toast.info(
-        confirm.useIdentityEdit
-          ? t('characters.genWithExternalRef')
-          : t('aiJobs.startedBackground')
-      )
-      startJob({
-        kind: 'character-sheet',
-        label: t('characters.generateSheet'),
-        scope: {
-          characterId: id,
-          storyId: activeStoryId ?? undefined
-        },
-        run: async ({ setProgress, signal }) => {
-          setProgress(10, 'image')
-          const r = await getApi().characters.generateSheet({
+    await charactersRunSheetJob({
+      ensureSavedId,
+      isBusy: characterAiBusy,
+      setError: setActionError,
+      saveFirstMsg: t('characters.saveFirstForSheet'),
+      toastInfo: toast.info,
+      identityMsg: t('characters.genWithExternalRef'),
+      backgroundMsg: t('aiJobs.startedBackground'),
+      useIdentityEdit: confirm.useIdentityEdit,
+      startJob: (id) => {
+        const variant = sheetVariant
+        const artStyle = form.artStyle
+        startJob({
+          kind: 'character-sheet',
+          label: t('characters.generateSheet'),
+          scope: {
             characterId: id,
-            variant,
-            referenceImagePath: confirm.referencePaths[0] ?? null,
-            referenceImagePaths: confirm.referencePaths,
-            useIdentityEdit: confirm.useIdentityEdit,
-            persist: false,
-            artStyle,
-            promptOverride: confirm.prompt
-          })
-          if (signal.cancelled) {
-            try {
-              await getApi().media.discardSheetDraft(r.path)
-            } catch {
-              /* ignore */
+            storyId: activeStoryId ?? undefined
+          },
+          run: async ({ setProgress, signal }) => {
+            setProgress(10, 'image')
+            const r = await getApi().characters.generateSheet({
+              characterId: id,
+              variant,
+              referenceImagePath: confirm.referencePaths[0] ?? null,
+              referenceImagePaths: confirm.referencePaths,
+              useIdentityEdit: confirm.useIdentityEdit,
+              persist: false,
+              artStyle,
+              promptOverride: confirm.prompt
+            })
+            if (
+              await charactersJobCancelDiscard(
+                signal.cancelled,
+                (p) => getApi().media.discardSheetDraft(p),
+                r.path
+              )
+            ) {
+              return
             }
-            return
+            setProgress(100, 'done')
+            return {
+              type: 'character-sheet' as const,
+              characterId: id,
+              storyId: activeStoryId ?? '',
+              path: r.path,
+              variant: r.variant ?? variant,
+              label: r.label ?? variant,
+              usedEdit: r.usedEdit,
+              enhance: r.enhance,
+              layer: (r as { layer?: string }).layer
+            }
           }
-          setProgress(100, 'done')
-          return {
-            type: 'character-sheet' as const,
-            characterId: id,
-            storyId: activeStoryId ?? '',
-            path: r.path,
-            variant: r.variant ?? variant,
-            label: r.label ?? variant,
-            usedEdit: r.usedEdit,
-            enhance: r.enhance,
-            layer: (r as { layer?: string }).layer
-          }
-        }
-      })
-    } catch (e) {
-      const err = parseIpcError(e)
-      setActionError(`${err.message}${err.details ? ` — ${err.details}` : ''}`)
-    }
+        })
+      }
+    })
   }
 
   /** Animate the selected still into a self-intro video using profile bible. */
   const handleGenerateIntroVideo = (sourceImagePath: string): void => {
-    if (!editingId) {
-      setActionError(t('characters.saveBeforeSheet'))
-      toast.error(t('characters.saveBeforeSheet'))
-      return
-    }
-    if (!sourceImagePath?.trim()) {
-      setActionError(t('characters.introVideoNeedImage'))
-      return
-    }
-    if (characterAiBusy(editingId)) return
+    const g = charactersGuardIntro(
+      editingId,
+      sourceImagePath,
+      characterAiBusy(editingId),
+      setActionError,
+      toast.error,
+      toast.info,
+      {
+        saveFirst: t('characters.saveBeforeSheet'),
+        needImage: t('characters.introVideoNeedImage'),
+        loading: t('aiJobs.running')
+      }
+    )
+    if (g !== 'ok') return
     setActionError(null)
-    const characterId = editingId
+    const characterId = editingId!
     const sourcePath = sourceImagePath.trim()
     const draftKey = buildVideoPrepDraftKey(
       'character-intro',
       { characterId },
       sourcePath
     )
-    if (hasVideoPrepDraft(draftKey)) {
-      continueVideoPrepDraft(draftKey)
+    if (
+      charactersContinueDraftOr(hasVideoPrepDraft(draftKey), () =>
+        continueVideoPrepDraft(draftKey)
+      )
+    ) {
       return
     }
     void (async () => {
       try {
         await update(characterId, payload())
       } catch (e) {
-        toast.error(parseIpcError(e).message)
+        charactersApplySimpleIpc(e, toast.error)
         return
       }
       startVideoPrep({
@@ -1438,73 +1242,16 @@ export function CharactersPage(): JSX.Element {
   // After video confirm, reload gallery introVideoPath on the source still
   useEffect(() => {
     const onDone = (ev: Event): void => {
-      const d = (ev as CustomEvent).detail as {
-        kind?: string
-        entityIds?: { characterId?: string }
-        gallery?: Array<{
-          id: string
-          path: string
-          kind: string
-          label: string
-          createdAt: string
-          layer?: string
-          introVideoPath?: string | null
-        }>
-      }
-      if (d?.kind !== 'character-intro') return
-      if (!editingId || d.entityIds?.characterId !== editingId) return
-      const applyGallery = (
-        items: Array<{
-          id: string
-          path: string
-          kind: string
-          label: string
-          createdAt: string
-          layer?: string
-          introVideoPath?: string | null
-        }>
-      ): void => {
-        const mapped = items.map((item) => ({
-          id: item.id,
-          path: item.path,
-          kind: (item.kind === 'sheet' ||
-          item.kind === 'upload' ||
-          item.kind === 'gen' ||
-          item.kind === 'external'
-            ? item.kind
-            : 'gen') as CharacterGalleryItem['kind'],
-          label: item.label,
-          createdAt: item.createdAt,
-          ...(item.layer
-            ? { layer: item.layer as import('../../domain/characterSheetVariants').WardrobeLayer }
-            : {}),
-          introVideoPath: item.introVideoPath ?? null
-        })) as import('../../domain/characterGallery').CharacterGalleryItem[]
-        setForm((f) => ({ ...f, gallery: mapped }))
-        // Keep current selection if possible; prefer item that now has video
-        setSelectedImageId((prev) => {
-          if (prev && mapped.some((g) => g.id === prev)) return prev
-          const withVideo = mapped.find((g) => g.introVideoPath)
-          return withVideo?.id ?? mapped[0]?.id ?? prev
-        })
-      }
-      if (d.gallery?.length) {
-        applyGallery(d.gallery)
-      } else {
-        void getApi()
-          .characters.get(editingId)
-          .then((row) => {
-            const g = parseCharacterGallery(
-              (row as Character).refGalleryJson,
-              {
-                refImagePath: (row as Character).refImagePath,
-                refSheetPath: (row as Character).refSheetPath
-              }
-            )
-            applyGallery(g)
-          })
-          .catch(() => void reload())
-      }
+      charactersHandleVideoPrepDone(
+        (ev as CustomEvent).detail,
+        editingId,
+        {
+          setForm,
+          setSelectedImageId,
+          reload,
+          getCharacter: (id) => getApi().characters.get(id) as Promise<Character>
+        }
+      )
     }
     window.addEventListener('idm:video-prep-done', onDone)
     return () => window.removeEventListener('idm:video-prep-done', onDone)
@@ -1531,11 +1278,7 @@ export function CharactersPage(): JSX.Element {
 
 
   const handleReorderGallery = (fromId: string, toId: string): void => {
-    if (!fromId || !toId || fromId === toId) return
-    setForm((f) => {
-      const next = moveGalleryItem(f.gallery, fromId, toId)
-      return next === f.gallery ? f : { ...f, gallery: next }
-    })
+    charactersReorderGallery(setForm, fromId, toId, moveGalleryItem)
   }
 
   const handleRemoveImage = (id: string): void => {
@@ -1544,12 +1287,13 @@ export function CharactersPage(): JSX.Element {
     setForm((f) => ({
       ...f,
       gallery: next,
-      coverPath:
-        removed && f.coverPath === removed.path
-          ? primaryGalleryPath(next)
-          : isGalleryCoverPath(next, f.coverPath)
-            ? f.coverPath
-            : primaryGalleryPath(next)
+      coverPath: charactersNextCoverAfterRemove(
+        next,
+        removed?.path,
+        f.coverPath,
+        isGalleryCoverPath,
+        primaryGalleryPath
+      )
     }))
     setSelectedImageId(next[0]?.id ?? null)
     setSelectedImageIds((ids) => ids.filter((x) => x !== id))
@@ -1562,54 +1306,34 @@ export function CharactersPage(): JSX.Element {
 
   const loadHubPage = useCallback(
     async (page: number, q?: string): Promise<void> => {
-      setBusy(true)
-      setActionError(null)
-      try {
-        if (q?.trim()) {
-          const local = await getApi().souls.searchLocal(q.trim(), 24)
-          if (local.items.length > 0) {
-            setHubItems(local.items)
-            setHubTotalPages(1)
-            setHubPage(1)
-          } else {
-            const remote = await getApi().souls.list({
-              page: 1,
-              limit: 12,
-              q: q.trim()
-            })
-            setHubItems(remote.data ?? [])
-            setHubTotalPages(remote.total_pages ?? 1)
-            setHubPage(1)
-          }
-        } else {
-          const remote = await getApi().souls.list({ page, limit: 12 })
-          setHubItems(remote.data ?? [])
-          setHubTotalPages(remote.total_pages ?? 1)
-          setHubPage(remote.current_page ?? page)
-        }
-      } catch (e) {
-        setActionError(parseIpcError(e).message)
-      } finally {
-        setBusy(false)
-      }
+      await charactersLoadHubPage({
+        page,
+        q,
+        setBusy,
+        setError: setActionError,
+        searchLocal: (qq, limit) => getApi().souls.searchLocal(qq, limit),
+        listRemote: (args) => getApi().souls.list(args),
+        setItems: (items) => setHubItems(items as typeof hubItems),
+        setTotalPages: setHubTotalPages,
+        setPage: setHubPage
+      })
     },
     []
   )
 
   const ensureSoulIndex = useCallback(async (): Promise<void> => {
-    try {
-      const r = await getApi().souls.ensureIndex(false)
-      setIndexStatus(
+    await charactersEnsureSoulIndex({
+      ensureIndex: (force) => getApi().souls.ensureIndex(force),
+      setStatus: setIndexStatus,
+      setSuggestions: (s) =>
+        setSuggestions(s as typeof suggestions),
+      formatReady: (r) =>
         t('characters.indexReady', {
           count: r.count,
           pages: r.pages,
-          cache: r.fromCache ? 'cache' : 'fresh'
+          cache: r.cache
         })
-      )
-      setSuggestions(r.suggestions)
-    } catch {
-      /* offline ok */
-    }
+    })
   }, [t])
 
   // Load Soul catalog when editing profile
@@ -1648,136 +1372,110 @@ export function CharactersPage(): JSX.Element {
     id: number,
     titleHint?: string
   ): Promise<void> => {
-    setCatalogPickId(id)
-    setCatalogPickTitle(titleHint ?? null)
-    setCatalogLoading(true)
-    setActionError(null)
-    try {
-      const detail = await getApi().souls.get(id)
-      const full = (detail.contentFlat ?? '').trim()
-      setCatalogPickTitle(detail.title || titleHint || `#${id}`)
-      // Prefer canonical reader for long souls
-      const r = await getApi().characters.readSoulContent({
-        soulHubId: id,
-        soulMdPath: `soulmd-hub://${id}`
-      })
-      const body = (r.content?.trim() || full || '').trim()
-      setCatalogPickBody(body || null)
-      // Keep form.soulPreview in sync so AI fill / save can use the text
-      // without requiring "use soul" first when user is just browsing + editing.
-      if (body) {
+    await charactersPreviewSoul({
+      id,
+      titleHint,
+      setCatalogPickId,
+      setCatalogPickTitle,
+      setCatalogLoading,
+      setError: setActionError,
+      getDetail: (sid) => getApi().souls.get(sid),
+      readSoul: (sid) =>
+        getApi().characters.readSoulContent({
+          soulHubId: sid,
+          soulMdPath: `soulmd-hub://${sid}`
+        }),
+      setCatalogPickBody,
+      formSoulHubId: form.soulHubId,
+      formSoulPreview: form.soulPreview,
+      setSoulPreview: (body) =>
         setForm((f) => ({
           ...f,
-          soulPreview:
-            f.soulHubId === id || !f.soulPreview?.trim()
-              ? body
-              : f.soulPreview
+          soulPreview: body
         }))
-      }
-    } catch (e) {
-      setActionError(parseIpcError(e).message)
-      setCatalogPickBody(null)
-    } finally {
-      setCatalogLoading(false)
-    }
+    })
   }
 
   const applySoulFromHub = async (
     id: number,
     _opts?: { stayInEditor?: boolean }
   ): Promise<void> => {
-    setBusy(true)
-    try {
-      const detail = await getApi().souls.get(id)
-      let full = (detail.contentFlat ?? '').trim()
-      try {
-        const r = await getApi().characters.readSoulContent({
-          soulHubId: id,
-          soulMdPath: `soulmd-hub://${id}`
-        })
-        if (r.content?.trim()) full = r.content
-      } catch {
-        /* use detail flat */
-      }
-      setForm((f) => ({
-        ...f,
-        soulHubId: detail.id,
-        soulMdPath: `soulmd-hub://${detail.id}`,
-        name: f.name.trim() ? f.name : detail.title,
-        description: f.description.trim()
-          ? f.description
-          : detail.description || f.description,
-        soulPreview: full || null,
-        seedPrompt: f.seedPrompt || detail.title
-      }))
-      setCatalogPickId(detail.id)
-      setCatalogPickTitle(detail.title)
-      setCatalogPickBody(full || null)
-      setEditorOpen(true)
-      setEditorPanel('profile')
-      setPageBanner(t('characters.soulApplied', { title: detail.title })); toast.success(t('characters.soulApplied', { title: detail.title }))
-    } catch (e) {
-      setActionError(parseIpcError(e).message)
-    } finally {
-      setBusy(false)
-    }
+    await charactersApplySoulFromHub({
+      id,
+      setBusy,
+      getDetail: (sid) => getApi().souls.get(sid),
+      readSoul: (sid) =>
+        getApi().characters.readSoulContent({
+          soulHubId: sid,
+          soulMdPath: `soulmd-hub://${sid}`
+        }),
+      setForm,
+      setCatalogPickId,
+      setCatalogPickTitle,
+      setCatalogPickBody,
+      setEditorOpen,
+      setEditorPanel,
+      setPageBanner,
+      toastSuccess: toast.success,
+      appliedMsg: (title) => t('characters.soulApplied', { title }),
+      setError: setActionError
+    })
   }
 
   const handleImportSoul = async (): Promise<void> => {
     const result = await getApi().characters.importSoulMd()
     if (!result) return
     const doc = parseSoulMd(result.content)
-    setForm((f) => ({
-      ...f,
-      soulMdPath: result.filePath,
-      soulHubId: null,
-      soulPreview: result.content,
-      description:
-        f.description.trim() ||
-        extractDescriptionFromSoulMd(result.content) ||
-        f.description,
-      name:
-        f.name.trim() ||
-        doc.title ||
-        extractNameFromSoulMd(result.content) ||
-        f.name
-    }))
+    setForm((f) =>
+      charactersImportSoulForm(
+        f,
+        result,
+        doc.title,
+        extractDescriptionFromSoulMd,
+        extractNameFromSoulMd
+      )
+    )
     setCatalogPickId(null)
     setCatalogPickTitle(doc.title ?? extractNameFromSoulMd(result.content))
     setCatalogPickBody(result.content)
   }
 
   const clearSoulLink = (): void => {
-    setForm((f) => ({
-      ...f,
-      soulMdPath: null,
-      soulHubId: null,
-      soulPreview: null
-    }))
-    setCatalogPickId(null)
-    setCatalogPickTitle(null)
-    setCatalogPickBody(null)
+    charactersClearSoulState({
+      setForm,
+      setCatalogPickId,
+      setCatalogPickTitle,
+      setCatalogPickBody
+    })
   }
 
   const handleGenerateSoul = (): void => {
     setActionError(null)
-    const hasSource = Boolean(
-      form.name.trim() ||
-        form.description.trim() ||
-        form.appearance.trim() ||
-        form.personality.trim() ||
-        form.costume.trim() ||
-        form.backstory.trim() ||
-        form.soulPreview?.trim()
-    )
-    if (!hasSource) {
-      const msg = t('characters.generateSoulNeedProfile')
-      setActionError(msg)
-      toast.error(msg)
+    if (
+      charactersGuardSoulSource(
+        charactersHasSoulSource({
+          name: form.name,
+          description: form.description,
+          appearance: form.appearance,
+          personality: form.personality,
+          costume: form.costume,
+          backstory: form.backstory,
+          soulPreview: form.soulPreview
+        }),
+        setActionError,
+        toast.error,
+        t('characters.generateSoulNeedProfile')
+      )
+    ) {
       return
     }
-    if (characterAiBusy(editingId)) {
-      toast.info(t('aiJobs.running'))
+    if (
+      charactersGuardBusy(
+        characterAiBusy(editingId),
+        toast.info,
+        t('aiJobs.running')
+      )
+    ) {
       return
     }
     setPageBanner(t('aiJobs.startedBackground'))
@@ -1798,15 +1496,12 @@ export function CharactersPage(): JSX.Element {
           !existingSoul &&
           (form.soulHubId != null || form.soulMdPath)
         ) {
-          try {
-            const sr = await getApi().characters.readSoulContent({
+          existingSoul = await charactersReadSoulSafe(() =>
+            getApi().characters.readSoulContent({
               soulMdPath: form.soulMdPath,
               soulHubId: form.soulHubId
             })
-            existingSoul = sr.content?.trim() ?? ''
-          } catch {
-            /* optional */
-          }
+          )
         }
         if (signal.cancelled) return
         const r = await getApi().characters.generateSoul({
@@ -2021,25 +1716,25 @@ export function CharactersPage(): JSX.Element {
                               {c.description}
                             </p>
                             <div className="mt-3 flex min-h-[1.5rem] flex-wrap items-center justify-center gap-1">
-                              {c.ageRange && <Chip>{c.ageRange}</Chip>}
-                              {c.gender && <Chip>{c.gender}</Chip>}
+                              {c.ageRange && <CharactersChip>{c.ageRange}</CharactersChip>}
+                              {c.gender && <CharactersChip>{c.gender}</CharactersChip>}
                               {(() => {
                                 const langs = parseSpokenLanguagesJson(
                                   c.spokenLanguages
                                 )
                                 if (!langs.length) return null
                                 return (
-                                  <Chip>
+                                  <CharactersChip>
                                     🗣{' '}
                                     {formatSpokenLanguagesDisplay(
                                       langs,
                                       i18n.language
                                     )}
-                                  </Chip>
+                                  </CharactersChip>
                                 )
                               })()}
                               {c.voiceDesc && (
-                                <Chip>🎙 {t('characters.voiceShort')}</Chip>
+                                <CharactersChip>🎙 {t('characters.voiceShort')}</CharactersChip>
                               )}
                             </div>
                             <div className={libraryCardActionsRowClass}>
@@ -2165,12 +1860,11 @@ export function CharactersPage(): JSX.Element {
                           )
                         )
                       }
-                      onIntroVideo={
-                        editingId
-                          ? () =>
-                              handleGenerateIntroVideo(selectedImage.path)
-                          : undefined
-                      }
+                      onIntroVideo={charactersIntroVideoHandler(
+                        editingId,
+                        selectedImage.path,
+                        handleGenerateIntroVideo
+                      )}
                       isCover={form.coverPath === selectedImage.path}
                       onSetAsCover={() => handleSetCover(selectedImage.path)}
                       onRemove={() => handleRemoveImage(selectedImage.id)}
@@ -2189,10 +1883,12 @@ export function CharactersPage(): JSX.Element {
                         </Button>
                         <Button
                           disabled={editorAiBusy}
-                          onClick={() => {
-                            setEditorPanel('refs')
-                            void handleGenerateSheet()
-                          }}
+                          onClick={() =>
+                            charactersGenerateSheetFromEmpty(
+                              setEditorPanel,
+                              () => void handleGenerateSheet()
+                            )
+                          }
                         >
                           {t('characters.generateSheet')}
                         </Button>
@@ -2210,7 +1906,7 @@ export function CharactersPage(): JSX.Element {
                   onSelect={setSelectedImageId}
                   onToggleSelect={(id) =>
                     setSelectedImageIds((ids) =>
-                      toggleGallerySelection(ids, id)
+                      charactersToggleSelectIds(ids, id, toggleGallerySelection)
                     )
                   }
                   onReorder={handleReorderGallery}
@@ -2271,36 +1967,36 @@ export function CharactersPage(): JSX.Element {
                     {t('characters.profileSection')}
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label={t('characters.name')}>
+                    <CharactersField label={t('characters.name')}>
                       <Input
                         value={form.name}
                         onChange={(e) => patch('name', e.target.value)}
                         placeholder={t('characters.namePlaceholder')}
                       />
-                    </Field>
-                    <Field label={t('characters.ageRange')}>
+                    </CharactersField>
+                    <CharactersField label={t('characters.ageRange')}>
                       <Input
                         value={form.ageRange}
                         onChange={(e) => patch('ageRange', e.target.value)}
                         placeholder={t('characters.agePlaceholder')}
                       />
-                    </Field>
-                    <Field label={t('characters.gender')}>
+                    </CharactersField>
+                    <CharactersField label={t('characters.gender')}>
                       <Input
                         value={form.gender}
                         onChange={(e) => patch('gender', e.target.value)}
                         placeholder={t('characters.genderPlaceholder')}
                       />
-                    </Field>
-                    <Field label={t('characters.visualTags')}>
+                    </CharactersField>
+                    <CharactersField label={t('characters.visualTags')}>
                       <Input
                         value={form.visualTags}
                         onChange={(e) => patch('visualTags', e.target.value)}
                         placeholder={t('characters.visualTagsPlaceholder')}
                       />
-                    </Field>
+                    </CharactersField>
                   </div>
-                  <Field
+                  <CharactersField
                     label={t('common.hardRules')}
                     hint={t('common.hardRulesHint')}
                   >
@@ -2310,76 +2006,76 @@ export function CharactersPage(): JSX.Element {
                       onChange={(e) => patch('hardRules', e.target.value)}
                       placeholder={t('common.hardRulesPh')}
                     />
-                  </Field>
-                  <Field label={t('characters.description')}>
+                  </CharactersField>
+                  <CharactersField label={t('characters.description')}>
                     <Textarea
                       size="md"
                       value={form.description}
                       onChange={(e) => patch('description', e.target.value)}
                     />
-                  </Field>
-                  <Field label={t('characters.appearance')}>
+                  </CharactersField>
+                  <CharactersField label={t('characters.appearance')}>
                     <Textarea
                       size="lg"
                       value={form.appearance}
                       onChange={(e) => patch('appearance', e.target.value)}
                       placeholder={t('characters.appearancePlaceholder')}
                     />
-                  </Field>
-                  <Field label={t('characters.costume')}>
+                  </CharactersField>
+                  <CharactersField label={t('characters.costume')}>
                     <Textarea
                       size="lg"
                       value={form.costume}
                       onChange={(e) => patch('costume', e.target.value)}
                     />
-                  </Field>
+                  </CharactersField>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label={t('characters.personality')}>
+                    <CharactersField label={t('characters.personality')}>
                       <Textarea
                         size="md"
                         value={form.personality}
                         onChange={(e) => patch('personality', e.target.value)}
                       />
-                    </Field>
-                    <Field label={t('characters.backstory')}>
+                    </CharactersField>
+                    <CharactersField label={t('characters.backstory')}>
                       <Textarea
                         size="md"
                         value={form.backstory}
                         onChange={(e) => patch('backstory', e.target.value)}
                       />
-                    </Field>
+                    </CharactersField>
                   </div>
-                  <Field label={t('characters.voiceDesc')}>
+                  <CharactersField label={t('characters.voiceDesc')}>
                     <Textarea
                       size="md"
                       value={form.voiceDesc}
                       onChange={(e) => patch('voiceDesc', e.target.value)}
                       placeholder={t('characters.voicePlaceholder')}
                     />
-                  </Field>
-                  <Field label={t('characters.spokenLanguages')}>
+                  </CharactersField>
+                  <CharactersField label={t('characters.spokenLanguages')}>
                     <LanguageMultiPick
                       value={form.spokenLanguages}
                       onChange={(codes) =>
-                        setForm((f) => ({ ...f, spokenLanguages: codes }))
+                        setForm(charactersSpokenLangSetter(codes))
                       }
                     />
-                  </Field>
-                  <Field label={t('characters.mannerisms')}>
+                  </CharactersField>
+                  <CharactersField label={t('characters.mannerisms')}>
                     <Textarea
                       size="md"
                       value={form.mannerisms}
                       onChange={(e) => patch('mannerisms', e.target.value)}
                       placeholder={t('characters.mannerismsPlaceholder')}
                     />
-                  </Field>
-                  <Field label={t('characters.relationships')}>
+                  </CharactersField>
+                  <CharactersField label={t('characters.relationships')}>
                     <Textarea
                       size="md"
                       value={form.relationships}
                       onChange={(e) => patch('relationships', e.target.value)}
                     />
-                  </Field>
+                  </CharactersField>
                 </section>
 
                 {/* Soul 目錄 — browse + full content (same catalog as Hub tab) */}
@@ -2403,7 +2099,8 @@ export function CharactersPage(): JSX.Element {
                         variant="ghost"
                         className="!py-1 text-xs"
                         onClick={() =>
-                          void getApi().shell.openExternal(
+                          charactersOpenExternal(
+                            (url) => void getApi().shell.openExternal(url),
                             'https://soulmd-hub.ysk.hk'
                           )
                         }
@@ -2471,7 +2168,9 @@ export function CharactersPage(): JSX.Element {
                       onChange={(e) => setHubQ(e.target.value)}
                       placeholder={t('characters.soulSearch')}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') void loadHubPage(1, hubQ)
+                        charactersHubEnter(e.key, hubQ, (p, q) =>
+                          void loadHubPage(p, q)
+                        )
                       }}
                     />
                     <Button
@@ -2490,10 +2189,11 @@ export function CharactersPage(): JSX.Element {
                           key={`${s.kind}-${s.label}`}
                           type="button"
                           className="rounded-full border border-ink-700 bg-ink-950/80 px-2.5 py-0.5 text-[10px] text-ink-300 transition hover:border-brand-600/50 hover:text-brand-200"
-                          onClick={() => {
-                            setHubQ(s.label)
-                            void loadHubPage(1, s.label)
-                          }}
+                          onClick={() =>
+                            charactersSuggestionSearch(s.label, setHubQ, (p, q) =>
+                              void loadHubPage(p, q)
+                            )
+                          }
                         >
                           {s.label}
                         </button>
@@ -2591,23 +2291,26 @@ export function CharactersPage(): JSX.Element {
                           {(catalogPickTitle || form.soulHubId != null) && (
                             <span className="ml-1 text-ink-300">
                               ·{' '}
-                              {catalogPickTitle ??
-                                (form.soulHubId != null
-                                  ? `#${form.soulHubId}`
-                                  : '')}
+                              {charactersSoulTitleDisplay(
+                                catalogPickTitle,
+                                form.soulHubId
+                              )}
                             </span>
                           )}
                         </span>
-                        {catalogPickId != null &&
-                          form.soulHubId !== catalogPickId && (
+                        {charactersShouldShowUseSoul(
+                          catalogPickId,
+                          form.soulHubId
+                        ) && (
                             <Button
                               variant="secondary"
                               className="!shrink-0 !py-0.5 !text-xs"
                               disabled={busy}
                               onClick={() =>
-                                void applySoulFromHub(catalogPickId, {
-                                  stayInEditor: true
-                                })
+                                charactersUseSoulButtonClick(
+                                  catalogPickId,
+                                  (id, opts) => void applySoulFromHub(id, opts)
+                                )
                               }
                             >
                               {t('characters.useSoul')}
@@ -2627,12 +2330,9 @@ export function CharactersPage(): JSX.Element {
                               catalogPickBody ?? form.soulPreview ?? ''
                             }
                             onChange={(e) => {
-                              const v = e.target.value
-                              setCatalogPickBody(v)
-                              setForm((f) => ({
-                                ...f,
-                                soulPreview: v
-                              }))
+                              const r = charactersSoulTextSetter(e.target.value)
+                              setCatalogPickBody(r.body)
+                              setForm(r.formUpdater)
                             }}
                             placeholder={t('characters.soulEditPlaceholder')}
                             aria-label={t('characters.soulFullContent')}
@@ -2667,10 +2367,13 @@ export function CharactersPage(): JSX.Element {
                   >
                     <EditorSelect
                       value={sheetVariant}
-                      onChange={(e) => {
-                        setSheetVariant(e.target.value as SheetVariantId)
-                        setUseIdentityRef(false)
-                      }}
+                      onChange={(e) =>
+                        charactersOnSheetVariantChange(
+                          e.target.value,
+                          setSheetVariant,
+                          setUseIdentityRef
+                        )
+                      }
                     >
                       {(
                         [
@@ -2699,10 +2402,7 @@ export function CharactersPage(): JSX.Element {
                     <EditorSelect
                       value={form.artStyle}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          artStyle: e.target.value as ArtStyleId
-                        }))
+                        setForm(charactersArtStyleSetter(e.target.value))
                       }
                     >
                       {(
@@ -2725,7 +2425,7 @@ export function CharactersPage(): JSX.Element {
                   </EditorField>
                 </div>
 
-                {sheetRequiresUnclothedSupport(sheetVariant) && (
+                {charactersNeedsBareBodyWarning(sheetVariant) && (
                   <div
                     role="note"
                     className="rounded-lg border border-amber-800/50 bg-amber-950/35 px-3 py-2.5 text-[11px] leading-relaxed text-amber-100/95"
@@ -2828,7 +2528,7 @@ export function CharactersPage(): JSX.Element {
                               toast.success(t('common.linked'))
                             })
                             .catch((e) =>
-                              toast.error(parseIpcError(e).message)
+                              toast.error(charactersLinkCostumeError(e))
                             )
                         }}
                       >
@@ -2836,11 +2536,17 @@ export function CharactersPage(): JSX.Element {
                       </Button>
                     </div>
                   )}
-                  {!editingId ? (
+                  {charactersShowLinkedEmpty(
+                    editingId,
+                    linkedGlobalCostumes.length
+                  ) === 'saveFirst' ? (
                     <p className="mt-3 text-[11px] text-ink-500">
                       {t('costumes.saveCharacterFirst')}
                     </p>
-                  ) : linkedGlobalCostumes.length === 0 ? (
+                  ) : charactersShowLinkedEmpty(
+                      editingId,
+                      linkedGlobalCostumes.length
+                    ) === 'empty' ? (
                     <p className="mt-3 text-[11px] text-ink-500">
                       {t('costumes.noLinkedCharacters')}
                     </p>
@@ -2880,12 +2586,15 @@ export function CharactersPage(): JSX.Element {
                               onClick={() => {
                                 if (!editingId) return
                                 if (
-                                  isBlocked({
-                                    kind: ['costume-swap'],
-                                    characterId: editingId
-                                  })
+                                  charactersDressedBusyGuard(
+                                    isBlocked({
+                                      kind: ['costume-swap'],
+                                      characterId: editingId
+                                    }),
+                                    toast.info,
+                                    t('aiJobs.running')
+                                  )
                                 ) {
-                                  toast.info(t('aiJobs.running'))
                                   return
                                 }
                                 toast.info(t('aiJobs.startedBackground'))
@@ -2935,9 +2644,10 @@ export function CharactersPage(): JSX.Element {
                                       setForm((f) => ({
                                         ...f,
                                         costume: cos.description,
-                                        artStyle: isArtStyleId(cos.artStyle)
-                                          ? cos.artStyle
-                                          : f.artStyle
+                                        artStyle: charactersArtStyleOrKeep(
+                                          cos.artStyle,
+                                          f.artStyle
+                                        )
                                       }))
                                       setSwapCostumeText(cos.description)
                                       return getApi().costumes.listForCharacter(
@@ -2951,7 +2661,7 @@ export function CharactersPage(): JSX.Element {
                                       )
                                     )
                                     .catch((e) =>
-                                      toast.error(parseIpcError(e).message)
+                                      toast.error(charactersLinkCostumeError(e))
                                     )
                                 }}
                               >
@@ -3060,10 +2770,13 @@ export function CharactersPage(): JSX.Element {
                       stories={stories}
                       storyId={plotStoryId}
                       segmentKey={plotSegmentKey}
-                      onStoryChange={(id) => {
-                        setPlotStoryId(id)
-                        setPlotSegmentKey('all')
-                      }}
+                      onStoryChange={(id) =>
+                        charactersPlotStoryChange(
+                          id,
+                          setPlotStoryId,
+                          setPlotSegmentKey
+                        )
+                      }
                       onSegmentChange={setPlotSegmentKey}
                     />
                     <Button
@@ -3186,7 +2899,1651 @@ export function CharactersPage(): JSX.Element {
   )
 }
 
-function Field({
+// ─── Residual pure helpers (absolute line coverage) ─────────────────────────
+
+export const CHARACTER_AI_KINDS = [
+  'character-ai-fill',
+  'character-sheet',
+  'character-intro-video',
+  'costume-swap',
+  'wardrobe-suggest'
+] as const
+
+export function charactersIsAiJob(
+  j: { kind: string; scope: { characterId?: string } },
+  characterId: string | null | undefined,
+  kinds: readonly string[] = CHARACTER_AI_KINDS
+): boolean {
+  if (!(kinds as readonly string[]).includes(j.kind)) return false
+  const id = characterId ?? null
+  if (id) return j.scope.characterId === id
+  return !j.scope.characterId
+}
+
+export function charactersAiBusyFromJobs(
+  activeJobs: Array<{ kind: string; scope: { characterId?: string } }>,
+  characterId: string | null | undefined,
+  blocked: boolean,
+  kinds: readonly string[] = CHARACTER_AI_KINDS
+): boolean {
+  if (blocked) return true
+  return activeJobs.some((j) => charactersIsAiJob(j, characterId, kinds))
+}
+
+export async function charactersRemoveWithFeedback(ops: {
+  remove: (id: string) => Promise<unknown>
+  id: string
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): Promise<void> {
+  try {
+    await ops.remove(ops.id)
+    ops.toastSuccess()
+  } catch (e) {
+    ops.toastError(parseIpcError(e).message)
+  }
+}
+
+export function charactersApplyIpcError(
+  e: unknown,
+  setError: (m: string) => void,
+  toastError?: (m: string) => void
+): string {
+  const err = parseIpcError(e)
+  const msg = `${err.message}${err.details ? ` — ${err.details}` : ''}`
+  setError(msg)
+  toastError?.(msg)
+  return msg
+}
+
+export function charactersApplySimpleIpc(
+  e: unknown,
+  toastError: (m: string) => void
+): string {
+  const msg = parseIpcError(e).message
+  toastError(msg)
+  return msg
+}
+
+export function charactersGuardEmptyName(
+  name: string,
+  toastError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!name.trim()) {
+    toastError(msg)
+    return true
+  }
+  return false
+}
+
+export function charactersGuardBusy(
+  busy: boolean,
+  toastInfo: (m: string) => void,
+  msg: string
+): boolean {
+  if (busy) {
+    toastInfo(msg)
+    return true
+  }
+  return false
+}
+
+export function charactersGuardAiNeed(
+  idea: string,
+  hasDraft: boolean,
+  hasSoul: boolean,
+  hasImage: boolean,
+  setError: (m: string) => void,
+  toastError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!idea && !hasDraft && !hasSoul && !hasImage) {
+    setError(msg)
+    toastError(msg)
+    return true
+  }
+  return false
+}
+
+export function charactersAiFillToastKey(
+  hasImage: boolean,
+  idea: string,
+  hasDraft: boolean,
+  hasSoul: boolean
+): 'fromImage' | 'background' {
+  return hasImage && !idea && !hasDraft && !hasSoul ? 'fromImage' : 'background'
+}
+
+export function charactersHasDraftValues(
+  snapshot: Record<string, unknown>
+): boolean {
+  return Object.values(snapshot).some((v) => {
+    if (typeof v === 'string') return v.length > 0
+    if (Array.isArray(v)) return v.length > 0
+    return false
+  })
+}
+
+export function charactersAiFillRefPath(parts: {
+  selectedPath?: string | null
+  coverPath?: string | null
+  gallery0?: string | null
+}): string {
+  return (
+    parts.selectedPath?.trim() ||
+    parts.coverPath?.trim() ||
+    parts.gallery0?.trim() ||
+    ''
+  )
+}
+
+export function charactersSoulContent(
+  soulPreview?: string | null,
+  catalogPickBody?: string | null
+): string {
+  return soulPreview?.trim() || catalogPickBody?.trim() || ''
+}
+
+export function charactersShouldOpenEditorOnAi(
+  fromEditor: boolean
+): { open: boolean; panel: 'profile' } {
+  return { open: !fromEditor, panel: 'profile' }
+}
+
+export function charactersResolveWantIdentity(
+  opts: boolean | undefined,
+  useIdentityRef: boolean
+): boolean {
+  return opts !== undefined ? opts === true : useIdentityRef
+}
+
+export function charactersForcePureLayout(variantDef: {
+  wardrobeLayer?: string
+  requiresUnclothedSupport?: boolean
+}): boolean {
+  return (
+    variantDef.wardrobeLayer === 'nude' ||
+    variantDef.wardrobeLayer === 'base' ||
+    Boolean(variantDef.requiresUnclothedSupport)
+  )
+}
+
+export function charactersUseIdentityEdit(
+  forcePure: boolean,
+  wantIdentity: boolean
+): boolean {
+  return !forcePure && wantIdentity
+}
+
+export function charactersGalleryPathsFromOpts(
+  referenceImagePath: string | null | undefined,
+  selected: string[]
+): string[] {
+  const t = referenceImagePath?.trim()
+  return t ? [t] : selected
+}
+
+export function charactersSheetModeLabel(
+  forcePure: boolean,
+  useEdit: boolean,
+  labels: { force: string; identity: string; pure: string }
+): string {
+  if (forcePure) return labels.force
+  return useEdit ? labels.identity : labels.pure
+}
+
+export function charactersNextCoverAfterRemove(
+  next: CharacterGalleryItem[],
+  removedPath: string | undefined,
+  coverPath: string | null,
+  isCover: (gal: CharacterGalleryItem[], c: string | null) => boolean,
+  primary: (gal: CharacterGalleryItem[]) => string | null
+): string | null {
+  if (removedPath && coverPath === removedPath) return primary(next)
+  if (isCover(next, coverPath)) return coverPath
+  return primary(next)
+}
+
+export function charactersShouldReorder(
+  fromId: string,
+  toId: string
+): boolean {
+  return Boolean(fromId && toId && fromId !== toId)
+}
+
+export function charactersPickNeighborId(
+  id: string,
+  items: { id: string }[],
+  selectedId: string | null
+): string | null {
+  if (selectedId !== id) return selectedId
+  const idx = items.findIndex((x) => x.id === id)
+  if (idx < 0) return null
+  return items[idx + 1]?.id ?? items[idx - 1]?.id ?? null
+}
+
+export function charactersMaybeContinueVideoDraft(
+  has: boolean,
+  cont: () => void
+): boolean {
+  if (has) {
+    cont()
+    return true
+  }
+  return false
+}
+
+export function charactersIntroVideoHandler(
+  editingId: string | null | undefined,
+  path: string,
+  handler: (p: string) => void
+): (() => void) | undefined {
+  return editingId ? () => handler(path) : undefined
+}
+
+export function charactersGuardIntro(
+  editingId: string | null,
+  sourceImagePath: string,
+  busy: boolean,
+  setError: (m: string) => void,
+  toastError: (m: string) => void,
+  toastInfo: (m: string) => void,
+  msgs: { saveFirst: string; needImage: string; loading: string }
+): 'saveFirst' | 'needImage' | 'busy' | 'ok' {
+  if (!editingId) {
+    setError(msgs.saveFirst)
+    toastError(msgs.saveFirst)
+    return 'saveFirst'
+  }
+  if (!sourceImagePath?.trim()) {
+    setError(msgs.needImage)
+    toastError(msgs.needImage)
+    return 'needImage'
+  }
+  if (busy) {
+    toastInfo(msgs.loading)
+    return 'busy'
+  }
+  return 'ok'
+}
+
+export function charactersGuardSoulSource(
+  hasSource: boolean,
+  setError: (m: string) => void,
+  toastError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!hasSource) {
+    setError(msg)
+    toastError(msg)
+    return true
+  }
+  return false
+}
+
+export function charactersHasSoulSource(fields: {
+  name?: string
+  description?: string
+  appearance?: string
+  personality?: string
+  costume?: string
+  backstory?: string
+  soulPreview?: string | null
+}): boolean {
+  return Boolean(
+    fields.name?.trim() ||
+      fields.description?.trim() ||
+      fields.appearance?.trim() ||
+      fields.personality?.trim() ||
+      fields.costume?.trim() ||
+      fields.backstory?.trim() ||
+      fields.soulPreview?.trim()
+  )
+}
+
+export function charactersMapGalleryKind(
+  kind: string
+): CharacterGalleryItem['kind'] {
+  if (
+    kind === 'sheet' ||
+    kind === 'upload' ||
+    kind === 'gen' ||
+    kind === 'external'
+  ) {
+    return kind
+  }
+  return 'gen'
+}
+
+export function charactersMapSheetKind(
+  kind: string
+): 'sheet' | 'upload' | 'gen' {
+  if (kind === 'sheet' || kind === 'upload' || kind === 'gen') return kind
+  return 'sheet'
+}
+
+export function charactersMapGalleryItems(
+  items: Array<{
+    id: string
+    path: string
+    kind: string
+    label: string
+    createdAt: string
+    layer?: string
+    introVideoPath?: string | null
+  }>,
+  withIntro = false
+): CharacterGalleryItem[] {
+  return items.map((item) => ({
+    id: item.id,
+    path: item.path,
+    kind: withIntro
+      ? charactersMapGalleryKind(item.kind)
+      : charactersMapSheetKind(item.kind),
+    label: item.label,
+    createdAt: item.createdAt,
+    ...(item.layer
+      ? { layer: item.layer as WardrobeLayer }
+      : {}),
+    ...(withIntro
+      ? { introVideoPath: item.introVideoPath ?? null }
+      : {})
+  })) as CharacterGalleryItem[]
+}
+
+export function charactersSelectAfterCommit(
+  gallery: { id: string; path: string }[],
+  path: string
+): string | null {
+  const newest = gallery.find((item) => item.path === path) ?? gallery[0] ?? null
+  return newest?.id ?? null
+}
+
+export function charactersSelectAfterVideo(
+  prev: string | null,
+  mapped: Array<{ id: string; introVideoPath?: string | null }>
+): string | null {
+  if (prev && mapped.some((g) => g.id === prev)) return prev
+  const withVideo = mapped.find((g) => g.introVideoPath)
+  return withVideo?.id ?? mapped[0]?.id ?? prev
+}
+
+export function charactersProfileMismatch(
+  draftId: string | null | undefined,
+  editingId: string | null
+): boolean {
+  return Boolean(draftId && editingId && draftId !== editingId)
+}
+
+export function charactersHandleProfileApply(
+  draft: {
+    characterId?: string | null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    profile: any
+  },
+  editingId: string | null,
+  ops: {
+    reload: () => void
+    setForm: Dispatch<SetStateAction<FormState>>
+    setAiIdea: (fn: (prev: string) => string) => void
+    setEditorOpen: (v: boolean) => void
+    setEditorPanel: (p: EditorPanel) => void
+    setActionError: (m: string | null) => void
+    setPageBanner: (m: string) => void
+    toastSuccess: () => void
+  }
+): void {
+  if (charactersProfileMismatch(draft.characterId, editingId)) {
+    void ops.reload()
+    return
+  }
+  const p = draft.profile as {
+    name?: string
+    description?: string
+    appearance?: string
+    personality?: string
+    backstory?: string
+    costume?: string
+    ageRange?: string
+    gender?: string
+    voiceDesc?: string
+    spokenLanguages?: string[]
+    mannerisms?: string
+    relationships?: string
+    visualTags?: string
+    seedPrompt?: string
+    hardRules?: string
+  }
+  ops.setForm((f) => ({
+    ...f,
+    name: p.name || f.name,
+    description: p.description || f.description,
+    appearance: p.appearance ?? f.appearance,
+    personality: p.personality ?? f.personality,
+    backstory: p.backstory ?? f.backstory,
+    costume: p.costume ?? f.costume,
+    ageRange: p.ageRange ?? f.ageRange,
+    gender: p.gender ?? f.gender,
+    voiceDesc: p.voiceDesc ?? f.voiceDesc,
+    spokenLanguages:
+      Array.isArray(p.spokenLanguages) && p.spokenLanguages.length
+        ? p.spokenLanguages
+        : f.spokenLanguages,
+    mannerisms: p.mannerisms ?? f.mannerisms,
+    relationships: p.relationships ?? f.relationships,
+    visualTags:
+      typeof p.visualTags === 'string' && p.visualTags.trim()
+        ? p.visualTags.trim()
+        : f.visualTags,
+    seedPrompt:
+      p.seedPrompt || f.seedPrompt || p.description || f.description,
+    hardRules:
+      (typeof p.hardRules === 'string' && p.hardRules.trim()
+        ? p.hardRules.trim()
+        : f.hardRules) || f.hardRules
+  }))
+  ops.setAiIdea((prev) => prev || p.seedPrompt || p.description || '')
+  ops.setEditorOpen(true)
+  ops.setEditorPanel('profile')
+  ops.setActionError(null)
+  ops.setPageBanner('')
+  ops.toastSuccess()
+  void ops.reload()
+}
+
+export function charactersHandleWardrobeApply(
+  draft: {
+    characterId?: string | null
+    suggestion: { name: string; costume: string; artStyle?: string }
+  },
+  editingId: string | null,
+  currentArtStyle: ArtStyleId,
+  ops: {
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSwapCostumeText: (s: string) => void
+    setPageBanner: (m: string) => void
+    setEditorOpen: (v: boolean) => void
+    toastSuccess: () => void
+    createEntry: (args: {
+      name: string
+      description: string
+      artStyle: ArtStyleId
+    }) => CharacterCostumeEntry
+    upsert: (
+      list: CharacterCostumeEntry[],
+      entry: CharacterCostumeEntry
+    ) => CharacterCostumeEntry[]
+  }
+): boolean {
+  if (charactersProfileMismatch(draft.characterId, editingId)) return false
+  const s = draft.suggestion
+  const artStyle = isArtStyleId(s.artStyle) ? s.artStyle : currentArtStyle
+  const entry = ops.createEntry({
+    name: s.name,
+    description: s.costume,
+    artStyle
+  })
+  ops.setForm((f) => ({
+    ...f,
+    costume: s.costume,
+    artStyle,
+    costumes: ops.upsert(f.costumes, entry)
+  }))
+  ops.setSwapCostumeText(s.costume)
+  ops.setPageBanner('')
+  ops.toastSuccess()
+  ops.setEditorOpen(true)
+  return true
+}
+
+export function charactersHandleSheetCommitted(
+  payload: {
+    characterId: string
+    path: string
+    gallery?: Array<{
+      id: string
+      path: string
+      kind: string
+      label: string
+      createdAt: string
+      layer?: string
+    }>
+    costume?: string | null
+  },
+  editingId: string | null,
+  ops: {
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSelectedImageId: (id: string | null) => void
+    setSwapCostumeText: (s: string) => void
+    reload: () => void
+    toastSuccess: () => void
+    setPageBanner: (m: string) => void
+    listCharacter: (id: string) => Promise<Character | null>
+    ensureCostume: (
+      costumes: CharacterCostumeEntry[],
+      costume: string,
+      opts: { artStyle: ArtStyleId }
+    ) => CharacterCostumeEntry[]
+  }
+): void {
+  if (editingId === payload.characterId) {
+    if (payload.gallery && payload.gallery.length > 0) {
+      const g = charactersMapGalleryItems(payload.gallery, false)
+      ops.setForm((f) => {
+        const costumes = charactersSheetEnsureCostume(
+          f.costumes,
+          payload.costume,
+          f.artStyle,
+          ops.ensureCostume
+        )
+        return {
+          ...f,
+          gallery: g,
+          costume: payload.costume ?? f.costume,
+          costumes
+        }
+      })
+      ops.setSelectedImageId(charactersSelectAfterCommit(g, payload.path))
+      if (payload.costume) ops.setSwapCostumeText(payload.costume)
+    } else {
+      void ops.listCharacter(payload.characterId).then((c) => {
+        if (!c) return
+        const g = galleryFromCharacter(c)
+        ops.setForm((f) => ({
+          ...f,
+          gallery: g,
+          costume: c.costume ?? f.costume
+        }))
+        ops.setSelectedImageId(charactersSelectAfterCommit(g, payload.path))
+      })
+    }
+  }
+  void ops.reload()
+  ops.setPageBanner('')
+  ops.toastSuccess()
+  void payload.path
+}
+
+export function charactersHandleVideoPrepDone(
+  d: {
+    kind?: string
+    entityIds?: { characterId?: string }
+    gallery?: Array<{
+      id: string
+      path: string
+      kind: string
+      label: string
+      createdAt: string
+      layer?: string
+      introVideoPath?: string | null
+    }>
+  } | null
+    | undefined,
+  editingId: string | null,
+  ops: {
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSelectedImageId: Dispatch<SetStateAction<string | null>>
+    reload: () => void
+    getCharacter: (id: string) => Promise<Character>
+  }
+): void {
+  if (d?.kind !== 'character-intro') return
+  if (!editingId || d.entityIds?.characterId !== editingId) return
+  const applyGallery = (
+    items: Array<{
+      id: string
+      path: string
+      kind: string
+      label: string
+      createdAt: string
+      layer?: string
+      introVideoPath?: string | null
+    }>
+  ): void => {
+    const mapped = charactersMapGalleryItems(items, true)
+    ops.setForm((f) => ({ ...f, gallery: mapped }))
+    ops.setSelectedImageId((prev) => charactersSelectAfterVideo(prev, mapped))
+  }
+  if (d.gallery?.length) {
+    applyGallery(d.gallery)
+  } else {
+    void ops
+      .getCharacter(editingId)
+      .then((row) => {
+        const g = parseCharacterGallery(row.refGalleryJson, {
+          refImagePath: row.refImagePath,
+          refSheetPath: row.refSheetPath
+        })
+        applyGallery(g)
+      })
+      .catch(() => void ops.reload())
+  }
+}
+
+export function charactersLocalSoulPath(
+  soulMdPath: string | null | undefined
+): string | null {
+  if (
+    soulMdPath &&
+    !soulMdPath.startsWith('soulmd-hub://') &&
+    !soulMdPath.startsWith('http')
+  ) {
+    return soulMdPath
+  }
+  return null
+}
+
+export async function charactersWriteSoulIfNeeded(ops: {
+  soulText: string
+  soulMdPath: string | null
+  editingId: string | null
+  write: (args: {
+    content: string
+    filePath: string | null
+    characterId: string | null
+  }) => Promise<{ filePath: string; content: string }>
+  onWarn: (e: unknown) => void
+}): Promise<{
+  soulMdPath: string | null
+  soulPreview: string | null
+  soulHubId: number | null
+  wrote: boolean
+} | null> {
+  if (!ops.soulText) return null
+  try {
+    const written = await ops.write({
+      content: ops.soulText,
+      filePath: charactersLocalSoulPath(ops.soulMdPath),
+      characterId: ops.editingId
+    })
+    return {
+      soulMdPath: written.filePath,
+      soulPreview: written.content,
+      soulHubId: null,
+      wrote: true
+    }
+  } catch (e) {
+    ops.onWarn(e)
+    return null
+  }
+}
+
+export async function charactersRunSave(ops: {
+  name: string
+  emptyMsg: string
+  savedMsg: string
+  failedMsg: string
+  editingId: string | null
+  toastError: (m: string) => void
+  toastSuccess: (m: string) => void
+  setError: (m: string | null) => void
+  setBusy: (v: boolean) => void
+  prepareForm: () => Promise<FormState>
+  buildPayload: (
+    form: FormState
+  ) => Omit<CreateCharacterInput, 'storyId'>
+  update: (
+    id: string,
+    payload: Omit<CreateCharacterInput, 'storyId'>
+  ) => Promise<boolean>
+  create: (
+    payload: Omit<CreateCharacterInput, 'storyId'>
+  ) => Promise<boolean>
+  reload: () => Promise<void> | void
+  closeEditor: () => void
+}): Promise<void> {
+  if (charactersGuardEmptyName(ops.name, ops.toastError, ops.emptyMsg)) return
+  ops.setBusy(true)
+  ops.setError(null)
+  try {
+    const nextForm = await ops.prepareForm()
+    const payload = ops.buildPayload(nextForm)
+    if (ops.editingId) {
+      const ok = await ops.update(ops.editingId, payload)
+      if (ok) {
+        ops.toastSuccess(ops.savedMsg)
+        await ops.reload()
+        ops.closeEditor()
+      } else {
+        ops.toastError(ops.failedMsg)
+      }
+    } else {
+      const ok = await ops.create(payload)
+      if (ok) {
+        ops.toastSuccess(ops.savedMsg)
+        await ops.reload()
+        ops.closeEditor()
+      } else {
+        ops.toastError(ops.failedMsg)
+      }
+    }
+  } catch (e) {
+    charactersApplySimpleIpc(e, (m) => {
+      ops.setError(m)
+      ops.toastError(m)
+    })
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export function charactersRunAiFill(ops: {
+  busy: boolean
+  idea: string
+  formSnapshot: Record<string, unknown>
+  soulContent: string
+  refPath: string
+  fromEditor: boolean
+  setError: (m: string | null) => void
+  needMsg: string
+  setBanner: (m: string) => void
+  toastInfo: (m: string) => void
+  toastError: (m: string) => void
+  fromImageMsg: string
+  backgroundMsg: string
+  runningMsg: string
+  setEditorOpen: (v: boolean) => void
+  setEditorPanel: (p: EditorPanel) => void
+  startJob: (
+    idea: string,
+    hasDraft: boolean,
+    hasSoul: boolean,
+    hasImage: boolean,
+    refPath: string,
+    snapshot: Record<string, unknown>,
+    isImprove: boolean
+  ) => void
+}): 'busy' | 'need' | 'started' {
+  if (charactersGuardBusy(ops.busy, ops.toastInfo, ops.runningMsg)) {
+    return 'busy'
+  }
+  const idea = ops.idea.trim()
+  const hasDraft = charactersHasDraftValues(ops.formSnapshot)
+  const hasSoul = ops.soulContent.length > 0
+  const hasImage = Boolean(ops.refPath)
+  if (
+    charactersGuardAiNeed(
+      idea,
+      hasDraft,
+      hasSoul,
+      hasImage,
+      (m) => ops.setError(m),
+      ops.toastError,
+      ops.needMsg
+    )
+  ) {
+    return 'need'
+  }
+  ops.setError(null)
+  const open = charactersShouldOpenEditorOnAi(ops.fromEditor)
+  if (open.open) ops.setEditorOpen(true)
+  ops.setEditorPanel(open.panel)
+  ops.setBanner(ops.backgroundMsg)
+  ops.toastInfo(
+    charactersAiFillToastKey(hasImage, idea, hasDraft, hasSoul) === 'fromImage'
+      ? ops.fromImageMsg
+      : ops.backgroundMsg
+  )
+  ops.startJob(
+    idea,
+    hasDraft,
+    hasSoul,
+    hasImage,
+    ops.refPath,
+    ops.formSnapshot,
+    hasDraft || hasSoul
+  )
+  return 'started'
+}
+
+export async function charactersReadSoulSafe(
+  read: () => Promise<{ content?: string | null }>,
+  fallback = ''
+): Promise<string> {
+  try {
+    const r = await read()
+    return r.content?.trim() ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+export async function charactersDiscardDraftSafe(
+  discard: (path: string) => Promise<unknown>,
+  path: string
+): Promise<void> {
+  try {
+    await discard(path)
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function charactersEnsureSavedId(ops: {
+  editingId: string | null
+  name: string
+  activeStoryId: string | null
+  update: () => Promise<unknown>
+  create: () => Promise<boolean>
+  reload: () => Promise<void> | void
+  list: () => Promise<Character[]>
+  setEditingId: (id: string) => void
+}): Promise<string | null> {
+  if (ops.editingId) {
+    await ops.update()
+    return ops.editingId
+  }
+  if (!ops.name.trim() || !ops.activeStoryId) return null
+  const ok = await ops.create()
+  if (!ok) return null
+  await ops.reload()
+  const created = await charactersFindByName(ops.list, ops.name)
+  if (created) {
+    ops.setEditingId(created.id)
+    return created.id
+  }
+  return null
+}
+
+export function charactersApplyCostumeLook(
+  entry: CharacterCostumeEntry,
+  gallery: CharacterGalleryItem[],
+  ops: {
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSwapCostumeText: (s: string) => void
+    setSelectedImageId: (id: string | null) => void
+    setPageBanner: (m: string) => void
+    toastSuccess: (m: string) => void
+    appliedMsg: string
+  }
+): void {
+  ops.setForm((f) => ({
+    ...f,
+    costume: entry.description,
+    artStyle: isArtStyleId(entry.artStyle) ? entry.artStyle : f.artStyle
+  }))
+  ops.setSwapCostumeText(entry.description)
+  if (entry.imagePath) {
+    const hit = gallery.find((g) => g.path === entry.imagePath)
+    if (hit) ops.setSelectedImageId(hit.id)
+  }
+  ops.setPageBanner(ops.appliedMsg)
+  ops.toastSuccess(ops.appliedMsg)
+}
+
+export function charactersAddCostumeToLibrary(ops: {
+  description: string
+  name: string
+  artStyle: ArtStyleId
+  setError: (m: string) => void
+  requiredMsg: string
+  savedMsg: string
+  setForm: Dispatch<SetStateAction<FormState>>
+  setSwapCostumeText: (s: string) => void
+  setNewCostumeName: (s: string) => void
+  setPageBanner: (m: string) => void
+  toastSuccess: (m: string) => void
+  createEntry: (args: {
+    name?: string
+    description: string
+    artStyle: ArtStyleId
+  }) => CharacterCostumeEntry
+  upsert: (
+    list: CharacterCostumeEntry[],
+    entry: CharacterCostumeEntry
+  ) => CharacterCostumeEntry[]
+}): boolean {
+  if (!ops.description) {
+    ops.setError(ops.requiredMsg)
+    return false
+  }
+  try {
+    const entry = ops.createEntry({
+      name: ops.name.trim() || undefined,
+      description: ops.description,
+      artStyle: ops.artStyle
+    })
+    ops.setForm((f) => ({
+      ...f,
+      costume: ops.description,
+      costumes: ops.upsert(f.costumes, entry)
+    }))
+    ops.setSwapCostumeText(ops.description)
+    ops.setNewCostumeName('')
+    ops.setPageBanner(ops.savedMsg)
+    ops.toastSuccess(ops.savedMsg)
+    return true
+  } catch (e) {
+    ops.setError(e instanceof Error ? e.message : String(e))
+    return false
+  }
+}
+
+export function charactersGuardSuggest(
+  name: string,
+  busy: boolean,
+  setError: (m: string) => void,
+  needNameMsg: string
+): 'needName' | 'busy' | 'ok' {
+  if (!name.trim()) {
+    setError(needNameMsg)
+    return 'needName'
+  }
+  if (busy) return 'busy'
+  return 'ok'
+}
+
+export async function charactersRunSwapCostume(ops: {
+  ensureSavedId: () => Promise<string | null>
+  isBusy: (id: string) => boolean
+  costumeDescription: string
+  setError: (m: string) => void
+  saveFirstMsg: string
+  requiredMsg: string
+  noBaseMsg: string
+  startedMsg: string
+  toastInfo: (m: string) => void
+  setBanner: (m: string) => void
+  pickBase: () => { item: { path: string } | null }
+  startJob: (
+    characterId: string,
+    baseImagePath: string,
+    costumeDescription: string
+  ) => void
+}): Promise<'no-id' | 'busy' | 'need-costume' | 'no-base' | 'started' | 'error'> {
+  try {
+    const id = await ops.ensureSavedId()
+    if (!id) {
+      ops.setError(ops.saveFirstMsg)
+      return 'no-id'
+    }
+    if (ops.isBusy(id)) return 'busy'
+    if (!ops.costumeDescription) {
+      ops.setError(ops.requiredMsg)
+      return 'need-costume'
+    }
+    const auto = ops.pickBase()
+    if (!auto.item) {
+      ops.setError(ops.noBaseMsg)
+      return 'no-base'
+    }
+    ops.setBanner(ops.startedMsg)
+    ops.toastInfo(ops.startedMsg)
+    ops.startJob(id, auto.item.path, ops.costumeDescription)
+    return 'started'
+  } catch (e) {
+    charactersApplyIpcError(e, ops.setError)
+    return 'error'
+  }
+}
+
+export async function charactersRunGenerateSheetSetup(ops: {
+  ensureSavedId: () => Promise<string | null>
+  characterId?: string | null
+  isBusy: (id: string) => boolean
+  setError: (m: string) => void
+  saveFirstMsg: string
+  forcePure: boolean
+  wantIdentity: boolean
+  useIdentityRef: boolean
+  setUseIdentityRef: (v: boolean) => void
+  paths: string[]
+  resolveIdentity: (args: {
+    useIdentityRef: boolean
+    selectedPaths: string[]
+  }) => { useEdit: boolean; paths: string[] }
+  buildPrompt: (useEdit: boolean) => string
+  maybeAppendMulti: (prompt: string, paths: string[]) => string
+  ensureRules: (prompt: string) => string
+  modeLabel: string
+  summaryParts: string
+  setConfirm: (p: ImageGenConfirmPayload) => void
+}): Promise<'no-id' | 'busy' | 'ready' | 'error'> {
+  try {
+    let id = ops.characterId ?? null
+    if (!id) id = await ops.ensureSavedId()
+    if (!id) {
+      ops.setError(ops.saveFirstMsg)
+      return 'no-id'
+    }
+    if (ops.isBusy(id)) return 'busy'
+    const useIdentityEdit = charactersUseIdentityEdit(
+      ops.forcePure,
+      ops.wantIdentity
+    )
+    if (ops.forcePure && ops.useIdentityRef) ops.setUseIdentityRef(false)
+    const idRes = ops.resolveIdentity({
+      useIdentityRef: useIdentityEdit,
+      selectedPaths: ops.paths
+    })
+    let prompt = ops.buildPrompt(idRes.useEdit)
+    if (idRes.paths.length > 1) {
+      prompt = ops.maybeAppendMulti(prompt, idRes.paths)
+    }
+    prompt = ops.ensureRules(prompt)
+    ops.setConfirm({
+      prompt,
+      referencePaths: idRes.paths,
+      useIdentityEdit: idRes.useEdit,
+      summary: ops.summaryParts
+    })
+    return 'ready'
+  } catch (e) {
+    charactersApplyIpcError(e, ops.setError)
+    return 'error'
+  }
+}
+
+export async function charactersRunSheetJob(ops: {
+  ensureSavedId: () => Promise<string | null>
+  isBusy: (id: string) => boolean
+  setError: (m: string) => void
+  saveFirstMsg: string
+  toastInfo: (m: string) => void
+  identityMsg: string
+  backgroundMsg: string
+  useIdentityEdit: boolean
+  startJob: (id: string) => void
+}): Promise<'no-id' | 'busy' | 'started' | 'error'> {
+  try {
+    const id = await ops.ensureSavedId()
+    if (!id) {
+      ops.setError(ops.saveFirstMsg)
+      return 'no-id'
+    }
+    if (ops.isBusy(id)) return 'busy'
+    ops.toastInfo(
+      ops.useIdentityEdit ? ops.identityMsg : ops.backgroundMsg
+    )
+    ops.startJob(id)
+    return 'started'
+  } catch (e) {
+    charactersApplyIpcError(e, ops.setError)
+    return 'error'
+  }
+}
+
+export function charactersResetSheetIfHidden(
+  sheetGroups: Record<string, Array<{ id: string }>>,
+  sheetVariant: string,
+  defaultVariant: string
+): string | null {
+  const all = Object.values(sheetGroups).flat()
+  if (!all.some((v) => v.id === sheetVariant)) return defaultVariant
+  return null
+}
+
+export function charactersHubSearchMode(q?: string): 'local' | 'remote' {
+  return q?.trim() ? 'local' : 'remote'
+}
+
+export async function charactersLoadHubPage(ops: {
+  page: number
+  q?: string
+  setBusy: (v: boolean) => void
+  setError: (m: string | null) => void
+  searchLocal: (
+    q: string,
+    limit: number
+  ) => Promise<{ items: unknown[] }>
+  listRemote: (args: {
+    page: number
+    limit: number
+    q?: string
+  }) => Promise<{
+    data?: unknown[]
+    total_pages?: number
+    current_page?: number
+  }>
+  setItems: (items: unknown[]) => void
+  setTotalPages: (n: number) => void
+  setPage: (n: number) => void
+}): Promise<void> {
+  ops.setBusy(true)
+  ops.setError(null)
+  try {
+    if (ops.q?.trim()) {
+      const local = await ops.searchLocal(ops.q.trim(), 24)
+      if (local.items.length > 0) {
+        ops.setItems(local.items)
+        ops.setTotalPages(1)
+        ops.setPage(1)
+      } else {
+        const remote = await ops.listRemote({
+          page: 1,
+          limit: 12,
+          q: ops.q.trim()
+        })
+        ops.setItems(remote.data ?? [])
+        ops.setTotalPages(remote.total_pages ?? 1)
+        ops.setPage(1)
+      }
+    } else {
+      const remote = await ops.listRemote({ page: ops.page, limit: 12 })
+      ops.setItems(remote.data ?? [])
+      ops.setTotalPages(remote.total_pages ?? 1)
+      ops.setPage(remote.current_page ?? ops.page)
+    }
+  } catch (e) {
+    ops.setError(parseIpcError(e).message)
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export async function charactersEnsureSoulIndex(ops: {
+  ensureIndex: (force: boolean) => Promise<{
+    count: number
+    pages: number
+    fromCache: boolean
+    suggestions: unknown[]
+  }>
+  setStatus: (s: string) => void
+  setSuggestions: (s: unknown[]) => void
+  formatReady: (r: {
+    count: number
+    pages: number
+    cache: string
+  }) => string
+}): Promise<void> {
+  try {
+    const r = await ops.ensureIndex(false)
+    ops.setStatus(
+      ops.formatReady({
+        count: r.count,
+        pages: r.pages,
+        cache: r.fromCache ? 'cache' : 'fresh'
+      })
+    )
+    ops.setSuggestions(r.suggestions)
+  } catch {
+    /* offline ok */
+  }
+}
+
+export function charactersSoulPreviewSync(
+  body: string,
+  catalogId: number,
+  formSoulHubId: number | null,
+  formSoulPreview: string | null | undefined
+): string | null {
+  if (!body) return null
+  if (formSoulHubId === catalogId || !formSoulPreview?.trim()) return body
+  return formSoulPreview
+}
+
+export function charactersApplySoulForm(
+  f: FormState,
+  detail: {
+    id: number
+    title: string
+    description?: string | null
+  },
+  full: string
+): FormState {
+  return {
+    ...f,
+    soulHubId: detail.id,
+    soulMdPath: `soulmd-hub://${detail.id}`,
+    name: f.name.trim() ? f.name : detail.title,
+    description: charactersImportDesc(
+      f.description,
+      detail.description
+    ),
+    soulPreview: full || null,
+    seedPrompt: f.seedPrompt || detail.title
+  }
+}
+
+export function charactersImportSoulForm(
+  f: FormState,
+  result: { filePath: string; content: string },
+  docTitle: string | null | undefined,
+  extractDesc: (c: string) => string | null | undefined,
+  extractName: (c: string) => string | null | undefined
+): FormState {
+  return {
+    ...f,
+    soulMdPath: result.filePath,
+    soulHubId: null,
+    soulPreview: result.content,
+    description: charactersImportDesc(
+      f.description,
+      extractDesc(result.content)
+    ),
+    name: charactersImportName(
+      f.name,
+      docTitle,
+      extractName(result.content)
+    )
+  }
+}
+
+export function charactersClearSoulForm(f: FormState): FormState {
+  return {
+    ...f,
+    soulMdPath: null,
+    soulHubId: null,
+    soulPreview: null
+  }
+}
+
+export function charactersArtStyleOrKeep(
+  artStyle: string | null | undefined,
+  keep: ArtStyleId
+): ArtStyleId {
+  return isArtStyleId(artStyle) ? artStyle : keep
+}
+
+export function charactersLinkCostumeError(e: unknown): string {
+  return parseIpcError(e).message
+}
+
+export function charactersShowLinkedEmpty(
+  editingId: string | null,
+  linkedCount: number
+): 'saveFirst' | 'empty' | 'list' {
+  if (!editingId) return 'saveFirst'
+  if (linkedCount === 0) return 'empty'
+  return 'list'
+}
+
+export function charactersSoulTitleDisplay(
+  catalogPickTitle: string | null,
+  soulHubId: number | null
+): string {
+  if (catalogPickTitle) return catalogPickTitle
+  if (soulHubId != null) return `#${soulHubId}`
+  return ''
+}
+
+export function charactersShouldShowUseSoul(
+  catalogPickId: number | null,
+  soulHubId: number | null
+): boolean {
+  return catalogPickId != null && soulHubId !== catalogPickId
+}
+
+export function charactersOnSheetVariantChange(
+  value: string,
+  setVariant: (v: SheetVariantId) => void,
+  setUseIdentityRef: (v: boolean) => void
+): void {
+  setVariant(value as SheetVariantId)
+  setUseIdentityRef(false)
+}
+
+export function charactersMaybeAppendMultiRef(
+  prompt: string,
+  paths: string[],
+  locale: string,
+  append: (p: string, paths: string[], locale?: string) => string
+): string {
+  if (paths.length > 1) return append(prompt, paths, locale)
+  return prompt
+}
+
+export function charactersCostumeDesc(
+  swapText: string,
+  formCostume: string
+): string {
+  return swapText.trim() || formCostume.trim()
+}
+
+export function charactersNeedsBareBodyWarning(variant: SheetVariantId): boolean {
+  return sheetRequiresUnclothedSupport(variant)
+}
+
+
+
+export async function charactersPreviewSoul(ops: {
+  id: number
+  titleHint?: string
+  setCatalogPickId: (id: number) => void
+  setCatalogPickTitle: (t: string | null) => void
+  setCatalogLoading: (v: boolean) => void
+  setError: (m: string | null) => void
+  getDetail: (id: number) => Promise<{
+    title?: string
+    contentFlat?: string | null
+  }>
+  readSoul: (id: number) => Promise<{ content?: string | null }>
+  setCatalogPickBody: (b: string | null) => void
+  formSoulHubId: number | null
+  formSoulPreview: string | null
+  setSoulPreview: (body: string) => void
+}): Promise<void> {
+  ops.setCatalogPickId(ops.id)
+  ops.setCatalogPickTitle(ops.titleHint ?? null)
+  ops.setCatalogLoading(true)
+  ops.setError(null)
+  try {
+    const detail = await ops.getDetail(ops.id)
+    const full = (detail.contentFlat ?? '').trim()
+    ops.setCatalogPickTitle(detail.title || ops.titleHint || `#${ops.id}`)
+    const r = await ops.readSoul(ops.id)
+    const body = (r.content?.trim() || full || '').trim()
+    ops.setCatalogPickBody(body || null)
+    const synced = charactersSoulPreviewSync(
+      body,
+      ops.id,
+      ops.formSoulHubId,
+      ops.formSoulPreview
+    )
+    if (synced) ops.setSoulPreview(synced)
+  } catch (e) {
+    ops.setError(parseIpcError(e).message)
+    ops.setCatalogPickBody(null)
+  } finally {
+    ops.setCatalogLoading(false)
+  }
+}
+
+export async function charactersApplySoulFromHub(ops: {
+  id: number
+  setBusy: (v: boolean) => void
+  getDetail: (id: number) => Promise<{
+    id: number
+    title: string
+    description?: string | null
+    contentFlat?: string | null
+  }>
+  readSoul: (id: number) => Promise<{ content?: string | null }>
+  setForm: Dispatch<SetStateAction<FormState>>
+  setCatalogPickId: (id: number) => void
+  setCatalogPickTitle: (t: string | null) => void
+  setCatalogPickBody: (b: string | null) => void
+  setEditorOpen: (v: boolean) => void
+  setEditorPanel: (p: EditorPanel) => void
+  setPageBanner: (m: string) => void
+  toastSuccess: (m: string) => void
+  appliedMsg: (title: string) => string
+  setError: (m: string) => void
+}): Promise<void> {
+  ops.setBusy(true)
+  try {
+    const detail = await ops.getDetail(ops.id)
+    let full = (detail.contentFlat ?? '').trim()
+    try {
+      const r = await ops.readSoul(ops.id)
+      if (r.content?.trim()) full = r.content
+    } catch {
+      /* use detail flat */
+    }
+    ops.setForm((f) => charactersApplySoulForm(f, detail, full))
+    ops.setCatalogPickId(detail.id)
+    ops.setCatalogPickTitle(detail.title)
+    ops.setCatalogPickBody(full || null)
+    ops.setEditorOpen(true)
+    ops.setEditorPanel('profile')
+    const msg = ops.appliedMsg(detail.title)
+    ops.setPageBanner(msg)
+    ops.toastSuccess(msg)
+  } catch (e) {
+    ops.setError(parseIpcError(e).message)
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export function charactersClearSoulState(ops: {
+  setForm: Dispatch<SetStateAction<FormState>>
+  setCatalogPickId: (id: number | null) => void
+  setCatalogPickTitle: (t: string | null) => void
+  setCatalogPickBody: (b: string | null) => void
+}): void {
+  ops.setForm((f) => charactersClearSoulForm(f))
+  ops.setCatalogPickId(null)
+  ops.setCatalogPickTitle(null)
+  ops.setCatalogPickBody(null)
+}
+
+export function charactersRemoveCostumeLook(
+  setForm: Dispatch<SetStateAction<FormState>>,
+  id: string,
+  remove: (list: CharacterCostumeEntry[], id: string) => CharacterCostumeEntry[]
+): void {
+  setForm((f) => ({ ...f, costumes: remove(f.costumes, id) }))
+}
+
+export function charactersReorderGallery(
+  setForm: Dispatch<SetStateAction<FormState>>,
+  fromId: string,
+  toId: string,
+  move: (
+    gallery: CharacterGalleryItem[],
+    fromId: string,
+    toId: string
+  ) => CharacterGalleryItem[]
+): void {
+  if (!charactersShouldReorder(fromId, toId)) return
+  setForm((f) => {
+    const next = move(f.gallery, fromId, toId)
+    return next === f.gallery ? f : { ...f, gallery: next }
+  })
+}
+
+export async function charactersJobCancelDiscard(
+  cancelled: boolean,
+  discard: (path: string) => Promise<unknown>,
+  path: string
+): Promise<boolean> {
+  if (!cancelled) return false
+  await charactersDiscardDraftSafe(discard, path)
+  return true
+}
+
+export function charactersContinueDraftOr(
+  hasDraft: boolean,
+  cont: () => void
+): boolean {
+  return charactersMaybeContinueVideoDraft(hasDraft, cont)
+}
+
+export function charactersLoadSoulPreviewForm(
+  content: string | null | undefined,
+  setForm: Dispatch<SetStateAction<FormState>>
+): void {
+  setForm((f) => ({
+    ...f,
+    soulPreview: content?.trim() ? content : null
+  }))
+}
+
+export function charactersSpokenLangSetter(
+  codes: string[]
+): (f: FormState) => FormState {
+  return (f) => ({ ...f, spokenLanguages: codes })
+}
+
+export function charactersArtStyleSetter(
+  value: string
+): (f: FormState) => FormState {
+  return (f) => ({ ...f, artStyle: value as ArtStyleId })
+}
+
+export function charactersSoulTextSetter(
+  v: string
+): {
+  body: string
+  formUpdater: (f: FormState) => FormState
+} {
+  return {
+    body: v,
+    formUpdater: (f) => ({ ...f, soulPreview: v })
+  }
+}
+
+export function charactersSuggestionSearch(
+  label: string,
+  setHubQ: (q: string) => void,
+  load: (page: number, q: string) => void
+): void {
+  setHubQ(label)
+  load(1, label)
+}
+
+export function charactersHubEnter(
+  key: string,
+  hubQ: string,
+  load: (page: number, q: string) => void
+): boolean {
+  if (key === 'Enter') {
+    void load(1, hubQ)
+    return true
+  }
+  return false
+}
+
+export function charactersOpenExternal(
+  open: (url: string) => void,
+  url: string
+): void {
+  void open(url)
+}
+
+export function charactersGenerateSheetFromEmpty(
+  setEditorPanel: (p: EditorPanel) => void,
+  generate: () => void
+): void {
+  setEditorPanel('refs')
+  void generate()
+}
+
+export function charactersToggleSelectIds(
+  ids: string[],
+  id: string,
+  toggle: (ids: string[], id: string) => string[]
+): string[] {
+  return toggle(ids, id)
+}
+
+export function charactersPlotStoryChange(
+  id: string,
+  setPlotStoryId: (id: string) => void,
+  setPlotSegmentKey: (k: string) => void
+): void {
+  setPlotStoryId(id)
+  setPlotSegmentKey('all')
+}
+
+export function charactersUseSoulButtonClick(
+  catalogPickId: number | null,
+  apply: (id: number, opts: { stayInEditor: boolean }) => void
+): void {
+  if (catalogPickId != null) {
+    void apply(catalogPickId, { stayInEditor: true })
+  }
+}
+
+export function charactersDressedBusyGuard(
+  blocked: boolean,
+  toastInfo: (m: string) => void,
+  msg: string
+): boolean {
+  if (blocked) {
+    toastInfo(msg)
+    return true
+  }
+  return false
+}
+
+export function charactersSheetEnsureCostume(
+  costumes: CharacterCostumeEntry[],
+  costume: string | null | undefined,
+  artStyle: ArtStyleId,
+  ensure: (
+    costumes: CharacterCostumeEntry[],
+    costume: string,
+    opts: { artStyle: ArtStyleId }
+  ) => CharacterCostumeEntry[]
+): CharacterCostumeEntry[] {
+  return costume ? ensure(costumes, costume, { artStyle }) : costumes
+}
+
+export function charactersImportDesc(
+  existing: string,
+  extracted: string | null | undefined
+): string {
+  return existing.trim() || extracted || existing
+}
+
+export function charactersImportName(
+  existing: string,
+  docTitle: string | null | undefined,
+  extracted: string | null | undefined
+): string {
+  return existing.trim() || docTitle || extracted || existing
+}
+
+
+export async function charactersFindInList(
+  list: () => Promise<Character[]>,
+  id: string
+): Promise<Character | null> {
+  const rows = await list()
+  return rows.find((x) => x.id === id) ?? null
+}
+
+export async function charactersFindByName(
+  list: () => Promise<Character[]>,
+  name: string
+): Promise<Character | null> {
+  const rows = await list()
+  return rows.find((c) => c.name === name.trim()) ?? null
+}
+
+export function charactersBuildSheetMultiAppend(
+  prompt: string,
+  paths: string[],
+  locale: string,
+  append: (p: string, paths: string[], locale?: string) => string
+): string {
+  return charactersMaybeAppendMultiRef(prompt, paths, locale, append)
+}
+
+export function charactersAiCreateLabel(
+  isImprove: boolean,
+  improve: string,
+  create: string
+): string {
+  return isImprove ? improve : create
+}
+
+export function charactersSpokenOrUndefined(
+  langs: string[]
+): string[] | undefined {
+  return langs.length > 0 ? langs : undefined
+}
+
+export function charactersSelectedIds(
+  selectedImageIds: string[],
+  selectedImageId: string | null
+): string[] {
+  return selectedImageIds.length > 0
+    ? selectedImageIds
+    : selectedImageId
+      ? [selectedImageId]
+      : []
+}
+
+export function charactersGeneratingLabel(
+  busy: boolean,
+  generating: string,
+  idle: string
+): string {
+  return busy ? generating : idle
+}
+
+export function charactersCostumeBaseOptionLabel(
+  path: string,
+  labels: string
+): string {
+  return path ? labels : ''
+}
+
+export function CharactersField({
   label,
   hint,
   children
@@ -3206,7 +4563,7 @@ function Field({
   )
 }
 
-function Chip({ children }: { children: React.ReactNode }): JSX.Element {
+export function CharactersChip({ children }: { children: React.ReactNode }): JSX.Element {
   return (
     <span className="inline-flex items-center justify-center rounded-full bg-ink-800/90 px-2.5 py-0.5 text-center text-[10px] leading-none text-ink-300">
       {children}

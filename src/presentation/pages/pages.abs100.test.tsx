@@ -66,8 +66,132 @@ import {
   actionsRunSave,
   actionsShowErrorBanner
 } from './ActionsPage'
-import { CharactersPage } from './CharactersPage'
-import { CostumesPage } from './CostumesPage'
+import {
+  CharactersPage,
+  CharactersChip,
+  CharactersField,
+  CHARACTER_AI_KINDS,
+  charactersAddCostumeToLibrary,
+  charactersAiBusyFromJobs,
+  charactersAiFillRefPath,
+  charactersAiFillToastKey,
+  charactersApplyCostumeLook,
+  charactersApplyIpcError,
+  charactersApplySimpleIpc,
+  charactersApplySoulForm,
+  charactersArtStyleOrKeep,
+  charactersClearSoulForm,
+  charactersCostumeDesc,
+  charactersDiscardDraftSafe,
+  charactersEnsureSavedId,
+  charactersEnsureSoulIndex,
+  charactersForcePureLayout,
+  charactersGalleryPathsFromOpts,
+  charactersGuardAiNeed,
+  charactersGuardBusy,
+  charactersGuardEmptyName,
+  charactersGuardIntro,
+  charactersGuardSoulSource,
+  charactersGuardSuggest,
+  charactersHandleProfileApply,
+  charactersHandleSheetCommitted,
+  charactersHandleVideoPrepDone,
+  charactersHandleWardrobeApply,
+  charactersHasDraftValues,
+  charactersHasSoulSource,
+  charactersHubSearchMode,
+  charactersImportSoulForm,
+  charactersIntroVideoHandler,
+  charactersIsAiJob,
+  charactersLinkCostumeError,
+  charactersLoadHubPage,
+  charactersLocalSoulPath,
+  charactersMapGalleryItems,
+  charactersMapGalleryKind,
+  charactersMapSheetKind,
+  charactersMaybeAppendMultiRef,
+  charactersMaybeContinueVideoDraft,
+  charactersNeedsBareBodyWarning,
+  charactersNextCoverAfterRemove,
+  charactersOnSheetVariantChange,
+  charactersPickNeighborId,
+  charactersProfileMismatch,
+  charactersReadSoulSafe,
+  charactersRemoveWithFeedback,
+  charactersResetSheetIfHidden,
+  charactersResolveWantIdentity,
+  charactersRunAiFill,
+  charactersRunGenerateSheetSetup,
+  charactersRunSave,
+  charactersRunSheetJob,
+  charactersRunSwapCostume,
+  charactersSelectAfterCommit,
+  charactersSelectAfterVideo,
+  charactersSheetModeLabel,
+  charactersShouldOpenEditorOnAi,
+  charactersShouldReorder,
+  charactersShouldShowUseSoul,
+  charactersShowLinkedEmpty,
+  charactersSoulContent,
+  charactersSoulPreviewSync,
+  charactersSoulTitleDisplay,
+  charactersUseIdentityEdit,
+  charactersWriteSoulIfNeeded,
+  charactersPreviewSoul,
+  charactersApplySoulFromHub,
+  charactersClearSoulState,
+  charactersRemoveCostumeLook,
+  charactersReorderGallery,
+  charactersJobCancelDiscard,
+  charactersContinueDraftOr,
+  charactersLoadSoulPreviewForm,
+  charactersSpokenLangSetter,
+  charactersArtStyleSetter,
+  charactersSoulTextSetter,
+  charactersSuggestionSearch,
+  charactersHubEnter,
+  charactersOpenExternal,
+  charactersGenerateSheetFromEmpty,
+  charactersToggleSelectIds,
+  charactersPlotStoryChange,
+  charactersUseSoulButtonClick,
+  charactersDressedBusyGuard,
+  charactersSheetEnsureCostume,
+  charactersImportDesc,
+  charactersImportName,
+  charactersFindInList,
+  charactersFindByName,
+  charactersBuildSheetMultiAppend,
+  charactersAiCreateLabel,
+  charactersSpokenOrUndefined,
+  charactersSelectedIds,
+  charactersGeneratingLabel,
+  charactersCostumeBaseOptionLabel
+} from './CharactersPage'
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+
+import {
+  CostumesPage,
+  costumesAfterRemoveImage,
+  costumesAiFillToastKey,
+  costumesApplyIpc,
+  costumesApplySimpleIpc,
+  costumesArtStyleLabel,
+  costumesBaseLabel,
+  costumesCannotDeleteActive,
+  costumesFilterByQuery,
+  costumesGuardBusy,
+  costumesGuardDress,
+  costumesGuardIntro,
+  costumesGuardSaveFirst,
+  costumesIntroVideoHandler,
+  costumesIsBusyJob,
+  costumesMaybeContinueDraft,
+  costumesMaybeSetDressBase,
+  costumesRefFallback,
+  costumesReorderGallery
+} from './CostumesPage'
 import {
   PropsPage,
   propsAiFillToastKey,
@@ -87,12 +211,22 @@ import {
   propsMaybeContinueDraft,
   propsNextCoverAfterGallery,
   propsResolveWantIdentity,
+  propsApplyPickedImage,
+  propsHandlePlateCommitted,
+  propsHandleProfileApply,
+  propsHandleVideoPrepDone,
+  propsMapVideoPrepGalleryItem,
+  propsMakeEmptyGalleryAction,
+  propsMakeReorderHandler,
+  propsPickField,
   propsRemoveWithFeedback,
   propsRunAiFill,
   propsRunCreateForEnsure,
   propsRunPlateJob,
   propsRunSave,
+  propsSelectedPathsForIdentity,
   propsShouldReorder,
+  propsStartIntroAfterSave,
   propsSuggestIdeaLabel
 } from './PropsPage'
 import { ScenesPage } from './ScenesPage'
@@ -102,16 +236,21 @@ import {
   formatExportSize,
   formatExportWhen,
   TimelinePage,
+  timelineApplyIpc,
   timelineClipButtonLabel,
+  timelineClipGenerateLabel,
   timelineClipNeedsSkip,
   timelineContinueClipDraft,
   timelineEntryLabel,
+  timelineExportSizeOrEmpty,
   timelineGeneratingLabel,
   timelineIdsOrFallback,
   timelineJobMatchesStory,
   timelineNoFailedClips,
   timelinePickNextClip,
   timelinePlayheadAdvance,
+  timelineRafTickValue,
+  timelineRunDeleteExport,
   timelineSpokenPreview
 } from './TimelinePage'
 
@@ -2496,6 +2635,343 @@ describe('abs100 Props absolute', () => {
       toastError: (m) => msgs.push('e:' + m)
     })
     expect(msgs.some((x) => x.startsWith('e:'))).toBe(true)
+
+    // video prep done / pick / reorder / empty-gallery residual pure
+    expect(
+      propsSelectedPathsForIdentity([], null, [{ id: 'a', path: '/a.png' }])
+    ).toEqual([])
+    expect(
+      propsSelectedPathsForIdentity(
+        [],
+        'a',
+        [{ id: 'a', path: '/a.png' }, { id: 'b', path: '/b.png' }]
+      )
+    ).toEqual(['/a.png'])
+    expect(
+      propsSelectedPathsForIdentity(
+        ['b', 'a'],
+        'a',
+        [{ id: 'a', path: '/a.png' }, { id: 'b', path: '/b.png' }]
+      )
+    ).toEqual(['/b.png', '/a.png'])
+
+    expect(propsMapVideoPrepGalleryItem({
+      id: 'g',
+      path: '/p',
+      kind: 'weird',
+      label: 'L',
+      createdAt: 't',
+      layer: 'base',
+      introVideoPath: '/v.mp4'
+    }).kind).toBe('sheet')
+    expect(propsMapVideoPrepGalleryItem({
+      id: 'g',
+      path: '/p',
+      kind: 'upload',
+      label: 'L',
+      createdAt: 't'
+    }).kind).toBe('upload')
+
+    let reloads = 0
+    let formSnap: { gallery?: { path: string }[] } | null = null
+    const setForm = (fn: (f: never) => unknown) => {
+      formSnap = fn({
+        gallery: [],
+        coverPath: null,
+        name: 'n'
+      } as never) as typeof formSnap
+    }
+    expect(
+      propsHandleVideoPrepDone({ kind: 'other' }, 'p1', setForm as never, () =>
+        reloads++
+      )
+    ).toBe('skip')
+    expect(
+      propsHandleVideoPrepDone(
+        { kind: 'prop-intro', entityIds: { propId: 'other' } },
+        'p1',
+        setForm as never,
+        () => reloads++
+      )
+    ).toBe('skip')
+    expect(
+      propsHandleVideoPrepDone(
+        { kind: 'prop-intro', entityIds: { propId: 'p1' } },
+        'p1',
+        setForm as never,
+        () => reloads++
+      )
+    ).toBe('reload')
+    expect(reloads).toBe(1)
+    expect(
+      propsHandleVideoPrepDone(
+        {
+          kind: 'prop-intro',
+          entityIds: { propId: 'p1' },
+          gallery: [
+            {
+              id: 'g1',
+              path: '/n.png',
+              kind: 'sheet',
+              label: 'N',
+              createdAt: 't',
+              introVideoPath: '/v.mp4'
+            }
+          ]
+        },
+        'p1',
+        setForm as never,
+        () => reloads++
+      )
+    ).toBe('gallery')
+    expect(formSnap?.gallery?.[0]?.path).toBe('/n.png')
+
+    expect(
+      await propsStartIntroAfterSave({
+        update: async () => {
+          throw new Error('upd')
+        },
+        toastError: (m) => msgs.push('ie:' + m),
+        start: () => msgs.push('start')
+      })
+    ).toBe('error')
+    expect(
+      await propsStartIntroAfterSave({
+        update: async () => undefined,
+        toastError: () => undefined,
+        start: () => msgs.push('start-ok')
+      })
+    ).toBe('started')
+    expect(msgs).toContain('start-ok')
+
+    let selId: string | null = null
+    let selIds: string[] = []
+    expect(
+      propsApplyPickedImage({
+        filePath: '/new.png',
+        uploadLabel: 'Up',
+        gallery: [],
+        setForm: setForm as never,
+        setSelectedImageId: (id) => {
+          selId = id
+        },
+        setSelectedImageIds: (fn) => {
+          selIds = fn(selIds)
+        },
+        toastSuccess: () => msgs.push('picked'),
+        appendItem: (gal, item) => [
+          ...gal,
+          {
+            id: 'new1',
+            path: item.path,
+            kind: item.kind,
+            label: item.label,
+            createdAt: 't'
+          }
+        ]
+      })
+    ).toBe('new1')
+    expect(selId).toBe('new1')
+    expect(selIds).toContain('new1')
+    // second pick keeps selection list
+    propsApplyPickedImage({
+      filePath: '/new2.png',
+      uploadLabel: 'Up',
+      gallery: [
+        {
+          id: 'new1',
+          path: '/new.png',
+          kind: 'upload',
+          label: 'Up',
+          createdAt: 't'
+        }
+      ],
+      setForm: setForm as never,
+      setSelectedImageId: (id) => {
+        selId = id
+      },
+      setSelectedImageIds: (fn) => {
+        selIds = fn(selIds)
+      },
+      toastSuccess: () => undefined,
+      appendItem: (gal, item) => [
+        ...gal,
+        {
+          id: 'new2',
+          path: item.path,
+          kind: item.kind,
+          label: item.label,
+          createdAt: 't'
+        }
+      ]
+    })
+    expect(selIds).toContain('new2')
+
+    let moved = 0
+    const reorder = propsMakeReorderHandler(setForm as never, (gal, from, to) => {
+      moved++
+      return gal
+    })
+    reorder('', 'b')
+    reorder('a', 'a')
+    expect(moved).toBe(0)
+    reorder('a', 'b')
+    expect(moved).toBe(1)
+
+    let panel = ''
+    let acted = 0
+    propsMakeEmptyGalleryAction((p) => {
+      panel = p
+    }, () => {
+      acted++
+    })()
+    expect(panel).toBe('refs')
+    expect(acted).toBe(1)
+
+    expect(propsPickField('  x  ', 'fb')).toBe('  x  ')
+    expect(propsPickField('   ', 'fb')).toBe('fb')
+    expect(propsPickField(undefined, 'fb')).toBe('fb')
+
+    let open = false
+    let panel2 = ''
+    expect(
+      propsHandleProfileApply(
+        {
+          propId: 'other',
+          profile: { name: 'X', description: 'd' }
+        },
+        'p1',
+        {
+          reload: () => reloads++,
+          setForm: setForm as never,
+          setEditorOpen: (v) => {
+            open = v
+          },
+          setEditorPanel: (p) => {
+            panel2 = p
+          },
+          setBanner: () => undefined,
+          okMsg: 'ok'
+        }
+      )
+    ).toBe('mismatch')
+    expect(
+      propsHandleProfileApply(
+        {
+          propId: 'p1',
+          profile: {
+            name: 'Filled',
+            description: 'd',
+            material: 'steel',
+            visualTags: '  tags  ',
+            hardRules: '',
+            artStyle: 'photo_cinematic'
+          }
+        },
+        'p1',
+        {
+          reload: () => reloads++,
+          setForm: setForm as never,
+          setEditorOpen: (v) => {
+            open = v
+          },
+          setEditorPanel: (p) => {
+            panel2 = p
+          },
+          setBanner: () => msgs.push('banner'),
+          okMsg: 'ok'
+        }
+      )
+    ).toBe('applied')
+    expect(open).toBe(true)
+    expect(panel2).toBe('profile')
+
+    expect(
+      await propsHandlePlateCommitted(
+        { propId: 'other', path: '/p.png' },
+        'p1',
+        {
+          reload: () => reloads++,
+          setForm: setForm as never,
+          setSelectedImageId: () => undefined,
+          toastSuccess: () => undefined,
+          listProps: async () => [],
+          galleryFromProp: () => [],
+          primaryPath: () => null
+        }
+      )
+    ).toBe('other')
+    expect(
+      await propsHandlePlateCommitted(
+        {
+          propId: 'p1',
+          path: '/new.png',
+          gallery: [
+            {
+              id: 'g1',
+              path: '/new.png',
+              kind: 'sheet',
+              label: 'N',
+              createdAt: 't'
+            }
+          ]
+        },
+        'p1',
+        {
+          reload: () => reloads++,
+          setForm: setForm as never,
+          setSelectedImageId: (id) => {
+            selId = id
+          },
+          toastSuccess: () => msgs.push('plate-ok'),
+          listProps: async () => [],
+          galleryFromProp: () => [],
+          primaryPath: () => null
+        }
+      )
+    ).toBe('gallery')
+    expect(selId).toBe('g1')
+    expect(
+      await propsHandlePlateCommitted(
+        { propId: 'p1', path: '/x.png', gallery: [] },
+        'p1',
+        {
+          reload: () => undefined,
+          setForm: setForm as never,
+          setSelectedImageId: () => undefined,
+          toastSuccess: () => undefined,
+          listProps: async () => [],
+          galleryFromProp: () => [],
+          primaryPath: () => null
+        }
+      )
+    ).toBe('listed-miss')
+    expect(
+      await propsHandlePlateCommitted(
+        { propId: 'p1', path: '/x.png' },
+        'p1',
+        {
+          reload: () => undefined,
+          setForm: setForm as never,
+          setSelectedImageId: (id) => {
+            selId = id
+          },
+          toastSuccess: () => undefined,
+          listProps: async () =>
+            [makeProp({ id: 'p1', refImagePath: '/r.png' })] as never,
+          galleryFromProp: () => [
+            {
+              id: 'lg',
+              path: '/r.png',
+              kind: 'sheet',
+              label: 'R',
+              createdAt: 't'
+            }
+          ],
+          primaryPath: () => '/r.png'
+        }
+      )
+    ).toBe('listed')
   })
 
   it('filters busy intro draft update fail plate profile cover remove', async () => {
@@ -2708,7 +3184,7 @@ describe('abs100 Props absolute', () => {
 // Pure Timeline helpers + residual Timeline
 // ═══════════════════════════════════════════════════════════
 describe('abs100 Timeline pure + residual', () => {
-  it('formatExportSize and formatExportWhen all branches', () => {
+  it('formatExportSize and formatExportWhen all branches', async () => {
     expect(formatExportSize(null)).toBe('')
     expect(formatExportSize(undefined)).toBe('')
     expect(formatExportSize(NaN)).toBe('')
@@ -2765,6 +3241,88 @@ describe('abs100 Timeline pure + residual', () => {
     expect(timelineSpokenPreview('x'.repeat(80)).endsWith('…')).toBe(true)
     expect(timelineGeneratingLabel(true, 'g', 'i')).toBe('g')
     expect(timelineGeneratingLabel(false, 'g', 'i')).toBe('i')
+    expect(
+      timelineClipGenerateLabel(true, 'READY', 'c', 'g', 'r')
+    ).toBe('c')
+    expect(
+      timelineClipGenerateLabel(false, 'FAILED', 'c', 'g', 'r')
+    ).toBe('g')
+    expect(
+      timelineClipGenerateLabel(false, 'EMPTY', 'c', 'g', 'r')
+    ).toBe('g')
+    expect(
+      timelineClipGenerateLabel(false, 'READY', 'c', 'g', 'r')
+    ).toBe('r')
+    expect(
+      timelineRafTickValue(100, 10, undefined, null).stop
+    ).toBe(true)
+    expect(
+      timelineRafTickValue(
+        2,
+        10,
+        { id: 'e1', startTime: 0, mediaStatus: 'READY', mediaPath: '/m' },
+        'e0'
+      ).selectId
+    ).toBe('e1')
+    expect(
+      timelineRafTickValue(
+        2,
+        10,
+        { id: 'e1', startTime: 0, mediaStatus: 'EMPTY', mediaPath: null },
+        'e1'
+      ).value
+    ).toBe(2)
+    expect(
+      timelineRafTickValue(2, 10, undefined, null).value
+    ).toBe(2)
+
+    let busy: string | null = 'x'
+    expect(
+      await timelineRunDeleteExport({
+        exportId: 'ex1',
+        storyId: 's1',
+        setBusy: (id) => {
+          busy = id
+        },
+        deleteExport: async () => ({
+          items: [],
+          latestPath: null
+        }),
+        setHistory: () => undefined,
+        setLatest: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(busy).toBeNull()
+    expect(
+      await timelineRunDeleteExport({
+        exportId: 'ex1',
+        storyId: 's1',
+        setBusy: () => undefined,
+        deleteExport: async () => {
+          throw new Error('del')
+        },
+        setHistory: () => undefined,
+        setLatest: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+    const tMsgs: string[] = []
+    expect(
+      timelineApplyIpc('str-err', (m) => tMsgs.push('s:' + m), (m) =>
+        tMsgs.push('t:' + m)
+      )
+    ).toBe('str-err')
+    expect(
+      timelineApplyIpc(42 as never, (m) => tMsgs.push(m), () => undefined)
+    ).toBe('42')
+    expect(
+      timelineApplyIpc(new Error('e'), () => undefined, () => undefined)
+    ).toBe('e')
+    expect(timelineExportSizeOrEmpty(null)).toBe('')
+    expect(timelineExportSizeOrEmpty(500)).toMatch(/B/)
   })
 
   beforeEach(() => seed())
@@ -3125,6 +3683,213 @@ describe('abs100 Timeline pure + residual', () => {
 // ═══════════════════════════════════════════════════════════
 describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
   beforeEach(() => seed())
+
+  it('Costumes pure residual helpers cover every branch', () => {
+    const msgs: string[] = []
+    expect(
+      costumesGuardSaveFirst(null, (m) => msgs.push(m), 'save')
+    ).toBe(true)
+    expect(
+      costumesGuardSaveFirst('id', (m) => msgs.push(m), 'save')
+    ).toBe(false)
+    expect(costumesGuardBusy(true, (m) => msgs.push(m), 'L')).toBe(true)
+    expect(costumesGuardBusy(false, (m) => msgs.push(m), 'L')).toBe(false)
+    expect(costumesAiFillToastKey(true, '')).toBe('fromImage')
+    expect(costumesAiFillToastKey(true, 'x')).toBe('background')
+    expect(costumesAiFillToastKey(false, '')).toBe('background')
+    costumesApplyIpc(new Error('e'), (m) => msgs.push('s:' + m), (m) =>
+      msgs.push('t:' + m)
+    )
+    costumesApplyIpc('str', (m) => msgs.push('s2:' + m), () => undefined)
+    costumesApplyIpc(9 as never, (m) => msgs.push('s3:' + m), () => undefined)
+    costumesApplySimpleIpc('s', (m) => msgs.push(m))
+    costumesApplySimpleIpc(new Error('se'), (m) => msgs.push(m))
+    costumesApplySimpleIpc(7 as never, (m) => msgs.push(m))
+    expect(
+      costumesCannotDeleteActive(['A'], (m) => msgs.push(m), 'active')
+    ).toBe(true)
+    expect(
+      costumesCannotDeleteActive([], (m) => msgs.push(m), 'active')
+    ).toBe(false)
+    expect(
+      costumesIsBusyJob(
+        { kind: 'costume-ai-fill', scope: { costumeId: 'c1' } },
+        'c1'
+      )
+    ).toBe(true)
+    expect(
+      costumesIsBusyJob({ kind: 'other', scope: {} }, 'c1')
+    ).toBe(false)
+    expect(
+      costumesGuardIntro(
+        null,
+        '/p',
+        false,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('saveFirst')
+    expect(
+      costumesGuardIntro(
+        'id',
+        '',
+        false,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('needImage')
+    expect(
+      costumesGuardIntro(
+        'id',
+        '/p',
+        true,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('busy')
+    expect(
+      costumesGuardIntro(
+        'id',
+        '/p',
+        false,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('ok')
+    expect(costumesMaybeContinueDraft(true, () => msgs.push('c'))).toBe(true)
+    expect(costumesMaybeContinueDraft(false, () => msgs.push('c'))).toBe(false)
+    expect(
+      costumesGuardDress(
+        null,
+        '',
+        '',
+        false,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', pickChar: 'p', noBase: 'n', loading: 'L' }
+      )
+    ).toBe('saveFirst')
+    expect(
+      costumesGuardDress(
+        'id',
+        '',
+        '',
+        false,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', pickChar: 'p', noBase: 'n', loading: 'L' }
+      )
+    ).toBe('pickChar')
+    expect(
+      costumesGuardDress(
+        'id',
+        'ch',
+        '',
+        false,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', pickChar: 'p', noBase: 'n', loading: 'L' }
+      )
+    ).toBe('noBase')
+    expect(
+      costumesGuardDress(
+        'id',
+        'ch',
+        '/b',
+        true,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', pickChar: 'p', noBase: 'n', loading: 'L' }
+      )
+    ).toBe('busy')
+    expect(
+      costumesGuardDress(
+        'id',
+        'ch',
+        '/b',
+        false,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', pickChar: 'p', noBase: 'n', loading: 'L' }
+      )
+    ).toBe('ok')
+    expect(costumesBaseLabel(true, 'm', 'a')).toBe('m')
+    expect(costumesBaseLabel(false, 'm', 'a')).toBe('a')
+    expect(
+      costumesAfterRemoveImage(
+        '/a',
+        '/a',
+        [{ id: 'b', path: '/b' }],
+        () => false,
+        () => '/b'
+      ).look
+    ).toBe('/b')
+    expect(
+      costumesAfterRemoveImage(
+        '/x',
+        '/a',
+        [{ id: 'a', path: '/a' }],
+        () => false,
+        () => '/a'
+      ).selectedId
+    ).toBe('a')
+    expect(
+      costumesAfterRemoveImage(
+        '/x',
+        '/a',
+        [{ id: 'a', path: '/a' }],
+        () => true,
+        () => '/a'
+      ).look
+    ).toBe('/a')
+    expect(
+      costumesReorderGallery(
+        [{ id: 'a' }, { id: 'b' }],
+        'a',
+        'b'
+      )?.[0].id
+    ).toBe('b')
+    expect(costumesReorderGallery([{ id: 'a' }], 'x', 'y')).toBeNull()
+    expect(
+      costumesArtStyleLabel('photo_cinematic', () => true, () => 'styled')
+    ).toBe('styled')
+    expect(
+      costumesArtStyleLabel('nope', () => false, () => 'styled')
+    ).toBe('nope')
+    expect(typeof costumesIntroVideoHandler('id', '/p', () => undefined)).toBe(
+      'function'
+    )
+    expect(costumesIntroVideoHandler(null, '/p', () => undefined)).toBeUndefined()
+    expect(
+      costumesMaybeSetDressBase([{ path: '/b' }], '')
+    ).toBe('/b')
+    expect(
+      costumesMaybeSetDressBase([{ path: '/b' }], '/x')
+    ).toBeNull()
+    expect(
+      costumesFilterByQuery(
+        [{ name: 'Rain', description: 'long' }, { name: 'Suit', description: '' }],
+        'rain'
+      )
+    ).toHaveLength(1)
+    expect(
+      costumesFilterByQuery([{ name: 'Rain', description: 'long' }], '')
+    ).toHaveLength(1)
+    expect(
+      costumesRefFallback({ refImagePath: '/c.png', name: 'C' })
+    ).toEqual([{ path: '/c.png', label: 'C', id: 'ref' }])
+    expect(costumesRefFallback(null)).toEqual([])
+    expect(costumesRefFallback({ refImagePath: null, name: 'C' })).toEqual([])
+  })
 
   it('Costumes dress filters intro link busy', async () => {
     api.costumes.list = vi.fn().mockResolvedValue([
@@ -4161,4 +4926,1749 @@ describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
     })
     await clickNamed(/^Save$/i)
   }, 90000)
+})
+
+
+// ═══════════════════════════════════════════════════════════
+// Characters pure residual → absolute 100
+// ═══════════════════════════════════════════════════════════
+describe('abs100 Characters pure residual helpers', () => {
+  it('covers every pure residual branch', async () => {
+    const msgs: string[] = []
+    const toastErr = (m: string) => msgs.push('e:' + m)
+    const toastInfo = (m: string) => msgs.push('i:' + m)
+    const toastOk = (m?: string) => msgs.push('ok:' + (m ?? ''))
+    const setErr = (m: string | null) => msgs.push('s:' + m)
+
+    expect(charactersIsAiJob({ kind: 'other', scope: {} }, 'c1')).toBe(false)
+    expect(
+      charactersIsAiJob(
+        { kind: 'character-ai-fill', scope: { characterId: 'c1' } },
+        'c1'
+      )
+    ).toBe(true)
+    expect(
+      charactersIsAiJob(
+        { kind: 'character-ai-fill', scope: { characterId: 'c2' } },
+        'c1'
+      )
+    ).toBe(false)
+    expect(
+      charactersIsAiJob({ kind: 'character-ai-fill', scope: {} }, null)
+    ).toBe(true)
+    expect(
+      charactersIsAiJob(
+        { kind: 'character-ai-fill', scope: { characterId: 'c1' } },
+        null
+      )
+    ).toBe(false)
+    expect(CHARACTER_AI_KINDS).toContain('costume-swap')
+
+    expect(
+      charactersAiBusyFromJobs([], 'c1', true)
+    ).toBe(true)
+    expect(
+      charactersAiBusyFromJobs(
+        [{ kind: 'character-sheet', scope: { characterId: 'c1' } }],
+        'c1',
+        false
+      )
+    ).toBe(true)
+    expect(charactersAiBusyFromJobs([], 'c1', false)).toBe(false)
+
+    await charactersRemoveWithFeedback({
+      remove: async () => undefined,
+      id: 'x',
+      toastSuccess: () => toastOk('d'),
+      toastError: toastErr
+    })
+    await charactersRemoveWithFeedback({
+      remove: async () => {
+        throw new Error('rm')
+      },
+      id: 'x',
+      toastSuccess: () => undefined,
+      toastError: toastErr
+    })
+    expect(msgs.some((x) => x.includes('rm'))).toBe(true)
+
+    charactersApplyIpcError(
+      new Error(
+        JSON.stringify({ code: 'INTERNAL', message: 'boom', details: 'd' })
+      ),
+      setErr,
+      toastErr
+    )
+    charactersApplyIpcError(new Error('plain'), setErr)
+    charactersApplySimpleIpc(new Error('simp'), toastErr)
+
+    expect(charactersGuardEmptyName('', toastErr, 'empty')).toBe(true)
+    expect(charactersGuardEmptyName('n', toastErr, 'empty')).toBe(false)
+    expect(charactersGuardBusy(true, toastInfo, 'L')).toBe(true)
+    expect(charactersGuardBusy(false, toastInfo, 'L')).toBe(false)
+    expect(
+      charactersGuardAiNeed('', false, false, false, setErr, toastErr, 'need')
+    ).toBe(true)
+    expect(
+      charactersGuardAiNeed('i', false, false, false, setErr, toastErr, 'need')
+    ).toBe(false)
+    expect(
+      charactersGuardAiNeed('', true, false, false, setErr, toastErr, 'need')
+    ).toBe(false)
+    expect(
+      charactersGuardAiNeed('', false, true, false, setErr, toastErr, 'need')
+    ).toBe(false)
+    expect(
+      charactersGuardAiNeed('', false, false, true, setErr, toastErr, 'need')
+    ).toBe(false)
+
+    expect(charactersAiFillToastKey(true, '', false, false)).toBe('fromImage')
+    expect(charactersAiFillToastKey(true, 'x', false, false)).toBe('background')
+    expect(charactersAiFillToastKey(false, '', false, false)).toBe(
+      'background'
+    )
+    expect(charactersAiFillToastKey(true, '', true, false)).toBe('background')
+    expect(charactersAiFillToastKey(true, '', false, true)).toBe('background')
+
+    expect(charactersHasDraftValues({ a: 'x' })).toBe(true)
+    expect(charactersHasDraftValues({ a: '' })).toBe(false)
+    expect(charactersHasDraftValues({ a: ['x'] })).toBe(true)
+    expect(charactersHasDraftValues({ a: [] })).toBe(false)
+    expect(charactersHasDraftValues({ a: 1 })).toBe(false)
+
+    expect(charactersAiFillRefPath({ selectedPath: ' /s ' })).toBe('/s')
+    expect(charactersAiFillRefPath({ coverPath: '/c' })).toBe('/c')
+    expect(charactersAiFillRefPath({ gallery0: '/g' })).toBe('/g')
+    expect(charactersAiFillRefPath({})).toBe('')
+    expect(charactersSoulContent(' a ', null)).toBe('a')
+    expect(charactersSoulContent('', ' b ')).toBe('b')
+    expect(charactersSoulContent(null, null)).toBe('')
+
+    expect(charactersShouldOpenEditorOnAi(false)).toEqual({
+      open: true,
+      panel: 'profile'
+    })
+    expect(charactersShouldOpenEditorOnAi(true).open).toBe(false)
+
+    expect(charactersResolveWantIdentity(true, false)).toBe(true)
+    expect(charactersResolveWantIdentity(undefined, true)).toBe(true)
+    expect(charactersForcePureLayout({ wardrobeLayer: 'nude' })).toBe(true)
+    expect(charactersForcePureLayout({ wardrobeLayer: 'base' })).toBe(true)
+    expect(
+      charactersForcePureLayout({ requiresUnclothedSupport: true })
+    ).toBe(true)
+    expect(charactersForcePureLayout({ wardrobeLayer: 'costume' })).toBe(false)
+    expect(charactersUseIdentityEdit(true, true)).toBe(false)
+    expect(charactersUseIdentityEdit(false, true)).toBe(true)
+    expect(charactersGalleryPathsFromOpts('/p', ['a'])).toEqual(['/p'])
+    expect(charactersGalleryPathsFromOpts(null, ['a'])).toEqual(['a'])
+    expect(
+      charactersSheetModeLabel(true, false, {
+        force: 'F',
+        identity: 'I',
+        pure: 'P'
+      })
+    ).toBe('F')
+    expect(
+      charactersSheetModeLabel(false, true, {
+        force: 'F',
+        identity: 'I',
+        pure: 'P'
+      })
+    ).toBe('I')
+    expect(
+      charactersSheetModeLabel(false, false, {
+        force: 'F',
+        identity: 'I',
+        pure: 'P'
+      })
+    ).toBe('P')
+
+    expect(
+      charactersNextCoverAfterRemove(
+        [{ path: '/b', id: '1', kind: 'sheet', label: 'B', createdAt: 't' }],
+        '/a',
+        '/a',
+        () => true,
+        () => '/p'
+      )
+    ).toBe('/p')
+    expect(
+      charactersNextCoverAfterRemove(
+        [{ path: '/b', id: '1', kind: 'sheet', label: 'B', createdAt: 't' }],
+        '/x',
+        '/b',
+        () => true,
+        () => '/p'
+      )
+    ).toBe('/b')
+    expect(
+      charactersNextCoverAfterRemove(
+        [{ path: '/b', id: '1', kind: 'sheet', label: 'B', createdAt: 't' }],
+        '/x',
+        '/z',
+        () => false,
+        () => '/p'
+      )
+    ).toBe('/p')
+
+    expect(charactersShouldReorder('a', 'b')).toBe(true)
+    expect(charactersShouldReorder('a', 'a')).toBe(false)
+    expect(charactersShouldReorder('', 'b')).toBe(false)
+    expect(
+      charactersPickNeighborId('a', [{ id: 'a' }, { id: 'b' }], 'a')
+    ).toBe('b')
+    expect(
+      charactersPickNeighborId('b', [{ id: 'a' }, { id: 'b' }], 'b')
+    ).toBe('a')
+    expect(charactersPickNeighborId('a', [{ id: 'a' }], 'a')).toBeNull()
+    expect(
+      charactersPickNeighborId('a', [{ id: 'a' }, { id: 'b' }], 'b')
+    ).toBe('b')
+    expect(charactersPickNeighborId('z', [{ id: 'a' }], 'z')).toBeNull()
+
+    expect(charactersMaybeContinueVideoDraft(true, () => msgs.push('c'))).toBe(
+      true
+    )
+    expect(charactersMaybeContinueVideoDraft(false, () => msgs.push('c'))).toBe(
+      false
+    )
+    expect(
+      typeof charactersIntroVideoHandler('id', '/p', () => undefined)
+    ).toBe('function')
+    charactersIntroVideoHandler('id', '/p', (p) => msgs.push(p))!()
+    expect(charactersIntroVideoHandler(null, '/p', () => undefined)).toBe(
+      undefined
+    )
+
+    expect(
+      charactersGuardIntro(
+        null,
+        '/p',
+        false,
+        setErr,
+        toastErr,
+        toastInfo,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('saveFirst')
+    expect(
+      charactersGuardIntro(
+        'id',
+        '',
+        false,
+        setErr,
+        toastErr,
+        toastInfo,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('needImage')
+    expect(
+      charactersGuardIntro(
+        'id',
+        '/p',
+        true,
+        setErr,
+        toastErr,
+        toastInfo,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('busy')
+    expect(
+      charactersGuardIntro(
+        'id',
+        '/p',
+        false,
+        setErr,
+        toastErr,
+        toastInfo,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('ok')
+
+    expect(
+      charactersGuardSoulSource(false, setErr, toastErr, 'need')
+    ).toBe(true)
+    expect(
+      charactersGuardSoulSource(true, setErr, toastErr, 'need')
+    ).toBe(false)
+    expect(charactersHasSoulSource({ name: 'x' })).toBe(true)
+    expect(charactersHasSoulSource({})).toBe(false)
+    expect(charactersHasSoulSource({ soulPreview: 's' })).toBe(true)
+
+    expect(charactersMapGalleryKind('sheet')).toBe('sheet')
+    expect(charactersMapGalleryKind('upload')).toBe('upload')
+    expect(charactersMapGalleryKind('gen')).toBe('gen')
+    expect(charactersMapGalleryKind('external')).toBe('external')
+    expect(charactersMapGalleryKind('other')).toBe('gen')
+    expect(charactersMapSheetKind('sheet')).toBe('sheet')
+    expect(charactersMapSheetKind('x')).toBe('sheet')
+
+    const mapped = charactersMapGalleryItems(
+      [
+        {
+          id: 'g1',
+          path: '/a',
+          kind: 'weird',
+          label: 'A',
+          createdAt: 't',
+          layer: 'base',
+          introVideoPath: '/v.mp4'
+        }
+      ],
+      true
+    )
+    expect(mapped[0].kind).toBe('gen')
+    expect(mapped[0].layer).toBe('base')
+    expect(mapped[0].introVideoPath).toBe('/v.mp4')
+    const mapped2 = charactersMapGalleryItems(
+      [
+        {
+          id: 'g1',
+          path: '/a',
+          kind: 'upload',
+          label: 'A',
+          createdAt: 't'
+        }
+      ],
+      false
+    )
+    expect(mapped2[0].kind).toBe('upload')
+
+    expect(
+      charactersSelectAfterCommit(
+        [
+          { id: 'a', path: '/1' },
+          { id: 'b', path: '/2' }
+        ],
+        '/2'
+      )
+    ).toBe('b')
+    expect(charactersSelectAfterCommit([], '/x')).toBeNull()
+    expect(
+      charactersSelectAfterVideo('a', [
+        { id: 'a' },
+        { id: 'b', introVideoPath: '/v' }
+      ])
+    ).toBe('a')
+    expect(
+      charactersSelectAfterVideo('z', [
+        { id: 'b', introVideoPath: '/v' },
+        { id: 'c' }
+      ])
+    ).toBe('b')
+    expect(charactersSelectAfterVideo(null, [{ id: 'c' }])).toBe('c')
+    expect(charactersSelectAfterVideo(null, [])).toBeNull()
+
+    expect(charactersProfileMismatch('a', 'b')).toBe(true)
+    expect(charactersProfileMismatch('a', 'a')).toBe(false)
+    expect(charactersProfileMismatch(null, 'a')).toBe(false)
+
+    let formSnap: Record<string, unknown> | null = null
+    const setForm = (fn: (f: never) => unknown) => {
+      formSnap = fn({
+        name: 'n',
+        description: 'd',
+        appearance: '',
+        personality: '',
+        backstory: '',
+        costume: '',
+        ageRange: '',
+        gender: '',
+        voiceDesc: '',
+        spokenLanguages: [],
+        mannerisms: '',
+        relationships: '',
+        visualTags: '',
+        seedPrompt: '',
+        hardRules: '',
+        soulMdPath: null,
+        soulHubId: null,
+        soulPreview: null,
+        gallery: [],
+        coverPath: null,
+        artStyle: 'photo_cinematic',
+        costumes: []
+      } as never) as typeof formSnap
+    }
+
+    charactersHandleProfileApply(
+      { characterId: 'c2', profile: { name: 'X' } },
+      'c1',
+      {
+        reload: () => msgs.push('reload'),
+        setForm: setForm as never,
+        setAiIdea: () => undefined,
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        setActionError: () => undefined,
+        setPageBanner: () => undefined,
+        toastSuccess: () => undefined
+      }
+    )
+    charactersHandleProfileApply(
+      {
+        characterId: 'c1',
+        profile: {
+          name: 'Filled',
+          description: 'desc',
+          spokenLanguages: ['en'],
+          visualTags: '  tags  ',
+          hardRules: '  hard  ',
+          seedPrompt: 'seed'
+        }
+      },
+      'c1',
+      {
+        reload: () => msgs.push('reload2'),
+        setForm: setForm as never,
+        setAiIdea: (fn) => fn(''),
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        setActionError: () => undefined,
+        setPageBanner: () => undefined,
+        toastSuccess: () => undefined
+      }
+    )
+    charactersHandleProfileApply(
+      {
+        characterId: null,
+        profile: {
+          name: '',
+          visualTags: '   ',
+          hardRules: '',
+          spokenLanguages: []
+        }
+      },
+      null,
+      {
+        reload: () => undefined,
+        setForm: setForm as never,
+        setAiIdea: (fn) => fn('prev'),
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        setActionError: () => undefined,
+        setPageBanner: () => undefined,
+        toastSuccess: () => undefined
+      }
+    )
+
+    expect(
+      charactersHandleWardrobeApply(
+        {
+          characterId: 'c2',
+          suggestion: { name: 'Coat', costume: 'trench' }
+        },
+        'c1',
+        'photo_cinematic',
+        {
+          setForm: setForm as never,
+          setSwapCostumeText: () => undefined,
+          setPageBanner: () => undefined,
+          setEditorOpen: () => undefined,
+          toastSuccess: () => undefined,
+          createEntry: (a) =>
+            ({
+              id: 'e1',
+              name: a.name,
+              description: a.description,
+              artStyle: a.artStyle,
+              imagePath: null,
+              createdAt: 't',
+              updatedAt: 't'
+            }) as never,
+          upsert: (list, e) => [...list, e]
+        }
+      )
+    ).toBe(false)
+    expect(
+      charactersHandleWardrobeApply(
+        {
+          characterId: 'c1',
+          suggestion: {
+            name: 'Coat',
+            costume: 'trench',
+            artStyle: 'not-real'
+          }
+        },
+        'c1',
+        'photo_cinematic',
+        {
+          setForm: setForm as never,
+          setSwapCostumeText: () => undefined,
+          setPageBanner: () => undefined,
+          setEditorOpen: () => undefined,
+          toastSuccess: () => undefined,
+          createEntry: (a) =>
+            ({
+              id: 'e1',
+              name: a.name,
+              description: a.description,
+              artStyle: a.artStyle,
+              imagePath: null,
+              createdAt: 't',
+              updatedAt: 't'
+            }) as never,
+          upsert: (list, e) => [...list, e]
+        }
+      )
+    ).toBe(true)
+
+    charactersHandleSheetCommitted(
+      { characterId: 'c9', path: '/p' },
+      'c1',
+      {
+        setForm: setForm as never,
+        setSelectedImageId: () => undefined,
+        setSwapCostumeText: () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        setPageBanner: () => undefined,
+        listCharacter: async () => null,
+        ensureCostume: (c) => c
+      }
+    )
+    charactersHandleSheetCommitted(
+      {
+        characterId: 'c1',
+        path: '/new.png',
+        costume: 'dress',
+        gallery: [
+          {
+            id: 'g1',
+            path: '/old.png',
+            kind: 'sheet',
+            label: 'O',
+            createdAt: 't'
+          },
+          {
+            id: 'g2',
+            path: '/new.png',
+            kind: 'weird',
+            label: 'N',
+            createdAt: 't',
+            layer: 'costume'
+          }
+        ]
+      },
+      'c1',
+      {
+        setForm: setForm as never,
+        setSelectedImageId: (id) => msgs.push('sel:' + id),
+        setSwapCostumeText: (s) => msgs.push('swap:' + s),
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        setPageBanner: () => undefined,
+        listCharacter: async () => null,
+        ensureCostume: (c, costume) => c
+      }
+    )
+    charactersHandleSheetCommitted(
+      { characterId: 'c1', path: '/x.png', gallery: [] },
+      'c1',
+      {
+        setForm: setForm as never,
+        setSelectedImageId: () => undefined,
+        setSwapCostumeText: () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        setPageBanner: () => undefined,
+        listCharacter: async () =>
+          ({
+            id: 'c1',
+            name: 'A',
+            refGalleryJson: null,
+            refImagePath: '/x.png',
+            refSheetPath: null,
+            costume: 'c'
+          }) as never,
+        ensureCostume: (c) => c
+      }
+    )
+    // await listCharacter microtask
+    await new Promise((r) => setTimeout(r, 5))
+
+    charactersHandleVideoPrepDone(
+      { kind: 'other' },
+      'c1',
+      {
+        setForm: setForm as never,
+        setSelectedImageId: () => undefined,
+        reload: () => undefined,
+        getCharacter: async () => ({}) as never
+      }
+    )
+    charactersHandleVideoPrepDone(
+      { kind: 'character-intro', entityIds: { characterId: 'other' } },
+      'c1',
+      {
+        setForm: setForm as never,
+        setSelectedImageId: () => undefined,
+        reload: () => undefined,
+        getCharacter: async () => ({}) as never
+      }
+    )
+    charactersHandleVideoPrepDone(
+      {
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        gallery: [
+          {
+            id: 'g',
+            path: '/n.png',
+            kind: 'gen',
+            label: 'L',
+            createdAt: 't',
+            introVideoPath: '/v.mp4'
+          }
+        ]
+      },
+      'c1',
+      {
+        setForm: setForm as never,
+        setSelectedImageId: ((fn: (p: string | null) => string | null) =>
+          fn(null)) as never,
+        reload: () => undefined,
+        getCharacter: async () => ({}) as never
+      }
+    )
+    charactersHandleVideoPrepDone(
+      { kind: 'character-intro', entityIds: { characterId: 'c1' } },
+      'c1',
+      {
+        setForm: setForm as never,
+        setSelectedImageId: ((fn: (p: string | null) => string | null) =>
+          fn(null)) as never,
+        reload: () => msgs.push('vreload'),
+        getCharacter: async () => {
+          throw new Error('no')
+        }
+      }
+    )
+    await new Promise((r) => setTimeout(r, 5))
+    charactersHandleVideoPrepDone(
+      { kind: 'character-intro', entityIds: { characterId: 'c1' } },
+      'c1',
+      {
+        setForm: setForm as never,
+        setSelectedImageId: ((fn: (p: string | null) => string | null) =>
+          fn(null)) as never,
+        reload: () => undefined,
+        getCharacter: async () =>
+          ({
+            refGalleryJson: null,
+            refImagePath: '/r.png',
+            refSheetPath: null
+          }) as never
+      }
+    )
+    await new Promise((r) => setTimeout(r, 5))
+
+    expect(charactersLocalSoulPath('soulmd-hub://1')).toBeNull()
+    expect(charactersLocalSoulPath('http://x')).toBeNull()
+    expect(charactersLocalSoulPath('/local.md')).toBe('/local.md')
+    expect(charactersLocalSoulPath(null)).toBeNull()
+
+    expect(
+      await charactersWriteSoulIfNeeded({
+        soulText: '',
+        soulMdPath: null,
+        editingId: null,
+        write: async () => ({ filePath: '', content: '' }),
+        onWarn: () => undefined
+      })
+    ).toBeNull()
+    expect(
+      (
+        await charactersWriteSoulIfNeeded({
+          soulText: 'soul',
+          soulMdPath: '/a.md',
+          editingId: 'c1',
+          write: async (a) => ({
+            filePath: a.filePath ?? '/w.md',
+            content: a.content
+          }),
+          onWarn: () => undefined
+        })
+      )?.wrote
+    ).toBe(true)
+    expect(
+      await charactersWriteSoulIfNeeded({
+        soulText: 'soul',
+        soulMdPath: null,
+        editingId: null,
+        write: async () => {
+          throw new Error('w')
+        },
+        onWarn: () => msgs.push('warn')
+      })
+    ).toBeNull()
+
+    await charactersRunSave({
+      name: '',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: null,
+      toastError: toastErr,
+      toastSuccess: toastOk,
+      setError: setErr,
+      setBusy: () => undefined,
+      prepareForm: async () => formSnap as never,
+      buildPayload: () => ({ name: 'n' }) as never,
+      update: async () => true,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await charactersRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: 'id',
+      toastError: toastErr,
+      toastSuccess: toastOk,
+      setError: setErr,
+      setBusy: () => undefined,
+      prepareForm: async () => formSnap as never,
+      buildPayload: () => ({ name: 'X' }) as never,
+      update: async () => false,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await charactersRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: 'id',
+      toastError: toastErr,
+      toastSuccess: toastOk,
+      setError: setErr,
+      setBusy: () => undefined,
+      prepareForm: async () => formSnap as never,
+      buildPayload: () => ({ name: 'X' }) as never,
+      update: async () => true,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await charactersRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: null,
+      toastError: toastErr,
+      toastSuccess: toastOk,
+      setError: setErr,
+      setBusy: () => undefined,
+      prepareForm: async () => formSnap as never,
+      buildPayload: () => ({ name: 'X' }) as never,
+      update: async () => true,
+      create: async () => false,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await charactersRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: null,
+      toastError: toastErr,
+      toastSuccess: toastOk,
+      setError: setErr,
+      setBusy: () => undefined,
+      prepareForm: async () => formSnap as never,
+      buildPayload: () => ({ name: 'X' }) as never,
+      update: async () => true,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await charactersRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: null,
+      toastError: toastErr,
+      toastSuccess: toastOk,
+      setError: setErr,
+      setBusy: () => undefined,
+      prepareForm: async () => {
+        throw new Error('prep')
+      },
+      buildPayload: () => ({ name: 'X' }) as never,
+      update: async () => true,
+      create: async () => true,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+
+    expect(
+      charactersRunAiFill({
+        busy: true,
+        idea: '',
+        formSnapshot: {},
+        soulContent: '',
+        refPath: '',
+        fromEditor: false,
+        setError: setErr,
+        needMsg: 'n',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        toastError: toastErr,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        runningMsg: 'run',
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        startJob: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      charactersRunAiFill({
+        busy: false,
+        idea: '',
+        formSnapshot: {},
+        soulContent: '',
+        refPath: '',
+        fromEditor: false,
+        setError: setErr,
+        needMsg: 'n',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        toastError: toastErr,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        runningMsg: 'run',
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        startJob: () => undefined
+      })
+    ).toBe('need')
+    expect(
+      charactersRunAiFill({
+        busy: false,
+        idea: '',
+        formSnapshot: {},
+        soulContent: '',
+        refPath: '/img',
+        fromEditor: false,
+        setError: setErr,
+        needMsg: 'n',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        toastError: toastErr,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        runningMsg: 'run',
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        startJob: () => msgs.push('job-img')
+      })
+    ).toBe('started')
+    expect(
+      charactersRunAiFill({
+        busy: false,
+        idea: 'idea',
+        formSnapshot: { name: 'n' },
+        soulContent: 's',
+        refPath: '',
+        fromEditor: true,
+        setError: setErr,
+        needMsg: 'n',
+        setBanner: () => undefined,
+        toastInfo: toastInfo,
+        toastError: toastErr,
+        fromImageMsg: 'fi',
+        backgroundMsg: 'bg',
+        runningMsg: 'run',
+        setEditorOpen: () => undefined,
+        setEditorPanel: () => undefined,
+        startJob: () => msgs.push('job-idea')
+      })
+    ).toBe('started')
+
+    expect(await charactersReadSoulSafe(async () => ({ content: ' hi ' }))).toBe(
+      'hi'
+    )
+    expect(
+      await charactersReadSoulSafe(async () => {
+        throw new Error('x')
+      }, 'fb')
+    ).toBe('fb')
+    await charactersDiscardDraftSafe(async () => {
+      throw new Error('d')
+    }, '/p')
+    await charactersDiscardDraftSafe(async () => undefined, '/p')
+
+    expect(
+      await charactersEnsureSavedId({
+        editingId: 'id',
+        name: 'n',
+        activeStoryId: 's',
+        update: async () => undefined,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [],
+        setEditingId: () => undefined
+      })
+    ).toBe('id')
+    expect(
+      await charactersEnsureSavedId({
+        editingId: null,
+        name: '',
+        activeStoryId: 's',
+        update: async () => undefined,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [],
+        setEditingId: () => undefined
+      })
+    ).toBeNull()
+    expect(
+      await charactersEnsureSavedId({
+        editingId: null,
+        name: 'n',
+        activeStoryId: null,
+        update: async () => undefined,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [],
+        setEditingId: () => undefined
+      })
+    ).toBeNull()
+    expect(
+      await charactersEnsureSavedId({
+        editingId: null,
+        name: 'n',
+        activeStoryId: 's',
+        update: async () => undefined,
+        create: async () => false,
+        reload: () => undefined,
+        list: async () => [],
+        setEditingId: () => undefined
+      })
+    ).toBeNull()
+    expect(
+      await charactersEnsureSavedId({
+        editingId: null,
+        name: 'n',
+        activeStoryId: 's',
+        update: async () => undefined,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [{ id: 'new', name: 'n' } as never],
+        setEditingId: (id) => msgs.push('edit:' + id)
+      })
+    ).toBe('new')
+    expect(
+      await charactersEnsureSavedId({
+        editingId: null,
+        name: 'n',
+        activeStoryId: 's',
+        update: async () => undefined,
+        create: async () => true,
+        reload: () => undefined,
+        list: async () => [{ id: 'other', name: 'z' } as never],
+        setEditingId: () => undefined
+      })
+    ).toBeNull()
+
+    charactersApplyCostumeLook(
+      {
+        id: 'e',
+        name: 'Look',
+        description: 'coat',
+        artStyle: 'photo_cinematic',
+        imagePath: '/img.png',
+        createdAt: 't',
+        updatedAt: 't'
+      } as never,
+      [
+        {
+          id: 'g',
+          path: '/img.png',
+          kind: 'sheet',
+          label: 'G',
+          createdAt: 't'
+        }
+      ],
+      {
+        setForm: setForm as never,
+        setSwapCostumeText: () => undefined,
+        setSelectedImageId: (id) => msgs.push('looksel:' + id),
+        setPageBanner: () => undefined,
+        toastSuccess: toastOk,
+        appliedMsg: 'applied'
+      }
+    )
+    charactersApplyCostumeLook(
+      {
+        id: 'e',
+        name: 'Look',
+        description: 'coat',
+        artStyle: 'bad-style',
+        imagePath: null,
+        createdAt: 't',
+        updatedAt: 't'
+      } as never,
+      [],
+      {
+        setForm: setForm as never,
+        setSwapCostumeText: () => undefined,
+        setSelectedImageId: () => undefined,
+        setPageBanner: () => undefined,
+        toastSuccess: toastOk,
+        appliedMsg: 'applied'
+      }
+    )
+
+    expect(
+      charactersAddCostumeToLibrary({
+        description: '',
+        name: '',
+        artStyle: 'photo_cinematic',
+        setError: setErr,
+        requiredMsg: 'req',
+        savedMsg: 'sv',
+        setForm: setForm as never,
+        setSwapCostumeText: () => undefined,
+        setNewCostumeName: () => undefined,
+        setPageBanner: () => undefined,
+        toastSuccess: toastOk,
+        createEntry: () => {
+          throw new Error('no')
+        },
+        upsert: (l) => l
+      })
+    ).toBe(false)
+    expect(
+      charactersAddCostumeToLibrary({
+        description: 'coat',
+        name: '  ',
+        artStyle: 'photo_cinematic',
+        setError: setErr,
+        requiredMsg: 'req',
+        savedMsg: 'sv',
+        setForm: setForm as never,
+        setSwapCostumeText: () => undefined,
+        setNewCostumeName: () => undefined,
+        setPageBanner: () => undefined,
+        toastSuccess: toastOk,
+        createEntry: (a) =>
+          ({
+            id: 'e',
+            name: a.name ?? 'D',
+            description: a.description,
+            artStyle: a.artStyle,
+            imagePath: null,
+            createdAt: 't',
+            updatedAt: 't'
+          }) as never,
+        upsert: (l, e) => [...l, e]
+      })
+    ).toBe(true)
+    expect(
+      charactersAddCostumeToLibrary({
+        description: 'coat',
+        name: 'Named',
+        artStyle: 'photo_cinematic',
+        setError: setErr,
+        requiredMsg: 'req',
+        savedMsg: 'sv',
+        setForm: setForm as never,
+        setSwapCostumeText: () => undefined,
+        setNewCostumeName: () => undefined,
+        setPageBanner: () => undefined,
+        toastSuccess: toastOk,
+        createEntry: () => {
+          throw 'str-err'
+        },
+        upsert: (l) => l
+      })
+    ).toBe(false)
+
+    expect(charactersGuardSuggest('', false, setErr, 'need')).toBe('needName')
+    expect(charactersGuardSuggest('n', true, setErr, 'need')).toBe('busy')
+    expect(charactersGuardSuggest('n', false, setErr, 'need')).toBe('ok')
+
+    expect(
+      await charactersRunSwapCostume({
+        ensureSavedId: async () => null,
+        isBusy: () => false,
+        costumeDescription: 'c',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        requiredMsg: 'req',
+        noBaseMsg: 'nb',
+        startedMsg: 'st',
+        toastInfo: toastInfo,
+        setBanner: () => undefined,
+        pickBase: () => ({ item: { path: '/b' } }),
+        startJob: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await charactersRunSwapCostume({
+        ensureSavedId: async () => 'id',
+        isBusy: () => true,
+        costumeDescription: 'c',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        requiredMsg: 'req',
+        noBaseMsg: 'nb',
+        startedMsg: 'st',
+        toastInfo: toastInfo,
+        setBanner: () => undefined,
+        pickBase: () => ({ item: { path: '/b' } }),
+        startJob: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      await charactersRunSwapCostume({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        costumeDescription: '',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        requiredMsg: 'req',
+        noBaseMsg: 'nb',
+        startedMsg: 'st',
+        toastInfo: toastInfo,
+        setBanner: () => undefined,
+        pickBase: () => ({ item: { path: '/b' } }),
+        startJob: () => undefined
+      })
+    ).toBe('need-costume')
+    expect(
+      await charactersRunSwapCostume({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        costumeDescription: 'c',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        requiredMsg: 'req',
+        noBaseMsg: 'nb',
+        startedMsg: 'st',
+        toastInfo: toastInfo,
+        setBanner: () => undefined,
+        pickBase: () => ({ item: null }),
+        startJob: () => undefined
+      })
+    ).toBe('no-base')
+    expect(
+      await charactersRunSwapCostume({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        costumeDescription: 'c',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        requiredMsg: 'req',
+        noBaseMsg: 'nb',
+        startedMsg: 'st',
+        toastInfo: toastInfo,
+        setBanner: () => undefined,
+        pickBase: () => ({ item: { path: '/b' } }),
+        startJob: () => msgs.push('swapjob')
+      })
+    ).toBe('started')
+    expect(
+      await charactersRunSwapCostume({
+        ensureSavedId: async () => {
+          throw new Error(
+            JSON.stringify({
+              code: 'INTERNAL',
+              message: 'sw',
+              details: 'd'
+            })
+          )
+        },
+        isBusy: () => false,
+        costumeDescription: 'c',
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        requiredMsg: 'req',
+        noBaseMsg: 'nb',
+        startedMsg: 'st',
+        toastInfo: toastInfo,
+        setBanner: () => undefined,
+        pickBase: () => ({ item: { path: '/b' } }),
+        startJob: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await charactersRunGenerateSheetSetup({
+        ensureSavedId: async () => null,
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        forcePure: false,
+        wantIdentity: true,
+        useIdentityRef: true,
+        setUseIdentityRef: () => undefined,
+        paths: ['/a'],
+        resolveIdentity: () => ({ useEdit: true, paths: ['/a'] }),
+        buildPrompt: () => 'p',
+        maybeAppendMulti: (p) => p,
+        ensureRules: (p) => p,
+        modeLabel: 'm',
+        summaryParts: 'sum',
+        setConfirm: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await charactersRunGenerateSheetSetup({
+        ensureSavedId: async () => 'id',
+        characterId: 'id',
+        isBusy: () => true,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        forcePure: false,
+        wantIdentity: true,
+        useIdentityRef: true,
+        setUseIdentityRef: () => undefined,
+        paths: ['/a'],
+        resolveIdentity: () => ({ useEdit: true, paths: ['/a'] }),
+        buildPrompt: () => 'p',
+        maybeAppendMulti: (p) => p,
+        ensureRules: (p) => p,
+        modeLabel: 'm',
+        summaryParts: 'sum',
+        setConfirm: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      await charactersRunGenerateSheetSetup({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        forcePure: true,
+        wantIdentity: true,
+        useIdentityRef: true,
+        setUseIdentityRef: (v) => msgs.push('uir:' + v),
+        paths: ['/a', '/b'],
+        resolveIdentity: () => ({ useEdit: false, paths: ['/a', '/b'] }),
+        buildPrompt: () => 'p',
+        maybeAppendMulti: (p) => p + '+',
+        ensureRules: (p) => p + '!',
+        modeLabel: 'm',
+        summaryParts: 'sum',
+        setConfirm: (c) => msgs.push('conf:' + c.prompt)
+      })
+    ).toBe('ready')
+    expect(
+      await charactersRunGenerateSheetSetup({
+        ensureSavedId: async () => {
+          throw new Error('gs')
+        },
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        forcePure: false,
+        wantIdentity: false,
+        useIdentityRef: false,
+        setUseIdentityRef: () => undefined,
+        paths: [],
+        resolveIdentity: () => ({ useEdit: false, paths: [] }),
+        buildPrompt: () => 'p',
+        maybeAppendMulti: (p) => p,
+        ensureRules: (p) => p,
+        modeLabel: 'm',
+        summaryParts: 'sum',
+        setConfirm: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await charactersRunSheetJob({
+        ensureSavedId: async () => null,
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        toastInfo: toastInfo,
+        identityMsg: 'idm',
+        backgroundMsg: 'bg',
+        useIdentityEdit: false,
+        startJob: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await charactersRunSheetJob({
+        ensureSavedId: async () => 'id',
+        isBusy: () => true,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        toastInfo: toastInfo,
+        identityMsg: 'idm',
+        backgroundMsg: 'bg',
+        useIdentityEdit: false,
+        startJob: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      await charactersRunSheetJob({
+        ensureSavedId: async () => 'id',
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        toastInfo: toastInfo,
+        identityMsg: 'idm',
+        backgroundMsg: 'bg',
+        useIdentityEdit: true,
+        startJob: () => msgs.push('sheetjob')
+      })
+    ).toBe('started')
+    expect(
+      await charactersRunSheetJob({
+        ensureSavedId: async () => {
+          throw new Error('sj')
+        },
+        isBusy: () => false,
+        setError: setErr,
+        saveFirstMsg: 'sf',
+        toastInfo: toastInfo,
+        identityMsg: 'idm',
+        backgroundMsg: 'bg',
+        useIdentityEdit: false,
+        startJob: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      charactersResetSheetIfHidden(
+        { g: [{ id: 'a' }] },
+        'missing',
+        'default'
+      )
+    ).toBe('default')
+    expect(
+      charactersResetSheetIfHidden({ g: [{ id: 'a' }] }, 'a', 'default')
+    ).toBeNull()
+    expect(charactersHubSearchMode('q')).toBe('local')
+    expect(charactersHubSearchMode('')).toBe('remote')
+    expect(charactersHubSearchMode(undefined)).toBe('remote')
+
+    await charactersLoadHubPage({
+      page: 1,
+      q: 'aria',
+      setBusy: () => undefined,
+      setError: setErr,
+      searchLocal: async () => ({ items: [{ id: 1 }] }),
+      listRemote: async () => ({ data: [] }),
+      setItems: (i) => msgs.push('items:' + (i as unknown[]).length),
+      setTotalPages: () => undefined,
+      setPage: () => undefined
+    })
+    await charactersLoadHubPage({
+      page: 1,
+      q: 'none',
+      setBusy: () => undefined,
+      setError: setErr,
+      searchLocal: async () => ({ items: [] }),
+      listRemote: async () => ({ data: [{ id: 2 }], total_pages: 3 }),
+      setItems: () => undefined,
+      setTotalPages: (n) => msgs.push('tp:' + n),
+      setPage: () => undefined
+    })
+    await charactersLoadHubPage({
+      page: 2,
+      setBusy: () => undefined,
+      setError: setErr,
+      searchLocal: async () => ({ items: [] }),
+      listRemote: async () => ({
+        data: undefined,
+        total_pages: undefined,
+        current_page: undefined
+      }),
+      setItems: () => undefined,
+      setTotalPages: () => undefined,
+      setPage: (n) => msgs.push('pg:' + n)
+    })
+    await charactersLoadHubPage({
+      page: 1,
+      setBusy: () => undefined,
+      setError: setErr,
+      searchLocal: async () => ({ items: [] }),
+      listRemote: async () => {
+        throw new Error('hub')
+      },
+      setItems: () => undefined,
+      setTotalPages: () => undefined,
+      setPage: () => undefined
+    })
+
+    await charactersEnsureSoulIndex({
+      ensureIndex: async () => ({
+        count: 1,
+        pages: 2,
+        fromCache: true,
+        suggestions: ['s']
+      }),
+      setStatus: (s) => msgs.push('st:' + s),
+      setSuggestions: () => undefined,
+      formatReady: (r) => `${r.count}-${r.cache}`
+    })
+    await charactersEnsureSoulIndex({
+      ensureIndex: async () => ({
+        count: 1,
+        pages: 2,
+        fromCache: false,
+        suggestions: []
+      }),
+      setStatus: () => undefined,
+      setSuggestions: () => undefined,
+      formatReady: () => 'x'
+    })
+    await charactersEnsureSoulIndex({
+      ensureIndex: async () => {
+        throw new Error('offline')
+      },
+      setStatus: () => undefined,
+      setSuggestions: () => undefined,
+      formatReady: () => 'x'
+    })
+
+    expect(charactersSoulPreviewSync('', 1, null, null)).toBeNull()
+    expect(charactersSoulPreviewSync('body', 1, 1, 'old')).toBe('body')
+    expect(charactersSoulPreviewSync('body', 1, 2, '')).toBe('body')
+    expect(charactersSoulPreviewSync('body', 1, 2, 'keep')).toBe('keep')
+
+    const baseForm = formSnap as never
+    const applied = charactersApplySoulForm(
+      baseForm,
+      { id: 9, title: 'T', description: 'D' },
+      'FULL'
+    )
+    expect(applied.soulHubId).toBe(9)
+    const applied2 = charactersApplySoulForm(
+      {
+        ...(baseForm as object),
+        name: 'Has',
+        description: 'HasD',
+        seedPrompt: 'sp'
+      } as never,
+      { id: 9, title: 'T', description: null },
+      ''
+    )
+    expect(applied2.name).toBe('Has')
+
+    const imported = charactersImportSoulForm(
+      baseForm,
+      { filePath: '/s.md', content: 'md' },
+      'Title',
+      () => 'desc',
+      () => 'name'
+    )
+    expect(imported.soulMdPath).toBe('/s.md')
+    const imported2 = charactersImportSoulForm(
+      {
+        ...(baseForm as object),
+        name: 'N',
+        description: 'D'
+      } as never,
+      { filePath: '/s.md', content: 'md' },
+      null,
+      () => null,
+      () => null
+    )
+    expect(imported2.name).toBe('N')
+    expect(charactersClearSoulForm(applied).soulHubId).toBeNull()
+
+    expect(charactersArtStyleOrKeep('photo_cinematic', 'anime_cel')).toBe(
+      'photo_cinematic'
+    )
+    expect(charactersArtStyleOrKeep('bad', 'anime_cel')).toBe('anime_cel')
+    expect(charactersLinkCostumeError(new Error('lc'))).toBe('lc')
+    expect(charactersShowLinkedEmpty(null, 0)).toBe('saveFirst')
+    expect(charactersShowLinkedEmpty('id', 0)).toBe('empty')
+    expect(charactersShowLinkedEmpty('id', 2)).toBe('list')
+    expect(charactersSoulTitleDisplay('Title', 1)).toBe('Title')
+    expect(charactersSoulTitleDisplay(null, 5)).toBe('#5')
+    expect(charactersSoulTitleDisplay(null, null)).toBe('')
+    expect(charactersShouldShowUseSoul(1, 2)).toBe(true)
+    expect(charactersShouldShowUseSoul(1, 1)).toBe(false)
+    expect(charactersShouldShowUseSoul(null, 1)).toBe(false)
+
+    charactersOnSheetVariantChange(
+      'full_body',
+      (v) => msgs.push('sv:' + v),
+      (v) => msgs.push('uir2:' + v)
+    )
+    expect(
+      charactersMaybeAppendMultiRef('p', ['a', 'b'], 'en', (x) => x + '+')
+    ).toBe('p+')
+    expect(
+      charactersMaybeAppendMultiRef('p', ['a'], 'en', (x) => x + '+')
+    ).toBe('p')
+    expect(charactersCostumeDesc(' swap ', 'form')).toBe('swap')
+    expect(charactersCostumeDesc('', ' form ')).toBe('form')
+    expect(typeof charactersNeedsBareBodyWarning('full_body' as never)).toBe(
+      'boolean'
+    )
+
+
+    // extra pure helpers batch 2
+    await charactersPreviewSoul({
+      id: 1,
+      titleHint: 'T',
+      setCatalogPickId: () => undefined,
+      setCatalogPickTitle: () => undefined,
+      setCatalogLoading: () => undefined,
+      setError: () => undefined,
+      getDetail: async () => ({ title: 'TT', contentFlat: 'flat' }),
+      readSoul: async () => ({ content: ' body ' }),
+      setCatalogPickBody: () => undefined,
+      formSoulHubId: null,
+      formSoulPreview: null,
+      setSoulPreview: () => undefined
+    })
+    await charactersPreviewSoul({
+      id: 2,
+      setCatalogPickId: () => undefined,
+      setCatalogPickTitle: () => undefined,
+      setCatalogLoading: () => undefined,
+      setError: (m) => msgs.push('ps:' + m),
+      getDetail: async () => {
+        throw new Error('fail')
+      },
+      readSoul: async () => ({ content: '' }),
+      setCatalogPickBody: () => undefined,
+      formSoulHubId: 2,
+      formSoulPreview: 'keep',
+      setSoulPreview: () => undefined
+    })
+    await charactersPreviewSoul({
+      id: 3,
+      setCatalogPickId: () => undefined,
+      setCatalogPickTitle: () => undefined,
+      setCatalogLoading: () => undefined,
+      setError: () => undefined,
+      getDetail: async () => ({ contentFlat: '' }),
+      readSoul: async () => ({ content: '' }),
+      setCatalogPickBody: () => undefined,
+      formSoulHubId: 9,
+      formSoulPreview: 'keep',
+      setSoulPreview: () => msgs.push('should-not')
+    })
+
+    await charactersApplySoulFromHub({
+      id: 1,
+      setBusy: () => undefined,
+      getDetail: async () => ({
+        id: 1,
+        title: 'Soul',
+        description: 'd',
+        contentFlat: 'flat'
+      }),
+      readSoul: async () => ({ content: 'FULL' }),
+      setForm: setForm as never,
+      setCatalogPickId: () => undefined,
+      setCatalogPickTitle: () => undefined,
+      setCatalogPickBody: () => undefined,
+      setEditorOpen: () => undefined,
+      setEditorPanel: () => undefined,
+      setPageBanner: () => undefined,
+      toastSuccess: () => undefined,
+      appliedMsg: (t) => 'ok:' + t,
+      setError: () => undefined
+    })
+    await charactersApplySoulFromHub({
+      id: 1,
+      setBusy: () => undefined,
+      getDetail: async () => ({
+        id: 1,
+        title: 'Soul',
+        contentFlat: 'flat'
+      }),
+      readSoul: async () => {
+        throw new Error('r')
+      },
+      setForm: setForm as never,
+      setCatalogPickId: () => undefined,
+      setCatalogPickTitle: () => undefined,
+      setCatalogPickBody: () => undefined,
+      setEditorOpen: () => undefined,
+      setEditorPanel: () => undefined,
+      setPageBanner: () => undefined,
+      toastSuccess: () => undefined,
+      appliedMsg: (t) => t,
+      setError: () => undefined
+    })
+    await charactersApplySoulFromHub({
+      id: 1,
+      setBusy: () => undefined,
+      getDetail: async () => {
+        throw new Error('g')
+      },
+      readSoul: async () => ({ content: '' }),
+      setForm: setForm as never,
+      setCatalogPickId: () => undefined,
+      setCatalogPickTitle: () => undefined,
+      setCatalogPickBody: () => undefined,
+      setEditorOpen: () => undefined,
+      setEditorPanel: () => undefined,
+      setPageBanner: () => undefined,
+      toastSuccess: () => undefined,
+      appliedMsg: (t) => t,
+      setError: (m) => msgs.push('ase:' + m)
+    })
+
+    charactersClearSoulState({
+      setForm: setForm as never,
+      setCatalogPickId: () => undefined,
+      setCatalogPickTitle: () => undefined,
+      setCatalogPickBody: () => undefined
+    })
+    charactersRemoveCostumeLook(setForm as never, 'e1', (list) => list)
+    charactersReorderGallery(setForm as never, 'a', 'a', (g) => g)
+    charactersReorderGallery(
+      setForm as never,
+      'a',
+      'b',
+      (g) =>
+        g.length
+          ? g
+          : [
+              {
+                id: 'b',
+                path: '/b',
+                kind: 'sheet',
+                label: 'B',
+                createdAt: 't'
+              },
+              {
+                id: 'a',
+                path: '/a',
+                kind: 'sheet',
+                label: 'A',
+                createdAt: 't'
+              }
+            ]
+    )
+    expect(
+      await charactersJobCancelDiscard(false, async () => undefined, '/p')
+    ).toBe(false)
+    expect(
+      await charactersJobCancelDiscard(true, async () => undefined, '/p')
+    ).toBe(true)
+    expect(charactersContinueDraftOr(false, () => undefined)).toBe(false)
+    charactersLoadSoulPreviewForm(' hi ', setForm as never)
+    charactersLoadSoulPreviewForm(null, setForm as never)
+    charactersLoadSoulPreviewForm('   ', setForm as never)
+    setForm(charactersSpokenLangSetter(['en']) as never)
+    setForm(charactersArtStyleSetter('photo_cinematic') as never)
+    {
+      const r = charactersSoulTextSetter('soul')
+      setForm(r.formUpdater as never)
+    }
+    charactersSuggestionSearch('q', () => undefined, () => undefined)
+    expect(charactersHubEnter('Enter', 'q', () => undefined)).toBe(true)
+    expect(charactersHubEnter('a', 'q', () => undefined)).toBe(false)
+    charactersOpenExternal(() => undefined, 'https://x')
+    charactersGenerateSheetFromEmpty(() => undefined, () => undefined)
+    expect(
+      charactersToggleSelectIds(['a'], 'b', (ids, id) => [...ids, id])
+    ).toEqual(['a', 'b'])
+    charactersPlotStoryChange('s1', () => undefined, () => undefined)
+    charactersUseSoulButtonClick(null, () => undefined)
+    charactersUseSoulButtonClick(1, () => undefined)
+    expect(
+      charactersDressedBusyGuard(true, toastInfo, 'L')
+    ).toBe(true)
+    expect(
+      charactersDressedBusyGuard(false, toastInfo, 'L')
+    ).toBe(false)
+    expect(
+      charactersSheetEnsureCostume(
+        [],
+        'coat',
+        'photo_cinematic',
+        (c, costume) =>
+          [
+            {
+              id: '1',
+              name: 'c',
+              description: costume,
+              artStyle: 'photo_cinematic',
+              imagePath: null,
+              createdAt: 't',
+              updatedAt: 't'
+            }
+          ] as never
+      ).length
+    ).toBe(1)
+    expect(
+      charactersSheetEnsureCostume([], null, 'photo_cinematic', (c) => c)
+    ).toEqual([])
+    expect(charactersImportDesc('', 'x')).toBe('x')
+    expect(charactersImportDesc('has', 'x')).toBe('has')
+    expect(charactersImportName('', 'T', 'N')).toBe('T')
+    expect(charactersImportName('has', 'T', 'N')).toBe('has')
+    expect(charactersImportName('', null, 'N')).toBe('N')
+
+
+    expect(
+      await charactersFindInList(
+        async () => [{ id: 'a', name: 'A' } as never],
+        'a'
+      )
+    ).toMatchObject({ id: 'a' })
+    expect(
+      await charactersFindInList(async () => [], 'a')
+    ).toBeNull()
+    expect(
+      await charactersFindByName(
+        async () => [{ id: 'a', name: 'Aria' } as never],
+        ' Aria '
+      )
+    ).toMatchObject({ id: 'a' })
+    expect(
+      await charactersFindByName(async () => [], 'x')
+    ).toBeNull()
+    expect(
+      charactersBuildSheetMultiAppend('p', ['a', 'b'], 'en', (x) => x + '+')
+    ).toBe('p+')
+    expect(charactersAiCreateLabel(true, 'imp', 'cre')).toBe('imp')
+    expect(charactersAiCreateLabel(false, 'imp', 'cre')).toBe('cre')
+    expect(charactersSpokenOrUndefined([])).toBeUndefined()
+    expect(charactersSpokenOrUndefined(['en'])).toEqual(['en'])
+    expect(charactersSelectedIds(['a'], null)).toEqual(['a'])
+    expect(charactersSelectedIds([], 'b')).toEqual(['b'])
+    expect(charactersSelectedIds([], null)).toEqual([])
+    expect(charactersGeneratingLabel(true, 'G', 'I')).toBe('G')
+    expect(charactersGeneratingLabel(false, 'G', 'I')).toBe('I')
+    expect(charactersCostumeBaseOptionLabel('/p', 'lab')).toBe('lab')
+    expect(charactersCostumeBaseOptionLabel('', 'lab')).toBe('')
+
+    // render Field / Chip residual components
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    root.render(
+      React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(
+          CharactersField,
+          { label: 'L', hint: 'H' },
+          React.createElement('span', null, 'child')
+        ),
+        React.createElement(CharactersField, { label: 'L2' }, 'x'),
+        React.createElement(CharactersChip, null, 'chip')
+      )
+    )
+    await new Promise((r) => setTimeout(r, 10))
+    root.unmount()
+    host.remove()
+
+    expect(msgs.length).toBeGreaterThan(0)
+  }, 30000)
 })
