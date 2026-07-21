@@ -211,13 +211,40 @@ process.on('unhandledRejection', (reason) => {
   }
 })
 
-// SQLite always under data root (override with DATABASE_URL if set)
+/**
+ * SQLite always under data root.
+ * Ignore repo-relative DATABASE_URL from .env (e.g. file:./prisma/dev.db) —
+ * that was the old split-brain layout and hides the OS data-root library.
+ * Explicit absolute DATABASE_URL or IDM_DATABASE_URL still wins.
+ */
+function isLegacyRepoDatabaseUrl(url: string): boolean {
+  const u = url.trim()
+  if (!u.startsWith('file:')) return false
+  const rest = u.slice('file:'.length).replace(/^\/\/\//, '/').replace(/^\/\//, '')
+  return (
+    rest.includes('prisma/dev.db') ||
+    rest.startsWith('./') ||
+    rest.startsWith('../') ||
+    (!rest.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(rest))
+  )
+}
+
 function resolveDatabaseUrl(): string {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL
+  const explicit =
+    process.env.IDM_DATABASE_URL?.trim() ||
+    process.env.DATABASE_URL?.trim() ||
+    ''
+  if (explicit && !isLegacyRepoDatabaseUrl(explicit)) {
+    return explicit
+  }
   return appPaths.databaseUrl
 }
 
 process.env.DATABASE_URL = resolveDatabaseUrl()
+// eslint-disable-next-line no-console
+console.log('[appPaths] dataRoot=', appPaths.dataRoot)
+// eslint-disable-next-line no-console
+console.log('[appPaths] DATABASE_URL=', process.env.DATABASE_URL)
 
 // Must be called before app ready
 protocol.registerSchemesAsPrivileged([

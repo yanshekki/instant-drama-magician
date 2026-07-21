@@ -41,11 +41,11 @@ export async function createLocalClient(
   } catch {
     /* non-fatal */
   }
-  if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = paths.databaseUrl
-  }
+  // Always bind this client to the resolved data root DB (ignore .env prisma/dev.db)
+  process.env.DATABASE_URL = paths.databaseUrl
   const runtime = createRuntime({
     dataDir: paths.dataRoot,
+    databaseUrl: paths.databaseUrl,
     appVersion: opts.appVersion || process.env.npm_package_version || '1.0.0',
     platform: process.platform,
     isPackaged: false
