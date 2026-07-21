@@ -355,6 +355,7 @@ describe('registerVideoPrepCreate', () => {
     }))
     const writeEntryStillPromptJson = vi.fn()
     const ensureStoryDirs = vi.fn()
+    const clearEntryStillUserCleared = vi.fn()
     const story = {
       id: 's1',
       title: 'Rain Night',
@@ -404,9 +405,10 @@ describe('registerVideoPrepCreate', () => {
           sceneId: 'sc1',
           propId: 'p1',
           actionId: null,
-          characterIds: ['c1'],
-          sceneIds: ['sc1'],
-          propIds: ['p1'],
+          // JSON strings for cache hash path (parseIdList expects string)
+          characterIds: JSON.stringify(['c1']),
+          sceneIds: JSON.stringify(['sc1']),
+          propIds: JSON.stringify(['p1']),
           dialogue: '又係落雨',
           beatContentJson: null,
           mediaStatus: 'EMPTY'
@@ -426,7 +428,8 @@ describe('registerVideoPrepCreate', () => {
             tmpImagePath: () => stillOut,
             clipContinuityStillPath: () => stillOut,
             readStoryCastPrepJson: vi.fn(() => null),
-            writeEntryStillPromptJson
+            writeEntryStillPromptJson,
+            clearEntryStillUserCleared
           }),
           cancel: vi.fn(),
           rebindAi: vi.fn()
@@ -449,19 +452,345 @@ describe('registerVideoPrepCreate', () => {
       storyId: 's1',
       entryId: 'e1',
       stillOnly: true,
-      locale: 'zh-HK'
+      locale: 'zh-HK',
+      durationSeconds: 8
     })) as {
       kind: string
       entityIds: { storyId?: string; entryId?: string }
       stillPath: string
       materialsSummary?: string
+      durationSeconds?: number
     }
     expect(r.kind).toBe('timeline-clip')
     expect(r.entityIds).toEqual({ storyId: 's1', entryId: 'e1' })
     expect(r.stillPath).toBe(stillOut)
+    expect(r.durationSeconds).toBe(8)
     expect(ensureStoryDirs).toHaveBeenCalledWith('s1')
     expect(chat).toHaveBeenCalled()
     expect(generateImage).toHaveBeenCalled()
+    expect(writeEntryStillPromptJson).toHaveBeenCalled()
+    expect(clearEntryStillUserCleared).toHaveBeenCalledWith('s1', 'e1')
+  })
+
+  it('timeline-clip multi-cast with action, prev continuity, and skipStillIfExists', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-tl2-'))
+    const stillOut = join(dir, 'e2-cont.png')
+    const prevStill = join(dir, 'e1-cont.png')
+    writeFileSync(prevStill, 'prev')
+    writeFileSync(stillOut, 'existing')
+    const long =
+      'POLISHED MULTI CAST TIMELINE CLIP PROMPT WITH ENOUGH LENGTH FOR EXTRACT'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('CLIP2').toString('base64')
+    }))
+    const writeEntryStillPromptJson = vi.fn()
+    const readEntryStillPromptJson = vi.fn(() =>
+      JSON.stringify({
+        version: 1,
+        professionalPrompt: long,
+        userExtraPrompt: 'keep rain',
+        materialsSummary: 'cached materials',
+        sourceImagePath: null,
+        stillPath: stillOut,
+        promptHash: 'h',
+        updatedAt: new Date().toISOString(),
+        durationSeconds: 6,
+        aspectRatio: '16:9'
+      })
+    )
+    const story = {
+      id: 's1',
+      title: 'Duo Night',
+      styleNote: 'handheld',
+      hardRules: null,
+      characters: [
+        {
+          id: 'c1',
+          name: 'Ming',
+          description: 'courier',
+          appearance: 'short hair',
+          costume: 'jacket',
+          hardRules: 'no logo',
+          spokenLanguages: 'not-json',
+          refImagePath: null
+        },
+        {
+          id: 'c2',
+          name: 'Lin',
+          description: 'driver',
+          appearance: 'long hair',
+          costume: 'coat',
+          hardRules: null,
+          spokenLanguages: JSON.stringify(['yue', 'en']),
+          refImagePath: null
+        }
+      ],
+      scenes: [
+        {
+          id: 'sc1',
+          sceneNumber: 1,
+          title: 'Alley',
+          description: 'wet',
+          mood: 'tense',
+          lighting: 'neon',
+          hardRules: null,
+          refImagePath: null
+        },
+        {
+          id: 'sc2',
+          sceneNumber: 2,
+          title: 'Rooftop',
+          description: 'open sky',
+          mood: 'cold',
+          lighting: 'moon',
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      props: [
+        {
+          id: 'p1',
+          name: 'Umbrella',
+          description: 'red',
+          hardRules: null,
+          refImagePath: null
+        },
+        {
+          id: 'p2',
+          name: 'Bag',
+          description: 'leather',
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      actions: [
+        {
+          id: 'a1',
+          name: 'Dash',
+          description: 'sprint forward',
+          motionNotes: 'fast feet',
+          intention: 'escape',
+          cameraNotes: 'tracking',
+          hardRules: null,
+          refImagePath: null
+        }
+      ],
+      timeline: [
+        {
+          id: 'e1',
+          order: 0,
+          startTime: 0,
+          endTime: 5,
+          characterId: 'c1',
+          sceneId: 'sc1',
+          propId: 'p1',
+          actionId: null,
+          characterIds: JSON.stringify(['c1']),
+          sceneIds: JSON.stringify(['sc1']),
+          propIds: JSON.stringify(['p1']),
+          dialogue: '開始',
+          beatContentJson: null,
+          mediaStatus: 'READY'
+        },
+        {
+          id: 'e2',
+          order: 1,
+          startTime: 5,
+          endTime: 11,
+          characterId: 'c1',
+          sceneId: 'sc1',
+          propId: 'p1',
+          actionId: 'a1',
+          // array multi ids exercise asList array branch
+          characterIds: ['c1', 'c2'],
+          sceneIds: ['sc1', 'sc2'],
+          propIds: ['p1', 'p2'],
+          actionIds: ['a1'],
+          dialogue: '快啲走',
+          beatContentJson: null,
+          mediaStatus: 'EMPTY'
+        }
+      ]
+    }
+    const get = vi.fn(async () => story)
+    const clipContinuityStillPath = vi.fn(
+      (_sid: string, entryId: string) =>
+        entryId === 'e1' ? prevStill : stillOut
+    )
+    const ctx = makeHandlerContext({
+      settings: {
+        aspectRatio: '9:16',
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024'
+      } as never,
+      aiClient: { chat, generateImage, editImage: generateImage },
+      stories: () => ({ get }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            ensureStoryDirs: vi.fn(),
+            tmpImagePath: () => stillOut,
+            clipContinuityStillPath,
+            readStoryCastPrepJson: vi.fn(() => null),
+            writeEntryStillPromptJson,
+            readEntryStillPromptJson,
+            clearEntryStillUserCleared: vi.fn()
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    // skipStillIfExists reuses existing continuity still + cache
+    const skipped = (await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e2',
+      stillOnly: true,
+      skipStillIfExists: true
+    })) as { skippedStill?: boolean; stillPath: string; materialsSummary?: string }
+    expect(skipped.skippedStill).toBe(true)
+    expect(skipped.stillPath).toBe(stillOut)
+    expect(writeEntryStillPromptJson).toHaveBeenCalled()
+    expect(generateImage).not.toHaveBeenCalled()
+
+    // full still regen path with multi-cast + prev continuity image
+    generateImage.mockClear()
+    writeEntryStillPromptJson.mockClear()
+    // remove existing so skip path not taken
+    rmSync(stillOut, { force: true })
+    const r = (await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e2',
+      stillOnly: true,
+      locale: 'en'
+    })) as {
+      kind: string
+      materialsSummary?: string
+      polished?: boolean
+    }
+    expect(r.kind).toBe('timeline-clip')
+    expect(generateImage).toHaveBeenCalled()
+    expect(chat).toHaveBeenCalled()
+    expect(r.materialsSummary).toMatch(/characters:|Ming|Lin|continuity/i)
+  })
+
+  it('rejects unknown videoPrep kind', async () => {
+    const ctx = makeHandlerContext({
+      aiClient: {
+        generateVideo: vi.fn(),
+        chat: vi.fn(),
+        generateImage: vi.fn()
+      }
+    })
+    registerVideoPrepCreate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(h as never, 'videoPrep:create', {
+        kind: 'not-a-real-kind',
+        stillOnly: true
+      })
+    ).rejects.toMatchObject({ message: 'errors.unknownVideoPrepKind' })
+  })
+
+  it('timeline-clip skipStillIfExists polishes when cache empty', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-skip-'))
+    const stillOut = join(dir, 'e1.png')
+    writeFileSync(stillOut, 'still')
+    const long =
+      'POLISHED SKIP STILL EMPTY CACHE PROMPT WITH ENOUGH LENGTH FOR EXTRACT'
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: long } }]
+    }))
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('X').toString('base64')
+    }))
+    const writeEntryStillPromptJson = vi.fn()
+    const story = {
+      id: 's1',
+      title: 'Solo',
+      styleNote: null,
+      hardRules: null,
+      characters: [
+        {
+          id: 'c1',
+          name: 'Ming',
+          description: 'courier',
+          appearance: null,
+          costume: null,
+          hardRules: null,
+          spokenLanguages: null,
+          refImagePath: null
+        }
+      ],
+      scenes: [],
+      props: [],
+      actions: [],
+      timeline: [
+        {
+          id: 'e1',
+          order: 0,
+          startTime: 0,
+          endTime: 5,
+          characterId: 'c1',
+          sceneId: null,
+          propId: null,
+          actionId: null,
+          characterIds: JSON.stringify(['c1']),
+          dialogue: null,
+          beatContentJson: null,
+          mediaStatus: 'EMPTY'
+        }
+      ]
+    }
+    const ctx = makeHandlerContext({
+      settings: {
+        aspectRatio: '1:1',
+        imageSizeTall: '1024x1792',
+        imageSizeWide: '1792x1024',
+        imageSizeSquare: '1024x1024'
+      } as never,
+      aiClient: { chat, generateImage, editImage: generateImage },
+      stories: () => ({ get: vi.fn(async () => story) }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            ensureStoryDirs: vi.fn(),
+            tmpImagePath: () => stillOut,
+            clipContinuityStillPath: () => stillOut,
+            readStoryCastPrepJson: vi.fn(() => null),
+            writeEntryStillPromptJson,
+            readEntryStillPromptJson: vi.fn(() => null),
+            clearEntryStillUserCleared: vi.fn()
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    registerVideoPrepCreate(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'videoPrep:create', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      stillOnly: true,
+      skipStillIfExists: true
+    })) as { skippedStill?: boolean; polished?: boolean }
+    expect(r.skippedStill).toBe(true)
+    expect(chat).toHaveBeenCalled()
+    expect(generateImage).not.toHaveBeenCalled()
+    expect(writeEntryStillPromptJson).toHaveBeenCalled()
   })
 })
 
