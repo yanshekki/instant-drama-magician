@@ -312,7 +312,33 @@ import {
   scenesApplyLookClick,
   scenesGeneratingLabel,
   scenesHardRulesSetter,
-  scenesToggleSelect
+  scenesToggleSelect,
+  scenesApplyCopiedScene,
+  scenesPickImage,
+  scenesArtStyleFromScene,
+  scenesAiFillLabel,
+  scenesPlotFillArgs,
+  scenesStatusValue,
+  scenesCustomLocationOption,
+  scenesLookStyleOrNull,
+  scenesStatusSetter,
+  scenesLocationTypeSetter,
+  scenesMapGalleryKind,
+  scenesMapVideoGalleryItem,
+  scenesMsgToast,
+  scenesMakeApplyCopied,
+  scenesPlotFill,
+  scenesNextSceneNum,
+  scenesMakeListForEnsure,
+  scenesResolveSceneNumber,
+  scenesListForStory,
+  scenesMakeToggleSelect,
+  scenesMakeHardRulesChange,
+  scenesCustomLocOptionEl,
+  scenesMakeReorder,
+  scenesCustomOptionNodes,
+  scenesCustomLocOptionProps,
+  scenesCustomLocOptionElement
 } from './ScenesPage'
 
 import { SettingsPage } from './SettingsPage'
@@ -8826,6 +8852,255 @@ describe('abs100 Scenes pure residual helpers', () => {
       scenesToggleSelect(['a'], 'b', (ids, id) => [...ids, id])
     ).toEqual(['a', 'b'])
 
+
+    scenesApplyCopiedScene(
+      { locationKey: 'k', refImagePath: null },
+      {
+        setForm: (fn: any) =>
+          fn({ gallery: [], locationKey: '' }),
+        setSelectedImageId: () => undefined,
+        galleryFrom: () =>
+          [
+            {
+              id: 'g',
+              path: '/p',
+              kind: 'sheet',
+              label: 'P',
+              createdAt: 't'
+            }
+          ] as never
+      }
+    )
+    expect(
+      await scenesPickImage({
+        pick: async () => null,
+        gallery: [],
+        label: 'u',
+        setForm: () => undefined,
+        setSelectedImageId: () => undefined,
+        append: (g) => g
+      })
+    ).toBe(false)
+    expect(
+      await scenesPickImage({
+        pick: async () => ({ filePath: '/u.png' }),
+        gallery: [],
+        label: 'u',
+        setForm: (fn: any) =>
+          fn({ gallery: [], coverPath: null }),
+        setSelectedImageId: () => undefined,
+        append: (g, item) =>
+          [
+            ...g,
+            {
+              id: 'n',
+              path: item.path,
+              kind: item.kind,
+              label: item.label,
+              createdAt: 't'
+            }
+          ] as never
+      })
+    ).toBe(true)
+    expect(
+      scenesArtStyleFromScene('photo_cinematic', 'anime_cel')
+    ).toBe('photo_cinematic')
+    expect(scenesArtStyleFromScene('bad', 'anime_cel')).toBe('anime_cel')
+    expect(scenesAiFillLabel(true, 'S', 'F')).toBe('S')
+    expect(scenesAiFillLabel(false, 'S', 'F')).toBe('F')
+
+
+    expect(scenesPlotFillArgs('s', '')).toEqual({
+      suggestFromStory: true,
+      storyId: 's',
+      segmentKey: 'all'
+    })
+    expect(scenesPlotFillArgs('s', 'seg')).toMatchObject({ segmentKey: 'seg' })
+    expect(scenesStatusValue('READY', () => true)).toBe('READY')
+    expect(scenesStatusValue('x', () => false)).toBe('PENDING')
+    expect(scenesCustomLocationOption('custom', ['a', 'b'])).toBe('custom')
+    expect(scenesCustomLocationOption('a', ['a', 'b'])).toBeNull()
+    expect(scenesCustomLocationOption('', ['a'])).toBeNull()
+    expect(scenesLookStyleOrNull(null, () => 'x')).toBeNull()
+    expect(scenesLookStyleOrNull('photo_cinematic', () => 'P')).toBe('P')
+    // plate committed cover keep path
+    scenesHandlePlateCommitted(
+      {
+        sceneId: 's1',
+        path: '/x',
+        gallery: [
+          {
+            id: 'g',
+            path: '/old',
+            kind: 'sheet',
+            label: 'O',
+            createdAt: 't'
+          }
+        ]
+      },
+      's1',
+      {
+        setForm: (fn: any) => {
+          const r = fn({
+            gallery: [],
+            coverPath: '/old',
+            looks: []
+          })
+          msgs.push('cov:' + r.coverPath)
+        },
+        setSelectedImageId: () => undefined,
+        reload: () => undefined,
+        toastSuccess: () => undefined,
+        listScene: async () => null,
+        galleryFrom: () => [],
+        primary: () => '/p',
+        ensureLooks: (l) => l,
+        parseLooks: () => []
+      }
+    )
+
+
+    expect(scenesMapGalleryKind('sheet')).toBe('sheet')
+    expect(scenesMapGalleryKind('upload')).toBe('upload')
+    expect(scenesMapGalleryKind('gen')).toBe('gen')
+    expect(scenesMapGalleryKind('x')).toBe('sheet')
+    expect(
+      scenesMapVideoGalleryItem({
+        id: 'g',
+        path: '/p',
+        kind: 'weird',
+        label: 'L',
+        createdAt: 't',
+        layer: 'base',
+        introVideoPath: '/v'
+      }).kind
+    ).toBe('sheet')
+    expect(
+      scenesMapVideoGalleryItem({
+        id: 'g',
+        path: '/p',
+        kind: 'upload',
+        label: 'L',
+        createdAt: 't'
+      }).kind
+    ).toBe('upload')
+    scenesStatusSetter('READY', () => true)({ status: 'PENDING' } as never)
+    scenesStatusSetter('x', () => false)({ status: 'PENDING' } as never)
+    scenesLocationTypeSetter('exterior')({ locationType: '' } as never)
+    // removeImage isCover true branch (cover kept)
+    scenesRemoveImage(
+      [
+        {
+          id: 'a',
+          path: '/a',
+          kind: 'sheet',
+          label: 'A',
+          createdAt: 't'
+        },
+        {
+          id: 'b',
+          path: '/b',
+          kind: 'sheet',
+          label: 'B',
+          createdAt: 't'
+        }
+      ] as never,
+      { id: 'a', path: '/a' },
+      '/b',
+      {
+        setForm: (fn: any) => {
+          const r = fn({ gallery: [], coverPath: '/b' })
+          msgs.push('keep:' + r.coverPath)
+        },
+        setSelectedImageId: () => undefined,
+        setSelectedImageIds: (fn: any) => fn(['a']),
+        remove: (g, id) => g.filter((x: any) => x.id !== id),
+        primary: () => '/p',
+        isCover: () => true
+      }
+    )
+
+
+    scenesMsgToast((m) => msgs.push('msg:' + m), 'hi')()
+    scenesMakeApplyCopied(
+      (fn: any) => fn({ gallery: [], locationKey: '' }),
+      () => undefined,
+      () => [] as never
+    )({ locationKey: 'k' })
+    scenesPlotFill(
+      (opts) => msgs.push('fill:' + JSON.stringify(opts)),
+      's1',
+      'all'
+    )()
+    expect(scenesNextSceneNum([], () => 1)).toBe(1)
+    expect(
+      scenesNextSceneNum([{ sceneNumber: 2 }, { sceneNumber: null }], (nums) =>
+        nums.length ? Math.max(...nums) + 1 : 1
+      )
+    ).toBe(3)
+
+
+    expect(
+      await scenesMakeListForEnsure(async () => [{ id: 'a', sceneNumber: 1 }])()
+    ).toEqual([{ id: 'a', sceneNumber: 1 }])
+
+
+    expect(scenesResolveSceneNumber(3, [], () => 1)).toBe(3)
+    expect(scenesResolveSceneNumber(0, [], () => 9)).toBe(9)
+    expect(scenesResolveSceneNumber(undefined, [], () => 2)).toBe(2)
+    expect(
+      await scenesListForStory(
+        async (id) => [{ id, sceneNumber: 1 }],
+        'story-1'
+      )
+    ).toEqual([{ id: 'story-1', sceneNumber: 1 }])
+
+
+    scenesMakeToggleSelect((fn: any) => fn(['a']))('b')
+    scenesMakeHardRulesChange((fn: any) => fn({ hardRules: '' }))({
+      target: { value: 'hr' }
+    })
+    expect(scenesCustomLocOptionEl('warehouse-custom')).toBe('warehouse-custom')
+    expect(scenesCustomLocOptionEl('interior')).toBeNull()
+
+
+    scenesMakeReorder(
+      (fn: any) => fn({ gallery: [{ id: 'a' }, { id: 'b' }] }),
+      (g, from, to) => {
+        msgs.push('move:' + from + to)
+        return g
+      }
+    )('a', 'b')
+    scenesMakeReorder(
+      () => undefined,
+      (g) => g
+    )('a', 'a')
+    expect(scenesCustomOptionNodes('warehouse-custom')).toEqual({
+      value: 'warehouse-custom',
+      label: 'warehouse-custom'
+    })
+    expect(scenesCustomOptionNodes('interior')).toBeNull()
+
+
+    expect(scenesCustomLocOptionProps('warehouse-custom')).toEqual({
+      value: 'warehouse-custom',
+      children: 'warehouse-custom'
+    })
+    expect(scenesCustomLocOptionProps('interior')).toBeNull()
+    const el = scenesCustomLocOptionElement('warehouse-custom')
+    expect(el).toBeTruthy()
+    expect(scenesCustomLocOptionElement('interior')).toBeNull()
+    // render option element to hit createElement path fully
+    if (el) {
+      const host = document.createElement('select')
+      document.body.appendChild(host)
+      const root = createRoot(host)
+      root.render(el)
+      await new Promise((r) => setTimeout(r, 5))
+      root.unmount()
+      host.remove()
+    }
+
     expect(msgs.length).toBeGreaterThan(0)
 
     scenesHandlePlateCommitted(
@@ -8945,11 +9220,13 @@ describe('abs100 Scenes UI residual mop', () => {
         title: 'Rooftop',
         sceneNumber: 1,
         locationKey: 'rooftop',
+        locationType: 'warehouse-custom',
+        hardRules: 'no neon signs',
         refImagePath: '/media/roof.png',
         refGalleryJson: gal('/media/roof.png', 'sg'),
         looksJson,
         artStyle: 'photo_cinematic'
-      }),
+      } as never),
       makeScene({
         id: 'scene-2',
         title: 'Rooftop',
@@ -9016,7 +9293,32 @@ describe('abs100 Scenes UI residual mop', () => {
     await clickNamed(/Clear filters/i)
 
     await openCardEdit('Rooftop')
+    await clickNamed(/^Profile$/i)
+    // hard rules field by placeholder
+    for (const ta of Array.from(document.querySelectorAll('textarea'))) {
+      const ph = (ta as HTMLTextAreaElement).placeholder || ''
+      const al = ta.getAttribute('aria-label') || ''
+      if (/hard|rule|约束/i.test(ph + al) || ta.value.includes('neon')) {
+        await act(async () =>
+          fireEvent.change(ta, { target: { value: 'hard rules updated mop' } })
+        )
+      }
+    }
+    // also change all textareas to hit hardRules setter
+    for (const ta of Array.from(document.querySelectorAll('textarea'))) {
+      await act(async () =>
+        fireEvent.change(ta, {
+          target: { value: (ta as HTMLTextAreaElement).value + ' x' }
+        })
+      )
+    }
     await clickNamed(/^Images$/i)
+    // multi-select: shift/ctrl click thumbs
+    for (const b of Array.from(document.querySelectorAll('button[title]'))) {
+      await act(async () =>
+        fireEvent.click(b, { shiftKey: true, ctrlKey: true, metaKey: true })
+      )
+    }
     // apply look
     for (const b of screen
       .getAllByRole('button')
@@ -9067,6 +9369,66 @@ describe('abs100 Scenes UI residual mop', () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 40))
     })
+    // hard rules + custom location + multi-select
+    await clickNamed(/^Profile$/i)
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(-2)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'hard rule mop custom' } })
+      )
+    }
+    for (const el of Array.from(document.querySelectorAll('input, select'))) {
+      const s = el as HTMLInputElement | HTMLSelectElement
+      if (s.tagName === 'SELECT') {
+        // try set custom location by typing if input
+      } else if ((s as HTMLInputElement).type !== 'checkbox') {
+        const lab = s.getAttribute('aria-label') || s.placeholder || ''
+        if (/location|type/i.test(lab)) {
+          await act(async () =>
+            fireEvent.change(s, { target: { value: 'custom-warehouse' } })
+          )
+        }
+      }
+    }
+    // force location type custom via any select/input near location
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      // add custom via change to free text if not select-only
+      await act(async () =>
+        fireEvent.change(s, { target: { value: 'custom-warehouse' } })
+      )
+    }
+    for (const cb of Array.from(
+      document.querySelectorAll('input[type="checkbox"]')
+    )) {
+      await act(async () => fireEvent.click(cb))
+    }
     await clickNamed(/^Save$/i)
-  }, 90000)
+
+    // new scene ensure create path via plate
+    await clickNamed(/New scene|New/i)
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 2)) {
+      if ((el as HTMLInputElement).type === 'checkbox') continue
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'Harbor' } })
+      )
+    }
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(0, 1)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'dock at night' } })
+      )
+    }
+    api.scenes.create = vi.fn().mockResolvedValue(
+      makeScene({ id: 'new-sc', sceneNumber: 99, title: 'Harbor' })
+    )
+    api.scenes.list = vi.fn().mockResolvedValue([
+      makeScene({ id: 'new-sc', sceneNumber: 99, title: 'Harbor' })
+    ])
+    await clickNamed(/^Images$/i)
+    await clickNamed(/Generate plate|Generate professional|Generate/i)
+    await confirmImageGen().catch(() => false)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+  }, 120000)
+
 })

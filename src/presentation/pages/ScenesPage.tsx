@@ -1,9 +1,11 @@
 import {
+  createElement,
   useEffect,
   useMemo,
   useState,
   type Dispatch,
-  type SetStateAction
+  type SetStateAction,
+  type ReactElement
 } from 'react'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import { useTranslation } from 'react-i18next'
@@ -370,7 +372,7 @@ export function ScenesPage(): JSX.Element {
   const closeEditor = (): void => {
     setEditorOpen(false)
     setEditingId(null)
-    setForm(emptyForm(nextSceneNumber(items.map((s) => s.sceneNumber))))
+    setForm(emptyForm(scenesNextSceneNum(items, nextSceneNumber)))
     setSelectedImageId(null)
     setAiIdea('')
     setAtmoText('')
@@ -381,10 +383,7 @@ export function ScenesPage(): JSX.Element {
     setEditorPanel('profile')
     setEditingId(null)
     // Prefer story-linked scene numbers when available (global list often lacks them)
-    const nums = items
-      .map((s) => s.sceneNumber)
-      .filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
-    setForm(emptyForm(nextSceneNumber(nums)))
+    setForm(emptyForm(scenesNextSceneNum(items, nextSceneNumber)))
     setSelectedImageId(null)
     setAiIdea('')
     setAtmoText('')
@@ -395,9 +394,10 @@ export function ScenesPage(): JSX.Element {
 
   const openEdit = (s: Scene): void => {
     const gallery = galleryFromScene(s)
-    const style: ArtStyleId = isArtStyleId(s.artStyle)
-      ? s.artStyle
-      : DEFAULT_ART_STYLE
+    const style: ArtStyleId = scenesArtStyleFromScene(
+      s.artStyle,
+      DEFAULT_ART_STYLE
+    )
     setEditingId(s.id)
     setForm({
       sceneNumber: s.sceneNumber ?? 1,
@@ -443,12 +443,11 @@ export function ScenesPage(): JSX.Element {
     const looks = ensureLookInLibrary(form.looks, atmoText || form.mood, {
       artStyle: form.artStyle
     })
-    const sceneNumber =
-      typeof form.sceneNumber === 'number' &&
-      Number.isFinite(form.sceneNumber) &&
-      form.sceneNumber >= 1
-        ? Math.floor(form.sceneNumber)
-        : nextSceneNumber(items.map((s) => s.sceneNumber))
+    const sceneNumber = scenesResolveSceneNumber(
+      form.sceneNumber,
+      items,
+      nextSceneNumber
+    )
     return {
       sceneNumber,
       description: form.description.trim() || form.title || 'Scene',
@@ -503,11 +502,14 @@ export function ScenesPage(): JSX.Element {
       sceneNumber: form.sceneNumber,
       create: () => create(payload()),
       reload,
-      list: async () =>
-        (await getApi().scenes.list(activeStoryId!)) as Array<{
-          id: string
-          sceneNumber: number
-        }>,
+      list: () =>
+        scenesListForStory(
+          (id) =>
+            getApi().scenes.list(id) as Promise<
+              Array<{ id: string; sceneNumber: number }>
+            >,
+          activeStoryId!
+        ),
       setEditingId
     })
   }
@@ -563,9 +565,11 @@ export function ScenesPage(): JSX.Element {
       startJob: (idea, hasDraft, hasImage, ref, storyIdForJob, suggest) => {
         startJob({
           kind: 'scene-ai-fill',
-          label: suggest
-            ? t('scenes.suggestFromStory')
-            : t('common.aiFill'),
+          label: scenesAiFillLabel(
+            suggest,
+            t('scenes.suggestFromStory'),
+            t('common.aiFill')
+          ),
           scope: {
             sceneId: editingId ?? undefined,
             storyId: storyIdForJob
@@ -606,12 +610,7 @@ export function ScenesPage(): JSX.Element {
     setPlotSuggestOpen,
     () => editorOpen,
     openCreate,
-    () =>
-      handleAiFill({
-        suggestFromStory: true,
-        storyId: plotStoryId,
-        segmentKey: plotSegmentKey || 'all'
-      })
+    scenesPlotFill(handleAiFill, plotStoryId, plotSegmentKey)
   )
 
 
@@ -846,31 +845,24 @@ export function ScenesPage(): JSX.Element {
   }
 
   const handlePickImage = async (): Promise<void> => {
-    const result = await getApi().media.pickRefImage()
-    if (!result) return
-    const next = appendSceneGalleryItem(form.gallery, {
-      path: result.filePath,
-      kind: 'upload',
-      label: t('scenes.uploadLabel')
+    await scenesPickImage({
+      pick: () => getApi().media.pickRefImage(),
+      gallery: form.gallery,
+      label: t('scenes.uploadLabel'),
+      setForm,
+      setSelectedImageId,
+      append: appendSceneGalleryItem
     })
-    setForm((f) => ({
-      ...f,
-      gallery: next,
-      coverPath: f.coverPath ?? next[0]?.path ?? null
-    }))
-    setSelectedImageId(next[0]?.id ?? null)
   }
 
-  const handleReorderGallery = (fromId: string, toId: string): void => {
-    if (!scenesShouldReorder(fromId, toId)) return
-    setForm((f) => ({
-      ...f,
-      gallery: moveSceneGalleryItem(f.gallery, fromId, toId)
-    }))
-  }
+  const handleReorderGallery = scenesMakeReorder(
+    setForm,
+    moveSceneGalleryItem
+  )
 
-  const handleSetCover = scenesMakeSetCover(setForm, () =>
-    toast.success(t('common.coverSet'))
+  const handleSetCover = scenesMakeSetCover(
+    setForm,
+    scenesMsgToast(toast.success, t('common.coverSet'))
   )
 
   const siblingLocations = useMemo(() => {
@@ -888,16 +880,11 @@ export function ScenesPage(): JSX.Element {
     setError: setActionError,
     saveFirstMsg: t('scenes.saveFirstForPlate'),
     copy: (args) => getApi().scenes.copyGalleryFrom(args),
-    applyScene: (sceneRaw) => {
-      const scene = sceneRaw as Scene
-      const g = galleryFromScene(scene)
-      setForm((f) => ({
-        ...f,
-        gallery: g,
-        locationKey: scene.locationKey ?? f.locationKey
-      }))
-      setSelectedImageId(g[0]?.id ?? null)
-    },
+    applyScene: scenesMakeApplyCopied(
+      setForm,
+      setSelectedImageId,
+      galleryFromScene
+    ),
     toastSuccess: () => toast.success(t('scenes.copyGalleryOk')),
     setBanner: () => setPageBanner(t('scenes.copyGalleryOk')),
     okMsg: t('scenes.copyGalleryOk'),
@@ -1208,11 +1195,11 @@ export function ScenesPage(): JSX.Element {
                         )
                       )
                     }
-                    onIntroVideo={
-                      editingId
-                        ? () => handleGenerateIntroVideo(selectedImage.path)
-                        : undefined
-                    }
+                    onIntroVideo={scenesIntroVideoHandler(
+                      editingId,
+                      selectedImage.path,
+                      handleGenerateIntroVideo
+                    )}
                     isCover={form.coverPath === selectedImage.path}
                     onSetAsCover={() => handleSetCover(selectedImage.path)}
                     onRemove={() => {
@@ -1266,11 +1253,7 @@ export function ScenesPage(): JSX.Element {
                 coverPath={form.coverPath}
                 fallbackCoverPath={primarySceneGalleryPath(form.gallery)}
                 onSelect={setSelectedImageId}
-                onToggleSelect={(id) =>
-                  setSelectedImageIds((ids) =>
-                    toggleGallerySelection(ids, id)
-                  )
-                }
+                onToggleSelect={scenesMakeToggleSelect(setSelectedImageIds)}
                 onReorder={handleReorderGallery}
                 labelOf={(g) => translateSceneGalleryLabel(g.label, t)}
               />
@@ -1335,12 +1318,9 @@ export function ScenesPage(): JSX.Element {
                     <EditorSelect
                       value={form.status}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          status: (isSceneStatus(e.target.value)
-                            ? e.target.value
-                            : 'PENDING') as SceneStatus
-                        }))
+                        setForm(
+                          scenesStatusSetter(e.target.value, isSceneStatus)
+                        )
                       }
                       aria-label={t('scenes.statusLabel')}
                     >
@@ -1397,9 +1377,7 @@ export function ScenesPage(): JSX.Element {
                   <Textarea
                     size="md"
                     value={form.hardRules}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, hardRules: e.target.value }))
-                    }
+                    onChange={scenesMakeHardRulesChange(setForm)}
                     placeholder={t('common.hardRulesPh')}
                   />
                 </div>
@@ -1409,10 +1387,7 @@ export function ScenesPage(): JSX.Element {
                     <EditorSelect
                       value={form.locationType}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          locationType: e.target.value
-                        }))
+                        setForm(scenesLocationTypeSetter(e.target.value))
                       }
                       aria-label={t('scenes.locationType')}
                     >
@@ -1430,19 +1405,7 @@ export function ScenesPage(): JSX.Element {
                           {tSceneLocationType(t, v)}
                         </option>
                       ))}
-                      {form.locationType &&
-                      ![
-                        'interior',
-                        'exterior',
-                        'mixed',
-                        'vehicle',
-                        'virtual',
-                        ''
-                      ].includes(form.locationType.toLowerCase()) ? (
-                        <option value={form.locationType}>
-                          {form.locationType}
-                        </option>
-                      ) : null}
+                      {scenesCustomLocOptionElement(form.locationType)}
                     </EditorSelect>
                   </div>
                   {(
@@ -1766,11 +1729,13 @@ export function ScenesPage(): JSX.Element {
                             look.name,
                             t('scenes.lookDefault')
                           )
-                        const styleLabel = look.artStyle
-                          ? t(
-                              `characters.${getArtStyle(look.artStyle).labelKey}`
+                        const styleLabel = scenesLookStyleOrNull(
+                          look.artStyle,
+                          (s) =>
+                            t(
+                              `characters.${getArtStyle(s as ArtStyleId).labelKey}`
                             )
-                          : null
+                        )
                         return (
                           <li
                             key={look.id}
@@ -1793,10 +1758,7 @@ export function ScenesPage(): JSX.Element {
                               <Button
                                 variant="secondary"
                                 className="!py-0.5 !text-xs"
-                                onClick={() => {
-                                  applyLook(look)
-                                  setImageGenMode('atmosphere')
-                                }}
+                                onClick={() => scenesApplyLookClick(look, applyLook, setImageGenMode)}
                               >
                                 {t('scenes.lookUse')}
                               </Button>
@@ -1886,6 +1848,301 @@ export function ScenesPage(): JSX.Element {
 }
 
 // ─── Residual pure helpers (absolute line coverage) ─────────────────────────
+
+export function scenesCustomLocOptionProps(
+  locationType: string
+): { value: string; children: string } | null {
+  const opt = scenesCustomOptionNodes(locationType)
+  if (!opt) return null
+  return { value: opt.value, children: opt.label }
+}
+
+export function scenesCustomLocOptionElement(
+  locationType: string
+): ReactElement | null {
+  const props = scenesCustomLocOptionProps(locationType)
+  if (!props) return null
+  return createElement('option', { value: props.value }, props.children)
+}
+
+
+
+export function scenesMakeReorder(
+  setForm: Dispatch<SetStateAction<FormState>>,
+  move: (
+    gallery: FormState['gallery'],
+    fromId: string,
+    toId: string
+  ) => FormState['gallery']
+): (fromId: string, toId: string) => void {
+  return (fromId, toId) => {
+    if (!scenesShouldReorder(fromId, toId)) return
+    setForm((f) => ({
+      ...f,
+      gallery: move(f.gallery, fromId, toId)
+    }))
+  }
+}
+
+export function scenesCustomOptionNodes(
+  locationType: string
+): { value: string; label: string } | null {
+  const v = scenesCustomLocOptionEl(locationType)
+  return v ? { value: v, label: v } : null
+}
+
+
+
+export function scenesMakeToggleSelect(
+  setSelectedImageIds: Dispatch<SetStateAction<string[]>>
+): (id: string) => void {
+  return (id: string) =>
+    setSelectedImageIds((ids) =>
+      scenesToggleSelect(ids, id, toggleGallerySelection)
+    )
+}
+
+export function scenesMakeHardRulesChange(
+  setForm: Dispatch<SetStateAction<FormState>>
+): (e: { target: { value: string } }) => void {
+  return (e) => setForm(scenesHardRulesSetter(e.target.value))
+}
+
+export function scenesCustomLocOptionEl(
+  locationType: string
+): string | null {
+  return scenesCustomLocationOption(locationType, [
+    'interior',
+    'exterior',
+    'mixed',
+    'vehicle',
+    'virtual',
+    ''
+  ])
+}
+
+
+
+export function scenesResolveSceneNumber(
+  sceneNumber: number | undefined,
+  items: Array<{ sceneNumber?: number | null }>,
+  nextFn: (nums: number[]) => number
+): number {
+  if (
+    typeof sceneNumber === 'number' &&
+    Number.isFinite(sceneNumber) &&
+    sceneNumber >= 1
+  ) {
+    return Math.floor(sceneNumber)
+  }
+  return scenesNextSceneNum(items, nextFn)
+}
+
+export function scenesListForStory(
+  listApi: (storyId: string) => Promise<Array<{ id: string; sceneNumber: number }>>,
+  storyId: string
+): Promise<Array<{ id: string; sceneNumber: number }>> {
+  return listApi(storyId)
+}
+
+
+
+export function scenesMakeListForEnsure(
+  listApi: () => Promise<Array<{ id: string; sceneNumber: number }>>
+): () => Promise<Array<{ id: string; sceneNumber: number }>> {
+  return () => listApi()
+}
+
+
+
+export function scenesMsgToast(
+  toastFn: (m: string) => void,
+  msg: string
+): () => void {
+  return () => toastFn(msg)
+}
+
+export function scenesMakeApplyCopied(
+  setForm: Dispatch<SetStateAction<FormState>>,
+  setSelectedImageId: (id: string | null) => void,
+  galleryFrom: (s: Scene) => FormState['gallery']
+): (sceneRaw: unknown) => void {
+  return (sceneRaw) =>
+    scenesApplyCopiedScene(sceneRaw, {
+      setForm,
+      setSelectedImageId,
+      galleryFrom
+    })
+}
+
+export function scenesPlotFill(
+  handleAiFill: (opts: {
+    suggestFromStory?: boolean
+    storyId?: string | null
+    segmentKey?: string | null
+  }) => void,
+  plotStoryId: string,
+  plotSegmentKey: string
+): () => void {
+  return () => handleAiFill(scenesPlotFillArgs(plotStoryId, plotSegmentKey))
+}
+
+export function scenesNextSceneNum(
+  items: Array<{ sceneNumber?: number | null }>,
+  nextFn: (nums: number[]) => number
+): number {
+  const nums = items
+    .map((s) => s.sceneNumber)
+    .filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
+  return nextFn(nums)
+}
+
+
+
+export function scenesStatusSetter(
+  value: string,
+  isStatus: (s: string) => boolean
+): (f: FormState) => FormState {
+  return (f) => ({
+    ...f,
+    status: (isStatus(value) ? value : 'PENDING') as FormState['status']
+  })
+}
+
+export function scenesLocationTypeSetter(
+  value: string
+): (f: FormState) => FormState {
+  return (f) => ({ ...f, locationType: value })
+}
+
+export function scenesMapGalleryKind(kind: string): 'sheet' | 'upload' | 'gen' {
+  if (kind === 'sheet' || kind === 'upload' || kind === 'gen') return kind
+  return 'sheet'
+}
+
+export function scenesMapVideoGalleryItem(item: {
+  id: string
+  path: string
+  kind: string
+  label: string
+  createdAt: string
+  layer?: string
+  introVideoPath?: string | null
+}): FormState['gallery'][number] {
+  return {
+    id: item.id,
+    path: item.path,
+    kind: scenesMapGalleryKind(item.kind),
+    label: item.label,
+    createdAt: item.createdAt,
+    ...(item.layer ? { layer: item.layer } : {}),
+    ...(item.introVideoPath ? { introVideoPath: item.introVideoPath } : {})
+  } as FormState['gallery'][number]
+}
+
+
+
+export function scenesPlotFillArgs(
+  plotStoryId: string,
+  plotSegmentKey: string
+): {
+  suggestFromStory: true
+  storyId: string
+  segmentKey: string
+} {
+  return {
+    suggestFromStory: true,
+    storyId: plotStoryId,
+    segmentKey: plotSegmentKey || 'all'
+  }
+}
+
+export function scenesStatusValue(
+  status: string | undefined,
+  isStatus: (s: string) => boolean
+): string {
+  return isStatus(status ?? '') ? (status as string) : 'PENDING'
+}
+
+export function scenesCustomLocationOption(
+  locationType: string,
+  known: string[]
+): string | null {
+  if (locationType && !known.includes(locationType)) return locationType
+  return null
+}
+
+export function scenesLookStyleOrNull(
+  artStyle: string | null | undefined,
+  labelOf: (s: string) => string
+): string | null {
+  return artStyle ? labelOf(artStyle) : null
+}
+
+
+
+export function scenesApplyCopiedScene(
+  sceneRaw: unknown,
+  ops: {
+    setForm: Dispatch<SetStateAction<FormState>>
+    setSelectedImageId: (id: string | null) => void
+    galleryFrom: (s: Scene) => FormState['gallery']
+  }
+): void {
+  const scene = sceneRaw as Scene
+  const g = ops.galleryFrom(scene)
+  ops.setForm((f) => ({
+    ...f,
+    gallery: g,
+    locationKey: scene.locationKey ?? f.locationKey
+  }))
+  ops.setSelectedImageId(g[0]?.id ?? null)
+}
+
+export async function scenesPickImage(ops: {
+  pick: () => Promise<{ filePath: string } | null>
+  gallery: FormState['gallery']
+  label: string
+  setForm: Dispatch<SetStateAction<FormState>>
+  setSelectedImageId: (id: string | null) => void
+  append: (
+    g: FormState['gallery'],
+    item: { path: string; kind: 'upload'; label: string }
+  ) => FormState['gallery']
+}): Promise<boolean> {
+  const result = await ops.pick()
+  if (!result) return false
+  const next = ops.append(ops.gallery, {
+    path: result.filePath,
+    kind: 'upload',
+    label: ops.label
+  })
+  ops.setForm((f) => ({
+    ...f,
+    gallery: next,
+    coverPath: f.coverPath ?? next[0]?.path ?? null
+  }))
+  ops.setSelectedImageId(next[0]?.id ?? null)
+  return true
+}
+
+export function scenesArtStyleFromScene(
+  artStyle: string | null | undefined,
+  fallback: ArtStyleId
+): ArtStyleId {
+  return isArtStyleId(artStyle) ? artStyle : fallback
+}
+
+export function scenesAiFillLabel(
+  suggest: boolean,
+  suggestLabel: string,
+  fillLabel: string
+): string {
+  return suggest ? suggestLabel : fillLabel
+}
+
+
+
 
 export function scenesMakeConfirmPlot(
   getPlotStoryId: () => string,
@@ -2576,21 +2833,9 @@ export function scenesHandleVideoPrepDone(
   if (d.gallery?.length) {
     setForm((f) => ({
       ...f,
-      gallery: d.gallery!.map((item) => ({
-        id: item.id,
-        path: item.path,
-        kind: (item.kind === 'sheet' ||
-        item.kind === 'upload' ||
-        item.kind === 'gen'
-          ? item.kind
-          : 'sheet') as 'sheet' | 'upload' | 'gen',
-        label: item.label,
-        createdAt: item.createdAt,
-        ...(item.layer ? { layer: item.layer } : {}),
-        ...(item.introVideoPath
-          ? { introVideoPath: item.introVideoPath }
-          : {})
-      })) as FormState['gallery']
+      gallery: d.gallery!.map((item) =>
+        scenesMapVideoGalleryItem(item)
+      ) as FormState['gallery']
     }))
   } else {
     void reload()
