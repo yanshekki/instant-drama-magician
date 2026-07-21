@@ -131,4 +131,100 @@ describe('registerCharactersCostumeSwap', () => {
     expect(editImage).toHaveBeenCalled()
     expect(r.path || existsSync(out)).toBeTruthy()
   })
+
+  it('persist=true updates gallery and costume field; pose size classes', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-swap-p-'))
+    const base = join(dir, 'base.png')
+    const out = join(dir, 'swap.png')
+    writeFileSync(base, 'base')
+    const editImage = vi.fn(async () => ({
+      b64: Buffer.from('SWAP').toString('base64'),
+      sizeUsed: '1024x1792',
+      aspectUsed: '9:16'
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      ageRange: '20s',
+      appearance: 'short hair',
+      gender: 'm',
+      visualTags: 'urban',
+      mannerisms: 'nod',
+      artStyle: 'anime',
+      hardRules: 'NO logo',
+      refGalleryJson: null,
+      refImagePath: base,
+      refSheetPath: base
+    }))
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const append = vi.fn()
+    const ctx = makeHandlerContext({
+      aiClient: { editImage, generateImage: vi.fn(), chat: vi.fn() },
+      characters: () => ({ get, update }) as never,
+      activity: {
+        append,
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => out,
+            characterImagePath: () => out
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageEnhance: false,
+        imageSizeSquare: '1024x1024',
+        imageSizeWide: '1792x1024',
+        imageSizeTall: '1024x1792'
+      })
+    })
+    registerCharactersCostumeSwap(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+
+    const r = (await invokeRegistered(h as never, 'characters:swapCostume', {
+      characterId: 'c1',
+      costumeDescription: 'yellow raincoat',
+      baseImagePath: base,
+      persist: true,
+      artStyle: 'photo_cinematic',
+      pose: 'full_body'
+    })) as { draft?: boolean; path?: string }
+    expect(r.draft).toBe(false)
+    expect(update).toHaveBeenCalled()
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'swapCostume' })
+    )
+
+    // three_quarter → square; turnaround → wide
+    await invokeRegistered(h as never, 'characters:swapCostume', {
+      characterId: 'c1',
+      costumeDescription: 'blue suit',
+      baseImagePath: base,
+      persist: true,
+      pose: 'three_quarter',
+      updateCostumeField: false
+    })
+    await invokeRegistered(h as never, 'characters:swapCostume', {
+      characterId: 'c1',
+      costumeDescription: 'armor',
+      baseImagePath: base,
+      persist: false,
+      pose: 'turnaround'
+    })
+    expect(editImage.mock.calls.length).toBeGreaterThanOrEqual(3)
+  })
 })

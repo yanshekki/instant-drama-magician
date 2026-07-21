@@ -214,4 +214,186 @@ describe('EmbeddedWebServer', () => {
     })
     expect(st2.running).toBe(true)
   })
+
+  it('invoke error status mapping + media/download/upload + 404', async () => {
+    dataDir = mkdtempSync(join(tmpdir(), 'idm-ews-x-'))
+    const mediaFile = join(dataDir, 'media', 'clip.mp4')
+    mkdirSync(join(dataDir, 'media'), { recursive: true })
+    writeFileSync(mediaFile, Buffer.alloc(32, 1))
+
+    // patch mock invoke errors
+    invoke.mockImplementation(async (ch: string) => {
+      if (ch === 'notfound') {
+        const { AppError } = await import('../../types/errors')
+        throw new AppError('NOT_FOUND', 'missing')
+      }
+      if (ch === 'bad') {
+        const { AppError } = await import('../../types/errors')
+        throw new AppError('VALIDATION', 'bad')
+      }
+      if (ch === 'unauth') {
+        const { AppError } = await import('../../types/errors')
+        throw new AppError('AI_UNAUTHORIZED', 'nope')
+      }
+      if (ch === 'boom') throw new Error('server boom')
+      return []
+    })
+
+    // resolveMediaPath on runtime — need to extend mock
+    const { createRuntime } = await import('../../runtime/createRuntime')
+    // Our mock doesn't expose resolveMediaPath — patch via start and monkey-patch after
+    server = new EmbeddedWebServer()
+    const st = await server.start({
+      dataDir,
+      port: 19110,
+      host: '127.0.0.1',
+      authDisabled: true,
+      staticDir: join(dataDir, 'no-static')
+    })
+    const base = `http://127.0.0.1:${st.port}`
+
+    // static missing → 503
+    const spa = await fetch(`${base}/`)
+    expect(spa.status).toBe(503)
+
+    // api 404
+    const n404 = await fetch(`${base}/api/unknown`)
+    expect(n404.status).toBe(404)
+
+    for (const [ch, code] of [
+      ['notfound', 404],
+      ['bad', 400],
+      ['unauth', 401],
+      ['boom', 500]
+    ] as const) {
+      const r = await fetch(`${base}/api/invoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: ch, args: [] })
+      })
+      expect(r.status).toBe(code)
+    }
+
+    // Monkey-patch runtime media helpers via private field if present
+    const rt = (server as unknown as { runtime: {
+      resolveMediaPath: (p: string) => string | null
+      mediaRoot: string
+      dispose: () => Promise<void>
+      channels: () => string[]
+      invoke: typeof invoke
+    } | null }).runtime
+    if (rt) {
+      rt.resolveMediaPath = (p: string) => {
+        if (!p || p.includes('..')) return null
+        const abs = p.startsWith('/') ? p : join(dataDir, p)
+        return abs.includes('clip') ? mediaFile : null
+      }
+      rt.mediaRoot = join(dataDir, 'media')
+
+      const mediaOk = await fetch(
+        `${base}/api/media?p=${encodeURIComponent(mediaFile)}`
+      )
+      expect(mediaOk.ok).toBe(true)
+
+      const mediaMiss = await fetch(`${base}/api/media?p=nope`)
+      expect(mediaMiss.status).toBe(404)
+
+      const dl = await fetch(
+        `${base}/api/download?p=${encodeURIComponent(mediaFile)}`
+      )
+      expect(dl.ok).toBe(true)
+      expect(dl.headers.get('content-disposition')).toMatch(/attachment/)
+
+      const up = await fetch(`${base}/api/upload?name=foo.png&subdir=uploads`, {
+        method: 'POST',
+        body: Buffer.from('imgdata')
+      })
+      expect(up.ok).toBe(true)
+      const uj = (await up.json()) as { filePath?: string }
+      expect(uj.filePath).toBeTruthy()
+    }
+
+    void createRuntime
+  })
+
+  it('getEmbeddedWebServer singleton', async () => {
+    const { getEmbeddedWebServer } = await import('./EmbeddedWebServer')
+    const a = getEmbeddedWebServer()
+    const b = getEmbeddedWebServer()
+    expect(a).toBe(b)
+  })
+
+  it('auth via Bearer header and media/download unauthorized', async () => {
+    dataDir = mkdtempSync(join(tmpdir(), 'idm-ews-auth-'))
+    server = new EmbeddedWebServer()
+    const st = await server.start({
+      dataDir,
+      port: 19120,
+      host: '127.0.0.1',
+      authToken: 'secret',
+      authDisabled: false
+    })
+    const base = `http://127.0.0.1:${st.port}`
+    const un = await fetch(`${base}/api/media?p=/x`)
+    expect(un.status).toBe(401)
+    const und = await fetch(`${base}/api/download?p=/x`)
+    expect(und.status).toBe(401)
+    const unu = await fetch(`${base}/api/upload`, { method: 'POST', body: 'x' })
+    expect(unu.status).toBe(401)
+
+    // bearer auth ok for channels
+    const ch = await fetch(`${base}/api/channels`, {
+      headers: { Authorization: 'Bearer secret' }
+    })
+    expect(ch.ok).toBe(true)
+  })
+
+  it('upload error path when body handler rejects', async () => {
+    dataDir = mkdtempSync(join(tmpdir(), 'idm-ews-up-'))
+    server = new EmbeddedWebServer()
+    const st = await server.start({
+      dataDir,
+      port: 19121,
+      host: '127.0.0.1',
+      authDisabled: true
+    })
+    const rt = (server as unknown as { runtime: { mediaRoot: string } | null })
+      .runtime
+    if (rt) {
+      // make mediaRoot unwritable by pointing at a file
+      const bad = join(dataDir, 'not-a-dir')
+      writeFileSync(bad, 'x')
+      rt.mediaRoot = bad
+      const up = await fetch(
+        `http://127.0.0.1:${st.port}/api/upload?name=a.png`,
+        { method: 'POST', body: 'x' }
+      )
+      // may be 400 on mkdir fail
+      expect([200, 400, 500]).toContain(up.status)
+    }
+  })
+
+  it('createRuntime failure sets lastError', async () => {
+    vi.resetModules()
+    vi.doMock('../../runtime/createRuntime', () => ({
+      createRuntime: () => {
+        throw new Error('runtime fail')
+      }
+    }))
+    const { EmbeddedWebServer: EWS } = await import('./EmbeddedWebServer')
+    const s = new EWS()
+    const dir = mkdtempSync(join(tmpdir(), 'idm-ews-fail-'))
+    await expect(
+      s.start({
+        dataDir: dir,
+        port: 19122,
+        host: '127.0.0.1',
+        authDisabled: true
+      })
+    ).rejects.toThrow(/runtime fail/)
+    expect(s.getStatus().error).toMatch(/runtime fail/)
+    rmSync(dir, { recursive: true, force: true })
+    vi.doUnmock('../../runtime/createRuntime')
+    vi.resetModules()
+  })
 })

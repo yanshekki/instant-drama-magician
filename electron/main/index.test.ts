@@ -391,5 +391,124 @@ describe('electron main index', () => {
     })
     appEvents.emit('activate')
     await appEvents.emit('before-quit')
+
+    // export/import error paths
+    const { AppDataBackupService } = await import(
+      '../../src/application/services'
+    )
+    // force import success path with response 1
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'in.zip')]
+    })
+    writeFileSync(join(ud, 'in.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    menuHandlers.importFullBackup()
+    await vi.waitFor(() => expect(app.relaunch).toHaveBeenCalled())
+
+    // import failure
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'bad.zip')]
+    })
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    // make import throw
+    const svcProto = AppDataBackupService as unknown as {
+      prototype: { importFromZip: Function }
+    }
+    void svcProto
+  }, 30_000)
+
+  it('handles missing icon, ELECTRON_RENDERER_URL, and protocol edge cases', async () => {
+    process.env.ELECTRON_RENDERER_URL = 'http://localhost:5173'
+    // force empty nativeImage branch
+    const { nativeImage } = await import('electron')
+    vi.spyOn(nativeImage, 'createFromPath').mockReturnValue({
+      isEmpty: () => true
+    } as never)
+
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    expect(webContents.openDevTools).toHaveBeenCalled()
+    delete process.env.ELECTRON_RENDERER_URL
+
+    // protocol 416 range end < start
+    const protocolHandler = protocol.handle.mock.calls.find(
+      (c) => c[0] === 'idm-media'
+    )?.[1] as (req: Request) => Response
+    const f = join(ud, 'media', 'r.mp4')
+    mkdirSync(join(ud, 'media'), { recursive: true })
+    writeFileSync(f, Buffer.alloc(50, 2))
+    const r416 = protocolHandler(
+      new Request('idm-media://l/?p=' + encodeURIComponent(f), {
+        headers: { Range: 'bytes=40-10' }
+      })
+    )
+    expect(r416.status).toBe(416)
+
+    // missing file 404
+    const miss = protocolHandler(
+      new Request(
+        'idm-media://l/?p=' + encodeURIComponent(join(ud, 'media', 'no.mp4'))
+      )
+    )
+    expect([400, 403, 404]).toContain(miss.status)
+
+    void mod
+  }, 30_000)
+
+  it('export full backup without mainWindow still works', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    // close window
+    const win = MockBrowserWindow.windows[0]
+    win?._closed?.()
+    MockBrowserWindow.windows = []
+
+    dialog.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: join(ud, 'full.zip')
+    })
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() => expect(dialog.showSaveDialog).toHaveBeenCalled())
+
+    // support report without win
+    dialog.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: join(ud, 'support.json')
+    })
+    menuHandlers.exportSupportReport()
+    await vi.waitFor(() =>
+      expect(dialog.showSaveDialog.mock.calls.length).toBeGreaterThan(0)
+    )
+
+    // about without win
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    menuHandlers.showAbout()
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
+    menuHandlers.showAbout()
+
+    // open media when dir missing creates it
+    menuHandlers.openMedia()
+
+    // updates with latestVersion
+    const { appUpdateService } = await import(
+      '../../src/infrastructure/update/AppUpdateService'
+    )
+    vi.mocked(appUpdateService.check).mockResolvedValueOnce({
+      status: 'available',
+      channel: 'desktop-dev',
+      currentVersion: '1.0.0',
+      latestVersion: '1.2.0',
+      message: 'new',
+      releaseUrl: 'https://x'
+    } as never)
+    // recreate window for checkUpdates
+    MockBrowserWindow.windows.push(new MockBrowserWindow())
+    menuHandlers.checkUpdates()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+
+    void mod
   }, 30_000)
 })

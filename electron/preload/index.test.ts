@@ -77,5 +77,47 @@ describe('preload', () => {
       }
     }
     expect(invoke.mock.calls.length).toBeGreaterThan(5)
+
+    // Explicitly exercise onProgress / onMenuAction / onState listener paths
+    // (use last registered listener — walk above may have registered empty ones)
+    const progressCb = vi.fn()
+    const unsubProg = api.generation.onProgress(progressCb)
+    const progressListeners = on.mock.calls
+      .filter((c) => c[0] === 'generation:progress')
+      .map((c) => c[1] as Function)
+    progressListeners[progressListeners.length - 1](
+      {},
+      { storyId: 's', step: 'video', index: 0, total: 1 }
+    )
+    expect(progressCb).toHaveBeenCalled()
+    unsubProg()
+    expect(removeListener).toHaveBeenCalledWith(
+      'generation:progress',
+      expect.any(Function)
+    )
+
+    const menuCb = vi.fn()
+    const unsubMenu = api.app.onMenuAction(menuCb)
+    const menuListeners = on.mock.calls
+      .filter((c) => c[0] === 'menu:action')
+      .map((c) => c[1] as Function)
+    menuListeners[menuListeners.length - 1]?.({}, {
+      type: 'screenshot-saved',
+      filePath: '/x'
+    })
+    expect(menuCb).toHaveBeenCalled()
+    unsubMenu()
+
+    const stateCb = vi.fn()
+    const unsubState = api.updates.onState(stateCb)
+    const stateListeners = on.mock.calls
+      .filter((c) => c[0] === 'updates:state')
+      .map((c) => c[1] as Function)
+    stateListeners[stateListeners.length - 1]?.(
+      {},
+      { status: 'idle', currentVersion: '1.0.0', channel: 'desktop-dev' }
+    )
+    expect(stateCb).toHaveBeenCalled()
+    unsubState()
   })
 })

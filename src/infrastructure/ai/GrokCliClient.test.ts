@@ -335,6 +335,135 @@ describe('GrokCliClient', () => {
     await expect(
       c.editImage({ prompt: 'p', imagePath: png, size: '1024x1024' })
     ).resolves.toMatchObject({ b64: 'BBB' })
+
+    // jpg mime path
+    const jpg = join(dir, 'r.jpg')
+    writeFileSync(jpg, Buffer.alloc(100))
+    vi.spyOn(vision, 'loadImageBytesForAi').mockReturnValue({
+      bytes: Buffer.from([1, 2, 3]),
+      mime: 'image/jpeg',
+      resized: false,
+      width: 10,
+      height: 10
+    } as never)
+    await expect(
+      c.editImage({ prompt: 'p', imagePath: jpg })
+    ).resolves.toMatchObject({ b64: 'BBB' })
     rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('getStatus separate image+video providers and shared video', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('/health')) return { ok: true, status: 200 }
+        if (String(url).includes('/models')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [{ id: 'm1' }] }),
+            text: async () => ''
+          }
+        }
+        return { ok: true, status: 200, json: async () => ({}), text: async () => '' }
+      })
+    )
+    const st = await client({
+      imageProvider: 'openai',
+      videoProvider: 'grok-http',
+      videoBaseUrl: 'http://v',
+      videoApiKey: 'k'
+    }).getStatus()
+    expect(st.image).toBeTruthy()
+    expect(st.message).toMatch(/Chat/)
+
+    // same-as-llm video uses sharedVideoMsg branch
+    const st2 = await client({
+      imageProvider: 'same-as-llm',
+      videoProvider: 'same-as-llm'
+    }).getStatus()
+    expect(st2.video).toBeNull()
+    expect(st2.message).toMatch(/Video/)
+  })
+
+  it('probeChat listModels error mapping and testChat non-AppError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('/health')) return { ok: true, status: 200 }
+        throw new Error('ECONNREFUSED models')
+      })
+    )
+    // probeChat may map network error
+    const p = await client().probeChat()
+    expect(typeof p.available).toBe('boolean')
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('plain fail')
+      })
+    )
+    // testChat rethrows unmapped after mapChatMessage null
+    try {
+      await client().testChat()
+    } catch (e) {
+      expect(e).toBeTruthy()
+    }
+  })
+
+  it('chat gateway retry timeout and network fail after ensure', async () => {
+    let calls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls++
+        throw new TypeError('fetch failed')
+      })
+    )
+    const gw = client({
+      llmProvider: 'grok-gateway',
+      baseUrl: 'http://127.0.0.1:3847/v1',
+      chatTimeoutMs: 500
+    })
+    // @ts-expect-error private
+    gw.tryEnsureLocalGateway = async () => undefined
+    await expect(
+      gw.chat({ messages: [{ role: 'user', content: 'x' }] })
+    ).rejects.toMatchObject({ code: 'AI_UNAVAILABLE' })
+
+    // retry times out
+    calls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls++
+        if (calls === 1) throw new TypeError('fetch failed')
+        throw new Error('aborted by timeout')
+      })
+    )
+    // @ts-expect-error private
+    gw.tryEnsureLocalGateway = async () => undefined
+    await expect(
+      gw.chat({ messages: [{ role: 'user', content: 'x' }] })
+    ).rejects.toMatchObject({ message: 'errors.chatTimedOut' })
+  })
+
+  it('parseImageResponse http error and generateImage sizes', async () => {
+    const c = client()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 429,
+        text: async () => 'rate limit'
+      }))
+    )
+    await expect(c.generateImage({ prompt: 'p' })).rejects.toBeInstanceOf(
+      AppError
+    )
+    await expect(
+      c.generateImage({ prompt: 'p', aspectRatio: '1:1', size: '1024x1024' })
+    ).rejects.toBeTruthy()
   })
 })

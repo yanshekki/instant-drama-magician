@@ -8,15 +8,16 @@ describe('resolveFfmpegPath', () => {
   let tmp: string
 
   beforeEach(() => {
-    tmp = join(tmpdir(), `idm-ff-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    tmp = join(
+      tmpdir(),
+      `idm-ff-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    )
     mkdirSync(tmp, { recursive: true })
   })
 
   afterEach(() => {
     if (prev === undefined) delete process.env.FFMPEG_PATH
     else process.env.FFMPEG_PATH = prev
-    delete process.env.FFMPEG_PATH
-    if (prev !== undefined) process.env.FFMPEG_PATH = prev
     rmSync(tmp, { recursive: true, force: true })
     vi.resetModules()
     vi.unmock('fs')
@@ -31,7 +32,6 @@ describe('resolveFfmpegPath', () => {
     const mod = await import('./resolveFfmpegPath')
     mod.clearFfmpegPathCache()
     expect(mod.resolveFfmpegPath()).toBe(bin)
-    // cached
     expect(mod.resolveFfmpegPath()).toBe(bin)
 
     mod.clearFfmpegPathCache()
@@ -83,10 +83,8 @@ describe('resolveFfmpegPath', () => {
         }
       }
     })
-    // Also need existsSync to see our fake
     const mod = await import('./resolveFfmpegPath')
     mod.clearFfmpegPathCache()
-    // may still resolve real ffmpeg-static if installed; just ensure non-empty
     const p = mod.resolveFfmpegPath()
     expect(p).toBeTruthy()
     expect(existsSync(p) || p === 'ffmpeg').toBe(true)
@@ -100,11 +98,89 @@ describe('resolveFfmpegPath', () => {
     const mod = await import('./resolveFfmpegPath')
     mod.clearFfmpegPathCache()
     const p = mod.resolveFfmpegPath()
-    // If project has ffmpeg-static, path should be absolute and exist
     if (existsSync(candidate)) {
       expect(p === candidate || existsSync(p) || p === 'ffmpeg').toBe(true)
     } else {
       expect(typeof p).toBe('string')
     }
+  })
+
+  it('falls through when env missing and eventually returns path or ffmpeg', async () => {
+    delete process.env.FFMPEG_PATH
+    const mod = await import('./resolveFfmpegPath')
+    mod.clearFfmpegPathCache()
+    const p1 = mod.resolveFfmpegPath()
+    expect(p1).toBeTruthy()
+    expect(mod.resolveFfmpegPath()).toBe(p1)
+    mod.clearFfmpegPathCache()
+    const p2 = mod.resolveFfmpegPathFresh()
+    expect(typeof p2).toBe('string')
+  })
+
+  it('caches string "ffmpeg" as usable', async () => {
+    process.env.FFMPEG_PATH = 'ffmpeg'
+    const mod = await import('./resolveFfmpegPath')
+    mod.clearFfmpegPathCache()
+    expect(mod.resolveFfmpegPath()).toBe('ffmpeg')
+    expect(mod.resolveFfmpegPath()).toBe('ffmpeg')
+  })
+
+  it('tryResourcesPath via mocked electron app (dev + packaged)', async () => {
+    delete process.env.FFMPEG_PATH
+    const name = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+
+    // Force bundled/static to fail so we reach resources path
+    vi.resetModules()
+    vi.doMock('module', async () => {
+      const actual = await vi.importActual<typeof import('module')>('module')
+      return {
+        ...actual,
+        createRequire: () => {
+          throw new Error('no static')
+        }
+      }
+    })
+
+    // Mock electron for resources path (packaged)
+    vi.doMock('electron', () => ({
+      app: {
+        isPackaged: true,
+        getAppPath: () => tmp
+      }
+    }))
+    const prevRes = process.resourcesPath
+    Object.defineProperty(process, 'resourcesPath', {
+      value: tmp,
+      configurable: true
+    })
+    // place ffmpeg under resourcesPath/ffmpeg/<bin>
+    mkdirSync(join(tmp, 'ffmpeg'), { recursive: true })
+    writeFileSync(join(tmp, 'ffmpeg', name), 'x')
+
+    const mod = await import('./resolveFfmpegPath')
+    mod.clearFfmpegPathCache()
+    const p = mod.resolveFfmpegPath()
+    expect(p).toBeTruthy()
+
+    // dev path (isPackaged false)
+    vi.resetModules()
+    vi.doMock('electron', () => ({
+      app: {
+        isPackaged: false,
+        getAppPath: () => {
+          throw new Error('no app path')
+        }
+      }
+    }))
+    const mod2 = await import('./resolveFfmpegPath')
+    mod2.clearFfmpegPathCache()
+    expect(mod2.resolveFfmpegPath()).toBeTruthy()
+
+    Object.defineProperty(process, 'resourcesPath', {
+      value: prevRes,
+      configurable: true
+    })
+    vi.doUnmock('electron')
+    vi.doUnmock('module')
   })
 })

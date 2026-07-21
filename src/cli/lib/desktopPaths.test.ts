@@ -130,4 +130,109 @@ describe('desktopPaths', () => {
       rmSync(empty, { recursive: true, force: true })
     }
   })
+
+  it('resolveLaunchTarget appPath for .app .appimage and bare binary', () => {
+    const app = join(root, 'Foo.app')
+    mkdirSync(app, { recursive: true })
+    const tApp = resolveLaunchTarget({
+      repoRoot: root,
+      appPath: app,
+      platform: 'mac'
+    })
+    expect(tApp).toMatchObject({ method: 'open-mac', path: app })
+
+    const ai = join(root, 'App.AppImage')
+    writeFileSync(ai, 'x')
+    const tAi = resolveLaunchTarget({
+      repoRoot: root,
+      appPath: ai,
+      platform: 'linux'
+    })
+    expect(tAi).toMatchObject({ method: 'appimage' })
+
+    const bin = join(root, 'instant-drama-magician')
+    writeFileSync(bin, 'x')
+    const tBin = resolveLaunchTarget({
+      repoRoot: root,
+      appPath: bin,
+      platform: 'linux'
+    })
+    expect(tBin).toMatchObject({ method: 'spawn', mode: 'packaged' })
+  })
+
+  it('resolveLaunchTarget picks best artifact kinds', () => {
+    const repo = join(tmpdir(), `idm-arts-${Date.now()}`)
+    const release = join(repo, 'release')
+    mkdirSync(release, { recursive: true })
+    try {
+      // appimage
+      writeFileSync(join(release, 'X.AppImage'), 'ai')
+      const t1 = resolveLaunchTarget({
+        repoRoot: repo,
+        platform: 'linux',
+        preferDev: false
+      })
+      expect(t1?.method).toBe('appimage')
+
+      // dir-binary preferred over appimage by score
+      const unpack = join(release, 'linux-unpacked')
+      mkdirSync(unpack, { recursive: true })
+      writeFileSync(join(unpack, 'instant-drama-magician'), 'bin')
+      const t2 = resolveLaunchTarget({
+        repoRoot: repo,
+        platform: 'linux',
+        preferDev: false
+      })
+      expect(t2?.method).toBe('spawn')
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('resolveLaunchTarget mac .app artifact and Applications fallback', () => {
+    const repo = join(tmpdir(), `idm-mac-${Date.now()}`)
+    const release = join(repo, 'release', 'mac')
+    mkdirSync(release, { recursive: true })
+    const app = join(release, 'InstantDrama Magician.app')
+    mkdirSync(app, { recursive: true })
+    try {
+      const t = resolveLaunchTarget({
+        repoRoot: repo,
+        platform: 'mac',
+        preferDev: false
+      })
+      expect(t?.method).toBe('open-mac')
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+
+    // empty release → Applications fallback if present (usually not in CI)
+    const empty = join(tmpdir(), `idm-mac-empty-${Date.now()}`)
+    mkdirSync(join(empty, 'release'), { recursive: true })
+    try {
+      const t = resolveLaunchTarget({
+        repoRoot: empty,
+        platform: 'mac',
+        preferDev: false
+      })
+      if (t) {
+        expect(t.method).toBe('open-mac')
+      } else {
+        expect(t).toBeNull()
+      }
+    } finally {
+      rmSync(empty, { recursive: true, force: true })
+    }
+  })
+
+  it('lists win nsis vs exe and safeStatMtime/walk errors', () => {
+    writeFileSync(join(root, 'Setup-Installer.exe'), 'MZ')
+    writeFileSync(join(root, 'InstantDrama Magician.exe'), 'MZ')
+    const arts = listBuildArtifacts(root, 'win')
+    expect(arts.some((a) => a.kind === 'nsis')).toBe(true)
+    expect(arts.some((a) => a.kind === 'exe')).toBe(true)
+
+    // non-existing root
+    expect(listBuildArtifacts(join(root, 'nope'), 'linux')).toEqual([])
+  })
 })
