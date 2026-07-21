@@ -5,7 +5,7 @@
     "language": "語言",
     "packaged": "已打包",
     "dev": "開發模式",
-    "poweredBy": "Powered by YSK Limited"
+    "poweredBy": "由 YSK Limited 提供技術"
   },
   "plot": {
     "story": "故事",
@@ -1791,7 +1791,7 @@
     "title": "創作者",
     "name": "Ki (yanshekki)",
     "bio": "全端開發者、量化交易者、YSK Limited 創辦人。",
-    "supportTitle": "Support / Donate",
+    "supportTitle": "支持／捐助",
     "supportBlurb": "如果「瞬劇魔法師」幫到你的短劇創作與產線，歡迎請我喝杯咖啡支持開發！",
     "openLinktree": "開啟 Linktree",
     "yskSite": "YSK 網站",
@@ -1800,8 +1800,8 @@
     "networkEvm": "EVM (ETH/BSC/AVAX)",
     "networkNear": "NEAR",
     "networkAda": "ADA (Cardano)",
-    "menuDonate": "Support / Donate…",
-    "sidebarDonate": "Support / Donate"
+    "menuDonate": "支持／捐助…",
+    "sidebarDonate": "支持／捐助"
   },
   "actions": {
     "title": "動作",
