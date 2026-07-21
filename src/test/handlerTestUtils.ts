@@ -24,6 +24,8 @@ export function createRegCapture(): {
 export function makeHandlerContext(
   overrides: Partial<HandlerContext> & {
     reg?: (channel: string, fn: RuntimeHandler) => void
+    /** Override live AI client (chat / generateVideo / getStatus …). */
+    aiClient?: unknown
   } = {}
 ): HandlerContext & { handlers?: RegisteredMap } {
   const { handlers, reg } = createRegCapture()
@@ -141,9 +143,15 @@ export function makeHandlerContext(
       return settingsSnapshot as never
     },
     get aiClient() {
+      if (overrides.aiClient) return overrides.aiClient as never
       return {
         chat: vi.fn(),
-        generateImage: vi.fn(),
+        generateImage: vi.fn(async () => ({
+          b64: Buffer.from('img').toString('base64')
+        })),
+        editImage: vi.fn(async () => ({
+          b64: Buffer.from('img').toString('base64')
+        })),
         generateVideo: undefined,
         getStatus: vi.fn(async () => ({
           available: true,
@@ -170,7 +178,29 @@ export function makeHandlerContext(
     actions: overrides.actions ?? (noopService as never),
     costumes: overrides.costumes ?? (noopService as never),
     timeline: overrides.timeline ?? (noopService as never),
-    generation: overrides.generation ?? (() => defaultGeneration as never)
+    generation:
+      overrides.generation ??
+      (() =>
+        ({
+          ...defaultGeneration,
+          getMediaStore: () => ({
+            tmpPath: () => '/tmp/x.png',
+            tmpImagePath: (prefix: string, ext = '.png') =>
+              `/tmp/${prefix}${ext}`,
+            characterImagePath: () => '/tmp/c.png',
+            sceneImagePath: () => '/tmp/s.png',
+            characterVideoPath: (id: string) => `/tmp/char_${id}.mp4`,
+            sceneVideoPath: (id: string) => `/tmp/scene_${id}.mp4`,
+            propVideoPath: (id: string) => `/tmp/prop_${id}.mp4`,
+            costumeVideoPath: (id: string) => `/tmp/cos_${id}.mp4`,
+            actionVideoPath: (id: string) => `/tmp/act_${id}.mp4`,
+            clipPath: (s: string, e: string) => `/tmp/clip_${s}_${e}.mp4`,
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            writeStoryCastPrepJson: vi.fn(),
+            readStoryCastPrepJson: vi.fn(() => null)
+          })
+        }) as never)
   } as HandlerContext
 
   return Object.assign(ctx, { handlers })
