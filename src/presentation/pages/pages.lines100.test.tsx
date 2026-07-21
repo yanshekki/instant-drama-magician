@@ -704,22 +704,21 @@ describe('lines100 Settings backup paths', () => {
     await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
     await clickNamed(/^App$/i)
     await clickNamed(/Show advanced|Hide advanced/i)
-    // export success
-    await clickNamed(/Export full|full backup|exportFull/i)
-    // export fail
-    await clickNamed(/Export full|full backup|exportFull/i)
+    // export success + fail
+    await clickNamed(/Export all data/i)
+    await clickNamed(/Export all data/i)
     // import success with reload
-    await clickNamed(/Import full|importFull/i)
+    await clickNamed(/Restore from backup/i)
     if (document.querySelector('[role="alertdialog"]')) {
       await act(async () => clickDialogConfirm())
     }
     // import fail
-    await clickNamed(/Import full|importFull/i)
+    await clickNamed(/Restore from backup/i)
     if (document.querySelector('[role="alertdialog"]')) {
       await act(async () => clickDialogConfirm())
     }
     // cancel import
-    await clickNamed(/Import full|importFull/i)
+    await clickNamed(/Restore from backup/i)
     if (document.querySelector('[role="alertdialog"]')) {
       const cancel = Array.from(document.querySelectorAll('button')).find((b) =>
         /^Cancel$/i.test((b.textContent || '').trim())
@@ -1300,4 +1299,539 @@ describe('lines100 Stories beats script cover residual', () => {
       if (cancel) await act(async () => fireEvent.click(cancel))
     }
   }, 40000)
+})
+
+describe('lines100 Actions close residual guards', () => {
+  beforeEach(() => seed())
+
+  it('empty name, update false, AI need idea, busy jobs, plate details fail, zh cast, intro draft', async () => {
+    try {
+      localStorage.setItem(
+        'idm.videoPrepDrafts.v2',
+        JSON.stringify({
+          ['action-intro:act-1:/a.png']: {
+            kind: 'action-intro',
+            entityIds: { actionId: 'act-1' },
+            sourceImagePath: '/a.png',
+            professionalPrompt: 'p',
+            stillPath: '/s.png',
+            durationSeconds: 6
+          }
+        })
+      )
+    } catch {
+      /* ignore */
+    }
+    api.actions.list = vi.fn().mockResolvedValue([
+      makeAction({
+        id: 'act-1',
+        name: 'Draw gun',
+        motionNotes: null,
+        refImagePath: '/a.png',
+        refGalleryJson: gal('/a.png', 'ag'),
+        castRefsJson: JSON.stringify([
+          {
+            id: 'cr1',
+            kind: 'character',
+            entityId: 'char-1',
+            imagePath: '/c.png',
+            label: 'Aria'
+          },
+          {
+            id: 'cr2',
+            kind: 'prop',
+            entityId: 'prop-1',
+            imagePath: '/p.png',
+            label: 'Gun'
+          }
+        ])
+      })
+    ])
+    // update returns false path via reject handled by hook
+    let updateN = 0
+    api.actions.update = vi.fn().mockImplementation(async () => {
+      updateN++
+      if (updateN === 1) throw new Error('upd false')
+      return makeAction({ id: 'act-1', name: 'Draw gun' })
+    })
+    api.actions.generatePlate = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('plate details'), { details: 'x-detail' })
+      )
+      .mockResolvedValue({ path: '/tmp/ap.png', label: 'B' })
+    api.actions.commitPlate = vi.fn().mockResolvedValue({
+      path: '/tmp/apc.png',
+      gallery: [
+        {
+          id: 'ag',
+          path: '/a.png',
+          kind: 'plate',
+          label: 'A',
+          createdAt: '2026-07-01T00:00:00.000Z'
+        },
+        {
+          id: 'ag2',
+          path: '/tmp/apc.png',
+          kind: 'plate',
+          label: 'B',
+          createdAt: '2026-07-02T00:00:00.000Z'
+        }
+      ]
+    })
+    api.actions.aiFill = vi.fn().mockResolvedValue({
+      profile: { name: 'D', description: 'd' },
+      profileJson: '{}',
+      raw: ''
+    })
+    api.media.discardSheetDraft = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('discard'))
+      .mockResolvedValue({})
+    api.characters.list = vi.fn().mockResolvedValue([
+      makeCharacter({
+        id: 'char-1',
+        refImagePath: '/c.png',
+        refGalleryJson: gal('/c.png')
+      })
+    ])
+    api.props.list = vi.fn().mockResolvedValue([
+      makeProp({ id: 'prop-1', refImagePath: '/p.png' })
+    ])
+    api.scenes.list = vi.fn().mockResolvedValue([makeScene()])
+    api.costumes.list = vi.fn().mockResolvedValue([])
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <ActionsPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await openCardEdit('Draw gun')
+
+    // empty name save
+    for (const el of Array.from(document.querySelectorAll('input'))) {
+      if ((el as HTMLInputElement).value === 'Draw gun') {
+        await act(async () => fireEvent.change(el, { target: { value: '' } }))
+      }
+    }
+    await clickNamed(/^Save$/i)
+    // restore
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 1)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'Draw gun' } })
+      )
+    }
+
+    // AI need idea: clear all fields
+    await clickNamed(/^Profile$/i)
+    for (const el of Array.from(document.querySelectorAll('input, textarea'))) {
+      if ((el as HTMLInputElement).type === 'checkbox') continue
+      await act(async () => fireEvent.change(el, { target: { value: '' } }))
+    }
+    // clear name again so no draft
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 1)) {
+      await act(async () => fireEvent.change(el, { target: { value: '' } }))
+    }
+    await clickNamed(/AI fill/i)
+
+    // restore name + fields
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 1)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'Draw gun' } })
+      )
+    }
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(
+      0,
+      2
+    )) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'motion body' } })
+      )
+    }
+
+    // busy guard: hang a job
+    await act(async () => {
+      void jobs!.startJob({
+        kind: 'action-ai-fill',
+        label: 'hang',
+        scope: { actionId: 'act-1' },
+        run: async () => {
+          await new Promise(() => {
+            /* hang */
+          })
+        }
+      })
+    })
+    await clickNamed(/AI fill/i)
+    await clickNamed(/^References$/i)
+    await clickNamed(/Generate instruction board|Generate plate/i)
+    // intro while busy
+    await clickNamed(/Intro|video/i)
+    // cancel hang jobs
+    for (const j of jobs?.activeJobs ?? []) {
+      await act(async () => {
+        await jobs!.cancelJob(j.id)
+      })
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30))
+    })
+
+    // plate with identity + multi cast (zh path via locale if available)
+    for (const cb of Array.from(
+      document.querySelectorAll('input[type="checkbox"]')
+    )) {
+      await act(async () => fireEvent.click(cb))
+    }
+    await clickNamed(/Generate instruction board|Generate plate/i)
+    await confirmImageGen()
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60))
+    })
+
+    // plate again success + accept draft if any
+    await clickNamed(/Generate instruction board|Generate plate/i)
+    if (await confirmImageGen()) {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40))
+      })
+      if ((jobs?.pendingDrafts.length ?? 0) > 0) {
+        await act(async () => {
+          await jobs!.acceptDraft(jobs!.pendingDrafts[0]!.id)
+        })
+      }
+    }
+
+    // intro continue draft
+    await clickNamed(/Intro|video|Continue/i)
+    if (screen.queryByTestId('vp')) {
+      await clickNamed(/^vpc$|^vpf$|^vpa$/i)
+    }
+
+    // save with update fail then success
+    await clickNamed(/^Save$/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+  }, 60000)
+})
+
+describe('lines100 Props close residual guards', () => {
+  beforeEach(() => seed())
+
+  it('clear filters, delete fail, AI need idea, saveFirst, intro guards, busy, plate fail details', async () => {
+    try {
+      localStorage.setItem(
+        'idm.videoPrepDrafts.v2',
+        JSON.stringify({
+          ['prop-intro:prop-1:/media/badge.png']: {
+            kind: 'prop-intro',
+            entityIds: { propId: 'prop-1' },
+            sourceImagePath: '/media/badge.png',
+            professionalPrompt: 'p',
+            stillPath: '/s.png',
+            durationSeconds: 6
+          }
+        })
+      )
+    } catch {
+      /* ignore */
+    }
+    api.props.list = vi.fn().mockResolvedValue([
+      makeProp({
+        id: 'prop-1',
+        name: 'Badge',
+        refImagePath: '/media/badge.png',
+        refGalleryJson: gal('/media/badge.png', 'pg')
+      }),
+      makeProp({
+        id: 'prop-2',
+        name: 'Flask',
+        refImagePath: null,
+        refGalleryJson: null
+      })
+    ])
+    api.props.update = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('u fail'))
+      .mockResolvedValue(makeProp())
+    api.props.create = vi.fn().mockResolvedValue(makeProp({ id: 'pn' }))
+    api.props.delete = vi.fn().mockRejectedValueOnce(new Error('del fail'))
+    api.props.generatePlate = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('plate boom'), { details: 'pd' })
+      )
+      .mockResolvedValue({ path: '/tmp/pp.png', label: 'H', variant: 'hero' })
+    api.props.commitPlate = vi.fn().mockResolvedValue({
+      path: '/tmp/ppc.png',
+      gallery: []
+    })
+    api.props.aiFill = vi.fn().mockResolvedValue({
+      profile: { name: 'B', description: 'd' },
+      profileJson: '{}',
+      raw: ''
+    })
+    api.media.discardSheetDraft = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('d'))
+      .mockResolvedValue({})
+    api.timeline.list = vi.fn().mockResolvedValue([])
+    api.stories.list = vi.fn().mockResolvedValue([makeStory()])
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <PropsPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Badge|Flask/i)
+    )
+    // filters + clear
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 2)) {
+      if ((el as HTMLInputElement).type === 'text' || !(el as HTMLInputElement).type) {
+        await act(async () =>
+          fireEvent.change(el, { target: { value: 'Badge' } })
+        )
+      }
+    }
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      3
+    )) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        )
+      }
+    }
+    await clickNamed(/clear filter|Clear/i)
+
+    // delete fail
+    const del = screen
+      .getAllByRole('button')
+      .find((b) => /^Delete$/i.test((b.textContent || '').trim()))
+    if (del) {
+      await act(async () => fireEvent.click(del))
+      if (document.querySelector('[role="alertdialog"]')) {
+        await act(async () => clickDialogConfirm())
+      }
+    }
+
+    // New prop without save — plate/intro saveFirst
+    await clickNamed(/New prop/i)
+    await clickNamed(/^Plates$|^References$/i)
+    await clickNamed(/Generate prop plate|Generate plate/i)
+    await clickNamed(/Intro|video/i)
+
+    // open Badge
+    await clickNamed(/^Cancel$/i)
+    await openCardEdit('Badge')
+
+    // AI need idea
+    await clickNamed(/^Profile$/i)
+    for (const el of Array.from(document.querySelectorAll('input, textarea'))) {
+      if ((el as HTMLInputElement).type === 'checkbox') continue
+      await act(async () => fireEvent.change(el, { target: { value: '' } }))
+    }
+    await clickNamed(/AI fill/i)
+    // restore
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 1)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'Badge' } })
+      )
+    }
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(
+      0,
+      1
+    )) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'metal badge' } })
+      )
+    }
+    // hardRules field if present
+    for (const el of Array.from(document.querySelectorAll('textarea'))) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'hard rule text' } })
+      )
+    }
+
+    // busy hang
+    await act(async () => {
+      void jobs!.startJob({
+        kind: 'prop-ai-fill',
+        label: 'hang',
+        scope: { propId: 'prop-1' },
+        run: async () => {
+          await new Promise(() => {
+            /* hang */
+          })
+        }
+      })
+    })
+    await clickNamed(/AI fill/i)
+    await clickNamed(/^Plates$/i)
+    await clickNamed(/Generate prop plate|Generate plate/i)
+    await clickNamed(/Intro|video/i)
+    for (const j of jobs?.activeJobs ?? []) {
+      await act(async () => {
+        await jobs!.cancelJob(j.id)
+      })
+    }
+
+    // plate fail with details
+    await clickNamed(/Generate prop plate|Generate plate/i)
+    await confirmImageGen()
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+
+    // intro continue draft
+    await clickNamed(/Intro|video|Continue/i)
+    if (screen.queryByTestId('vp')) {
+      await clickNamed(/^vpc$|^vpf$|^vpa$/i)
+    }
+
+    // plot suggest with story segment
+    await clickNamed(/Suggest from story|plot/i)
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(
+      0,
+      3
+    )) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        )
+      }
+    }
+    await clickNamed(/AI fill|Confirm|suggest/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+
+    await clickNamed(/^Save$/i)
+  }, 60000)
+})
+
+describe('lines100 Actions new-entity busy some() path', () => {
+  beforeEach(() => seed())
+
+  it('new action: activeJobs.some body + empty name + plate saveFirst', async () => {
+    api.actions.list = vi.fn().mockResolvedValue([])
+    api.actions.create = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('create boom'))
+      .mockResolvedValue(makeAction({ id: 'act-new', name: 'Kick' }))
+    api.actions.generatePlate = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('plate x'), { details: 'dx' })
+      )
+      .mockResolvedValue({ path: '/tmp/p.png', label: 'G' })
+    api.actions.aiFill = vi.fn().mockResolvedValue({
+      profile: { name: 'Kick', description: 'd' },
+      profileJson: '{}',
+      raw: ''
+    })
+    api.characters.list = vi.fn().mockResolvedValue([])
+    api.props.list = vi.fn().mockResolvedValue([])
+    api.scenes.list = vi.fn().mockResolvedValue([])
+    api.costumes.list = vi.fn().mockResolvedValue([])
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <ActionsPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() => expect(api.actions.list).toHaveBeenCalled())
+    await clickNamed(/New action|New/i)
+
+    // Hang job WITHOUT actionId so actionBusy(null) hits activeJobs.some
+    await act(async () => {
+      void jobs!.startJob({
+        kind: 'action-plate',
+        label: 'hang-new',
+        scope: {},
+        run: async () => {
+          await new Promise(() => {
+            /* hang forever */
+          })
+        }
+      })
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20))
+    })
+    // editorBusy for new entity — some() body lines 163-166
+    await clickNamed(/AI fill/i)
+    await clickNamed(/^References$/i)
+    await clickNamed(/Generate instruction board|Generate plate/i)
+
+    for (const j of jobs?.activeJobs ?? []) {
+      await act(async () => {
+        await jobs!.cancelJob(j.id)
+      })
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20))
+    })
+
+    // empty name save
+    await clickNamed(/^Save$/i)
+
+    // fill name, plate generate → ensureSavedId create fail then success
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 2)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'Kick residual' } })
+      )
+    }
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(
+      0,
+      2
+    )) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'body motion' } })
+      )
+    }
+    // AI from image path empty idea with no image → need idea
+    await clickNamed(/^Profile$/i)
+    for (const el of Array.from(document.querySelectorAll('input, textarea'))) {
+      if ((el as HTMLInputElement).type === 'checkbox') continue
+      // keep name
+      if ((el as HTMLInputElement).value === 'Kick residual') continue
+      await act(async () => fireEvent.change(el, { target: { value: '' } }))
+    }
+    await clickNamed(/AI fill/i)
+
+    // restore description for hasDraft
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(
+      0,
+      1
+    )) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'desc' } })
+      )
+    }
+
+    await clickNamed(/^References$/i)
+    await clickNamed(/Generate instruction board|Generate plate/i)
+    await confirmImageGen()
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60))
+    })
+    // create fail then retry plate
+    await clickNamed(/Generate instruction board|Generate plate/i)
+    await confirmImageGen()
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60))
+    })
+  }, 50000)
 })

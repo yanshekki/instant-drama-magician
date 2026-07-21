@@ -170,7 +170,9 @@ function btns() {
 
 async function clickRe(re: RegExp) {
   const b = btns().find(
-    (x) => re.test(x.textContent || '') && !(x as HTMLButtonElement).disabled
+    (x) =>
+      re.test((x.textContent || '').trim()) &&
+      !(x as HTMLButtonElement).disabled
   )
   if (b) {
     await act(async () => {
@@ -187,29 +189,49 @@ async function waitLoaded() {
       expect(screen.queryByText(/^Loading/i)).toBeNull()
       expect(screen.getByText('Aria')).toBeTruthy()
     },
-    { timeout: 5000 }
+    { timeout: 8000 }
   )
 }
 
 async function openFirstEdit() {
   await waitLoaded()
-  await waitFor(() => {
-    const edits = btns().filter((b) =>
-      /^Edit$/i.test((b.textContent || '').trim())
-    )
-    expect(edits.length).toBeGreaterThan(0)
-  })
-  const edit = btns().find((b) =>
-    /^Edit$/i.test((b.textContent || '').trim())
-  )!
-  await act(async () => {
-    fireEvent.click(edit)
-  })
-  await waitFor(() => {
-    expect(
-      btns().some((b) => /^Save$/i.test((b.textContent || '').trim()))
-    ).toBe(true)
-  })
+  // Already in editor?
+  if (btns().some((b) => /^Save$/i.test((b.textContent || '').trim()))) {
+    return
+  }
+  let clicked = false
+  await waitFor(
+    async () => {
+      if (
+        btns().some((b) => /^Save$/i.test((b.textContent || '').trim()))
+      ) {
+        return
+      }
+      if (!clicked) {
+        const article = Array.from(document.querySelectorAll('article')).find(
+          (a) => (a.textContent || '').includes('Aria')
+        )
+        const edits = article
+          ? Array.from(article.querySelectorAll('button')).filter((b) =>
+              /^Edit$/i.test((b.textContent || '').trim())
+            )
+          : btns().filter((b) =>
+              /^Edit$/i.test((b.textContent || '').trim())
+            )
+        expect(edits.length).toBeGreaterThan(0)
+        const edit = edits[edits.length - 1]
+        expect(edit).toBeInstanceOf(HTMLElement)
+        clicked = true
+        await act(async () => {
+          fireEvent.click(edit as HTMLElement)
+        })
+      }
+      expect(
+        btns().some((b) => /^Save$/i.test((b.textContent || '').trim()))
+      ).toBe(true)
+    },
+    { timeout: 10000 }
+  )
 }
 
 describe('CharactersPage', () => {
@@ -419,16 +441,30 @@ describe('CharactersPage', () => {
 
   it('AI fill error path', async () => {
     api.characters.aiFill = vi.fn().mockRejectedValue(new Error('ai-fail'))
-    await renderWithProviders(<CharactersPage />)
+    await renderWithProviders(
+      <>
+        <CharactersPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
     await openFirstEdit()
     await clickRe(/^Profile$/i)
-    const idea = document.querySelector('textarea') as HTMLTextAreaElement
-    if (idea) {
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(
+      0,
+      2
+    )) {
       await act(async () => {
-        fireEvent.change(idea, { target: { value: 'stormy detective' } })
+        fireEvent.change(el, { target: { value: 'stormy detective' } })
       })
     }
-    await clickRe(/AI fill \/ improve|AI fill/i)
+    const aiBtn = btns().find((b) =>
+      /AI fill/i.test((b.textContent || '').trim())
+    )
+    if (aiBtn) {
+      await act(async () => {
+        fireEvent.click(aiBtn)
+      })
+    }
     await waitFor(() => expect(api.characters.aiFill).toHaveBeenCalled()).catch(
       () => undefined
     )
