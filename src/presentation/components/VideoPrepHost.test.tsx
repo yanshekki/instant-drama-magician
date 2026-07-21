@@ -426,7 +426,159 @@ describe('VideoPrepHost', () => {
     })
     await waitFor(() => screen.getByText('abandon'))
     fireEvent.click(screen.getByText('abandon'))
-    // modal may remain if cancel
+  })
+
+  it('confirm degraded toast and video-prep-done event', async () => {
+    api.videoPrep.confirm = vi.fn().mockResolvedValue({
+      path: '/stub.mp4',
+      degraded: true,
+      gallery: []
+    })
+    const done = vi.fn()
+    window.addEventListener('idm:video-prep-done', done)
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        resumeDraft
+      })
+    })
+    await waitFor(() => screen.getByTestId('modal'))
+    fireEvent.click(screen.getByText('confirm'))
+    await waitFor(() => expect(api.videoPrep.confirm).toHaveBeenCalled())
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    window.removeEventListener('idm:video-prep-done', done)
+  })
+
+  it('create with skippedStill toast', async () => {
+    api.videoPrep.create = vi.fn().mockResolvedValue({
+      professionalPrompt: 'p',
+      stillPath: '/s.png',
+      durationSeconds: 5,
+      aspectRatio: '16:9',
+      entityIds: { characterId: 'c1' },
+      skippedStill: true,
+      materialsSummary: 'm'
+    })
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' }
+      })
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    await waitFor(() => expect(api.videoPrep.create).toHaveBeenCalled())
+    await waitFor(() => expect(toast.success).toHaveBeenCalled())
+  })
+
+  it('nextClip opens remaining timeline queue; finish clears', async () => {
+    // inject session with queue via resume then next
+    const timelineDraft = {
+      kind: 'timeline-clip' as const,
+      entityIds: { storyId: 's1', entryId: 'e1' },
+      professionalPrompt: 'p',
+      stillPath: '/s.png',
+      durationSeconds: 5,
+      aspectRatio: '16:9',
+      queueIndex: 1,
+      queueTotal: 2
+    }
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    // start with queueRemaining by calling startHandler then next
+    act(() => {
+      startHandler!({
+        kind: 'timeline-clip',
+        entityIds: { storyId: 's1', entryId: 'e1' },
+        resumeDraft: timelineDraft,
+        queueIndex: 1,
+        queueTotal: 2,
+        queueRemaining: ['e2']
+      } as never)
+    })
+    await waitFor(() => screen.getByTestId('modal'))
+    fireEvent.click(screen.getByText('next'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+  })
+
+  it('save draft upsert failure toasts error', async () => {
+    upsertDraft.mockImplementationOnce(() => {
+      throw new Error('ls full')
+    })
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        resumeDraft
+      })
+    })
+    await waitFor(() => screen.getByText('save'))
+    fireEvent.click(screen.getByText('save'))
+    expect(toast.error).toHaveBeenCalled()
+  })
+
+  it('retry after create error reopens session', async () => {
+    api.videoPrep.create = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('fail'))
+      .mockResolvedValueOnce({
+        professionalPrompt: 'ok',
+        stillPath: '/s.png',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        entityIds: { characterId: 'c1' }
+      })
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' }
+      })
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    // force error phase with resume then patch - open resume and use retry
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        resumeDraft
+      })
+    })
+    await waitFor(() => screen.getByText('retry'))
+    fireEvent.click(screen.getByText('retry'))
   })
 })
 

@@ -149,6 +149,101 @@ describe('SeedanceVideoProvider', () => {
     ).rejects.toMatchObject({ code: 'VIDEO_JOB_FAILED' })
   })
 
+  it('poll timeout and download without body uses arrayBuffer', async () => {
+    const out = join(tmpdir(), `seed-to-${Date.now()}.mp4`)
+    let polls = 0
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ id: 'slow' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+      if (u.includes('/tasks/slow')) {
+        polls++
+        return new Response(
+          JSON.stringify({ id: 'slow', status: 'running' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      return new Response('x', { status: 404 })
+    })
+    const p = new SeedanceVideoProvider({
+      baseUrl: 'https://ark.example/api/v3',
+      apiKey: 'ark',
+      pollMs: 5,
+      timeoutSec: 0.05,
+      maxRetries: 0,
+      fetchImpl: fetchImpl as never
+    })
+    await expect(
+      p.generate({ prompt: 'x', durationSeconds: 6, outputPath: out })
+    ).rejects.toMatchObject({ code: 'VIDEO_TIMEOUT' })
+    expect(polls).toBeGreaterThan(0)
+  })
+
+  it('download HTTP fail and invalid data url', async () => {
+    const out = join(tmpdir(), `seed-dl-${Date.now()}.mp4`)
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ id: 't3' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+      if (u.includes('/tasks/t3')) {
+        return new Response(
+          JSON.stringify({
+            id: 't3',
+            status: 'succeeded',
+            content: { video_url: 'https://cdn.example/missing.mp4' }
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (u.includes('missing.mp4')) {
+        return new Response('no', { status: 404 })
+      }
+      return new Response('x', { status: 404 })
+    })
+    const p = new SeedanceVideoProvider({
+      baseUrl: 'https://ark.example/api/v3',
+      apiKey: 'ark',
+      pollMs: 5,
+      maxRetries: 0,
+      fetchImpl: fetchImpl as never
+    })
+    await expect(
+      p.generate({ prompt: 'x', durationSeconds: 6, outputPath: out })
+    ).rejects.toBeTruthy()
+
+    // no video url
+    const fetch2 = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ id: 't4' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+      return new Response(
+        JSON.stringify({ id: 't4', status: 'succeeded', content: {} }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    })
+    const p2 = new SeedanceVideoProvider({
+      baseUrl: 'https://ark.example/api/v3',
+      apiKey: 'ark',
+      pollMs: 5,
+      maxRetries: 0,
+      fetchImpl: fetch2 as never
+    })
+    await expect(
+      p2.generate({ prompt: 'x', durationSeconds: 6, outputPath: out })
+    ).rejects.toMatchObject({ code: 'VIDEO_JOB_FAILED' })
+  })
+
   it('includes ref image data url and downloads data: video', async () => {
     const dir = join(tmpdir(), `seed-ref-${Date.now()}`)
     const { mkdirSync, writeFileSync } = await import('fs')

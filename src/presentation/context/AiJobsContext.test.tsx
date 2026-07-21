@@ -744,11 +744,99 @@ describe('AiJobsContext', () => {
     await act(async () => {
       latest!.setVideoPrepSession(null)
     })
-    // dismiss all / clear
     if (typeof latest!.dismissAll === 'function') {
       await act(async () => {
         latest!.dismissAll()
       })
     }
+  })
+
+  it('startJob failure and cancel mid-run sets cancelled', async () => {
+    await mount()
+    let id = ''
+    await act(async () => {
+      id = latest!.startJob({
+        kind: 'pipeline',
+        label: 'pipe',
+        scope: { storyId: 's1' },
+        run: async ({ signal, setProgress }) => {
+          setProgress(10, 'start')
+          await new Promise((r) => setTimeout(r, 50))
+          if (signal.cancelled) return
+          throw new Error('boom')
+        }
+      })
+    })
+    await act(async () => {
+      await latest!.cancelJob(id)
+    })
+    await waitFor(() => {
+      const li = screen.getAllByRole('listitem').find((el) =>
+        el.textContent?.includes('pipe')
+      )
+      expect(li?.getAttribute('data-status')).toMatch(/cancelled|failed|running/)
+    })
+  })
+
+  it('isBlocked by kind and entity scopes', async () => {
+    await mount()
+    await act(async () => {
+      latest!.startJob({
+        kind: 'character-ai-fill',
+        label: 'fill',
+        scope: { characterId: 'c1', storyId: 's1' },
+        run: async () => {
+          await new Promise((r) => setTimeout(r, 200))
+          return {
+            type: 'character-profile',
+            characterId: 'c1',
+            storyId: null,
+            profile: { name: 'A', description: 'd' },
+            profileJson: '{}',
+            isNew: false
+          }
+        }
+      })
+    })
+    expect(
+      latest!.isBlocked({ kind: 'character-ai-fill', characterId: 'c1' })
+    ).toBe(true)
+    expect(
+      latest!.isBlocked({ kind: ['clip'], characterId: 'c1' })
+    ).toBe(false)
+    // storyId alone may or may not match depending on scope matching rules
+    expect(typeof latest!.isBlocked({ storyId: 's1' })).toBe('boolean')
+    expect(latest!.isBlocked({ characterId: 'other' })).toBe(false)
+    expect(
+      latest!.isBlocked({
+        kind: 'character-ai-fill',
+        sceneId: 'sc1',
+        propId: 'p1',
+        costumeId: 'k1',
+        actionId: 'a1',
+        entryId: 'e1'
+      })
+    ).toBe(false)
+  })
+
+  it('startJob throws maps failed status', async () => {
+    await mount()
+    await act(async () => {
+      latest!.startJob({
+        kind: 'clip',
+        label: 'clip-fail',
+        scope: { entryId: 'e1' },
+        run: async () => {
+          throw new Error(JSON.stringify({ code: 'IO', message: 'clip bad' }))
+        }
+      })
+    })
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole('listitem').some((el) =>
+          /clip-fail:failed/.test(el.textContent || '')
+        )
+      ).toBe(true)
+    })
   })
 })

@@ -255,4 +255,96 @@ describe('KonvaTimeline', () => {
     )
     if (pack) fireEvent.click(pack)
   })
+
+  it('drop asset via dataTransfer on track container', () => {
+    const onDrop = vi.fn()
+    const { container } = render(
+      <KonvaTimeline
+        entries={entries}
+        labels={{ t1: 'Hero' }}
+        selectedId="t1"
+        playhead={1}
+        pxPerSec={48}
+        onPxPerSecChange={() => undefined}
+        onPlayheadChange={() => undefined}
+        onSelect={() => undefined}
+        onMove={() => undefined}
+        onDropAsset={onDrop}
+        width={800}
+        snapEnabled={false}
+      />
+    )
+    const track = container.querySelector('.overflow-x-auto')
+    expect(track).toBeTruthy()
+    if (track) {
+      fireEvent.dragOver(track, {
+        dataTransfer: { dropEffect: 'copy', types: ['application/x-idm-asset'] }
+      })
+      fireEvent.drop(track, {
+        clientX: 120,
+        clientY: 40,
+        dataTransfer: {
+          getData: (type: string) =>
+            type === 'application/x-idm-asset'
+              ? JSON.stringify({
+                  type: 'character',
+                  id: 'c9',
+                  name: 'Bob'
+                })
+              : ''
+        }
+      })
+      // may or may not call if stageRef null in jsdom
+      fireEvent.drop(track, {
+        clientX: 10,
+        clientY: 10,
+        dataTransfer: {
+          getData: () => 'not-json'
+        }
+      })
+    }
+  })
+
+  it('pack disabled when already packed', () => {
+    const onPack = vi.fn()
+    render(
+      <KonvaTimeline
+        entries={
+          [
+            {
+              id: 'a',
+              startTime: 0,
+              endTime: 3,
+              order: 0,
+              mediaStatus: 'READY'
+            },
+            {
+              id: 'b',
+              startTime: 3,
+              endTime: 6,
+              order: 1,
+              mediaStatus: 'READY'
+            }
+          ] as never[]
+        }
+        labels={{ a: 'A', b: 'B' }}
+        selectedId={null}
+        playhead={0}
+        pxPerSec={40}
+        onPxPerSecChange={() => undefined}
+        onPlayheadChange={() => undefined}
+        onSelect={() => undefined}
+        onMove={() => undefined}
+        onDropAsset={() => undefined}
+        onPackAbut={onPack}
+        packAbutBusy
+        width={500}
+        snapEnabled={false}
+      />
+    )
+    const pack = Array.from(document.querySelectorAll('button')).find((b) =>
+      /packAbut/i.test(b.textContent || '')
+    )
+    if (pack) expect((pack as HTMLButtonElement).disabled).toBe(true)
+  })
 })

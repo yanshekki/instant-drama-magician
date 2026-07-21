@@ -512,6 +512,65 @@ describe('electron main index', () => {
     void mod
   }, 30_000)
 
+  it('auto-starts web server and gateway with fake timers', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const webStart = vi.fn(async () => ({ url: 'http://x' }))
+    const webStop = vi.fn(async () => undefined)
+    vi.doMock('../../src/infrastructure/webserver/EmbeddedWebServer', () => ({
+      getEmbeddedWebServer: () => ({ start: webStart, stop: webStop }),
+      generateWebServerToken: () => 'auto-tok'
+    }))
+    vi.doMock('./ipc', () => ({
+      registerIpcHandlers: vi.fn(),
+      getIpcRuntime: () => ({
+        settingsStore: {
+          load: () => ({
+            webServerEnabled: true,
+            webServerAuthToken: '',
+            webServerPort: 8787,
+            webServerHost: '0.0.0.0',
+            llmProvider: 'grok-gateway',
+            imageProvider: 'same-as-llm',
+            videoProvider: 'same-as-llm'
+          }),
+          save: (p: object) => p
+        },
+        invoke: vi.fn(async () => ({}))
+      })
+    }))
+    // settings store for web server path
+    vi.doMock('../../src/infrastructure/settings/SettingsStore', () => ({
+      SettingsStore: class {
+        static defaultPath = (u: string) => join(u, 'settings.json')
+        constructor(public p: string) {}
+        load() {
+          return {
+            uiLanguage: 'en',
+            webServerEnabled: true,
+            webServerAuthToken: '',
+            webServerPort: 8787,
+            webServerHost: '0.0.0.0',
+            lastGenerationDegraded: false,
+            colorScheme: 'dark'
+          }
+        }
+        save(p: object) {
+          return { ...this.load(), ...p }
+        }
+      }
+    }))
+
+    const mod = await import('./index')
+    expect(whenReadyCbs.length).toBeGreaterThan(0)
+    await whenReadyCbs[0]()
+    await vi.advanceTimersByTimeAsync(2000)
+    await vi.advanceTimersByTimeAsync(2000)
+    appEvents.emit('before-quit')
+    await vi.advanceTimersByTimeAsync(100)
+    vi.useRealTimers()
+    void mod
+  }, 30_000)
+
   it('export/import error message boxes and support failure', async () => {
     // Re-mock AppDataBackupService with failing methods for this import cycle
     vi.doMock('../../src/application/services', () => ({

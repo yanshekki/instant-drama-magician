@@ -13,7 +13,8 @@ import { createMockApi } from '../../../test/mockApi'
 const api = createMockApi()
 vi.mock('../../../lib/api', () => ({ getApi: () => api }))
 const i18nMock = vi.hoisted(() => {
-  const t = (k: string) => k
+  const t = (k: string, opts?: Record<string, unknown>) =>
+    opts ? `${k}:${JSON.stringify(opts)}` : k
   return { t, i18n: { language: 'en' } }
 })
 vi.mock('react-i18next', () => ({
@@ -29,11 +30,23 @@ const toast = {
   toasts: []
 }
 vi.mock('../../context/ToastContext', () => ({ useToast: () => toast }))
+
+const startJob = vi.fn(
+  (opts: {
+    run: (c: {
+      setProgress: (n: number, m?: string) => void
+      signal: { cancelled: boolean }
+    }) => Promise<unknown>
+  }) => {
+    const signal = { cancelled: false }
+    void opts.run({ setProgress: () => undefined, signal })
+    return 'job_1'
+  }
+)
 vi.mock('../../context/AiJobsContext', () => ({
-  useAiJobs: () => ({ startJob: vi.fn().mockResolvedValue({ id: 'j1' }) })
+  useAiJobs: () => ({ startJob })
 }))
 
-// Avoid heavy nested UI
 vi.mock('../LocalMediaImage', () => ({
   LocalMediaImage: () => <div data-testid="lmi" />
 }))
@@ -58,7 +71,8 @@ const snap = {
       name: 'Alice',
       description: 'hero',
       gallery: [
-        { id: 'g1', path: '/g1.png', label: 'Front', kind: 'sheet' }
+        { id: 'g1', path: '/g1.png', label: 'Front', kind: 'sheet' },
+        { id: 'g2', path: '/g2.png', label: 'Side', kind: 'sheet' }
       ],
       costumes: [
         {
@@ -67,6 +81,13 @@ const snap = {
           description: 'trench',
           imagePath: '/co.png',
           selectable: true
+        },
+        {
+          id: 'co2',
+          name: 'NoImg',
+          description: 'x',
+          imagePath: null,
+          selectable: false
         }
       ],
       selectedRefImagePath: '/g1.png',
@@ -125,14 +146,30 @@ const snap = {
 describe('TimelineAdvancedStudio', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    startJob.mockImplementation(
+      (opts: {
+        run: (c: {
+          setProgress: (n: number, m?: string) => void
+          signal: { cancelled: boolean }
+        }) => Promise<unknown>
+      }) => {
+        const signal = { cancelled: false }
+        void opts.run({ setProgress: () => undefined, signal })
+        return 'job_1'
+      }
+    )
     api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue(snap)
-    api.timeline.setCastPrep = vi.fn().mockResolvedValue({})
+    api.timeline.setCastPrep = vi.fn().mockImplementation(async (_s, prep) => prep)
     api.timeline.update = vi.fn().mockResolvedValue({})
+    api.timeline.clearEntryStill = vi.fn().mockResolvedValue({})
+    api.videoPrep.create = vi.fn().mockResolvedValue({ stillPath: '/s.png' })
   })
 
   afterEach(() => cleanup())
 
-  function renderOpen(props?: Partial<React.ComponentProps<typeof TimelineAdvancedStudio>>) {
+  function renderOpen(
+    props?: Partial<React.ComponentProps<typeof TimelineAdvancedStudio>>
+  ) {
     return render(
       <MemoryRouter>
         <TimelineAdvancedStudio
@@ -160,21 +197,36 @@ describe('TimelineAdvancedStudio', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('loads advanced prep and shows cast tab', async () => {
+  it('loads advanced prep and Escape closes', async () => {
     const onClose = vi.fn()
     renderOpen({ onClose })
     await waitFor(() =>
       expect(api.timeline.getAdvancedPrep).toHaveBeenCalledWith('s1')
     )
-    // close button may be common.close or timeline.advanced.close
-    const close = screen.queryByText('common.close') || screen.queryByLabelText(/close/i)
-    if (close) fireEvent.click(close)
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    })
+    expect(onClose).toHaveBeenCalled()
   })
 
-  it('handles load error', async () => {
-    api.timeline.getAdvancedPrep = vi.fn().mockRejectedValue(new Error('boom'))
+  it('handles load error with refresh', async () => {
+    api.timeline.getAdvancedPrep = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(snap)
     renderOpen()
     await waitFor(() => expect(api.timeline.getAdvancedPrep).toHaveBeenCalled())
+    const refresh =
+      screen.queryByText('common.refresh') ||
+      Array.from(document.querySelectorAll('button')).find((b) =>
+        /refresh/i.test(b.textContent || '')
+      )
+    if (refresh) {
+      fireEvent.click(refresh)
+      await waitFor(() =>
+        expect(api.timeline.getAdvancedPrep).toHaveBeenCalledTimes(2)
+      )
+    }
   })
 
   it('empty storyId skips load', async () => {
@@ -188,169 +240,206 @@ describe('TimelineAdvancedStudio', () => {
         />
       </MemoryRouter>
     )
-    await waitFor(() => {
-      // may still call or not depending on implementation
-      expect(true).toBe(true)
+    await act(async () => {
+      await Promise.resolve()
     })
   })
 
-  it('switches tabs and toggles cast selections', async () => {
+  it('cast: select gallery image, costume, save cast prep', async () => {
     renderOpen()
     await waitFor(() =>
-      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
+      expect(document.body.textContent || '').toMatch(/Alice/i)
     )
-    // Wait for cast content to render after load
-    await waitFor(() =>
-      expect(document.body.textContent || '').toMatch(/Alice|cast|timeline/i)
+    // click gallery image buttons
+    const galleryBtns = Array.from(document.querySelectorAll('button')).filter(
+      (b) => b.getAttribute('aria-pressed') != null
     )
-
-    const buttons = () => screen.queryAllByRole('button')
-    for (const re of [
-      /storyboard|still/i,
-      /cast/i,
-      /save|apply/i,
-      /generate|queue|video/i,
-      /batch|all stills/i
-    ]) {
-      const tab = buttons().find((b) => re.test(b.textContent || ''))
-      if (tab && !(tab as HTMLButtonElement).disabled) {
-        await act(async () => {
-          fireEvent.click(tab)
-        })
-      }
+    if (galleryBtns[1]) {
+      await act(async () => {
+        fireEvent.click(galleryBtns[1])
+      })
+      await waitFor(() => expect(api.timeline.setCastPrep).toHaveBeenCalled())
     }
-
-    for (const cb of Array.from(
-      document.querySelectorAll('input[type="checkbox"], select')
-    ).slice(0, 8)) {
-      if (cb.tagName === 'SELECT') {
-        const sel = cb as HTMLSelectElement
-        if (sel.options.length > 1) {
-          await act(async () => {
-            fireEvent.change(sel, { target: { value: sel.options[1].value } })
-          })
-        }
-      } else {
-        await act(async () => {
-          fireEvent.click(cb)
-        })
-      }
+    // costume select
+    const sel = document.querySelector('select')
+    if (sel) {
+      await act(async () => {
+        fireEvent.change(sel, { target: { value: 'co1' } })
+      })
+      await waitFor(() =>
+        expect(api.timeline.setCastPrep.mock.calls.length).toBeGreaterThan(0)
+      )
+      // non-selectable
+      await act(async () => {
+        fireEvent.change(sel, { target: { value: 'co2' } })
+      })
+      // default clear
+      await act(async () => {
+        fireEvent.change(sel, { target: { value: '' } })
+      })
     }
-
-    expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
+    // save cast
+    const save = Array.from(document.querySelectorAll('button')).find((b) =>
+      /advanced\.saveCast|saveCast|castSaved/i.test(b.textContent || '')
+    )
+    if (save) {
+      await act(async () => {
+        fireEvent.click(save)
+      })
+    }
   })
 
-  it('save cast prep and start video queue from ready cells', async () => {
+  it('storyboard: gen still, regen, remove, toVideo, batch', async () => {
     const onStart = vi.fn()
     const onClose = vi.fn()
-    api.timeline.setCastPrep = vi.fn().mockResolvedValue({ ok: true })
-    renderOpen({ onStartVideoQueue: onStart, onClose })
+    const onRefresh = vi.fn()
+    renderOpen({
+      onStartVideoQueue: onStart,
+      onClose,
+      onRefreshTimeline: onRefresh
+    })
     await waitFor(() =>
       expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
     )
+    // switch to storyboard tab
+    const storyTab = Array.from(document.querySelectorAll('button')).find((b) =>
+      /storyboard|still/i.test(b.textContent || '')
+    )
+    if (storyTab) fireEvent.click(storyTab)
+
     await waitFor(() =>
-      expect(document.body.textContent || '').toMatch(/Alice|cast|timeline/i)
+      expect(document.body.textContent || '').toMatch(
+        /genStill|regenStill|stillMissing|storyboard/i
+      )
     )
 
-    // click any save / apply / queue buttons
-    for (const re of [
-      /save|apply|setCast/i,
-      /generate|queue|start|video/i,
-      /batch|still|regen/i,
-      /close|cancel/i
-    ]) {
-      const btns = screen.queryAllByRole('button')
-      const b = btns.find((x) => re.test(x.textContent || ''))
+    // gen still for missing
+    const genStill = Array.from(document.querySelectorAll('button')).find((b) =>
+      /advanced\.genStill|genStill/i.test(b.textContent || '')
+    )
+    if (genStill) {
+      await act(async () => {
+        fireEvent.click(genStill)
+      })
+      await waitFor(() => expect(startJob).toHaveBeenCalled())
+      await waitFor(() => expect(api.videoPrep.create).toHaveBeenCalled())
+    }
+
+    // regen still
+    const regen = Array.from(document.querySelectorAll('button')).find((b) =>
+      /advanced\.regenStill|regenStill/i.test(b.textContent || '')
+    )
+    if (regen) {
+      await act(async () => {
+        fireEvent.click(regen)
+      })
+      await waitFor(() =>
+        expect(api.timeline.clearEntryStill).toHaveBeenCalled()
+      )
+    }
+
+    // remove still
+    const remove = Array.from(document.querySelectorAll('button')).find((b) =>
+      /advanced\.removeStill|removeStill/i.test(b.textContent || '')
+    )
+    if (remove) {
+      await act(async () => {
+        fireEvent.click(remove)
+      })
+      await waitFor(() =>
+        expect(api.timeline.clearEntryStill).toHaveBeenCalled()
+      )
+    }
+
+    // to video
+    const toVid = Array.from(document.querySelectorAll('button')).find((b) =>
+      /advanced\.toVideo|toVideo/i.test(b.textContent || '')
+    )
+    if (toVid) {
+      fireEvent.click(toVid)
+      expect(onStart).toHaveBeenCalled()
+      expect(onClose).toHaveBeenCalled()
+    }
+
+    // batch missing / all
+    for (const re of [/batchMissing|batchAll|batch/i]) {
+      const b = Array.from(document.querySelectorAll('button')).find((x) =>
+        re.test(x.textContent || '')
+      )
       if (b && !(b as HTMLButtonElement).disabled) {
         await act(async () => {
           fireEvent.click(b)
         })
       }
     }
-    // setCastPrep may be called from save
-    // video queue may fire
-    expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
   })
 
-  it('selects still cell and edits professional prompt', async () => {
-    renderOpen()
-    await waitFor(() =>
-      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
-    )
-    // switch to storyboard tab
-    const tab = screen
-      .queryAllByRole('button')
-      .find((b) => /storyboard|still|board/i.test(b.textContent || ''))
-    if (tab) fireEvent.click(tab)
-
-    // textareas
-    for (const ta of Array.from(document.querySelectorAll('textarea')).slice(
-      0,
-      3
-    )) {
-      await act(async () => {
-        fireEvent.change(ta, { target: { value: 'new prompt text' } })
-      })
-    }
-    // click ready still cells
-    for (const el of Array.from(
-      document.querySelectorAll('[data-entry-id], [data-cell], button, li')
-    ).slice(0, 12)) {
-      await act(async () => {
-        fireEvent.click(el)
-      })
-    }
-  })
-
-  it('handles setCastPrep failure with toast', async () => {
-    api.timeline.setCastPrep = vi.fn().mockRejectedValue(new Error('save fail'))
-    renderOpen()
-    await waitFor(() =>
-      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
-    )
-    const save = screen
-      .queryAllByRole('button')
-      .find((b) => /save|apply/i.test(b.textContent || ''))
-    if (save) {
-      await act(async () => {
-        fireEvent.click(save)
-      })
-      await waitFor(() => {
-        // toast may be called
-        expect(true).toBe(true)
-      })
-    }
-  })
-
-  it('cells without cast images', async () => {
+  it('batch nothing when all stills ready', async () => {
     api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
       ...snap,
-      castCards: [
-        {
-          ...snap.castCards[0],
-          hasAnyImage: false,
-          gallery: [],
-          selectedRefImagePath: null
-        }
-      ],
       cells: snap.cells.map((c) => ({
         ...c,
-        stillPath: '',
-        stillStatus: 'missing',
-        mediaStatus: 'EMPTY',
-        mediaPath: null
+        stillStatus: 'ready',
+        stillPath: '/s.png'
       })),
-      summary: {
-        castReady: 0,
-        castTotal: 1,
-        stillReady: 0,
-        stillTotal: 2,
-        videoReady: 0
-      }
+      summary: { ...snap.summary, stillReady: 2, stillTotal: 2 }
     })
     renderOpen()
     await waitFor(() =>
       expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
     )
+    const storyTab = Array.from(document.querySelectorAll('button')).find((b) =>
+      /storyboard|still/i.test(b.textContent || '')
+    )
+    if (storyTab) fireEvent.click(storyTab)
+    const batchMissing = Array.from(document.querySelectorAll('button')).find(
+      (b) => /batchMissing/i.test(b.textContent || '')
+    )
+    if (batchMissing) {
+      fireEvent.click(batchMissing)
+      await waitFor(() => expect(toast.info).toHaveBeenCalled())
+    }
+  })
+
+  it('setCastPrep failure toasts error', async () => {
+    api.timeline.setCastPrep = vi.fn().mockRejectedValue(new Error('save fail'))
+    renderOpen()
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Alice/i)
+    )
+    const galleryBtns = Array.from(document.querySelectorAll('button')).filter(
+      (b) => b.getAttribute('aria-pressed') != null
+    )
+    if (galleryBtns[0]) {
+      await act(async () => {
+        fireEvent.click(galleryBtns[0])
+      })
+      await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    }
+  })
+
+  it('cast empty panel', async () => {
+    api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
+      ...snap,
+      castCards: [],
+      summary: { ...snap.summary, castReady: 0, castTotal: 0 }
+    })
+    renderOpen()
+    await waitFor(() =>
+      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
+    )
+    expect(document.body.textContent || '').toMatch(/castEmpty|cast/i)
+  })
+
+  it('start full video queue from footer', async () => {
+    const onStart = vi.fn()
+    renderOpen({ onStartVideoQueue: onStart })
+    await waitFor(() =>
+      expect(api.timeline.getAdvancedPrep).toHaveBeenCalled()
+    )
+    const queue = Array.from(document.querySelectorAll('button')).find((b) =>
+      /startVideo|queueVideo|videoQueue|toVideoAll/i.test(b.textContent || '')
+    )
+    if (queue) fireEvent.click(queue)
   })
 })

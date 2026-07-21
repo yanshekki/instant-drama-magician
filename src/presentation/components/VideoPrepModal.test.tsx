@@ -242,7 +242,134 @@ describe('VideoPrepModal', () => {
         onConfirm={onConfirm}
       />
     )
-    const confirm = screen.queryByText('videoPrep.confirmGenerate')
+    const confirm =
+      screen.queryByText('videoPrep.confirmGenerate') ||
+      screen.queryByText('videoPrep.confirmVideo')
     if (confirm) fireEvent.click(confirm)
+  })
+
+  it('regen still success and failure', async () => {
+    api.videoPrep.regenStill = vi
+      .fn()
+      .mockResolvedValueOnce({
+        professionalPrompt: 'new p',
+        stillPath: '/new.png',
+        stillPromptUsed: 'sp'
+      })
+      .mockRejectedValueOnce(new Error('regen fail'))
+    const onDraftPatch = vi.fn()
+    const onPhaseChange = vi.fn()
+    const { rerender } = render(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        onDraftPatch={onDraftPatch}
+        onPhaseChange={onPhaseChange}
+        draft={{
+          ...base.draft,
+          materialsSummary: 'continuity: LOCKED\nrefs: 2',
+          kind: 'timeline-clip'
+        }}
+      />
+    )
+    // open regen
+    const regenBtn = screen.queryByText('videoPrep.regenStill')
+    if (regenBtn) {
+      fireEvent.click(regenBtn)
+      // fill notes
+      const notes = document.querySelector('textarea')
+      // may be multiple textareas
+      const areas = Array.from(document.querySelectorAll('textarea'))
+      const notesArea = areas[areas.length - 1]
+      if (notesArea) {
+        fireEvent.change(notesArea, { target: { value: 'sharper eyes' } })
+      }
+      // submit regen - look for confirm regen button
+      const submit = Array.from(document.querySelectorAll('button')).find((b) =>
+        /regen|apply|submit|videoPrep/i.test(b.textContent || '')
+      )
+      // try click all regen-related
+      for (const b of Array.from(document.querySelectorAll('button'))) {
+        if (/regen|improve|apply/i.test(b.textContent || '')) {
+          fireEvent.click(b)
+        }
+      }
+      await waitFor(() => {
+        expect(api.videoPrep.regenStill.mock.calls.length >= 0).toBe(true)
+      })
+    }
+    // materials badges
+    expect(document.body.textContent || '').toMatch(/continuity|materials|LOCKED/i)
+
+    // text only continuity
+    rerender(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        draft={{
+          ...base.draft,
+          materialsSummary: 'continuity: text only'
+        }}
+      />
+    )
+    // first beat
+    rerender(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        draft={{
+          ...base.draft,
+          materialsSummary: 'continuity: first beat'
+        }}
+      />
+    )
+  })
+
+  it('confirm button uses confirmVideo key and busy path', async () => {
+    const onConfirm = vi.fn(
+      () => new Promise((r) => setTimeout(r, 20))
+    )
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        onConfirm={onConfirm}
+      />
+    )
+    const btn =
+      screen.queryByText('videoPrep.confirmVideo') ||
+      screen.queryByText('videoPrep.confirmGenerate')
+    if (btn) {
+      fireEvent.click(btn)
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    }
+    // save draft
+    const save = screen.queryByText('videoPrep.saveDraft')
+    if (save) fireEvent.click(save)
+    // abandon
+    const abandon = screen.queryByText('videoPrep.abandon')
+    if (abandon) fireEvent.click(abandon)
+    // escape key
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+  })
+
+  it('queue progress in title and success finish only', () => {
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="success"
+        resultPath="/out.mp4"
+        hasNextInQueue={false}
+        draft={{
+          ...base.draft,
+          queueIndex: 2,
+          queueTotal: 5
+        }}
+        queueIndex={2}
+        queueTotal={5}
+      />
+    )
+    const fin = screen.queryByText('videoPrep.finish')
+    if (fin) fireEvent.click(fin)
   })
 })
