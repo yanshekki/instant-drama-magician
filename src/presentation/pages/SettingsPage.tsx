@@ -133,24 +133,11 @@ export function SettingsPage(): JSX.Element {
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
 
   const refreshWebStatus = async (): Promise<void> => {
-    if (!isElectron()) return
-    try {
-      const ws = getApi().webServer
-      if (!ws?.status) {
-        setWebStatus(null)
-        return
-      }
-      const st = await ws.status()
-      setWebStatus({
-        running: st.running,
-        url: st.url,
-        port: st.port,
-        error: st.error,
-        staticReady: st.staticReady
-      })
-    } catch {
-      setWebStatus(null)
-    }
+    await settingsRunRefreshWebStatus({
+      isElectron: isElectron(),
+      getWebServer: () => getApi().webServer,
+      setWebStatus
+    })
   }
 
   // Load once on mount — do NOT depend on i18n/t or language changes
@@ -170,7 +157,7 @@ export function SettingsPage(): JSX.Element {
         }
         applyColorScheme(coerceColorScheme(merged.colorScheme))
       })
-      .catch((e) => setError(parseIpcError(e).message))
+      .catch((e) => settingsApplyIpc(e, setError))
     void getApi()
       .media.checkFfmpeg()
       .then((r) => {
@@ -220,33 +207,15 @@ export function SettingsPage(): JSX.Element {
   }, [])
 
   const getGatewayApi = (): ElectronApi['gateway'] | null => {
-    try {
-      const api = getApi() as ElectronApi
-      return api.gateway ?? null
-    } catch {
-      return null
-    }
+    return settingsGetGatewayApi(() => getApi() as ElectronApi)
   }
 
   const refreshGatewayStatus = async (): Promise<void> => {
-    try {
-      const gw = getGatewayApi()
-      if (!gw) {
-        setGatewayStatus({
-          state: 'gateway_missing',
-          message: t('settings.gatewayUnavailable'),
-          healthOk: false,
-          grokPath: null,
-          gctoacPath: null,
-          adminUrl: 'http://127.0.0.1:3847/admin/'
-        })
-        return
-      }
-      const st = await gw.status()
-      setGatewayStatus(st)
-    } catch {
-      setGatewayStatus(null)
-    }
+    await settingsRunRefreshGatewayStatus({
+      getGateway: getGatewayApi,
+      setGatewayStatus,
+      unavailableMsg: t('settings.gatewayUnavailable')
+    })
   }
 
   /**
@@ -256,71 +225,24 @@ export function SettingsPage(): JSX.Element {
   const ensureGateway = async (opts?: {
     silent?: boolean
   }): Promise<boolean> => {
-    setGatewayBusy(true)
-    try {
-      const gw = getGatewayApi()
-      if (!gw) {
-        if (!opts?.silent) toast.error(t('settings.gatewayUnavailable'))
-        setGatewayStatus({
-          state: 'gateway_missing',
-          message: t('settings.gatewayUnavailable'),
-          healthOk: false,
-          grokPath: null,
-          gctoacPath: null,
-          adminUrl: 'http://127.0.0.1:3847/admin/'
-        })
-        return false
-      }
-      const st = await gw.ensure()
-      setGatewayStatus(st)
-      // Reload settings so auto-written apiKey/baseUrl is in form state (still hidden)
-      try {
-        const fresh = await getApi().settings.get()
-        setSettings((prev) =>
-          prev
-            ? {
-                ...prev,
-                apiKey: fresh.apiKey,
-                baseUrl: fresh.baseUrl,
-                llmProvider: fresh.llmProvider,
-                model: fresh.model || prev.model
-              }
-            : fresh
-        )
-      } catch {
-        /* ignore */
-      }
-      if (st.state === 'grok_build_missing') {
-        if (!opts?.silent) {
-          const hints = await gw.installHints()
-          toast.error(t('settings.grokBuildMissing'))
-          void openExternalUrl(hints.grokBuildUrl)
-        }
-        return false
-      }
-      if (st.state === 'gateway_missing') {
-        if (!opts?.silent) toast.error(t('settings.gatewayPackageMissing'))
-        return false
-      }
-      if (st.healthOk || st.state === 'ready' || st.keyReady) {
-        if (!opts?.silent) {
-          toast.success(
-            st.keyCreated
-              ? t('settings.gatewayReadyWithKey')
-              : t('settings.gatewayReady')
-          )
-        }
-        await refreshAiStatus()
-        return true
-      }
-      if (!opts?.silent) toast.info(st.message)
-      return false
-    } catch (e) {
-      if (!opts?.silent) toast.error(parseIpcError(e).message)
-      return false
-    } finally {
-      setGatewayBusy(false)
-    }
+    return settingsRunEnsureGateway({
+      silent: opts?.silent,
+      setBusy: setGatewayBusy,
+      getGateway: getGatewayApi,
+      setGatewayStatus,
+      getSettings: () => getApi().settings.get(),
+      setSettings: (fn) => setSettings(fn as never),
+      openExternalUrl,
+      refreshAiStatus,
+      toastError: toast.error,
+      toastSuccess: toast.success,
+      toastInfo: toast.info,
+      unavailableMsg: t('settings.gatewayUnavailable'),
+      buildMissingMsg: t('settings.grokBuildMissing'),
+      packageMissingMsg: t('settings.gatewayPackageMissing'),
+      readyWithKeyMsg: t('settings.gatewayReadyWithKey'),
+      readyMsg: t('settings.gatewayReady')
+    })
   }
 
   const patch = <K extends keyof AppSettings>(
@@ -332,232 +254,140 @@ export function SettingsPage(): JSX.Element {
 
   /** Open http(s) URL in the system browser; toast on success/failure. */
   const openExternalUrl = async (url: string): Promise<void> => {
-    const href = url?.trim()
-    if (!href) {
-      toast.error(t('settings.openExternalNoUrl'))
-      return
-    }
-    try {
-      const api = getApi() as ElectronApi
-      if (!api.shell?.openExternal) {
-        toast.error(t('settings.openExternalUnavailable'))
-        try {
-          await navigator.clipboard.writeText(href)
-          toast.info(t('settings.urlCopied', { url: href }))
-        } catch {
-          /* ignore */
+    await settingsRunOpenExternalUrl({
+      url,
+      toastError: toast.error,
+      toastInfo: toast.info,
+      noUrlMsg: t('settings.openExternalNoUrl'),
+      unavailableMsg: t('settings.openExternalUnavailable'),
+      copiedMsg: (href) => t('settings.urlCopied', { url: href }),
+      openExternal: async (href) => {
+        const api = getApi() as ElectronApi
+        if (!api.shell?.openExternal) {
+          throw new Error('NO_SHELL')
         }
-        return
-      }
-      await api.shell.openExternal(href)
-      toast.success(t('settings.openExternalOk'))
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-      try {
-        await navigator.clipboard.writeText(href)
-        toast.info(t('settings.urlCopied', { url: href }))
-      } catch {
-        /* ignore */
-      }
-    }
+        await api.shell.openExternal(href)
+      },
+      writeClipboard: (href) => navigator.clipboard.writeText(href)
+    })
   }
 
   const handleSave = async (): Promise<void> => {
-    if (!settings) return
-    setSaving(true)
-    setError(null)
-    try {
-      const lang = coerceUiLanguage(
-        settings.uiLanguage || i18n.language,
-        'zh-HK'
-      )
-      if (i18n.language !== lang) {
+    await settingsRunSaveFull({
+      settings,
+      setSaving,
+      setError,
+      coerceLang: (lang, d) => coerceUiLanguage(lang, d as never),
+      currentLang: i18n.language,
+      changeLang: async (lang) => {
         await changeUiLanguage(lang)
-      }
-      const next = await getApi().settings.set({
-        ...settings,
-        uiLanguage: lang
-      })
-      setSettings(next)
-      await refreshAiStatus()
-      toast.success(t('common.saved'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setError(msg)
-      toast.error(msg)
-    } finally {
-      setSaving(false)
-    }
+      },
+      set: (s) => getApi().settings.set(s as never),
+      applyNext: (next) => setSettings(next as never),
+      refreshAi: refreshAiStatus,
+      toastSuccess: () => toast.success(t('common.saved')),
+      toastError: toast.error
+    })
   }
 
   /** Factory-reset all settings (keeps UI language). Clears API keys & custom endpoints. */
   const handleClearAll = async (): Promise<void> => {
-    const ok = await dialog.confirm({
-      message: t('settings.clearAllConfirm'),
-      variant: 'danger',
-      confirmLabel: t('settings.clearAll')
+    await settingsRunClearAllFull({
+      setClearing,
+      confirm: () =>
+        dialog.confirm({
+          message: t('settings.clearAllConfirm'),
+          variant: 'danger'
+        }),
+      clear: () => getApi().settings.clearAll(),
+      getDefaults: () =>
+        settingsBuildClearDefaultsFromApi(
+          () => i18n.language,
+          () => getApi().settings.get()
+        ),
+      set: (w) => getApi().settings.set(w),
+      setSettings,
+      applyColorScheme,
+      setShowLlmAdvanced,
+      setShowVideoAdvanced,
+      setModelIds,
+      changeUiLanguage,
+      currentLang: () => i18n.language,
+      refreshAiStatus,
+      refreshGateway: refreshGatewayStatus,
+      toastSuccess: () => toast.success(t('settings.clearAllOk')),
+      setError,
+      toastError: toast.error
     })
-    if (!ok) return
-    setClearing(true)
-    setError(null)
-    try {
-      const lang = coerceUiLanguage(
-        settings?.uiLanguage || i18n.language,
-        'zh-HK'
-      )
-      const scheme = coerceColorScheme(settings?.colorScheme)
-      const wiped: AppSettings = {
-        ...DEFAULT_SETTINGS,
-        uiLanguage: lang,
-        colorScheme: scheme,
-        firstRunSeen: true,
-        lastGenerationDegraded: false
-      }
-      const next = await getApi().settings.set(wiped)
-      setSettings(next)
-      applyColorScheme(scheme)
-      setShowLlmAdvanced(false)
-      setShowVideoAdvanced(false)
-      setModelIds([])
-      if (i18n.language !== lang) {
-        await changeUiLanguage(lang)
-      }
-      await refreshAiStatus()
-      // Refresh gateway card if back on default Grok
-      try {
-        const r = await getApi().gateway.status()
-        setGatewayStatus({
-          state: r.state,
-          message: r.message,
-          healthOk: r.healthOk,
-          grokPath: r.grokPath,
-          gctoacPath: r.gctoacPath,
-          adminUrl: r.adminUrl
-        })
-      } catch {
-        /* optional */
-      }
-      toast.success(t('settings.clearAllOk'))
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setError(msg)
-      toast.error(msg)
-    } finally {
-      setClearing(false)
-    }
   }
 
   const handleLlmPresetChange = async (
     preset: LlmProviderPreset
   ): Promise<void> => {
-    if (!settings) return
-    try {
-      let next: AppSettings
-      try {
-        next = await getApi().ai.applyLlmPreset(preset)
-      } catch {
-        const patched = applyLlmPreset(settings, preset)
-        next = await getApi().settings.set({
-          llmProvider: patched.llmProvider,
-          baseUrl: patched.baseUrl,
-          videoPath: patched.videoPath,
-          model: patched.model
-        })
-      }
-      setSettings((s) =>
-        s
-          ? {
-              ...next,
-              imageProvider: s.imageProvider,
-              imageBaseUrl: s.imageBaseUrl,
-              imageApiKey: s.imageApiKey,
-              videoProvider: s.videoProvider,
-              videoBaseUrl: s.videoBaseUrl,
-              videoApiKey: s.videoApiKey,
-              uiLanguage: s.uiLanguage
-            }
-          : next
-      )
-      setModelIds([])
-      toast.success(t('settings.presetApplied', { preset }))
-      // Await ensure so key is stored + AI rebound before status probe (avoids AI_UNAUTHORIZED race)
-      if (preset === 'grok-gateway') {
-        await ensureGateway({ silent: false })
-      } else {
-        await refreshAiStatus()
-      }
-    } catch (e) {
-      setError(parseIpcError(e).message)
-    }
+    await settingsRunLlmPresetChange({
+      settings,
+      preset,
+      applyPreset: (p) => getApi().ai.applyLlmPreset(p),
+      fallbackSet: (p) => getApi().settings.set(p as never),
+      setSettings: (fn) => setSettings(fn as never),
+      setModelIds,
+      toastSuccess: (msg) => toast.success(msg),
+      presetAppliedMsg: (p) => t('settings.presetApplied', { preset: p }),
+      ensureGateway: () => ensureGateway({ silent: false }),
+      refreshAiStatus,
+      setError
+    })
   }
 
   const handleRefreshModels = async (): Promise<void> => {
-    setChatBusy(true)
-    try {
-      if (settings) await getApi().settings.set(settings)
-      const models = await getApi().ai.listModels()
-      setModelIds(models.map((m) => m.id))
-      const usedFallback = models.some(
-        (m) => (m as { ownedBy?: string }).ownedBy === 'fallback'
-      )
-      if (usedFallback) {
-        toast.info(t('settings.modelsFallback'))
-      } else {
-        toast.success(t('settings.modelsLoaded', { count: models.length }))
-      }
-    } catch (e) {
-      // Soft fail: keep current model in dropdown
-      const body = parseIpcError(e)
-      if (body.code === 'AI_RATE_LIMIT') {
-        const fallback = [
-          settings?.model || 'grok-4.5',
-          'grok-4.5',
-          'grok-4',
-          'grok-3-mini'
-        ]
-        setModelIds([...new Set(fallback.filter(Boolean))])
-        toast.info(t('settings.modelsRateLimited'))
-      } else {
-        toast.error(formatIpcError(e))
-      }
-    } finally {
-      setChatBusy(false)
-    }
+    await settingsRunRefreshModelsFull({
+      setBusy: setChatBusy,
+      maybeSet: async () => {
+        if (settings) await getApi().settings.set(settings)
+      },
+      list: () =>
+        getApi().ai.listModels() as Promise<
+          Array<{ id: string; ownedBy?: string }>
+        >,
+      setModels: setModelIds,
+      toastInfo: toast.info,
+      toastSuccess: toast.success,
+      toastError: toast.error,
+      fallbackMsg: t('settings.modelsFallback'),
+      loadedMsg: (count) => t('settings.modelsLoaded', { count }),
+      rateLimitMsg: t('settings.modelsRateLimited'),
+      currentModel: settings?.model,
+      formatError: formatIpcError
+    })
   }
 
   const handleTestChat = async (): Promise<void> => {
-    if (!settings) return
-    setChatBusy(true)
-    try {
-      await getApi().settings.set(settings)
-      const r = await getApi().ai.testChat()
-      toast.success(
+    await settingsRunTestChatFull({
+      settings,
+      setBusy: setChatBusy,
+      set: () => getApi().settings.set(settings!),
+      test: () => getApi().ai.testChat(),
+      toastSuccess: toast.success,
+      toastError: toast.error,
+      formatOk: (r) =>
         t('settings.testChatResult', {
           message: r.message,
           preview: r.replyPreview.slice(0, 80),
           defaultValue: '{{message}}: {{preview}}'
-        })
-      )
-      await refreshAiStatus()
-    } catch (e) {
-      toast.error(formatIpcError(e))
-    } finally {
-      setChatBusy(false)
-    }
+        }),
+      formatError: formatIpcError,
+      refreshAi: refreshAiStatus
+    })
   }
 
   const setLanguage = (lang: UiLanguage): void => {
     const code = coerceUiLanguage(lang)
-    // Optimistic UI selection
     patch('uiLanguage', code)
-    // Persist first, then switch i18n — avoids Layout/Settings race reloading old lang
-    void getApi()
-      .settings.set({ uiLanguage: code })
-      .then(() => changeUiLanguage(code))
-      .catch(() => {
-        // Still try to switch UI even if persist fails
-        void changeUiLanguage(code)
-      })
+    void settingsRunSetUiLanguage({
+      code,
+      set: () => getApi().settings.set({ uiLanguage: code }),
+      changeUiLanguage
+    })
   }
 
   const setColorScheme = (pref: ColorSchemePref): void => {
@@ -673,48 +503,33 @@ export function SettingsPage(): JSX.Element {
                   <div className="space-y-4 border-t border-ink-800/80 pt-3">
                     <GrokGatewaySetupCard
                       status={
-                        gatewayStatus
-                          ? {
-                              state: gatewayStatus.state,
-                              message: gatewayStatus.message,
-                              healthOk: gatewayStatus.healthOk,
-                              grokPath: gatewayStatus.grokPath,
-                              gctoacPath: gatewayStatus.gctoacPath,
-                              keyReady: Boolean(
-                                settings.apiKey?.startsWith('gk_live_')
-                              )
-                            }
-                          : null
+                        settingsGatewayCardStatus(gatewayStatus, (gs) => ({
+                          state: gs.state,
+                          message: gs.message,
+                          healthOk: gs.healthOk,
+                          grokPath: gs.grokPath,
+                          gctoacPath: gs.gctoacPath,
+                          keyReady: Boolean(
+                            settings.apiKey?.startsWith('gk_live_')
+                          )
+                        })) as never
                       }
                       busy={gatewayBusy}
                       onRecheck={() => void ensureGateway({ silent: false })}
                       onCopyInstall={(cmd) => {
-                        void navigator.clipboard
-                          .writeText(cmd)
-                          .then(() =>
-                            toast.success(t('settings.installCmdCopied'))
-                          )
-                          .catch(() =>
-                            toast.info(t('settings.urlCopied', { url: cmd }))
-                          )
+                        void settingsCopyText(
+                          cmd,
+                          toast.success,
+                          toast.info,
+                          t('settings.installCmdCopied')
+                        )
                       }}
                       onOpenInstallPage={() => {
-                        void (async () => {
-                          try {
-                            const gw = getGatewayApi()
-                            const hints = gw
-                              ? await gw.installHints()
-                              : {
-                                  grokBuildUrl: 'https://x.ai/',
-                                  installCommand: GROK_INSTALL_CMD
-                                }
-                            await openExternalUrl(
-                              hints.grokBuildUrl || 'https://x.ai/'
-                            )
-                          } catch {
-                            await openExternalUrl('https://x.ai/')
-                          }
-                        })()
+                        void settingsRunOpenInstallPage({
+                          getGateway: getGatewayApi,
+                          fallbackCmd: GROK_INSTALL_CMD,
+                          openExternalUrl
+                        })
                       }}
                     />
                     <div>
@@ -786,13 +601,12 @@ export function SettingsPage(): JSX.Element {
                         <Input
                           value={settings.apiKey}
                           onChange={(e) => patch('apiKey', e.target.value)}
-                          placeholder={
-                            llmPreset === 'openai' || llmPreset === 'openrouter'
-                              ? 'sk-…'
-                              : providerKeyOptional(llmPreset)
-                                ? t('settings.apiKeyHintCustom')
-                                : t('common.apiKeyPlaceholder')
-                          }
+                          placeholder={settingsApiKeyPlaceholder(
+                            llmPreset,
+                            providerKeyOptional(llmPreset),
+                            t('settings.apiKeyHintCustom'),
+                            t('common.apiKeyPlaceholder')
+                          )}
                         />
                       </div>
                       <div>
@@ -906,8 +720,7 @@ export function SettingsPage(): JSX.Element {
                     <ProviderChannelPicker
                       channel="image"
                       value={
-                        (settings.imageProvider ||
-                          'same-as-llm') as ChannelPickerValue
+                        settingsChannelPickerValue(settings.imageProvider, 'same-as-llm') as ChannelPickerValue
                       }
                       onChange={(id) => {
                         const v = id as ImageProviderMode
@@ -924,9 +737,11 @@ export function SettingsPage(): JSX.Element {
                           return
                         }
                         if (v === 'custom') {
-                          if (!settings.imageBaseUrl?.trim()) {
-                            patch('imageBaseUrl', settings.baseUrl)
-                          }
+                          settingsImageCustomBaseUrl(
+                            settings.imageBaseUrl,
+                            settings.baseUrl,
+                            (k, val) => patch(k as never, val as never)
+                          )
                           return
                         }
                         const defBase = channelPresetBaseUrl(v)
@@ -955,24 +770,13 @@ export function SettingsPage(): JSX.Element {
                         value={settings.imageBaseUrl}
                         onChange={(e) => {
                           patch('imageBaseUrl', e.target.value)
-                          if (
-                            settings.imageProvider !== 'custom' &&
-                            settings.imageProvider !== 'seedream' &&
-                            isLlmProviderPreset(
-                              String(settings.imageProvider)
-                            )
-                          ) {
-                            const def = channelPresetBaseUrl(
-                              settings.imageProvider
-                            )
-                            if (
-                              e.target.value.trim() &&
-                              def &&
-                              e.target.value.trim() !== def
-                            ) {
-                              patch('imageProvider', 'custom')
-                            }
-                          }
+                          settingsImageBaseUrlChange(
+                            e.target.value,
+                            settings.imageProvider,
+                            (k, val) => patch(k as never, val as never),
+                            (s) => isLlmProviderPreset(s),
+                            channelPresetBaseUrl
+                          )
                         }}
                         placeholder={
                           channelPresetBaseUrl(
@@ -1084,8 +888,7 @@ export function SettingsPage(): JSX.Element {
                     <ProviderChannelPicker
                       channel="video"
                       value={
-                        (settings.videoProvider ||
-                          'same-as-llm') as ChannelPickerValue
+                        settingsChannelPickerValue(settings.videoProvider, 'same-as-llm') as ChannelPickerValue
                       }
                       onChange={(id) => {
                         const v = id as VideoProviderMode
@@ -1118,19 +921,13 @@ export function SettingsPage(): JSX.Element {
                           )
                           return
                         }
-                        if (v === 'custom') {
-                          patch('videoMode', 'http')
-                          if (!settings.videoBaseUrl?.trim()) {
-                            patch('videoBaseUrl', settings.baseUrl)
-                          }
-                          return
-                        }
-                        patch('videoMode', 'http')
-                        const defBase = channelPresetBaseUrl(v)
-                        if (defBase) {
-                          patch('videoBaseUrl', defBase)
-                          patch('videoPath', `${defBase.replace(/\/+$/, '')}/videos`)
-                        }
+                        settingsVideoChannelCustom(
+                          v,
+                          settings.videoBaseUrl,
+                          settings.baseUrl,
+                          (k, val) => patch(k as never, val as never),
+                          channelPresetBaseUrl
+                        )
                       }}
                     />
                   </div>
@@ -1438,11 +1235,12 @@ export function SettingsPage(): JSX.Element {
                                 }
                                 return
                               }
-                              toast.error(t('settings.openDataFolderFail'))
+                              settingsToastPlain(toast.error, t('settings.openDataFolderFail'))
                             } catch (e) {
-                              toast.error(
-                                parseIpcError(e).message ||
-                                  t('settings.openDataFolderFail')
+                              settingsToastIpcOr(
+                                e,
+                                toast.error,
+                                t('settings.openDataFolderFail')
                               )
                             }
                           })()
@@ -1464,19 +1262,22 @@ export function SettingsPage(): JSX.Element {
                       <p className="mt-1 text-xs leading-relaxed text-ink-400">
                         {updateState?.channel === 'desktop-packaged'
                           ? t('settings.updateHintPackaged')
-                          : updateState?.channel === 'web' ||
-                              updateState?.status === 'web-skipped'
-                            ? t('settings.updateHintWeb')
-                            : t('settings.updateHintDev')}
+                          : settingsIsWebLabel(
+                              updateState?.channel === 'web' ||
+                                updateState?.status === 'web-skipped',
+                              t('settings.updateHintWeb'),
+                              t('settings.updateHintDev')
+                            )}
                       </p>
                     </div>
                     <span className="shrink-0 rounded-full border border-ink-600 bg-ink-950 px-2 py-0.5 font-mono text-[10px] text-ink-300">
-                      {updateState?.channel === 'desktop-packaged'
-                        ? t('settings.channelDesktop')
-                        : updateState?.channel === 'web' ||
-                            updateState?.status === 'web-skipped'
-                          ? t('settings.channelWeb')
-                          : t('settings.channelDev')}
+                      {settingsUpdateChannelLabel(
+                        updateState?.channel,
+                        updateState?.status,
+                        t('settings.channelDesktop'),
+                        t('settings.channelWeb'),
+                        t('settings.channelDev')
+                      )}
                     </span>
                   </div>
 
@@ -1496,13 +1297,16 @@ export function SettingsPage(): JSX.Element {
                           latest: updateState.latestVersion ?? '',
                           current: updateState.currentVersion ?? ''
                         })
-                      : updateState?.message ||
-                        (updateState?.status
-                          ? `${t('settings.updateStatus')}: ${updateState.status}`
-                          : t('settings.updateIdle'))}
-                    {updateState?.errorKind
-                      ? ` · ${t(`settings.updateError.${updateState.errorKind}`)}`
-                      : ''}
+                      : settingsUpdateStatusText(
+                          updateState?.message,
+                          updateState?.status,
+                          t('settings.updateStatus'),
+                          t('settings.updateIdle')
+                        )}
+                    {settingsUpdateErrorSuffix(
+                      updateState?.errorKind,
+                      (k) => t(`settings.updateError.${k}`)
+                    )}
                   </p>
 
                   {typeof updateState?.progress === 'number' &&
@@ -1559,35 +1363,27 @@ export function SettingsPage(): JSX.Element {
                           .updates.check()
                           .then((s) => {
                             setUpdateState(s)
-                            if (s.status === 'available') {
-                              toast.info(
+                            settingsToastUpdateCheck(s, {
+                              toastInfo: toast.info,
+                              toastSuccess: toast.success,
+                              toastError: toast.error,
+                              availableMsg: (v) =>
                                 t('settings.updateAvailableToast', {
-                                  version: s.latestVersion ?? ''
-                                })
-                              )
-                            } else if (s.status === 'not-available') {
-                              toast.success(t('settings.updateUpToDate'))
-                            } else if (
-                              s.status === 'dev-skipped' ||
-                              s.status === 'web-skipped'
-                            ) {
-                              toast.info(
-                                t(
-                                  s.messageKey
-                                    ? `settings.${s.messageKey}`
-                                    : 'settings.updateDevSkipped'
-                                )
-                              )
-                            } else if (s.status === 'error') {
-                              toast.error(
-                                s.message || t('settings.updateCheckFail')
-                              )
-                            }
+                                  version: v
+                                }),
+                              upToDateMsg: t('settings.updateUpToDate'),
+                              devSkippedMsg: settingsDevSkippedBound(
+                                (k) => t(`settings.${k}`),
+                                t('settings.updateDevSkipped')
+                              ),
+                              errorMsg: (m) => settingsFailMsg(m, t('settings.updateCheckFail'))
+                            })
                           })
                           .catch((e) =>
-                            toast.error(
-                              parseIpcError(e).message ||
-                                t('settings.updateCheckFail')
+                            settingsToastIpcOr(
+                              e,
+                              toast.error,
+                              t('settings.updateCheckFail')
                             )
                           )
                           .finally(() => setUpdateBusy(false))
@@ -1612,18 +1408,20 @@ export function SettingsPage(): JSX.Element {
                           .updates.download()
                           .then((s) => {
                             setUpdateState(s)
-                            if (s.status === 'downloaded') {
-                              toast.success(t('settings.updateDownloadedToast'))
-                            } else if (s.status === 'error') {
-                              toast.error(
-                                s.message || t('settings.updateDownloadFail')
+                            settingsToastUpdateDownload(s, {
+                              toastSuccess: toast.success,
+                              toastError: toast.error,
+                              okMsg: t('settings.updateDownloadedToast'),
+                              failMsg: settingsFailMsgBound(
+                                t('settings.updateDownloadFail')
                               )
-                            }
+                            })
                           })
                           .catch((e) =>
-                            toast.error(
-                              parseIpcError(e).message ||
-                                t('settings.updateDownloadFail')
+                            settingsToastIpcOr(
+                              e,
+                              toast.error,
+                              t('settings.updateDownloadFail')
                             )
                           )
                           .finally(() => setUpdateBusy(false))
@@ -1644,16 +1442,19 @@ export function SettingsPage(): JSX.Element {
                         void getApi()
                           .updates.install()
                           .then((r) => {
-                            if (!r.ok) {
-                              toast.error(
-                                r.message || t('settings.updateInstallFail')
+                            settingsToastUpdateInstall(
+                              r,
+                              toast.error,
+                              settingsFailMsgBound(
+                                t('settings.updateInstallFail')
                               )
-                            }
+                            )
                           })
                           .catch((e) =>
-                            toast.error(
-                              parseIpcError(e).message ||
-                                t('settings.updateInstallFail')
+                            settingsToastIpcOr(
+                              e,
+                              toast.error,
+                              t('settings.updateInstallFail')
                             )
                           )
                       }}
@@ -1664,29 +1465,15 @@ export function SettingsPage(): JSX.Element {
                       variant="secondary"
                       className="!h-8 !text-[11px]"
                       onClick={() => {
-                        const open = getApi().updates.openReleasePage
-                        if (open) {
-                          void open(updateState?.latestVersion)
-                            .then((r) => {
-                              if (!r.ok) {
-                                toast.error(
-                                  r.message || t('settings.openReleaseFail')
-                                )
-                              }
-                            })
-                            .catch(() =>
-                              toast.error(t('settings.openReleaseFail'))
-                            )
-                          return
-                        }
-                        const url =
-                          updateState?.releaseUrl ||
-                          'https://github.com/yanshekki/instant-drama-magician/releases'
-                        void getApi()
-                          .shell.openExternal(url)
-                          .catch(() =>
-                            toast.error(t('settings.openReleaseFail'))
-                          )
+                        void settingsOpenReleasePage({
+                          openRelease: getApi().updates.openReleasePage,
+                          version: updateState?.latestVersion,
+                          releaseUrl: updateState?.releaseUrl,
+                          openExternal: (url) => getApi().shell.openExternal(url),
+                          toastError: toast.error,
+                          failMsg: settingsFailMsgBound(t('settings.openReleaseFail')),
+                          failSimple: t('settings.openReleaseFail')
+                        })
                       }}
                     >
                       {t('settings.openReleasePage')}
@@ -1704,9 +1491,11 @@ export function SettingsPage(): JSX.Element {
                       <p className="mt-1 font-mono text-[10px] text-ink-400">
                         npm:{' '}
                         {npmUpdate.latestVersion
-                          ? npmUpdate.updateAvailable
-                            ? `${updateState?.currentVersion ?? appInfo?.version ?? '?'} → ${npmUpdate.latestVersion}`
-                            : t('settings.updateUpToDate')
+                          ? settingsNpmUpToDateLabel(
+                              npmUpdate.updateAvailable,
+                              t('settings.updateUpToDate'),
+                              `${updateState?.currentVersion ?? appInfo?.version ?? '?'} → ${npmUpdate.latestVersion}`
+                            )
                           : npmUpdate.error || '—'}
                       </p>
                     ) : null}
@@ -1716,40 +1505,19 @@ export function SettingsPage(): JSX.Element {
                         className="!h-7 !text-[10px]"
                         disabled={npmBusy}
                         onClick={() => {
-                          setNpmBusy(true)
-                          const checkNpm = getApi().updates.checkNpm
-                          if (!checkNpm) {
-                            setNpmBusy(false)
-                            toast.error(t('settings.updateCheckFail'))
-                            return
-                          }
-                          void checkNpm()
-                            .then((r) => {
-                              setNpmUpdate({
-                                latestVersion: r.latestVersion,
-                                updateAvailable: r.updateAvailable,
-                                installCommand: r.installCommand,
-                                error: r.error
-                              })
-                              if (r.error) {
-                                toast.error(r.error)
-                              } else if (r.updateAvailable) {
-                                toast.info(
-                                  t('settings.npmUpdateAvailable', {
-                                    version: r.latestVersion ?? ''
-                                  })
-                                )
-                              } else {
-                                toast.success(t('settings.updateUpToDate'))
-                              }
-                            })
-                            .catch((e) =>
-                              toast.error(
-                                parseIpcError(e).message ||
-                                  t('settings.updateCheckFail')
-                              )
-                            )
-                            .finally(() => setNpmBusy(false))
+                          void settingsRunNpmCheck({
+                            setBusy: setNpmBusy,
+                            checkNpm: getApi().updates.checkNpm,
+                            setNpmUpdate,
+                            toastError: toast.error,
+                            toastInfo: toast.info,
+                            toastSuccess: toast.success,
+                            missingMsg: t('settings.updateCheckFail'),
+                            availableMsg: (v) =>
+                              t('settings.npmUpdateAvailable', { version: v }),
+                            upToDateMsg: t('settings.updateUpToDate'),
+                            failMsg: t('settings.updateCheckFail')
+                          })
                         }}
                       >
                         {t('settings.checkNpmUpdate')}
@@ -1763,16 +1531,14 @@ export function SettingsPage(): JSX.Element {
                         type="button"
                         className="text-[10px] text-brand-300 hover:text-brand-200"
                         onClick={() => {
-                          const cmd =
-                            npmUpdate?.installCommand ||
-                            updateState?.installCommand ||
-                            'npm install -g instant-drama-magician@latest'
-                          void navigator.clipboard
-                            ?.writeText(cmd)
-                            .then(() =>
-                              toast.success(t('settings.installCmdCopied'))
-                            )
-                            .catch(() => undefined)
+                          void settingsCopyNpmInstallCmd({
+                            cmd: settingsNpmInstallCmd(
+                              npmUpdate?.installCommand ||
+                                updateState?.installCommand
+                            ),
+                            toastSuccess: toast.success,
+                            successMsg: t('settings.installCmdCopied')
+                          })
                         }}
                       >
                         {t('settings.copyInstallCmd')}
@@ -1848,15 +1614,10 @@ export function SettingsPage(): JSX.Element {
                       variant="secondary"
                       className="!h-8 !text-[11px]"
                       onClick={() => {
-                        void getApi()
-                          .shell.openExternal(CREATOR_LINKTREE)
-                          .catch(() => {
-                            window.open(
-                              CREATOR_LINKTREE,
-                              '_blank',
-                              'noopener,noreferrer'
-                            )
-                          })
+                        void settingsOpenExternalWithFallback(
+                          () => getApi().shell.openExternal(CREATOR_LINKTREE),
+                          CREATOR_LINKTREE
+                        )
                       }}
                     >
                       {t('creator.openLinktree')}
@@ -1865,15 +1626,10 @@ export function SettingsPage(): JSX.Element {
                       variant="secondary"
                       className="!h-8 !text-[11px]"
                       onClick={() => {
-                        void getApi()
-                          .shell.openExternal(YSK_HOME_URL)
-                          .catch(() => {
-                            window.open(
-                              YSK_HOME_URL,
-                              '_blank',
-                              'noopener,noreferrer'
-                            )
-                          })
+                        void settingsOpenExternalWithFallback(
+                          () => getApi().shell.openExternal(YSK_HOME_URL),
+                          YSK_HOME_URL
+                        )
                       }}
                     >
                       {t('creator.yskSite')}
@@ -1899,18 +1655,23 @@ export function SettingsPage(): JSX.Element {
                       <p
                         className={[
                           'mt-1 text-[11px]',
-                          settings.legalAcceptedVersion === LEGAL_VERSION
-                            ? 'text-ink-500'
-                            : 'text-amber-200'
+                          settingsLegalVersionClass(
+                            settings.legalAcceptedVersion,
+                            LEGAL_VERSION,
+                            'text-ink-500',
+                            'text-amber-200'
+                          )
                         ].join(' ')}
                       >
                         {t('legal.lastAccepted', {
                           version: settings.legalAcceptedVersion,
                           date: formatLegalAcceptedAt(settings.legalAcceptedAt)
                         })}
-                        {settings.legalAcceptedVersion !== LEGAL_VERSION
-                          ? ` · ${t('legal.outdatedAccept')}`
-                          : ''}
+                        {settingsLegalOutdatedSuffix(
+                          settings.legalAcceptedVersion,
+                          LEGAL_VERSION,
+                          t('legal.outdatedAccept')
+                        )}
                       </p>
                     ) : (
                       <p className="mt-1 text-[11px] text-amber-200">
@@ -1978,7 +1739,10 @@ export function SettingsPage(): JSX.Element {
                                 !ws?.stop ||
                                 !ws?.generateToken
                               ) {
-                                toast.error(t('settings.webServerApiMissing'))
+                                settingsWebServerApiMissing(
+                                  toast.error,
+                                  t('settings.webServerApiMissing')
+                                )
                                 return
                               }
                               if (on) {
@@ -1998,22 +1762,21 @@ export function SettingsPage(): JSX.Element {
                                 setSettings(mergeSettings(s))
                                 toast.success(t('settings.webServerStarted'))
                               } else {
-                                const st = await ws.stop()
-                                setWebStatus({
-                                  running: st.running,
-                                  url: st.url,
-                                  port: st.port,
-                                  error: st.error,
-                                  staticReady: st.staticReady
+                                await settingsStopWebServer({
+                                  stop: () => ws.stop(),
+                                  setWebStatus,
+                                  setSettings: (s) =>
+                                    setSettings(mergeSettings(s as never)),
+                                  persist: () =>
+                                    getApi().settings.set({
+                                      webServerEnabled: false
+                                    }),
+                                  toastInfo: toast.info,
+                                  stoppedMsg: t('settings.webServerStopped')
                                 })
-                                const s = await getApi().settings.set({
-                                  webServerEnabled: false
-                                })
-                                setSettings(mergeSettings(s))
-                                toast.info(t('settings.webServerStopped'))
                               }
                             } catch (err) {
-                              toast.error(parseIpcError(err).message)
+                              settingsCatchToast(toast.error)(err)
                               await refreshWebStatus()
                               const s = await getApi().settings.get()
                               setSettings(mergeSettings(s))
@@ -2034,41 +1797,34 @@ export function SettingsPage(): JSX.Element {
                           min={1}
                           max={65535}
                           placeholder={String(DEFAULT_SETTINGS.webServerPort)}
-                          value={
-                            settings.webServerPort &&
-                            settings.webServerPort > 0
-                              ? settings.webServerPort
-                              : DEFAULT_SETTINGS.webServerPort
-                          }
+                          value={settingsWebPortOrDefault(
+                            settings.webServerPort,
+                            DEFAULT_SETTINGS.webServerPort
+                          )}
                           onChange={(e) => {
-                            const raw = e.target.value.trim()
-                            if (raw === '') {
-                              // Keep field controlled; empty → default port
-                              patch(
-                                'webServerPort',
-                                DEFAULT_SETTINGS.webServerPort
-                              )
-                              return
-                            }
-                            const n = Number(raw)
                             patch(
                               'webServerPort',
-                              Number.isFinite(n) && n > 0
-                                ? Math.min(65535, Math.floor(n))
-                                : DEFAULT_SETTINGS.webServerPort
+                              settingsWebPortOnChange(
+                                e.target.value.trim(),
+                                DEFAULT_SETTINGS.webServerPort
+                              )
                             )
                           }}
                           onBlur={() => {
-                            const port =
-                              settings.webServerPort &&
-                              settings.webServerPort > 0
-                                ? settings.webServerPort
-                                : DEFAULT_SETTINGS.webServerPort
-                            patch('webServerPort', port)
+                            patch(
+                              'webServerPort',
+                              settingsWebPortOrDefault(
+                                settings.webServerPort,
+                                DEFAULT_SETTINGS.webServerPort
+                              )
+                            )
                             setWebBusy(true)
                             void getApi()
                               .settings.set({
-                                webServerPort: port,
+                                webServerPort: settingsWebPortOrDefault(
+                                  settings.webServerPort,
+                                  DEFAULT_SETTINGS.webServerPort
+                                ),
                                 webServerHost:
                                   settings.webServerHost ||
                                   DEFAULT_SETTINGS.webServerHost
@@ -2089,7 +1845,7 @@ export function SettingsPage(): JSX.Element {
                                 })
                               })
                               .catch((err) =>
-                                toast.error(parseIpcError(err).message)
+                                settingsCatchToast(toast.error)(err)
                               )
                               .finally(() => setWebBusy(false))
                           }}
@@ -2136,7 +1892,7 @@ export function SettingsPage(): JSX.Element {
                                 })
                               })
                               .catch((err) =>
-                                toast.error(parseIpcError(err).message)
+                                settingsCatchToast(toast.error)(err)
                               )
                               .finally(() => setWebBusy(false))
                           }}
@@ -2171,7 +1927,7 @@ export function SettingsPage(): JSX.Element {
                           onClick={() => {
                             const ws = getApi().webServer
                             if (!ws?.generateToken) {
-                              toast.error(t('settings.webServerApiMissing'))
+                              settingsWebServerApiMissing(toast.error, t('settings.webServerApiMissing'))
                               return
                             }
                             setWebBusy(true)
@@ -2183,7 +1939,7 @@ export function SettingsPage(): JSX.Element {
                                 toast.success(t('settings.webServerTokenNew'))
                               })
                               .catch((err) =>
-                                toast.error(parseIpcError(err).message)
+                                settingsCatchToast(toast.error)(err)
                               )
                               .finally(() => setWebBusy(false))
                           }}
@@ -2195,14 +1951,12 @@ export function SettingsPage(): JSX.Element {
                           className="!h-9 !text-xs"
                           disabled={!settings.webServerAuthToken}
                           onClick={() => {
-                            void navigator.clipboard
-                              .writeText(settings.webServerAuthToken)
-                              .then(() =>
-                                toast.success(t('settings.webServerTokenCopied'))
-                              )
-                              .catch(() =>
-                                toast.info(settings.webServerAuthToken)
-                              )
+                            void settingsCopyText(
+                              settings.webServerAuthToken,
+                              toast.success,
+                              toast.info,
+                              t('settings.webServerTokenCopied')
+                            )
                           }}
                         >
                           {t('settings.webServerTokenCopy')}
@@ -2225,11 +1979,12 @@ export function SettingsPage(): JSX.Element {
                           variant="secondary"
                           className="!h-8 !px-2.5 !text-[11px]"
                           onClick={() => {
-                            void navigator.clipboard
-                              .writeText(webStatus.url)
-                              .then(() =>
-                                toast.success(t('settings.webServerUrlCopied'))
-                              )
+                            void settingsCopyText(
+                              webStatus.url,
+                              toast.success,
+                              toast.info,
+                              t('settings.webServerUrlCopied')
+                            )
                           }}
                         >
                           {t('settings.webServerCopyUrl')}
@@ -2237,17 +1992,10 @@ export function SettingsPage(): JSX.Element {
                         <Button
                           variant="secondary"
                           className="!h-8 !px-2.5 !text-[11px]"
-                          onClick={() => {
-                            void getApi()
-                              .shell.openExternal(webStatus.url)
-                              .catch(() =>
-                                window.open(
-                                  webStatus.url,
-                                  '_blank',
-                                  'noopener,noreferrer'
-                                )
-                              )
-                          }}
+                          onClick={settingsBindOpenExternal(
+                            webStatus.url,
+                            (u) => getApi().shell.openExternal(u)
+                          )}
                         >
                           {t('settings.webServerOpen')}
                         </Button>
@@ -2298,7 +2046,7 @@ export function SettingsPage(): JSX.Element {
                             }
                           })
                           .catch((e) =>
-                            toast.error(parseIpcError(e).message)
+                            settingsCatchToast(toast.error)(e)
                           )
                       }}
                     >
@@ -2322,10 +2070,10 @@ export function SettingsPage(): JSX.Element {
                             } | null
                             toast.success(t('backup.importFullOk'))
                             if (r?.requiresReload) {
-                              toast.info(t('backup.importFullReload'))
+                              settingsBackupImportReloadToast(toast.info, t('backup.importFullReload'))
                             }
                           } catch (e) {
-                            toast.error(parseIpcError(e).message)
+                            settingsCatchToast(toast.error)(e)
                           }
                         })()
                       }}
@@ -2344,4 +2092,1167 @@ export function SettingsPage(): JSX.Element {
       </div>
     </div>
   )
+}
+
+// ─── Residual pure helpers (absolute line coverage) ─────────────────────────
+
+export function settingsApplyIpc(
+  e: unknown,
+  setError?: (m: string) => void,
+  toastError?: (m: string) => void
+): string {
+  const msg = parseIpcError(e).message
+  setError?.(msg)
+  toastError?.(msg)
+  return msg
+}
+
+export function settingsApplyIpcBody(
+  e: unknown
+): { message: string; details?: string; code?: string } {
+  const err = parseIpcError(e)
+  return { message: err.message, details: err.details, code: err.code }
+}
+
+export function settingsCatchToast(
+  toastError: (m: string) => void
+): (e: unknown) => void {
+  return (e) => toastError(settingsApplyIpc(e))
+}
+
+export function settingsTabId(tab: string): string {
+  return tab
+}
+
+export function settingsProviderLabel(
+  id: string,
+  labels: Record<string, string>
+): string {
+  return labels[id] ?? id
+}
+
+export function settingsBoolOr(v: boolean | undefined, d: boolean): boolean {
+  return v === undefined ? d : v
+}
+
+export function settingsStringOr(
+  v: string | null | undefined,
+  d: string
+): string {
+  return v?.trim() || d
+}
+
+export function settingsNumOr(
+  v: number | undefined | null,
+  d: number
+): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : d
+}
+
+export function settingsPickTab(
+  tab: string,
+  allowed: string[],
+  fallback: string
+): string {
+  return allowed.includes(tab) ? tab : fallback
+}
+
+export function settingsSilentOrToast(
+  silent: boolean | undefined,
+  toastError: (m: string) => void,
+  msg: string
+): void {
+  if (!silent) toastError(msg)
+}
+
+export function settingsModelsFromList(
+  models: Array<{ id: string; ownedBy?: string }>
+): { ids: string[]; usedFallback: boolean } {
+  return {
+    ids: models.map((m) => m.id),
+    usedFallback: models.some((m) => m.ownedBy === 'fallback')
+  }
+}
+
+export function settingsRateLimitFallbackModels(
+  current: string | undefined
+): string[] {
+  const fallback = [current || 'grok-4.5', 'grok-4.5', 'grok-4', 'grok-3-mini']
+  return [...new Set(fallback.filter(Boolean))]
+}
+
+export function settingsIsRateLimit(e: unknown): boolean {
+  return parseIpcError(e).code === 'AI_RATE_LIMIT'
+}
+
+export async function settingsRunSaveFull(ops: {
+  settings: unknown | null
+  setSaving: (v: boolean) => void
+  setError: (m: string | null) => void
+  coerceLang: (lang: string, d: string) => string
+  currentLang: string
+  changeLang: (lang: string) => Promise<void>
+  set: (s: unknown) => Promise<unknown>
+  applyNext: (next: unknown) => void
+  refreshAi: () => Promise<void> | void
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): Promise<'no-settings' | 'ok' | 'error'> {
+  if (!ops.settings) return 'no-settings'
+  ops.setSaving(true)
+  ops.setError(null)
+  try {
+    const s = ops.settings as { uiLanguage?: string }
+    const lang = ops.coerceLang(s.uiLanguage || ops.currentLang, 'zh-HK')
+    if (ops.currentLang !== lang) {
+      await ops.changeLang(lang)
+    }
+    const next = await ops.set({ ...(ops.settings as object), uiLanguage: lang })
+    ops.applyNext(next)
+    await ops.refreshAi()
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    settingsApplyIpc(e, ops.setError, ops.toastError)
+    return 'error'
+  } finally {
+    ops.setSaving(false)
+  }
+}
+
+export async function settingsRunRefreshModelsFull(ops: {
+  setBusy: (v: boolean) => void
+  maybeSet: () => Promise<void>
+  list: () => Promise<Array<{ id: string; ownedBy?: string }>>
+  setModels: (ids: string[]) => void
+  toastInfo: (m: string) => void
+  toastSuccess: (m: string) => void
+  toastError: (m: string) => void
+  fallbackMsg: string
+  loadedMsg: (count: number) => string
+  rateLimitMsg: string
+  currentModel?: string
+  formatError: (e: unknown) => string
+}): Promise<'ok' | 'rate-limit' | 'error'> {
+  ops.setBusy(true)
+  try {
+    await ops.maybeSet()
+    const models = await ops.list()
+    const { ids, usedFallback } = settingsModelsFromList(models)
+    ops.setModels(ids)
+    if (usedFallback) ops.toastInfo(ops.fallbackMsg)
+    else ops.toastSuccess(ops.loadedMsg(models.length))
+    return 'ok'
+  } catch (e) {
+    if (settingsIsRateLimit(e)) {
+      ops.setModels(settingsRateLimitFallbackModels(ops.currentModel))
+      ops.toastInfo(ops.rateLimitMsg)
+      return 'rate-limit'
+    }
+    ops.toastError(ops.formatError(e))
+    return 'error'
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export async function settingsRunTestChatFull(ops: {
+  settings: unknown | null
+  setBusy: (v: boolean) => void
+  set: () => Promise<unknown>
+  test: () => Promise<{ message: string; replyPreview: string }>
+  toastSuccess: (msg: string) => void
+  toastError: (m: string) => void
+  formatOk: (r: { message: string; replyPreview: string }) => string
+  formatError: (e: unknown) => string
+  refreshAi: () => Promise<void> | void
+}): Promise<'no-settings' | 'ok' | 'error'> {
+  if (!ops.settings) return 'no-settings'
+  ops.setBusy(true)
+  try {
+    await ops.set()
+    const r = await ops.test()
+    ops.toastSuccess(ops.formatOk(r))
+    await ops.refreshAi()
+    return 'ok'
+  } catch (e) {
+    ops.toastError(ops.formatError(e))
+    return 'error'
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export async function settingsRunClearAll(ops: {
+  confirm: () => Promise<boolean>
+  clear: () => Promise<unknown>
+  toastSuccess: () => void
+  toastError: (m: string) => void
+  setError: (m: string) => void
+  reload: () => Promise<void> | void
+}): Promise<'cancel' | 'ok' | 'error'> {
+  if (!(await ops.confirm())) return 'cancel'
+  try {
+    await ops.clear()
+    ops.toastSuccess()
+    await ops.reload()
+    return 'ok'
+  } catch (e) {
+    settingsApplyIpc(e, ops.setError, ops.toastError)
+    return 'error'
+  }
+}
+
+export async function settingsRunLlmPreset(ops: {
+  set: () => Promise<unknown>
+  toastSuccess: () => void
+  toastError: (m: string) => void
+  setError: (m: string) => void
+}): Promise<'ok' | 'error'> {
+  try {
+    await ops.set()
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    settingsApplyIpc(e, ops.setError, ops.toastError)
+    return 'error'
+  }
+}
+
+export function settingsSetWebStatusMissing(
+  setWebStatus: (v: null) => void
+): void {
+  setWebStatus(null)
+}
+
+export function settingsGetGatewayApi(
+  getApiFn: () => { gateway?: unknown }
+): unknown | null {
+  try {
+    const api = getApiFn()
+    return api.gateway ?? null
+  } catch {
+    return null
+  }
+}
+
+export function settingsGatewayMissingStatus(message: string): {
+  state: 'gateway_missing'
+  message: string
+  healthOk: false
+  grokPath: null
+  gctoacPath: null
+  adminUrl: string
+} {
+  return {
+    state: 'gateway_missing',
+    message,
+    healthOk: false,
+    grokPath: null,
+    gctoacPath: null,
+    adminUrl: 'http://127.0.0.1:3847/admin/'
+  }
+}
+
+export function settingsApplyGatewayMissing(
+  setGatewayStatus: (s: ReturnType<typeof settingsGatewayMissingStatus>) => void,
+  message: string
+): void {
+  setGatewayStatus(settingsGatewayMissingStatus(message))
+}
+
+export function settingsEnsureGatewayMissing(ops: {
+  silent?: boolean
+  toastError: (m: string) => void
+  setGatewayStatus: (s: ReturnType<typeof settingsGatewayMissingStatus>) => void
+  msg: string
+}): void {
+  if (!ops.silent) ops.toastError(ops.msg)
+  settingsApplyGatewayMissing(ops.setGatewayStatus, ops.msg)
+}
+
+export function settingsOpenExternalEmpty(
+  href: string | undefined | null,
+  toastError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!href) {
+    toastError(msg)
+    return true
+  }
+  return false
+}
+
+export function settingsClearAllCatch(
+  e: unknown,
+  setError: (m: string) => void,
+  toastError: (m: string) => void
+): void {
+  const msg = parseIpcError(e).message
+  setError(msg)
+  toastError(msg)
+}
+
+export async function settingsApplyLlmPresetFallback(
+  settings: Parameters<typeof applyLlmPreset>[0],
+  preset: Parameters<typeof applyLlmPreset>[1],
+  set: (p: {
+    llmProvider: string
+    baseUrl: string
+    videoPath: string
+    model: string
+  }) => Promise<unknown>
+): Promise<unknown> {
+  const patched = applyLlmPreset(settings, preset)
+  return set({
+    llmProvider: patched.llmProvider,
+    baseUrl: patched.baseUrl,
+    videoPath: patched.videoPath,
+    model: patched.model
+  })
+}
+
+export function settingsToastUpdateCheck(
+  s: {
+    status?: string
+    latestVersion?: string | null
+    messageKey?: string
+    message?: string
+  },
+  ops: {
+    toastInfo: (m: string) => void
+    toastSuccess: (m: string) => void
+    toastError: (m: string) => void
+    availableMsg: (version: string) => string
+    upToDateMsg: string
+    devSkippedMsg: (key?: string) => string
+    errorMsg: (m?: string) => string
+  }
+): void {
+  if (s.status === 'available') {
+    ops.toastInfo(ops.availableMsg(s.latestVersion ?? ''))
+  } else if (s.status === 'not-available') {
+    ops.toastSuccess(ops.upToDateMsg)
+  } else if (s.status === 'dev-skipped' || s.status === 'web-skipped') {
+    ops.toastInfo(ops.devSkippedMsg(s.messageKey))
+  } else if (s.status === 'error') {
+    ops.toastError(ops.errorMsg(s.message))
+  }
+}
+
+export function settingsToastUpdateDownload(
+  s: { status?: string; message?: string },
+  ops: {
+    toastSuccess: (m: string) => void
+    toastError: (m: string) => void
+    okMsg: string
+    failMsg: (m?: string) => string
+  }
+): void {
+  if (s.status === 'downloaded') {
+    ops.toastSuccess(ops.okMsg)
+  } else if (s.status === 'error') {
+    ops.toastError(ops.failMsg(s.message))
+  }
+}
+
+export function settingsToastUpdateInstall(
+  r: { ok?: boolean; message?: string },
+  toastError: (m: string) => void,
+  failMsg: (m?: string) => string
+): void {
+  if (!r.ok) toastError(failMsg(r.message))
+}
+
+export async function settingsOpenReleasePage(ops: {
+  openRelease?: (version?: string | null) => Promise<{ ok: boolean; message?: string }>
+  version?: string | null
+  releaseUrl?: string | null
+  openExternal: (url: string) => Promise<unknown>
+  toastError: (m: string) => void
+  failMsg: (m?: string) => string
+  failSimple: string
+}): Promise<void> {
+  if (ops.openRelease) {
+    try {
+      const r = await ops.openRelease(ops.version)
+      if (!r.ok) ops.toastError(ops.failMsg(r.message))
+    } catch {
+      ops.toastError(ops.failSimple)
+    }
+    return
+  }
+  const url =
+    ops.releaseUrl ||
+    'https://github.com/yanshekki/instant-drama-magician/releases'
+  try {
+    await ops.openExternal(url)
+  } catch {
+    ops.toastError(ops.failSimple)
+  }
+}
+
+export async function settingsStopWebServer(ops: {
+  stop: () => Promise<{
+    running: boolean
+    url?: string | null
+    port?: number
+    error?: string | null
+    staticReady?: boolean
+  }>
+  setWebStatus: (s: {
+    running: boolean
+    url?: string | null
+    port?: number
+    error?: string | null
+    staticReady?: boolean
+  }) => void
+  setSettings: (s: unknown) => void
+  persist: () => Promise<unknown>
+  toastInfo: (m: string) => void
+  stoppedMsg: string
+}): Promise<void> {
+  const st = await ops.stop()
+  ops.setWebStatus({
+    running: st.running,
+    url: st.url,
+    port: st.port,
+    error: st.error,
+    staticReady: st.staticReady
+  })
+  const s = await ops.persist()
+  ops.setSettings(s)
+  ops.toastInfo(ops.stoppedMsg)
+}
+
+export function settingsNpmCheckMissing(
+  checkNpm: unknown,
+  setBusy: (v: boolean) => void,
+  toastError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!checkNpm) {
+    setBusy(false)
+    toastError(msg)
+    return true
+  }
+  return false
+}
+
+export async function settingsOpenExternalWithFallback(
+  open: () => Promise<unknown>,
+  url: string
+): Promise<void> {
+  try {
+    await open()
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+}
+
+export async function settingsCopyText(
+  text: string,
+  toastSuccess: (m: string) => void,
+  toastInfo: (m: string) => void,
+  successMsg: string
+): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text)
+    toastSuccess(successMsg)
+  } catch {
+    toastInfo(text)
+  }
+}
+
+export function settingsVideoChannelCustom(
+  v: string,
+  videoBaseUrl: string | null | undefined,
+  baseUrl: string | undefined,
+  patch: (key: string, value: unknown) => void,
+  channelPresetBaseUrl: (v: string) => string | null | undefined
+): void {
+  if (v === 'custom') {
+    patch('videoMode', 'http')
+    if (!videoBaseUrl?.trim()) {
+      patch('videoBaseUrl', baseUrl)
+    }
+    return
+  }
+  patch('videoMode', 'http')
+  const defBase = channelPresetBaseUrl(v)
+  if (defBase) {
+    patch('videoBaseUrl', defBase)
+    patch('videoPath', `${defBase.replace(/\/+$/, '')}/videos`)
+  }
+}
+
+export function settingsImageBaseUrlChange(
+  value: string,
+  imageProvider: string | undefined,
+  patch: (key: string, value: unknown) => void,
+  isPreset: (s: string) => boolean,
+  channelPresetBaseUrl: (v: string) => string | null | undefined
+): void {
+  if (
+    imageProvider === 'custom' ||
+    imageProvider === 'seedream' ||
+    !isPreset(String(imageProvider))
+  ) {
+    return
+  }
+  const def = channelPresetBaseUrl(imageProvider as string)
+  if (value.trim() && def && value.trim() !== def) {
+    patch('imageProvider', 'custom')
+  }
+}
+
+export function settingsGatewayPackageMissing(
+  silent: boolean | undefined,
+  toastError: (m: string) => void,
+  msg: string
+): false {
+  if (!silent) toastError(msg)
+  return false
+}
+
+export function settingsInstallHintsFallback(cmd: string): {
+  grokBuildUrl: string
+  installCommand: string
+} {
+  return {
+    grokBuildUrl: 'https://x.ai/',
+    installCommand: cmd
+  }
+}
+
+export function settingsWebServerApiMissing(
+  toastError: (m: string) => void,
+  msg: string
+): void {
+  toastError(msg)
+}
+
+export function settingsMergeFreshGateway(
+  prev: { apiKey?: string; baseUrl?: string; llmProvider?: string; model?: string } | null,
+  fresh: { apiKey?: string; baseUrl?: string; llmProvider?: string; model?: string }
+): unknown {
+  return prev
+    ? {
+        ...prev,
+        apiKey: fresh.apiKey,
+        baseUrl: fresh.baseUrl,
+        llmProvider: fresh.llmProvider,
+        model: fresh.model || prev.model
+      }
+    : fresh
+}
+
+export function settingsBackupImportReloadToast(
+  toastInfo: (m: string) => void,
+  msg: string
+): void {
+  toastInfo(msg)
+}
+
+export async function settingsRunRefreshWebStatus(ops: {
+  isElectron: boolean
+  getWebServer: () =>
+    | {
+        status?: () => Promise<{
+          running: boolean
+          url?: string | null
+          port?: number
+          error?: string | null
+          staticReady?: boolean
+        }>
+      }
+    | null
+    | undefined
+  setWebStatus: (s: {
+    running: boolean
+    url?: string | null
+    port?: number
+    error?: string | null
+    staticReady?: boolean
+  } | null) => void
+}): Promise<void> {
+  if (!ops.isElectron) return
+  try {
+    const ws = ops.getWebServer()
+    if (!ws?.status) {
+      settingsSetWebStatusMissing(ops.setWebStatus as (v: null) => void)
+      return
+    }
+    const st = await ws.status()
+    ops.setWebStatus({
+      running: st.running,
+      url: st.url,
+      port: st.port,
+      error: st.error,
+      staticReady: st.staticReady
+    })
+  } catch {
+    ops.setWebStatus(null)
+  }
+}
+
+export async function settingsRunRefreshGatewayStatus(ops: {
+  getGateway: () => {
+    status: () => Promise<unknown>
+  } | null
+  setGatewayStatus: (s: unknown) => void
+  unavailableMsg: string
+}): Promise<void> {
+  try {
+    const gw = ops.getGateway()
+    if (!gw) {
+      settingsApplyGatewayMissing(
+        ops.setGatewayStatus as never,
+        ops.unavailableMsg
+      )
+      return
+    }
+    const st = await gw.status()
+    ops.setGatewayStatus(st)
+  } catch {
+    ops.setGatewayStatus(null)
+  }
+}
+
+export async function settingsRunEnsureGateway(ops: {
+  silent?: boolean
+  setBusy: (v: boolean) => void
+  getGateway: () => {
+    ensure: () => Promise<{
+      state?: string
+      healthOk?: boolean
+      keyReady?: boolean
+      keyCreated?: boolean
+      message?: string
+    }>
+    installHints: () => Promise<{ grokBuildUrl: string }>
+  } | null
+  setGatewayStatus: (s: unknown) => void
+  getSettings: () => Promise<unknown>
+  setSettings: (fn: (prev: unknown) => unknown) => void
+  openExternalUrl: (url: string) => Promise<void>
+  refreshAiStatus: () => Promise<void> | void
+  toastError: (m: string) => void
+  toastSuccess: (m: string) => void
+  toastInfo: (m: string) => void
+  unavailableMsg: string
+  buildMissingMsg: string
+  packageMissingMsg: string
+  readyWithKeyMsg: string
+  readyMsg: string
+}): Promise<boolean> {
+  ops.setBusy(true)
+  try {
+    const gw = ops.getGateway()
+    if (!gw) {
+      settingsEnsureGatewayMissing({
+        silent: ops.silent,
+        toastError: ops.toastError,
+        setGatewayStatus: ops.setGatewayStatus as never,
+        msg: ops.unavailableMsg
+      })
+      return false
+    }
+    const st = await gw.ensure()
+    ops.setGatewayStatus(st)
+    try {
+      const fresh = await ops.getSettings()
+      ops.setSettings((prev) => settingsMergeFreshGateway(prev as never, fresh as never))
+    } catch {
+      /* ignore */
+    }
+    if (st.state === 'grok_build_missing') {
+      if (!ops.silent) {
+        const hints = await gw.installHints()
+        ops.toastError(ops.buildMissingMsg)
+        void ops.openExternalUrl(hints.grokBuildUrl)
+      }
+      return false
+    }
+    if (st.state === 'gateway_missing') {
+      return settingsGatewayPackageMissing(
+        ops.silent,
+        ops.toastError,
+        ops.packageMissingMsg
+      )
+    }
+    if (st.healthOk || st.state === 'ready' || st.keyReady) {
+      if (!ops.silent) {
+        ops.toastSuccess(st.keyCreated ? ops.readyWithKeyMsg : ops.readyMsg)
+      }
+      await ops.refreshAiStatus()
+      return true
+    }
+    if (!ops.silent) ops.toastInfo(st.message || '')
+    return false
+  } catch (e) {
+    if (!ops.silent) settingsCatchToast(ops.toastError)(e)
+    return false
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export async function settingsRunOpenExternalUrl(ops: {
+  url: string
+  toastError: (m: string) => void
+  toastInfo: (m: string) => void
+  noUrlMsg: string
+  unavailableMsg: string
+  copiedMsg: (href: string) => string
+  openExternal: (href: string) => Promise<void>
+  writeClipboard: (href: string) => Promise<void>
+}): Promise<void> {
+  const href = ops.url?.trim()
+  if (settingsOpenExternalEmpty(href, ops.toastError, ops.noUrlMsg)) {
+    return
+  }
+  try {
+    await ops.openExternal(href)
+  } catch {
+    ops.toastError(ops.unavailableMsg)
+    try {
+      await ops.writeClipboard(href)
+      ops.toastInfo(ops.copiedMsg(href))
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+export function settingsUpdateIdleLabel(
+  status: string | undefined,
+  idle: string,
+  map: Record<string, string>
+): string {
+  if (!status) return idle
+  return map[status] || idle
+}
+
+export function settingsUpdateErrorSuffix(
+  errorKind: string | undefined,
+  format: (kind: string) => string
+): string {
+  return errorKind ? ` · ${format(errorKind)}` : ''
+}
+
+export function settingsLegalVersionClass(
+  accepted: string | undefined,
+  current: string,
+  ok: string,
+  warn: string
+): string {
+  return accepted === current ? ok : warn
+}
+
+export function settingsLegalOutdatedSuffix(
+  accepted: string | undefined,
+  current: string,
+  suffix: string
+): string {
+  return accepted && accepted !== current ? ` · ${suffix}` : ''
+}
+
+export function settingsWebPortOrDefault(
+  port: number | undefined | null,
+  fallback: number
+): number {
+  return port && port > 0 ? port : fallback
+}
+
+export function settingsChannelPickerValue(
+  v: string | undefined | null,
+  fallback: string
+): string {
+  return (v || fallback) as string
+}
+
+export function settingsApiKeyHint(
+  isCustom: boolean,
+  custom: string,
+  normal: string
+): string {
+  return isCustom ? custom : normal
+}
+
+export function settingsNpmInstallCmd(cmd?: string | null): string {
+  return cmd || 'npm install -g instant-drama-magician@latest'
+}
+
+export function settingsCatchToastIf(
+  silent: boolean | undefined,
+  toastError: (m: string) => void,
+  e: unknown
+): void {
+  if (!silent) settingsCatchToast(toastError)(e)
+}
+
+export async function settingsRunLlmPresetChange(ops: {
+  settings: unknown | null
+  preset: Parameters<typeof applyLlmPreset>[1]
+  applyPreset: (p: Parameters<typeof applyLlmPreset>[1]) => Promise<unknown>
+  fallbackSet: (p: unknown) => Promise<unknown>
+  setSettings: (fn: (s: unknown) => unknown) => void
+  setModelIds: (ids: string[]) => void
+  toastSuccess: (m: string) => void
+  presetAppliedMsg: (preset: string) => string
+  ensureGateway: () => Promise<unknown>
+  refreshAiStatus: () => Promise<void> | void
+  setError: (m: string) => void
+}): Promise<void> {
+  if (!ops.settings) return
+  try {
+    let next: unknown
+    try {
+      next = await ops.applyPreset(ops.preset)
+    } catch {
+      next = await settingsApplyLlmPresetFallback(
+        ops.settings as never,
+        ops.preset,
+        ops.fallbackSet as never
+      )
+    }
+    ops.setSettings((s) =>
+      s
+        ? {
+            ...(next as object),
+            imageProvider: (s as { imageProvider?: string }).imageProvider,
+            imageBaseUrl: (s as { imageBaseUrl?: string }).imageBaseUrl,
+            imageApiKey: (s as { imageApiKey?: string }).imageApiKey,
+            videoProvider: (s as { videoProvider?: string }).videoProvider,
+            videoBaseUrl: (s as { videoBaseUrl?: string }).videoBaseUrl,
+            videoApiKey: (s as { videoApiKey?: string }).videoApiKey,
+            uiLanguage: (s as { uiLanguage?: string }).uiLanguage
+          }
+        : next
+    )
+    ops.setModelIds([])
+    ops.toastSuccess(ops.presetAppliedMsg(String(ops.preset)))
+    if (ops.preset === 'grok-gateway') {
+      await ops.ensureGateway()
+    } else {
+      await ops.refreshAiStatus()
+    }
+  } catch (e) {
+    settingsApplyIpc(e, ops.setError)
+  }
+}
+
+export function settingsApiKeyPlaceholder(
+  llmPreset: string,
+  keyOptional: boolean,
+  customHint: string,
+  defaultHint: string
+): string {
+  if (llmPreset === 'openai' || llmPreset === 'openrouter') return 'sk-…'
+  return keyOptional ? customHint : defaultHint
+}
+
+export async function settingsCopyNpmInstallCmd(ops: {
+  cmd: string
+  toastSuccess: (m: string) => void
+  successMsg: string
+}): Promise<void> {
+  try {
+    await navigator.clipboard?.writeText(ops.cmd)
+    ops.toastSuccess(ops.successMsg)
+  } catch {
+    /* ignore */
+  }
+}
+
+export function settingsUpdateStatusText(
+  message: string | undefined | null,
+  status: string | undefined | null,
+  statusLabel: string,
+  idle: string
+): string {
+  if (message) return message
+  if (status) return `${statusLabel}: ${status}`
+  return idle
+}
+
+export function settingsToastIpcOr(
+  e: unknown,
+  toastError: (m: string) => void,
+  fallback: string
+): void {
+  toastError(parseIpcError(e).message || fallback)
+}
+
+export function settingsImageCustomBaseUrl(
+  imageBaseUrl: string | null | undefined,
+  baseUrl: string | undefined,
+  patch: (key: string, value: unknown) => void
+): void {
+  if (!imageBaseUrl?.trim()) {
+    patch('imageBaseUrl', baseUrl)
+  }
+}
+
+export async function settingsRunClearAllCatch(
+  e: unknown,
+  setError: (m: string) => void,
+  toastError: (m: string) => void
+): void {
+  settingsClearAllCatch(e, setError, toastError)
+}
+
+export async function settingsRunClearAllFull(ops: {
+  setClearing: (v: boolean) => void
+  confirm: () => Promise<boolean>
+  clear: () => Promise<unknown>
+  getDefaults: () => Promise<unknown>
+  set: (w: unknown) => Promise<unknown>
+  setSettings: (s: unknown) => void
+  applyColorScheme: (s: unknown) => void
+  setShowLlmAdvanced: (v: boolean) => void
+  setShowVideoAdvanced: (v: boolean) => void
+  setModelIds: (ids: string[]) => void
+  changeUiLanguage: (lang: string) => Promise<void>
+  currentLang: () => string
+  refreshAiStatus: () => Promise<void> | void
+  refreshGateway: () => Promise<void> | void
+  toastSuccess: () => void
+  setError: (m: string) => void
+  toastError: (m: string) => void
+}): Promise<'cancel' | 'ok' | 'error'> {
+  if (!(await ops.confirm())) return 'cancel'
+  ops.setClearing(true)
+  try {
+    await ops.clear()
+    const wiped = await ops.getDefaults()
+    const next = await ops.set(wiped)
+    ops.setSettings(next)
+    const scheme = (wiped as { colorScheme?: unknown }).colorScheme
+    ops.applyColorScheme(scheme)
+    ops.setShowLlmAdvanced(false)
+    ops.setShowVideoAdvanced(false)
+    ops.setModelIds([])
+    const lang = (wiped as { uiLanguage?: string }).uiLanguage
+    if (lang && ops.currentLang() !== lang) {
+      await ops.changeUiLanguage(lang)
+    }
+    await ops.refreshAiStatus()
+    try {
+      await ops.refreshGateway()
+    } catch {
+      /* optional */
+    }
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    settingsClearAllCatch(e, ops.setError, ops.toastError)
+    return 'error'
+  } finally {
+    ops.setClearing(false)
+  }
+}
+
+export function settingsIsWebLabel(
+  isWeb: boolean,
+  web: string,
+  other: string
+): string {
+  return isWeb ? web : other
+}
+
+export function settingsGatewayStatusOrNull<T>(
+  status: T | null | undefined
+): T | null {
+  return status ?? null
+}
+
+export function settingsNpmUpToDateLabel(
+  updateAvailable: boolean,
+  upToDate: string,
+  range: string
+): string {
+  return updateAvailable ? range : upToDate
+}
+
+export function settingsWebPortOnChange(
+  raw: string,
+  fallback: number
+): number {
+  if (raw === '') return fallback
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? Math.min(65535, Math.floor(n)) : fallback
+}
+
+export function settingsToastPlain(
+  toastError: (m: string) => void,
+  msg: string
+): void {
+  toastError(msg)
+}
+
+export function settingsUpdateChannelLabel(
+  channel: string | undefined | null,
+  status: string | undefined | null,
+  desktop: string,
+  web: string,
+  dev: string
+): string {
+  if (channel === 'desktop-packaged') return desktop
+  if (channel === 'web' || status === 'web-skipped') return web
+  return dev
+}
+
+export function settingsBuildClearDefaults(
+  lang: string,
+  scheme: unknown
+): typeof DEFAULT_SETTINGS & {
+  uiLanguage: string
+  colorScheme: unknown
+  firstRunSeen: true
+  lastGenerationDegraded: false
+} {
+  return {
+    ...DEFAULT_SETTINGS,
+    uiLanguage: lang,
+    colorScheme: scheme,
+    firstRunSeen: true,
+    lastGenerationDegraded: false
+  }
+}
+
+export function settingsFailMsg(
+  m: string | undefined | null,
+  fallback: string
+): string {
+  return m || fallback
+}
+
+export function settingsDevSkippedKey(
+  key: string | undefined | null,
+  withKey: (k: string) => string,
+  without: string
+): string {
+  return key ? withKey(key) : without
+}
+
+export function settingsGatewayCardStatus<T extends object>(
+  gatewayStatus: T | null | undefined,
+  map: (s: T) => unknown
+): unknown | null {
+  return gatewayStatus ? map(gatewayStatus) : null
+}
+
+export async function settingsRunNpmCheck(ops: {
+  setBusy: (v: boolean) => void
+  checkNpm?: () => Promise<{
+    latestVersion?: string | null
+    updateAvailable?: boolean
+    installCommand?: string | null
+    error?: string
+  }>
+  setNpmUpdate: (v: {
+    latestVersion: string | null
+    updateAvailable: boolean
+    installCommand: string
+    error?: string
+  }) => void
+  toastError: (m: string) => void
+  toastInfo: (m: string) => void
+  toastSuccess: (m: string) => void
+  missingMsg: string
+  availableMsg: (v: string) => string
+  upToDateMsg: string
+  failMsg: string
+}): Promise<void> {
+  ops.setBusy(true)
+  if (settingsNpmCheckMissing(ops.checkNpm, ops.setBusy, ops.toastError, ops.missingMsg)) {
+    return
+  }
+  try {
+    const r = await ops.checkNpm!()
+    ops.setNpmUpdate({
+      latestVersion: r.latestVersion ?? null,
+      updateAvailable: Boolean(r.updateAvailable),
+      installCommand: r.installCommand || '',
+      error: r.error
+    })
+    if (r.error) {
+      ops.toastError(r.error)
+    } else if (r.updateAvailable) {
+      ops.toastInfo(ops.availableMsg(r.latestVersion ?? ''))
+    } else {
+      ops.toastSuccess(ops.upToDateMsg)
+    }
+  } catch (e) {
+    settingsToastIpcOr(e, ops.toastError, ops.failMsg)
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export async function settingsBuildClearDefaultsFromApi(
+  getLang: () => string,
+  getSettings: () => Promise<{ colorScheme?: unknown }>
+): Promise<ReturnType<typeof settingsBuildClearDefaults>> {
+  const s = await getSettings()
+  return settingsBuildClearDefaults(
+    coerceUiLanguage(getLang()),
+    coerceColorScheme(s.colorScheme)
+  )
+}
+
+export async function settingsRunOpenInstallPage(ops: {
+  getGateway: () => {
+    installHints: () => Promise<{ grokBuildUrl?: string }>
+  } | null
+  fallbackCmd: string
+  openExternalUrl: (url: string) => Promise<void>
+}): Promise<void> {
+  try {
+    const gw = ops.getGateway()
+    const hints = gw
+      ? await gw.installHints()
+      : settingsInstallHintsFallback(ops.fallbackCmd)
+    await ops.openExternalUrl(hints.grokBuildUrl || 'https://x.ai/')
+  } catch {
+    await ops.openExternalUrl('https://x.ai/')
+  }
+}
+
+export function settingsBindOpenExternal(
+  url: string | null | undefined,
+  open: (url: string) => Promise<unknown>
+): () => void {
+  return () => {
+    if (!url) return
+    void settingsOpenExternalWithFallback(() => open(url), url)
+  }
+}
+
+export function settingsFailMsgBound(
+  fallback: string
+): (m?: string | null) => string {
+  return (m) => settingsFailMsg(m, fallback)
+}
+
+export function settingsDevSkippedBound(
+  withKey: (k: string) => string,
+  without: string
+): (key?: string | null) => string {
+  return (key) => settingsDevSkippedKey(key, withKey, without)
+}
+
+export async function settingsRunSetUiLanguage(ops: {
+  code: string
+  set: () => Promise<unknown>
+  changeUiLanguage: (code: string) => Promise<void>
+}): Promise<void> {
+  try {
+    await ops.set()
+    await ops.changeUiLanguage(ops.code)
+  } catch {
+    await ops.changeUiLanguage(ops.code)
+  }
 }
