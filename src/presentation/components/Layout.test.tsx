@@ -153,4 +153,126 @@ describe('Layout', () => {
     await waitFor(() => expect(open).toHaveBeenCalled())
     open.mockRestore()
   })
+
+  it('download and install update buttons from banner', async () => {
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      currentVersion: '1.0.0',
+      latestVersion: '1.2.0'
+    })
+    api.updates.install = vi.fn().mockResolvedValue({ ok: true })
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<div>home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    // banner text may use i18n keys
+    const dl = Array.from(document.querySelectorAll('button')).find((b) =>
+      /downloadUpdate|download/i.test(b.textContent || '')
+    )
+    if (dl) {
+      fireEvent.click(dl)
+      await waitFor(() => expect(api.updates.download).toHaveBeenCalled())
+    }
+    const inst = Array.from(document.querySelectorAll('button')).find((b) =>
+      /installUpdate|install/i.test(b.textContent || '')
+    )
+    if (inst) {
+      fireEvent.click(inst)
+      await waitFor(() => expect(api.updates.install).toHaveBeenCalled())
+    }
+  })
+
+  it('update download fail toasts error', async () => {
+    api.updates.download = vi.fn().mockRejectedValue(new Error('dl'))
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<div>home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const dl = Array.from(document.querySelectorAll('button')).find((b) =>
+      /downloadUpdate|download/i.test(b.textContent || '')
+    )
+    if (dl) {
+      fireEvent.click(dl)
+      await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    }
+  })
+
+  it('install fail when ok:false', async () => {
+    api.updates.onState = vi.fn((cb: (s: unknown) => void) => {
+      cb({
+        status: 'downloaded',
+        currentVersion: '1.0.0',
+        latestVersion: '1.2.0'
+      })
+      return () => undefined
+    })
+    api.updates.install = vi.fn().mockResolvedValue({
+      ok: false,
+      message: 'blocked'
+    })
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<div>home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const inst = Array.from(document.querySelectorAll('button')).find((b) =>
+      /installUpdate|install/i.test(b.textContent || '')
+    )
+    if (inst) {
+      fireEvent.click(inst)
+      await waitFor(() => expect(api.updates.install).toHaveBeenCalled())
+    }
+  })
+
+  it('electron mode hides Web badge', async () => {
+    isWebRuntime.mockReturnValue(false)
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<div>home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    expect(screen.queryByText('Web')).toBeNull()
+  })
+
+  it('creator donate button opens linktree', async () => {
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<div>home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const donate = Array.from(document.querySelectorAll('button')).find((b) =>
+      /sidebarDonate|linktr|☕/i.test(b.textContent || b.title || '')
+    )
+    if (donate) {
+      fireEvent.click(donate)
+      await waitFor(() => expect(api.shell.openExternal).toHaveBeenCalled())
+    }
+  })
 })

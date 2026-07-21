@@ -187,4 +187,72 @@ describe('KonvaTimeline', () => {
     )
     expect(screen.getByText('timeline.zoom')).toBeTruthy()
   })
+
+  it('renders multi-entry labels without crashing', () => {
+    render(
+      <KonvaTimeline
+        entries={entries}
+        labels={{ t1: 'Hero', t2: 'Scene', t3: 'Prop', t4: 'Act' }}
+        selectedId="t2"
+        playhead={2}
+        pxPerSec={40}
+        onPxPerSecChange={() => undefined}
+        onPlayheadChange={() => undefined}
+        onSelect={() => undefined}
+        onMove={() => undefined}
+        onDropAsset={() => undefined}
+        width={900}
+        snapEnabled
+        snapGridSec={0.25}
+      />
+    )
+    expect(screen.getByText('timeline.zoom')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('timeline.zoom'), {
+      target: { value: '80' }
+    })
+  })
+
+  it('pack abut when gaps exist', () => {
+    const onPack = vi.fn()
+    render(
+      <KonvaTimeline
+        entries={
+          [
+            {
+              id: 'a',
+              startTime: 0,
+              endTime: 2,
+              order: 0,
+              mediaStatus: 'READY',
+              characterId: 'c1'
+            },
+            {
+              id: 'b',
+              startTime: 5,
+              endTime: 8,
+              order: 1,
+              mediaStatus: 'EMPTY',
+              characterId: null
+            }
+          ] as never[]
+        }
+        labels={{ a: 'A', b: 'B' }}
+        selectedId="a"
+        playhead={0}
+        pxPerSec={30}
+        onPxPerSecChange={() => undefined}
+        onPlayheadChange={() => undefined}
+        onSelect={() => undefined}
+        onMove={() => undefined}
+        onDropAsset={() => undefined}
+        onPackAbut={onPack}
+        width={600}
+        snapEnabled={false}
+      />
+    )
+    const pack = Array.from(document.querySelectorAll('button')).find((b) =>
+      /pack|abut|密|贴/i.test(b.textContent || '')
+    )
+    if (pack) fireEvent.click(pack)
+  })
 })

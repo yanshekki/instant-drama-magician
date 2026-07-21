@@ -178,4 +178,71 @@ describe('VideoPrepModal', () => {
       if (el) fireEvent.click(el)
     }
   })
+
+  it('edits prompt and duration in review', async () => {
+    const onDraftPatch = vi.fn()
+    const onSaveDraft = vi.fn()
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        onDraftPatch={onDraftPatch}
+        onSaveDraft={onSaveDraft}
+      />
+    )
+    for (const ta of Array.from(document.querySelectorAll('textarea'))) {
+      fireEvent.change(ta, { target: { value: 'edited professional prompt' } })
+    }
+    for (const inp of Array.from(
+      document.querySelectorAll('input[type="number"], input[type="range"]')
+    )) {
+      fireEvent.change(inp, { target: { value: '8' } })
+    }
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      if ((sel as HTMLSelectElement).options.length > 1) {
+        fireEvent.change(sel, {
+          target: { value: (sel as HTMLSelectElement).options[1].value }
+        })
+      }
+    }
+    // save draft button
+    for (const key of [
+      'videoPrep.saveDraft',
+      'videoPrep.save',
+      'common.save'
+    ]) {
+      const el = screen.queryByText(key)
+      if (el) fireEvent.click(el)
+    }
+  })
+
+  it('timeline-clip draft with still missing message', () => {
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        draft={{
+          ...base.draft,
+          kind: 'timeline-clip',
+          stillPath: '',
+          entityIds: { storyId: 's1', entryId: 'e1' }
+        }}
+      />
+    )
+    expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  it('confirm with empty prompt blocked path', async () => {
+    const onConfirm = vi.fn()
+    render(
+      <VideoPrepModal
+        {...base}
+        phase="review"
+        draft={{ ...base.draft, professionalPrompt: '  ' }}
+        onConfirm={onConfirm}
+      />
+    )
+    const confirm = screen.queryByText('videoPrep.confirmGenerate')
+    if (confirm) fireEvent.click(confirm)
+  })
 })

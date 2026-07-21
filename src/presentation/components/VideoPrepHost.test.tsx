@@ -288,5 +288,145 @@ describe('VideoPrepHost', () => {
     await waitFor(() => screen.getByText('emergency'))
     fireEvent.click(screen.getByText('emergency'))
   })
+
+  it('create failure shows error phase and retry', async () => {
+    api.videoPrep.create = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('create fail'))
+      .mockResolvedValueOnce({
+        professionalPrompt: 'ok',
+        stillPath: '/s.png',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        entityIds: { characterId: 'c1' }
+      })
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' }
+      })
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    // retry button from modal mock after error may appear
+    await waitFor(() => {
+      // host may surface error without modal open
+      expect(api.videoPrep.create).toHaveBeenCalled()
+    })
+    if (screen.queryByText('retry')) {
+      fireEvent.click(screen.getByText('retry'))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000)
+      })
+    }
+  })
+
+  it('confirm failure and nextClip queue', async () => {
+    api.videoPrep.confirm = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('confirm fail'))
+      .mockResolvedValue({ videoPath: '/v.mp4' })
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        resumeDraft
+      })
+    })
+    await waitFor(() => screen.getByTestId('modal'))
+    fireEvent.click(screen.getByText('confirm'))
+    await waitFor(() => expect(api.videoPrep.confirm).toHaveBeenCalled())
+
+    // next clip path
+    fireEvent.click(screen.getByText('next'))
+  })
+
+  it('scene-intro and prop/costume/action kinds', async () => {
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    for (const kind of [
+      'scene-intro',
+      'prop-intro',
+      'costume-intro',
+      'action-intro'
+    ] as const) {
+      act(() => {
+        startHandler!({
+          kind,
+          entityIds: {
+            characterId: 'c1',
+            sceneId: 'sc1',
+            propId: 'p1',
+            costumeId: 'k1',
+            actionId: 'a1'
+          }
+        })
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2500)
+      })
+    }
+    expect(api.videoPrep.create.mock.calls.length).toBeGreaterThan(0)
+  })
+
+  it('openFromStill failure falls back to create', async () => {
+    api.videoPrep.openFromStill = vi
+      .fn()
+      .mockRejectedValue(new Error('no still'))
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'timeline-clip',
+        entityIds: { storyId: 's1', entryId: 'e1' },
+        skipStillIfExists: true
+      })
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    await waitFor(() => expect(api.videoPrep.create).toHaveBeenCalled())
+  })
+
+  it('dialog cancel on abandon keeps session when confirm false', async () => {
+    dialog.confirm.mockResolvedValueOnce(false)
+    render(
+      <Provider>
+        <VideoPrepHost />
+      </Provider>
+    )
+    await waitFor(() => expect(startHandler).toBeTruthy())
+    act(() => {
+      startHandler!({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        resumeDraft
+      })
+    })
+    await waitFor(() => screen.getByText('abandon'))
+    fireEvent.click(screen.getByText('abandon'))
+    // modal may remain if cancel
+  })
 })
 

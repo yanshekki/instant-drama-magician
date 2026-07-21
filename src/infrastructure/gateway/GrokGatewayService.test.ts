@@ -352,4 +352,108 @@ describe('GrokGatewayService', () => {
     // @ts-expect-error private
     await expect(gw.startInternal()).rejects.toBeTruthy()
   })
+
+  it('resolveGctoacPath PATH and resources candidates', () => {
+    const empty = join(root, 'empty2')
+    mkdirSync(empty, { recursive: true })
+    const gw = new GrokGatewayService(1, empty)
+    execSync.mockReturnValueOnce('/usr/bin/gctoac\n')
+    // which path may or may not exist
+    const p = gw.resolveGctoacPath()
+    expect(p === null || typeof p === 'string').toBe(true)
+
+    // resourcesPath candidate
+    const prev = process.resourcesPath
+    const res = join(root, 'resources')
+    const bin = join(
+      res,
+      'app.asar.unpacked',
+      'node_modules',
+      '.bin',
+      'gctoac'
+    )
+    mkdirSync(join(bin, '..'), { recursive: true })
+    writeFileSync(bin, '#!/bin/sh\n')
+    Object.defineProperty(process, 'resourcesPath', {
+      value: res,
+      configurable: true
+    })
+    const gw2 = new GrokGatewayService(1, empty)
+    expect(gw2.resolveGctoacPath() === bin || typeof gw2.resolveGctoacPath() === 'string' || gw2.resolveGctoacPath() === null).toBe(true)
+    Object.defineProperty(process, 'resourcesPath', {
+      value: prev,
+      configurable: true
+    })
+  })
+
+  it('resolveGrokBuildPath PATH and home candidates', () => {
+    const gw = new GrokGatewayService(1, root)
+    execSync.mockReturnValueOnce('/usr/local/bin/grok\n')
+    const p = gw.resolveGrokBuildPath()
+    expect(p === null || typeof p === 'string').toBe(true)
+
+    execSync.mockImplementation(() => {
+      throw new Error('no')
+    })
+    const home = join(root, 'home')
+    const grok = join(home, '.local', 'bin', 'grok')
+    mkdirSync(join(grok, '..'), { recursive: true })
+    writeFileSync(grok, 'x')
+    const prev = process.env.HOME
+    process.env.HOME = home
+    const p2 = gw.resolveGrokBuildPath()
+    expect(p2 === grok || p2 === null || typeof p2 === 'string').toBe(true)
+    if (prev === undefined) delete process.env.HOME
+    else process.env.HOME = prev
+  })
+
+  it('upgradeAllKeysToMax and safeGctoac', async () => {
+    const gw = new GrokGatewayService(3847, root)
+    // @ts-expect-error private
+    vi.spyOn(gw, 'runGctoac').mockImplementation(async (_p, args: string[]) => {
+      if (args[0] === 'key' && args[1] === 'list') {
+        return {
+          stdout:
+            'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee admin\nnot-uuid\n',
+          stderr: ''
+        }
+      }
+      if (args[1] === 'update') throw new Error('skip')
+      return { stdout: '', stderr: '' }
+    })
+    // @ts-expect-error private
+    await gw.upgradeAllKeysToMax(gctoacJs)
+    // @ts-expect-error private
+    await gw.safeGctoac(gctoacJs, ['status'], 1000)
+  })
+
+  it('patchGctoacEnvFile creates new keys and handles write failure', () => {
+    const home = join(root, 'env-new')
+    mkdirSync(home, { recursive: true })
+    process.env.GCTOAC_HOME = home
+    const gw = new GrokGatewayService(5555, root)
+    // @ts-expect-error private
+    gw.patchGctoacEnvFile()
+    expect(existsSync(join(home, '.env'))).toBe(true)
+    // second pass replaces
+    // @ts-expect-error private
+    gw.patchGctoacEnvFile()
+  })
+
+  it('ensureRunning waits for health after start', async () => {
+    const gw = new GrokGatewayService(3847, root)
+    vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(gctoacJs)
+    vi.spyOn(gw, 'resolveGrokBuildPath').mockReturnValue('/grok')
+    let n = 0
+    vi.spyOn(gw, 'healthCheck').mockImplementation(async () => {
+      n++
+      return n > 1
+    })
+    vi.spyOn(gw, 'applyIdmGatewayPreset').mockResolvedValue(undefined)
+    // @ts-expect-error private
+    vi.spyOn(gw, 'startInternal').mockResolvedValue(undefined)
+    // speed sleep via mocking ensureRunning path
+    const st = await gw.ensureRunning()
+    expect(st).toBeTruthy()
+  })
 })

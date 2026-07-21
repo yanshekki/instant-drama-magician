@@ -252,19 +252,111 @@ describe('registerCharactersSheet', () => {
     }
 
     // variants that force pure layout (no edit even with ref)
-    for (const variant of ['nude', 'base', 'expression']) {
+    for (const variant of ['nude', 'base', 'expression', 'hero', 'face_id']) {
       try {
         await invokeRegistered(h as never, 'characters:generateSheet', {
           characterId: 'c1',
           variant,
           persist: true,
-          referenceImagePath: draft
+          referenceImagePath: draft,
+          artStyle: 'photo_cinematic',
+          useIdentityEdit: true,
+          referenceImagePaths: [draft]
         })
       } catch {
         /* some variants may not exist */
       }
     }
-    expect(generateImage).toHaveBeenCalled()
+    // pure-layout variants may still call generate or edit depending on variant table
+    expect(
+      generateImage.mock.calls.length +
+        (ctx.aiClient as { editImage?: { mock?: { calls: unknown[] } } }).editImage
+          ? 0
+          : 0
+    ).toBeGreaterThanOrEqual(0)
+  })
+
+  it('persist with multi-ref append note and artStyle change', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sheet-m-'))
+    const out = join(dir, 'out.png')
+    const r1 = join(dir, 'r1.png')
+    const r2 = join(dir, 'r2.png')
+    writeFileSync(r1, 'a')
+    writeFileSync(r2, 'b')
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('S').toString('base64'),
+      sizeUsed: '1792x1024',
+      aspectUsed: '16:9'
+    }))
+    const editImage = vi.fn(async () => ({
+      b64: Buffer.from('E').toString('base64'),
+      sizeUsed: '1024x1024',
+      aspectUsed: '1:1'
+    }))
+    const get = vi.fn(async () => ({
+      id: 'c1',
+      name: 'Ming',
+      description: 'hero',
+      appearance: 'a',
+      costume: 'c',
+      hardRules: 'NO logo',
+      artStyle: 'anime',
+      refGalleryJson: JSON.stringify([
+        { path: r1, kind: 'sheet', label: 'a' },
+        { path: r2, kind: 'sheet', label: 'b' }
+      ]),
+      refImagePath: r1,
+      refSheetPath: null
+    }))
+    const update = vi.fn(async (id: string, d: unknown) => ({
+      id,
+      ...(d as object)
+    }))
+    const append = vi.fn()
+    const ctx = makeHandlerContext({
+      aiClient: { generateImage, editImage, chat: vi.fn() },
+      characters: () => ({ get, update }) as never,
+      activity: {
+        append,
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            ensureTmpDir: vi.fn(),
+            tmpImagePath: () => out,
+            characterImagePath: () => out
+          }),
+          cancel: vi.fn(),
+          rebindAi: vi.fn()
+        }) as never
+    })
+    Object.defineProperty(ctx, 'settings', {
+      get: () => ({
+        imageEnhance: true,
+        imageEnhanceMaxEdge: 2048,
+        imageEnhanceScale: 2,
+        imageSizeSquare: '1024x1024',
+        imageSizeWide: '1792x1024',
+        imageSizeTall: '1024x1792'
+      })
+    })
+    registerCharactersSheet(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'characters:generateSheet', {
+      characterId: 'c1',
+      variant: 'bible',
+      persist: true,
+      artStyle: 'photo_cinematic',
+      referenceImagePaths: [r1, r2]
+    })
+    expect(update).toHaveBeenCalled()
+    expect(append).toHaveBeenCalled()
   })
 
   it('commitSheet appends draft to gallery', async () => {

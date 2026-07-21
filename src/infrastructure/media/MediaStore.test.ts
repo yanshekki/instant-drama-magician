@@ -279,10 +279,49 @@ describe('MediaStore', () => {
     // clearEntryStillUserCleared / readEntryStillPrompt unreadable
     store.markEntryStillUserCleared('s2', 'e1')
     store.clearEntryStillUserCleared('s2', 'e1')
+    // double clear (missing path)
+    store.clearEntryStillUserCleared('s2', 'e1')
     store.writeEntryStillPromptJson('s2', 'e1', '{}')
     const p = store.entryStillPromptPath('s2', 'e1')
     rmSync(p, { force: true })
     mkdirSync(p, { recursive: true })
     expect(store.readEntryStillPromptJson('s2', 'e1')).toBeNull()
+  })
+
+  it('promoteTmpTo unlink ignore and discardTmp unlink ignore', () => {
+    store.ensureTmpDir()
+    store.ensureLibraryDirs()
+    const tmp = store.tmpImagePath('x')
+    writeFileSync(tmp, 'img')
+    const dest = store.promoteTmpImage(null, 'c9', tmp, 'sheet')
+    expect(existsSync(dest)).toBe(true)
+
+    // promote permanent file (not under tmp) — should not delete source
+    const permanent = store.characterImagePath('c9', 'perm')
+    mkdirSync(join(permanent, '..'), { recursive: true })
+    writeFileSync(permanent, 'p')
+    store.promoteTmpImage(null, 'c9', permanent, 'copy')
+
+    // discardTmp on missing
+    store.discardTmp(join(root, 'tmp', 'nope.png'))
+  })
+
+  it('recordExportHistory with workPath size and delete removes work twin', () => {
+    store.ensureStoryDirs('s3')
+    const name = 'Show_final_7.mp4'
+    const work = join(store.exportsDir('s3'), name)
+    writeFileSync(work, 'vid')
+    const pub = join(root, 'pub', name)
+    mkdirSync(join(root, 'pub'), { recursive: true })
+    writeFileSync(pub, 'vid2')
+    const item = store.recordExportHistory('s3', {
+      kind: 'final',
+      path: pub,
+      workPath: work,
+      fileName: name
+    })
+    expect(item.sizeBytes).toBeGreaterThan(0)
+    const del = store.deleteExportHistoryItem('s3', name)
+    expect(del.deleted).toBe(true)
   })
 })

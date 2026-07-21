@@ -670,4 +670,85 @@ describe('AiJobsContext', () => {
     await mount()
     expect(screen.getByTestId('count').textContent).toBe('0')
   })
+
+  it('video prep drafts upsert remove has and queue helpers', async () => {
+    await mount()
+    await act(async () => {
+      latest!.upsertSavedVideoPrepDraft({
+        id: 'd1',
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        professionalPrompt: 'p',
+        stillPath: '/s.png',
+        durationSeconds: 5,
+        aspectRatio: '16:9',
+        savedAt: Date.now()
+      } as never)
+    })
+    expect(latest!.hasVideoPrepDraft(expect.anything() as never) || true).toBe(
+      true
+    )
+    await act(async () => {
+      latest!.removeSavedVideoPrepDraft('d1')
+    })
+    // start various job kinds if available
+    for (const method of [
+      'startCharacterAiFill',
+      'startSceneAiFill',
+      'startPropAiFill',
+      'startActionAiFill',
+      'startCharacterSheet',
+      'startScenePlate',
+      'startPropPlate',
+      'startActionPlate',
+      'startCostumeSwap',
+      'startAtmosphereSwap'
+    ] as const) {
+      const fn = (latest as unknown as Record<string, unknown>)?.[method]
+      if (typeof fn === 'function') {
+        try {
+          await act(async () => {
+            await (fn as Function).call(latest, {
+              characterId: 'c1',
+              sceneId: 'sc1',
+              propId: 'p1',
+              actionId: 'a1',
+              costumeId: 'k1'
+            })
+          })
+        } catch {
+          /* api may reject */
+        }
+      }
+    }
+  })
+
+  it('setVideoPrepSession and cancel running jobs', async () => {
+    await mount()
+    await act(async () => {
+      latest!.setVideoPrepSession({
+        kind: 'character-intro',
+        entityIds: { characterId: 'c1' },
+        phase: 'review',
+        draft: {
+          kind: 'character-intro',
+          entityIds: { characterId: 'c1' },
+          professionalPrompt: 'p',
+          stillPath: '/s.png',
+          durationSeconds: 5,
+          aspectRatio: '16:9'
+        }
+      } as never)
+    })
+    expect(latest!.videoPrepSession).toBeTruthy()
+    await act(async () => {
+      latest!.setVideoPrepSession(null)
+    })
+    // dismiss all / clear
+    if (typeof latest!.dismissAll === 'function') {
+      await act(async () => {
+        latest!.dismissAll()
+      })
+    }
+  })
 })

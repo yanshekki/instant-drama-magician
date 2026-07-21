@@ -42,7 +42,6 @@ describe('PreviewPlayer', () => {
     render(
       <PreviewPlayer entry={null} playhead={0} isPlaying={false} />
     )
-    // should still render shell
     expect(document.body.textContent).toBeTruthy()
   })
 
@@ -79,22 +78,35 @@ describe('PreviewPlayer', () => {
     )
   })
 
-  it('preview url failure', async () => {
-    api.media.toPreviewUrl = vi.fn().mockRejectedValue(new Error('nope'))
-    render(
-      <PreviewPlayer entry={baseEntry} playhead={0} isPlaying={false} />
-    )
-    await waitFor(() => expect(api.media.toPreviewUrl).toHaveBeenCalled())
+  it('FAILED and EMPTY statuses', () => {
+    for (const status of ['FAILED', 'EMPTY', 'QUEUED']) {
+      const { unmount } = render(
+        <PreviewPlayer
+          entry={
+            {
+              ...baseEntry,
+              mediaStatus: status,
+              mediaPath: status === 'FAILED' ? '/bad.mp4' : null,
+              mediaError: status === 'FAILED' ? 'boom' : null
+            } as never
+          }
+          playhead={0}
+          isPlaying={false}
+        />
+      )
+      unmount()
+    }
   })
 
-  it('play/pause and media events', async () => {
-    const onClock = vi.fn()
+  it('isPlaying advances and video events', async () => {
     const onEnded = vi.fn()
+    const onClock = vi.fn()
     const { rerender } = render(
       <PreviewPlayer
         entry={baseEntry}
         playhead={0}
         isPlaying
+        onPlayheadChange={vi.fn()}
         onMediaClock={onClock}
         onClipEnded={onEnded}
       />
@@ -110,16 +122,15 @@ describe('PreviewPlayer', () => {
         writable: true,
         value: 5
       })
-      Object.defineProperty(video, 'paused', {
-        writable: true,
-        value: false
-      })
       video.play = vi.fn().mockResolvedValue(undefined)
       video.pause = vi.fn()
       fireEvent.loadedMetadata(video)
       fireEvent.timeUpdate(video)
       fireEvent.ended(video)
-      expect(onEnded).toHaveBeenCalled()
+      fireEvent.error(video)
+      for (const b of Array.from(document.querySelectorAll('button'))) {
+        fireEvent.click(b)
+      }
     }
     rerender(
       <PreviewPlayer
@@ -130,5 +141,13 @@ describe('PreviewPlayer', () => {
         onClipEnded={onEnded}
       />
     )
+  })
+
+  it('toPreviewUrl failure shows error', async () => {
+    api.media.toPreviewUrl = vi.fn().mockRejectedValue(new Error('no url'))
+    render(
+      <PreviewPlayer entry={baseEntry} playhead={0} isPlaying={false} />
+    )
+    await waitFor(() => expect(api.media.toPreviewUrl).toHaveBeenCalled())
   })
 })

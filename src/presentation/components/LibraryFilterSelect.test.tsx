@@ -57,4 +57,18 @@ describe('LibraryFilterSelect', () => {
     )
     expect(screen.getByRole('combobox')).toBeTruthy()
   })
+
+  it('uniqueFacetValues sorts, emptyToken, limit', async () => {
+    const { uniqueFacetValues } = await import('./LibraryFilterSelect')
+    expect(
+      uniqueFacetValues(['  b ', 'a', null, '', 'a', '  '], {
+        emptyToken: '(empty)',
+        limit: 10
+      })
+    ).toEqual(expect.arrayContaining(['a', 'b', '(empty)']))
+    expect(
+      uniqueFacetValues(['z', 'y', 'x', 'w'], { limit: 2 }).length
+    ).toBe(2)
+    expect(uniqueFacetValues([null, undefined, '  '])).toEqual([])
+  })
 })
