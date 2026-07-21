@@ -1,4 +1,4 @@
-import { sceneLinkLabel, beatSegmentLabel, locationSnippet } from '../../../domain/residualLabels'
+import { beatSegmentLabel, locationSnippet, sceneLinkLabel, unknownCharacterName, whereFromScene } from '../../../domain/residualLabels'
 /**
  * registerCharactersWardrobe
  */
@@ -134,9 +134,12 @@ reg(
           const s = link.scene
           const script = link.scriptOverride ?? s.script
           segmentLabel =
-            locale === 'en'
-              ? `Scene ${link.sceneNumber}: ${s.title || s.description.slice(0, 40)}`
-              : `第 ${link.sceneNumber} 場：${s.title || s.description.slice(0, 40)}`
+            sceneLinkLabel(
+              locale,
+              link.sceneNumber,
+              s.title,
+              s.description
+            )
           sceneSnippets = [
             [
               segmentLabel,
@@ -162,20 +165,19 @@ reg(
           if (!beat) {
             throw new AppError('VALIDATION', 'errors.timelineBeatNotFound')
           }
-          const who = beat.character?.name ?? (locale === 'en' ? 'Unknown' : '未指定')
+          const who = beat.character?.name ?? unknownCharacterName(locale)
           const where =
-            beat.scene?.title || beat.scene?.description?.slice(0, 40) || ''
+            whereFromScene(beat.scene)
           segmentLabel =
-            locale === 'en'
-              ? `Beat ${beat.order + 1} · ${who}${where ? ` @ ${where}` : ''}`
-              : `段落 ${beat.order + 1} · ${who}${where ? ` @ ${where}` : ''}`
+            beatSegmentLabel(locale, beat.order, who, where)
           sceneSnippets = [
             [
               segmentLabel,
               beat.dialogue ? `Dialogue: ${beat.dialogue}` : '',
-              beat.scene
-                ? `Location: ${beat.scene.description}`
-                : '',
+              locationSnippet(
+                Boolean(beat.scene),
+                beat.scene?.description || ''
+              ),
               beat.prop ? `Prop: ${beat.prop.name}` : ''
             ]
               .filter(Boolean)

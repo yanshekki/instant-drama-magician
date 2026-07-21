@@ -132,8 +132,7 @@ reg(
       const draft = payload.existingDraft
       const hasDraft = Boolean(
         draft &&
-          ((draft.name && draft.name.trim()) ||
-            (draft.description && draft.description.trim()))
+          draftHasNameOrDescription(draft)
       )
       const idea = payload.idea?.trim() ?? ''
       const {
@@ -249,9 +248,7 @@ reg(
             ? costumePatch.profile.hardRules
             : hardRules
         ) || hardRules
-      const costumeRaw = costumePatch.raw
-        ? `${text}\n---missing-fill---\n${costumePatch.raw}`
-        : text
+      const costumeRaw = mergeCostumeRaw(text, costumePatch.raw)
       activity.append({
         kind: 'costume',
         message: hasImage
