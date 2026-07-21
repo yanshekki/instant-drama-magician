@@ -415,11 +415,7 @@ export function CharactersPage(): JSX.Element {
           reload,
           toastSuccess: () => toast.success(t('characters.sheetOkShort')),
           setPageBanner: () => setPageBanner(t('characters.sheetOkShort')),
-          listCharacter: (id) =>
-            charactersFindInList(
-              () => getApi().characters.list() as Promise<Character[]>,
-              id
-            ),
+          listCharacter: (id) => charactersFindInList(() => getApi().characters.list() as Promise<Character[]>, id),
           ensureCostume: ensureCostumeInLibrary
         }
       )
@@ -667,9 +663,10 @@ export function CharactersPage(): JSX.Element {
       hardRules: form.hardRules || null,
       soulHubId: form.soulHubId,
       artStyle: form.artStyle,
-      costumesJson: costumes.length
-        ? serializeCharacterCostumes(costumes)
-        : null
+      costumesJson: charactersCostumesJsonOrNull(
+        costumes,
+        serializeCharacterCostumes
+      )
     }
   }
 
@@ -752,9 +749,10 @@ export function CharactersPage(): JSX.Element {
           hardRules: nextForm.hardRules || null,
           soulHubId: nextForm.soulHubId,
           artStyle: nextForm.artStyle,
-          costumesJson: costumes.length
-            ? serializeCharacterCostumes(costumes)
-            : null
+          costumesJson: charactersCostumesJsonOrNull(
+            costumes,
+            serializeCharacterCostumes
+          )
         }
       },
       update,
@@ -907,9 +905,8 @@ export function CharactersPage(): JSX.Element {
     })
   }
 
-  const handleRemoveCostumeLook = (id: string): void => {
-    charactersRemoveCostumeLook(setForm, id, removeCostume)
-  }
+  const handleRemoveCostumeLook = (id: string): void =>
+    charactersHandleRemoveCostume(setForm, id)
 
   // Default plot context to active story when editor opens costume tab
   useEffect(() => {
@@ -1006,38 +1003,25 @@ export function CharactersPage(): JSX.Element {
             characterId,
             storyId: activeStoryId ?? undefined
           },
-          run: async ({ setProgress, signal }) => {
-            setProgress(10, 'edit')
-            const r = await getApi().characters.swapCostume({
-              characterId,
-              costumeDescription,
-              baseImagePath,
-              artStyle,
-              pose: swapPose,
-              persist: false
-            })
-            if (
-              await charactersJobCancelDiscard(
-                signal.cancelled,
-                (p) => getApi().media.discardSheetDraft(p),
-                r.path
-              )
-            ) {
-              return
-            }
-            setProgress(100, 'done')
-            return {
-              type: 'character-sheet' as const,
+          run: async ({ setProgress, signal }) =>
+            charactersSwapJobBody({
+              swap: () =>
+                getApi().characters.swapCostume({
+                  characterId,
+                  costumeDescription,
+                  baseImagePath,
+                  artStyle,
+                  pose: swapPose,
+                  persist: false
+                }),
+              signal,
+              discard: (p) => getApi().media.discardSheetDraft(p),
               characterId,
               storyId: activeStoryId ?? '',
-              path: r.path,
-              variant: r.variant ?? 'costume_swap',
-              label: r.label ?? t('characters.swapCostume'),
-              layer: r.layer ?? 'costume',
               costumeDescription,
-              enhance: r.enhance
-            }
-          }
+              defaultLabel: t('characters.swapCostume'),
+              setProgress
+            })
         })
       }
     })
@@ -1104,13 +1088,7 @@ export function CharactersPage(): JSX.Element {
         useEdit
           ? buildCharacterSheetEditPrompt(profile, variant, artStyle)
           : buildCharacterSheetImagePrompt(profile, variant, artStyle),
-      maybeAppendMulti: (prompt, pths) =>
-        charactersBuildSheetMultiAppend(
-          prompt,
-          pths,
-          getAiLocale(i18n.language),
-          appendMultiRefNote as (p: string, paths: string[], locale?: string) => string
-        ),
+      maybeAppendMulti: (prompt, pths) => charactersBuildSheetMultiAppend(prompt, pths, getAiLocale(i18n.language), appendMultiRefNote as (p: string, paths: string[], locale?: string) => string),
       ensureRules: (prompt) => ensureHardRules(prompt, form.hardRules),
       modeLabel: '',
       summaryParts: `${t('characters.sheetVariant')}: ${variantLabel} · ${t('characters.artStyle')}: ${styleLabel} · ${charactersSheetModeLabel(
@@ -1149,40 +1127,26 @@ export function CharactersPage(): JSX.Element {
             characterId: id,
             storyId: activeStoryId ?? undefined
           },
-          run: async ({ setProgress, signal }) => {
-            setProgress(10, 'image')
-            const r = await getApi().characters.generateSheet({
-              characterId: id,
-              variant,
-              referenceImagePath: confirm.referencePaths[0] ?? null,
-              referenceImagePaths: confirm.referencePaths,
-              useIdentityEdit: confirm.useIdentityEdit,
-              persist: false,
-              artStyle,
-              promptOverride: confirm.prompt
-            })
-            if (
-              await charactersJobCancelDiscard(
-                signal.cancelled,
-                (p) => getApi().media.discardSheetDraft(p),
-                r.path
-              )
-            ) {
-              return
-            }
-            setProgress(100, 'done')
-            return {
-              type: 'character-sheet' as const,
+          run: async ({ setProgress, signal }) =>
+            charactersSheetJobBody({
+              generate: () =>
+                getApi().characters.generateSheet({
+                  characterId: id,
+                  variant,
+                  referenceImagePath: confirm.referencePaths[0] ?? null,
+                  referenceImagePaths: confirm.referencePaths,
+                  useIdentityEdit: confirm.useIdentityEdit,
+                  persist: false,
+                  artStyle,
+                  promptOverride: confirm.prompt
+                }),
+              signal,
+              discard: (p) => getApi().media.discardSheetDraft(p),
               characterId: id,
               storyId: activeStoryId ?? '',
-              path: r.path,
-              variant: r.variant ?? variant,
-              label: r.label ?? variant,
-              usedEdit: r.usedEdit,
-              enhance: r.enhance,
-              layer: (r as { layer?: string }).layer
-            }
-          }
+              variant,
+              setProgress
+            })
         })
       }
     })
@@ -1190,53 +1154,44 @@ export function CharactersPage(): JSX.Element {
 
   /** Animate the selected still into a self-intro video using profile bible. */
   const handleGenerateIntroVideo = (sourceImagePath: string): void => {
-    const g = charactersGuardIntro(
-      editingId,
-      sourceImagePath,
-      characterAiBusy(editingId),
-      setActionError,
-      toast.error,
-      toast.info,
-      {
-        saveFirst: t('characters.saveBeforeSheet'),
-        needImage: t('characters.introVideoNeedImage'),
-        loading: t('aiJobs.running')
-      }
-    )
-    if (g !== 'ok') return
     setActionError(null)
-    const characterId = editingId!
+    const characterId = editingId
     const sourcePath = sourceImagePath.trim()
     const draftKey = buildVideoPrepDraftKey(
       'character-intro',
-      { characterId },
+      { characterId: characterId ?? undefined },
       sourcePath
     )
-    if (
-      charactersContinueDraftOr(hasVideoPrepDraft(draftKey), () =>
-        continueVideoPrepDraft(draftKey)
-      )
-    ) {
-      return
-    }
-    void (async () => {
-      try {
-        await update(characterId, payload())
-      } catch (e) {
-        charactersApplySimpleIpc(e, toast.error)
-        return
-      }
-      startVideoPrep({
-        kind: 'character-intro',
-        entityIds: {
-          characterId,
-          storyId: activeStoryId ?? undefined
-        },
-        sourceImagePath: sourcePath,
-        durationSeconds: 10,
-        locale: getAiLocale(i18n.language)
-      })
-    })()
+    charactersHandleIntroVideoFlow({
+      editingId,
+      sourceImagePath,
+      busy: characterAiBusy(editingId),
+      setError: setActionError,
+      toastError: toast.error,
+      toastInfo: toast.info,
+      msgs: {
+        saveFirst: t('characters.saveBeforeSheet'),
+        needImage: t('characters.introVideoNeedImage'),
+        loading: t('aiJobs.running')
+      },
+      hasDraft: hasVideoPrepDraft(draftKey),
+      continueDraft: charactersContinueDraftCb(
+        continueVideoPrepDraft,
+        draftKey
+      ),
+      update: () => update(characterId!, payload()),
+      startPrep: () =>
+        startVideoPrep({
+          kind: 'character-intro',
+          entityIds: {
+            characterId: characterId!,
+            storyId: activeStoryId ?? undefined
+          },
+          sourceImagePath: sourcePath,
+          durationSeconds: 10,
+          locale: getAiLocale(i18n.language)
+        })
+    })
   }
 
   // After video confirm, reload gallery introVideoPath on the source still
@@ -1277,9 +1232,8 @@ export function CharactersPage(): JSX.Element {
   }
 
 
-  const handleReorderGallery = (fromId: string, toId: string): void => {
-    charactersReorderGallery(setForm, fromId, toId, moveGalleryItem)
-  }
+  const handleReorderGallery = (fromId: string, toId: string): void =>
+    charactersHandleReorder(setForm, fromId, toId)
 
   const handleRemoveImage = (id: string): void => {
     const removed = form.gallery.find((g) => g.id === id)
@@ -1368,11 +1322,8 @@ export function CharactersPage(): JSX.Element {
     }
   }, [editorOpen, editorPanel, editingId])
 
-  const previewSoulFromCatalog = async (
-    id: number,
-    titleHint?: string
-  ): Promise<void> => {
-    await charactersPreviewSoul({
+  const previewSoulFromCatalog = (id: number, titleHint?: string) =>
+    charactersPreviewSoul({
       id,
       titleHint,
       setCatalogPickId,
@@ -1388,13 +1339,8 @@ export function CharactersPage(): JSX.Element {
       setCatalogPickBody,
       formSoulHubId: form.soulHubId,
       formSoulPreview: form.soulPreview,
-      setSoulPreview: (body) =>
-        setForm((f) => ({
-          ...f,
-          soulPreview: body
-        }))
+      setSoulPreview: (body) => setForm((f) => ({ ...f, soulPreview: body }))
     })
-  }
 
   const applySoulFromHub = async (
     id: number,
@@ -1440,14 +1386,13 @@ export function CharactersPage(): JSX.Element {
     setCatalogPickBody(result.content)
   }
 
-  const clearSoulLink = (): void => {
+  const clearSoulLink = (): void =>
     charactersClearSoulState({
       setForm,
       setCatalogPickId,
       setCatalogPickTitle,
       setCatalogPickBody
     })
-  }
 
   const handleGenerateSoul = (): void => {
     setActionError(null)
@@ -1469,15 +1414,7 @@ export function CharactersPage(): JSX.Element {
     ) {
       return
     }
-    if (
-      charactersGuardBusy(
-        characterAiBusy(editingId),
-        toast.info,
-        t('aiJobs.running')
-      )
-    ) {
-      return
-    }
+    const soulStart = (): void => {
     setPageBanner(t('aiJobs.startedBackground'))
     toast.info(t('aiJobs.startedBackground'))
     // Use a real AiJobKind; apply Soul directly — do NOT return a half-empty
@@ -1541,9 +1478,14 @@ export function CharactersPage(): JSX.Element {
         // No draft — soul already applied to the open form
       }
     })
+    }
+    charactersGenerateSoulAfterGuards(
+      characterAiBusy(editingId),
+      toast.info,
+      t('aiJobs.running'),
+      soulStart
+    )
   }
-
-
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
@@ -1883,12 +1825,7 @@ export function CharactersPage(): JSX.Element {
                         </Button>
                         <Button
                           disabled={editorAiBusy}
-                          onClick={() =>
-                            charactersGenerateSheetFromEmpty(
-                              setEditorPanel,
-                              () => void handleGenerateSheet()
-                            )
-                          }
+                          onClick={() => charactersGenerateSheetFromEmpty(setEditorPanel, () => void handleGenerateSheet())}
                         >
                           {t('characters.generateSheet')}
                         </Button>
@@ -1904,11 +1841,7 @@ export function CharactersPage(): JSX.Element {
                   coverPath={form.coverPath}
                   fallbackCoverPath={primaryGalleryPath(form.gallery)}
                   onSelect={setSelectedImageId}
-                  onToggleSelect={(id) =>
-                    setSelectedImageIds((ids) =>
-                      charactersToggleSelectIds(ids, id, toggleGallerySelection)
-                    )
-                  }
+                  onToggleSelect={(id) => setSelectedImageIds((ids) => charactersToggleSelectIds(ids, id, toggleGallerySelection))}
                   onReorder={handleReorderGallery}
                   labelOf={(g) =>
                     translateCharacterGalleryLabel(g.label, t)
@@ -1956,9 +1889,11 @@ export function CharactersPage(): JSX.Element {
                     loading={editorAiBusy}
                     onClick={() => handleAiFill(true)}
                   >
-                    {editorAiBusy
-                      ? t('common.generating')
-                      : t('common.aiFill')}
+                    {charactersGeneratingLabel(
+                      editorAiBusy,
+                      t('common.generating'),
+                      t('common.aiFill')
+                    )}
                   </Button>
                 </section>
 
@@ -2098,12 +2033,7 @@ export function CharactersPage(): JSX.Element {
                       <Button
                         variant="ghost"
                         className="!py-1 text-xs"
-                        onClick={() =>
-                          charactersOpenExternal(
-                            (url) => void getApi().shell.openExternal(url),
-                            'https://soulmd-hub.ysk.hk'
-                          )
-                        }
+                        onClick={() => charactersOpenExternal((url) => void getApi().shell.openExternal(url), 'https://soulmd-hub.ysk.hk')}
                       >
                         {t('characters.openHub')}
                       </Button>
@@ -2120,9 +2050,11 @@ export function CharactersPage(): JSX.Element {
                         onClick={() => handleGenerateSoul()}
                         title={t('characters.generateSoulHint')}
                       >
-                        {editorAiBusy
-                          ? t('common.generating')
-                          : t('characters.generateSoul')}
+                        {charactersGeneratingLabel(
+                      editorAiBusy,
+                      t('common.generating'),
+                      t('characters.generateSoul')
+                    )}
                       </Button>
                     </div>
                   </div>
@@ -2143,12 +2075,7 @@ export function CharactersPage(): JSX.Element {
                         variant="ghost"
                         className="!py-0.5 !text-xs"
                         disabled={busy}
-                        onClick={() =>
-                          void loadSoulPreview({
-                            soulMdPath: form.soulMdPath,
-                            soulHubId: form.soulHubId
-                          })
-                        }
+                        onClick={() => void loadSoulPreview({ soulMdPath: form.soulMdPath, soulHubId: form.soulHubId })}
                       >
                         {t('characters.reloadSoul')}
                       </Button>
@@ -2167,11 +2094,7 @@ export function CharactersPage(): JSX.Element {
                       value={hubQ}
                       onChange={(e) => setHubQ(e.target.value)}
                       placeholder={t('characters.soulSearch')}
-                      onKeyDown={(e) => {
-                        charactersHubEnter(e.key, hubQ, (p, q) =>
-                          void loadHubPage(p, q)
-                        )
-                      }}
+                      onKeyDown={(e) => { charactersHubEnter(e.key, hubQ, (p, q) => void loadHubPage(p, q)) }}
                     />
                     <Button
                       variant="secondary"
@@ -2189,11 +2112,7 @@ export function CharactersPage(): JSX.Element {
                           key={`${s.kind}-${s.label}`}
                           type="button"
                           className="rounded-full border border-ink-700 bg-ink-950/80 px-2.5 py-0.5 text-[10px] text-ink-300 transition hover:border-brand-600/50 hover:text-brand-200"
-                          onClick={() =>
-                            charactersSuggestionSearch(s.label, setHubQ, (p, q) =>
-                              void loadHubPage(p, q)
-                            )
-                          }
+                          onClick={() => charactersSuggestionSearch(s.label, setHubQ, (p, q) => void loadHubPage(p, q))}
                         >
                           {s.label}
                         </button>
@@ -2232,9 +2151,7 @@ export function CharactersPage(): JSX.Element {
                                 <button
                                   type="button"
                                   className="min-w-0 flex-1 text-left"
-                                  onClick={() =>
-                                    void previewSoulFromCatalog(it.id, it.title)
-                                  }
+                                  onClick={() => void previewSoulFromCatalog(it.id, it.title)}
                                 >
                                   <span className="block truncate text-sm font-medium text-ink-100">
                                     {it.role_icon ?? '✦'} {it.title}
@@ -2306,12 +2223,7 @@ export function CharactersPage(): JSX.Element {
                               variant="secondary"
                               className="!shrink-0 !py-0.5 !text-xs"
                               disabled={busy}
-                              onClick={() =>
-                                charactersUseSoulButtonClick(
-                                  catalogPickId,
-                                  (id, opts) => void applySoulFromHub(id, opts)
-                                )
-                              }
+                              onClick={() => charactersUseSoulButtonClick(catalogPickId, (id, opts) => void applySoulFromHub(id, opts))}
                             >
                               {t('characters.useSoul')}
                             </Button>
@@ -2329,11 +2241,7 @@ export function CharactersPage(): JSX.Element {
                             value={
                               catalogPickBody ?? form.soulPreview ?? ''
                             }
-                            onChange={(e) => {
-                              const r = charactersSoulTextSetter(e.target.value)
-                              setCatalogPickBody(r.body)
-                              setForm(r.formUpdater)
-                            }}
+                            onChange={(e) => { const r = charactersSoulTextSetter(e.target.value); setCatalogPickBody(r.body); setForm(r.formUpdater) }}
                             placeholder={t('characters.soulEditPlaceholder')}
                             aria-label={t('characters.soulFullContent')}
                           />
@@ -2367,13 +2275,7 @@ export function CharactersPage(): JSX.Element {
                   >
                     <EditorSelect
                       value={sheetVariant}
-                      onChange={(e) =>
-                        charactersOnSheetVariantChange(
-                          e.target.value,
-                          setSheetVariant,
-                          setUseIdentityRef
-                        )
-                      }
+                      onChange={(e) => charactersOnSheetVariantChange(e.target.value, setSheetVariant, setUseIdentityRef)}
                     >
                       {(
                         [
@@ -2457,9 +2359,11 @@ export function CharactersPage(): JSX.Element {
                     disabled={editorAiBusy}
                     onClick={() => void handleGenerateSheet()}
                   >
-                    {editorAiBusy
-                      ? t('common.generating')
-                      : t('characters.generateSheet')}
+                    {charactersGeneratingLabel(
+                      editorAiBusy,
+                      t('common.generating'),
+                      t('characters.generateSheet')
+                    )}
                   </Button>
                   <Button
                     variant="secondary"
@@ -2527,9 +2431,7 @@ export function CharactersPage(): JSX.Element {
                               setLinkCostumePickId('')
                               toast.success(t('common.linked'))
                             })
-                            .catch((e) =>
-                              toast.error(charactersLinkCostumeError(e))
-                            )
+                            .catch(charactersMakeLinkCatch(toast.error))
                         }}
                       >
                         {t('costumes.linkCostume')}
@@ -2584,46 +2486,43 @@ export function CharactersPage(): JSX.Element {
                               type="button"
                               disabled={editorAiBusy || form.gallery.length === 0}
                               onClick={() => {
-                                if (!editingId) return
-                                if (
-                                  charactersDressedBusyGuard(
-                                    isBlocked({
-                                      kind: ['costume-swap'],
-                                      characterId: editingId
-                                    }),
-                                    toast.info,
-                                    t('aiJobs.running')
-                                  )
-                                ) {
-                                  return
-                                }
-                                toast.info(t('aiJobs.startedBackground'))
-                                startJob({
-                                  kind: 'costume-swap',
-                                  label: t('costumes.generateDressed'),
-                                  scope: { characterId: editingId },
-                                  run: async ({ setProgress, signal }) => {
-                                    setProgress(20, 'image')
-                                    await getApi().costumes.generateDressed({
-                                      costumeId: cos.id,
-                                      characterId: editingId,
-                                      baseImagePath:
-                                        swapBasePath || undefined
+                                charactersDressedClickGuard(
+                                  editingId,
+                                  isBlocked({
+                                    kind: ['costume-swap'],
+                                    characterId: editingId ?? undefined
+                                  }),
+                                  toast.info,
+                                  t('aiJobs.running'),
+                                  () => {
+                                    const cid = editingId!
+                                    toast.info(t('aiJobs.startedBackground'))
+                                    startJob({
+                                      kind: 'costume-swap',
+                                      label: t('costumes.generateDressed'),
+                                      scope: { characterId: cid },
+                                      run: async ({ setProgress, signal }) => {
+                                        setProgress(20, 'image')
+                                        await getApi().costumes.generateDressed({
+                                          costumeId: cos.id,
+                                          characterId: cid,
+                                          baseImagePath:
+                                            swapBasePath || undefined
+                                        })
+                                        if (signal.cancelled) return
+                                        setProgress(100, 'done')
+                                        const list =
+                                          await getApi().costumes.listForCharacter(
+                                            cid
+                                          )
+                                        setLinkedGlobalCostumes(list)
+                                        await reload()
+                                        toast.success(t('costumes.dressedOk'))
+                                        return undefined
+                                      }
                                     })
-                                    if (signal.cancelled) return
-                                    setProgress(100, 'done')
-                                    const list =
-                                      await getApi().costumes.listForCharacter(
-                                        editingId
-                                      )
-                                    setLinkedGlobalCostumes(list)
-                                    // Reload character so gallery includes the new dressed still
-                                    // (already committed on main — no character-sheet draft).
-                                    await reload()
-                                    toast.success(t('costumes.dressedOk'))
-                                    return undefined
                                   }
-                                })
+                                )
                               }}
                             >
                               {t('costumes.generateDressed')}
@@ -2660,9 +2559,7 @@ export function CharactersPage(): JSX.Element {
                                         t('characters.costumeLibUse')
                                       )
                                     )
-                                    .catch((e) =>
-                                      toast.error(charactersLinkCostumeError(e))
-                                    )
+                                    .catch(charactersMakeLinkCatch(toast.error))
                                 }}
                               >
                                 {t('characters.costumeLibUse')}
@@ -2696,9 +2593,10 @@ export function CharactersPage(): JSX.Element {
                           return (
                             <option key={g.id} value={g.path}>
                               {translateCharacterGalleryLabel(g.label, t)}
-                              {layer
-                                ? ` · ${t(`characters.layerFilter_${layer}`)}`
-                                : ''}
+                              {charactersLayerOptionSuffix(
+                                layer ?? undefined,
+                                t(`characters.layerFilter_${layer}`)
+                              )}
                             </option>
                           )
                         })}
@@ -2735,9 +2633,11 @@ export function CharactersPage(): JSX.Element {
                       disabled={editorAiBusy || form.gallery.length === 0}
                       onClick={() => void handleSwapCostume()}
                     >
-                      {editorAiBusy
-                        ? t('common.generating')
-                        : t('characters.swapCostume')}
+                      {charactersGeneratingLabel(
+                      editorAiBusy,
+                      t('common.generating'),
+                      t('characters.swapCostume')
+                    )}
                     </Button>
                     <Button
                       variant="ghost"
@@ -2770,13 +2670,7 @@ export function CharactersPage(): JSX.Element {
                       stories={stories}
                       storyId={plotStoryId}
                       segmentKey={plotSegmentKey}
-                      onStoryChange={(id) =>
-                        charactersPlotStoryChange(
-                          id,
-                          setPlotStoryId,
-                          setPlotSegmentKey
-                        )
-                      }
+                      onStoryChange={(id) => charactersPlotStoryChange(id, setPlotStoryId, setPlotSegmentKey)}
                       onSegmentChange={setPlotSegmentKey}
                     />
                     <Button
@@ -2821,11 +2715,13 @@ export function CharactersPage(): JSX.Element {
                           /^default$/i.test(cos.name.trim())
                             ? t('characters.costumeLibDefault')
                             : cos.name
-                        const styleLabel = cos.artStyle
-                          ? t(
-                              `characters.${getArtStyle(cos.artStyle).labelKey}`
+                        const styleLabel = charactersCostumeStyleLabel(
+                          cos.artStyle,
+                          (s) =>
+                            t(
+                              `characters.${getArtStyle(s as ArtStyleId).labelKey}`
                             )
-                          : null
+                        )
                         return (
                           <li
                             key={cos.id}
@@ -3738,12 +3634,7 @@ export async function charactersEnsureSavedId(ops: {
   const ok = await ops.create()
   if (!ok) return null
   await ops.reload()
-  const created = await charactersFindByName(ops.list, ops.name)
-  if (created) {
-    ops.setEditingId(created.id)
-    return created.id
-  }
-  return null
+  return charactersEnsureListLine(ops.list, ops.name, ops.setEditingId)
 }
 
 export function charactersApplyCostumeLook(
@@ -4541,6 +4432,275 @@ export function charactersCostumeBaseOptionLabel(
   labels: string
 ): string {
   return path ? labels : ''
+}
+
+
+export function charactersCostumesJsonOrNull(
+  costumes: CharacterCostumeEntry[],
+  serialize: (c: CharacterCostumeEntry[]) => string
+): string | null {
+  return costumes.length ? serialize(costumes) : null
+}
+
+export function charactersLayerOptionSuffix(
+  layer: string | undefined,
+  label: string
+): string {
+  return layer ? ` · ${label}` : ''
+}
+
+export function charactersCostumeStyleLabel(
+  artStyle: string | null | undefined,
+  labelOf: (style: string) => string
+): string | null {
+  return artStyle ? labelOf(artStyle) : null
+}
+
+export async function charactersSwapJobBody(ops: {
+  swap: () => Promise<{
+    path: string
+    variant?: string
+    label?: string
+    layer?: string
+    enhance?: unknown
+  }>
+  signal: { cancelled: boolean }
+  discard: (path: string) => Promise<unknown>
+  characterId: string
+  storyId: string
+  costumeDescription: string
+  defaultLabel: string
+  setProgress: (n: number, s?: string) => void
+}): Promise<
+  | {
+      type: 'character-sheet'
+      characterId: string
+      storyId: string
+      path: string
+      variant: string
+      label: string
+      layer: string
+      costumeDescription: string
+      enhance?: unknown
+    }
+  | undefined
+> {
+  ops.setProgress(10, 'edit')
+  const r = await ops.swap()
+  if (
+    await charactersJobCancelDiscard(
+      ops.signal.cancelled,
+      ops.discard,
+      r.path
+    )
+  ) {
+    return undefined
+  }
+  ops.setProgress(100, 'done')
+  return {
+    type: 'character-sheet',
+    characterId: ops.characterId,
+    storyId: ops.storyId,
+    path: r.path,
+    variant: r.variant ?? 'costume_swap',
+    label: r.label ?? ops.defaultLabel,
+    layer: r.layer ?? 'costume',
+    costumeDescription: ops.costumeDescription,
+    enhance: r.enhance
+  }
+}
+
+export async function charactersSheetJobBody(ops: {
+  generate: () => Promise<{
+    path: string
+    variant?: string
+    label?: string
+    usedEdit?: boolean
+    enhance?: unknown
+    layer?: string
+  }>
+  signal: { cancelled: boolean }
+  discard: (path: string) => Promise<unknown>
+  characterId: string
+  storyId: string
+  variant: string
+  setProgress: (n: number, s?: string) => void
+}): Promise<
+  | {
+      type: 'character-sheet'
+      characterId: string
+      storyId: string
+      path: string
+      variant: string
+      label: string
+      usedEdit?: boolean
+      enhance?: unknown
+      layer?: string
+    }
+  | undefined
+> {
+  ops.setProgress(10, 'image')
+  const r = await ops.generate()
+  if (
+    await charactersJobCancelDiscard(
+      ops.signal.cancelled,
+      ops.discard,
+      r.path
+    )
+  ) {
+    return undefined
+  }
+  ops.setProgress(100, 'done')
+  return {
+    type: 'character-sheet',
+    characterId: ops.characterId,
+    storyId: ops.storyId,
+    path: r.path,
+    variant: r.variant ?? ops.variant,
+    label: r.label ?? ops.variant,
+    usedEdit: r.usedEdit,
+    enhance: r.enhance,
+    layer: r.layer
+  }
+}
+
+export function charactersIntroStartFlow(ops: {
+  hasDraft: boolean
+  continueDraft: () => void
+}): 'continued' | 'proceed' {
+  if (charactersContinueDraftOr(ops.hasDraft, ops.continueDraft)) {
+    return 'continued'
+  }
+  return 'proceed'
+}
+
+export async function charactersIntroPersistThenPrep(ops: {
+  update: () => Promise<unknown>
+  toastError: (m: string) => void
+  startPrep: () => void
+}): Promise<'ok' | 'fail'> {
+  try {
+    await ops.update()
+  } catch (e) {
+    charactersApplySimpleIpc(e, ops.toastError)
+    return 'fail'
+  }
+  ops.startPrep()
+  return 'ok'
+}
+
+export function charactersGenerateSoulAfterGuards(
+  busy: boolean,
+  toastInfo: (m: string) => void,
+  runningMsg: string,
+  start: () => void
+): 'busy' | 'started' {
+  if (charactersGuardBusy(busy, toastInfo, runningMsg)) return 'busy'
+  start()
+  return 'started'
+}
+
+export function charactersDressedClickGuard(
+  editingId: string | null,
+  blocked: boolean,
+  toastInfo: (m: string) => void,
+  runningMsg: string,
+  start: () => void
+): 'no-id' | 'busy' | 'started' {
+  if (!editingId) return 'no-id'
+  if (charactersDressedBusyGuard(blocked, toastInfo, runningMsg)) return 'busy'
+  start()
+  return 'started'
+}
+
+
+export function charactersHandleIntroVideoFlow(ops: {
+  editingId: string | null
+  sourceImagePath: string
+  busy: boolean
+  setError: (m: string) => void
+  toastError: (m: string) => void
+  toastInfo: (m: string) => void
+  msgs: { saveFirst: string; needImage: string; loading: string }
+  hasDraft: boolean
+  continueDraft: () => void
+  update: () => Promise<unknown>
+  startPrep: () => void
+}): void {
+  const g = charactersGuardIntro(
+    ops.editingId,
+    ops.sourceImagePath,
+    ops.busy,
+    ops.setError,
+    ops.toastError,
+    ops.toastInfo,
+    ops.msgs
+  )
+  if (g !== 'ok') return
+  if (
+    charactersIntroStartFlow({
+      hasDraft: ops.hasDraft,
+      continueDraft: ops.continueDraft
+    }) === 'continued'
+  ) {
+    return
+  }
+  void charactersIntroPersistThenPrep({
+    update: ops.update,
+    toastError: ops.toastError,
+    startPrep: ops.startPrep
+  })
+}
+
+export function charactersHandleRemoveCostume(
+  setForm: Dispatch<SetStateAction<FormState>>,
+  id: string
+): void {
+  charactersRemoveCostumeLook(setForm, id, removeCostume)
+}
+
+export function charactersHandleReorder(
+  setForm: Dispatch<SetStateAction<FormState>>,
+  fromId: string,
+  toId: string
+): void {
+  charactersReorderGallery(setForm, fromId, toId, moveGalleryItem)
+}
+
+export function charactersLinkCatch(
+  e: unknown,
+  toastError: (m: string) => void
+): void {
+  toastError(charactersLinkCostumeError(e))
+}
+
+export async function charactersEnsureListLine(
+  list: () => Promise<Character[]>,
+  name: string,
+  setEditingId: (id: string) => void
+): Promise<string | null> {
+  const created = await charactersFindByName(list, name)
+  if (created) {
+    setEditingId(created.id)
+    return created.id
+  }
+  return null
+}
+
+
+export function charactersContinueDraftCb(
+  cont: (key: string) => void,
+  key: string
+): () => void {
+  return () => {
+    cont(key)
+  }
+}
+
+export function charactersMakeLinkCatch(
+  toastError: (m: string) => void
+): (e: unknown) => void {
+  return (e: unknown) => charactersLinkCatch(e, toastError)
 }
 
 export function CharactersField({

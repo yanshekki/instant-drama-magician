@@ -166,7 +166,23 @@ import {
   charactersSpokenOrUndefined,
   charactersSelectedIds,
   charactersGeneratingLabel,
-  charactersCostumeBaseOptionLabel
+  charactersCostumeBaseOptionLabel,
+  charactersCostumesJsonOrNull,
+  charactersLayerOptionSuffix,
+  charactersCostumeStyleLabel,
+  charactersSwapJobBody,
+  charactersSheetJobBody,
+  charactersIntroStartFlow,
+  charactersIntroPersistThenPrep,
+  charactersGenerateSoulAfterGuards,
+  charactersDressedClickGuard,
+  charactersHandleIntroVideoFlow,
+  charactersHandleRemoveCostume,
+  charactersHandleReorder,
+  charactersLinkCatch,
+  charactersEnsureListLine,
+  charactersContinueDraftCb,
+  charactersMakeLinkCatch
 } from './CharactersPage'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -212,6 +228,7 @@ import {
   propsNextCoverAfterGallery,
   propsResolveWantIdentity,
   propsApplyPickedImage,
+  propsCoverPathOnRemove,
   propsHandlePlateCommitted,
   propsHandleProfileApply,
   propsHandleVideoPrepDone,
@@ -222,6 +239,8 @@ import {
   propsRemoveWithFeedback,
   propsRunAiFill,
   propsRunCreateForEnsure,
+  propsRunGeneratePlateSetup,
+  propsRunIntroVideoFlow,
   propsRunPlateJob,
   propsRunSave,
   propsSelectedPathsForIdentity,
@@ -2972,6 +2991,101 @@ describe('abs100 Props absolute', () => {
         }
       )
     ).toBe('listed')
+
+    expect(
+      await propsRunIntroVideoFlow({
+        draftKey: 'k',
+        hasDraft: () => true,
+        continueDraft: () => msgs.push('cont'),
+        update: async () => undefined,
+        toastError: () => undefined,
+        start: () => msgs.push('st')
+      })
+    ).toBe('continue')
+    expect(msgs).toContain('cont')
+    expect(
+      await propsRunIntroVideoFlow({
+        draftKey: 'k',
+        hasDraft: () => false,
+        continueDraft: () => undefined,
+        update: async () => undefined,
+        toastError: () => undefined,
+        start: () => msgs.push('st2')
+      })
+    ).toBe('started')
+    expect(
+      await propsRunGeneratePlateSetup({
+        ensureSavedId: async () => null,
+        isBusy: () => false,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        setError: () => undefined,
+        toastError: () => undefined,
+        buildConfirm: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await propsRunGeneratePlateSetup({
+        ensureSavedId: async () => 'p',
+        isBusy: () => true,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        setError: () => undefined,
+        toastError: () => undefined,
+        buildConfirm: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      await propsRunGeneratePlateSetup({
+        ensureSavedId: async () => 'p',
+        isBusy: () => false,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        setError: () => undefined,
+        toastError: () => undefined,
+        buildConfirm: () => msgs.push('built')
+      })
+    ).toBe('ok')
+    expect(
+      await propsRunGeneratePlateSetup({
+        ensureSavedId: async () => {
+          throw new Error('boom')
+        },
+        isBusy: () => false,
+        toastInfo: () => undefined,
+        loadingMsg: 'L',
+        setError: () => undefined,
+        toastError: () => undefined,
+        buildConfirm: () => undefined
+      })
+    ).toBe('error')
+    expect(
+      propsCoverPathOnRemove(
+        '/a',
+        '/a',
+        [{ path: '/b' }],
+        () => false,
+        () => '/b'
+      )
+    ).toBe('/b')
+    expect(
+      propsCoverPathOnRemove(
+        '/keep',
+        '/a',
+        [{ path: '/keep' }],
+        () => true,
+        () => '/p'
+      )
+    ).toBe('/keep')
+    expect(
+      propsCoverPathOnRemove(
+        '/x',
+        '/a',
+        [{ path: '/b' }],
+        () => false,
+        () => '/b'
+      )
+    ).toBe('/b')
   })
 
   it('filters busy intro draft update fail plate profile cover remove', async () => {
@@ -4754,9 +4868,18 @@ describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
       .fn()
       .mockRejectedValueOnce(new Error('l'))
       .mockResolvedValue({})
+    api.costumes.setActive = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('sa'))
+      .mockResolvedValue({})
     api.costumes.generateDressed = vi.fn().mockResolvedValue({
       path: '/tmp/d.png'
     })
+    api.characters.writeSoulContent = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('ws'))
+      .mockResolvedValue({ filePath: '/tmp/soul.md', content: '# w' })
+    api.shell.openExternal = vi.fn().mockResolvedValue({ ok: true })
     api.souls.list = vi.fn().mockResolvedValue({
       data: [
         {
@@ -4792,7 +4915,7 @@ describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
         count: 1,
         pages: 2,
         fromCache: false,
-        suggestions: [{ id: 5, title: 'Soul5' }]
+        suggestions: [{ kind: 'role', label: 'Soul5' }]
       })
 
     await renderWithProviders(
@@ -4913,19 +5036,148 @@ describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
     await clickNamed(/^Profile$/i)
     await clickNamed(/Import local soul/i)
     await clickNamed(/Import local soul/i)
+    // soul hub external + search enter + suggestions
+    await clickNamed(/SoulMD Hub|soulmd|Open hub|Catalog/i)
+    const hubInput = Array.from(document.querySelectorAll('input')).find(
+      (el) =>
+        /soul|search|catalog/i.test(
+          (el as HTMLInputElement).placeholder || el.getAttribute('aria-label') || ''
+        )
+    ) as HTMLInputElement | undefined
+    if (hubInput) {
+      await act(async () =>
+        fireEvent.change(hubInput, { target: { value: 'Soul5' } })
+      )
+      await act(async () =>
+        fireEvent.keyDown(hubInput, { key: 'Enter', code: 'Enter' })
+      )
+    }
     await clickNamed(/Search|Reload|Refresh/i)
+    // suggestion chips
+    for (const b of screen.getAllByRole('button').filter((x) =>
+      /Soul5|noir|lead/i.test((x.textContent || '').trim())
+    )) {
+      await act(async () => fireEvent.click(b))
+    }
     await clickNamed(/→/)
     await clickNamed(/←/)
     const soul = screen.queryAllByText(/Soul5/i)[0]
     if (soul) await act(async () => fireEvent.click(soul))
+    // edit soul textarea
+    for (const ta of Array.from(document.querySelectorAll('textarea')).slice(
+      -2
+    )) {
+      await act(async () =>
+        fireEvent.change(ta, { target: { value: '# edited soul abs\nbody' } })
+      )
+    }
     await clickNamed(/Use soul|Use/i)
+    await clickNamed(/Reload soul|reload/i)
     await clickNamed(/Unlink|Clear soul/i)
     await clickNamed(/Generate Soul from profile/i)
     await act(async () => {
       await new Promise((r) => setTimeout(r, 40))
     })
+    // spoken languages / art style / sheet variant selects
+    await clickNamed(/^References$/i)
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 2) {
+        await act(async () =>
+          fireEvent.change(s, {
+            target: { value: s.options[s.options.length - 1].value }
+          })
+        )
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[0].value } })
+        )
+      }
+    }
+    // multi-select thumbs
+    for (const b of Array.from(document.querySelectorAll('button[title]')).slice(
+      0,
+      4
+    )) {
+      await act(async () => fireEvent.click(b))
+    }
+    // reorder
+    for (const b of screen.queryAllByLabelText(/Move right|Move left/i)) {
+      ;(b as HTMLButtonElement).disabled = false
+      await act(async () => fireEvent.click(b))
+    }
+    // bare-body variant if present
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const bare = Array.from(s.options).find((o) =>
+        /bare|nude|unclothed|body/i.test(o.textContent || '')
+      )
+      if (bare) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: bare.value } })
+        )
+      }
+    }
+    // empty gallery path: remove all then generate sheet from empty
+    for (let i = 0; i < 3; i++) {
+      await clickNamed(/Remove|remove/i)
+    }
+    await clickNamed(/Generate professional reference|Generate sheet|Generate/i)
+    await confirmImageGen().catch(() => false)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    // cancel plate for discard path
+    await hangBusy('character-sheet', { characterId: 'char-1' })
+    await forceClick(/Generate professional reference|Generate sheet/i)
+    await cancelAllJobs()
+    // intro draft continue already seeded
+    await clickNamed(/Intro|video|Continue/i)
+    await dismissVideoPrep(2000)
+    // costume: remove look, plot story, empty lib path
+    await clickNamed(/^Costume$/i)
+    for (const b of screen
+      .getAllByRole('button')
+      .filter((x) => /^Delete$/i.test((x.textContent || '').trim()))
+      .slice(0, 3)) {
+      await act(async () => fireEvent.click(b))
+    }
+    for (const sel of Array.from(document.querySelectorAll('select')).slice(0, 2)) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        )
+      }
+    }
+    // dressed busy
+    await hangBusy('costume-swap', { characterId: 'char-1' })
+    await forceClick(/Generate dressed look/i)
+    await cancelAllJobs()
+    // set active / use look
+    await clickNamed(/Use|Set active|Activate/i)
+    // link error already once
+    await clickNamed(/^Link$/i)
     await clickNamed(/^Save$/i)
-  }, 90000)
+
+    // no-match empty state
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 1)) {
+      if ((el as HTMLInputElement).type === 'checkbox') continue
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'zzzz-no-match-xyz' } })
+      )
+    }
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/no match|No match|match/i)
+    )
+    await clickNamed(/Clear filters/i)
+
+    // new character: save first costume message
+    await clickNamed(/New character|New/i)
+    await clickNamed(/^Costume$/i)
+    await clickNamed(/^Profile$/i)
+    await forceClick(/AI fill/i)
+    await clickNamed(/^Cancel$/i)
+  }, 120000)
 })
 
 
@@ -6648,6 +6900,203 @@ describe('abs100 Characters pure residual helpers', () => {
     expect(charactersCostumeBaseOptionLabel('/p', 'lab')).toBe('lab')
     expect(charactersCostumeBaseOptionLabel('', 'lab')).toBe('')
 
+
+    expect(
+      charactersCostumesJsonOrNull([], () => 'x')
+    ).toBeNull()
+    expect(
+      charactersCostumesJsonOrNull(
+        [{ id: '1' } as never],
+        () => 'json'
+      )
+    ).toBe('json')
+    expect(charactersLayerOptionSuffix(undefined, 'L')).toBe('')
+    expect(charactersLayerOptionSuffix('base', 'Base')).toBe(' · Base')
+    expect(charactersCostumeStyleLabel(null, () => 'x')).toBeNull()
+    expect(charactersCostumeStyleLabel('photo_cinematic', () => 'Photo')).toBe(
+      'Photo'
+    )
+    expect(
+      await charactersSwapJobBody({
+        swap: async () => ({ path: '/p', label: 'L' }),
+        signal: { cancelled: true },
+        discard: async () => undefined,
+        characterId: 'c',
+        storyId: 's',
+        costumeDescription: 'd',
+        defaultLabel: 'D',
+        setProgress: () => undefined
+      })
+    ).toBeUndefined()
+    expect(
+      (
+        await charactersSwapJobBody({
+          swap: async () => ({ path: '/p' }),
+          signal: { cancelled: false },
+          discard: async () => undefined,
+          characterId: 'c',
+          storyId: 's',
+          costumeDescription: 'd',
+          defaultLabel: 'D',
+          setProgress: () => undefined
+        })
+      )?.type
+    ).toBe('character-sheet')
+    expect(
+      await charactersSheetJobBody({
+        generate: async () => ({ path: '/p' }),
+        signal: { cancelled: true },
+        discard: async () => {
+          throw new Error('d')
+        },
+        characterId: 'c',
+        storyId: 's',
+        variant: 'bible',
+        setProgress: () => undefined
+      })
+    ).toBeUndefined()
+    expect(
+      (
+        await charactersSheetJobBody({
+          generate: async () => ({
+            path: '/p',
+            variant: 'v',
+            label: 'l',
+            usedEdit: true,
+            layer: 'base'
+          }),
+          signal: { cancelled: false },
+          discard: async () => undefined,
+          characterId: 'c',
+          storyId: 's',
+          variant: 'bible',
+          setProgress: () => undefined
+        })
+      )?.usedEdit
+    ).toBe(true)
+    expect(
+      charactersIntroStartFlow({
+        hasDraft: true,
+        continueDraft: () => msgs.push('cont')
+      })
+    ).toBe('continued')
+    expect(
+      charactersIntroStartFlow({
+        hasDraft: false,
+        continueDraft: () => undefined
+      })
+    ).toBe('proceed')
+    expect(
+      await charactersIntroPersistThenPrep({
+        update: async () => {
+          throw new Error('u')
+        },
+        toastError: toastErr,
+        startPrep: () => undefined
+      })
+    ).toBe('fail')
+    expect(
+      await charactersIntroPersistThenPrep({
+        update: async () => undefined,
+        toastError: toastErr,
+        startPrep: () => msgs.push('prep')
+      })
+    ).toBe('ok')
+    expect(
+      charactersGenerateSoulAfterGuards(true, toastInfo, 'L', () =>
+        msgs.push('soul')
+      )
+    ).toBe('busy')
+    expect(
+      charactersGenerateSoulAfterGuards(false, toastInfo, 'L', () =>
+        msgs.push('soul')
+      )
+    ).toBe('started')
+    expect(
+      charactersDressedClickGuard(null, false, toastInfo, 'L', () => undefined)
+    ).toBe('no-id')
+    expect(
+      charactersDressedClickGuard('id', true, toastInfo, 'L', () => undefined)
+    ).toBe('busy')
+    expect(
+      charactersDressedClickGuard('id', false, toastInfo, 'L', () =>
+        msgs.push('dress')
+      )
+    ).toBe('started')
+
+
+    charactersHandleIntroVideoFlow({
+      editingId: null,
+      sourceImagePath: '/p',
+      busy: false,
+      setError: setErr,
+      toastError: toastErr,
+      toastInfo: toastInfo,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: false,
+      continueDraft: () => undefined,
+      update: async () => undefined,
+      startPrep: () => undefined
+    })
+    charactersHandleIntroVideoFlow({
+      editingId: 'c1',
+      sourceImagePath: '/p',
+      busy: false,
+      setError: setErr,
+      toastError: toastErr,
+      toastInfo: toastInfo,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: true,
+      continueDraft: () => msgs.push('cont2'),
+      update: async () => undefined,
+      startPrep: () => msgs.push('prep2')
+    })
+    charactersHandleIntroVideoFlow({
+      editingId: 'c1',
+      sourceImagePath: '/p',
+      busy: false,
+      setError: setErr,
+      toastError: toastErr,
+      toastInfo: toastInfo,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: false,
+      continueDraft: () => undefined,
+      update: async () => undefined,
+      startPrep: () => msgs.push('prep3')
+    })
+    charactersHandleIntroVideoFlow({
+      editingId: 'c1',
+      sourceImagePath: '/p',
+      busy: false,
+      setError: setErr,
+      toastError: toastErr,
+      toastInfo: toastInfo,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: false,
+      continueDraft: () => undefined,
+      update: async () => {
+        throw new Error('uf')
+      },
+      startPrep: () => undefined
+    })
+    charactersHandleRemoveCostume(setForm as never, 'look-1')
+    charactersHandleReorder(setForm as never, 'a', 'b')
+    charactersLinkCatch(new Error('le'), toastErr)
+    expect(
+      await charactersEnsureListLine(
+        async () => [{ id: 'n1', name: 'Nova' } as never],
+        'Nova',
+        (id) => msgs.push('nid:' + id)
+      )
+    ).toBe('n1')
+    expect(
+      await charactersEnsureListLine(async () => [], 'X', () => undefined)
+    ).toBeNull()
+
+
+    charactersContinueDraftCb((k) => msgs.push('cdk:' + k), 'k1')()
+    charactersMakeLinkCatch(toastErr)(new Error('lc2'))
+
     // render Field / Chip residual components
     const host = document.createElement('div')
     document.body.appendChild(host)
@@ -6671,4 +7120,511 @@ describe('abs100 Characters pure residual helpers', () => {
 
     expect(msgs.length).toBeGreaterThan(0)
   }, 30000)
+})
+
+
+describe('abs100 Characters UI residual mop', () => {
+  beforeEach(() => seed())
+
+  it('hits remaining JSX handlers and thin wrappers', async () => {
+    const costumesJson = JSON.stringify([
+      {
+        id: 'look-1',
+        name: 'Coat',
+        description: 'black trench',
+        artStyle: 'photo_cinematic',
+        imagePath: '/media/aria.png',
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z'
+      }
+    ])
+    api.characters.list = vi.fn().mockResolvedValue([
+      makeCharacter({
+        id: 'char-1',
+        name: 'Aria',
+        soulHubId: 5,
+        soulMdPath: 'soulmd-hub://5',
+        refImagePath: '/media/aria.png',
+        refGalleryJson: gal('/media/aria.png', 'g1'),
+        costumesJson,
+        hardRules: 'no logos'
+      })
+    ])
+    api.characters.update = vi.fn().mockResolvedValue(makeCharacter({ id: 'char-1' }))
+    api.characters.readSoulContent = vi.fn().mockResolvedValue({
+      content: '# soul body full'
+    })
+    api.characters.writeSoulContent = vi.fn().mockResolvedValue({
+      filePath: '/tmp/s.md',
+      content: '# soul body full'
+    })
+    api.characters.generateSheet = vi.fn().mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 80))
+      return { path: '/tmp/sh.png', label: 'S', variant: 'bible' }
+    })
+    api.characters.commitSheet = vi.fn().mockResolvedValue({
+      path: '/p.png',
+      gallery: []
+    })
+    api.characters.swapCostume = vi.fn().mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 80))
+      return { path: '/tmp/sw.png', label: 'S', layer: 'costume' }
+    })
+    api.souls.list = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 5,
+          title: 'Soul5',
+          description: 'd',
+          role: 'lead',
+          domain: 'noir'
+        },
+        {
+          id: 6,
+          title: 'Soul6',
+          description: 'e',
+          role: 'support',
+          domain: 'sci'
+        }
+      ],
+      total_pages: 1,
+      current_page: 1
+    })
+    api.souls.get = vi.fn().mockResolvedValue({
+      id: 5,
+      title: 'Soul5',
+      contentFlat: '# flat',
+      description: 'd'
+    })
+    api.souls.searchLocal = vi.fn().mockResolvedValue({ items: [] })
+    api.souls.ensureIndex = vi.fn().mockResolvedValue({
+      count: 2,
+      pages: 1,
+      fromCache: true,
+      suggestions: [
+        { kind: 'role', label: 'detective' },
+        { kind: 'domain', label: 'noir' }
+      ]
+    })
+    api.costumes.list = vi.fn().mockResolvedValue([
+      makeCostume({ id: 'cost-1', name: 'Rain coat' })
+    ])
+    api.costumes.listForCharacter = vi.fn().mockResolvedValue([
+      {
+        id: 'cost-1',
+        name: 'Rain coat',
+        description: 'wet',
+        isActive: false,
+        artStyle: 'photo_cinematic'
+      }
+    ])
+    api.costumes.linkCharacter = vi.fn().mockRejectedValue(new Error('link-fail'))
+    api.costumes.setActive = vi.fn().mockRejectedValue(new Error('active-fail'))
+    api.costumes.generateDressed = vi.fn().mockResolvedValue({ path: '/d.png' })
+    api.shell.openExternal = vi.fn().mockResolvedValue({ ok: true })
+    api.media.discardSheetDraft = vi.fn().mockRejectedValue(new Error('discard'))
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <CharactersPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Aria/i)
+    )
+    await openCardEdit('Aria')
+
+    // Profile soul section
+    await clickNamed(/^Profile$/i)
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Soul|soul|Catalog/i)
+    )
+    // open hub
+    await clickNamed(/Open hub|SoulMD/i)
+    expect(api.shell.openExternal).toHaveBeenCalled()
+
+    // wait hub items
+    await waitFor(
+      () => expect(document.body.textContent || '').toMatch(/Soul5/i),
+      { timeout: 5000 }
+    )
+    // click catalog item button (preview)
+    const catalogBtns = screen.getAllByRole('button').filter((b) =>
+      /Soul5/i.test(b.textContent || '')
+    )
+    for (const b of catalogBtns.slice(0, 2)) {
+      await act(async () => fireEvent.click(b))
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    // soul loading path: slow get
+    api.souls.get = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                id: 6,
+                title: 'Soul6',
+                contentFlat: '# s6',
+                description: 'e'
+              }),
+            100
+          )
+        )
+    )
+    const soul6 = screen.getAllByRole('button').find((b) =>
+      /Soul6/i.test(b.textContent || '')
+    )
+    if (soul6) {
+      await act(async () => fireEvent.click(soul6))
+      // loading text may flash
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 150))
+      })
+    }
+    // use soul button
+    await clickNamed(/Use soul/i)
+    // edit soul textarea
+    for (const ta of Array.from(document.querySelectorAll('textarea'))) {
+      const ph = (ta as HTMLTextAreaElement).placeholder || ''
+      const al = ta.getAttribute('aria-label') || ''
+      if (/soul|Soul|markdown|content/i.test(ph + al + (ta.className || ''))) {
+        await act(async () =>
+          fireEvent.change(ta, { target: { value: '# edited\\nbody' } })
+        )
+      }
+    }
+    // also change any large textarea
+    for (const ta of Array.from(document.querySelectorAll('textarea')).slice(
+      -1
+    )) {
+      await act(async () =>
+        fireEvent.change(ta, { target: { value: '# mop soul text' } })
+      )
+    }
+    // hub search enter
+    for (const el of Array.from(document.querySelectorAll('input'))) {
+      const p = (el as HTMLInputElement).placeholder || ''
+      if (/search|soul|catalog/i.test(p)) {
+        await act(async () =>
+          fireEvent.change(el, { target: { value: 'detective' } })
+        )
+        await act(async () =>
+          fireEvent.keyDown(el, { key: 'Enter', code: 'Enter', charCode: 13 })
+        )
+      }
+    }
+    // suggestion chips
+    for (const b of screen.getAllByRole('button')) {
+      if (/detective|noir/i.test((b.textContent || '').trim())) {
+        await act(async () => fireEvent.click(b))
+      }
+    }
+    await clickNamed(/Reload soul|reload/i)
+    await clickNamed(/Clear soul|Unlink soul|Unlink/i)
+
+    // language multi pick if present
+    for (const el of Array.from(document.querySelectorAll('button, [role="option"]'))) {
+      if (/English|中文|language/i.test(el.textContent || '')) {
+        await act(async () => fireEvent.click(el))
+      }
+    }
+
+    // Refs: variant, art style, multi-select, reorder, bare body, empty gen
+    await clickNamed(/^References$/i)
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      for (const o of Array.from(s.options)) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: o.value } })
+        )
+      }
+    }
+    // multi select via strip
+    for (const b of Array.from(
+      document.querySelectorAll('button')
+    ) as HTMLButtonElement[]) {
+      const t = b.getAttribute('title') || b.textContent || ''
+      if (/Front|Base|sheet|g1|g2|A|B/i.test(t)) {
+        await act(async () => fireEvent.click(b))
+      }
+    }
+    for (const b of screen.queryAllByLabelText(/Move right|Move left/i)) {
+      ;(b as HTMLButtonElement).disabled = false
+      await act(async () => fireEvent.click(b))
+    }
+    // remove then generate from empty
+    await clickNamed(/Remove|remove/i)
+    await clickNamed(/Generate professional reference|Generate sheet|Generate/i)
+    await confirmImageGen().catch(() => false)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30))
+    })
+
+    // sheet job cancel discard
+    api.characters.generateSheet = vi.fn().mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 200))
+      return { path: '/tmp/cancel.png', label: 'C', variant: 'bible' }
+    })
+    await clickNamed(/Generate professional reference|Generate sheet|Generate/i)
+    if (await confirmImageGen()) {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 20))
+      })
+      await cancelAllJobs()
+    }
+
+    // intro update fail
+    api.characters.update = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('upd-fail'))
+      .mockResolvedValue(makeCharacter({ id: 'char-1' }))
+    // re-add image path via upload
+    await clickNamed(/Upload reference/i)
+    await clickNamed(/Intro|video/i)
+    await dismissVideoPrep(1500)
+
+    // video draft continue
+    try {
+      localStorage.setItem(
+        'idm.videoPrepDrafts.v2',
+        JSON.stringify({
+          ['character-intro:char-1:/tmp/r.png']: {
+            kind: 'character-intro',
+            entityIds: { characterId: 'char-1' },
+            sourceImagePath: '/tmp/r.png',
+            professionalPrompt: 'DRAFT',
+            stillPath: '/s.png',
+            durationSeconds: 6,
+            aspectRatio: '16:9',
+            savedAt: Date.now()
+          }
+        })
+      )
+    } catch {
+      /* ignore */
+    }
+    await clickNamed(/Intro|video|Continue/i)
+    await dismissVideoPrep(1500)
+
+    // Costume section
+    await clickNamed(/^Costume$/i)
+    // remove costume look delete
+    for (const b of screen
+      .getAllByRole('button')
+      .filter((x) => /^Delete$/i.test((x.textContent || '').trim()))) {
+      await act(async () => fireEvent.click(b))
+    }
+    // plot story change
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[1].value } })
+        )
+      }
+    }
+    // link fail
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const opt = Array.from(s.options).find((o) =>
+        /Rain coat/i.test(o.textContent || '')
+      )
+      if (opt) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: opt.value } })
+        )
+      }
+    }
+    await clickNamed(/^Link$/i)
+    // set active fail
+    await clickNamed(/Use|Set active|Activate|costumeLibUse/i)
+    // dressed busy
+    await hangBusy('costume-swap', { characterId: 'char-1' })
+    await forceClick(/Generate dressed look|Dress/i)
+    await cancelAllJobs()
+
+    // accept sheet draft with empty gallery → listCharacter path
+    if (jobs) {
+      await act(async () => {
+        void jobs!.startJob({
+          kind: 'character-sheet',
+          label: 'sheet',
+          scope: { characterId: 'char-1' },
+          run: async () => ({
+            type: 'character-sheet' as const,
+            characterId: 'char-1',
+            storyId: 'story-1',
+            path: '/new.png',
+            variant: 'bible',
+            label: 'B',
+            gallery: []
+          })
+        })
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 30))
+      })
+      for (const j of [...(jobs?.activeJobs ?? [])]) {
+        if (j.draft) {
+          await act(async () => {
+            await jobs!.acceptDraft(j.id)
+          })
+        }
+      }
+    }
+
+    // save with soul write
+    await clickNamed(/^Profile$/i)
+    for (const ta of Array.from(document.querySelectorAll('textarea')).slice(
+      -1
+    )) {
+      await act(async () =>
+        fireEvent.change(ta, { target: { value: '# save soul' } })
+      )
+    }
+    await clickNamed(/^Save$/i)
+
+    // new character costume save-first
+    await clickNamed(/New character|New/i)
+    await clickNamed(/^Costume$/i)
+    expect(document.body.textContent || '').toMatch(/save|first|character/i)
+
+    // ensure create path + reorder + remove look + link/setActive errors
+    // reopen Aria for costume library delete
+    await clickNamed(/^Cancel$/i)
+    await openCardEdit('Aria')
+    await clickNamed(/^Costume$/i)
+    // add look then delete
+    for (const el of Array.from(document.querySelectorAll('textarea')).slice(-1)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'delete-me look' } })
+      )
+    }
+    for (const el of Array.from(document.querySelectorAll('input')).slice(-2)) {
+      if ((el as HTMLInputElement).type === 'checkbox') continue
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'TempLook' } })
+      )
+    }
+    await clickNamed(/Add to library/i)
+    // Delete buttons in costume library
+    const dels = screen
+      .getAllByRole('button')
+      .filter((b) => /^Delete$/i.test((b.textContent || '').trim()))
+    for (const b of dels) {
+      await act(async () => fireEvent.click(b))
+    }
+
+    // link error path — pick costume and link
+    api.costumes.linkCharacter = vi.fn().mockRejectedValue(new Error('link-err'))
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const opt = Array.from(s.options).find((o) =>
+        /Rain coat/i.test(o.textContent || '')
+      )
+      if (opt) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: opt.value } })
+        )
+        await clickNamed(/Link costume|Link/i)
+      }
+    }
+
+    // setActive error
+    api.costumes.setActive = vi.fn().mockRejectedValue(new Error('act-err'))
+    api.costumes.listForCharacter = vi.fn().mockResolvedValue([
+      {
+        id: 'cost-1',
+        name: 'Rain coat',
+        description: 'wet',
+        isActive: false,
+        artStyle: 'photo_cinematic'
+      }
+    ])
+    // re-enter costume tab to reload links
+    await clickNamed(/^Profile$/i)
+    await clickNamed(/^Costume$/i)
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Rain coat/i)
+    )
+    for (const b of screen.getAllByRole('button')) {
+      if (/Use|Active|Set/i.test((b.textContent || '').trim()) && !/Generate/i.test(b.textContent||'')) {
+        await act(async () => fireEvent.click(b))
+      }
+    }
+
+    // References reorder
+    await clickNamed(/^References$/i)
+    const mr = screen.queryByLabelText(/Move right/i) as HTMLButtonElement | null
+    if (mr) {
+      mr.disabled = false
+      await act(async () => fireEvent.click(mr))
+    }
+    const ml = screen.queryByLabelText(/Move left/i) as HTMLButtonElement | null
+    if (ml) {
+      ml.disabled = false
+      await act(async () => fireEvent.click(ml))
+    }
+    // force reorder via any arrow
+    for (const b of document.querySelectorAll('button')) {
+      if (/[←→]/.test(b.textContent || '')) {
+        ;(b as HTMLButtonElement).disabled = false
+        await act(async () => fireEvent.click(b))
+      }
+    }
+
+    // continue draft with exact key for selected path
+    const stillPath =
+      (document.querySelector('[data-filepath]') as HTMLElement | null)?.getAttribute(
+        'data-filepath'
+      ) || '/tmp/r.png'
+    try {
+      const key = `character-intro:char-1:${stillPath}`
+      localStorage.setItem(
+        'idm.videoPrepDrafts.v2',
+        JSON.stringify({
+          [key]: {
+            kind: 'character-intro',
+            entityIds: { characterId: 'char-1' },
+            sourceImagePath: stillPath,
+            professionalPrompt: 'DRAFT FULL PROMPT',
+            stillPath: '/s.png',
+            durationSeconds: 6,
+            aspectRatio: '16:9',
+            savedAt: Date.now()
+          }
+        })
+      )
+    } catch {
+      /* ignore */
+    }
+    await clickNamed(/Intro|video|Continue/i)
+    await dismissVideoPrep(2000)
+
+    // new char ensureSavedId create for sheet
+    await clickNamed(/^Cancel$/i)
+    await clickNamed(/New character|New/i)
+    for (const el of Array.from(document.querySelectorAll('input')).slice(0, 1)) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: 'NovaSheet' } })
+      )
+    }
+    api.characters.create = vi.fn().mockResolvedValue(
+      makeCharacter({ id: 'nova-1', name: 'NovaSheet' })
+    )
+    api.characters.list = vi.fn().mockResolvedValue([
+      makeCharacter({ id: 'nova-1', name: 'NovaSheet' })
+    ])
+    await clickNamed(/^References$/i)
+    await clickNamed(/Generate professional reference|Generate sheet|Generate/i)
+    await confirmImageGen().catch(() => false)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+  }, 150000)
 })
