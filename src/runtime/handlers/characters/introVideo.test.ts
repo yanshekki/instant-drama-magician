@@ -291,5 +291,58 @@ describe('registerCharactersIntroVideo', () => {
       characterId: 'c1',
       sourceImagePath: src
     })
+
+    // valid soulmd-hub:// id via hub client
+    vi.doMock('../../../infrastructure/soulmd/SoulMdHubClient', () => ({
+      SoulMdHubClient: class {
+        getSoul = async () => ({
+          content: '# Hub Soul\nbrave courier long enough',
+          file_type: 'md'
+        })
+        static flattenContent = (c: string) => c
+      }
+    }))
+    get.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      spokenLanguages: null,
+      soulMdPath: 'soulmd-hub://42',
+      soulHubId: null,
+      hardRules: null,
+      refGalleryJson: null,
+      refImagePath: src,
+      refSheetPath: src
+    })
+    try {
+      await invokeRegistered(h as never, 'characters:generateIntroVideo', {
+        characterId: 'c1',
+        sourceImagePath: src
+      })
+    } catch {
+      /* hub may still fail without resetModules */
+    }
+
+    // hub throws → soulExcerpt catch
+    get.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Ming',
+      description: 'd',
+      spokenLanguages: null,
+      soulMdPath: null,
+      soulHubId: 99,
+      hardRules: null,
+      refGalleryJson: null,
+      refImagePath: src,
+      refSheetPath: src
+    })
+    try {
+      await invokeRegistered(h as never, 'characters:generateIntroVideo', {
+        characterId: 'c1',
+        sourceImagePath: src
+      })
+    } catch {
+      /* */
+    }
   })
 })

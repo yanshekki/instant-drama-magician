@@ -192,20 +192,6 @@ describe('registerCharactersAiFill', () => {
       referenceImagePath: img
     })
 
-    // mock story inject on (normally dead false)
-    const policy = await import('../../../domain/storyContextPolicy')
-    const spy = vi
-      .spyOn(policy, 'shouldInjectStoryContextForCharacter')
-      .mockReturnValue(true)
-    call = 0
-    await invokeRegistered(h as never, 'characters:aiFill', {
-      idea: 'x',
-      storyId: 'st1',
-      locale: 'en'
-    })
-    expect(findUnique).toHaveBeenCalled()
-    spy.mockRestore()
-
     // draft only with empty idea → polish idea (en)
     call = 0
     await invokeRegistered(h as never, 'characters:aiFill', {

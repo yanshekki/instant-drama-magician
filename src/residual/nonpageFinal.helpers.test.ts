@@ -46,7 +46,6 @@ describe('nonpage final pure helpers', () => {
     expect(ffmpegRequireBase(true).length).toBeGreaterThan(0)
     expect(ffmpegRequireBase(false)).toContain('package.json')
   })
-})
 
   it('Seedance mimeFromPath all types', async () => {
     const { mimeFromPath } = await import(
@@ -74,3 +73,4 @@ describe('nonpage final pure helpers', () => {
     ).rejects.toThrow(/always/)
     expect(n).toBeGreaterThan(1)
   })
+})

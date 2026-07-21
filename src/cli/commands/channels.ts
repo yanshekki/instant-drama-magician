@@ -101,7 +101,7 @@ export async function cmdChannels(
   )
 }
 
-async function tryLiveHas(
+export async function tryLiveHas(
   globals: CliGlobalOptions,
   channel: string
 ): Promise<boolean | null> {

@@ -53,4 +53,11 @@ describe('cmdTools', () => {
     ).rejects.toThrow(/process.exit/)
     await expect(cmdTools(g, ['nope'], {})).rejects.toThrow(/process.exit/)
   })
+
+  it('mapToolNameToChannel underscore and idm prefix', async () => {
+    const { mapToolNameToChannel } = await import('./tools')
+    expect(mapToolNameToChannel('idm_stories_list')).toMatch(/stories/)
+    expect(mapToolNameToChannel('foo_bar_baz')).toBe('foo:bar_baz')
+    expect(mapToolNameToChannel('solo')).toBe('solo')
+  })
 })

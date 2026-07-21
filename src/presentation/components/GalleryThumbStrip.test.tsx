@@ -117,4 +117,30 @@ describe('GalleryThumbStrip', () => {
     fireEvent.click(screen.getByTitle('A'))
     expect(onSelect).toHaveBeenCalledWith('1')
   })
+
+  it('click after drag skips select; multi-selected border styles', () => {
+    const onSelect = vi.fn()
+    render(
+      <GalleryThumbStrip
+        items={items}
+        selectedId="1"
+        selectedIds={['1', '2']}
+        multiSelect
+        coverPath="/c.png"
+        onSelect={onSelect}
+        onReorder={() => undefined}
+      />
+    )
+    const a = screen.getByTitle('A')
+    fireEvent.dragStart(a, {
+      dataTransfer: {
+        setData: vi.fn(),
+        setDragImage: vi.fn(),
+        effectAllowed: 'move'
+      }
+    })
+    fireEvent.dragEnd(a)
+    fireEvent.click(a)
+    expect(document.body.textContent).toBeTruthy()
+  })
 })

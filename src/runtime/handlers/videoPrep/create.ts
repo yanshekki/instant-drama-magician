@@ -882,12 +882,11 @@ reg(
         hardRules: prepHardRules
       })
 
+      // aspectRatio already coerced to 9:16 | 16:9 above
       const size =
         aspectRatio === '9:16'
           ? ctx.settings.imageSizeTall
-          : aspectRatio === '16:9'
-            ? ctx.settings.imageSizeWide
-            : ctx.settings.imageSizeSquare || '1024x1024'
+          : ctx.settings.imageSizeWide
 
       const still = await generateVideoStillKeyframe({
         ai: ctx.aiClient,

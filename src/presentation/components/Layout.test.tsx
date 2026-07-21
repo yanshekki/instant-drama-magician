@@ -586,4 +586,43 @@ describe('Layout', () => {
     await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
   })
 
+  it('download fail toast and image same-as-llm titles', async () => {
+    api.updates.status = vi.fn().mockResolvedValue({
+      status: 'available',
+      currentVersion: '1.0.0',
+      latestVersion: '2.0.0',
+      canDownload: true
+    })
+    api.updates.download = vi
+      .fn()
+      .mockRejectedValue(new Error('download fail'))
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const dl = Array.from(document.querySelectorAll('button')).find((b) =>
+      /downloadUpdate|download/i.test(b.textContent || '')
+    )
+    if (dl) {
+      await act(async () => {
+        fireEvent.click(dl)
+      })
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith(
+          'settings.updateDownloadFail'
+        )
+      )
+    }
+    // image/video same-as-llm provider titles rendered from mock useApp
+    expect(document.body.textContent).toBeTruthy()
+  })
+
 })

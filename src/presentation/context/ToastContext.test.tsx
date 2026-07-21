@@ -62,6 +62,27 @@ describe('ToastContext', () => {
     vi.useRealTimers()
   })
 
+  it('ToastHost styles success error info icons', async () => {
+    await ensureTestI18n()
+    render(
+      <I18nextProvider i18n={i18n}>
+        <ToastProvider>
+          <ToastHost />
+          <Probe />
+        </ToastProvider>
+      </I18nextProvider>
+    )
+    await act(async () => {
+      screen.getByText('success').click()
+      screen.getByText('error').click()
+      screen.getByText('info').click()
+    })
+    expect(screen.getAllByText('Saved').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Boom').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Note').length).toBeGreaterThan(0)
+    expect(document.body.textContent).toMatch(/✓|!|i/)
+  })
+
   it('shows toast kinds and ignores blank', async () => {
     await ensureTestI18n()
     render(

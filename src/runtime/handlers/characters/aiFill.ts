@@ -55,18 +55,11 @@ reg(
         )
       }
       // Character invent uses only idea + form + soul (not the open story’s style).
-      // Scene / clip / wardrobe flows own story continuity.
-      const { shouldInjectStoryContextForCharacter } = await import('../../../domain/storyContextPolicy')
-      let storyTitle: string | undefined
-      let styleNote: string | null | undefined
-      if (payload.storyId && shouldInjectStoryContextForCharacter()) {
-        const story = await host.getPrisma().story.findUnique({
-          where: { id: payload.storyId }
-        })
-        storyTitle = story?.title
-        styleNote = story?.styleNote
-      }
+      // Scene / clip / wardrobe flows own story continuity — never inject open story.
+      const storyTitle: string | undefined = undefined
+      const styleNote: string | null | undefined = undefined
       const locale = payload.locale ?? 'zh-HK'
+
       const str = (k: string): string | undefined => {
         const v = draft?.[k]
         if (typeof v === 'string' && v.trim()) return v.trim()

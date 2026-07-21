@@ -46,4 +46,16 @@ describe('cmdChannels', () => {
     await cmdChannels(g, [], { catalog: true })
     await expect(cmdChannels(g, [], {})).rejects.toThrow(/process.exit/)
   })
+
+  it('tryLiveHas returns null on client error', async () => {
+    const { tryLiveHas } = await import('./channels')
+    vi.mocked(resolveClient).mockRejectedValue(new Error('down'))
+    await expect(tryLiveHas(g, 'stories:list')).resolves.toBeNull()
+    vi.mocked(resolveClient).mockResolvedValue(
+      mockClient({
+        channels: vi.fn().mockResolvedValue(['stories:list'])
+      }) as never
+    )
+    await expect(tryLiveHas(g, 'stories:list')).resolves.toBe(true)
+  })
 })

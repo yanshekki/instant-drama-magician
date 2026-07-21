@@ -202,4 +202,63 @@ describe('registerScenesAiFill', () => {
     })) as { profile: { title?: string } }
     expect(r.profile.title).toBeTruthy()
   })
+
+  it('image-only en invent and missing-fill raw and aiFillSceneFromImage', async () => {
+    const { writeFileSync, mkdtempSync, rmSync } = await import('fs')
+    const { join } = await import('path')
+    const { tmpdir } = await import('os')
+    const dir = mkdtempSync(join(tmpdir(), 'idm-sc-aif-'))
+    const img = join(dir, 'ref.png')
+    writeFileSync(img, Buffer.from([137, 80, 78, 71]))
+    const incomplete = JSON.stringify({
+      title: 'Only',
+      description: '',
+      locationType: '',
+      timeOfDay: '',
+      weather: '',
+      lighting: '',
+      atmosphere: '',
+      architecture: '',
+      palette: '',
+      visualTags: '',
+      hardRules: ''
+    })
+    let n = 0
+    const chat = vi.fn(async () => {
+      n++
+      if (n === 1) return { choices: [{ message: { content: incomplete } }] }
+      return { choices: [{ message: { content: SCENE_JSON } }] }
+    })
+    const append = vi.fn()
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() },
+      activity: {
+        append,
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never
+    })
+    registerScenesAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      idea: '',
+      locale: 'en',
+      referenceImagePath: img
+    })
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringMatching(/aiFillSceneFromImage|aiFill/)
+      })
+    )
+    n = 0
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      idea: '',
+      locale: 'zh-HK',
+      referenceImagePath: img
+    })
+    rmSync(dir, { recursive: true, force: true })
+  })
 })

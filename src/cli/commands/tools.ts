@@ -99,7 +99,7 @@ export async function cmdTools(
   )
 }
 
-function mapToolNameToChannel(toolName: string): string {
+export function mapToolNameToChannel(toolName: string): string {
   let n = toolName
   if (n.startsWith('idm_')) n = n.slice(4)
   // Prefer known channels: match by replacing : with _

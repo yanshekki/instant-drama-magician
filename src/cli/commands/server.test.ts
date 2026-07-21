@@ -79,6 +79,52 @@ describe('cmdServer', () => {
     ).rejects.toThrow(/bind fail|process\.exit/)
   })
 
+  it('human mode authDisabled and loopback-only labels', async () => {
+    const listeners: Array<{ ev: string | symbol; fn: (...a: unknown[]) => void }> =
+      []
+    vi.spyOn(process, 'on').mockImplementation(((
+      ev: string | symbol,
+      fn: (...a: unknown[]) => void
+    ) => {
+      listeners.push({ ev, fn })
+      return process
+    }) as never)
+    vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    start.mockResolvedValue({
+      url: 'http://127.0.0.1:8787',
+      staticReady: true,
+      authDisabled: true,
+      authRequired: false,
+      channels: 10
+    })
+    void cmdServer(
+      { json: false, pretty: false, dataDir: '/tmp/idm-s3' } as never,
+      ['start'],
+      { port: '8993', host: '127.0.0.1' }
+    )
+    await vi.waitFor(() => expect(start).toHaveBeenCalled())
+    start.mockResolvedValue({
+      url: 'http://127.0.0.1:8787',
+      staticReady: true,
+      authDisabled: false,
+      authRequired: false,
+      channels: 2
+    })
+    void cmdServer(
+      { json: false, pretty: false, dataDir: '/tmp/idm-s4' } as never,
+      ['start'],
+      { port: '8994' }
+    )
+    await vi.waitFor(() => expect(start).toHaveBeenCalled())
+    for (const l of listeners) {
+      try {
+        process.off(l.ev as NodeJS.Signals, l.fn as never)
+      } catch {
+        /* */
+      }
+    }
+  })
+
   it('human mode and token generation path', async () => {
     const listeners: Array<{ ev: string | symbol; fn: (...a: unknown[]) => void }> =
       []

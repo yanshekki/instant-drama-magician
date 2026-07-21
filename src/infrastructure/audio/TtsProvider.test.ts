@@ -12,7 +12,10 @@ vi.mock('child_process', () => ({
 import {
   HttpTtsProvider,
   LocalCliTtsProvider,
-  CompositeTtsProvider
+  CompositeTtsProvider,
+  ttsClipPath,
+  ensurePathParent,
+  fileReady
 } from './TtsProvider'
 
 function child(code = 0, err?: Error) {
@@ -135,5 +138,15 @@ describe('TtsProvider', () => {
     await expect(
       c2.speak({ text: 'z', outputPath: join(dir, 'z.wav') })
     ).rejects.toMatchObject({ message: 'errors.ttsUnavailable' })
+  })
+
+  it('ttsClipPath ensurePathParent fileReady', () => {
+    const p = ttsClipPath(dir, 's1', 'e1')
+    expect(p).toContain('tts')
+    expect(p).toContain('e1.wav')
+    ensurePathParent(p)
+    expect(fileReady(p)).toBe(false)
+    writeFileSync(p, 'x')
+    expect(fileReady(p)).toBe(true)
   })
 })
