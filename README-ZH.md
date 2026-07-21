@@ -350,7 +350,7 @@ npm run instant-drama -- doctor --json
 
 | 模式 | 條件 | 行為 |
 |------|------|------|
-| **local** | `--local` 或無 URL | 直接操作 `IDM_DATA_DIR`（預設 `~/.local/share/idm`） |
+| **local** | `--local` 或無 URL | 操作 `IDM_DATA_DIR`（預設：與桌面相同的 OS app data 根） |
 | **remote** | `--url` / `IDM_URL` | `POST {url}/api/invoke` + Bearer |
 
 ### 常用指令
@@ -481,14 +481,22 @@ instant-drama server start
 
 ## 資料目錄與備份
 
-| 情境 | 路徑（Linux 常見） |
-|------|-------------------|
-| **安裝版桌面** | `~/.config/instant-drama-magician/` |
-| **開發 `npm run dev`** | `~/.config/instant-drama-magician-dev/`（與安裝版分離，避免測試資料混入） |
-| **CLI local 預設** | `~/.local/share/idm` 或 `IDM_DATA_DIR` |
-| **開發 DB（isDev）** | 專案內 `prisma/dev.db`（DB）；媒體／設定仍走 userData |
+每個 profile 只有 **一個 data root**（DB、設定、媒體同根），由 `src/domain/appPaths.ts` 解析。
 
-目錄內通常包含：`instant-drama.db`、`settings.json`、`media/`、`logs/`、`exports/` 等。
+| 情境 | Linux (Ubuntu) | macOS | Windows |
+|------|----------------|-------|---------|
+| **安裝版／CLI 預設** | `~/.config/instant-drama-magician/` | `~/Library/Application Support/instant-drama-magician/` | `%APPDATA%\instant-drama-magician\` |
+| **開發 `npm run dev`** | `~/.config/instant-drama-magician-dev/` | `~/Library/Application Support/instant-drama-magician-dev/` | `%APPDATA%\instant-drama-magician-dev\` |
+| **覆蓋** | `IDM_DATA_DIR` 或 `--data-dir` | 同左 | 同左 |
+| **Profile** | `IDM_PROFILE=default\|dev\|…` | 同左 | 同左 |
+
+data root 內固定：
+
+```
+instant-drama.db   settings.json   media/   logs/   cache/   exports/
+```
+
+首次啟動可能會把舊資料（如 `prisma/dev.db`、`~/.local/share/idm`）**複製**進來（不會自動刪舊目錄）。
 
 **備份：**
 

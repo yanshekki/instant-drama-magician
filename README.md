@@ -350,7 +350,7 @@ npm run instant-drama -- doctor --json
 
 | Mode | When | Behavior |
 |------|------|----------|
-| **local** | `--local` or no URL | Operate on `IDM_DATA_DIR` (default `~/.local/share/idm`) |
+| **local** | `--local` or no URL | Operate on `IDM_DATA_DIR` (default: OS app data root, same as desktop) |
 | **remote** | `--url` / `IDM_URL` | `POST {url}/api/invoke` + Bearer |
 
 ### Common commands
@@ -481,14 +481,22 @@ Switch in Settings:
 
 ## Data directories & backup
 
-| Context | Typical path (Linux) |
-|---------|----------------------|
-| **Packaged desktop** | `~/.config/instant-drama-magician/` |
-| **Dev `npm run dev`** | `~/.config/instant-drama-magician-dev/` (isolated from install) |
-| **CLI local default** | `~/.local/share/idm` or `IDM_DATA_DIR` |
-| **Dev DB (isDev)** | Project `prisma/dev.db` (DB only); media/settings still under userData |
+Single **data root** per profile (DB + settings + media together). Resolved by `src/domain/appPaths.ts`.
 
-Usually contains: `instant-drama.db`, `settings.json`, `media/`, `logs/`, `exports/`, etc.
+| Context | Linux (Ubuntu) | macOS | Windows |
+|---------|----------------|-------|---------|
+| **Packaged desktop / CLI default** | `~/.config/instant-drama-magician/` | `~/Library/Application Support/instant-drama-magician/` | `%APPDATA%\instant-drama-magician\` |
+| **Dev `npm run dev`** | `~/.config/instant-drama-magician-dev/` | `~/Library/Application Support/instant-drama-magician-dev/` | `%APPDATA%\instant-drama-magician-dev\` |
+| **Override** | `IDM_DATA_DIR` or `--data-dir` | same | same |
+| **Profile** | `IDM_PROFILE=default\|dev\|…` | same | same |
+
+Inside every data root:
+
+```
+instant-drama.db   settings.json   media/   logs/   cache/   exports/
+```
+
+On first launch the app may **copy** (never delete) legacy data from `prisma/dev.db`, `~/.local/share/idm`, etc.
 
 **Backup:**
 

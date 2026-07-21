@@ -43,7 +43,7 @@ npx tsx src/cli/bin.ts stories list --json
 
 | Mode | When | Behavior |
 |------|------|----------|
-| **local** | no URL / `--local` | Operate on `IDM_DATA_DIR` (default `~/.local/share/idm`) |
+| **local** | no URL / `--local` | Operate on `IDM_DATA_DIR` (default: OS app data root, same as desktop) |
 | **remote** | `--url` / `IDM_URL` set | `POST {url}/api/invoke` + Bearer |
 
 ```bash
@@ -168,7 +168,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 
 | Context | Path |
 |---------|------|
-| CLI default | `~/.local/share/idm` or `IDM_DATA_DIR` |
+| CLI default | `OS app data (see appPaths / README)` or `IDM_DATA_DIR` |
 | Common dev | `./data` |
 | Packaged desktop | `~/.config/instant-drama-magician/` |
 | Dev desktop | `~/.config/instant-drama-magician-dev/` |

@@ -2,9 +2,12 @@
  * Local IdmClient — headless createRuntime (same channels as web server).
  */
 import { join, resolve } from 'path'
+import { mkdirSync } from 'fs'
 import { createRuntime, type AppRuntime } from '../../runtime/createRuntime'
 import type { IdmClient } from '../types'
 import { defaultDataDir } from '../config'
+import { resolveAppPaths } from '../../domain/appPaths'
+import { migrateAppDataIfNeeded } from '../../application/services/AppDataMigrationService'
 
 export interface LocalClientOptions {
   dataDir?: string | null
@@ -15,8 +18,34 @@ export async function createLocalClient(
   opts: LocalClientOptions = {}
 ): Promise<IdmClient & { runtime: AppRuntime }> {
   const dataDir = resolve(opts.dataDir || defaultDataDir())
-  const runtime = createRuntime({
+  const paths = resolveAppPaths({
     dataDir,
+    envDataDir: process.env.IDM_DATA_DIR,
+    profile: process.env.IDM_PROFILE || 'default'
+  })
+  for (const d of [
+    paths.dataRoot,
+    paths.mediaRoot,
+    paths.logsDir,
+    paths.cacheDir,
+    paths.exportsDir
+  ]) {
+    try {
+      mkdirSync(d, { recursive: true })
+    } catch {
+      /* ignore */
+    }
+  }
+  try {
+    migrateAppDataIfNeeded({ paths, cwd: process.cwd() })
+  } catch {
+    /* non-fatal */
+  }
+  if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = paths.databaseUrl
+  }
+  const runtime = createRuntime({
+    dataDir: paths.dataRoot,
     appVersion: opts.appVersion || process.env.npm_package_version || '1.0.0',
     platform: process.platform,
     isPackaged: false

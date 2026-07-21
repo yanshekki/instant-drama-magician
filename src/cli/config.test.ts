@@ -56,13 +56,18 @@ describe('cli config', () => {
     expect(g.json).toBe(true)
   })
 
-  it('defaultDataDir uses XDG or home', () => {
-    process.env.XDG_DATA_HOME = join(dir, 'share')
-    expect(defaultDataDir()).toContain('idm')
+  it('defaultDataDir aligns with OS app data (not short idm share)', () => {
+    process.env.XDG_CONFIG_HOME = join(dir, 'cfg')
+    delete process.env.IDM_DATA_DIR
+    delete process.env.IDM_PROFILE
+    const d = defaultDataDir()
+    expect(d).toContain('instant-drama-magician')
+    expect(d).toContain(join(dir, 'cfg'))
   })
 
-  it('defaultConfigPath uses XDG config', () => {
+  it('defaultConfigPath uses XDG config + app id', () => {
     process.env.XDG_CONFIG_HOME = join(dir, 'cfg')
-    expect(defaultConfigPath()).toContain('idm')
+    expect(defaultConfigPath()).toContain('instant-drama-magician')
+    expect(defaultConfigPath()).toContain('cli-config.json')
   })
 })

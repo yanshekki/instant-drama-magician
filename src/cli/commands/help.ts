@@ -57,7 +57,7 @@ DOMAIN SUGAR (all ~137 channels)
 
 MODES
   remote   When --url / IDM_URL / config.url is set (default for bots)
-  local    Headless runtime on --data-dir / IDM_DATA_DIR (~/.local/share/idm)
+  local    Headless runtime on --data-dir / IDM_DATA_DIR (OS app data dir)
 
 HEADLESS FILE PICKS
   IDM_PICK_FILE=/path/to/file.png   # one-shot open dialog substitute

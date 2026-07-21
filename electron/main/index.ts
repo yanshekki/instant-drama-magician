@@ -32,8 +32,10 @@ import {
 import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
 import {
   AppDataBackupService,
-  defaultFullBackupFileName
-} from '../../src/application/services/AppDataBackupService'
+  defaultFullBackupFileName,
+  migrateAppDataIfNeeded
+} from '../../src/application/services'
+import { resolveAppPaths, type AppPaths } from '../../src/domain/appPaths'
 import { ActivityLog } from '../../src/infrastructure/activity/ActivityLog'
 import {
   redactSettings,
@@ -141,18 +143,30 @@ function serveLocalMediaFile(
 const isDev = !app.isPackaged
 
 /**
- * Keep packaged installs separate from local `npm run dev` sessions.
- * Both previously used ~/.config/instant-drama-magician (package.json name),
- * so opening a freshly installed .deb on the same machine showed test media,
- * settings, and API keys from development.
- *
- * Must run before the first app.getPath('userData').
+ * Unified OS data root (see src/domain/appPaths.ts).
+ * - Packaged: …/instant-drama-magician
+ * - Dev:      …/instant-drama-magician-dev  (unless IDM_PROFILE / IDM_DATA_DIR)
+ * DB + settings + media always live under the same root (no prisma/dev.db).
+ * Must set userData before the first app.getPath('userData').
  */
-if (!app.isPackaged) {
-  app.setPath(
-    'userData',
-    join(app.getPath('appData'), 'instant-drama-magician-dev')
-  )
+const appPaths: AppPaths = resolveAppPaths({
+  isDevRuntime: isDev,
+  envDataDir: process.env.IDM_DATA_DIR,
+  profile: process.env.IDM_PROFILE || null
+})
+app.setPath('userData', appPaths.dataRoot)
+for (const dir of [
+  appPaths.dataRoot,
+  appPaths.mediaRoot,
+  appPaths.logsDir,
+  appPaths.cacheDir,
+  appPaths.exportsDir
+]) {
+  try {
+    mkdirSync(dir, { recursive: true })
+  } catch {
+    /* non-fatal */
+  }
 }
 
 /**
@@ -197,13 +211,10 @@ process.on('unhandledRejection', (reason) => {
   }
 })
 
-// Resolve SQLite path relative to project root (dev) or userData (prod)
+// SQLite always under data root (override with DATABASE_URL if set)
 function resolveDatabaseUrl(): string {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL
-  if (isDev) {
-    return `file:${join(process.cwd(), 'prisma', 'dev.db')}`
-  }
-  return `file:${join(app.getPath('userData'), 'instant-drama.db')}`
+  return appPaths.databaseUrl
 }
 
 process.env.DATABASE_URL = resolveDatabaseUrl()
@@ -845,6 +856,23 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // One-shot migration from prisma/dev.db, ~/.local/share/idm, etc.
+  try {
+    const mig = migrateAppDataIfNeeded({
+      paths: appPaths,
+      cwd: process.cwd()
+    })
+    if (mig.ran && mig.actions.length) {
+      // eslint-disable-next-line no-console
+      console.log('[appPaths] data root', appPaths.dataRoot)
+      // eslint-disable-next-line no-console
+      console.log('[appPaths] migration', mig.actions.join('; '))
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[appPaths] migration skipped', e)
+  }
+
   // App name shown in taskbar / Alt-Tab / dock (not package.json "name")
   app.setName(APP_DISPLAY_NAME_EN)
   process.title = APP_DISPLAY_NAME_EN

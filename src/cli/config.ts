@@ -1,27 +1,48 @@
 /**
- * CLI config: flags > env > ~/.config/idm/config.json
+ * CLI config: flags > env > ~/.config/instant-drama-magician/cli-config.json
+ * (legacy ~/.config/idm/config.json still loaded if present)
+ *
+ * Data dir aligns with desktop appPaths (OS home conventions).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { homedir } from 'os'
 import { dirname, join } from 'path'
 import type { CliConfigFile, CliGlobalOptions } from './types'
+import {
+  APP_ID,
+  resolveAppPaths,
+  resolveOsAppDataBase
+} from '../domain/appPaths'
 
 export function defaultConfigPath(): string {
-  const xdg = process.env.XDG_CONFIG_HOME || join(homedir(), '.config')
-  return join(xdg, 'idm', 'config.json')
+  const base = resolveOsAppDataBase()
+  // Prefer app-aligned config; fall back to legacy idm path for reads via loadConfigFile
+  return join(base, APP_ID, 'cli-config.json')
 }
 
+export function legacyConfigPath(): string {
+  const base = resolveOsAppDataBase()
+  return join(base, 'idm', 'config.json')
+}
+
+/** Same data root as Electron for the active profile (default unless IDM_PROFILE=dev). */
 export function defaultDataDir(): string {
-  if (process.env.IDM_DATA_DIR) return process.env.IDM_DATA_DIR
-  const xdg = process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share')
-  return join(xdg, 'idm')
+  return resolveAppPaths({
+    envDataDir: process.env.IDM_DATA_DIR,
+    profile: process.env.IDM_PROFILE || 'default',
+    isDevRuntime: false
+  }).dataRoot
 }
 
 export function loadConfigFile(path = defaultConfigPath()): CliConfigFile {
   try {
-    if (!existsSync(path)) return {}
-    const raw = readFileSync(path, 'utf8')
-    return JSON.parse(raw) as CliConfigFile
+    const tryPaths = [path]
+    if (path === defaultConfigPath()) tryPaths.push(legacyConfigPath())
+    for (const p of tryPaths) {
+      if (!existsSync(p)) continue
+      const raw = readFileSync(p, 'utf8')
+      return JSON.parse(raw) as CliConfigFile
+    }
+    return {}
   } catch {
     return {}
   }

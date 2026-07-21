@@ -32,7 +32,7 @@ Presentation（React 頁面／CLI／瀏覽器 UI）
 | 入口 | 路徑 | 說明 |
 |------|------|------|
 | Electron | `electron/main/ipc.ts` → handlers | Electron `userData` |
-| CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR`（預設 `~/.local/share/idm`） |
+| CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR`（預設 `OS app data 根（與桌面相同）`） |
 | Web／server | `server/index.ts` + `EmbeddedWebServer` | 同一 handlers；SPA 自 `out/renderer` |
 
 Channel 目錄：`src/runtime/channelManifest.ts`（**138** 個唯一 id）。

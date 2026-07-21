@@ -24,3 +24,12 @@ export type {
   ImportFullResult
 } from './AppDataBackupService'
 export { DemoSeedService } from './DemoSeedService'
+export {
+  migrateAppDataIfNeeded,
+  readMigrationMarker,
+  MIGRATION_MARKER_FILE
+} from './AppDataMigrationService'
+export type {
+  MigrationResult,
+  MigrationOptions
+} from './AppDataMigrationService'

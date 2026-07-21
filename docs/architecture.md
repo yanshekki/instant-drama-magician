@@ -32,7 +32,7 @@ Media in the desktop app is served via privileged scheme **`idm-media://`** (ran
 | Entry | Path | Notes |
 |-------|------|--------|
 | Electron | `electron/main/ipc.ts` → handlers | `userData` under Electron paths |
-| CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR` (default `~/.local/share/idm`) |
+| CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR` (default `OS app data root (same as desktop)`) |
 | Web / server | `server/index.ts` + `EmbeddedWebServer` | Same handlers; SPA from `out/renderer` |
 
 Channel catalog: `src/runtime/channelManifest.ts` (**138** unique ids).

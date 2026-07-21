@@ -43,7 +43,7 @@ npx tsx src/cli/bin.ts stories list --json
 
 | 模式 | 條件 | 行為 |
 |------|------|------|
-| **local** | 無 URL／`--local` | 操作 `IDM_DATA_DIR`（預設 `~/.local/share/idm`） |
+| **local** | 無 URL／`--local` | 操作 `IDM_DATA_DIR`（預設 `OS app data（見 appPaths／README）`） |
 | **remote** | 設定了 `--url`／`IDM_URL` | `POST {url}/api/invoke` + Bearer |
 
 ```bash
@@ -168,7 +168,7 @@ instant-drama server start --port 8787 --host 0.0.0.0
 
 | 情境 | 路徑 |
 |------|------|
-| CLI 預設 | `~/.local/share/idm` 或 `IDM_DATA_DIR` |
+| CLI 預設 | `OS app data（見 appPaths／README）` 或 `IDM_DATA_DIR` |
 | 開發常用 | `./data` |
 | 安裝版桌面 | `~/.config/instant-drama-magician/` |
 | 開發桌面 | `~/.config/instant-drama-magician-dev/` |
