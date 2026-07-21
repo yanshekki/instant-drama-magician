@@ -68,7 +68,28 @@ import {
 } from './ActionsPage'
 import { CharactersPage } from './CharactersPage'
 import { CostumesPage } from './CostumesPage'
-import { PropsPage } from './PropsPage'
+import {
+  PropsPage,
+  propsAiFillToastKey,
+  propsApplyIpcError,
+  propsApplySimpleIpc,
+  propsClearFilters,
+  propsDiscardDraftSafe,
+  propsGalleryPathsFromOpts,
+  propsGuardAiNeed,
+  propsGuardBusy,
+  propsGuardEmptyName,
+  propsGuardIntro,
+  propsIntroVideoHandler,
+  propsIsBusyJob,
+  propsMaybeAppendMultiRef,
+  propsMaybeContinueDraft,
+  propsNextCoverAfterGallery,
+  propsResolveWantIdentity,
+  propsRunCreateForEnsure,
+  propsRunSave,
+  propsSuggestIdeaLabel
+} from './PropsPage'
 import { ScenesPage } from './ScenesPage'
 import { SettingsPage } from './SettingsPage'
 import { StoriesPage } from './StoriesPage'
@@ -2053,6 +2074,229 @@ describe('abs100 Actions absolute', () => {
 // ═══════════════════════════════════════════════════════════
 describe('abs100 Props absolute', () => {
   beforeEach(() => seed())
+
+  it('pure residual helpers cover every branch', async () => {
+    const msgs: string[] = []
+    propsClearFilters(
+      (q) => msgs.push('q:' + q),
+      (v) => msgs.push('i:' + v)
+    )
+    expect(msgs).toEqual(['q:', 'i:'])
+
+    expect(propsGuardEmptyName('', (m) => msgs.push(m), 'empty')).toBe(true)
+    expect(propsGuardEmptyName('x', (m) => msgs.push(m), 'empty')).toBe(false)
+    expect(propsGuardBusy(true, (m) => msgs.push(m), 'L')).toBe(true)
+    expect(propsGuardBusy(false, (m) => msgs.push(m), 'L')).toBe(false)
+    expect(
+      propsGuardAiNeed('', false, false, (m) => msgs.push(m), 'need')
+    ).toBe(true)
+    expect(
+      propsGuardAiNeed('i', false, false, (m) => msgs.push(m), 'need')
+    ).toBe(false)
+
+    expect(propsAiFillToastKey(true, '', false)).toBe('fromImage')
+    expect(propsAiFillToastKey(false, '', false)).toBe('background')
+    expect(propsResolveWantIdentity(true, false)).toBe(true)
+    expect(propsResolveWantIdentity(undefined, true)).toBe(true)
+    expect(propsGalleryPathsFromOpts('/p', ['a'])).toEqual(['/p'])
+    expect(propsGalleryPathsFromOpts(null, ['a'])).toEqual(['a'])
+    expect(
+      propsMaybeAppendMultiRef('p', ['a', 'b'], 'en', (x) => x + '+')
+    ).toBe('p+')
+    expect(propsMaybeAppendMultiRef('p', ['a'], 'en', (x) => x + '+')).toBe(
+      'p'
+    )
+    expect(propsMaybeContinueDraft(true, () => msgs.push('c'))).toBe(true)
+    expect(propsMaybeContinueDraft(false, () => msgs.push('c'))).toBe(false)
+
+    propsApplyIpcError(
+      new Error(
+        JSON.stringify({ code: 'INTERNAL', message: 'm', details: 'd' })
+      ),
+      (m) => msgs.push('s:' + m),
+      (m) => msgs.push('t:' + m)
+    )
+    expect(msgs.some((x) => x.includes('m'))).toBe(true)
+    propsApplySimpleIpc(new Error('simp'), (m) => msgs.push(m))
+    await propsDiscardDraftSafe(async () => {
+      throw new Error('x')
+    }, '/p')
+    await propsDiscardDraftSafe(async () => undefined, '/p')
+
+    expect(
+      propsIntroVideoHandler('id', '/p', () => undefined)
+    ).toBeTypeOf('function')
+    expect(propsIntroVideoHandler(null, '/p', () => undefined)).toBeUndefined()
+
+    expect(
+      propsGuardIntro(
+        null,
+        '/p',
+        false,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('saveFirst')
+    expect(
+      propsGuardIntro(
+        'id',
+        '',
+        false,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('needImage')
+    expect(
+      propsGuardIntro(
+        'id',
+        '/p',
+        true,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('busy')
+    expect(
+      propsGuardIntro(
+        'id',
+        '/p',
+        false,
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        { saveFirst: 's', needImage: 'n', loading: 'L' }
+      )
+    ).toBe('ok')
+
+    expect(
+      propsIsBusyJob({ kind: 'prop-ai-fill', scope: { propId: 'p1' } }, 'p1')
+    ).toBe(true)
+    expect(
+      propsIsBusyJob({ kind: 'other', scope: {} }, 'p1')
+    ).toBe(false)
+    expect(propsSuggestIdeaLabel(true, 'story', 'seg')).toBe('story')
+    expect(propsSuggestIdeaLabel(false, 'story', 'seg')).toBe('seg')
+    expect(
+      propsNextCoverAfterGallery(
+        [{ path: '/a' }],
+        '/a',
+        () => true,
+        () => '/p'
+      )
+    ).toBe('/a')
+    expect(
+      propsNextCoverAfterGallery(
+        [{ path: '/a' }],
+        '/x',
+        () => false,
+        () => '/p'
+      )
+    ).toBe('/p')
+
+    expect(
+      await propsRunCreateForEnsure(
+        async () => {
+          throw new Error('no')
+        },
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        () => undefined
+      )
+    ).toBeNull()
+    expect(
+      await propsRunCreateForEnsure(
+        async () => ({ id: 'np' }),
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        () => undefined
+      )
+    ).toBe('np')
+
+    await propsRunSave({
+      name: '',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: null,
+      toastError: () => undefined,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: () => undefined,
+      update: async () => true,
+      create: async () => undefined,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await propsRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: 'id',
+      toastError: () => undefined,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: () => undefined,
+      update: async () => false,
+      create: async () => undefined,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await propsRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: 'id',
+      toastError: () => undefined,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: () => undefined,
+      update: async () => true,
+      create: async () => undefined,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await propsRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: null,
+      toastError: () => undefined,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: () => undefined,
+      update: async () => true,
+      create: async () => {
+        throw new Error('cr')
+      },
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+    await propsRunSave({
+      name: 'X',
+      emptyMsg: 'e',
+      savedMsg: 's',
+      failedMsg: 'f',
+      editingId: null,
+      toastError: () => undefined,
+      toastSuccess: () => undefined,
+      setBanner: () => undefined,
+      setError: () => undefined,
+      update: async () => true,
+      create: async () => undefined,
+      reload: () => undefined,
+      closeEditor: () => undefined
+    })
+  })
 
   it('filters busy intro draft update fail plate profile cover remove', async () => {
     try {

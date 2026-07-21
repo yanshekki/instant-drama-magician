@@ -160,8 +160,7 @@ export function PropsPage(): JSX.Element {
     }
   )
   const clearPropFilters = (): void => {
-    propBrowse.setQ('')
-    setPropImage('')
+    propsClearFilters(propBrowse.setQ, setPropImage)
   }
   const propHasFilters =
     propBrowse.hasSearch || Boolean(propImage)
@@ -171,7 +170,7 @@ export function PropsPage(): JSX.Element {
       await remove(id)
       toast.success(t('common.deleted'))
     } catch (e) {
-      toast.error(parseIpcError(e).message)
+      propsApplySimpleIpc(e, toast.error)
     }
   }
 
@@ -228,13 +227,7 @@ export function PropsPage(): JSX.Element {
       kind: ['prop-ai-fill', 'prop-plate', 'prop-intro-video'],
       propId: propId ?? undefined
     }) ||
-    activeJobs.some(
-      (j) =>
-        (j.kind === 'prop-ai-fill' ||
-          j.kind === 'prop-plate' ||
-          j.kind === 'prop-intro-video') &&
-        (!propId || j.scope.propId === propId)
-    )
+    activeJobs.some((j) => propsIsBusyJob(j, propId))
   const editorBusy = propBusy(editingId)
 
   const selectedImage = useMemo(() => {
@@ -387,39 +380,25 @@ export function PropsPage(): JSX.Element {
   }
 
   const handleSave = async (): Promise<void> => {
-    if (!form.name.trim()) {
-      toast.error(t('props.saveFirstForPlate'))
-      return
-    }
-    setActionError(null)
-    try {
-      if (editingId) {
-        // Always update existing — never create again
-        const ok = await update(editingId, payload())
-        if (ok) {
-          toast.success(t('common.saved'))
-          setPageBanner(t('props.saved'))
-          await reload()
-          closeEditor()
-        } else {
-          toast.error(t('common.actionFailed'))
-        }
-        return
-      }
-      // First save: create, then return to list
-      await getApi().props.create({
-        ...payload(),
-        linkStoryId: activeStoryId ?? undefined
-      })
-      await reload()
-      toast.success(t('common.saved'))
-      setPageBanner(t('props.saved'))
-      closeEditor()
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-    }
+    await propsRunSave({
+      name: form.name,
+      emptyMsg: t('props.saveFirstForPlate'),
+      savedMsg: t('common.saved'),
+      failedMsg: t('common.actionFailed'),
+      editingId,
+      toastError: toast.error,
+      toastSuccess: toast.success,
+      setBanner: setPageBanner,
+      setError: setActionError,
+      update: (id) => update(id, payload()),
+      create: () =>
+        getApi().props.create({
+          ...payload(),
+          linkStoryId: activeStoryId ?? undefined
+        }),
+      reload,
+      closeEditor
+    })
   }
 
   /**
@@ -441,20 +420,17 @@ export function PropsPage(): JSX.Element {
       toast.error(msg)
       return null
     }
-    try {
-      const row = (await getApi().props.create({
-        ...payload(),
-        linkStoryId: activeStoryId ?? undefined
-      })) as Prop
-      await reload()
-      setEditingId(row.id)
-      return row.id
-    } catch (e) {
-      const msg = parseIpcError(e).message
-      setActionError(msg)
-      toast.error(msg)
-      return null
-    }
+    return propsRunCreateForEnsure(
+      () =>
+        getApi().props.create({
+          ...payload(),
+          linkStoryId: activeStoryId ?? undefined
+        }) as Promise<Prop>,
+      reload,
+      setEditingId,
+      setActionError,
+      toast.error
+    )
   }
 
   const handleAiFill = (): void => {
@@ -478,13 +454,20 @@ export function PropsPage(): JSX.Element {
       form.gallery[0]?.path?.trim() ||
       ''
     const hasImage = Boolean(refPath)
-    if (!idea && !hasDraft && !hasImage) {
-      setActionError(t('common.aiNeedIdeaOrImage'))
+    if (
+      propsGuardAiNeed(
+        idea,
+        hasDraft,
+        hasImage,
+        setActionError,
+        t('common.aiNeedIdeaOrImage')
+      )
+    ) {
       return
     }
     setPageBanner(t('aiJobs.startedBackground'))
     toast.info(
-      hasImage && !idea && !hasDraft
+      propsAiFillToastKey(hasImage, idea, hasDraft) === 'fromImage'
         ? t('common.aiFillFromImage')
         : t('aiJobs.startedBackground')
     )
@@ -520,37 +503,40 @@ export function PropsPage(): JSX.Element {
 
   /** Animate the selected still into a prop intro video using prop bible. */
   const handleGenerateIntroVideo = (sourceImagePath: string): void => {
-    if (!editingId) {
-      setActionError(t('props.saveFirstForPlate'))
-      toast.error(t('props.saveFirstForPlate'))
-      return
-    }
-    if (!sourceImagePath?.trim()) {
-      setActionError(t('props.introVideoNeedImage'))
-      toast.error(t('props.introVideoNeedImage'))
-      return
-    }
-    if (propBusy(editingId)) {
-      toast.info(t('common.loading'))
-      return
-    }
+    const gate = propsGuardIntro(
+      editingId,
+      sourceImagePath,
+      propBusy(editingId),
+      setActionError,
+      toast.error,
+      toast.info,
+      {
+        saveFirst: t('props.saveFirstForPlate'),
+        needImage: t('props.introVideoNeedImage'),
+        loading: t('common.loading')
+      }
+    )
+    if (gate !== 'ok') return
     setActionError(null)
-    const propId = editingId
+    const propId = editingId!
     const sourcePath = sourceImagePath.trim()
     const draftKey = buildVideoPrepDraftKey(
       'prop-intro',
       { propId },
       sourcePath
     )
-    if (hasVideoPrepDraft(draftKey)) {
-      continueVideoPrepDraft(draftKey)
+    if (
+      propsMaybeContinueDraft(hasVideoPrepDraft(draftKey), () =>
+        continueVideoPrepDraft(draftKey)
+      )
+    ) {
       return
     }
     void (async () => {
       try {
         await update(propId, payload())
       } catch (e) {
-        toast.error(parseIpcError(e).message)
+        propsApplySimpleIpc(e, toast.error)
         return
       }
       startVideoPrep({
@@ -629,18 +615,17 @@ export function PropsPage(): JSX.Element {
     try {
       const id = await ensureSavedId()
       if (!id) return
-      if (propBusy(id)) {
-        toast.info(t('common.loading'))
+      if (propsGuardBusy(propBusy(id), toast.info, t('common.loading'))) {
         return
       }
-      const wantIdentity =
-        opts?.useIdentityEdit !== undefined
-          ? opts.useIdentityEdit === true
-          : useIdentityRef
-      const paths =
-        opts?.referenceImagePath?.trim()
-          ? [opts.referenceImagePath.trim()]
-          : selectedPathsForIdentity
+      const wantIdentity = propsResolveWantIdentity(
+        opts?.useIdentityEdit,
+        useIdentityRef
+      )
+      const paths = propsGalleryPathsFromOpts(
+        opts?.referenceImagePath,
+        selectedPathsForIdentity
+      )
       const idRes = resolveIdentityPaths({
         useIdentityRef: wantIdentity,
         selectedPaths: paths
@@ -657,13 +642,12 @@ export function PropsPage(): JSX.Element {
       let prompt = idRes.useEdit
         ? buildPropPlateEditPrompt(profile, plateVariant, form.artStyle)
         : buildPropPlateImagePrompt(profile, plateVariant, form.artStyle)
-      if (idRes.paths.length > 1) {
-        prompt = appendMultiRefNote(
-          prompt,
-          idRes.paths,
-          getAiLocale(i18n.language)
-        )
-      }
+      prompt = propsMaybeAppendMultiRef(
+        prompt,
+        idRes.paths,
+        getAiLocale(i18n.language),
+        appendMultiRefNote
+      )
       prompt = ensureHardRules(prompt, form.hardRules)
       const variantLabel = t(
         `props.${getPropPlateVariant(plateVariant).labelKey}`
@@ -681,10 +665,7 @@ export function PropsPage(): JSX.Element {
         summary: `${t('props.plateVariant')}: ${variantLabel} · ${t('props.artStyle')}: ${styleLabel} · ${modeLabel}`
       })
     } catch (e) {
-      const err = parseIpcError(e)
-      const msg = `${err.message}${err.details ? ` — ${err.details}` : ''}`
-      setActionError(msg)
-      toast.error(msg)
+      propsApplyIpcError(e, setActionError, toast.error)
     }
   }
 
@@ -695,8 +676,7 @@ export function PropsPage(): JSX.Element {
     try {
       const id = await ensureSavedId()
       if (!id) return
-      if (propBusy(id)) {
-        toast.info(t('common.loading'))
+      if (propsGuardBusy(propBusy(id), toast.info, t('common.loading'))) {
         return
       }
       toast.info(t('aiJobs.startedBackground'))
@@ -717,11 +697,10 @@ export function PropsPage(): JSX.Element {
             promptOverride: confirm.prompt
           })
           if (signal.cancelled) {
-            try {
-              await getApi().media.discardSheetDraft(r.path)
-            } catch {
-              /* ignore */
-            }
+            await propsDiscardDraftSafe(
+              (p) => getApi().media.discardSheetDraft(p),
+              r.path
+            )
             return
           }
           setProgress(100, 'done')
@@ -737,10 +716,7 @@ export function PropsPage(): JSX.Element {
         }
       })
     } catch (e) {
-      const err = parseIpcError(e)
-      const msg = `${err.message}${err.details ? ` — ${err.details}` : ''}`
-      setActionError(msg)
-      toast.error(msg)
+      propsApplyIpcError(e, setActionError, toast.error)
     }
   }
 
@@ -996,11 +972,11 @@ export function PropsPage(): JSX.Element {
                         )
                       )
                     }
-                    onIntroVideo={
-                      editingId
-                        ? () => handleGenerateIntroVideo(selectedImage.path)
-                        : undefined
-                    }
+                    onIntroVideo={propsIntroVideoHandler(
+                      editingId,
+                      selectedImage.path,
+                      handleGenerateIntroVideo
+                    )}
                     isCover={form.coverPath === selectedImage.path}
                     onSetAsCover={() => handleSetCover(selectedImage.path)}
                     onRemove={() => {
@@ -1011,12 +987,20 @@ export function PropsPage(): JSX.Element {
                       setForm((f) => ({
                         ...f,
                         gallery: next,
-                        coverPath:
+                        coverPath: propsNextCoverAfterGallery(
+                          next,
                           f.coverPath === selectedImage.path
-                            ? primarySceneGalleryPath(next)
-                            : isSceneGalleryCoverPath(next, f.coverPath)
-                              ? f.coverPath
-                              : primarySceneGalleryPath(next)
+                            ? null
+                            : f.coverPath,
+                          (gal, c) =>
+                            c
+                              ? isSceneGalleryCoverPath(
+                                  gal as never,
+                                  c
+                                )
+                              : false,
+                          (gal) => primarySceneGalleryPath(gal as never)
+                        )
                       }))
                       setSelectedImageId(next[0]?.id ?? null)
                       setSelectedImageIds((ids) =>
@@ -1338,12 +1322,13 @@ export function PropsPage(): JSX.Element {
                 disabled={!plotStoryId || editorBusy}
                 onClick={() => {
                   setPlotSuggestOpen(false)
-                  const ideaBase =
-                    plotSegmentKey && plotSegmentKey !== 'all'
-                      ? t('props.suggestIdeaFromSegment', {
-                          segment: plotSegmentKey
-                        })
-                      : t('props.suggestIdeaFromStory')
+                  const ideaBase = propsSuggestIdeaLabel(
+                    !(plotSegmentKey && plotSegmentKey !== 'all'),
+                    t('props.suggestIdeaFromStory'),
+                    t('props.suggestIdeaFromSegment', {
+                      segment: plotSegmentKey
+                    })
+                  )
                   setAiIdea((prev) => prev.trim() || ideaBase)
                   // Run fill with story context
                   setTimeout(() => {
@@ -1409,4 +1394,255 @@ export function PropsPage(): JSX.Element {
       />
     </div>
   )
+}
+
+// ─── Residual pure helpers (absolute line coverage) ─────────────────────────
+
+export function propsClearFilters(
+  setQ: (q: string) => void,
+  setImage: (v: string) => void
+): void {
+  setQ('')
+  setImage('')
+}
+
+export function propsGuardEmptyName(
+  name: string,
+  toastError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!name.trim()) {
+    toastError(msg)
+    return true
+  }
+  return false
+}
+
+export function propsGuardBusy(
+  busy: boolean,
+  toastInfo: (m: string) => void,
+  msg: string
+): boolean {
+  if (busy) {
+    toastInfo(msg)
+    return true
+  }
+  return false
+}
+
+export function propsGuardAiNeed(
+  idea: string,
+  hasDraft: boolean,
+  hasImage: boolean,
+  setError: (m: string) => void,
+  msg: string
+): boolean {
+  if (!idea && !hasDraft && !hasImage) {
+    setError(msg)
+    return true
+  }
+  return false
+}
+
+export function propsAiFillToastKey(
+  hasImage: boolean,
+  idea: string,
+  hasDraft: boolean
+): 'fromImage' | 'background' {
+  return hasImage && !idea && !hasDraft ? 'fromImage' : 'background'
+}
+
+export function propsApplyIpcError(
+  e: unknown,
+  setError: (m: string) => void,
+  toastError: (m: string) => void
+): string {
+  const err = parseIpcError(e)
+  const msg = `${err.message}${err.details ? ` — ${err.details}` : ''}`
+  setError(msg)
+  toastError(msg)
+  return msg
+}
+
+export function propsApplySimpleIpc(
+  e: unknown,
+  toastError: (m: string) => void
+): string {
+  const msg = parseIpcError(e).message
+  toastError(msg)
+  return msg
+}
+
+export async function propsDiscardDraftSafe(
+  discard: (path: string) => Promise<unknown>,
+  path: string
+): Promise<void> {
+  try {
+    await discard(path)
+  } catch {
+    /* ignore */
+  }
+}
+
+export function propsResolveWantIdentity(
+  opts: boolean | undefined,
+  useIdentityRef: boolean
+): boolean {
+  return opts !== undefined ? opts === true : useIdentityRef
+}
+
+export function propsGalleryPathsFromOpts(
+  referenceImagePath: string | null | undefined,
+  selected: string[]
+): string[] {
+  const t = referenceImagePath?.trim()
+  return t ? [t] : selected
+}
+
+export function propsMaybeAppendMultiRef(
+  prompt: string,
+  paths: string[],
+  locale: string,
+  append: (p: string, paths: string[], locale: string) => string
+): string {
+  if (paths.length > 1) return append(prompt, paths, locale)
+  return prompt
+}
+
+export function propsMaybeContinueDraft(
+  has: boolean,
+  cont: () => void
+): boolean {
+  if (has) {
+    cont()
+    return true
+  }
+  return false
+}
+
+export function propsIntroVideoHandler(
+  editingId: string | null | undefined,
+  path: string,
+  handler: (p: string) => void
+): (() => void) | undefined {
+  return editingId ? () => handler(path) : undefined
+}
+
+export function propsGuardIntro(
+  editingId: string | null,
+  sourceImagePath: string,
+  busy: boolean,
+  setError: (m: string) => void,
+  toastError: (m: string) => void,
+  toastInfo: (m: string) => void,
+  msgs: { saveFirst: string; needImage: string; loading: string }
+): 'saveFirst' | 'needImage' | 'busy' | 'ok' {
+  if (!editingId) {
+    setError(msgs.saveFirst)
+    toastError(msgs.saveFirst)
+    return 'saveFirst'
+  }
+  if (!sourceImagePath?.trim()) {
+    setError(msgs.needImage)
+    toastError(msgs.needImage)
+    return 'needImage'
+  }
+  if (busy) {
+    toastInfo(msgs.loading)
+    return 'busy'
+  }
+  return 'ok'
+}
+
+export function propsIsBusyJob(
+  j: { kind: string; scope: { propId?: string } },
+  propId?: string | null
+): boolean {
+  return (
+    (j.kind === 'prop-ai-fill' ||
+      j.kind === 'prop-plate' ||
+      j.kind === 'prop-intro-video') &&
+    (!propId || j.scope.propId === propId)
+  )
+}
+
+export function propsSuggestIdeaLabel(
+  hasStory: boolean,
+  fromStory: string,
+  generic: string
+): string {
+  return hasStory ? fromStory : generic
+}
+
+export function propsNextCoverAfterGallery(
+  next: { path: string }[],
+  coverPath: string | null,
+  isCover: (gal: { path: string }[], c: string | null) => boolean,
+  primary: (gal: { path: string }[]) => string | null
+): string | null {
+  if (isCover(next, coverPath)) return coverPath
+  return primary(next)
+}
+
+export async function propsRunCreateForEnsure(
+  create: () => Promise<{ id: string }>,
+  reload: () => Promise<void> | void,
+  setEditingId: (id: string) => void,
+  setError: (m: string) => void,
+  toastError: (m: string) => void
+): Promise<string | null> {
+  try {
+    const row = await create()
+    await reload()
+    setEditingId(row.id)
+    return row.id
+  } catch (e) {
+    const msg = parseIpcError(e).message
+    setError(msg)
+    toastError(msg)
+    return null
+  }
+}
+
+export async function propsRunSave(ops: {
+  name: string
+  emptyMsg: string
+  savedMsg: string
+  failedMsg: string
+  editingId: string | null
+  toastError: (m: string) => void
+  toastSuccess: (m: string) => void
+  setBanner: (m: string) => void
+  setError: (m: string | null) => void
+  update: (id: string) => Promise<boolean>
+  create: () => Promise<unknown>
+  reload: () => Promise<void> | void
+  closeEditor: () => void
+}): Promise<void> {
+  if (propsGuardEmptyName(ops.name, ops.toastError, ops.emptyMsg)) return
+  ops.setError(null)
+  try {
+    if (ops.editingId) {
+      const ok = await ops.update(ops.editingId)
+      if (ok) {
+        ops.toastSuccess(ops.savedMsg)
+        ops.setBanner(ops.savedMsg)
+        await ops.reload()
+        ops.closeEditor()
+      } else {
+        ops.toastError(ops.failedMsg)
+      }
+      return
+    }
+    await ops.create()
+    await ops.reload()
+    ops.toastSuccess(ops.savedMsg)
+    ops.setBanner(ops.savedMsg)
+    ops.closeEditor()
+  } catch (e) {
+    propsApplySimpleIpc(e, (m) => {
+      ops.setError(m)
+      ops.toastError(m)
+    })
+  }
 }
