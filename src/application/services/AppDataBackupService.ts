@@ -152,7 +152,8 @@ export class AppDataBackupService {
     if (!existsSync(this.paths.databasePath)) {
       throw new AppError(
         'NOT_FOUND',
-        `Database not found: ${this.paths.databasePath}`
+        'errors.databaseNotFound',
+        String(this.paths.databasePath)
       )
     }
 

@@ -64,7 +64,7 @@ export function extractDescriptionFromSoulMd(
 export function validateCharacterName(name: string): string | null {
   const trimmed = name.trim()
   if (trimmed.length === 0) return 'errors.nameRequired'
-  if (trimmed.length > 100) return 'name must be at most 100 characters'
+  if (trimmed.length > 100) return 'errors.nameTooLong'
   return null
 }
 

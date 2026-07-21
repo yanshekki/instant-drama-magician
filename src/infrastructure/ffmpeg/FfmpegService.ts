@@ -443,7 +443,7 @@ export class FfmpegService {
   }): Promise<string> {
     await this.ensureAvailable()
     if (!existsSync(options.videoPath)) {
-      throw new AppError('NOT_FOUND', `Video not found: ${options.videoPath}`)
+      throw new AppError('NOT_FOUND', 'errors.videoNotFound', String(options.videoPath))
     }
     mkdirSync(dirname(options.outputPath), { recursive: true })
     const at = Math.max(0, options.atSeconds ?? 0.25)
@@ -551,7 +551,7 @@ export class FfmpegService {
       })
       child.on('error', (err) => {
         reject(
-          new AppError('FFMPEG_FAILED', `Failed to spawn ffmpeg: ${err.message}`)
+          new AppError('FFMPEG_FAILED', 'errors.ffmpegSpawnFailed', err.message)
         )
       })
       child.on('close', (code) => {
@@ -560,8 +560,8 @@ export class FfmpegService {
           reject(
             new AppError(
               'FFMPEG_FAILED',
-              `ffmpeg exited with code ${code}`,
-              stderr.slice(-2000)
+              'errors.ffmpegExited',
+              stderr.slice(-2000) || String(code)
             )
           )
         }

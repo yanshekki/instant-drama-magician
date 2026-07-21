@@ -36,7 +36,7 @@ export class HttpTtsProvider implements TtsProvider {
       body: JSON.stringify({ text: request.text, voice: request.voice }),
       signal: AbortSignal.timeout(60_000)
     })
-    if (!res.ok) throw new Error(`TTS HTTP ${res.status}`)
+    if (!res.ok) throw new AppError('IO', 'errors.ttsHttpFailed', String(res.status))
     const buf = Buffer.from(await res.arrayBuffer())
     writeFileSync(request.outputPath, buf)
     return { outputPath: request.outputPath }

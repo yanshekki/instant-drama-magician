@@ -433,8 +433,8 @@ export class GrokCliClient implements AIProvider {
       if (/abort|timeout/i.test(msg)) {
         throw new AppError(
           'AI_FAILED',
-          `Chat timed out after ${this.chatTimeoutMs}ms`,
-          'Raise chatTimeoutMs or check Gateway queue'
+          'errors.chatTimedOut',
+          String(this.chatTimeoutMs)
         )
       }
       // One auto-recover: start local gateway then retry once
@@ -448,8 +448,8 @@ export class GrokCliClient implements AIProvider {
           if (/abort|timeout/i.test(retryMsg)) {
             throw new AppError(
               'AI_FAILED',
-              `Chat timed out after ${this.chatTimeoutMs}ms`,
-              'Raise chatTimeoutMs or check Gateway queue'
+              'errors.chatTimedOut',
+              String(this.chatTimeoutMs)
             )
           }
           throw new AppError(

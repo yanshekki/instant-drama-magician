@@ -13,7 +13,7 @@ export function isSceneStatus(value: string): value is SceneStatus {
 
 export function validateSceneNumber(sceneNumber: number): string | null {
   if (!Number.isInteger(sceneNumber) || sceneNumber < 1) {
-    return 'sceneNumber must be an integer >= 1'
+    return 'errors.sceneNumberInvalid'
   }
   return null
 }

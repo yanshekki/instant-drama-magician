@@ -14,8 +14,8 @@ export function normalizeStoryTitle(title: string): string {
 
 export function validateStoryTitle(title: string): string | null {
   const normalized = normalizeStoryTitle(title)
-  if (normalized.length === 0) return 'title is required'
-  if (normalized.length > 200) return 'title must be at most 200 characters'
+  if (normalized.length === 0) return 'errors.titleRequired'
+  if (normalized.length > 200) return 'errors.titleTooLong'
   return null
 }
 

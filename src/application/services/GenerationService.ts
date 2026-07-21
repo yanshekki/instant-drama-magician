@@ -89,7 +89,7 @@ export class GenerationService {
     }
     const story = await this.loadStory(storyId)
     const entry = story.timeline.find((e) => e.id === entryId)
-    if (!entry) throw new AppError('NOT_FOUND', `Timeline entry not found: ${entryId}`)
+    if (!entry) throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound', String(entryId))
 
     this.abort = new AbortController()
     const signal = this.abort.signal
@@ -513,7 +513,8 @@ export class GenerationService {
     if (!canStartGeneration(story.status) && !opts?.onlyFailedVideos) {
       throw new AppError(
         'CONFLICT',
-        `Cannot start generation while story status is ${story.status}`
+        'errors.cannotStartGeneration',
+        String(story.status)
       )
     }
 

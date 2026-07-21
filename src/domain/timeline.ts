@@ -83,12 +83,12 @@ export function validateTimeRange(
   maxClipSeconds: number = DEFAULT_MAX_CLIP_SECONDS
 ): string | null {
   if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
-    return 'startTime and endTime must be finite numbers'
+    return 'errors.timelineTimesInvalid'
   }
-  if (startTime < 0) return 'startTime must be >= 0'
-  if (endTime <= startTime) return 'endTime must be greater than startTime'
+  if (startTime < 0) return 'errors.startTimeNegative'
+  if (endTime <= startTime) return 'errors.endTimeOrder'
   if (endTime - startTime > maxClipSeconds) {
-    return `clip duration must be <= ${maxClipSeconds}s (AI video limit)`
+    return 'errors.clipDurationTooLong'
   }
   return null
 }

@@ -249,7 +249,7 @@ export class CostumeService {
         }
       }
     })
-    if (!row) throw new AppError('NOT_FOUND', `Costume not found: ${id}`)
+    if (!row) throw new AppError('NOT_FOUND', 'errors.costumeNotFound', String(id))
     return row
   }
 

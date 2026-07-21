@@ -18,7 +18,8 @@ describe('character domain', () => {
   })
 
   it('validates name', () => {
-    expect(validateCharacterName('')).toMatch(/required/)
+    expect(validateCharacterName('')).toBe('errors.nameRequired')
+    expect(validateCharacterName('x'.repeat(101))).toBe('errors.nameTooLong')
     expect(validateCharacterName('OK')).toBeNull()
   })
 

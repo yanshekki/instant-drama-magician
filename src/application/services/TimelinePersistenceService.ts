@@ -171,7 +171,7 @@ export class TimelinePersistenceService {
 
   async update(id: string, data: UpdateTimelineEntryInput): Promise<TimelineEntry> {
     const existing = await this.prisma.timelineEntry.findUnique({ where: { id } })
-    if (!existing) throw new AppError('NOT_FOUND', `Timeline entry not found: ${id}`)
+    if (!existing) throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound', String(id))
 
     const touchTimes =
       data.startTime !== undefined || data.endTime !== undefined
@@ -312,7 +312,7 @@ export class TimelinePersistenceService {
       where: { id },
       select: { id: true }
     })
-    if (!found) throw new AppError('NOT_FOUND', `Timeline entry not found: ${id}`)
+    if (!found) throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound', String(id))
   }
 
   async delete(id: string) {
@@ -320,7 +320,7 @@ export class TimelinePersistenceService {
       where: { id },
       select: { id: true, storyId: true }
     })
-    if (!existing) throw new AppError('NOT_FOUND', `Timeline entry not found: ${id}`)
+    if (!existing) throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound', String(id))
     await this.prisma.timelineEntry.delete({ where: { id } })
     await this.syncOrderByStartTime(existing.storyId)
     return { ok: true as const }

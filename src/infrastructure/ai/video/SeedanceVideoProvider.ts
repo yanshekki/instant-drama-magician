@@ -284,7 +284,7 @@ export class SeedanceVideoProvider implements VideoProvider {
     }
     throw new AppError(
       'VIDEO_TIMEOUT',
-      `Seedance task timed out after ${this.timeoutSec}s`,
+      'errors.seedanceTimedOut',
       taskId
     )
   }
@@ -300,10 +300,7 @@ export class SeedanceVideoProvider implements VideoProvider {
       signal: AbortSignal.timeout(120_000)
     })
     if (!res.ok) {
-      throw new AppError(
-        'IO',
-        `Failed to download Seedance video: HTTP ${res.status}`
-      )
+      throw new AppError('IO', 'errors.seedanceDownloadFailed', String(res.status))
     }
     if (!res.body) {
       const buf = Buffer.from(await res.arrayBuffer())

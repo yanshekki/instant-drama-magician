@@ -147,7 +147,7 @@ export function createRuntime(opts: RuntimeOptions): AppRuntime {
     reg('media:toPreviewUrl', async (filePath) => {
       const p = String(filePath ?? '')
       if (!p || !existsSync(p)) {
-        throw new AppError('NOT_FOUND', `Media not found: ${p}`)
+        throw new AppError('NOT_FOUND', 'errors.mediaNotFound', String(p))
       }
       const resolved = pathResolve(p)
       const root = pathResolve(mediaRoot)
@@ -214,8 +214,8 @@ export function createRuntime(opts: RuntimeOptions): AppRuntime {
     if (!fn) {
       throw new AppError(
         'NOT_FOUND',
-        `API channel not available: ${channel}`,
-        `Registered channels: ${handlers.size}. Use idm channels list.`
+        'errors.apiChannelNotAvailable',
+        `${channel}; registered: ${handlers.size}`
       )
     }
     try {

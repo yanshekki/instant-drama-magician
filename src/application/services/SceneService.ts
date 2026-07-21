@@ -49,7 +49,7 @@ export class SceneService {
     const descErr = validateSceneDescription(input.description)
     if (descErr) throw new AppError('VALIDATION', descErr)
     if (input.status !== undefined && !isSceneStatus(input.status)) {
-      throw new AppError('VALIDATION', `Invalid scene status: ${input.status}`)
+      throw new AppError('VALIDATION', 'errors.invalidSceneStatus', String(input.status))
     }
     const row = await this.prisma.scene.create({
       data: {
@@ -100,7 +100,7 @@ export class SceneService {
       if (descErr) throw new AppError('VALIDATION', descErr)
     }
     if (data.status !== undefined && !isSceneStatus(data.status)) {
-      throw new AppError('VALIDATION', `Invalid scene status: ${data.status}`)
+      throw new AppError('VALIDATION', 'errors.invalidSceneStatus', String(data.status))
     }
     return this.prisma.scene.update({
       where: { id },

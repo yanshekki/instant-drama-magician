@@ -31,7 +31,7 @@ describe('AppDataBackupService helpers', () => {
         kind: 'story',
         storyId: 'x'
       })
-    ).toThrow(/full app-data/i)
+    ).toThrow(/errors\.backupWrongKind/)
   })
 
   it('redacts secrets by default for export payload', () => {

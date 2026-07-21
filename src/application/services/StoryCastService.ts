@@ -326,7 +326,7 @@ export class StoryCastService {
       where: { id: costumeId },
       select: { id: true }
     })
-    if (!costume) throw new AppError('NOT_FOUND', `Costume not found: ${costumeId}`)
+    if (!costume) throw new AppError('NOT_FOUND', 'errors.costumeNotFound', String(costumeId))
     const link = await this.prisma.characterCostume.findUnique({
       where: {
         characterId_costumeId: { characterId, costumeId }

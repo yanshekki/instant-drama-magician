@@ -19,6 +19,7 @@ import {
   type ExportHistoryItem,
   type ExportKind
 } from '../../domain/exportHistory'
+import { AppError } from '../../types/errors'
 
 /**
  * Local media layout under a root directory:
@@ -316,7 +317,7 @@ export class MediaStore {
 
   private promoteTmpTo(dest: string, tmpPath: string): string {
     if (!existsSync(tmpPath)) {
-      throw new Error(`Draft image missing: ${tmpPath}`)
+      throw new AppError('NOT_FOUND', 'errors.draftImageMissing', String(tmpPath))
     }
     this.ensureLibraryDirs()
     mkdirSync(dirname(dest), { recursive: true })
@@ -394,7 +395,7 @@ export class MediaStore {
 
   importClip(storyId: string, entryId: string, sourcePath: string): string {
     if (!existsSync(sourcePath)) {
-      throw new Error(`Source media not found: ${sourcePath}`)
+      throw new AppError('NOT_FOUND', 'errors.sourceMediaNotFound', String(sourcePath))
     }
     this.ensureStoryDirs(storyId)
     const ext = extname(sourcePath) || '.mp4'

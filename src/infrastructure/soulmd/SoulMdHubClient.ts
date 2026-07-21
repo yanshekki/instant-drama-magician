@@ -86,7 +86,7 @@ export class SoulMdHubClient {
       signal: AbortSignal.timeout(20_000)
     })
     if (!res.ok) {
-      throw new Error(`SoulMD Hub list failed: HTTP ${res.status}`)
+      throw new AppError('IO', 'errors.soulHubHttpFailed', String(res.status))
     }
     const json = (await res.json()) as SoulListResponse
     if (!json.success) throw new AppError('VALIDATION', 'errors.soulHubListFailed')
@@ -99,7 +99,7 @@ export class SoulMdHubClient {
       signal: AbortSignal.timeout(20_000)
     })
     if (!res.ok) {
-      throw new Error(`SoulMD Hub get failed: HTTP ${res.status}`)
+      throw new AppError('IO', 'errors.soulHubHttpFailed', String(res.status))
     }
     const json = (await res.json()) as { success: boolean; data: SoulDetail }
     if (!json.success || !json.data) throw new AppError('VALIDATION', 'errors.soulNotFound')
@@ -110,7 +110,7 @@ export class SoulMdHubClient {
     const res = await this.fetchFn(`${this.origin}/api/categories`, {
       signal: AbortSignal.timeout(15_000)
     })
-    if (!res.ok) throw new Error(`Categories HTTP ${res.status}`)
+    if (!res.ok) throw new AppError('IO', 'errors.categoriesHttpFailed', String(res.status))
     const json = (await res.json()) as {
       success: boolean
       data: SoulCategory[]

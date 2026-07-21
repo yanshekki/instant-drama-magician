@@ -3,6 +3,7 @@ import type { VideoGenRequest, VideoGenResult } from '../../../types/domain'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { GrokHttpVideoProvider } from './GrokHttpVideoProvider'
 import { StubVideoProvider } from './StubVideoProvider'
+import { AppError } from '../../../types/errors'
 
 export class CompositeVideoProvider implements VideoProvider {
   readonly id = 'composite'
@@ -105,10 +106,10 @@ export class CompositeVideoProvider implements VideoProvider {
         jobId: stub.jobId ?? `stub-fallback:${probeMessage || 'http-unavailable'}`
       }
     } catch (stubErr) {
-      throw new Error(
-        `Video HTTP unavailable (${probeMessage || 'probe failed'}) and stub failed: ${
-          stubErr instanceof Error ? stubErr.message : String(stubErr)
-        }`
+      throw new AppError(
+        'AI_UNAVAILABLE',
+        'errors.videoUnavailable',
+        stubErr instanceof Error ? stubErr.message : String(stubErr)
       )
     }
   }

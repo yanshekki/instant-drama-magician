@@ -100,11 +100,7 @@ export function mapChatHttpStatus(status: number, bodyText: string): AppError {
   if (mapped) {
     return new AppError(mapped.code, mapped.message, mapped.details)
   }
-  return new AppError(
-    'AI_FAILED',
-    `Request failed (HTTP ${status})`,
-    bodyText.slice(0, 200) || undefined
-  )
+  return new AppError('AI_FAILED', 'errors.requestFailedHttp', bodyText.slice(0, 200) || String(status))
 }
 
 export function mapChatMessage(message: string): AppErrorBody | null {
@@ -269,13 +265,13 @@ export function mapHttpStatusToVideoError(
     return new AppError(mapped.code, mapped.message, mapped.details)
   }
   if (status === 401) {
-    return new AppError('VIDEO_UNAUTHORIZED', `Video HTTP 401: ${bodyText.slice(0, 200)}`)
+    return new AppError('VIDEO_UNAUTHORIZED', 'errors.videoUnauthorized', bodyText.slice(0, 200))
   }
   if (status === 403) {
-    return new AppError('VIDEO_KEY_MODE', `Video HTTP 403: ${bodyText.slice(0, 200)}`)
+    return new AppError('VIDEO_KEY_MODE', 'errors.videoKeyMode', bodyText.slice(0, 200))
   }
   if (status === 429) {
-    return new AppError('VIDEO_RATE_LIMIT', `Video HTTP 429: ${bodyText.slice(0, 200)}`)
+    return new AppError('VIDEO_RATE_LIMIT', 'errors.videoRateLimit', bodyText.slice(0, 200))
   }
-  return new AppError('AI_FAILED', `Video HTTP ${status}: ${bodyText.slice(0, 500)}`)
+  return new AppError('AI_FAILED', 'errors.videoHttpFailed', `${status}: ${bodyText.slice(0, 500)}`)
 }

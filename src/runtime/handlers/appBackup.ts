@@ -1,98 +1,11 @@
 /**
  * Domain IPC handlers (split for maintainability).
  */
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync
-} from 'fs'
-import { basename, dirname, extname, join } from 'path'
-import { GrokCliClient } from '../../infrastructure/ai/GrokCliClient'
-import {
-  AppDataBackupService,
-  CharacterService,
-  CostumeService,
-  defaultFullBackupFileName,
-  DemoSeedService,
-  GenerationService,
-  ProjectBackupService,
-  PropService,
-  ActionService,
-  SceneService,
-  StoryCastService,
-  StoryService,
-  TimelinePersistenceService
-} from '../../application/services'
-import { MediaStore } from '../../infrastructure/media/MediaStore'
+import { existsSync, mkdirSync } from 'fs'
+import { basename, join } from 'path'
+import { AppDataBackupService, defaultFullBackupFileName } from '../../application/services'
 import { ActivityLog } from '../../infrastructure/activity/ActivityLog'
-import {
-  redactSettings,
-  supportReportPath,
-  writeSupportReportJson
-} from '../../infrastructure/support/SupportReport'
-import {
-  detectInstallChannel,
-  githubReleaseUrl
-} from '../../domain/installChannel'
-import { ensureHardRules } from '../../domain/promptHardRules'
-import {
-  NPM_INSTALL_CMD,
-  NPM_PACKAGE_NAME,
-  checkNpmPackageUpdate
-} from '../../infrastructure/update/npmPackageUpdate'
-import type {
-  CreateCharacterInput,
-  CreateActionInput,
-  CreatePropInput,
-  CreateSceneInput,
-  CreateStoryInput,
-  CreateTimelineEntryInput,
-  PropProfileFields,
-  SceneProfileFields,
-  UpdateActionInput,
-  UpdateCharacterInput,
-  UpdatePropInput,
-  UpdateSceneInput,
-  UpdateTimelineEntryInput
-} from '../../types/domain'
-import { chatContentText } from '../../types/domain'
-import { SoulMdHubClient } from '../../infrastructure/soulmd/SoulMdHubClient'
-import {
-  buildCharacterIntroVideoPrompt,
-  buildCharacterMasterSystemPrompt,
-  buildCharacterMasterUserPrompt,
-  buildCharacterSheetEditPrompt,
-  buildCharacterSheetImagePrompt,
-  extractCharacterProfileJson
-} from '../../domain/characterMasterPrompt'
-import { buildSceneIntroVideoPrompt } from '../../domain/sceneMasterPrompt'
-import { buildPropIntroVideoPrompt } from '../../domain/propMasterPrompt'
-import { buildCostumeIntroVideoPrompt } from '../../domain/costumeSwap'
-import {
-  buildSoulGenerateSystemPrompt,
-  buildSoulGenerateUserPrompt,
-  normalizeSoulMarkdown,
-  profileHasSoulSource
-} from '../../domain/soulGenerate'
-import {
-  appendGalleryItem,
-  MAX_IMAGE_EDIT_REFERENCES,
-  parseCharacterGallery,
-  primaryGalleryPath,
-  serializeCharacterGallery,
-  setGalleryIntroVideo
-} from '../../domain/characterGallery'
-import type { AppSettings } from '../../types/settings'
 import { AppError } from '../../types/errors'
-import {
-  extractDescriptionFromSoulMd,
-  extractNameFromSoulMd,
-  isSoulMdPath,
-  parseSoulMd
-} from '../../domain/character'
 import type { OpenDialogOptionsLike } from '../HandlerHost'
 import type { HandlerContext } from './context'
 
@@ -214,7 +127,7 @@ reg(
       src = result.filePaths[0]
     }
     if (!existsSync(src)) {
-      throw new AppError('NOT_FOUND', `Backup zip not found: ${src}`)
+      throw new AppError('NOT_FOUND', 'errors.backupZipNotFound', String(src))
     }
     const prisma = host.getPrisma()
     try {
@@ -263,7 +176,7 @@ reg(
       src = result.filePaths[0]
     }
     if (!existsSync(src)) {
-      throw new AppError('NOT_FOUND', `Video not found: ${src}`)
+      throw new AppError('NOT_FOUND', 'errors.videoNotFound', String(src))
     }
 
     const dest = generation()
@@ -282,7 +195,7 @@ reg(
   'media:openClip',
   (async ( filePath: string) => {
     if (!existsSync(filePath)) {
-      throw new AppError('NOT_FOUND', `Clip not found: ${filePath}`)
+      throw new AppError('NOT_FOUND', 'errors.clipNotFound', String(filePath))
     }
     const err = await host.shell.openPath(filePath)
     if (err) throw new AppError('IO', err)

@@ -67,8 +67,8 @@ describe('timeline domain', () => {
 
   it('validates ranges', () => {
     expect(validateTimeRange(0, 5)).toBeNull()
-    expect(validateTimeRange(5, 2)).toMatch(/greater/)
-    expect(validateTimeRange(0, 20)).toMatch(/<=/)
+    expect(validateTimeRange(5, 2)).toBe('errors.endTimeOrder')
+    expect(validateTimeRange(0, 20)).toBe('errors.clipDurationTooLong')
   })
 
   it('reindexes orders', () => {

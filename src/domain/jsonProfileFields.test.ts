@@ -43,7 +43,9 @@ describe('jsonProfileFields', () => {
   })
 
   it('extractJsonObject throws when missing', () => {
-    expect(() => extractJsonObject('no json here')).toThrow(/No JSON/)
+    expect(() => extractJsonObject('no json here')).toThrow(
+      /errors\.noJsonInModelResponse/
+    )
   })
 
   it('profileCompletenessRules mentions every key and forbids tag arrays', () => {

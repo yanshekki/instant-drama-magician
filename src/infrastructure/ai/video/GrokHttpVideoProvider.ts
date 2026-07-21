@@ -244,7 +244,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
         signal: AbortSignal.timeout(30_000)
       })
       if (!res.ok) {
-        throw new Error(`Video job poll HTTP ${res.status}`)
+        throw new AppError('AI_FAILED', 'errors.videoPollHttpFailed', String(res.status))
       }
       const json = (await res.json()) as JobPublic
       this.lastJobStatus = json.status ?? null
@@ -269,8 +269,8 @@ export class GrokHttpVideoProvider implements VideoProvider {
     }
     throw new AppError(
       'VIDEO_TIMEOUT',
-      `Video job timed out after ${this.timeoutSec}s`,
-      'Increase videoTimeoutSec in Settings.'
+      'errors.videoJobTimedOut',
+      String(this.timeoutSec)
     )
   }
 
@@ -281,7 +281,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
       signal: AbortSignal.timeout(180_000)
     })
     if (!res.ok) {
-      throw new Error(`Video content HTTP ${res.status}`)
+      throw new AppError('AI_FAILED', 'errors.videoContentHttpFailed', String(res.status))
     }
     const buf = Buffer.from(await res.arrayBuffer())
     if (buf.length < 32) throw new AppError('VALIDATION', 'errors.videoContentEmpty')
@@ -309,7 +309,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
     })
     if (!res.ok) {
       const text = await res.text()
-      throw new Error(`Legacy video HTTP ${res.status}: ${text.slice(0, 300)}`)
+      throw new AppError('AI_FAILED', 'errors.videoHttpFailed', `${res.status}: ${text.slice(0, 300)}`)
     }
     const ct = res.headers.get('content-type') ?? ''
     if (ct.includes('application/json')) {
@@ -333,7 +333,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
       signal: AbortSignal.timeout(180_000)
     })
     if (!res.ok || !res.body) {
-      throw new Error(`Failed to download video (${res.status})`)
+      throw new AppError('IO', 'errors.videoDownloadFailed', String(res.status))
     }
     const nodeStream = Readable.fromWeb(
       res.body as import('stream/web').ReadableStream

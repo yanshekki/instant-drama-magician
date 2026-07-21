@@ -127,7 +127,7 @@ export class StoryService {
     }
     if (data.status !== undefined) {
       if (!isStoryStatus(data.status)) {
-        throw new AppError('VALIDATION', `Invalid story status: ${data.status}`)
+        throw new AppError('VALIDATION', 'errors.invalidStoryStatus', String(data.status))
       }
       patch.status = data.status
     }

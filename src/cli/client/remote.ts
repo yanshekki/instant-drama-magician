@@ -34,20 +34,14 @@ export function createRemoteClient(opts: RemoteClientOptions): IdmClient {
         body: JSON.stringify({ channel, args })
       })
     } catch (e) {
-      throw new AppError(
-        'IO',
-        `Cannot reach IDM server at ${base}: ${e instanceof Error ? e.message : String(e)}`
-      )
+      throw new AppError('IO', 'errors.cannotReachServer', `${base}: ${e instanceof Error ? e.message : String(e)}`)
     }
     const text = await res.text()
     let body: unknown = null
     try {
       body = text ? JSON.parse(text) : null
     } catch {
-      throw new AppError(
-        'IO',
-        `Invalid JSON from server (${res.status}): ${text.slice(0, 200)}`
-      )
+      throw new AppError('IO', 'errors.invalidServerJson', `${res.status}: ${text.slice(0, 200)}`)
     }
     if (res.status === 401) {
       throw new AppError(
@@ -80,10 +74,7 @@ export function createRemoteClient(opts: RemoteClientOptions): IdmClient {
     try {
       res = await fetch(`${base}/api/channels`, { headers: headers() })
     } catch (e) {
-      throw new AppError(
-        'IO',
-        `Cannot reach IDM server at ${base}: ${e instanceof Error ? e.message : String(e)}`
-      )
+      throw new AppError('IO', 'errors.cannotReachServer', `${base}: ${e instanceof Error ? e.message : String(e)}`)
     }
     if (res.status === 401) {
       throw new AppError('AI_UNAUTHORIZED', 'errors.unauthorized')
