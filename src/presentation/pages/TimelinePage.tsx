@@ -386,14 +386,7 @@ export function TimelinePage(): JSX.Element {
    */
   const advanceToNextClip = useCallback(
     (fromTime: number): boolean => {
-      const list = [...entriesRef.current].sort(
-        (a, b) => a.startTime - b.startTime
-      )
-      // Next clip strictly after the one that just finished
-      const candidate =
-        list.find((e) => e.startTime >= fromTime - 0.02 && e.endTime > fromTime) ??
-        list.find((e) => e.startTime > fromTime + 0.01) ??
-        null
+      const candidate = timelinePickNextClip(entriesRef.current, fromTime)
       if (!candidate) {
         setIsPlaying(false)
         setPlayhead(Math.max(totalDuration, fromTime))
@@ -402,7 +395,7 @@ export function TimelinePage(): JSX.Element {
       setSelectedId(candidate.id)
       setPlayhead(candidate.startTime)
       // Non-playable: skip after a short beat (gap clock / empty preview)
-      if (candidate.mediaStatus !== 'READY' || !candidate.mediaPath) {
+      if (timelineClipNeedsSkip(candidate.mediaStatus, candidate.mediaPath)) {
         window.setTimeout(() => {
           if (!isPlayingRef.current) return
           advanceToNextClip(candidate.endTime)

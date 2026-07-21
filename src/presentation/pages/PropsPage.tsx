@@ -167,12 +167,12 @@ export function PropsPage(): JSX.Element {
     propBrowse.hasSearch || Boolean(propImage)
 
   const removeWithFeedback = async (id: string): Promise<void> => {
-    try {
-      await remove(id)
-      toast.success(t('common.deleted'))
-    } catch (e) {
-      propsApplySimpleIpc(e, toast.error)
-    }
+    await propsRemoveWithFeedback({
+      remove,
+      id,
+      toastSuccess: () => toast.success(t('common.deleted')),
+      toastError: toast.error
+    })
   }
 
 
@@ -718,7 +718,7 @@ export function PropsPage(): JSX.Element {
   }
 
   const handleReorderGallery = (fromId: string, toId: string): void => {
-    if (!fromId || !toId || fromId === toId) return
+    if (!propsShouldReorder(fromId, toId)) return
     setForm((f) => ({
       ...f,
       gallery: moveSceneGalleryItem(f.gallery, fromId, toId)
@@ -1385,6 +1385,24 @@ export function propsMakeClearFilters(
   setImage: (v: string) => void
 ): () => void {
   return () => propsClearFilters(setQ, setImage)
+}
+
+export function propsShouldReorder(fromId: string, toId: string): boolean {
+  return Boolean(fromId && toId && fromId !== toId)
+}
+
+export async function propsRemoveWithFeedback(ops: {
+  remove: (id: string) => Promise<unknown>
+  id: string
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): Promise<void> {
+  try {
+    await ops.remove(ops.id)
+    ops.toastSuccess()
+  } catch (e) {
+    propsApplySimpleIpc(e, ops.toastError)
+  }
 }
 
 export function propsGuardEmptyName(

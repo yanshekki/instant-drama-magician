@@ -87,10 +87,12 @@ import {
   propsMaybeContinueDraft,
   propsNextCoverAfterGallery,
   propsResolveWantIdentity,
+  propsRemoveWithFeedback,
   propsRunAiFill,
   propsRunCreateForEnsure,
   propsRunPlateJob,
   propsRunSave,
+  propsShouldReorder,
   propsSuggestIdeaLabel
 } from './PropsPage'
 import { ScenesPage } from './ScenesPage'
@@ -99,7 +101,18 @@ import { StoriesPage } from './StoriesPage'
 import {
   formatExportSize,
   formatExportWhen,
-  TimelinePage
+  TimelinePage,
+  timelineClipButtonLabel,
+  timelineClipNeedsSkip,
+  timelineContinueClipDraft,
+  timelineEntryLabel,
+  timelineGeneratingLabel,
+  timelineIdsOrFallback,
+  timelineJobMatchesStory,
+  timelineNoFailedClips,
+  timelinePickNextClip,
+  timelinePlayheadAdvance,
+  timelineSpokenPreview
 } from './TimelinePage'
 
 const api = createMockApi()
@@ -2463,6 +2476,26 @@ describe('abs100 Props absolute', () => {
         storyId: 's'
       })
     ).toBe('error')
+
+    expect(propsShouldReorder('', 'b')).toBe(false)
+    expect(propsShouldReorder('a', 'a')).toBe(false)
+    expect(propsShouldReorder('a', 'b')).toBe(true)
+    await propsRemoveWithFeedback({
+      remove: async () => undefined,
+      id: 'x',
+      toastSuccess: () => msgs.push('ok'),
+      toastError: () => undefined
+    })
+    expect(msgs).toContain('ok')
+    await propsRemoveWithFeedback({
+      remove: async () => {
+        throw new Error('del')
+      },
+      id: 'x',
+      toastSuccess: () => undefined,
+      toastError: (m) => msgs.push('e:' + m)
+    })
+    expect(msgs.some((x) => x.startsWith('e:'))).toBe(true)
   })
 
   it('filters busy intro draft update fail plate profile cover remove', async () => {
@@ -2688,6 +2721,50 @@ describe('abs100 Timeline pure + residual', () => {
     expect(formatExportWhen('2026-07-15T12:00:00.000Z', 'en')).toBeTruthy()
     // Invalid date string returns original
     expect(formatExportWhen('')).toBe('')
+
+    expect(
+      timelineJobMatchesStory(
+        { status: 'running', scope: { storyId: 's1' } },
+        's1'
+      )
+    ).toBe(true)
+    expect(
+      timelineJobMatchesStory(
+        { status: 'done', scope: { storyId: 's1' } },
+        's1'
+      )
+    ).toBe(false)
+    expect(
+      timelinePickNextClip(
+        [
+          { startTime: 0, endTime: 4 },
+          { startTime: 4, endTime: 8 }
+        ],
+        3.9
+      )?.startTime
+    ).toBe(4)
+    expect(timelinePickNextClip([{ startTime: 0, endTime: 4 }], 10)).toBeNull()
+    expect(timelineClipNeedsSkip('READY', '/m.mp4')).toBe(false)
+    expect(timelineClipNeedsSkip('EMPTY', null)).toBe(true)
+    expect(timelinePlayheadAdvance(100, 10).stop).toBe(true)
+    expect(timelinePlayheadAdvance(1, 10).stop).toBe(false)
+    expect(timelineEntryLabel(['A', 'B'], 0)).toMatch(/A/)
+    expect(timelineEntryLabel([], 2)).toBe('#3')
+    expect(timelineIdsOrFallback(['a', 'b'], null)).toEqual(['a', 'b'])
+    expect(timelineIdsOrFallback(null, 'x')).toEqual(['x'])
+    expect(timelineIdsOrFallback(null, null)).toEqual([])
+    expect(
+      timelineNoFailedClips(0, () => undefined, 'none')
+    ).toBe(true)
+    expect(timelineNoFailedClips(2, () => undefined, 'none')).toBe(false)
+    expect(timelineContinueClipDraft(true, () => undefined)).toBe(true)
+    expect(timelineContinueClipDraft(false, () => undefined)).toBe(false)
+    expect(timelineClipButtonLabel(true, 'cont', 'gen')).toBe('cont')
+    expect(timelineClipButtonLabel(false, 'cont', 'gen')).toBe('gen')
+    expect(timelineSpokenPreview('hi')).toBe('hi')
+    expect(timelineSpokenPreview('x'.repeat(80)).endsWith('…')).toBe(true)
+    expect(timelineGeneratingLabel(true, 'g', 'i')).toBe('g')
+    expect(timelineGeneratingLabel(false, 'g', 'i')).toBe('i')
   })
 
   beforeEach(() => seed())
