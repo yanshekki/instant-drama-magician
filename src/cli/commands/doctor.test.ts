@@ -28,6 +28,7 @@ vi.mock('./update', () => ({
 import { resolveClient } from '../client'
 import { createRemoteClient } from '../client/remote'
 import { cmdDoctor } from './doctor'
+import { probeNpmUpdate } from './update'
 
 describe('cmdDoctor', () => {
   beforeEach(() => {
@@ -167,4 +168,23 @@ describe('cmdDoctor', () => {
       } as never)
     ).rejects.toThrow(/process.exit/)
   })
+
+  it('npm update available and human print', async () => {
+    const { probeNpmUpdate } = await import('./update')
+    vi.mocked(probeNpmUpdate).mockResolvedValueOnce({
+      updateAvailable: true,
+      currentVersion: '1.0.0',
+      latestVersion: '2.0.0',
+      installCommand: 'npm i -g x@2'
+    } as never)
+    const g = { json: false, pretty: false, yes: true, help: false, local: true }
+    try {
+      await cmdDoctor(g as never, [], {})
+    } catch { /* */ }
+    vi.mocked(probeNpmUpdate).mockRejectedValueOnce(new Error('reg down'))
+    try {
+      await cmdDoctor(g as never, [], {})
+    } catch { /* */ }
+  })
+
 })

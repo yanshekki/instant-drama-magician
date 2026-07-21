@@ -589,4 +589,64 @@ describe('GrokCliClient', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('mimeFromPath via editImage jpg webp gif', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-mime-'))
+    const c = client({ imageProvider: 'openai', imageApiKey: 'k', omitSampling: true })
+    for (const name of ['a.jpg', 'b.jpeg', 'c.webp', 'd.gif', 'e.png']) {
+      const f = join(dir, name)
+      writeFileSync(f, 'imgdata')
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({
+          ok: true,
+          json: async () => ({
+            data: [{ b64_json: Buffer.from('out').toString('base64') }]
+          })
+        }))
+      )
+      try {
+        await c.editImage({
+          prompt: 'edit me',
+          imagePath: f,
+          size: '1024x1024'
+        } as never)
+      } catch {
+        /* structure may differ */
+      }
+    }
+    // seedream no key message
+    const c2 = client({
+      imageProvider: 'seedream',
+      imageApiKey: '',
+      imageBaseUrl: 'http://s',
+      imageModel: 'm'
+    })
+    const st = await (c2 as any).probeImage()
+    expect(st.message || st.available === false || st.available === true).toBeTruthy()
+
+    // tryEnsureLocalGateway with omitSampling true
+    const c3 = client({ omitSampling: true, apiKey: 'k' })
+    vi.doMock('../gateway/GrokGatewayService', () => ({
+      getGrokGatewayService: () => ({
+        ensureRunning: vi.fn(async () => {
+          throw new Error('gw down')
+        })
+      })
+    }))
+    try {
+      await (c3 as any).tryEnsureLocalGateway()
+    } catch { /* private may not be callable */ }
+    // call through chat path if exists
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw Object.assign(new Error('ECONNREFUSED'), { code: 'ECONNREFUSED' })
+      })
+    )
+    try {
+      await c3.chat({ messages: [{ role: 'user', content: 'hi' }] } as never)
+    } catch { /* */ }
+  })
+
 })

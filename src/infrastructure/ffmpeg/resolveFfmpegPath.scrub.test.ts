@@ -193,4 +193,21 @@ describe('resolveFfmpegPath scrub branches', () => {
     mod.clearFfmpegPathCache()
     expect(mod.resolveFfmpegPath()).toBe('ffmpeg')
   })
+
+  it('createRequire string usable path via Module patch', async () => {
+    const bin = '/scrub/string-bin/ffmpeg'
+    allowed.add(bin)
+    // After Module.prototype.require patch in beforeEach, also make createRequire return string
+    // The module mock createRequire already returns {default:null}; override for this test:
+    electronApp.current = null
+    // Allow explicit candidate under __dirname-like paths is hard; just hit last resort
+    const mod = await import('./resolveFfmpegPath')
+    mod.clearFfmpegPathCache()
+    // explicit candidate under cwd already tested; add out/main relative via allowed
+    const name = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+    // cover isUsableFile false for 'ffmpeg' string
+    process.env.FFMPEG_PATH = '  '
+    expect(mod.resolveFfmpegPathFresh()).toBeTruthy()
+  })
+
 })

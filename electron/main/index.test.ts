@@ -855,4 +855,132 @@ describe('electron main index', () => {
     void mod
   }, 30_000)
 
+
+  it('prisma disconnect on export with existing prisma', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    // trigger export twice so second hits prisma disconnect path after first created prisma
+    dialog.showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: join(ud, 'full-a.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    dialog.showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: join(ud, 'full-b.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() =>
+      expect(dialog.showMessageBox.mock.calls.length).toBeGreaterThan(1)
+    )
+    void mod
+  }, 30_000)
+
+  it('import without mainWindow uses bare dialogs and cancel confirm', async () => {
+    MockBrowserWindow.windows = []
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    MockBrowserWindow.windows = [] // ensure no window after boot
+    dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [join(ud, 'imp2.zip')]
+    })
+    writeFileSync(join(ud, 'imp2.zip'), 'z')
+    dialog.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    menuHandlers.importFullBackup()
+    await vi.waitFor(() => expect(dialog.showOpenDialog).toHaveBeenCalled())
+    void mod
+  }, 30_000)
+
+  it('screenshot empty png and pictures path fail', async () => {
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    webContents.capturePage.mockResolvedValueOnce({
+      toPNG: () => Buffer.alloc(0)
+    })
+    if (menuHandlers.captureScreenshot) {
+      menuHandlers.captureScreenshot()
+      await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    }
+    // pictures path throw
+    const origGetPath = app.getPath
+    app.getPath = (name: string) => {
+      if (name === 'pictures') {
+        const e = new Error('no pictures')
+        throw e
+      }
+      return origGetPath(name)
+    }
+    webContents.capturePage.mockResolvedValueOnce({
+      toPNG: () => Buffer.from('pngdata')
+    })
+    dialog.showSaveDialog.mockResolvedValueOnce({ canceled: true })
+    if (menuHandlers.captureScreenshot) {
+      menuHandlers.captureScreenshot()
+      await vi.waitFor(() => expect(webContents.capturePage).toHaveBeenCalled())
+    }
+    app.getPath = origGetPath
+    void mod
+  }, 30_000)
+
+  it('checkUpdates zh-HK message and openMedia mkdir', async () => {
+    vi.doMock('../../src/infrastructure/settings/SettingsStore', () => ({
+      SettingsStore: class {
+        load() {
+          return { uiLanguage: 'zh-HK' }
+        }
+        save(p: object) {
+          return p
+        }
+      }
+    }))
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    if (menuHandlers.checkUpdates) {
+      menuHandlers.checkUpdates()
+      await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    }
+    if (menuHandlers.openMedia) {
+      menuHandlers.openMedia()
+      await vi.waitFor(() => expect(shell.openPath).toHaveBeenCalled())
+    }
+    // stream error benign
+    process.stdout.emit('error', Object.assign(new Error('pipe'), { code: 'EPIPE' }))
+    process.stderr.emit('error', Object.assign(new Error('io'), { code: 'EIO' }))
+    // unhandledRejection benign + console.error catch
+    const rejListeners = process.listeners('unhandledRejection')
+    for (const l of rejListeners) {
+      try {
+        ;(l as Function)(Object.assign(new Error('x'), { code: 'ERR_STREAM_DESTROYED' }), Promise.resolve())
+      } catch { /* */ }
+    }
+    void mod
+  }, 30_000)
+
+  it('DATABASE_URL file://host form and loadMenuLang catch', async () => {
+    process.env.DATABASE_URL = 'file://hostname/tmp/db.sqlite'
+    vi.doMock('../../src/infrastructure/settings/SettingsStore', () => ({
+      SettingsStore: class {
+        constructor() {
+          throw new Error('no settings')
+        }
+        load() {
+          return {}
+        }
+      }
+    }))
+    const mod = await import('./index')
+    await whenReadyCbs[0]()
+    // export uses zh-HK from catch
+    dialog.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: join(ud, 'zh.zip')
+    })
+    menuHandlers.exportFullBackup()
+    await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalled())
+    delete process.env.DATABASE_URL
+    void mod
+  }, 30_000)
+
 })

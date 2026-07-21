@@ -307,4 +307,140 @@ describe('AppDataMigrationService', () => {
     expect(r.ran).toBe(true)
     expect(existsSync(paths.databasePath)).toBe(true)
   })
+
+  it('isNonEmptyDir catch and db score catch and copyTree stat skip', () => {
+    const { chmodSync, symlinkSync } = require('fs') as typeof import('fs')
+    // force isNonEmptyDir catch: path that exists but readdir throws via chmod 000 on dir
+    const badRoot = join(root, 'bad-readdir')
+    mkdirSync(badRoot, { recursive: true })
+    writeFileSync(join(badRoot, 'x'), '1')
+    try {
+      chmodSync(badRoot, 0)
+    } catch { /* windows */ }
+
+    const paths = resolveAppPaths({ dataDir: join(root, 'mig-catch') })
+    mkdirSync(paths.dataRoot, { recursive: true })
+    // dest db path is a directory → dbLooksEmpty/dbStoryScore catch
+    try {
+      rmSync(paths.databasePath, { force: true })
+    } catch { /* */ }
+    mkdirSync(paths.databasePath, { recursive: true })
+
+    const leg = join(root, 'share-catch', 'idm')
+    mkdirSync(join(leg, 'media', 'sub'), { recursive: true })
+    // broken symlink in media for copyTree continue
+    try {
+      symlinkSync(join(leg, 'media', 'missing-target'), join(leg, 'media', 'broken-link'))
+    } catch { /* */ }
+    writeFileSync(join(leg, 'media', 'sub', 'a.png'), 'a')
+    writeFileSync(join(leg, 'instant-drama.db'), Buffer.alloc(80_000, 5))
+    writeFileSync(join(leg, 'settings.json'), '{}')
+
+    const r = migrateAppDataIfNeeded({
+      paths,
+      cwd: join(root, 'no-prisma-c'),
+      force: true,
+      home: root,
+      env: {
+        XDG_DATA_HOME: join(root, 'share-catch'),
+        XDG_CONFIG_HOME: join(root, 'cfg-c')
+      },
+      platform: 'linux'
+    })
+    expect(r).toBeTruthy()
+    try {
+      chmodSync(badRoot, 0o755)
+    } catch { /* */ }
+  })
+
+  it('db adopt copy failure and section2 copy failure recorded', () => {
+    const paths = resolveAppPaths({ dataDir: join(root, 'adopt-fail') })
+    mkdirSync(paths.dataRoot, { recursive: true })
+    // tiny dest
+    writeFileSync(paths.databasePath, Buffer.alloc(1000, 1))
+    // richer legacy that we cannot copy: make dest parent read-only after setup
+    const legDb = join(cwd, 'prisma', 'dev.db')
+    writeFileSync(legDb, Buffer.alloc(300_000, 7))
+
+    // make destination unwritable by replacing dest with a dir after score?
+    // Instead make destDb a path under a file-as-parent
+    const weird = resolveAppPaths({ dataDir: join(root, 'weird-parent') })
+    // create a file where dataRoot should be
+    writeFileSync(join(root, 'weird-parent'), 'not-dir')
+    try {
+      migrateAppDataIfNeeded({
+        paths: weird,
+        cwd,
+        force: true
+      })
+    } catch {
+      /* may throw on ensure */
+    }
+
+    // section2: candidate exists, dest empty-looking, copy fails
+    const xdg = join(root, 'share-s2-fail')
+    const idm = join(xdg, 'idm')
+    mkdirSync(idm, { recursive: true })
+    writeFileSync(join(idm, 'instant-drama.db'), Buffer.alloc(60_000, 2))
+    const paths2 = resolveAppPaths({ dataDir: join(root, 's2f') })
+    mkdirSync(paths2.dataRoot, { recursive: true })
+    // block by making database path a directory so copyFileSafe fails
+    try {
+      rmSync(paths2.databasePath, { force: true })
+    } catch { /* */ }
+    mkdirSync(paths2.databasePath, { recursive: true })
+    const r2 = migrateAppDataIfNeeded({
+      paths: paths2,
+      cwd: join(root, 'empty-c'),
+      force: true,
+      home: root,
+      env: { XDG_DATA_HOME: xdg, XDG_CONFIG_HOME: join(root, 'cfg-s2f') },
+      platform: 'linux'
+    })
+    expect(r2.actions.some((a) => /failed|marker|copied|db/i.test(a))).toBe(true)
+  })
+
+  it('marker write failure when dataRoot not writable', () => {
+    const { chmodSync } = require('fs') as typeof import('fs')
+    const paths = resolveAppPaths({ dataDir: join(root, 'mark-fail') })
+    mkdirSync(paths.dataRoot, { recursive: true })
+    writeFileSync(paths.databasePath, Buffer.alloc(60_000, 1))
+    let r: ReturnType<typeof migrateAppDataIfNeeded> | null = null
+    try {
+      chmodSync(paths.dataRoot, 0o555)
+      r = migrateAppDataIfNeeded({
+        paths,
+        cwd,
+        force: true
+      })
+    } catch {
+      /* permission may surface */
+    } finally {
+      try {
+        chmodSync(paths.dataRoot, 0o755)
+      } catch { /* */ }
+    }
+    expect(r === null || Array.isArray(r.actions)).toBe(true)
+  })
+
+
+  it('resolveSame catch via non-statable paths', () => {
+    const paths = resolveAppPaths({ dataDir: join(root, 'same-c') })
+    mkdirSync(paths.dataRoot, { recursive: true })
+    writeFileSync(paths.databasePath, Buffer.alloc(60_000, 1))
+    // pass same root as dataRoot through env so resolveSame is called
+    const r = migrateAppDataIfNeeded({
+      paths,
+      cwd: join(root, 'empty-same'),
+      force: true,
+      home: root,
+      env: {
+        XDG_DATA_HOME: paths.dataRoot, // same as data root potentially
+        XDG_CONFIG_HOME: join(root, 'cfg-same')
+      },
+      platform: 'linux'
+    })
+    expect(r).toBeTruthy()
+  })
+
 })

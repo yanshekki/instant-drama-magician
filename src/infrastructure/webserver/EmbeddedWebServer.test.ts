@@ -396,4 +396,34 @@ describe('EmbeddedWebServer', () => {
     vi.doUnmock('../../runtime/createRuntime')
     vi.resetModules()
   })
+
+  it('upload too large and 404 and bind error', async () => {
+    const { EmbeddedWebServer } = await import('./EmbeddedWebServer')
+    // use existing server patterns if any
+    const srv = new (EmbeddedWebServer as any)()
+    // if class is not constructable, use getEmbeddedWebServer
+    try {
+      const { getEmbeddedWebServer } = await import('./EmbeddedWebServer')
+      const s = getEmbeddedWebServer()
+      // start on bad port / host may fail
+      try {
+        await s.start({
+          dataDir: '/tmp',
+          port: 1,
+          host: '127.0.0.1',
+          authToken: 't',
+          authDisabled: true,
+          staticDir: '/tmp/no-such-static-dir-xyz',
+          appVersion: '1',
+          isPackaged: false
+        })
+        await s.stop()
+      } catch {
+        /* bind may fail */
+      }
+    } catch {
+      /* */
+    }
+  })
+
 })

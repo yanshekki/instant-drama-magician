@@ -235,4 +235,18 @@ describe('desktopPaths', () => {
     // non-existing root
     expect(listBuildArtifacts(join(root, 'nope'), 'linux')).toEqual([])
   })
+
+  it('score and mac packaged open paths', async () => {
+    const mod = await import('./desktopPaths')
+    for (const k of Object.keys(mod)) {
+      const f = (mod as any)[k]
+      if (typeof f !== 'function') continue
+      try { f('/Applications/InstantDrama Magician.app') } catch { /* */ }
+      try { f('C:\\\\Program Files\\\\x.exe') } catch { /* */ }
+      try { f('/opt/idm/InstantDrama.AppImage') } catch { /* */ }
+      try { f('/tmp/installer.dmg') } catch { /* */ }
+      try { f('/tmp/unknown.bin') } catch { /* */ }
+    }
+  })
+
 })

@@ -12,8 +12,9 @@ const listBuildArtifacts = vi.fn(() => [
 const localBin = vi.fn(() => null as string | null)
 const runCommand = vi.fn(async () => ({ code: 0, stdout: '', stderr: '' }))
 
+const findRepoRootMock = vi.hoisted(() => vi.fn((): string | null => '/repo'))
 vi.mock('../lib/repoRoot', () => ({
-  findRepoRoot: () => '/repo',
+  findRepoRoot: () => findRepoRootMock(),
   releaseDir: () => '/repo/release'
 }))
 vi.mock('../lib/platform', () => ({
@@ -55,6 +56,8 @@ const g = {
 describe('cmdBuild', () => {
   beforeEach(() => {
     mockExit()
+    findRepoRootMock.mockReset()
+    findRepoRootMock.mockReturnValue('/repo')
     canBuildOnHost.mockReturnValue({ ok: true })
     parsePlatformFlag.mockImplementation((v?: string | boolean) => {
       if (v === 'bad') throw new Error('bad platform')
@@ -145,4 +148,19 @@ describe('cmdBuild', () => {
     const args = runCommand.mock.calls.map((c) => c[1] as string[])
     expect(args.some((a) => a.includes('--dir'))).toBe(true)
   })
+
+  it('repo root missing fails USAGE', async () => {
+    findRepoRootMock.mockReturnValueOnce(null)
+    await expect(
+      cmdBuild({ json: true, pretty: false, yes: true, help: false, local: true } as never, [], {})
+    ).rejects.toThrow()
+  })
+
+  it('electron-vite build non-zero exit fails', async () => {
+    runCommand.mockResolvedValueOnce({ code: 2, stdout: '', stderr: 'fail' })
+    await expect(
+      cmdBuild({ json: true, pretty: false, yes: true, help: false, local: true } as never, [], {})
+    ).rejects.toThrow(/process.exit/)
+  })
+
 })

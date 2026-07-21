@@ -443,4 +443,43 @@ describe('MediaStore', () => {
     } catch { /* */ }
     store.deleteExportHistoryItem('s6', name)
   })
+
+  it('export dedupe prefers public over work path', () => {
+    store.ensureStoryDirs('s7')
+    const name = 'Pref_final_1.mp4'
+    const work = join(store.exportsDir('s7'), name)
+    writeFileSync(work, 'w')
+    const publicDir = join(root, 'Videos7')
+    mkdirSync(publicDir, { recursive: true })
+    const pub = join(publicDir, name)
+    writeFileSync(pub, 'public-longer-content')
+    // history with work first then list with public
+    store.writeExportHistory('s7', [
+      {
+        id: 'exp_w',
+        storyId: 's7',
+        kind: 'final',
+        fileName: name,
+        path: work,
+        workPath: work,
+        createdAt: new Date().toISOString(),
+        sizeBytes: 1
+      }
+    ])
+    const listed = store.listExportHistory('s7', {
+      publicDir,
+      fileNamePrefix: 'Pref',
+      latestPath: pub
+    })
+    expect(listed.length).toBeGreaterThan(0)
+    // record size catch: path is dir
+    const bad = join(root, 'as-dir-export')
+    mkdirSync(bad, { recursive: true })
+    store.recordExportHistory('s7', {
+      kind: 'final',
+      path: bad,
+      fileName: 'dir.mp4'
+    })
+  })
+
 })

@@ -436,4 +436,68 @@ describe('Layout', () => {
       })
     }
   })
+
+  it('changeUiLanguage when stored lang differs', async () => {
+    const i18n = await import('../../lib/i18n')
+    api.settings.get = vi.fn().mockResolvedValue({
+      lastGenerationDegraded: false,
+      uiLanguage: 'zh-HK',
+      colorScheme: 'system'
+    })
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    // changeUiLanguage may be called
+    getItem.mockRestore()
+  })
+
+  it('download success updates banner fully', async () => {
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      currentVersion: '1.0.0',
+      latestVersion: '2.0.0'
+    })
+    api.updates.install = vi.fn().mockResolvedValue({
+      ok: false,
+      message: ''
+    })
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<div>home</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      )
+    })
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const dl = Array.from(document.querySelectorAll('button')).find((b) =>
+      /downloadUpdate|download/i.test(b.textContent || '')
+    )
+    if (dl) {
+      await act(async () => {
+        fireEvent.click(dl)
+      })
+      await waitFor(() => expect(api.updates.download).toHaveBeenCalled())
+    }
+    await waitFor(() => {
+      const inst = Array.from(document.querySelectorAll('button')).find((b) =>
+        /installUpdate|install/i.test(b.textContent || '')
+      )
+      if (inst) fireEvent.click(inst)
+    })
+  })
+
 })

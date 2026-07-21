@@ -174,4 +174,23 @@ describe('cli bin main routing', () => {
       else process.env.IDM_JSON = prev
     }
   })
+
+  it('version fallback env and json fatal catch', async () => {
+    const prev = process.env.npm_package_version
+    process.env.npm_package_version = '9.9.9-env'
+    try {
+      await run(['version'])
+      // force main().catch json path by making a command throw
+      handlers.cmdDoctor.mockRejectedValueOnce(new Error('boom-doctor'))
+      process.env.IDM_JSON = '1'
+      await run(['doctor'])
+    } finally {
+      if (prev === undefined) delete process.env.npm_package_version
+      else process.env.npm_package_version = prev
+      delete process.env.IDM_JSON
+      handlers.cmdDoctor.mockReset()
+      handlers.cmdDoctor.mockResolvedValue(undefined)
+    }
+  })
+
 })

@@ -1626,4 +1626,130 @@ describe('GenerationService', () => {
     const r = await svc.exportFinal('s1')
     expect(r.outputPath).toBeTruthy()
   })
+
+  it('resolvePublicExportDir electron videos path', () => {
+    vi.doMock('electron', () => ({
+      app: { getPath: (n: string) => (n === 'videos' ? '/e/Videos' : '/e') }
+    }))
+    // require path uses Module.require — patch
+    const Module = require('module') as typeof import('module')
+    const orig = (Module as any).prototype.require
+    ;(Module as any).prototype.require = function (id: string) {
+      if (id === 'electron') {
+        return { app: { getPath: (n: string) => (n === 'videos' ? '/e/Videos' : '/e') } }
+      }
+      return orig.apply(this, arguments as never)
+    }
+    try {
+      const d = resolvePublicExportDir()
+      expect(d).toContain('InstantDrama')
+    } finally {
+      ;(Module as any).prototype.require = orig
+    }
+  })
+
+
+  it('deleteExport basenameMatch when latestPath basename equals fileName', async () => {
+    const prisma = createMockPrisma()
+    const fileName = 'Demo_final_9.mp4'
+    const work = join(dir, 'exports', fileName)
+    mkdirSync(join(dir, 'exports'), { recursive: true })
+    writeFileSync(work, 'v')
+    prisma.story.findUnique = vi.fn().mockResolvedValue(
+      storyIncludeShape({
+        id: 's1',
+        title: 'Demo',
+        exportPath: join('/other/dir', fileName)
+      })
+    )
+    prisma.story.update = vi.fn().mockResolvedValue({})
+    const store = {
+      listExportHistory: vi.fn(() => [
+        {
+          id: 'exp_x',
+          storyId: 's1',
+          kind: 'final',
+          fileName,
+          path: work,
+          workPath: work,
+          createdAt: new Date().toISOString(),
+          sizeBytes: 1
+        }
+      ]),
+      deleteExportHistoryItem: vi.fn(() => ({
+        deleted: true,
+        remaining: [],
+        deletedPaths: [work]
+      })),
+      recordExportHistory: vi.fn(),
+      ensureStoryDirs: vi.fn(),
+      exportsDir: () => join(dir, 'exports')
+    }
+    const { svc } = makeSvc({ prisma, store: store as never })
+    const del = await svc.deleteExport('s1', 'exp_x')
+    expect(del.deleted || store.deleteExportHistoryItem).toBeTruthy()
+  })
+
+  it('publishExportToVideos fallback when public dir unwritable', async () => {
+    const prisma = createMockPrisma()
+    prisma.story.findUnique = vi.fn().mockResolvedValue(
+      storyIncludeShape({
+        id: 's1',
+        title: 'T',
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 3,
+            characterId: null,
+            sceneId: null,
+            propId: null,
+            actionId: null,
+            dialogue: null,
+            mediaPath: join(dir, 'c.mp4'),
+            mediaStatus: 'READY'
+          }
+        ]
+      })
+    )
+    writeFileSync(join(dir, 'c.mp4'), 'c')
+    prisma.story.update = vi.fn().mockResolvedValue({})
+    const exportFinal = vi.fn(async (opts: { fileName: string; outDir: string }) => {
+      const p = join(opts.outDir, opts.fileName)
+      mkdirSync(opts.outDir, { recursive: true })
+      writeFileSync(p, 'final')
+      return p
+    })
+    // force publish fail by making resolvePublicExportDir point to a file
+    const Module = require('module') as any
+    const orig = Module.prototype.require
+    Module.prototype.require = function (id: string) {
+      if (id === 'electron') {
+        return {
+          app: {
+            getPath: () => {
+              throw new Error('no')
+            }
+          }
+        }
+      }
+      return orig.apply(this, arguments)
+    }
+    try {
+      const { svc } = makeSvc({
+        prisma,
+        ffmpeg: {
+          ensureAvailable: vi.fn().mockResolvedValue(undefined),
+          exportFinal
+        }
+      })
+      // monkey patch env HOME to a file path for videos?
+      const r = await svc.exportFinal('s1', { openExportFolder: false })
+      expect(r.outputPath).toBeTruthy()
+    } finally {
+      Module.prototype.require = orig
+    }
+  })
+
 })

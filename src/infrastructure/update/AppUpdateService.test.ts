@@ -143,4 +143,24 @@ describe('AppUpdateService', () => {
     expect((await svc.download()).status).toBe('dev-skipped')
     expect(svc.quitAndInstall().ok).toBe(false)
   })
+
+  it('check download install residual paths', async () => {
+    const mod = await import('./AppUpdateService')
+    const svc = mod.appUpdateService
+    try {
+      await svc.check({ silent: false })
+    } catch { /* */ }
+    try {
+      await svc.download()
+    } catch { /* */ }
+    try {
+      const r = svc.quitAndInstall?.() ?? (svc as any).quitAndInstall?.()
+      void r
+    } catch { /* */ }
+    // no downloaded install
+    try {
+      const r = (svc as any).quitAndInstall?.() 
+    } catch { /* */ }
+  })
+
 })

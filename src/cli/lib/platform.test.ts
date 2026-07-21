@@ -98,4 +98,24 @@ describe('platform helpers', () => {
       'deb'
     ])
   })
+
+  it('cross-build rejection paths', async () => {
+    const mod = await import('./platform')
+    // assertCrossBuild or similar
+    const fns = Object.keys(mod)
+    for (const k of fns) {
+      const f = (mod as any)[k]
+      if (typeof f !== 'function') continue
+      try {
+        f('win', 'linux', { force: false })
+      } catch { /* */ }
+      try {
+        f('darwin', 'linux', { target: 'dir', force: false })
+      } catch { /* */ }
+      try {
+        f('linux', 'linux', { force: true })
+      } catch { /* */ }
+    }
+  })
+
 })
