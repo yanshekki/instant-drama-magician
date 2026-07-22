@@ -1,9 +1,9 @@
-import { vi } from 'vitest'
+import { vi, type MockInstance } from 'vitest'
 
-export function mockExit(): ReturnType<typeof vi.spyOn> {
+export function mockExit(): MockInstance {
   return vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
     throw new Error(`process.exit:${code ?? 0}`)
-  }) as never)
+  }) as never) as MockInstance
 }
 
 export function mockClient(overrides?: {

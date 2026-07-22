@@ -26,8 +26,6 @@ import {
   stillStatusHintKey,
   genLockedExtra,
   readyVideoEntryIds,
-  shouldSilentPersistOnGen,
-  shouldSilentPersistOnBatch,
   stillStatusOrMissing,
   runSaveCast,
   maybeSilentPersistDirty,

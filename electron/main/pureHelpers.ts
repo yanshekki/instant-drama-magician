@@ -135,7 +135,8 @@ export function installLinuxDesktopIconPure(opts: {
 }
 
 export function applyWindowIconPure(
-  win: { setIcon: (icon: unknown) => void },
+  // Accept BrowserWindow-like setIcon (string | NativeImage) without pulling electron types.
+  win: { setIcon: (icon: never) => void },
   iconPath: string,
   createFromPath: (p: string) => { isEmpty: () => boolean },
   platform: string
@@ -145,9 +146,9 @@ export function applyWindowIconPure(
     if (icon.isEmpty()) {
       return
     }
-    win.setIcon(icon)
+    win.setIcon(icon as never)
     if (platform === 'linux') {
-      win.setIcon(iconPath)
+      win.setIcon(iconPath as never)
     }
   } catch {
     /* setIcon failed */
@@ -184,12 +185,12 @@ export async function disconnectPrismaSafe(
 
 /** Non-fatal gateway ensure when any provider is grok-gateway. */
 export async function ensureGatewayIfNeeded(runtime: {
-  settingsStore: { load: () => Record<string, unknown> }
+  settingsStore: { load: () => unknown }
   invoke: (channel: string) => Promise<unknown>
 } | null): Promise<void> {
   if (!runtime) return
   try {
-    const s = runtime.settingsStore.load()
+    const s = runtime.settingsStore.load() as Record<string, unknown>
     const needsGw =
       s.llmProvider === 'grok-gateway' ||
       s.imageProvider === 'grok-gateway' ||
@@ -204,7 +205,7 @@ export async function ensureGatewayIfNeeded(runtime: {
 
 /** Best-effort stop for embedded web server on quit. */
 export async function stopEmbeddedServerSafe(
-  stop: () => Promise<void>
+  stop: () => Promise<unknown>
 ): Promise<void> {
   try {
     await stop()

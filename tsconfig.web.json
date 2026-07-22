@@ -15,21 +15,41 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "target": "ESNext",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "useDefineForClassFields": true,
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@application/*": ["src/application/*"],
-      "@domain/*": ["src/domain/*"],
-      "@infrastructure/*": ["src/infrastructure/*"],
-      "@presentation/*": ["src/presentation/*"],
-      "@types/*": ["src/types/*"],
-      "@lib/*": ["src/lib/*"]
+      "@/*": [
+        "src/*"
+      ],
+      "@application/*": [
+        "src/application/*"
+      ],
+      "@domain/*": [
+        "src/domain/*"
+      ],
+      "@infrastructure/*": [
+        "src/infrastructure/*"
+      ],
+      "@presentation/*": [
+        "src/presentation/*"
+      ],
+      "@types/*": [
+        "src/types/*"
+      ],
+      "@lib/*": [
+        "src/lib/*"
+      ]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "**/*.test.ts",
     "**/*.test.tsx",

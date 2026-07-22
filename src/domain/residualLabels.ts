@@ -158,10 +158,11 @@ export function dragTransition(active: boolean): string {
 }
 
 export function providerTitle(
-  provider: string,
+  provider: string | undefined,
   sameAsLlm: string,
   llmTitle: string
 ): string {
+  if (!provider) return llmTitle
   return provider === sameAsLlm ? llmTitle : provider
 }
 
@@ -230,8 +231,13 @@ export function maybeAppendMultiRef(
   prompt: string,
   refList: unknown[],
   locale: string,
-  append: (p: string, refs: unknown[], loc: string) => string
+  append: (p: string, refs: string[], loc: string) => string
 ): string {
-  if (refList.length > 1) return append(prompt, refList, locale)
+  if (refList.length > 1) {
+    const paths = refList
+      .map((p) => (typeof p === 'string' ? p : String(p ?? '')))
+      .filter(Boolean)
+    return append(prompt, paths, locale)
+  }
   return prompt
 }

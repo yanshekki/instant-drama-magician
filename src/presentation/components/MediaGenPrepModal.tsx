@@ -212,10 +212,10 @@ export function MediaGenPrepModal({
         locale: getAiLocale(i18n.language)
       } as never)
       setSections(r.sections as MediaGenMaterialSection[])
-      setEditBaseSectionId(r.editBaseSectionId)
-      setFallbackPrompt(r.fallbackPrompt)
-      setTaskHint(r.taskHint)
-      setHardRules(r.hardRules)
+      setEditBaseSectionId(r.editBaseSectionId ?? null)
+      setFallbackPrompt(r.fallbackPrompt ?? '')
+      setTaskHint(r.taskHint ?? '')
+      setHardRules(r.hardRules ?? null)
       setGenOptions(r.genOptions)
       setPolishedPrompt('')
       setUserExtra('')
@@ -294,7 +294,7 @@ export function MediaGenPrepModal({
       const included = sections.filter((s) => s.include)
       const r = await getApi().mediaGen.polish({
         kind: request!.kind,
-        includedSections: included,
+        includedSections: included as never,
         fallbackPrompt,
         taskHint,
         hardRules,

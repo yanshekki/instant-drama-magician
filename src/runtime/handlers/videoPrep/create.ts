@@ -499,11 +499,12 @@ reg(
           })
         )
         const multiCastNote = multiSubjectClipNote({
-          charNames: chars.map((c) => c.name),
+          charNames: chars.map((c) => String(c.name ?? '')),
           sceneLabels: scenesBound.map(
-            (s) => s.title || String(s.description).slice(0, 40)
+            (s) =>
+              String(s.title ?? '') || String(s.description ?? '').slice(0, 40)
           ),
-          propNames: propsBound.map((p) => p.name)
+          propNames: propsBound.map((p) => String(p.name ?? ''))
         })
 
         const charMap = new Map(

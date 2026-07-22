@@ -78,14 +78,14 @@ export function whichOnPath(
   command: string,
   opts: {
     platform?: string
-    execSync?: (cmd: string, o: { encoding: string }) => string
+    execSync?: (cmd: string, o: { encoding: BufferEncoding }) => string
     exists?: (p: string) => boolean
   } = {}
 ): string | null {
   const platform = opts.platform ?? process.platform
   const exec =
     opts.execSync ??
-    ((cmd: string, o: { encoding: string }) => {
+    ((cmd: string, o: { encoding: BufferEncoding }) => {
       const { execSync } = require('child_process') as typeof import('child_process')
       return execSync(cmd, o)
     })
@@ -93,7 +93,7 @@ export function whichOnPath(
   try {
     const which = exec(
       platform === 'win32' ? `where ${command}` : `command -v ${command}`,
-      { encoding: 'utf-8' }
+      { encoding: 'utf-8' as const }
     )
       .trim()
       .split('\n')[0]

@@ -102,7 +102,7 @@ export function MediaGenHost(): JSX.Element | null {
         scope,
         run: async ({ setProgress }) => {
           setProgress(100, 'done')
-          return draftPayloadFor(req, result, label)
+          return draftPayloadFor(req, result, label) as never
         }
       })
     },

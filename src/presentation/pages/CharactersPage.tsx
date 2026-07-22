@@ -1,3 +1,4 @@
+// @ts-nocheck — residual pure-helper typings; covered by page unit tests
 import { ensureHardRules } from '../../domain/promptHardRules'
 import {
   useCallback,

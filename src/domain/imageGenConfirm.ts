@@ -25,7 +25,7 @@ export function resolveIdentityPaths(options: {
 export function appendMultiRefNote(
   prompt: string,
   paths: string[],
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): string {
   if (paths.length <= 1) return prompt
   const note =

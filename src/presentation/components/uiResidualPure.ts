@@ -23,11 +23,16 @@ export function toggleLanguageCode(
   return [...value, code]
 }
 
-export function shouldCancelModal(key: string, busy: boolean): boolean {
+export function shouldCancelModal(
+  key: string,
+  busy: boolean | undefined
+): boolean {
   return key === 'Escape' && !busy
 }
 
-export function shouldCancelOnBackdropClick(busy: boolean): boolean {
+export function shouldCancelOnBackdropClick(
+  busy: boolean | undefined
+): boolean {
   return !busy
 }
 

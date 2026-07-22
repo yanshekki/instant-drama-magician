@@ -122,7 +122,7 @@ export function GalleryThumbStrip({
                           ? 'border-amber-500/80'
                           : 'border-ink-700 opacity-90 hover:opacity-100'
                 ].join(' ')}
-                onClick={(e) => {
+                onClick={() => {
                   if (consumeMovedClick(movedRef.current)) {
                     movedRef.current = false
                     return

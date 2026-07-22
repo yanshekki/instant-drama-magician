@@ -105,27 +105,29 @@ export function VideoPrepModal({
     onPhaseChange('loading-regen')
     setRegenOpen(false)
     try {
+      if (!draft) return
+      const d = draft
       const r = await getApi().videoPrep.regenStill({
-        professionalPrompt: professionalPrompt.trim() || draft.professionalPrompt,
+        professionalPrompt: professionalPrompt.trim() || d.professionalPrompt,
         improvementNotes: notes,
-        sourceImagePath: draft.sourceImagePath,
-        characterId: draft.entityIds.characterId,
-        sceneId: draft.entityIds.sceneId,
-        propId: draft.entityIds.propId,
-        costumeId: draft.entityIds.costumeId,
-        storyId: draft.entityIds.storyId,
-        entryId: draft.entityIds.entryId,
-        durationSeconds: draft.durationSeconds,
-        aspectRatio: draft.aspectRatio,
+        sourceImagePath: d.sourceImagePath,
+        characterId: d.entityIds.characterId,
+        sceneId: d.entityIds.sceneId,
+        propId: d.entityIds.propId,
+        costumeId: d.entityIds.costumeId,
+        storyId: d.entityIds.storyId,
+        entryId: d.entityIds.entryId,
+        durationSeconds: d.durationSeconds,
+        aspectRatio: d.aspectRatio,
         locale: getAiLocale(i18n.language)
       })
-      const next: VideoPrepDraftPayload = {
-        ...draft,
+      const next = {
+        ...d,
         professionalPrompt: r.professionalPrompt,
         stillPath: r.stillPath,
         stillPromptUsed: r.stillPromptUsed,
         userExtraPrompt: userExtra
-      }
+      } as VideoPrepDraftPayload
       setProfessionalPrompt(r.professionalPrompt)
       onDraftPatch(next)
       onPhaseChange('review')

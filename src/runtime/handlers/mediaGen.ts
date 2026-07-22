@@ -304,10 +304,20 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       const galleryPaths = (payload.galleryIdentityPaths ?? [])
         .map((p) => p?.trim())
         .filter((p): p is string => Boolean(p))
+      const storyMeta = row as {
+        title?: string
+        logline?: string | null
+        synopsis?: string | null
+        description?: string | null
+      }
       const profileText = [
-        `Title: ${row.title}`,
-        row.logline ? `Logline: ${row.logline}` : '',
-        row.synopsis ? `Synopsis: ${row.synopsis}` : ''
+        `Title: ${storyMeta.title ?? row.title}`,
+        storyMeta.logline ? `Logline: ${storyMeta.logline}` : '',
+        storyMeta.synopsis
+          ? `Synopsis: ${storyMeta.synopsis}`
+          : storyMeta.description
+            ? `Description: ${storyMeta.description}`
+            : ''
       ]
         .filter(Boolean)
         .join('\n')
@@ -689,7 +699,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       const galleryPaths = (payload.galleryIdentityPaths ?? [])
         .map((p) => p?.trim())
         .filter((p): p is string => Boolean(p))
-      let name = kind
+      let name: string = kind
       let profileText = `Video / still prep kind: ${kind}.`
       let hardRules: string | null = null
       let artStyle = getArtStyle(payload.artStyle ?? undefined).id

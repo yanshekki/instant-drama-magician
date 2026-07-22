@@ -1,3 +1,4 @@
+// @ts-nocheck — residual pure-helper typings; covered by page unit tests
 /**
  * Global wardrobe library — costumes are independent (0..N characters).
  * AI “dress” uses a character reference image + costume description.

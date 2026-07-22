@@ -9,7 +9,6 @@ import { buildCharacterMasterSystemPrompt, buildCharacterMasterUserPrompt, extra
 export function registerCharactersAiFill(ctx: HandlerContext): void {
   const {
     reg,
-    host,
     activity
   } = ctx
 

@@ -27,13 +27,11 @@ import {
 import {
   createReadStream,
   existsSync,
-  mkdirSync,
   readFileSync,
   statSync,
   writeFileSync
 } from 'fs'
 import { Readable } from 'stream'
-import { execFileSync } from 'child_process'
 import { PrismaClient } from '../../src/types/prisma'
 import { appUpdateService } from '../../src/infrastructure/update/AppUpdateService'
 import { registerIpcHandlers } from './ipc'
