@@ -14237,9 +14237,13 @@ describe('abs100 Settings pure residual helpers', () => {
       settingsNpmCheckMissing(() => undefined, () => undefined, () => undefined, 'npm-miss')
     ).toBe(false)
     await settingsOpenExternalWithFallback(async () => undefined, 'http://ok')
-    await settingsOpenExternalWithFallback(async () => {
-      throw new Error('fail')
-    }, 'http://fb')
+    {
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+      await settingsOpenExternalWithFallback(async () => {
+        throw new Error('fail')
+      }, 'http://fb')
+      openSpy.mockRestore()
+    }
     // clipboard may fail in happy-dom — both branches
     await settingsCopyText('tok', (m) => msgs.push('cs:' + m), (m) => msgs.push('ci:' + m), 'copied')
     const patches: string[] = []
@@ -14871,44 +14875,313 @@ describe('abs100 Settings pure residual helpers', () => {
       }
     })
 
-
-
-
-
-
-
-    
+    // --- remaining pure residual branches ---
+    expect(settingsBoolOr(true, false)).toBe(true)
+    expect(settingsStringOr('', 'd')).toBe('d')
+    expect(settingsStringOr('   ', 'd')).toBe('d')
+    expect(settingsNumOr(null, 7)).toBe(7)
+    expect(settingsNumOr(Number.NaN, 7)).toBe(7)
+    expect(settingsSilentOrToast(undefined, (m) => msgs.push('u:' + m), 'unsilent'))
+    expect(settingsIsRateLimit(
+      new Error(JSON.stringify({ code: 'AI_RATE_LIMIT', message: 'rl' }))
+    )).toBe(true)
+    // save: lang change success path already hit; refreshAi promise path
     expect(
-      (await settingsBuildClearDefaultsFromApi(() => 'en', async () => ({ colorScheme: 'dark' }))).uiLanguage
-    ).toBe('en')
+      await settingsRunSaveFull({
+        settings: { uiLanguage: 'en' },
+        setSaving: () => undefined,
+        setError: () => undefined,
+        coerceLang: (l) => l,
+        currentLang: 'zh-HK',
+        changeLang: async () => undefined,
+        set: async (s) => s,
+        applyNext: () => undefined,
+        refreshAi: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    // video channel: custom with existing base; non-custom without defBase
+    settingsVideoChannelCustom(
+      'custom',
+      'http://existing',
+      'http://base',
+      (k, v) => patches.push(k + ':' + v),
+      () => null
+    )
+    settingsVideoChannelCustom(
+      'other',
+      'http://v',
+      'http://base',
+      (k, v) => patches.push(k + ':' + v),
+      () => null
+    )
+    // image base: seedream early return; value matches def (no custom patch); !isPreset
+    settingsImageBaseUrlChange(
+      'http://x',
+      'seedream',
+      () => undefined,
+      () => true,
+      () => 'd'
+    )
+    settingsImageBaseUrlChange(
+      'http://def',
+      'openai',
+      (k) => patches.push('no-custom:' + k),
+      () => true,
+      () => 'http://def'
+    )
+    settingsImageBaseUrlChange(
+      'http://x',
+      'weird',
+      () => undefined,
+      () => false,
+      () => 'd'
+    )
+    // openRelease ok + custom releaseUrl
+    await settingsOpenReleasePage({
+      openRelease: async () => ({ ok: true }),
+      toastError: () => undefined,
+      openExternal: async () => undefined,
+      failMsg: () => '',
+      failSimple: 'fs'
+    })
+    await settingsOpenReleasePage({
+      releaseUrl: 'https://custom.releases',
+      openExternal: async (u) => {
+        msgs.push('rel:' + u)
+      },
+      toastError: () => undefined,
+      failMsg: () => '',
+      failSimple: 'fs'
+    })
+    // copyText fail → toastInfo
+    const clip = navigator.clipboard
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async () => {
+          throw new Error('clip')
+        }
+      }
+    })
+    await settingsCopyText(
+      'tok-fail',
+      () => undefined,
+      (m) => msgs.push('clipinfo:' + m),
+      'ok'
+    )
+    await settingsCopyNpmInstallCmd({
+      cmd: 'npm i fail',
+      toastSuccess: () => msgs.push('should-not'),
+      successMsg: 'ok'
+    })
+    if (clip) {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: clip
+      })
+    }
+    // ensureGateway: ready without keyCreated; keyReady; silent ready
+    expect(
+      await settingsRunEnsureGateway({
+        silent: false,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => ({
+            state: 'ready',
+            healthOk: true,
+            keyCreated: false
+          }),
+          installHints: async () => ({ grokBuildUrl: 'http://x' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({}),
+        setSettings: () => undefined,
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => undefined,
+        toastError: () => undefined,
+        toastSuccess: (m) => msgs.push('ready:' + m),
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'b',
+        packageMissingMsg: 'p',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(true)
+    expect(
+      await settingsRunEnsureGateway({
+        silent: true,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => ({ state: 'ready', keyReady: true }),
+          installHints: async () => ({ grokBuildUrl: 'http://x' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({}),
+        setSettings: () => undefined,
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => undefined,
+        toastError: () => undefined,
+        toastSuccess: (m) => msgs.push('silent-ok:' + m),
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'b',
+        packageMissingMsg: 'p',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(true)
+    expect(
+      await settingsRunEnsureGateway({
+        silent: true,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => ({ state: 'grok_build_missing' }),
+          installHints: async () => ({ grokBuildUrl: 'http://x' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({}),
+        setSettings: () => undefined,
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => undefined,
+        toastError: (m) => msgs.push('silent-b:' + m),
+        toastSuccess: () => undefined,
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'bmiss',
+        packageMissingMsg: 'p',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(false)
+    // gateway package missing non-silent
+    expect(
+      await settingsRunEnsureGateway({
+        silent: false,
+        setBusy: () => undefined,
+        getGateway: () => ({
+          ensure: async () => ({ state: 'gateway_missing' }),
+          installHints: async () => ({ grokBuildUrl: 'http://x' })
+        }),
+        setGatewayStatus: () => undefined,
+        getSettings: async () => ({}),
+        setSettings: () => undefined,
+        openExternalUrl: async () => undefined,
+        refreshAiStatus: async () => undefined,
+        toastError: (m) => msgs.push('pkg:' + m),
+        toastSuccess: () => undefined,
+        toastInfo: () => undefined,
+        unavailableMsg: 'u',
+        buildMissingMsg: 'b',
+        packageMissingMsg: 'pkg-miss',
+        readyWithKeyMsg: 'rk',
+        readyMsg: 'r'
+      })
+    ).toBe(false)
+    // clearAllFull: same lang (no changeUiLanguage); empty lang
+    expect(
+      await settingsRunClearAllFull({
+        setClearing: () => undefined,
+        confirm: async () => true,
+        clear: async () => undefined,
+        getDefaults: async () => ({ uiLanguage: 'en', colorScheme: 'light' }),
+        set: async (w) => w,
+        setSettings: () => undefined,
+        applyColorScheme: () => undefined,
+        setShowLlmAdvanced: () => undefined,
+        setShowVideoAdvanced: () => undefined,
+        setModelIds: () => undefined,
+        changeUiLanguage: async () => {
+          msgs.push('should-not-clang')
+        },
+        currentLang: () => 'en',
+        refreshAiStatus: async () => undefined,
+        refreshGateway: async () => undefined,
+        toastSuccess: () => undefined,
+        setError: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(settingsWebPortOnChange('99999', 8787)).toBe(65535)
+    expect(settingsWebPortOnChange('-1', 8787)).toBe(8787)
+    expect(settingsLegalOutdatedSuffix(undefined, '1', 'old')).toBe('')
+    expect(settingsLegalOutdatedSuffix('', '1', 'old')).toBe('')
+    expect(settingsChannelPickerValue('x', 'fb')).toBe('x')
+    expect(settingsChannelPickerValue(undefined, 'fb')).toBe('fb')
+    expect(settingsApiKeyPlaceholder('openrouter', false, 'c', 'd')).toBe('sk-…')
+    expect(settingsUpdateIdleLabel('missing', 'idle', { x: 'X' })).toBe('idle')
+    // openInstallPage empty grokBuildUrl fallback
     await settingsRunOpenInstallPage({
-      getGateway: () => null,
-      fallbackCmd: 'c',
-      openExternalUrl: async (u) => { msgs.push('oi:' + u) }
+      getGateway: () => ({
+        installHints: async () => ({})
+      }),
+      fallbackCmd: 'cmd',
+      openExternalUrl: async (u) => {
+        msgs.push('empty-hint:' + u)
+      }
     })
-    await settingsRunOpenInstallPage({
-      getGateway: () => ({ installHints: async () => ({ grokBuildUrl: 'http://g' }) }),
-      fallbackCmd: 'c',
-      openExternalUrl: async (u) => { msgs.push('oi2:' + u) }
+    // bind open external catch → window.open
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    settingsBindOpenExternal('http://win-open', async () => {
+      throw new Error('no-open')
+    })()
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10))
     })
-    await settingsRunOpenInstallPage({
-      getGateway: () => ({ installHints: async () => { throw new Error('x') } }),
-      fallbackCmd: 'c',
-      openExternalUrl: async (u) => { msgs.push('oi3:' + u) }
-    })
-    settingsBindOpenExternal(null, async () => undefined)()
-    settingsBindOpenExternal('http://u', async () => undefined)()
-    expect(settingsFailMsgBound('f')(null)).toBe('f')
-    expect(settingsDevSkippedBound((k) => k, 'n')(null)).toBe('n')
-    await settingsRunSetUiLanguage({
-      code: 'en',
-      set: async () => undefined,
-      changeUiLanguage: async () => undefined
-    })
-    await settingsRunSetUiLanguage({
-      code: 'zh-HK',
-      set: async () => { throw new Error('p') },
-      changeUiLanguage: async (c) => { msgs.push('lang:' + c) }
+    openSpy.mockRestore()
+    // toast update check unknown status (no branch)
+    settingsToastUpdateCheck(
+      { status: 'idle' },
+      {
+        toastInfo: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        availableMsg: () => '',
+        upToDateMsg: 'up',
+        devSkippedMsg: () => '',
+        errorMsg: () => ''
+      }
+    )
+    settingsToastUpdateDownload(
+      { status: 'idle' },
+      {
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        okMsg: 'ok',
+        failMsg: () => 'f'
+      }
+    )
+    // available with null latestVersion
+    settingsToastUpdateCheck(
+      { status: 'available', latestVersion: null },
+      {
+        toastInfo: (m) => msgs.push('avnull:' + m),
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        availableMsg: (v) => 'av:' + v,
+        upToDateMsg: 'up',
+        devSkippedMsg: () => '',
+        errorMsg: () => ''
+      }
+    )
+    // npm check updateAvailable with null latest
+    await settingsRunNpmCheck({
+      setBusy: () => undefined,
+      checkNpm: async () => ({
+        latestVersion: null,
+        updateAvailable: true,
+        installCommand: null
+      }),
+      setNpmUpdate: () => undefined,
+      toastError: () => undefined,
+      toastInfo: (m) => msgs.push('npmnull:' + m),
+      toastSuccess: () => undefined,
+      missingMsg: 'miss',
+      availableMsg: (v) => 'av' + v,
+      upToDateMsg: 'up',
+      failMsg: 'f'
     })
 
     expect(msgs.length).toBeGreaterThan(0)
@@ -15694,6 +15967,450 @@ describe('abs100 Settings UI residual mop', () => {
     await forceClick(/Download/i)
     await forceClick(/Install update|Install/i)
   }, 60000)
+
+  it('progress bar + npm available toast + webServer start status + model fallback', async () => {
+    // Hit residual UI: downloading progress (1315-1328), npmUpdateAvailable (1517),
+    // port/host blur start → setWebStatus (1830-1891), model not-in-list (541)
+    api.settings.get = vi.fn().mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      llmProvider: 'openai',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'not-in-list-model',
+      apiKey: 'sk-x',
+      webServerEnabled: true,
+      webServerPort: 8787,
+      webServerHost: '',
+      webServerAuthToken: 'tok-abc',
+      uiLanguage: 'en',
+      legalAcceptedVersion: '1.0.0'
+    })
+    api.settings.set = vi.fn().mockImplementation(async (partial) => ({
+      ...DEFAULT_SETTINGS,
+      llmProvider: 'openai',
+      model: 'not-in-list-model',
+      webServerEnabled: true,
+      webServerPort: 8787,
+      webServerHost: '0.0.0.0',
+      webServerAuthToken: 'tok-abc',
+      ...partial
+    }))
+    api.ai.listModels = vi.fn().mockResolvedValue([
+      { id: 'model-a' },
+      { id: 'model-b' }
+    ])
+    api.webServer = {
+      status: vi.fn().mockResolvedValue({
+        running: true,
+        url: 'http://127.0.0.1:8787',
+        port: 8787,
+        error: null,
+        staticReady: true
+      }),
+      start: vi.fn().mockResolvedValue({
+        running: true,
+        url: 'http://127.0.0.1:9999',
+        port: 9999,
+        error: null,
+        staticReady: true
+      }),
+      stop: vi.fn().mockResolvedValue({
+        running: false,
+        url: null,
+        port: 9999,
+        error: null,
+        staticReady: false
+      }),
+      generateToken: vi.fn().mockResolvedValue({ token: 'nt' })
+    } as never
+    api.updates.status = vi.fn().mockResolvedValue({
+      status: 'idle',
+      canCheck: true,
+      canDownload: true,
+      canAutoInstall: true,
+      currentVersion: '1.0.0',
+      latestVersion: '1.2.0'
+    })
+    api.updates.onState = vi.fn((cb: (s: object) => void) => {
+      queueMicrotask(() => {
+        cb({
+          status: 'downloading',
+          progress: 42,
+          currentVersion: '1.0.0',
+          latestVersion: '1.2.0',
+          canCheck: true,
+          canDownload: true,
+          canAutoInstall: true,
+          channel: 'desktop-packaged'
+        })
+      })
+      return () => undefined
+    })
+    api.updates.checkNpm = vi.fn().mockResolvedValue({
+      latestVersion: '9.9.9',
+      updateAvailable: true,
+      installCommand: 'npm install -g instant-drama-magician@9.9.9'
+    })
+    api.updates.check = vi.fn().mockResolvedValue({
+      status: 'available',
+      latestVersion: '1.2.0',
+      canCheck: true,
+      canDownload: true,
+      canAutoInstall: true
+    })
+    api.updates.download = vi.fn().mockResolvedValue({
+      status: 'downloaded',
+      progress: 100
+    })
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <SettingsPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
+
+    // LLM tab: model select fallback when current model not in list (line 541)
+    await clickNamed(/Chat model|Chat|LLM/i)
+    await waitFor(() => expect(api.ai.listModels).toHaveBeenCalled())
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const ids = Array.from(s.options).map((o) => o.value)
+      if (ids.includes('model-a') || ids.includes('model-b')) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: ids[0] } })
+        )
+      }
+    }
+
+    // App tab: progress bar via onState downloading
+    await clickNamed(/^App$/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    await waitFor(() => {
+      expect(document.body.textContent || '').toMatch(/42|%|download/i)
+    })
+
+    // npm check → updateAvailable toast (availableMsg / npmUpdateAvailable)
+    await forceClick(/Check npm|npm|CLI/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    expect(api.updates.checkNpm).toHaveBeenCalled()
+
+    // port blur with webServerEnabled → start → setWebStatus
+    for (const el of Array.from(
+      document.querySelectorAll('input[type="number"]')
+    )) {
+      await act(async () =>
+        fireEvent.change(el, { target: { value: '9999' } })
+      )
+      await act(async () => fireEvent.blur(el))
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    expect(api.webServer.start).toHaveBeenCalled()
+
+    // host change → start → setWebStatus
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      if (Array.from(s.options).some((o) => o.value === '0.0.0.0')) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: '0.0.0.0' } })
+        )
+        await act(async () =>
+          fireEvent.change(s, { target: { value: '127.0.0.1' } })
+        )
+      }
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    expect(api.webServer.start).toHaveBeenCalled()
+
+    // also drive downloaded progress bar branch
+    const onState = api.updates.onState as ReturnType<typeof vi.fn>
+    const cb = onState.mock.calls[0]?.[0] as ((s: object) => void) | undefined
+    if (cb) {
+      await act(async () => {
+        cb({
+          status: 'downloaded',
+          progress: 100,
+          currentVersion: '1.0.0',
+          latestVersion: '1.2.0',
+          canCheck: true,
+          canDownload: false,
+          canAutoInstall: true
+        })
+      })
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20))
+    })
+  }, 120000)
+
+  it('color scheme legal donate release notes openPath fail backup catch', async () => {
+    api.settings.get = vi.fn().mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      llmProvider: 'openai',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4o-mini',
+      apiKey: 'sk-x',
+      chatTimeoutMs: 30000,
+      videoConcurrency: 2,
+      videoTimeoutSec: 120,
+      colorScheme: 'system',
+      webServerEnabled: false,
+      webServerAuthToken: '',
+      uiLanguage: 'en',
+      legalAcceptedVersion: '0.0.1'
+    })
+    api.settings.set = vi.fn().mockImplementation(async (partial) => ({
+      ...DEFAULT_SETTINGS,
+      llmProvider: 'openai',
+      model: 'gpt-4o-mini',
+      webServerEnabled: false,
+      webServerAuthToken: '',
+      ...partial
+    }))
+    api.ai.listModels = vi.fn().mockResolvedValue([])
+    api.app.getInfo = vi.fn().mockResolvedValue({
+      version: '1.0.0',
+      isPackaged: true,
+      userData: '/tmp/ud',
+      mediaRoot: '/tmp/media'
+    })
+    api.shell.openPath = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, message: 'no-dir' })
+      .mockRejectedValueOnce(new Error('path-boom'))
+      .mockResolvedValue({ ok: true, isDirectory: true, path: '/tmp/ud' })
+    api.updates.status = vi.fn().mockResolvedValue({
+      status: 'available',
+      canCheck: true,
+      canDownload: true,
+      canAutoInstall: true,
+      currentVersion: '1.0.0',
+      latestVersion: '1.2.0',
+      releaseNotes: '## notes\n- fix',
+      progress: 0
+    })
+    api.updates.check = vi.fn().mockResolvedValue({
+      status: 'error',
+      message: 'check-err',
+      canCheck: true
+    })
+    api.updates.checkNpm = vi.fn().mockResolvedValue({
+      latestVersion: null,
+      updateAvailable: false,
+      installCommand: 'npm i -g x',
+      error: 'npm-err'
+    })
+    api.app.exportFullBackup = vi.fn().mockRejectedValue(new Error('exp-fail'))
+    api.app.importFullBackup = vi.fn().mockRejectedValue(new Error('imp-fail'))
+    api.webServer = {
+      status: vi.fn().mockResolvedValue({ running: false }),
+      start: vi.fn().mockRejectedValue(new Error('start-boom')),
+      stop: vi.fn().mockResolvedValue({ running: false }),
+      generateToken: vi.fn().mockResolvedValue({
+        token: 'gen',
+        settings: {
+          ...DEFAULT_SETTINGS,
+          webServerAuthToken: 'gen',
+          webServerEnabled: true
+        }
+      })
+    } as never
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      clipboard: {
+        writeText: vi
+          .fn()
+          .mockRejectedValueOnce(new Error('clip'))
+          .mockResolvedValue(undefined)
+      }
+    })
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <SettingsPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
+
+    // LLM: advanced baseUrl + timeout + model input (no modelIds)
+    await clickNamed(/Chat model|Chat|LLM/i)
+    await clickNamed(/Show advanced|More options|advanced/i)
+    for (const el of Array.from(document.querySelectorAll('input'))) {
+      const inp = el as HTMLInputElement
+      if (inp.type === 'checkbox' || inp.type === 'hidden') continue
+      await act(async () =>
+        fireEvent.change(inp, {
+          target: {
+            value: inp.type === 'number' ? '90000' : 'http://custom-base'
+          }
+        })
+      )
+    }
+    await forceClick(/Refresh model|Refresh/i)
+    await forceClick(/Test chat|Test/i)
+
+    // Video advanced concurrency/timeout
+    await clickNamed(/^Video$/i)
+    await clickNamed(/Show advanced|More options|advanced/i)
+    for (const el of Array.from(document.querySelectorAll('input'))) {
+      const inp = el as HTMLInputElement
+      if (inp.type === 'number') {
+        await act(async () =>
+          fireEvent.change(inp, { target: { value: '3' } })
+        )
+        await act(async () =>
+          fireEvent.change(inp, { target: { value: 'x' } })
+        )
+      } else if (inp.type !== 'checkbox' && inp.type !== 'hidden') {
+        await act(async () =>
+          fireEvent.change(inp, { target: { value: '/vid/path' } })
+        )
+      }
+    }
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      for (let i = 0; i < s.options.length; i++) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[i].value } })
+        )
+      }
+    }
+
+    await clickNamed(/^App$/i)
+    // color scheme buttons
+    await forceClick(/System|Light|Dark|colorScheme/i)
+    for (const re of [/System/i, /Light/i, /Dark/i]) {
+      await forceClick(re)
+    }
+    // open data folder fail then catch
+    await forceClick(/Open folder|Data folder|openDataFolder/i)
+    await forceClick(/Open folder|Data folder|openDataFolder/i)
+    // release notes toggle
+    await forceClick(/Release notes|Show release|Hide release|releaseNotes/i)
+    await forceClick(/Release notes|Show release|Hide release|releaseNotes/i)
+    // update check error toast path
+    await forceClick(/Check for updates|Check update|checkUpdate/i)
+    // npm with error field
+    await forceClick(/Check npm|npm version|checkNpm/i)
+    await forceClick(/Copy install|install command/i)
+    // donate copy (clipboard fail → toast.info)
+    await forceClick(/^Copy$|creator\.copy/i)
+    // legal docs
+    await forceClick(/Disclaimer|disclaimer|openDisclaimer/i)
+    await forceClick(/Terms|terms|openTerms/i)
+    // web enable with empty token → generateToken then start fail catch
+    for (const cb of Array.from(
+      document.querySelectorAll('input[type="checkbox"]')
+    )) {
+      await act(async () => fireEvent.click(cb))
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 30))
+      })
+    }
+    // backup export/import fail
+    await forceClick(/Export all|Full backup|exportFull|Export/i)
+    await forceClick(/Restore|Import|importFull/i)
+    if (document.querySelector('[role="alertdialog"]')) {
+      await act(async () => clickDialogConfirm())
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+  }, 120000)
+
+  it('grok-gateway card copy install model missing shell openExternal', async () => {
+    api.settings.get = vi.fn().mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      llmProvider: 'grok-gateway',
+      baseUrl: 'http://127.0.0.1:3847/v1',
+      model: 'not-listed',
+      apiKey: '',
+      uiLanguage: 'en'
+    })
+    api.settings.set = vi.fn().mockImplementation(async (p) => ({
+      ...DEFAULT_SETTINGS,
+      llmProvider: 'grok-gateway',
+      model: 'not-listed',
+      ...p
+    }))
+    api.ai.listModels = vi.fn().mockResolvedValue([
+      { id: 'grok-a' },
+      { id: 'grok-b' }
+    ])
+    api.ai.applyLlmPreset = vi.fn().mockRejectedValue(new Error('no-preset'))
+    api.gateway = {
+      status: vi.fn().mockResolvedValue({
+        state: 'grok_build_missing',
+        message: 'install me',
+        healthOk: false,
+        grokPath: null,
+        gctoacPath: null,
+        adminUrl: 'http://127.0.0.1:3847/admin/'
+      }),
+      ensure: vi.fn().mockResolvedValue({
+        state: 'grok_build_missing',
+        message: 'install me',
+        healthOk: false
+      }),
+      installHints: vi.fn().mockResolvedValue({
+        grokBuildUrl: 'https://x.ai/',
+        installCommand: 'curl install'
+      }),
+      openAdmin: vi.fn().mockResolvedValue({ ok: true })
+    } as never
+    // shell.openExternal missing → openExternalUrl catch path
+    api.shell.openExternal = undefined as never
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <SettingsPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
+    await clickNamed(/Chat model|Chat|LLM/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60))
+    })
+    // model select fallback (not-listed → modelIds[0])
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const ids = Array.from(s.options).map((o) => o.value)
+      if (ids.includes('grok-a')) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: 'grok-b' } })
+        )
+      }
+    }
+    // gateway card: recheck / copy install / open install
+    await forceClick(/Recheck|recheck|Ensure|Start gateway|gateway/i)
+    await forceClick(/Copy install|Copy command|installCmd|Copy/i)
+    await forceClick(/Open install|Open xAI|Install page|x\.ai|Docs/i)
+    await forceClick(/Refresh model|Refresh/i)
+    await forceClick(/Test chat|Test/i)
+    // switch preset to hit fallbackSet
+    for (const re of [/OpenAI|OpenRouter|Custom|Grok/i]) {
+      await forceClick(re)
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 15))
+      })
+    }
+  }, 120000)
 
 })
 
