@@ -44,15 +44,15 @@ export default defineConfig({
         'src/types/electron-api.ts',
         'src/infrastructure/ai/video/types.ts',
         'src/infrastructure/update/updateTypes.ts',
+        // Interfaces only (HandlerHost / dialog/shell contracts)
         'src/runtime/HandlerHost.ts'
       ],
-      // Climb toward Full ~100%: raise as suites grow (currently ~26% lines).
-      // Target: 100% lines/statements; branches may lag until pure dead code removed.
+      // Full unit coverage KPI: lines/statements 100%; branches may lag.
       thresholds: {
-        lines: 26,
+        lines: 100,
         functions: 55,
         branches: 55,
-        statements: 26
+        statements: 100
       }
     }
   },
