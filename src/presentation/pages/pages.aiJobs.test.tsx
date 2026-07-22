@@ -17,10 +17,7 @@ import {
   makeStoryDetail,
   makeTimelineEntry
 } from '../../test/pageFixtures'
-import {
-  clickDialogConfirm,
-  renderWithProviders
-} from '../../test/renderWithProviders'
+import { renderWithProviders } from '../../test/renderWithProviders'
 import { MediaGenHost } from '../components/MediaGenHost'
 import { useAiJobs } from '../context/AiJobsContext'
 import { CharactersPage } from './CharactersPage'
@@ -824,18 +821,48 @@ describe('pages AiJobs + VideoPrep shell', () => {
     await waitFor(() => expect(api.timeline.list).toHaveBeenCalled(), {
       timeout: 5000
     })
+    // Wait settings so videoMode is stub (avoids extra missing-ref dialog race)
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled(), {
+      timeout: 5000
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20))
+    })
 
-    await clickBtn(/^Generate$/i)
-    // confirm batch + maybe missing refs
-    for (let i = 0; i < 3; i++) {
-      if (document.querySelector('[role="alertdialog"]')) {
-        await act(async () => {
-          clickDialogConfirm()
-        })
-      }
+    // Prefer toolbar Generate (exact label), not "Generate this clip"
+    const gen =
+      screen
+        .getAllByRole('button')
+        .find((b) => /^Generate$/i.test((b.textContent || '').trim())) || null
+    expect(gen).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(gen!)
+    })
+
+    // Confirm mode-hint (and optional missing-ref) dialogs — must wait; CI is slower
+    for (let i = 0; i < 4; i++) {
+      if (api.generation.run.mock.calls.length > 0) break
+      const dlg = await waitFor(
+        () => {
+          const el = document.querySelector('[role="alertdialog"]')
+          if (!el) throw new Error('no alertdialog yet')
+          return el
+        },
+        { timeout: 3000 }
+      ).catch(() => null)
+      if (!dlg) break
+      const buttons = Array.from(dlg.querySelectorAll('button'))
+      const confirmBtn = buttons[buttons.length - 1] as HTMLButtonElement | undefined
+      expect(confirmBtn).toBeTruthy()
+      await act(async () => {
+        fireEvent.click(confirmBtn!)
+      })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40))
+      })
     }
     await waitFor(() => expect(api.generation.run).toHaveBeenCalled(), {
-      timeout: 10000
+      timeout: 15000
     })
     // pipeline draft acknowledge if present
     if (jobsApi && jobsApi.pendingDrafts.length > 0) {
