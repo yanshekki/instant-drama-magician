@@ -45,7 +45,7 @@ instant-drama doctor --json
 instant-drama channels list --json
 ```
 
-Only call channels that appear in `channels list` (expect **~138**). Desktop, web, and CLI share one registry. If a channel is missing, the binary is likely outdated.
+Only call channels that appear in `channels list` (expect **~157**). Desktop, web, and CLI share one registry. If a channel is missing, the binary is likely outdated.
 
 ## Output contract
 
@@ -65,13 +65,17 @@ instant-drama open --dev
 
 Supports **macOS, Ubuntu/Linux, Windows**. Build macOS targets on a Mac.
 
-## Full control (138 channels)
+## Full control (157 channels)
 
 ```bash
 instant-drama channels list --json
 instant-drama invoke <channel> --args '[...]' --json
 instant-drama characters list --json
 instant-drama characters generate-sheet --args '[{...}]' --json
+instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path.png"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
+instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
+instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
 instant-drama generation run STORY_ID --json
 instant-drama media check-ffmpeg --json
 ```

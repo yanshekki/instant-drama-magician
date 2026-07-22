@@ -42,7 +42,7 @@ import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
 import { PageHeader } from '../components/PageHeader'
 import { LocalMediaImage } from '../components/LocalMediaImage'
-import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
+import { EntityGalleryPanel } from '../components/EntityGalleryPanel'
 import {
   EditorField,
   EditorSelect,
@@ -169,7 +169,8 @@ export function StoriesPage(): JSX.Element {
   const { stories, setActiveStoryId, refreshStories, loading } = useApp()
   const toast = useToast()
   const dialog = useDialog()
-  const { startJob, isBlocked, onStoryCoverCommitted } = useAiJobs()
+  const { startJob, isBlocked, onStoryCoverCommitted, startMediaGen } =
+    useAiJobs()
   const [storyStatus, setStoryStatus] = useState('')
   const [storyCover, setStoryCover] = useState('') // '' | has | none
   const [storySort, setStorySort] = useState('updated') // updated | title
@@ -519,6 +520,15 @@ export function StoriesPage(): JSX.Element {
     useIdentityEdit?: boolean
     idea?: string | null
   }): void => {
+    const sid = opts?.storyId ?? editingId
+    if (!sid) {
+      toast.error(t('stories.saveFirst'))
+      return
+    }
+    if (storyCoverBusyId(sid)) {
+      toast.info(t('common.loading'))
+      return
+    }
     const useId = storiesResolveWantIdentity(
       opts?.useIdentityEdit,
       useIdentityRef
@@ -529,40 +539,12 @@ export function StoriesPage(): JSX.Element {
       useId,
       coverPath
     )
-    const locale = getAiLocale(i18n.language)
-    const styleLabel = t(
-      `characters.${getArtStyle(storyArtStyle).labelKey}`
-    )
-    void storiesRunGenerateCoverSetup({
-      storyId: opts?.storyId ?? editingId,
-      isBusy: storyCoverBusyId,
-      useIdentity: useId,
-      paths,
-      resolveIdentity: resolveIdentityPaths,
-      buildPrompt: (useEdit) =>
-        buildStoryCoverPrompt(locale, {
-          idea: opts?.idea,
-          useEdit
-        }),
-      maybeAppend: (prompt, pths) =>
-        storiesMaybeAppendMulti(
-          prompt,
-          pths,
-          locale,
-          appendMultiRefNote as (
-            p: string,
-            paths: string[],
-            locale?: string
-          ) => string
-        ),
-      ensureRules: (prompt) => ensureHardRules(prompt, hardRules),
-      summary: `${t('stories.generateCover')} · ${t('characters.artStyle')}: ${styleLabel} · ${storiesPlateModeLabel(
-        useId,
-        t('common.imageGenConfirmModeIdentity'),
-        t('common.imageGenConfirmModePure')
-      )}`,
-      setPendingId: setPendingCoverStoryId,
-      setConfirm: setImageGenConfirm
+    startMediaGen({
+      kind: 'story-cover',
+      storyId: sid,
+      artStyle: storyArtStyle,
+      galleryIdentityPaths: paths,
+      preferIdentityEdit: useId
     })
   }
 
@@ -1250,117 +1232,72 @@ export function StoriesPage(): JSX.Element {
         activeTab={editorTab}
         onTabChange={(id) => setEditorTab(id as EditorTab)}
         preview={
-          <div className="flex h-full flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
-                {t('stories.coverTitle')}
-              </h3>
-              <span className="text-[11px] text-ink-500">
-                {coverGallery.length}
-              </span>
-            </div>
-            <div className="rounded-xl border border-ink-800 bg-ink-900/60">
-              {(selectedCoverImage?.path ?? coverPath) ? (
-                <LocalMediaImage
-                  filePath={selectedCoverImage?.path ?? coverPath}
-                  alt={editTitle || t('stories.coverTitle')}
-                  maxHeightClass="max-h-[min(36vh,420px)] lg:max-h-[min(48vh,520px)]"
-                  showMeta
-                  objectFit="cover"
-                  className="border-0 rounded-xl"
-                  actionsLayout="bar"
-                  isCover={
-                    Boolean(
-                      selectedCoverImage?.path &&
-                        coverPath === selectedCoverImage.path
-                    )
-                  }
-                  onSetAsCover={storiesCoverSetHandler(
-                    selectedCoverImage?.path,
-                    handleSetStoryCover
-                  )}
-                  onRemove={storiesCoverRemoveHandler(
-                    selectedCoverImage?.id,
-                    handleRemoveCoverImage
-                  )}
-                />
-              ) : (
-                <div className="flex h-40 flex-col items-center justify-center gap-2 px-3 text-xs text-ink-500">
-                  <span className="text-2xl opacity-40">🖼</span>
-                  <p>{t('stories.coverMissing')}</p>
-                  {!editingId ? (
-                    <p className="text-center text-[11px] text-ink-600">
-                      {t('stories.metaHint')}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-            </div>
-            {coverGallery.length > 0 ? (
-              <GalleryThumbStrip
-                items={coverGallery}
-                selectedId={selectedCoverId}
-                selectedIds={selectedCoverIds}
-                multiSelect
-                coverPath={coverPath}
-                onSelect={(id) => setSelectedCoverId(id)}
-                onToggleSelect={(id) =>
-                  setSelectedCoverIds((ids) =>
-                    toggleGallerySelection(ids, id)
-                  )
-                }
-                onReorder={(fromId, toId) => {
-                  const from = coverGallery.findIndex((g) => g.id === fromId)
-                  const to = coverGallery.findIndex((g) => g.id === toId)
-                  if (from < 0 || to < 0) return
-                  const next = [...coverGallery]
-                  const [item] = next.splice(from, 1)
-                  next.splice(to, 0, item)
-                  setCoverGallery(next)
-                }}
-                labelOf={(g) => translateCharacterGalleryLabel(g.label, t)}
-              />
-            ) : null}
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-950/40 px-3 py-2.5">
-              <input
-                type="checkbox"
-                className="mt-0.5 rounded border-ink-600"
-                checked={useIdentityRef}
-                onChange={(e) => setUseIdentityRef(e.target.checked)}
-                disabled={!coverPath && !selectedCoverImage}
-              />
-              <span className="text-[12px] leading-snug text-ink-300">
-                <span className="font-medium text-ink-100">
-                  {t('common.useIdentityRef')}
-                </span>
-                <span className="mt-0.5 block text-[11px] text-ink-500">
-                  {t('common.useIdentityRefHint')}
-                </span>
-              </span>
-            </label>
-            <div className="flex flex-col gap-2">
-              <Button
-                disabled={!editingId || storyCoverBusy}
-                onClick={() => handleGenerateCover()}
-              >
-                {storiesGeneratingLabel(
-                      storyCoverBusy,
-                      t('common.generating'),
-                      t('stories.generateCover')
-                    )}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={!editingId}
-                onClick={() => void handlePickCover()}
-              >
-                {t('common.uploadRef')}
-              </Button>
-            </div>
-            <p className="text-[11px] text-ink-500">
-              {t('common.galleryReorderHint')}
-            </p>
-          </div>
+          <EntityGalleryPanel
+            title={t('stories.coverTitle')}
+            countLabel={String(coverGallery.length)}
+            previewPath={selectedCoverImage?.path ?? coverPath}
+            previewAlt={editTitle || t('stories.coverTitle')}
+            maxHeightClass="max-h-[min(36vh,420px)] lg:max-h-[min(48vh,520px)]"
+            showMeta
+            objectFit="cover"
+            isCover={Boolean(
+              selectedCoverImage?.path &&
+                coverPath === selectedCoverImage.path
+            )}
+            onSetAsCover={storiesCoverSetHandler(
+              selectedCoverImage?.path,
+              handleSetStoryCover
+            )}
+            onRemove={storiesCoverRemoveHandler(
+              selectedCoverImage?.id,
+              handleRemoveCoverImage
+            )}
+            emptyMessage={t('stories.coverMissing')}
+            emptyHint={!editingId ? t('stories.metaHint') : null}
+            items={coverGallery}
+            selectedId={selectedCoverId}
+            selectedIds={selectedCoverIds}
+            multiSelect
+            coverPath={coverPath}
+            fallbackCoverPath={coverPath}
+            onSelect={(id) => setSelectedCoverId(id)}
+            onToggleSelect={(id) =>
+              setSelectedCoverIds((ids) => toggleGallerySelection(ids, id))
+            }
+            onReorder={(fromId, toId) => {
+              const from = coverGallery.findIndex((g) => g.id === fromId)
+              const to = coverGallery.findIndex((g) => g.id === toId)
+              if (from < 0 || to < 0) return
+              const next = [...coverGallery]
+              const [item] = next.splice(from, 1)
+              next.splice(to, 0, item)
+              setCoverGallery(next)
+            }}
+            labelOf={(g) => translateCharacterGalleryLabel(g.label, t)}
+            identityRef={{
+              checked: useIdentityRef,
+              onChange: setUseIdentityRef,
+              disabled: !coverPath && !selectedCoverImage
+            }}
+            footerActions={[
+              {
+                label: storiesGeneratingLabel(
+                  storyCoverBusy,
+                  t('common.generating'),
+                  t('stories.generateCover')
+                ),
+                onClick: () => handleGenerateCover(),
+                disabled: !editingId || storyCoverBusy,
+                variant: 'primary'
+              },
+              {
+                label: t('common.uploadRef'),
+                onClick: () => void handlePickCover(),
+                variant: 'secondary',
+                disabled: !editingId
+              }
+            ]}
+          />
         }
       >
         {actionError && (

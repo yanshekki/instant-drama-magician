@@ -33,6 +33,9 @@ vi.mock('./AiJobHud', () => ({ AiJobHud: () => <div data-testid="hud" /> }))
 vi.mock('./VideoPrepHost', () => ({
   VideoPrepHost: () => <div data-testid="vph" />
 }))
+vi.mock('./MediaGenHost', () => ({
+  MediaGenHost: () => <div data-testid="mgh" />
+}))
 vi.mock('./AiDraftModal', () => ({
   AiDraftModal: () => <div data-testid="draft" />
 }))

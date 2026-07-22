@@ -441,20 +441,39 @@ reg(
       }
 
       if (payload.kind === 'timeline-clip' && payload.entryId) {
-        // Persist keyframe for next-beat image lock (prep still → continuity path).
+        // End-frame continuity for next-beat lock (fallback: prep still copy).
         if (payload.storyId) {
           try {
-            store.ensureStoryDirs(payload.storyId)
-            const contPath = store.clipContinuityStillPath(
-              payload.storyId,
-              payload.entryId,
-              '.png'
+            const { writeClipContinuityStillFromVideo } = await import(
+              '../../../application/video/writeClipContinuityStill'
             )
-            if (stillPath !== contPath && existsSync(stillPath)) {
-              copyFileSync(stillPath, contPath)
-            }
+            const { FfmpegService } = await import(
+              '../../../infrastructure/ffmpeg/FfmpegService'
+            )
+            await writeClipContinuityStillFromVideo({
+              ffmpeg: new FfmpegService(),
+              store,
+              storyId: payload.storyId,
+              entryId: payload.entryId,
+              videoPath: result.outputPath,
+              fallbackStillPath: stillPath,
+              skipIfUserCleared: true
+            })
           } catch {
             /* best-effort continuity write */
+            try {
+              store.ensureStoryDirs(payload.storyId)
+              const contPath = store.clipContinuityStillPath(
+                payload.storyId,
+                payload.entryId,
+                '.png'
+              )
+              if (stillPath !== contPath && existsSync(stillPath)) {
+                copyFileSync(stillPath, contPath)
+              }
+            } catch {
+              /* ignore */
+            }
           }
         }
         await timeline().setMedia(payload.entryId, {

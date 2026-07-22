@@ -232,6 +232,70 @@ describe('AiJobsContext', () => {
     expect(sheets).toHaveLength(1)
   })
 
+  it('acceptDraft try-on also appends costume multi-gallery when scope.costumeId set', async () => {
+    await mount()
+    api.characters.commitSheet = vi.fn().mockResolvedValue({
+      path: '/lib/char-committed.png',
+      gallery: [{ id: 'g1', path: '/lib/char-committed.png' }],
+      character: { costume: 'coat' }
+    })
+    api.costumes.appendTryOnStill = vi.fn().mockResolvedValue({
+      path: '/lib/cos-tryon.png',
+      costume: { id: 'cos1' },
+      gallery: [
+        {
+          id: 'cg1',
+          path: '/lib/cos-tryon.png',
+          kind: 'gen',
+          label: 'Try-on',
+          createdAt: '2026-01-01'
+        }
+      ]
+    })
+    const tryOnEvents: unknown[] = []
+    const onTryOn = (ev: Event): void => {
+      tryOnEvents.push((ev as CustomEvent).detail)
+    }
+    window.addEventListener('idm:costume-tryon-done', onTryOn)
+    try {
+      await act(async () => {
+        draftJob(
+          'costume-swap',
+          {
+            type: 'character-sheet',
+            characterId: 'c1',
+            storyId: 's1',
+            path: '/tmp/draft-tryon.png',
+            variant: 'costume_swap',
+            label: 'Try-on',
+            layer: 'costume',
+            costumeDescription: 'coat'
+          },
+          { characterId: 'c1', costumeId: 'cos1' }
+        )
+      })
+      await waitFor(() => expect(latest!.pendingDrafts.length).toBe(1))
+      await act(async () => {
+        await latest!.acceptDraft(latest!.pendingDrafts[0].id)
+      })
+      expect(api.characters.commitSheet).toHaveBeenCalled()
+      expect(api.costumes.appendTryOnStill).toHaveBeenCalledWith({
+        costumeId: 'cos1',
+        characterId: 'c1',
+        sourcePath: '/lib/char-committed.png',
+        label: 'Try-on'
+      })
+      expect(tryOnEvents).toHaveLength(1)
+      expect(tryOnEvents[0]).toMatchObject({
+        costumeId: 'cos1',
+        characterId: 'c1',
+        path: '/lib/cos-tryon.png'
+      })
+    } finally {
+      window.removeEventListener('idm:costume-tryon-done', onTryOn)
+    }
+  })
+
   it('acceptDraft pipeline/clip/wardrobe/scene/prop/action/cover', async () => {
     await mount()
     const hits: string[] = []

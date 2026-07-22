@@ -296,6 +296,11 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     argsHint: '[{...}]'
   },
   {
+    channel: 'costumes:appendTryOnStill',
+    description: 'costumes: append try-on still to costume gallery',
+    argsHint: '[{costumeId, sourcePath, characterId?}]'
+  },
+  {
     channel: 'costumes:generateIntroVideo',
     description: 'costumes: generate intro video',
     argsHint: '[{...}]'
@@ -462,6 +467,21 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     channel: 'actions:generatePlate',
     description: 'actions: generate plate',
     argsHint: '[{...}]'
+  },
+  {
+    channel: 'mediaGen:extract',
+    description: 'mediaGen: extract material sections',
+    argsHint: '[{kind, actionId, ...}]'
+  },
+  {
+    channel: 'mediaGen:polish',
+    description: 'mediaGen: multi-vision polish prompt',
+    argsHint: '[{kind, includedSections, fallbackPrompt, ...}]'
+  },
+  {
+    channel: 'mediaGen:generateImage',
+    description: 'mediaGen: generate one image from polished prompt',
+    argsHint: '[{kind, actionId, polishedPrompt, ...}]'
   },
   {
     channel: 'actions:linkStory',
@@ -712,6 +732,7 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'costumes:create',
   'costumes:delete',
   'costumes:generateDressed',
+  'costumes:appendTryOnStill',
   'costumes:generateIntroVideo',
   'costumes:get',
   'costumes:linkCharacter',
@@ -732,6 +753,9 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'media:checkFfmpeg',
   'media:deleteExport',
   'media:discardSheetDraft',
+  'mediaGen:extract',
+  'mediaGen:generateImage',
+  'mediaGen:polish',
   'media:exportConcat',
   'media:exportFinal',
   'media:exportPreflight',

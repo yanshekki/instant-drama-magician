@@ -70,3 +70,41 @@ export function serializeActionCastRefs(refs: ActionCastRef[]): string {
 export function makeActionCastRefId(): string {
   return `aref_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
+
+/** Binding / prompt order: lead identity before wardrobe, place, props. */
+const BINDING_TYPE_ORDER: ActionCastEntityType[] = [
+  'character',
+  'costume',
+  'scene',
+  'prop'
+]
+
+/** Stable order for SUBJECT BINDING blocks and edit-base priority scans. */
+export function orderCastRefsForBinding(refs: ActionCastRef[]): ActionCastRef[] {
+  return [...refs].sort(
+    (a, b) =>
+      BINDING_TYPE_ORDER.indexOf(a.entityType) -
+      BINDING_TYPE_ORDER.indexOf(b.entityType)
+  )
+}
+
+/**
+ * Prefer character still, then costume, then any cast still.
+ * Does not check filesystem — caller filters with existsSync.
+ */
+export function pickPrimaryCastStill(
+  refs: ActionCastRef[]
+): string | null {
+  const ordered = orderCastRefsForBinding(refs)
+  for (const type of BINDING_TYPE_ORDER) {
+    const hit = ordered.find(
+      (r) => r.entityType === type && r.imagePath?.trim()
+    )
+    if (hit?.imagePath?.trim()) return hit.imagePath.trim()
+  }
+  for (const r of ordered) {
+    const p = r.imagePath?.trim()
+    if (p) return p
+  }
+  return null
+}

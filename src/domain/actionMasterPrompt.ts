@@ -1,7 +1,11 @@
 /**
  * Action / motion-direction master prompts + multi-panel plate prompts.
  */
-import type { ActionCastRef } from './actionCastRefs'
+import {
+  orderCastRefsForBinding,
+  pickPrimaryCastStill,
+  type ActionCastRef
+} from './actionCastRefs'
 import {
   buildPanelBeatInstructions,
   getActionPanelLayout,
@@ -146,71 +150,221 @@ export function extractActionProfileJson(text: string): ActionProfileFields {
   }
 }
 
+/**
+ * Structured cast / asset binding block — highest priority section of plate prompts.
+ * Generate and edit modes share this so identity never becomes a weak afterthought.
+ */
+export function buildActionCastBindingBlock(
+  castRefs: ActionCastRef[],
+  opts?: { identityLock?: boolean }
+): string {
+  const lines: string[] = [
+    '## 1. SUBJECT BINDING (HIGHEST PRIORITY — do NOT invent replacements)'
+  ]
+  if (!castRefs.length) {
+    lines.push(
+      'No cast stills attached — invent clear generic figures consistent across all panels.'
+    )
+    return lines.join('\n')
+  }
+  lines.push(
+    'Use these cast identities in EVERY panel. Match the named reference stills; do not substitute a different person, wardrobe, location, or prop.'
+  )
+  for (const r of orderCastRefsForBinding(castRefs)) {
+    const name = (r.entityName || r.entityId || 'unnamed').trim()
+    const hint = r.roleHint?.trim() ? ` (${r.roleHint.trim()})` : ''
+    switch (r.entityType) {
+      case 'character':
+        lines.push(
+          `- CHARACTER "${name}"${hint}: SAME person as the character reference still; lock face, age, hair, body type, ethnicity. NEVER replace with a different actor.`
+        )
+        break
+      case 'costume':
+        lines.push(
+          `- COSTUME "${name}"${hint}: wardrobe MUST match the costume still (fabric, color, pattern, silhouette).`
+        )
+        break
+      case 'scene':
+        lines.push(
+          `- SCENE "${name}"${hint}: location/background MUST match the scene plate (architecture, lighting, set dressing). Do NOT invent a different shop/salon/street.`
+        )
+        break
+      case 'prop':
+        lines.push(
+          `- PROP "${name}"${hint}: handheld/worn prop MUST match the prop still when the action involves it.`
+        )
+        break
+      default:
+        lines.push(`- "${name}"${hint}: match attached reference still.`)
+    }
+  }
+  if (opts?.identityLock) {
+    lines.push(
+      'Primary edit-base image is the identity anchor (prefer character/costume still, not an old multi-panel board). Do NOT swap to a different person from any other reference.'
+    )
+  }
+  return lines.join('\n')
+}
+
+/**
+ * Edit primary still: character → costume → any cast → first gallery identity path.
+ * Pure domain helper — no filesystem checks.
+ */
+export function pickActionPlateEditBase(opts: {
+  galleryIdentityPaths?: string[] | null
+  castRefs: ActionCastRef[]
+}): string | null {
+  const fromCast = pickPrimaryCastStill(opts.castRefs ?? [])
+  if (fromCast) return fromCast
+  for (const raw of opts.galleryIdentityPaths ?? []) {
+    const p = typeof raw === 'string' ? raw.trim() : ''
+    if (p) return p
+  }
+  return null
+}
+
+/**
+ * Ordered ref paths for confirm thumbs / API: edit-base first, then other cast, then gallery.
+ */
+export function orderActionPlateRefPaths(opts: {
+  galleryIdentityPaths?: string[] | null
+  castRefs: ActionCastRef[]
+}): string[] {
+  const out: string[] = []
+  const push = (raw: string | null | undefined): void => {
+    const p = typeof raw === 'string' ? raw.trim() : ''
+    if (p && !out.includes(p)) out.push(p)
+  }
+  push(pickActionPlateEditBase(opts))
+  for (const r of orderCastRefsForBinding(opts.castRefs ?? [])) {
+    push(r.imagePath)
+  }
+  for (const g of opts.galleryIdentityPaths ?? []) {
+    push(g)
+  }
+  return out
+}
+
+export interface BuildActionPlatePromptOpts {
+  profile: ActionProfileFields
+  panelLayout: ActionPanelLayoutId | string | null | undefined
+  artStyleId: string | null | undefined
+  castRefs: ActionCastRef[]
+  mode: 'generate' | 'edit'
+  identityLock?: boolean
+}
+
+/**
+ * Unified action plate prompt: SUBJECT BINDING → ACTION → PANEL GEOMETRY → ART.
+ * Use for both pure generate and identity edit so cast is never dropped on edit.
+ */
+export function buildActionPlatePrompt(opts: BuildActionPlatePromptOpts): string {
+  const layout = getActionPanelLayout(opts.panelLayout)
+  const art = getArtStyle(opts.artStyleId ?? undefined)
+  const n = layout.panelCount
+  const profile = opts.profile
+  const castRefs = opts.castRefs ?? []
+  const hasCast = castRefs.length > 0
+  const identityLock = opts.identityLock ?? opts.mode === 'edit'
+
+  const char = castRefs.find((r) => r.entityType === 'character')
+  const scene = castRefs.find((r) => r.entityType === 'scene')
+  const who = char
+    ? `"${(char.entityName || char.entityId).trim()}"`
+    : hasCast
+      ? 'the bound cast'
+      : null
+  const where = scene
+    ? ` in location "${(scene.entityName || scene.entityId).trim()}"`
+    : ''
+
+  let task: string
+  if (opts.mode === 'edit' && hasCast) {
+    task = [
+      `TASK: Generate a NEW motion-direction board with EXACTLY ${n} panels of action "${profile.name || 'Action'}" starring ${who}${where}.`,
+      'The edit-base image is ONLY for identity/look lock — rebuild the full multi-panel sequence; do NOT copy an old panel grid or unrelated background from a previous board.'
+    ].join(' ')
+  } else if (opts.mode === 'edit') {
+    task = [
+      `TASK: Re-layout the reference into a NEW motion instruction board with EXACTLY ${n} panels.`,
+      `CRITICAL: Do NOT copy the source panel count or grid. If the reference has 2 or 4 panels, you must EXPAND/REBUILD to exactly ${n} panels.`,
+      'Preserve identity from the edit-base still when present — same identity in every NEW panel.'
+    ].join(' ')
+  } else {
+    task = `TASK: Generate ONE composite short-drama MOTION DIRECTION / action-instruction board image with EXACTLY ${n} storyboard panels (${layout.id}).`
+  }
+
+  const binding = buildActionCastBindingBlock(castRefs, { identityLock })
+
+  const actionBlock = [
+    '## 2. ACTION SEQUENCE (what the body does — not a static product hero shot)',
+    `Action name: ${profile.name || 'Action'}.`,
+    `Full sequence to split across panels 1→${n} (each panel = one beat of THIS sequence): ${profile.description || 'motion sequence'}.`,
+    profile.intention ? `Intention: ${profile.intention}.` : '',
+    profile.motionNotes ? `Body / tempo: ${profile.motionNotes}.` : '',
+    profile.cameraNotes ? `Camera / staging: ${profile.cameraNotes}.` : '',
+    profile.visualTags ? `Tags: ${profile.visualTags}.` : '',
+    opts.mode === 'edit'
+      ? 'You may invent intermediate beats so the timeline has enough distinct moments for all panels; every beat still uses the SAME bound identities when cast is present.'
+      : ''
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  const panelBlock = [
+    '## 3. PANEL GEOMETRY (hard constraint — structure only, not story identity)',
+    `LAYOUT CONSTRAINT: the board must contain EXACTLY ${n} storyboard panels (${layout.id}).`,
+    layout.promptLayout + '.',
+    buildPanelBeatInstructions(layout),
+    `Single composite file only — still EXACTLY ${n} panels inside that one image. Numbered panels 1…${n} only — never fewer.`
+  ].join('\n')
+
+  const artBlock = [
+    '## 4. ART + OUTPUT',
+    `Art medium: ${art.promptBlock || art.labelKey || art.id}`,
+    'Clean thick gutters, readable silhouettes, cinematic short-drama look.',
+    'No watermark, no app UI chrome, no extra logos, no title banner that replaces a panel.'
+  ].join('\n')
+
+  const body = [task, binding, actionBlock, panelBlock, artBlock].join('\n\n')
+  return appendHardRules(body, profile.hardRules)
+}
+
+/** @deprecated Prefer buildActionPlatePrompt — thin wrap for callers/tests. */
 export function buildActionPlateImagePrompt(
   profile: ActionProfileFields,
   panelLayout: ActionPanelLayoutId | string | null | undefined,
   artStyleId: string | null | undefined,
   castRefs: ActionCastRef[]
 ): string {
-  const layout = getActionPanelLayout(panelLayout)
-  const art = getArtStyle(artStyleId ?? undefined)
-  const n = layout.panelCount
-  const refs =
-    castRefs.length === 0
-      ? 'No cast stills attached — invent clear generic figures consistent across all panels.'
-      : castRefs
-          .map(
-            (r, i) =>
-              `Ref ${i + 1}: ${r.entityType} "${r.entityName || r.entityId}"${r.roleHint ? ` (${r.roleHint})` : ''} — match identity/look from provided reference stills if editing; SAME person/prop across every panel.`
-          )
-          .join('\n')
-
-  const body = [
-    `TASK: Generate ONE composite short-drama MOTION DIRECTION / action-instruction board image.`,
-    `PRIMARY CONSTRAINT: the board must contain EXACTLY ${n} storyboard panels (${layout.id}).`,
-    layout.promptLayout + '.',
-    buildPanelBeatInstructions(layout),
-    `Art medium: ${art.promptBlock || art.labelKey || art.id}`,
-    `Action name: ${profile.name || 'Action'}.`,
-    `Full sequence to split across panels 1→${n} (each panel = one beat of this sequence): ${profile.description || 'motion sequence'}.`,
-    profile.intention ? `Intention: ${profile.intention}.` : '',
-    profile.motionNotes ? `Body / tempo: ${profile.motionNotes}.` : '',
-    profile.cameraNotes ? `Camera / staging: ${profile.cameraNotes}.` : '',
-    profile.visualTags ? `Tags: ${profile.visualTags}.` : '',
-    `Cast / asset notes:\n${refs}`,
-    'Clean thick gutters, readable silhouettes, cinematic short-drama look.',
-    'No watermark, no app UI chrome, no extra logos, no title banner that replaces a panel.',
-    `Single composite file only — still EXACTLY ${n} panels inside that one image.`
-  ]
-    .filter(Boolean)
-    .join('\n')
-  return appendHardRules(body, profile.hardRules)
+  return buildActionPlatePrompt({
+    profile,
+    panelLayout,
+    artStyleId,
+    castRefs,
+    mode: 'generate',
+    identityLock: false
+  })
 }
 
+/**
+ * Identity-edit plate prompt. Pass castRefs so SUBJECT BINDING is not dropped.
+ * @deprecated Prefer buildActionPlatePrompt — thin wrap for callers/tests.
+ */
 export function buildActionPlateEditPrompt(
   profile: ActionProfileFields,
   panelLayout: ActionPanelLayoutId | string | null | undefined,
-  artStyleId: string | null | undefined
+  artStyleId: string | null | undefined,
+  castRefs: ActionCastRef[] = []
 ): string {
-  const layout = getActionPanelLayout(panelLayout)
-  const art = getArtStyle(artStyleId ?? undefined)
-  const n = layout.panelCount
-  const body = [
-    `TASK: Re-layout the reference into a NEW motion instruction board with EXACTLY ${n} panels.`,
-    `CRITICAL: Do NOT copy the source panel count or grid. If the reference has 2 or 4 panels, you must EXPAND/REBUILD to exactly ${n} panels.`,
-    layout.promptLayout + '.',
-    buildPanelBeatInstructions(layout),
-    'Preserve character face / costume / prop identity from the reference when present — same identity in every NEW panel.',
-    'You may invent intermediate beats so the timeline has enough distinct moments for all panels.',
-    `Art: ${art.promptBlock || art.labelKey || art.id}`,
-    `Action: ${profile.name}. ${profile.description || ''}`,
-    profile.motionNotes ? `Motion: ${profile.motionNotes}` : '',
-    profile.intention ? `Intention: ${profile.intention}` : '',
-    `Output: one composite image with numbered panels 1…${n} only — never fewer.`
-  ]
-    .filter(Boolean)
-    .join('\n')
-  return appendHardRules(body, profile.hardRules)
+  return buildActionPlatePrompt({
+    profile,
+    panelLayout,
+    artStyleId,
+    castRefs,
+    mode: 'edit',
+    identityLock: true
+  })
 }
 
 /** Fallback prompt for action demo video (before LLM polish). */

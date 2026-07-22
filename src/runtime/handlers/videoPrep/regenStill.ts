@@ -169,7 +169,10 @@ reg(
           aspectRatio,
           hardRules: regenHardRules
         }),
-        hardRules: regenHardRules
+        hardRules: regenHardRules,
+        referenceImagePaths: payload.sourceImagePath
+          ? [payload.sourceImagePath]
+          : []
       })
 
       const store = generation().getMediaStore()

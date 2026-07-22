@@ -18,7 +18,23 @@ import { LocalMediaImage } from '../LocalMediaImage'
 import { Button, Select } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAiJobs } from '../../context/AiJobsContext'
-import { castSaveToast, stillReadyDecrement, batchTargets, genLockedExtra, readyVideoEntryIds, shouldSilentPersistOnGen, shouldSilentPersistOnBatch, stillStatusOrMissing, runSaveCast, maybeSilentPersistDirty, maybeSilentPersistBatch, fireVideoQueue, notifyCastSaved } from './timelineAdvancedPure'
+import {
+  castSaveToast,
+  stillReadyDecrement,
+  batchTargets,
+  expandBatchTargetsForContinuity,
+  stillStatusHintKey,
+  genLockedExtra,
+  readyVideoEntryIds,
+  shouldSilentPersistOnGen,
+  shouldSilentPersistOnBatch,
+  stillStatusOrMissing,
+  runSaveCast,
+  maybeSilentPersistDirty,
+  maybeSilentPersistBatch,
+  fireVideoQueue,
+  notifyCastSaved
+} from './timelineAdvancedPure'
 
 
 
@@ -97,7 +113,7 @@ export function TimelineAdvancedStudio({
   const { t, i18n } = useTranslation()
   const toast = useToast()
   const navigate = useNavigate()
-  const { startJob } = useAiJobs()
+  const { startJob, startMediaGen } = useAiJobs()
   const [tab, setTab] = useState<TabId>('cast')
   const [snap, setSnap] = useState<AdvancedPrepSnapshot | null>(null)
   const [castPrep, setCastPrep] = useState<StoryCastPrep>(emptyStoryCastPrep())
@@ -285,6 +301,52 @@ export function TimelineAdvancedStudio({
     })
   }
 
+  /** Open MediaGen shell for single-cell refine (materials → polish → still/video). */
+  const refineEntry = (
+    entryId: string,
+    mode: 'still' | 'clip' = 'still'
+  ): void => {
+    if (genLocked) return
+    const cell = snapRef.current?.cells.find((c) => c.entryId === entryId)
+    startMediaGen({
+      kind: mode === 'clip' ? 'timeline-clip' : 'timeline-still',
+      storyId,
+      entryId,
+      durationSeconds: cell?.durationSeconds ?? 10,
+      preferIdentityEdit: true
+    })
+  }
+
+  // MediaGen refine / video prep done → refresh storyboard stills
+  useEffect(() => {
+    if (!open) return
+    const onStill = (ev: Event): void => {
+      const d = (ev as CustomEvent).detail as {
+        storyId?: string
+        entryId?: string
+      }
+      if (d?.storyId && d.storyId !== storyId) return
+      void reload()
+      onRefreshTimeline?.()
+    }
+    const onVideo = (ev: Event): void => {
+      const d = (ev as CustomEvent).detail as {
+        kind?: string
+        entityIds?: { storyId?: string; entryId?: string }
+      }
+      if (d?.kind !== 'timeline-clip') return
+      if (d.entityIds?.storyId && d.entityIds.storyId !== storyId) return
+      void reload()
+      onRefreshTimeline?.()
+    }
+    window.addEventListener('idm:timeline-still-done', onStill)
+    window.addEventListener('idm:video-prep-done', onVideo)
+    return () => {
+      window.removeEventListener('idm:timeline-still-done', onStill)
+      window.removeEventListener('idm:video-prep-done', onVideo)
+    }
+  }, [open, storyId, reload, onRefreshTimeline])
+
   const removeStill = async (entryId: string): Promise<void> => {
     if (genLocked) return
     setCellBusyId(entryId)
@@ -331,7 +393,11 @@ export function TimelineAdvancedStudio({
   const handleBatchStills = (mode: 'missing' | 'all'): void => {
     const current = snapRef.current
     if (!current || genLocked) return
-    const targets = batchTargets(current.cells, mode)
+    const rawTargets = batchTargets(current.cells, mode)
+    const targets = expandBatchTargetsForContinuity(
+      current.cells,
+      rawTargets
+    )
     if (targets.length === 0) {
       toast.info(t('timeline.advanced.batchNothing'))
       return
@@ -822,6 +888,12 @@ export function TimelineAdvancedStudio({
                         : cell.stillStatus === 'stale'
                           ? t('timeline.advanced.stillStale')
                           : t('timeline.advanced.stillMissing')
+                    const statusHint = t(
+                      `timeline.advanced.${stillStatusHintKey(
+                        cell.stillStatus,
+                        cell.continuityKind
+                      )}`
+                    )
                     const contLabel =
                       cell.continuityKind === 'locked'
                         ? t('timeline.advanced.contLocked')
@@ -851,6 +923,7 @@ export function TimelineAdvancedStudio({
                             status={cell.stillStatus}
                             label={statusLabel}
                             fromVideo={Boolean(cell.stillFromVideo)}
+                            title={statusHint}
                           />
                         </div>
 
@@ -898,24 +971,37 @@ export function TimelineAdvancedStudio({
                           </p>
                           <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
                             {!hasStill ? (
-                              <Button
-                                variant="secondary"
-                                className="!h-8 !px-2.5 !text-[11px]"
-                                disabled={genLocked}
-                                loading={isThisBusy}
-                                title={
-                                  genLocked
-                                    ? t('timeline.advanced.genLockedHint')
-                                    : undefined
-                                }
-                                onClick={() =>
-                                  genStillForEntry(cell.entryId, false)
-                                }
-                              >
-                                {isThisBusy
-                                  ? t('common.generating')
-                                  : t('timeline.advanced.genStill')}
-                              </Button>
+                              <>
+                                <Button
+                                  variant="secondary"
+                                  className="!h-8 !px-2.5 !text-[11px]"
+                                  disabled={genLocked}
+                                  loading={isThisBusy}
+                                  title={
+                                    genLocked
+                                      ? t('timeline.advanced.genLockedHint')
+                                      : undefined
+                                  }
+                                  onClick={() =>
+                                    genStillForEntry(cell.entryId, false)
+                                  }
+                                >
+                                  {isThisBusy
+                                    ? t('common.generating')
+                                    : t('timeline.advanced.genStill')}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="!h-8 !px-2.5 !text-[11px]"
+                                  disabled={genLocked}
+                                  title={t('timeline.advanced.refineStillHint')}
+                                  onClick={() =>
+                                    refineEntry(cell.entryId, 'still')
+                                  }
+                                >
+                                  {t('timeline.advanced.refineStill')}
+                                </Button>
+                              </>
                             ) : (
                               <>
                                 <Button
@@ -935,6 +1021,28 @@ export function TimelineAdvancedStudio({
                                   {isThisBusy
                                     ? t('common.generating')
                                     : t('timeline.advanced.regenStill')}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="!h-8 !px-2.5 !text-[11px]"
+                                  disabled={genLocked}
+                                  title={t('timeline.advanced.refineStillHint')}
+                                  onClick={() =>
+                                    refineEntry(cell.entryId, 'still')
+                                  }
+                                >
+                                  {t('timeline.advanced.refineStill')}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="!h-8 !px-2.5 !text-[11px]"
+                                  disabled={genLocked}
+                                  title={t('timeline.advanced.refineClipHint')}
+                                  onClick={() =>
+                                    refineEntry(cell.entryId, 'clip')
+                                  }
+                                >
+                                  {t('timeline.advanced.refineClip')}
                                 </Button>
                                 <Button
                                   variant="danger"
@@ -1094,11 +1202,13 @@ function StatPill({
 function StillBadge({
   status,
   label,
-  fromVideo
+  fromVideo,
+  title
 }: {
   status: 'missing' | 'ready' | 'stale'
   label: string
   fromVideo: boolean
+  title?: string
 }): JSX.Element {
   const tone =
     status === 'ready'
@@ -1110,6 +1220,7 @@ function StillBadge({
         : 'bg-ink-800 text-ink-400'
   return (
     <span
+      title={title}
       className={[
         'rounded-full px-2 py-0.5 text-[9px] font-medium leading-none',
         tone

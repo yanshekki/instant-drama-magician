@@ -69,7 +69,10 @@ import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
 import { useProps } from '../hooks/useProps'
 import { LocalMediaImage } from '../components/LocalMediaImage'
-import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
+import {
+  EntityGalleryPanel,
+  EntityGalleryLayerChip
+} from '../components/EntityGalleryPanel'
 import {
   EditorField,
   EditorSelect,
@@ -124,6 +127,7 @@ export function PropsPage(): JSX.Element {
     onPropPlateCommitted,
     activeJobs,
     startVideoPrep,
+    startMediaGen,
     hasVideoPrepDraft,
     continueVideoPrepDraft
   } = useAiJobs()
@@ -506,68 +510,40 @@ export function PropsPage(): JSX.Element {
     [selectedImageIds, selectedImageId, form.gallery]
   )
 
-  /** Open confirm modal, then generate on confirm. */
+  /** Unified MediaGen shell: materials → polish → one plate image. */
   const handleGeneratePlate = async (opts?: {
     useIdentityEdit?: boolean
     referenceImagePath?: string | null
   }): Promise<void> => {
     setActionError(null)
-    await propsRunGeneratePlateSetup({
-      ensureSavedId,
-      isBusy: (id) => propBusy(id),
-      toastInfo: toast.info,
-      loadingMsg: t('common.loading'),
-      setError: setActionError,
-      toastError: toast.error,
-      buildConfirm: () => {
-        const wantIdentity = propsResolveWantIdentity(
-          opts?.useIdentityEdit,
-          useIdentityRef
-        )
-        const paths = propsGalleryPathsFromOpts(
-          opts?.referenceImagePath,
-          selectedPathsForIdentity
-        )
-        const idRes = resolveIdentityPaths({
-          useIdentityRef: wantIdentity,
-          selectedPaths: paths
-        })
-        const profile = {
-          name: form.name.trim() || 'Prop',
-          description: form.description.trim() || form.name.trim() || 'Prop',
-          material: form.material.trim() || undefined,
-          sizeNotes: form.sizeNotes.trim() || undefined,
-          condition: form.condition.trim() || undefined,
-          visualTags: form.visualTags.trim() || undefined,
-          hardRules: form.hardRules.trim() || undefined
-        }
-        let prompt = idRes.useEdit
-          ? buildPropPlateEditPrompt(profile, plateVariant, form.artStyle)
-          : buildPropPlateImagePrompt(profile, plateVariant, form.artStyle)
-        prompt = propsMaybeAppendMultiRef(
-          prompt,
-          idRes.paths,
-          getAiLocale(i18n.language),
-          appendMultiRefNote
-        )
-        prompt = ensureHardRules(prompt, form.hardRules)
-        const variantLabel = t(
-          `props.${getPropPlateVariant(plateVariant).labelKey}`
-        )
-        const styleLabel = t(
-          `characters.${getArtStyle(form.artStyle).labelKey}`
-        )
-        const modeLabel = idRes.useEdit
-          ? t('common.imageGenConfirmModeIdentity')
-          : t('common.imageGenConfirmModePure')
-        setImageGenConfirm({
-          prompt,
-          referencePaths: idRes.paths,
-          useIdentityEdit: idRes.useEdit,
-          summary: `${t('props.plateVariant')}: ${variantLabel} · ${t('props.artStyle')}: ${styleLabel} · ${modeLabel}`
-        })
+    try {
+      const id = await ensureSavedId()
+      if (!id) return
+      if (propBusy(id)) {
+        toast.info(t('common.loading'))
+        return
       }
-    })
+      const wantIdentity = propsResolveWantIdentity(
+        opts?.useIdentityEdit,
+        useIdentityRef
+      )
+      const paths = propsGalleryPathsFromOpts(
+        opts?.referenceImagePath,
+        selectedPathsForIdentity
+      )
+      startMediaGen({
+        kind: 'prop-plate',
+        propId: id,
+        storyId: activeStoryId ?? undefined,
+        artStyle: form.artStyle,
+        galleryIdentityPaths: paths,
+        preferIdentityEdit: wantIdentity
+      })
+    } catch (e) {
+      const msg = formatUserError(e, t)
+      setActionError(msg)
+      toast.error(msg)
+    }
   }
 
   const runPropPlateJob = async (
@@ -822,49 +798,61 @@ export function PropsPage(): JSX.Element {
           activeTab={editorPanel}
           onTabChange={(id) => setEditorPanel(id as EditorPanel)}
           preview={
-            <div className="flex h-full flex-col gap-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
-                {t('props.gallery')}
-              </h3>
-              <div className="rounded-xl border border-ink-800">
-                {selectedImage ? (
-                  <LocalMediaImage
-                    filePath={selectedImage.path}
-                    alt={translatePropGalleryLabel(selectedImage.label, t)}
-                    maxHeightClass="max-h-[min(36vh,360px)] lg:max-h-[min(48vh,440px)]"
-                    showMeta
-                    className="border-0 rounded-xl"
-                    actionsLayout="bar"
-                    introVideoBusy={editorBusy}
-                    introVideoPath={selectedImage.introVideoPath}
-                    introVideoHasDraft={
-                      Boolean(editingId) &&
-                      hasVideoPrepDraft(
-                        buildVideoPrepDraftKey(
-                          'prop-intro',
-                          { propId: editingId! },
-                          selectedImage.path
-                        )
-                      )
-                    }
-                    onIntroVideo={propsIntroVideoHandler(
+            <EntityGalleryPanel
+              title={t('props.gallery')}
+              previewPath={selectedImage?.path}
+              previewAlt={
+                selectedImage
+                  ? translatePropGalleryLabel(selectedImage.label, t)
+                  : ''
+              }
+              maxHeightClass="max-h-[min(36vh,360px)] lg:max-h-[min(48vh,440px)]"
+              showMeta
+              previewFrameClassName="rounded-xl border border-ink-800"
+              introVideoBusy={editorBusy}
+              introVideoPath={selectedImage?.introVideoPath}
+              introVideoHasDraft={
+                Boolean(editingId) &&
+                Boolean(selectedImage?.path) &&
+                hasVideoPrepDraft(
+                  buildVideoPrepDraftKey(
+                    'prop-intro',
+                    { propId: editingId! },
+                    selectedImage?.path ?? ''
+                  )
+                )
+              }
+              onIntroVideo={
+                selectedImage
+                  ? propsIntroVideoHandler(
                       editingId,
                       selectedImage.path,
                       handleGenerateIntroVideo
-                    )}
-                    isCover={form.coverPath === selectedImage.path}
-                    onSetAsCover={() => handleSetCover(selectedImage.path)}
-                    onRemove={() => {
+                    )
+                  : undefined
+              }
+              isCover={Boolean(
+                selectedImage && form.coverPath === selectedImage.path
+              )}
+              onSetAsCover={
+                selectedImage
+                  ? () => handleSetCover(selectedImage.path)
+                  : undefined
+              }
+              onRemove={
+                selectedImage
+                  ? () => {
+                      const img = selectedImage
                       const next = removeSceneGalleryItem(
                         form.gallery,
-                        selectedImage.id
+                        img.id
                       )
                       setForm((f) => ({
                         ...f,
                         gallery: next,
                         coverPath: propsCoverPathOnRemove(
                           f.coverPath,
-                          selectedImage.path,
+                          img.path,
                           next,
                           isSceneGalleryCoverPath as never,
                           primarySceneGalleryPath as never
@@ -872,73 +860,61 @@ export function PropsPage(): JSX.Element {
                       }))
                       setSelectedImageId(next[0]?.id ?? null)
                       setSelectedImageIds((ids) =>
-                        ids.filter((x) => x !== selectedImage.id)
+                        ids.filter((x) => x !== img.id)
                       )
-                    }}
-                  />
-                ) : (
-                  <div className="flex h-32 flex-col items-center justify-center gap-2 px-3 text-xs text-ink-600">
-                    <p>{t('props.noPhotos')}</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Button
-                        disabled={editorBusy}
-                        onClick={propsMakeEmptyGalleryAction(
-                          setEditorPanel,
-                          () => void handleGeneratePlate()
-                        )}
-                      >
-                        {t('props.generatePlate')}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={editorBusy}
-                        onClick={propsMakeEmptyGalleryAction(
-                          setEditorPanel,
-                          () => void handlePickImage()
-                        )}
-                      >
-                        {t('common.uploadRef')}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {propLayerOptions.length > 1 ? (
-                <div className="flex flex-wrap gap-1">
-                  {propLayerOptions.map((layer) => (
-                    <button
-                      key={layer}
-                      type="button"
-                      className={[
-                        'rounded-full px-2 py-0.5 text-[10px] font-medium',
-                        propLayerFilter === layer
-                          ? 'bg-brand-600 text-white'
-                          : 'bg-ink-800 text-ink-400'
-                      ].join(' ')}
-                      onClick={() => setPropLayerFilter(layer)}
-                    >
-                      {layer === 'all' ? t('library.filterAny') : layer}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <GalleryThumbStrip
-                items={filteredPropGallery}
-                selectedId={selectedImageId}
-                selectedIds={selectedImageIds}
-                multiSelect
-                coverPath={form.coverPath}
-                fallbackCoverPath={primarySceneGalleryPath(form.gallery)}
-                onSelect={setSelectedImageId}
-                onToggleSelect={(id) =>
-                  setSelectedImageIds((ids) =>
-                    toggleGallerySelection(ids, id)
-                  )
+                    }
+                  : undefined
+              }
+              emptyIcon=""
+              emptyMessage={t('props.noPhotos')}
+              emptyActions={[
+                {
+                  label: t('props.generatePlate'),
+                  onClick: propsMakeEmptyGalleryAction(setEditorPanel, () =>
+                    void handleGeneratePlate()
+                  ),
+                  variant: 'primary',
+                  disabled: editorBusy
+                },
+                {
+                  label: t('common.uploadRef'),
+                  onClick: propsMakeEmptyGalleryAction(setEditorPanel, () =>
+                    void handlePickImage()
+                  ),
+                  variant: 'secondary',
+                  disabled: editorBusy
                 }
-                onReorder={handleReorderGallery}
-                labelOf={(g) => translatePropGalleryLabel(g.label, t)}
-              />
-            </div>
+              ]}
+              layerFilter={
+                propLayerOptions.length > 1 ? (
+                  <>
+                    {propLayerOptions.map((layer) => (
+                      <EntityGalleryLayerChip
+                        key={layer}
+                        active={propLayerFilter === layer}
+                        label={
+                          layer === 'all' ? t('library.filterAny') : layer
+                        }
+                        onClick={() => setPropLayerFilter(layer)}
+                      />
+                    ))}
+                  </>
+                ) : null
+              }
+              layerFilterPlacement="below-preview"
+              items={filteredPropGallery}
+              selectedId={selectedImageId}
+              selectedIds={selectedImageIds}
+              multiSelect
+              coverPath={form.coverPath}
+              fallbackCoverPath={primarySceneGalleryPath(form.gallery)}
+              onSelect={setSelectedImageId}
+              onToggleSelect={(id) =>
+                setSelectedImageIds((ids) => toggleGallerySelection(ids, id))
+              }
+              onReorder={handleReorderGallery}
+              labelOf={(g) => translatePropGalleryLabel(g.label, t)}
+            />
           }
         >
           {editorPanel === 'profile' && (

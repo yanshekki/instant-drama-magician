@@ -17,6 +17,53 @@ export function batchTargets<T extends { stillStatus: string }>(
   return mode === 'all' ? cells : cells.filter((c) => c.stillStatus !== 'ready')
 }
 
+/**
+ * Expand batch targets so a cell that needs prev-clip lock also pulls missing
+ * previous beats into the queue (order preserved). Prevents silent text-only gens.
+ */
+export function expandBatchTargetsForContinuity<
+  T extends {
+    entryId: string
+    stillStatus: string
+    continuityKind?: 'first' | 'locked' | 'text-only'
+  }
+>(allCells: T[], targets: T[]): T[] {
+  if (targets.length === 0 || allCells.length === 0) return targets
+  const byId = new Map(allCells.map((c) => [c.entryId, c]))
+  const orderIndex = new Map(allCells.map((c, i) => [c.entryId, i]))
+  const need = new Set(targets.map((c) => c.entryId))
+
+  for (const t of targets) {
+    if (t.continuityKind !== 'text-only' && t.continuityKind !== 'locked') {
+      continue
+    }
+    const idx = orderIndex.get(t.entryId)
+    if (idx == null || idx <= 0) continue
+    // Walk backward: include any previous missing/stale stills so lock can form.
+    for (let i = idx - 1; i >= 0; i--) {
+      const prev = allCells[i]
+      if (!prev) break
+      if (prev.stillStatus === 'ready') break
+      need.add(prev.entryId)
+    }
+  }
+
+  return allCells.filter((c) => need.has(c.entryId) && byId.has(c.entryId))
+}
+
+/** Short i18n key suffix for still badge title (caller prefixes timeline.advanced.) */
+export function stillStatusHintKey(
+  stillStatus: string,
+  continuityKind?: string
+): string {
+  if (stillStatus === 'stale') return 'stillStaleHint'
+  if (stillStatus === 'missing' && continuityKind === 'text-only') {
+    return 'stillNeedPrevHint'
+  }
+  if (stillStatus === 'missing') return 'stillMissingHint'
+  return 'stillReadyHint'
+}
+
 export function genLockedExtra(
   batchProgress: { current: number; total: number } | null | undefined,
   cellBusyId: string | null | undefined,

@@ -45,7 +45,7 @@ instant-drama doctor --json
 instant-drama channels list --json
 ```
 
-只呼叫 `channels list` 出現的 channel（應約 **138**）。桌面／web／CLI 同一 registry。若缺少 channel，多半是二進位過舊。
+只呼叫 `channels list` 出現的 channel（應約 **157**）。桌面／web／CLI 同一 registry。若缺少 channel，多半是二進位過舊。
 
 ## 輸出契約
 
@@ -65,13 +65,17 @@ instant-drama open --dev
 
 支援 **macOS、Ubuntu/Linux、Windows**。macOS 目標在 Mac 上建。
 
-## 全控制（138 channels）
+## 全控制（157 channels）
 
 ```bash
 instant-drama channels list --json
 instant-drama invoke <channel> --args '[...]' --json
 instant-drama characters list --json
 instant-drama characters generate-sheet --args '[{...}]' --json
+instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path.png"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
+instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
+instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
 instant-drama generation run STORY_ID --json
 instant-drama media check-ffmpeg --json
 ```

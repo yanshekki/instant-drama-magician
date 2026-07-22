@@ -7,6 +7,7 @@ import {
   getPreviousTimelineEntry,
   previousClipContext,
   resolveClipRefImage,
+  resolveTimelineStillRefs,
   timelineBeatDisplayIndex
 } from './promptContinuity'
 import type { Character, TimelineEntry } from '../types/domain'
@@ -186,6 +187,46 @@ describe('promptContinuity', () => {
         }
       })
     ).toEqual({ path: '/p.png', source: 'prop' })
+  })
+
+  it('resolveTimelineStillRefs prefers prev over payload and builds polish list', () => {
+    const r = resolveTimelineStillRefs({
+      previousContinuityPath: '/prev.png',
+      castRefPath: '/cast.png',
+      payloadSourcePath: '/payload.png',
+      character: {
+        id: 'c',
+        storyId: 's',
+        name: 'A',
+        description: 'd',
+        soulMdPath: null,
+        refImagePath: '/char.png'
+      } as never,
+      scene: {
+        id: 'sc',
+        storyId: 's',
+        sceneNumber: 1,
+        description: 'room',
+        refImagePath: '/scene.png'
+      } as never,
+      pathExists: () => true
+    })
+    expect(r.editBase).toBe('/prev.png')
+    expect(r.editSource).toBe('prev-clip')
+    expect(r.polishPaths[0]).toBe('/prev.png')
+    expect(r.polishPaths).toContain('/cast.png')
+    expect(r.polishPaths).toContain('/char.png')
+  })
+
+  it('resolveTimelineStillRefs falls back without prev', () => {
+    const r = resolveTimelineStillRefs({
+      castRefPath: '/cast.png',
+      payloadSourcePath: '/payload.png',
+      pathExists: (p) => p !== '/missing.png',
+      previousContinuityPath: '/missing.png'
+    })
+    expect(r.editBase).toBe('/cast.png')
+    expect(r.editSource).toBe('cast')
   })
 
   it('finds previous timeline entry and builds continuity lock', () => {

@@ -42,7 +42,7 @@ export IDM_JSON=1
 
 ## 探索迴圈
 
-1. `instant-drama doctor --json` — 連線 + **約 138 channels**
+1. `instant-drama doctor --json` — 連線 + **約 157 channels**
 2. `instant-drama channels list --json` — 即時能力
 3. `instant-drama tools schema --openai` — OpenAI 風格 tool 定義
 4. 以 `instant-drama invoke`／`instant-drama <namespace> <action>` 變更狀態

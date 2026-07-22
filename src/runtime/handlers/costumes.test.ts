@@ -284,6 +284,81 @@ describe('registerCostumesHandlers', () => {
     ).rejects.toMatchObject({ message: 'errors.costumeNoBaseImage' })
   })
 
+  it('appendTryOnStill copies still into costume multi-gallery', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-cos-tryon-'))
+    const src = join(dir, 'draft.png')
+    const cosOut = join(dir, 'cos-dressed.png')
+    writeFileSync(src, 'png-bytes')
+    const get = vi.fn(async () =>
+      costumeRow({
+        id: 'cos1',
+        refImagePath: null,
+        refGalleryJson: null
+      })
+    )
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...costumeRow(),
+      ...(data as object)
+    }))
+    const setDressedImage = vi.fn(async () => ({ ok: true }))
+    const append = vi.fn()
+    const ctx = makeHandlerContext({
+      costumes: () =>
+        ({
+          get,
+          update,
+          setDressedImage
+        }) as never,
+      activity: {
+        append,
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ensureLibraryDirs: vi.fn(),
+            costumeImagePath: () => cosOut
+          })
+        }) as never
+    })
+    registerCostumesHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    expect(h.has('costumes:appendTryOnStill')).toBe(true)
+
+    const r = (await invokeRegistered(h as never, 'costumes:appendTryOnStill', {
+      costumeId: 'cos1',
+      characterId: 'c1',
+      sourcePath: src,
+      label: 'Try-on hero'
+    })) as { path: string; gallery: Array<{ path: string; label: string }> }
+
+    expect(r.path).toBe(cosOut)
+    expect(r.gallery.some((g) => g.path === cosOut)).toBe(true)
+    expect(update).toHaveBeenCalledWith(
+      'cos1',
+      expect.objectContaining({
+        refImagePath: cosOut,
+        refGalleryJson: expect.stringContaining('Try-on hero')
+      })
+    )
+    expect(setDressedImage).toHaveBeenCalledWith('cos1', 'c1', cosOut)
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'appendTryOnStill' })
+    )
+
+    await expect(
+      invokeRegistered(h as never, 'costumes:appendTryOnStill', {
+        costumeId: 'cos1',
+        sourcePath: join(dir, 'missing.png')
+      })
+    ).rejects.toMatchObject({ message: 'errors.sourceImageRequired' })
+  })
+
   it('generateIntroVideo validates and runs polish pipeline', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-cos-iv-'))
     const src = join(dir, 's.png')

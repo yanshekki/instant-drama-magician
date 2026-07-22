@@ -5,11 +5,11 @@
 **AI professional short-drama desktop studio**
 
 From one idea to a finished short drama: story → characters / costumes / scenes / props / **actions** → linear timeline → AI storyboard & video → FFmpeg final export.  
-Cross-platform desktop (Electron) + optional browser remote control + full CLI `instant-drama` (**151** channels, same surface as desktop IPC).
+Cross-platform desktop (Electron) + optional browser remote control + full CLI `instant-drama` (**157** channels, same surface as desktop IPC).
 
 | | |
 |---|---|
-| **Version** | 1.2.0 |
+| **Version** | 1.3.0 |
 | **Vendor** | YSK Limited |
 | **Contact** | [email@ysk.hk](mailto:email@ysk.hk) |
 | **License** | MIT |
@@ -84,16 +84,18 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 |------|-----------------|
 | **Stories** | Multi-story management, cover AI, style bible, script beats, cast binding (characters / scenes / props / **actions**), `.idm.zip` backup import/export |
 | **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle sheets, identity lock, external refs, intro video, **vision AI fill** from a still |
-| **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, **AI fill from reference photo only**, multi-still gallery |
+| **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, **AI fill from reference photo only**, multi-still gallery; **try-on dual-write** to character **and** costume multi-gallery (`costumes:appendTryOnStill`) |
 | **Scenes** | Scene copy, plates / looks / atmosphere, scene gallery, **vision AI fill** from a plate still |
 | **Props** | Prop descriptions, master prompts, plate variants, **vision AI fill** from a still |
 | **Actions** | Global **motion-direction** library: multi-panel instruction boards (2–6 panels), art styles, external refs, cast refs, **vision AI fill**, multi-gallery |
+| **MediaGen shell** | Unified materials → multi-vision polish → still / video (`mediaGen:extract` · `polish` · `generateImage`); used by library pages and timeline refine |
+| **Gallery UI** | Shared **EntityGalleryPanel**: large preview, zoom/save/cover/remove/intro, multi-thumb strip (preview vs identity-lock multi-select) |
 | **Timeline** | Linear layout, snap/pack, per-clip generate, bind character / scene / prop / **action**, 6s/10s duration, dialogue & camera tags |
-| **Advanced prep** | Cast lock → storyboard stills (continuity) → video from stills |
+| **Advanced prep** | Cast lock → storyboard stills (**end-frame continuity**, prev keyframe edit base, multi-ref polish) → video; per-cell **Refine still / Refine to video** (MediaGen) |
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
 | **Settings** | LLM / image / video providers, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
-| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**151** IPC channels) |
+| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**157** IPC channels) |
 | **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
 | **i18n** | 10 UI languages (incl. zh-HK, zh-CN, Arabic RTL); gallery labels, network errors, and user-facing errors localized |
 | **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
@@ -131,8 +133,9 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Ti
 
 - Global wardrobe library (link 0…N characters)  
 - **AI fill from reference photo only** (no idea text required)  
-- Multi-still gallery, cover, intro video  
-- Dress / swap onto a character with identity lock  
+- Multi-still gallery, cover, intro video; **identity-lock multi-select** on thumbs  
+- Dress / try-on / swap onto a character with identity lock  
+- **Accept try-on draft** → still is committed to the **character gallery and this costume multi-gallery** so every linked user can browse it (`costumes:appendTryOnStill`)  
 
 ### Scenes
 
@@ -172,8 +175,14 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Ti
 Opened from Timeline **Advanced**:
 
 1. **Cast lock** — lock on-screen character looks  
-2. **Storyboard stills** — batch keyframes per beat with **continuity** to previous cell  
+2. **Storyboard stills** — batch keyframes per beat with **continuity** to the previous cell  
+   - Continuity still prefers the **end frame** of the previous clip video when healing / after export  
+   - Next still/video **edit base** prefers the previous continuity keyframe  
+   - Multi-image polish can attach prev + cast + library stills  
+   - Batch “missing” expands earlier missing stills so text-only beats are not generated silently  
+   - Status badges explain **stale / need previous / ready**  
 3. **Video** — queue video when stills are ready (can skip existing video)  
+4. **Per-cell refine** — **Refine still** (`timeline-still`) or **Refine to video** (`timeline-clip`) opens the MediaGen materials shell for that beat only  
 
 Best when you want continuity locked before video generation.
 
@@ -243,7 +252,7 @@ Local builds land in `release/`; or download from GitHub Releases.
 
 ```bash
 # Linux example
-sudo dpkg -i release/instant-drama-magician_1.2.0_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.3.0_amd64.deb
 # or
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -330,7 +339,7 @@ Typical usage after global install:
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # ~151 channels
+instant-drama channels list --json          # ~157 channels
 ```
 
 > **Note:** Global install provides the **CLI / headless / web-server** control plane (stories, cast, generation, export helpers, agent tools). Building or opening the **Electron desktop GUI** (`instant-drama build` / `instant-drama open`) still needs a full git clone with `npm install` (devDependencies such as Electron) and a local `release/` tree.
@@ -356,7 +365,7 @@ npm run instant-drama -- doctor --json
 ### Common commands
 
 ```bash
-# Diagnostics (channel count should be ~151)
+# Diagnostics (channel count should be ~157)
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -369,6 +378,13 @@ instant-drama stories list --json
 instant-drama stories create --title "My drama" --json
 instant-drama characters list --json
 instant-drama characters generate-sheet --args '[{"characterId":"…"}]' --json
+instant-drama costumes list --json
+instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path/to/still.png"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
+instant-drama mediaGen polish --args '[{...}]' --json
+instant-drama mediaGen generate-image --args '[{...}]' --json
+instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
+instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
 instant-drama invoke actions:list --json
 instant-drama generation run <storyId> --json
 instant-drama settings get --json
@@ -538,7 +554,7 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 |---------|---------|--------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | Docs index + facts |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | Product spec |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (151 channels) |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (157 channels) |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agents / OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | Web remote |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

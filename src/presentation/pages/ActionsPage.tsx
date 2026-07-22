@@ -5,7 +5,6 @@ import {
   type Dispatch,
   type SetStateAction
 } from 'react'
-import { ensureHardRules } from '../../domain/promptHardRules'
 import { useTranslation } from 'react-i18next'
 import { getAiLocale } from '../../lib/aiLocale'
 import { formatUserError } from '../lib/formatUserError'
@@ -37,19 +36,12 @@ import {
   isArtStyleId,
   type ArtStyleId
 } from '../../domain/characterArtStyles'
-import {
-  appendMultiRefNote,
-  resolveIdentityPaths,
-  toggleGallerySelection
-} from '../../domain/imageGenConfirm'
-import {
-  buildActionPlateEditPrompt,
-  buildActionPlateImagePrompt
-} from '../../domain/actionMasterPrompt'
+import { toggleGallerySelection } from '../../domain/imageGenConfirm'
 import {
   ImageGenConfirmModal,
   type ImageGenConfirmPayload
 } from '../components/ImageGenConfirmModal'
+
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import {
   libraryBodyClass,
@@ -77,7 +69,7 @@ import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
 import { useActions } from '../hooks/useActions'
 import { LocalMediaImage } from '../components/LocalMediaImage'
-import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
+import { EntityGalleryPanel } from '../components/EntityGalleryPanel'
 import { translateActionGalleryLabel } from '../../domain/galleryLabelI18n'
 import { ActionCastRefPicker } from '../components/ActionCastRefPicker'
 import {
@@ -151,6 +143,7 @@ export function ActionsPage(): JSX.Element {
     isBlocked,
     activeJobs,
     startVideoPrep,
+    startMediaGen,
     hasVideoPrepDraft,
     continueVideoPrepDraft,
     onActionProfileApply,
@@ -426,97 +419,36 @@ export function ActionsPage(): JSX.Element {
     useIdentityEdit?: boolean
   }): Promise<void> => {
     setActionError(null)
-    await actionsRunGeneratePlateSetup({
-      ensureSavedId,
-      isBusy: (id) => actionBusy(id),
-      toastInfo: toast.info,
-      loadingMsg: t('common.loading'),
-      setError: setActionError,
-      toastError: toast.error,
-      buildConfirm: () => {
-        const wantIdentity = actionsResolveWantIdentity(
-          opts?.useIdentityEdit,
-          useIdentityRef
-        )
-        // Gallery multi-select (指示圖庫) + cast stills (參考素材：角色／戲服／場景／道具)
-        const galleryPaths = actionsGalleryPathsFromOpts(
-          opts?.referenceImagePath,
-          selectedPathsForIdentity
-        )
-        const castPaths = form.castRefs
-          .map((r) => r.imagePath?.trim())
-          .filter((p): p is string => Boolean(p))
-        const mergedPaths: string[] = []
-        for (const p of [...galleryPaths, ...castPaths]) {
-          if (p && !mergedPaths.includes(p)) mergedPaths.push(p)
-        }
-        // Identity lock: any gallery or cast still enables edit + shows in confirm.
-        // Pure generate: still pass cast into text prompt via buildActionPlateImagePrompt.
-        const idRes = resolveIdentityPaths({
-          useIdentityRef: wantIdentity,
-          selectedPaths: mergedPaths
-        })
-        const profile = {
-          name: form.name.trim() || 'Action',
-          description: form.description.trim() || form.name.trim() || 'Action',
-          motionNotes: form.motionNotes.trim() || undefined,
-          intention: form.intention.trim() || undefined,
-          cameraNotes: form.cameraNotes.trim() || undefined,
-          visualTags: form.visualTags.trim() || undefined,
-          hardRules: form.hardRules.trim() || undefined
-        }
-        let prompt = idRes.useEdit
-          ? buildActionPlateEditPrompt(profile, form.panelLayout, form.artStyle)
-          : buildActionPlateImagePrompt(
-              profile,
-              form.panelLayout,
-              form.artStyle,
-              form.castRefs
-            )
-        prompt = actionsMaybeAppendMultiRef(
-          prompt,
-          idRes.paths,
-          getAiLocale(i18n.language),
-          appendMultiRefNote
-        )
-        prompt = ensureHardRules(prompt, form.hardRules)
-        // When editing from gallery only, still remind cast identities in prompt text
-        prompt = actionsAppendCastNoteIfNeeded(
-          prompt,
-          idRes.useEdit,
-          castPaths.length,
-          getAiLocale(i18n.language)
-        )
-        const layoutLabel = t(
-          `actions.${getActionPanelLayout(form.panelLayout).labelKey}`
-        )
-        const styleLabel = t(
-          `characters.${getArtStyle(form.artStyle).labelKey}`
-        )
-        const modeLabel = idRes.useEdit
-          ? t('common.imageGenConfirmModeIdentity')
-          : t('common.imageGenConfirmModePure')
-        const castHint = actionsCastHint(
-          castPaths.length,
-          t('actions.castRefsCount', { count: castPaths.length })
-        )
-        setImageGenConfirm({
-          prompt,
-          // Always surface cast stills in confirm thumbs when present, even if
-          // identity lock is off (pure gen still benefits from visual context).
-          referencePaths: actionsPlateReferencePaths(
-            idRes.paths,
-            wantIdentity,
-            mergedPaths,
-            castPaths
-          ),
-          useIdentityEdit: idRes.useEdit,
-          summary: `${t('actions.panelLayout')}: ${layoutLabel} · ${t('characters.artStyle')}: ${styleLabel} · ${modeLabel}${castHint}`
-        })
+    try {
+      const id = await ensureSavedId()
+      if (!id) return
+      if (actionsGuardBusy(actionBusy(id), toast.info, t('common.loading'))) {
+        return
       }
-    })
+      const wantIdentity = actionsResolveWantIdentity(
+        opts?.useIdentityEdit,
+        useIdentityRef
+      )
+      const galleryPaths = actionsGalleryPathsFromOpts(
+        opts?.referenceImagePath,
+        selectedPathsForIdentity
+      )
+      // Global MediaGenHost — same shell as all photo/video generates
+      startMediaGen({
+        kind: 'action-plate',
+        actionId: id,
+        storyId: activeStoryId ?? undefined,
+        panelLayout: form.panelLayout,
+        artStyle: form.artStyle,
+        galleryIdentityPaths: galleryPaths,
+        preferIdentityEdit: wantIdentity
+      })
+    } catch (e) {
+      actionsApplyIpcError(e, setActionError, toast.error)
+    }
   }
 
+  /** Legacy ImageGenConfirm path (kept for tests / fallback callers). */
   const runActionPlateJob = async (
     confirm: ImageGenConfirmPayload
   ): Promise<void> => {
@@ -790,97 +722,80 @@ export function ActionsPage(): JSX.Element {
         activeTab={editorPanel}
         onTabChange={(id) => setEditorPanel(id as EditorPanel)}
         preview={
-          <div className="flex h-full flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
-                {t('actions.gallery')}
-              </h3>
-              {form.gallery.length > 0 ? (
-                <span className="text-[11px] text-ink-500">
-                  {form.gallery.length}
-                </span>
-              ) : null}
-            </div>
-            <div className="rounded-xl border border-ink-800 bg-ink-900/60">
-              {selectedImage ? (
-                <LocalMediaImage
-                  filePath={selectedImage.path}
-                  alt={selectedImage.label}
-                  maxHeightClass="max-h-[min(36vh,360px)] lg:max-h-[min(48vh,440px)]"
-                  showMeta
-                  className="border-0 rounded-xl"
-                  actionsLayout="bar"
-                  introVideoBusy={editorBusy}
-                  introVideoPath={selectedImage.introVideoPath}
-                  introVideoHasDraft={
-                    Boolean(editingId) &&
-                    hasVideoPrepDraft(
-                      buildVideoPrepDraftKey(
-                        'action-intro',
-                        { actionId: editingId! },
-                        selectedImage.path
-                      )
-                    )
-                  }
-                  onIntroVideo={actionsIntroVideoHandler(
+          <EntityGalleryPanel
+            title={t('actions.gallery')}
+            countLabel={
+              form.gallery.length > 0 ? String(form.gallery.length) : null
+            }
+            previewPath={selectedImage?.path}
+            previewAlt={selectedImage?.label ?? ''}
+            maxHeightClass="max-h-[min(36vh,360px)] lg:max-h-[min(48vh,440px)]"
+            showMeta
+            introVideoBusy={editorBusy}
+            introVideoPath={selectedImage?.introVideoPath}
+            introVideoHasDraft={
+              Boolean(editingId) &&
+              Boolean(selectedImage?.path) &&
+              hasVideoPrepDraft(
+                buildVideoPrepDraftKey(
+                  'action-intro',
+                  { actionId: editingId! },
+                  selectedImage?.path ?? ''
+                )
+              )
+            }
+            onIntroVideo={
+              selectedImage
+                ? actionsIntroVideoHandler(
                     editingId,
                     selectedImage.path,
                     handleIntroVideo
-                  )}
-                  isCover={form.coverPath === selectedImage.path}
-                  onSetAsCover={actionsMakeCoverHandler(
-                    setForm,
-                    selectedImage.path
-                  )}
-                  onRemove={handleRemoveSelectedImage}
-                />
-              ) : (
-                <div className="flex h-48 flex-col items-center justify-center gap-2 px-4 text-center text-ink-500">
-                  <span className="text-3xl opacity-30">🎬</span>
-                  <p className="text-xs">{t('actions.noPhotos')}</p>
-                  <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-                    <Button
-                      variant="secondary"
-                      disabled={editorBusy}
-                      onClick={() => void handlePickExternalRef()}
-                    >
-                      {t('common.uploadRef')}
-                    </Button>
-                    <Button
-                      disabled={editorBusy}
-                      onClick={() => {
-                        setEditorPanel('refs')
-                        void handleGeneratePlate()
-                      }}
-                    >
-                      {t('actions.generatePlate')}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-            {form.gallery.length > 0 ? (
-              <GalleryThumbStrip
-                items={form.gallery}
-                selectedId={selectedImageId}
-                selectedIds={selectedImageIds}
-                multiSelect
-                coverPath={form.coverPath}
-                fallbackCoverPath={primaryActionGalleryPath(form.gallery)}
-                onSelect={setSelectedImageId}
-                onToggleSelect={(id) =>
-                  setSelectedImageIds((ids) =>
-                    toggleGallerySelection(ids, id)
                   )
-                }
-                onReorder={actionsMakeReorderHandler(setForm)}
-                labelOf={(g) => translateActionGalleryLabel(g.label, t)}
-              />
-            ) : null}
-            <p className="text-[11px] text-ink-500">
-              {t('common.galleryReorderHint')}
-            </p>
-          </div>
+                : undefined
+            }
+            isCover={Boolean(
+              selectedImage && form.coverPath === selectedImage.path
+            )}
+            onSetAsCover={
+              selectedImage
+                ? actionsMakeCoverHandler(setForm, selectedImage.path)
+                : undefined
+            }
+            onRemove={
+              selectedImage ? handleRemoveSelectedImage : undefined
+            }
+            emptyIcon="🎬"
+            emptyMessage={t('actions.noPhotos')}
+            emptyActions={[
+              {
+                label: t('common.uploadRef'),
+                onClick: () => void handlePickExternalRef(),
+                variant: 'secondary',
+                disabled: editorBusy
+              },
+              {
+                label: t('actions.generatePlate'),
+                onClick: () => {
+                  setEditorPanel('refs')
+                  void handleGeneratePlate()
+                },
+                variant: 'primary',
+                disabled: editorBusy
+              }
+            ]}
+            items={form.gallery}
+            selectedId={selectedImageId}
+            selectedIds={selectedImageIds}
+            multiSelect
+            coverPath={form.coverPath}
+            fallbackCoverPath={primaryActionGalleryPath(form.gallery)}
+            onSelect={setSelectedImageId}
+            onToggleSelect={(id) =>
+              setSelectedImageIds((ids) => toggleGallerySelection(ids, id))
+            }
+            onReorder={actionsMakeReorderHandler(setForm)}
+            labelOf={(g) => translateActionGalleryLabel(g.label, t)}
+          />
         }
       >
         {editorPanel === 'profile' && (
@@ -1241,6 +1156,8 @@ export function actionsAppendCastNoteIfNeeded(
   castCount: number,
   locale: string
 ): string {
+  // Structured SUBJECT BINDING from buildActionPlatePrompt already locks cast.
+  if (prompt.includes('SUBJECT BINDING')) return prompt
   if (!useEdit || castCount <= 0) return prompt
   const castNote = actionsCastIdentityNote(castCount, locale)
   if (!prompt.includes(castNote)) {

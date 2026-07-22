@@ -111,6 +111,11 @@ export function createMockApi(
       setActive: vi.fn().mockResolvedValue({}),
       aiFill: vi.fn().mockResolvedValue({}),
       generateDressed: vi.fn().mockResolvedValue({}),
+      appendTryOnStill: vi.fn().mockResolvedValue({
+        path: '/cos/tryon.png',
+        costume: {},
+        gallery: []
+      }),
       generateIntroVideo: vi.fn().mockResolvedValue({})
     },
     timeline: {
@@ -273,6 +278,27 @@ export function createMockApi(
       confirm: vi.fn().mockResolvedValue({}),
       openFromStill: vi.fn().mockResolvedValue({}),
       regenStill: vi.fn().mockResolvedValue({})
+    },
+    mediaGen: {
+      extract: vi.fn().mockResolvedValue({
+        kind: 'action-plate',
+        entityIds: {},
+        sections: [],
+        editBaseSectionId: null,
+        fallbackPrompt: 'FALLBACK',
+        taskHint: 'task',
+        genOptions: { useIdentityEdit: false },
+        hardRules: null
+      }),
+      polish: vi.fn().mockResolvedValue({
+        polishedPrompt: 'POLISHED PROMPT LONG ENOUGH',
+        polished: true,
+        imageCount: 0
+      }),
+      generateImage: vi.fn().mockResolvedValue({
+        path: '/tmp/media-gen.png',
+        draft: true
+      })
     },
     ...overrides
   }

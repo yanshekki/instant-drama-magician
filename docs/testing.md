@@ -11,6 +11,24 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
+## Recent focus areas (1.3.0)
+
+| Area | Tests (examples) |
+|------|------------------|
+| Timeline continuity | `writeClipContinuityStill.test.ts`, `promptContinuity` (`resolveTimelineStillRefs`), `AdvancedPrepService` end-frame heal |
+| MediaGen timeline | `mediaGen.test.ts` (extract / generate continuity path), `timelineMediaGen.test.ts` |
+| MediaGen UI host | `MediaGenHost.test.tsx` (`idm:timeline-still-done`) |
+| Advanced studio | `TimelineAdvancedStudio.test.tsx` (refine → `startMediaGen`) |
+| Costume dual-write | `costumes.test.ts` (`appendTryOnStill`), `AiJobsContext.test.tsx` |
+| Shared gallery | `EntityGalleryPanel.test.tsx` |
+
+```bash
+npx vitest run src/runtime/handlers/mediaGen.test.ts \
+  src/presentation/components/MediaGenHost.test.tsx \
+  src/domain/timelineMediaGen.test.ts \
+  src/application/video/writeClipContinuityStill.test.ts
+```
+
 ## Alignment gate
 
 ```bash

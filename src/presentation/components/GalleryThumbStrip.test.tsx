@@ -34,7 +34,7 @@ describe('GalleryThumbStrip', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('select, multi-toggle, reorder arrows, cover badge', () => {
+  it('thumb click previews only; checkbox toggles multi without fighting preview', () => {
     const onSelect = vi.fn()
     const onToggle = vi.fn()
     const onReorder = vi.fn()
@@ -52,9 +52,17 @@ describe('GalleryThumbStrip', () => {
       />
     )
     expect(screen.getByText('common.coverBadge')).toBeTruthy()
-    fireEvent.click(screen.getByTitle('L:A'))
-    expect(onToggle).toHaveBeenCalledWith('1')
+
+    // Preview click (thumb body) — first draggable cell is item 1
+    const cells = document.querySelectorAll('[draggable="true"]')
+    fireEvent.click(cells[0]!)
     expect(onSelect).toHaveBeenCalledWith('1')
+    expect(onToggle).not.toHaveBeenCalled()
+
+    // Checkbox only (selectedIds has '2' checked)
+    const check = screen.getAllByLabelText('common.galleryUncheckForGen')[0]
+    fireEvent.click(check)
+    expect(onToggle).toHaveBeenCalledWith('2')
 
     fireEvent.click(screen.getByLabelText('common.galleryMoveLeft'))
     expect(onReorder).toHaveBeenCalledWith('2', '1')
@@ -72,39 +80,46 @@ describe('GalleryThumbStrip', () => {
         selectedId="1"
         onSelect={onSelect}
         onToggleSelect={onToggle}
+        multiSelect
         onReorder={onReorder}
         fallbackCoverPath="/b.png"
       />
     )
-    const cell = screen.getByTitle('B')
-    fireEvent.keyDown(cell, { key: 'Enter' })
+    const cells = screen.getAllByRole('button').filter((el) =>
+      el.getAttribute('draggable') === 'true'
+    )
+    const cellB = cells.find((c) => c.querySelector('[data-testid="thumb"]')?.textContent === '/b.png')
+    expect(cellB).toBeTruthy()
+    fireEvent.keyDown(cellB!, { key: 'Enter' })
     expect(onSelect).toHaveBeenCalledWith('2')
-    fireEvent.keyDown(cell, { key: ' ' })
+    // Space also previews only
+    fireEvent.keyDown(cellB!, { key: ' ' })
+    expect(onToggle).not.toHaveBeenCalled()
 
-    const a = screen.getByTitle('A')
-    fireEvent.dragStart(a, {
+    const cellA = cells.find((c) => c.querySelector('[data-testid="thumb"]')?.textContent === '/a.png')
+    fireEvent.dragStart(cellA!, {
       dataTransfer: {
         setData: vi.fn(),
         setDragImage: vi.fn(),
         effectAllowed: 'move'
       }
     })
-    fireEvent.dragEnter(cell)
-    fireEvent.dragOver(cell, {
+    fireEvent.dragEnter(cellB!)
+    fireEvent.dragOver(cellB!, {
       dataTransfer: { dropEffect: 'move' },
       preventDefault: vi.fn()
     })
-    fireEvent.drop(cell, {
+    fireEvent.drop(cellB!, {
       dataTransfer: { getData: () => '1' },
       preventDefault: vi.fn(),
       stopPropagation: vi.fn()
     })
     expect(onReorder).toHaveBeenCalledWith('1', '2')
-    fireEvent.dragLeave(cell)
-    fireEvent.dragEnd(a)
+    fireEvent.dragLeave(cellB!)
+    fireEvent.dragEnd(cellA!)
   })
 
-  it('single select without multi', () => {
+  it('single select without multi has no checkboxes', () => {
     const onSelect = vi.fn()
     render(
       <GalleryThumbStrip
@@ -114,12 +129,15 @@ describe('GalleryThumbStrip', () => {
         onReorder={() => undefined}
       />
     )
-    fireEvent.click(screen.getByTitle('A'))
+    expect(screen.queryByLabelText('common.galleryCheckForGen')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: undefined }))
+    // click the thumb cell
+    const cell = document.querySelector('[draggable="true"]')
+    if (cell) fireEvent.click(cell)
     expect(onSelect).toHaveBeenCalledWith('1')
   })
 
-  it('click after drag skips select; multi-selected border styles', () => {
-    const onSelect = vi.fn()
+  it('shows viewing badge on primary and checked state on multi', () => {
     render(
       <GalleryThumbStrip
         items={items}
@@ -127,100 +145,15 @@ describe('GalleryThumbStrip', () => {
         selectedIds={['1', '2']}
         multiSelect
         coverPath="/c.png"
-        onSelect={onSelect}
+        onSelect={vi.fn()}
+        onToggleSelect={vi.fn()}
         onReorder={() => undefined}
       />
     )
-    const a = screen.getByTitle('A')
-    fireEvent.dragStart(a, {
-      dataTransfer: {
-        setData: vi.fn(),
-        setDragImage: vi.fn(),
-        effectAllowed: 'move'
-      }
-    })
-    fireEvent.dragEnd(a)
-    fireEvent.click(a)
-    expect(document.body.textContent).toBeTruthy()
-  })
-  it('zero residual dragOver move and moved click ignore', () => {
-    const onSelect = vi.fn()
-    const onReorder = vi.fn()
-    render(
-      <GalleryThumbStrip
-        items={[
-          { id: 'a', path: '/a.png', label: 'A' },
-          { id: 'b', path: '/b.png', label: 'B' }
-        ]}
-        selectedId="a"
-        onSelect={onSelect}
-        onReorder={onReorder}
-      />
+    expect(screen.getByText('common.galleryViewing')).toBeTruthy()
+    expect(screen.getAllByLabelText('common.galleryUncheckForGen').length).toBe(
+      2
     )
-    const root = document.body.querySelector('div') || document.body
-    const dt = {
-      dropEffect: 'none',
-      effectAllowed: 'move',
-      setData: vi.fn(),
-      getData: () => 'a',
-      types: ['text/plain']
-    } as unknown as DataTransfer
-    fireEvent.dragOver(root, { dataTransfer: dt })
-    // simulate drag then click
-    const cells = document.querySelectorAll('[draggable="true"]')
-    if (cells[0]) {
-      fireEvent.dragStart(cells[0], { dataTransfer: dt })
-      fireEvent.drop(cells[1] || cells[0], { dataTransfer: dt })
-      fireEvent.dragEnd(cells[0], { dataTransfer: dt })
-      fireEvent.click(cells[0])
-    }
-    expect(true).toBe(true)
+    expect(screen.getAllByLabelText('common.galleryCheckForGen').length).toBe(1)
   })
-
 })
-
-  it('done residual: multi border, dragImage catch, shift ends', () => {
-    const onReorder = vi.fn()
-    const onToggle = vi.fn()
-    const items = [
-      { id: 'a', path: '/a.png', label: 'A' },
-      { id: 'b', path: '/b.png', label: 'B' },
-      { id: 'c', path: '/c.png', label: 'C' }
-    ]
-    render(
-      <GalleryThumbStrip
-        items={items}
-        selectedId="c"
-        selectedIds={['a', 'c']}
-        multiSelect
-        onSelect={vi.fn()}
-        onToggleSelect={onToggle}
-        onReorder={onReorder}
-        coverPath="/b.png"
-        reorderHintKey="common.galleryReorderHint"
-      />
-    )
-    // multiOn style + cover
-    const buttons = document.querySelectorAll('[role="button"]')
-    expect(buttons.length).toBeGreaterThan(0)
-    // shift left/right
-    const left = screen.queryByLabelText('common.galleryMoveLeft')
-    const right = screen.queryByLabelText('common.galleryMoveRight')
-    if (left) fireEvent.click(left)
-    if (right) fireEvent.click(right)
-    // drag with setDragImage throw
-    const el = buttons[0] as HTMLElement
-    const dt = {
-      setData: vi.fn(),
-      effectAllowed: 'move',
-      setDragImage: vi.fn(() => {
-        throw new Error('no drag image')
-      }),
-      dropEffect: 'move'
-    }
-    fireEvent.dragStart(el, { dataTransfer: dt })
-    fireEvent.dragOver(el, { dataTransfer: dt, preventDefault: () => undefined })
-    fireEvent.drop(buttons[1] as HTMLElement, {
-      dataTransfer: { getData: () => 'a', dropEffect: 'move' }
-    })
-  })

@@ -2,7 +2,7 @@
 
 > **Language:** [English](./architecture.md) · [中文](./architecture-ZH.md)
 
-Version **1.1.1**. Presentation → Application → Domain → Infrastructure, with a **shared handler runtime** used by Electron, Web, and CLI.
+Version **1.3.0**. Presentation → Application → Domain → Infrastructure, with a **shared handler runtime** used by Electron, Web, and CLI.
 
 ## Layers
 
@@ -13,7 +13,7 @@ Presentation (React pages / CLI / browser UI)
   IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
-  registerAllHandlers + HandlerHost   ← single source of truth (~138 channels)
+  registerAllHandlers + HandlerHost   ← single source of truth (~157 channels)
         │
         ▼
   Application services (Generation, Timeline, Export, Backup, …)
@@ -35,7 +35,16 @@ Media in the desktop app is served via privileged scheme **`idm-media://`** (ran
 | CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR` (default `OS app data root (same as desktop)`) |
 | Web / server | `server/index.ts` + `EmbeddedWebServer` | Same handlers; SPA from `out/renderer` |
 
-Channel catalog: `src/runtime/channelManifest.ts` (**138** unique ids).
+Channel catalog: `src/runtime/channelManifest.ts` (**157** unique ids).
+
+Notable media surfaces:
+
+| Surface | Role |
+|---------|------|
+| `mediaGen:*` | Unified materials → multi-vision polish → still (library + timeline refine) |
+| `videoPrep:*` | Still/keyframe → confirm video (incl. timeline-clip) |
+| `costumes:appendTryOnStill` | Dual-write try-on still into costume multi-gallery |
+| Timeline advanced | End-frame continuity stills; prev keyframe edit base; refine via MediaGen |
 
 ## Desktop pages
 
@@ -43,10 +52,10 @@ Channel catalog: `src/runtime/channelManifest.ts` (**138** unique ids).
 |-------|------|
 | `/` | Stories |
 | `/characters` | Characters (+ SoulMD Hub, reference sheets) |
-| `/costumes` | Costumes |
+| `/costumes` | Costumes (try-on dual-write multi-gallery) |
 | `/scenes` | Scenes |
 | `/props` | Props |
-| `/timeline` | Timeline + Advanced prep |
+| `/timeline` | Timeline + Advanced prep (continuity + refine) |
 | `/audit` | Activity log |
 | `/settings` | Settings |
 

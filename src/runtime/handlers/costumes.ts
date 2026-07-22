@@ -2,7 +2,7 @@ import { imageSizeForClass, draftHasNameOrDescription, mergeCostumeRaw } from '.
 /**
  * Domain IPC handlers (split for maintainability).
  */
-import { existsSync, writeFileSync } from 'fs'
+import { copyFileSync, existsSync, writeFileSync } from 'fs'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import { chatContentText } from '../../types/domain'
 import { buildCostumeIntroVideoPrompt } from '../../domain/costumeSwap'
@@ -445,6 +445,86 @@ reg(
       }
     }
   )
+)
+
+/**
+ * Attach a try-on / dressed still to the costume multi-image gallery
+ * (and optional character continuity via setDressedImage).
+ * Used after MediaGen costume-dress accept so the look shows for all linked users.
+ */
+reg(
+  'costumes:appendTryOnStill',
+  async (payload: {
+    costumeId: string
+    characterId?: string | null
+    /** Draft or temp still path (will be copied into costume library). */
+    sourcePath: string
+    label?: string | null
+  }) => {
+    const cos = await costumes().get(payload.costumeId)
+    const src = payload.sourcePath?.trim()
+    if (!src || !existsSync(src)) {
+      throw new AppError('VALIDATION', 'errors.sourceImageRequired')
+    }
+    const {
+      appendGalleryItem,
+      parseCharacterGallery,
+      serializeCharacterGallery
+    } = await import('../../domain/characterGallery')
+    const store = generation().getMediaStore()
+    store.ensureLibraryDirs()
+    const ext =
+      src.toLowerCase().endsWith('.jpg') || src.toLowerCase().endsWith('.jpeg')
+        ? '.jpg'
+        : '.png'
+    const costumePath = store.costumeImagePath(cos.id, 'dressed', ext)
+    copyFileSync(src, costumePath)
+
+    const cosGallery = parseCharacterGallery(cos.refGalleryJson, {
+      refImagePath: cos.refImagePath
+    })
+    const label =
+      (typeof payload.label === 'string' && payload.label.trim()) ||
+      'Try-on still'
+    const nextCosGallery = appendGalleryItem(cosGallery, {
+      path: costumePath,
+      kind: 'gen',
+      label,
+      layer: 'costume'
+    })
+    const updatedCostume = await costumes().update(payload.costumeId, {
+      // Keep existing cover if set; otherwise first try-on becomes cover
+      refImagePath: cos.refImagePath?.trim() || costumePath,
+      refGalleryJson: serializeCharacterGallery(nextCosGallery)
+    })
+
+    if (payload.characterId?.trim()) {
+      try {
+        await costumes().setDressedImage(
+          payload.costumeId,
+          payload.characterId.trim(),
+          costumePath
+        )
+      } catch {
+        /* link may be missing — non-fatal for gallery show */
+      }
+    }
+
+    activity.append({
+      kind: 'costume',
+      message: 'appendTryOnStill',
+      meta: {
+        costumeId: payload.costumeId,
+        characterId: payload.characterId,
+        path: costumePath
+      }
+    })
+    return {
+      path: costumePath,
+      costume: updatedCostume,
+      gallery: nextCosGallery
+    }
+  }
 )
 
 /**

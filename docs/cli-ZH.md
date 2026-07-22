@@ -103,7 +103,7 @@ instant-drama app open|build
 
 ## 探索與 invoke
 
-Electron、Web、CLI 共用 **`registerAllHandlers`** — **138** 個 channel。
+Electron、Web、CLI 共用 **`registerAllHandlers`** — **157** 個 channel。
 
 ```bash
 instant-drama doctor --json
@@ -129,7 +129,53 @@ instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces 包括：`activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
+Namespaces 包括：`activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
+
+## 近期 API 表面（1.3.0）
+
+桌面、Web、CLI 共用同一 registry。優先用 **domain sugar** 或 `invoke`。
+
+| Channel | 用途 | 示例 |
+|---------|------|------|
+| `mediaGen:extract` | 建立材料 sections（庫頁 + `timeline-still`／`timeline-clip`） | `instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"S","entryId":"E"}]' --json` |
+| `mediaGen:polish` | 多圖 vision 潤飾 prompt | `instant-drama mediaGen polish --args '[{...}]' --json` |
+| `mediaGen:generateImage` | 單張靜圖；timeline 會寫入 continuity 路徑 | `instant-drama mediaGen generate-image --args '[{...}]' --json` |
+| `costumes:appendTryOnStill` | 試穿 still 追加至戲服多圖庫 | `instant-drama costumes append-try-on-still --args '[{"costumeId":"C","sourcePath":"/a.png"}]' --json` |
+| `costumes:generateDressed` | 生成試穿靜圖 | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
+| `videoPrep:create` | 準備靜圖／開 clip 流程 | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
+| `videoPrep:confirm` | 由靜圖確認出片 | `instant-drama videoPrep confirm --args '[{...}]' --json` |
+| `timeline:getAdvancedPrep` | 進階預備 snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
+| `timeline:setCastPrep` | 儲存 cast 鎖定 | `instant-drama timeline set-cast-prep --args '[{...}]' --json` |
+| `timeline:clearEntryStill` | 清除該段 continuity 靜圖 | `instant-drama timeline clear-entry-still --args '[{...}]' --json` |
+
+```bash
+instant-drama channels list --filter mediaGen --json
+instant-drama channels list --filter costumes --json
+instant-drama channels describe costumes:appendTryOnStill --json
+```
+
+### 驗證 CLI（smoke）
+
+```bash
+bash scripts/cli-smoke.sh
+# 或手動：
+npm run instant-drama -- version
+npm run instant-drama -- doctor --json          # 預期 channelCount 157
+npm run instant-drama -- channels list --filter mediaGen --json
+npm run instant-drama -- channels describe mediaGen:extract --json
+npm run instant-drama -- channels describe costumes:appendTryOnStill --json
+npm run instant-drama -- help
+```
+
+可選 headless 資料面（`IDM_DATA_DIR` 內已 `prisma db push`）：
+
+```bash
+export IDM_DATA_DIR=./data
+export DATABASE_URL="file:${IDM_DATA_DIR}/instant-drama.db"
+npm run instant-drama -- --local --data-dir ./data stories list --json
+```
+
+FFmpeg：若 doctor 顯示不可用，可設 `FFMPEG_PATH`，或使用桌面內建 `ffmpeg-static`。
 
 ## 伺服器
 
@@ -157,7 +203,7 @@ instant-drama server start --port 8787 --host 0.0.0.0
 | 能力 | 狀態 |
 |------|------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel 數 | **138** |
+| Channel 數 | **157** |
 | `instant-drama invoke` | ✅ 任意 channel |
 | Domain sugar | ✅ 全部 namespace |
 | OpenAI tool schema | ✅ |

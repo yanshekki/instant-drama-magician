@@ -15,7 +15,9 @@
 | BGM | 可選路徑 + 音量 |
 | 人物參考圖 | Characters 頁；缺圖 live 警告 |
 | Style bible | Story `styleNote` 注入 clip prompt |
-| 片段連貫 | 前一段摘要寫入下一 prompt |
+| 片段連貫 | 上一段**片尾幀** continuity 靜圖 + prompt 鎖定；多 ref 潤飾；批量補齊較前缺圖段落 |
+| MediaGen 殼 | 材料 → 潤飾 → 出圖／出片（庫頁與時間軸**精修**） |
+| 戲服試穿雙寫 | 接受試穿 still → 角色圖庫**及**戲服多圖庫 |
 | 匯出開資料夾 | 儲存後 `openExportFolder` |
 | 打包 | `npm run pack` → `release/linux-unpacked` |
 
@@ -33,6 +35,6 @@
 - 多軌 NLE  
 - 商用級 TTS／自動配樂  
 
-> **v1.0.0 之後已補：** 多平台 GitHub Release、electron-updater、活動日誌與支援報告、完整 CLI／Web **137** channels。見 [commercial-ZH.md](./commercial-ZH.md)。
+> **v1.0.0 之後已補：** 多平台 GitHub Release、electron-updater、活動日誌與支援報告、完整 CLI／Web **157** channels。見 [commercial-ZH.md](./commercial-ZH.md)。
 
 RC 轉場／比例：[rc-ZH.md](./rc-ZH.md)。發版：[release-ZH.md](./release-ZH.md)。

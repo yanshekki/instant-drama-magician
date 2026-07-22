@@ -43,8 +43,9 @@ const startJob = vi.fn(
     return 'job_1'
   }
 )
+const startMediaGen = vi.fn()
 vi.mock('../../context/AiJobsContext', () => ({
-  useAiJobs: () => ({ startJob })
+  useAiJobs: () => ({ startJob, startMediaGen })
 }))
 
 vi.mock('../LocalMediaImage', () => ({
@@ -146,6 +147,7 @@ const snap = {
 describe('TimelineAdvancedStudio', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    startMediaGen.mockClear()
     startJob.mockImplementation(
       (opts: {
         run: (c: {
@@ -195,6 +197,56 @@ describe('TimelineAdvancedStudio', () => {
       </MemoryRouter>
     )
     expect(container.firstChild).toBeNull()
+  })
+
+  it('refine still / clip opens startMediaGen with timeline kinds', async () => {
+    renderOpen()
+    await waitFor(() =>
+      expect(api.timeline.getAdvancedPrep).toHaveBeenCalledWith('s1')
+    )
+    const storyTab = Array.from(document.querySelectorAll('button')).find((b) =>
+      /tabStoryboard|storyboard/i.test(b.textContent || '')
+    )
+    if (storyTab) fireEvent.click(storyTab)
+
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(
+        /refineStill|genStill|stillMissing/i
+      )
+    )
+
+    const refineStillBtn = Array.from(
+      document.querySelectorAll('button')
+    ).find((b) => /advanced\.refineStill|refineStill/i.test(b.textContent || ''))
+    expect(refineStillBtn).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(refineStillBtn!)
+    })
+    expect(startMediaGen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'timeline-still',
+        storyId: 's1',
+        entryId: 'e1',
+        preferIdentityEdit: true
+      })
+    )
+
+    startMediaGen.mockClear()
+    const refineClipBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => /advanced\.refineClip|refineClip/i.test(b.textContent || '')
+    )
+    expect(refineClipBtn).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(refineClipBtn!)
+    })
+    expect(startMediaGen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'timeline-clip',
+        storyId: 's1',
+        entryId: 'e2',
+        preferIdentityEdit: true
+      })
+    )
   })
 
   it('loads advanced prep and Escape closes', async () => {

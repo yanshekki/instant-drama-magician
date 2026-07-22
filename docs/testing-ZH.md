@@ -23,6 +23,24 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
+## 近期焦點（1.3.0）
+
+| 區域 | 測試（示例） |
+|------|----------------|
+| 時間軸連續性 | `writeClipContinuityStill`、`resolveTimelineStillRefs`、片尾 heal |
+| MediaGen timeline | `mediaGen.test.ts`、`timelineMediaGen.test.ts` |
+| MediaGen Host | `MediaGenHost.test.tsx`（`idm:timeline-still-done`） |
+| 進階 studio | `TimelineAdvancedStudio.test.tsx`（精修 → `startMediaGen`） |
+| 戲服雙寫 | `costumes:appendTryOnStill`、`AiJobsContext` |
+| 共用圖庫 | `EntityGalleryPanel.test.tsx` |
+
+```bash
+npx vitest run src/runtime/handlers/mediaGen.test.ts \
+  src/presentation/components/MediaGenHost.test.tsx \
+  src/domain/timelineMediaGen.test.ts \
+  src/application/video/writeClipContinuityStill.test.ts
+```
+
 ## 標準
 
 - 不打真實外網 AI  
@@ -36,11 +54,11 @@ npm run test:ci          # CI 入口（coverage）
 |------|------|
 | 模組 companion 測試 | 生產模組 **100%**（+ electron／server 入口） |
 | 行覆蓋（整體） | 漸進（整體約 22%；UI／handlers 為 smoke） |
-| Channel 註冊數 | **138/138** 契約 + 安全 invoke 矩陣 |
+| Channel 註冊數 | **157/157** 契約 + 安全 invoke 矩陣 |
 
 ## Channel 對齊
 
-`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **138** 個 IPC channel。  
+`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **157** 個 IPC channel。  
 `channelInvoke.matrix.test.ts` 對安全無參 channel 做 invoke，不應 `NOT_FOUND`。
 
 ## 相關

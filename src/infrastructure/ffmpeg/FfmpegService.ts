@@ -432,25 +432,37 @@ export class FfmpegService {
 
   /**
    * Grab a single still frame from a video (for continuity / storyboard).
-   * Prefers a near-start frame so it matches video-prep keyframe usage.
+   * Default 0.25s near start; pass `atSeconds: 'end'` for near-end (next-beat lock).
    */
   async extractStillFrame(options: {
     videoPath: string
     outputPath: string
-    /** Seek position in seconds (default 0.25). */
-    atSeconds?: number
+    /**
+     * Seek position in seconds, or `'end'` for ~last frame via -sseof.
+     * Default 0.25 (near start).
+     */
+    atSeconds?: number | 'end'
   }): Promise<string> {
     await this.ensureAvailable()
     if (!existsSync(options.videoPath)) {
       throw new AppError('NOT_FOUND', 'errors.videoNotFound', String(options.videoPath))
     }
     mkdirSync(dirname(options.outputPath), { recursive: true })
-    const at = Math.max(0, options.atSeconds ?? 0.25)
-    // -ss before -i is fast; one png frame (-update 1 for modern ffmpeg)
+    const wantEnd = options.atSeconds === 'end'
+    const at =
+      typeof options.atSeconds === 'number'
+        ? Math.max(0, options.atSeconds)
+        : 0.25
+    // -ss before -i is fast; -sseof seeks from end for continuity end-frame
+    const seekArgs = (withSeek: boolean): string[] => {
+      if (!withSeek) return []
+      if (wantEnd) return ['-sseof', '-0.15']
+      return ['-ss', at.toFixed(2)]
+    }
     const extractArgs = (withSeek: boolean): string[] => [
       this.ffmpegBin,
       '-y',
-      ...(withSeek ? (['-ss', at.toFixed(2)] as string[]) : []),
+      ...seekArgs(withSeek),
       '-i',
       options.videoPath,
       '-frames:v',
@@ -465,6 +477,28 @@ export class FfmpegService {
       await this.run(extractArgs(true))
     } catch {
       /* retry without seek / without -update below */
+    }
+    if (!existsSync(options.outputPath) && wantEnd) {
+      // End seek failed — try near-end positive seek fallback then start
+      try {
+        await this.run([
+          this.ffmpegBin,
+          '-y',
+          '-ss',
+          '0.25',
+          '-i',
+          options.videoPath,
+          '-frames:v',
+          '1',
+          '-update',
+          '1',
+          '-q:v',
+          '2',
+          options.outputPath
+        ])
+      } catch {
+        /* continue to generic fallbacks */
+      }
     }
     if (!existsSync(options.outputPath)) {
       try {

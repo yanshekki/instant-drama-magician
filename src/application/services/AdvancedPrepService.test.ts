@@ -282,7 +282,9 @@ describe('AdvancedPrepService', () => {
     }
     const { svc } = makeSvc({ prisma, store, ffmpeg })
     await svc.getSnapshot('s1')
-    expect(ffmpeg.extractStillFrame).toHaveBeenCalled()
+    expect(ffmpeg.extractStillFrame).toHaveBeenCalledWith(
+      expect.objectContaining({ atSeconds: 'end' })
+    )
   })
 
   it('getSnapshot skips heal when user cleared still', async () => {

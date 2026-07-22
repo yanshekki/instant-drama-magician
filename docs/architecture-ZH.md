@@ -2,7 +2,7 @@
 
 > **語言：** [English](./architecture.md) · [中文](./architecture-ZH.md)
 
-版本 **1.1.1**。Presentation → Application → Domain → Infrastructure，並以 **共用 handler runtime** 服務 Electron、Web 與 CLI。
+版本 **1.3.0**。Presentation → Application → Domain → Infrastructure，並以 **共用 handler runtime** 服務 Electron、Web 與 CLI。
 
 ## 分層
 
@@ -13,7 +13,7 @@ Presentation（React 頁面／CLI／瀏覽器 UI）
   IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
-  registerAllHandlers + HandlerHost   ← 單一真相來源（約 138 channels）
+  registerAllHandlers + HandlerHost   ← 單一真相來源（約 157 channels）
         │
         ▼
   Application 服務（Generation、Timeline、Export、Backup…）
@@ -35,7 +35,16 @@ Presentation（React 頁面／CLI／瀏覽器 UI）
 | CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR`（預設 `OS app data 根（與桌面相同）`） |
 | Web／server | `server/index.ts` + `EmbeddedWebServer` | 同一 handlers；SPA 自 `out/renderer` |
 
-Channel 目錄：`src/runtime/channelManifest.ts`（**138** 個唯一 id）。
+Channel 目錄：`src/runtime/channelManifest.ts`（**157** 個唯一 id）。
+
+主要媒體介面：
+
+| 介面 | 角色 |
+|------|------|
+| `mediaGen:*` | 統一材料 → 多圖 vision 潤飾 → 靜圖（庫頁 + 時間軸精修） |
+| `videoPrep:*` | 靜圖／關鍵幀 → 確認出片（含 timeline-clip） |
+| `costumes:appendTryOnStill` | 試穿 still 雙寫入戲服多圖庫 |
+| 時間軸進階 | 片尾 continuity 靜圖；上一段 keyframe 底圖；MediaGen 精修 |
 
 ## 桌面頁面
 
@@ -43,10 +52,10 @@ Channel 目錄：`src/runtime/channelManifest.ts`（**138** 個唯一 id）。
 |------|------|
 | `/` | Stories |
 | `/characters` | Characters（+ SoulMD Hub、參考 sheet） |
-| `/costumes` | Costumes |
+| `/costumes` | Costumes（試穿雙寫多圖庫） |
 | `/scenes` | Scenes |
 | `/props` | Props |
-| `/timeline` | Timeline + Advanced prep |
+| `/timeline` | Timeline + Advanced prep（連續性 + 精修） |
 | `/audit` | 活動日誌 |
 | `/settings` | 設定 |
 

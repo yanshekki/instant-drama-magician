@@ -42,18 +42,21 @@ COMMANDS
   app info            Runtime info via API
   app open|build      Same as open / build
 
-DOMAIN SUGAR (all ~137 channels)
+DOMAIN SUGAR (all ~157 channels)
   instant-drama <namespace> <action> [jsonArgs…]
   Namespaces: activity ai app characters costumes diagnostics gateway
-    generation media project props scenes settings shell souls stories
-    support timeline updates videoPrep webServer
+    generation media mediaGen project props scenes settings shell souls
+    stories support timeline updates videoPrep webServer
   kebab-case actions map to camelCase (generate-sheet → generateSheet)
 
   instant-drama characters list --json
   instant-drama characters generate-sheet --args '[{"characterId":"…"}]'
+  instant-drama costumes append-try-on-still --args '[{…}]'
+  instant-drama mediaGen extract --args '[{kind:"timeline-still",…}]'
   instant-drama generation run STORY_ID --json
   instant-drama media check-ffmpeg --json
-  instant-drama video-prep create --args '[{…}]'
+  instant-drama videoPrep create --args '[{…}]'
+  instant-drama timeline get-advanced-prep --args '["STORY_ID"]'
 
 MODES
   remote   When --url / IDM_URL / config.url is set (default for bots)

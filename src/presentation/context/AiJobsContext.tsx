@@ -275,6 +275,24 @@ interface AiJobsContextValue {
   registerStartVideoPrep: (
     fn: ((input: StartVideoPrepInput) => void) | null
   ) => void
+  /**
+   * Unified media gen shell (photo + video materials → polish → generate).
+   * Prefer this over ImageGenConfirm / silent startJob for all generate photo/video.
+   */
+  mediaGenRequest: import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest | null
+  setMediaGenRequest: (
+    r: import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest | null
+  ) => void
+  startMediaGen: (
+    req: import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest
+  ) => void
+  registerStartMediaGen: (
+    fn:
+      | ((
+          req: import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest
+        ) => void)
+      | null
+  ) => void
   /** Multi-draft map keyed by buildVideoPrepDraftKey(...). */
   savedVideoPrepDrafts: VideoPrepDraftStore
   hasVideoPrepDraft: (key: string) => boolean
@@ -448,6 +466,15 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
     useState<VideoPrepDraftPayload | null>(null)
   const [videoPrepSession, setVideoPrepSession] =
     useState<VideoPrepSession | null>(null)
+  const [mediaGenRequest, setMediaGenRequest] = useState<
+    import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest | null
+  >(null)
+  const startMediaGenImpl = useRef<
+    | ((
+        req: import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest
+      ) => void)
+    | null
+  >(null)
   const [savedVideoPrepDrafts, setSavedVideoPrepDrafts] =
     useState<VideoPrepDraftStore>(() =>
       loadDraftStoreSafe(
@@ -904,6 +931,30 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
         const char = committed.character as {
           costume?: string | null
         } | null
+        // Try-on / dress: also publish to costume multi-image gallery for shared viewing
+        const costumeId = job.scope.costumeId?.trim()
+        if (costumeId) {
+          try {
+            const cos = await getApi().costumes.appendTryOnStill({
+              costumeId,
+              characterId: d.characterId,
+              sourcePath: committed.path || d.path,
+              label: d.label
+            })
+            window.dispatchEvent(
+              new CustomEvent('idm:costume-tryon-done', {
+                detail: {
+                  costumeId,
+                  characterId: d.characterId,
+                  path: cos.path,
+                  gallery: cos.gallery
+                }
+              })
+            )
+          } catch {
+            /* non-fatal — character sheet still committed */
+          }
+        }
         for (const h of sheetHandlers.current) {
           h({
             characterId: d.characterId,
@@ -1150,13 +1201,58 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
   )
 
   const startVideoPrep = useCallback((input: StartVideoPrepInput) => {
+    // Prefer unified MediaGen materials shell for video (same UX as photos).
+    // Skip when resuming a finished still draft (already past materials).
+    if (!input.resumeDraft && startMediaGenImpl.current) {
+      startMediaGenImpl.current({
+        kind: input.kind as import('../components/MediaGenPrepModal').MediaGenPrepKind,
+        characterId: input.entityIds.characterId,
+        sceneId: input.entityIds.sceneId,
+        propId: input.entityIds.propId,
+        costumeId: input.entityIds.costumeId,
+        actionId: input.entityIds.actionId,
+        storyId: input.entityIds.storyId,
+        entryId: input.entityIds.entryId,
+        galleryIdentityPaths: input.sourceImagePath
+          ? [input.sourceImagePath]
+          : [],
+        preferIdentityEdit: Boolean(input.sourceImagePath),
+        durationSeconds: input.durationSeconds
+      })
+      return
+    }
     if (startVideoPrepImpl.current) {
       startVideoPrepImpl.current(input)
       return
     }
-    // Host not mounted yet — queue as session shell (Host will pick up)
     console.warn('[aiJobs] startVideoPrep: host not registered')
   }, [])
+
+  const registerStartMediaGen = useCallback(
+    (
+      fn:
+        | ((
+            req: import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest
+          ) => void)
+        | null
+    ) => {
+      startMediaGenImpl.current = fn
+    },
+    []
+  )
+
+  const startMediaGen = useCallback(
+    (
+      req: import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest
+    ) => {
+      if (startMediaGenImpl.current) {
+        startMediaGenImpl.current(req)
+        return
+      }
+      setMediaGenRequest(req)
+    },
+    []
+  )
 
   const hasVideoPrepDraft = useCallback(
     (key: string): boolean => Boolean(key && savedVideoPrepDrafts[key]),
@@ -1369,6 +1465,10 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
       setVideoPrepSession,
       startVideoPrep,
       registerStartVideoPrep,
+      mediaGenRequest,
+      setMediaGenRequest,
+      startMediaGen,
+      registerStartMediaGen,
       savedVideoPrepDrafts,
       hasVideoPrepDraft,
       getVideoPrepDraft,
@@ -1403,6 +1503,9 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
       reviewingJobId,
       startVideoPrep,
       registerStartVideoPrep,
+      mediaGenRequest,
+      startMediaGen,
+      registerStartMediaGen,
       hasVideoPrepDraft,
       getVideoPrepDraft,
       upsertSavedVideoPrepDraft,

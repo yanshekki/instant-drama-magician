@@ -86,6 +86,28 @@ describe('chatVision', () => {
     }
   })
 
+  it('buildMultiVisionUserContent attaches multiple image_url parts', async () => {
+    const { buildMultiVisionUserContent, MULTI_VISION_MAX_IMAGES } =
+      await import('./chatVision')
+    const dir = mkdtempSync(join(tmpdir(), 'idm-cv-multi-'))
+    try {
+      const a = join(dir, 'a.png')
+      const b = join(dir, 'b.png')
+      writeFileSync(a, TINY_PNG)
+      writeFileSync(b, TINY_PNG)
+      const content = buildMultiVisionUserContent('compare', [a, b, a])
+      expect(Array.isArray(content)).toBe(true)
+      if (!Array.isArray(content)) return
+      expect(content[0]).toEqual({ type: 'text', text: 'compare' })
+      const imgs = content.filter((c) => c.type === 'image_url')
+      expect(imgs).toHaveLength(2)
+      expect(MULTI_VISION_MAX_IMAGES).toBeGreaterThanOrEqual(4)
+      expect(buildMultiVisionUserContent('plain', [])).toBe('plain')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('dataUrlToGrokImagePart parses ACP fields', () => {
     expect(dataUrlToGrokImagePart('data:image/jpeg;base64,abcXYZ')).toEqual({
       type: 'image',

@@ -59,6 +59,85 @@ export function resolveClipRefImage(options: {
   return null
 }
 
+/**
+ * Timeline still / clip refs: always prefer previous continuity as edit base,
+ * and collect multi paths for vision polish (prev + cast + library).
+ */
+export function resolveTimelineStillRefs(options: {
+  character?: Character | null
+  scene?: Scene | null
+  prop?: Prop | null
+  action?: Pick<Action, 'refImagePath'> | null
+  previousContinuityPath?: string | null
+  castRefPath?: string | null
+  /**
+   * Explicit payload source (user pick). Used only if prev missing, or
+   * merged into polish list — never overrides prev for timeline edit base.
+   */
+  payloadSourcePath?: string | null
+  /** Max polish images (default 6). */
+  maxPolishPaths?: number
+  /** pathExists; default always true (caller filters). */
+  pathExists?: (path: string) => boolean
+}): {
+  editBase: string | null
+  editSource: ClipRefSource | 'payload' | null
+  polishPaths: string[]
+} {
+  const exists = options.pathExists ?? (() => true)
+  const pick = (p: string | null | undefined): string | null => {
+    const t = p?.trim() || null
+    return t && exists(t) ? t : null
+  }
+  const prev = pick(options.previousContinuityPath)
+  const cast = pick(options.castRefPath)
+  const payload = pick(options.payloadSourcePath)
+  const char =
+    pick(options.character?.refSheetPath) ||
+    pick(options.character?.refImagePath)
+  const scene = pick(options.scene?.refImagePath)
+  const prop = pick(options.prop?.refImagePath)
+  const action = pick(options.action?.refImagePath)
+
+  // Timeline rule: prev continuity always wins as edit base when present.
+  let editBase: string | null = null
+  let editSource: ClipRefSource | 'payload' | null = null
+  if (prev) {
+    editBase = prev
+    editSource = 'prev-clip'
+  } else if (cast) {
+    editBase = cast
+    editSource = 'cast'
+  } else if (payload) {
+    editBase = payload
+    editSource = 'payload'
+  } else if (char) {
+    editBase = char
+    editSource = 'character'
+  } else if (scene) {
+    editBase = scene
+    editSource = 'scene'
+  } else if (prop) {
+    editBase = prop
+    editSource = 'prop'
+  } else if (action) {
+    editBase = action
+    editSource = 'action'
+  }
+
+  const max = Math.max(1, options.maxPolishPaths ?? 6)
+  const polishOrdered = [prev, cast, payload, char, scene, prop, action, editBase]
+  const polishPaths: string[] = []
+  const seen = new Set<string>()
+  for (const p of polishOrdered) {
+    if (!p || seen.has(p)) continue
+    seen.add(p)
+    polishPaths.push(p)
+    if (polishPaths.length >= max) break
+  }
+  return { editBase, editSource, polishPaths }
+}
+
 /** Ordered previous entry (by order), or null if first clip. */
 export function getPreviousTimelineEntry(
   entries: TimelineEntry[],

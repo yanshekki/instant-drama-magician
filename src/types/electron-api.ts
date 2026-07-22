@@ -787,6 +787,24 @@ export interface ElectronApi {
         layer?: string
       }>
     }>
+    /** Attach try-on still to costume multi-image gallery (show for all). */
+    appendTryOnStill: (payload: {
+      costumeId: string
+      characterId?: string | null
+      sourcePath: string
+      label?: string | null
+    }) => Promise<{
+      path: string
+      costume: unknown
+      gallery: Array<{
+        id: string
+        path: string
+        kind: string
+        label: string
+        createdAt: string
+        layer?: string
+      }>
+    }>
     /** Animate one costume still into a look intro video. */
     generateIntroVideo: (payload: {
       costumeId: string
@@ -809,6 +827,87 @@ export interface ElectronApi {
       jobId?: string
       degraded?: boolean
       polished?: boolean
+    }>
+  }
+  /** Media gen prep: materials checkboxes → multi-vision polish → one image */
+  mediaGen: {
+    extract: (payload: {
+      kind:
+        | 'action-plate'
+        | 'character-sheet'
+        | 'scene-plate'
+        | 'prop-plate'
+        | 'story-cover'
+      actionId?: string
+      characterId?: string
+      sceneId?: string
+      propId?: string
+      storyId?: string
+      panelLayout?: string | null
+      artStyle?: string | null
+      sheetVariant?: string | null
+      galleryIdentityPaths?: string[] | null
+      preferIdentityEdit?: boolean
+      locale?: 'zh-HK' | 'en'
+    }) => Promise<{
+      kind: string
+      entityIds: Record<string, string | undefined>
+      sections: Array<{
+        id: string
+        kind: string
+        title: string
+        entityType?: string
+        imagePath?: string | null
+        text: string
+        include: boolean
+        canBeEditBase?: boolean
+        editBasePriority?: number
+        group?: string
+      }>
+      editBaseSectionId: string | null
+      fallbackPrompt: string
+      taskHint: string
+      genOptions: {
+        panelLayout?: string
+        artStyle?: string
+        useIdentityEdit: boolean
+      }
+      hardRules?: string | null
+    }>
+    polish: (payload: {
+      kind?: string
+      includedSections: Array<Record<string, unknown>>
+      fallbackPrompt: string
+      taskHint?: string
+      hardRules?: string | null
+      locale?: 'zh-HK' | 'en'
+    }) => Promise<{
+      polishedPrompt: string
+      polished: boolean
+      imageCount: number
+    }>
+    generateImage: (payload: {
+      kind?: string
+      actionId?: string
+      characterId?: string
+      sceneId?: string
+      propId?: string
+      storyId?: string
+      polishedPrompt: string
+      editBasePath?: string | null
+      useIdentityEdit?: boolean
+      panelLayout?: string | null
+      artStyle?: string | null
+      sheetVariant?: string | null
+      hardRules?: string | null
+      persist?: boolean
+    }) => Promise<{
+      path: string
+      draft?: boolean
+      usedEdit?: boolean
+      promptUsed?: string
+      panelLayout?: string
+      artStyle?: string
     }>
   }
   /** Shared video prep: materials → LLM prompt → still review → confirm video */

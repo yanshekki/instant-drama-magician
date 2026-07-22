@@ -227,8 +227,8 @@ reg(
     ) => {
       const row = await actions().get(payload.actionId)
       const {
-        buildActionPlateEditPrompt,
-        buildActionPlateImagePrompt
+        buildActionPlatePrompt,
+        orderActionPlateRefPaths
       } = await import('../../domain/actionMasterPrompt')
       const { getActionPanelLayout } = await import(
         '../../domain/actionPlateVariants'
@@ -275,18 +275,19 @@ reg(
       const gallery = parseActionGallery(row.refGalleryJson, {
         refImagePath: row.refImagePath
       })
-      const { allRefPaths, appendMultiRefNote, pickPrimaryRefPath } =
-        await import('../../domain/imageGenConfirm')
+      const { allRefPaths, appendMultiRefNote } = await import(
+        '../../domain/imageGenConfirm'
+      )
       const refList = allRefPaths(
         payload.referenceImagePath,
         payload.referenceImagePaths
       ).filter((p) => existsSync(p))
-      const primary =
-        pickPrimaryRefPath(payload.referenceImagePath, refList) ||
-        castRefs[0]?.imagePath ||
-        null
-      const refPath =
-        primary && existsSync(primary) ? primary : null
+      // Prefer character/costume cast still over gallery multi-panel boards.
+      const orderedRefs = orderActionPlateRefPaths({
+        galleryIdentityPaths: refList,
+        castRefs
+      }).filter((p) => existsSync(p))
+      const refPath = orderedRefs[0] ?? null
       const usedEdit =
         resolveSheetGenMode({
           useIdentityEdit: payload.useIdentityEdit ?? Boolean(refPath),
@@ -299,15 +300,16 @@ reg(
           : null
       let prompt =
         override ??
-        (usedEdit
-          ? buildActionPlateEditPrompt(profile, layout.id, artStyle)
-          : buildActionPlateImagePrompt(
-              profile,
-              layout.id,
-              artStyle,
-              castRefs
-            ))
-      if (!override && refList.length > 1) {
+        buildActionPlatePrompt({
+          profile,
+          panelLayout: layout.id,
+          artStyleId: artStyle,
+          castRefs,
+          mode: usedEdit ? 'edit' : 'generate',
+          identityLock: usedEdit
+        })
+      // Multi-ref text note only when no structured cast (binding already lists them).
+      if (!override && refList.length > 1 && castRefs.length === 0) {
         prompt = appendMultiRefNote(prompt, refList, 'en')
       }
       prompt = ensureHardRules(prompt, profile.hardRules ?? row.hardRules)

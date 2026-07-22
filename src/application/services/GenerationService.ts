@@ -21,7 +21,8 @@ import {
   previousClipContext,
   getPreviousTimelineEntry,
   buildContinuityLockPrompt,
-  timelineBeatDisplayIndex
+  timelineBeatDisplayIndex,
+  resolveTimelineStillRefs
 } from '../../domain/promptContinuity'
 import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
 import { GenerationPipeline } from '../GenerationPipeline'
@@ -220,7 +221,7 @@ export class GenerationService {
               .filter(Boolean)
               .join(' ')
           : null
-      const { resolveClipRefImage, appendRevisionToClipPrompt } = await import(
+      const { appendRevisionToClipPrompt } = await import(
         '../../domain/promptContinuity'
       )
       const { polishThenGenerateVideo } = await import(
@@ -307,15 +308,31 @@ export class GenerationService {
         opts?.revisionPrompt,
         clipHardRules
       )
-      const ref = resolveClipRefImage({
+      let castRefPath: string | null = null
+      try {
+        const {
+          parseStoryCastPrep,
+          resolveCastRefFromPrep
+        } = await import('../../domain/advancedPrep')
+        const castPrep = parseStoryCastPrep(
+          this.store.readStoryCastPrepJson(storyId)
+        )
+        castRefPath = resolveCastRefFromPrep(char?.id ?? null, castPrep)
+      } catch {
+        castRefPath = null
+      }
+      const timelineRefs = resolveTimelineStillRefs({
         character: char,
         scene,
         prop,
         action: action
           ? { refImagePath: action.refImagePath ?? null }
           : null,
-        previousContinuityPath
+        previousContinuityPath,
+        castRefPath,
+        pathExists: (p) => existsSync(p)
       })
+      const refPath = timelineRefs.editBase
       const locale: 'zh-HK' | 'en' =
         String(this.settings.uiLanguage || '').startsWith('en')
           ? 'en'
@@ -338,7 +355,7 @@ export class GenerationService {
           locale,
           seconds,
           aspectRatio: this.settings.aspectRatio,
-          hasRefImage: Boolean(ref?.path),
+          hasRefImage: Boolean(refPath),
           fallbackPrompt,
           storyTitle: story.title,
           styleNote: story.styleNote,
@@ -375,7 +392,7 @@ export class GenerationService {
         }),
         videoRequest: {
           durationSeconds: seconds,
-          refImagePath: ref?.path,
+          refImagePath: refPath ?? undefined,
           outputPath,
           aspectRatio: this.settings.aspectRatio
         },
@@ -405,6 +422,22 @@ export class GenerationService {
           videoJobId: result.jobId ?? null
         }
       })
+      // Refresh continuity still from clip end for next-beat lock
+      try {
+        const { writeClipContinuityStillFromVideo } = await import(
+          '../video/writeClipContinuityStill'
+        )
+        await writeClipContinuityStillFromVideo({
+          ffmpeg: this.ffmpeg,
+          store: this.store,
+          storyId,
+          entryId,
+          videoPath: result.outputPath,
+          skipIfUserCleared: true
+        })
+      } catch {
+        /* best-effort */
+      }
       onProgress?.({
         storyId,
         step: 'video',

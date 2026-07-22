@@ -12,6 +12,7 @@ import { registerScenesHandlers } from './handlers/scenes'
 import { registerStorycastHandlers } from './handlers/storyCast'
 import { registerPropsHandlers } from './handlers/props'
 import { registerActionsHandlers } from './handlers/actions'
+import { registerMediagenHandlers } from './handlers/mediaGen'
 import { registerCostumesHandlers } from './handlers/costumes'
 import { registerVideoprepHandlers } from './handlers/videoPrep'
 import { registerTimelineHandlers } from './handlers/timeline'
@@ -46,6 +47,7 @@ export function registerAllHandlers(
   registerStorycastHandlers(ctx)
   registerPropsHandlers(ctx)
   registerActionsHandlers(ctx)
+  registerMediagenHandlers(ctx)
   registerCostumesHandlers(ctx)
   registerVideoprepHandlers(ctx)
   registerTimelineHandlers(ctx)

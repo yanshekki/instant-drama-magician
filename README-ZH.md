@@ -5,11 +5,11 @@
 **AI 專業短劇生成桌面工具**
 
 由一個 idea 到完整短劇：故事 → 人物／服裝／場景／道具／**動作** → 線性時間軸 → AI 分鏡與影片 → FFmpeg 成片匯出。  
-跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `instant-drama`（**151** 個 channel，對齊桌面 IPC）。
+跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `instant-drama`（**157** 個 channel，對齊桌面 IPC）。
 
 | | |
 |---|---|
-| **版本** | 1.2.0 |
+| **版本** | 1.3.0 |
 | **作者** | YSK Limited |
 | **聯絡** | [email@ysk.hk](mailto:email@ysk.hk) |
 | **授權** | MIT |
@@ -84,16 +84,18 @@
 |------|------------|
 | **故事 Stories** | 多故事管理、封面 AI、風格聖經、腳本 beats、cast 綁定（角色／場景／道具／**動作**）、`.idm.zip` 備份匯入匯出 |
 | **人物 Characters** | 全域角色庫、soul.md／SoulMD Hub、多角度 sheet、身份鎖定、外部 ref、intro video、**僅憑靜圖 AI 填充**（vision） |
-| **服裝 Costumes** | 服裝庫、換裝、wardrobe 建議、**僅憑參考圖 AI 填充**、多圖 gallery |
+| **服裝 Costumes** | 服裝庫、換裝、wardrobe 建議、**僅憑參考圖 AI 填充**、多圖 gallery；**試穿雙寫**角色及戲服多圖庫（`costumes:appendTryOnStill`） |
 | **場景 Scenes** | 場景文案、plate／looks／atmosphere、場景圖庫、**vision AI 填充** |
 | **道具 Props** | 道具描述、master prompt、plate 變體、**vision AI 填充** |
 | **動作 Actions** | 全域**動作指導**庫：多格指示圖（2–6 格）、藝術風格、外部參考、cast 參考、**vision AI 填充**、多圖累積 |
+| **MediaGen 生成殼** | 統一材料 → 多圖 vision 潤飾 → 出圖／出片（`mediaGen:extract` · `polish` · `generateImage`）；庫頁與時間軸精修共用 |
+| **圖庫 UI** | 共用 **EntityGalleryPanel**：大圖預覽、放大／另存／封面／移除／介紹片、縮圖列（預覽 vs 身份鎖定多選） |
 | **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、綁定角色／場景／道具／**動作**、6s／10s 時長、對白與鏡頭標記 |
-| **進階預備** | Cast 鎖定 → 分鏡 stills（連貫性）→ 由 still 出片 |
+| **進階預備** | Cast 鎖定 → 分鏡 stills（**片尾連續**、強制上一段 keyframe、多 ref 潤飾）→ 出片；單格**精修靜圖／精修出片**（MediaGen） |
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
 | **設定** | LLM／影像／影片供應商、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
-| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**151** 個 IPC channel） |
+| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**157** 個 IPC channel） |
 | **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
 | **多語系** | 10 種介面語言（含繁中、簡中、阿語 RTL）；圖庫標籤、網絡錯誤與使用者錯誤訊息已本地化 |
 | **自動更新** | 打包版經 GitHub Releases（electron-updater） |
@@ -131,8 +133,9 @@
 
 - 全域服裝庫（可連結 0…N 個角色）  
 - **只憑參考圖 AI 填充**（構思可留空）  
-- 多圖 gallery、封面、介紹片  
+- 多圖 gallery、封面、介紹影片；縮圖支援**身份鎖定多選**  
 - 以角色參考圖試穿／換裝（身份鎖定）  
+- **接受試穿草稿**後，靜圖會寫入**角色圖庫及此戲服多圖庫**，已連結角色及其他使用者均可瀏覽（`costumes:appendTryOnStill`）  
 
 ### Scenes（場景）
 
@@ -172,10 +175,16 @@
 由 Timeline 的 **Advanced** 開啟：
 
 1. **Cast lock** — 鎖定出場人物造型  
-2. **Storyboard stills** — 依 beat 批量生成關鍵靜幀，**continuity** 鎖前一格  
+2. **Storyboard stills** — 依 beat 批量生成關鍵靜幀，並鎖定上一段連續性  
+   - 由影片補靜圖時優先抽取**片尾幀**；出片後亦以片尾更新 continuity  
+   - 下一段靜圖／出片**編輯底圖**優先使用上一段 continuity keyframe  
+   - 潤飾可同時附上一段、cast、庫圖等多張參考  
+   - 批量「缺失」會補齊較前仍缺靜圖的段落，避免 silently 只做文字連續  
+   - 狀態標籤說明**需更新／需先補上一段／就緒**  
 3. **Video** — still ready 後入佇列出片（可 skip 已有影片）  
+4. **單格精修** — **精修靜圖**（`timeline-still`）或**精修出片**（`timeline-clip`）開啟 MediaGen 材料殼  
 
-適合要「先對連貫再出片」的專業流程。
+適合要「先鎖定連貫再出片」的專業流程。
 
 ### Activity（活動日誌）
 
@@ -243,7 +252,7 @@ instant-drama doctor --json
 
 ```bash
 # Linux 範例
-sudo dpkg -i release/instant-drama-magician_1.2.0_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.3.0_amd64.deb
 # 或
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -330,7 +339,7 @@ instant-drama update install 1.3.0 --yes   # 釘選版本
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # 約 151 個 channel
+instant-drama channels list --json          # 約 157 個 channel
 ```
 
 > **說明：** 全域安裝提供 **CLI／headless／網頁伺服器** 控制面（故事、角色、生成、匯出輔助、agent 工具）。若要 **建置或開啟 Electron 桌面 GUI**（`instant-drama build`／`instant-drama open`），仍需完整 git clone、`npm install`（含 Electron 等 devDependencies）以及本機 `release/` 產物。
@@ -356,7 +365,7 @@ npm run instant-drama -- doctor --json
 ### 常用指令
 
 ```bash
-# 診斷（channel 數應約 151）
+# 診斷（channel 數應約 157）
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -369,6 +378,13 @@ instant-drama stories list --json
 instant-drama stories create --title "我的短劇" --json
 instant-drama characters list --json
 instant-drama characters generate-sheet --args '[{"characterId":"…"}]' --json
+instant-drama costumes list --json
+instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path/to/still.png"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
+instant-drama mediaGen polish --args '[{...}]' --json
+instant-drama mediaGen generate-image --args '[{...}]' --json
+instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
+instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
 instant-drama invoke actions:list --json
 instant-drama generation run <storyId> --json
 instant-drama settings get --json
@@ -538,7 +554,7 @@ rm -rf ~/.config/instant-drama-magician
 |------|------|------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | 文件總覽 + 準則 |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | 產品規格 |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（151 channels） |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（157 channels） |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agent／OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | 網頁遠控 |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

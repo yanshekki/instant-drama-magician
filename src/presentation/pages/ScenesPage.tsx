@@ -57,6 +57,7 @@ import {
   ImageGenConfirmModal,
   type ImageGenConfirmPayload
 } from '../components/ImageGenConfirmModal'
+
 import {
   ATMOSPHERE_POSES,
   pickBestSceneBaseImage,
@@ -95,7 +96,10 @@ import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
 import { useScenes } from '../hooks/useScenes'
 import { LocalMediaImage } from '../components/LocalMediaImage'
-import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
+import {
+  EntityGalleryPanel,
+  EntityGalleryLayerChip
+} from '../components/EntityGalleryPanel'
 import { PlotContextPicker } from '../components/PlotContextPicker'
 import {
   EditorField,
@@ -193,6 +197,7 @@ export function ScenesPage(): JSX.Element {
     onScenePlateCommitted,
     activeJobs,
     startVideoPrep,
+    startMediaGen,
     hasVideoPrepDraft,
     continueVideoPrepDraft
   } = useAiJobs()
@@ -698,63 +703,37 @@ export function ScenesPage(): JSX.Element {
     useIdentityEdit?: boolean
   }): Promise<void> => {
     setActionError(null)
-    const wantIdentity = scenesResolveWantIdentity(
-      opts?.useIdentityEdit,
-      useIdentityRef
-    )
-    const paths = scenesGalleryPathsFromOpts(
-      opts?.referenceImagePath,
-      selectedPathsForIdentity
-    )
-    const profile = {
-      title: form.title.trim() || undefined,
-      description: form.description.trim() || form.title.trim() || 'Scene',
-      locationType: form.locationType.trim() || undefined,
-      timeOfDay: form.timeOfDay.trim() || undefined,
-      weather: form.weather.trim() || undefined,
-      mood: form.mood.trim() || undefined,
-      lighting: form.lighting.trim() || undefined,
-      colorPalette: form.colorPalette.trim() || undefined,
-      setDressing: form.setDressing.trim() || undefined,
-      visualTags: form.visualTags.trim() || undefined,
-      hardRules: form.hardRules.trim() || undefined
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('scenes.saveFirstForPlate'))
+        return
+      }
+      if (sceneBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      const wantIdentity = scenesResolveWantIdentity(
+        opts?.useIdentityEdit,
+        useIdentityRef
+      )
+      const paths = scenesGalleryPathsFromOpts(
+        opts?.referenceImagePath,
+        selectedPathsForIdentity
+      )
+      startMediaGen({
+        kind: 'scene-plate',
+        sceneId: id,
+        storyId: activeStoryId ?? undefined,
+        artStyle: form.artStyle,
+        galleryIdentityPaths: paths,
+        preferIdentityEdit: wantIdentity
+      })
+    } catch (e) {
+      const msg = formatUserError(e, t)
+      setActionError(msg)
+      toast.error(msg)
     }
-    const variantLabel = t(
-      `scenes.${getScenePlateVariant(plateVariant).labelKey}`
-    )
-    const styleLabel = t(
-      `characters.${getArtStyle(form.artStyle).labelKey}`
-    )
-    await scenesRunPlateSetup({
-      ensureSavedId,
-      isBusy: sceneBusy,
-      setError: setActionError,
-      saveFirstMsg: t('scenes.saveFirstForPlate'),
-      wantIdentity,
-      useIdentityRef,
-      forceOffIdentity: useIdentityRef && opts?.useIdentityEdit === false,
-      setUseIdentityRef,
-      paths,
-      resolveIdentity: resolveIdentityPaths,
-      buildPrompt: (useEdit) =>
-        useEdit
-          ? buildScenePlateEditPrompt(profile, plateVariant, form.artStyle)
-          : buildScenePlateImagePrompt(profile, plateVariant, form.artStyle),
-      maybeAppend: (prompt, pths) =>
-        scenesMaybeAppendMulti(
-          prompt,
-          pths,
-          getAiLocale(i18n.language),
-          appendMultiRefNote as (p: string, paths: string[], locale?: string) => string
-        ),
-      ensureRules: (prompt) => ensureHardRules(prompt, form.hardRules),
-      summary: `${t('scenes.plateVariant')}: ${variantLabel} · ${t('scenes.artStyle')}: ${styleLabel} · ${scenesPlateModeLabel(
-        wantIdentity,
-        t('common.imageGenConfirmModeIdentity'),
-        t('common.imageGenConfirmModePure')
-      )}`,
-      setConfirm: setImageGenConfirm
-    })
   }
 
   const runScenePlateJob = async (
@@ -800,48 +779,45 @@ export function ScenesPage(): JSX.Element {
 
   const handleSwapAtmosphere = async (): Promise<void> => {
     setActionError(null)
-    await scenesRunAtmosphere({
-      ensureSavedId,
-      isBusy: sceneBusy,
-      setError: setActionError,
-      saveFirstMsg: t('scenes.saveFirstForPlate'),
-      description: atmoText.trim(),
-      requiredMsg: t('scenes.atmoRequired'),
-      pickBase: () =>
-        pickBestSceneBaseImage(
-          form.gallery,
-          atmoBase || selectedImage?.path || null
-        ),
-      noBaseMsg: t('scenes.atmoNoBase'),
-      toastInfo: toast.info,
-      startedMsg: t('aiJobs.startedBackground'),
-      startJob: (id, basePath, desc) => {
-        startJob({
-          kind: 'atmosphere-swap',
-          label: t('scenes.swapAtmosphere'),
-          scope: { sceneId: id, storyId: activeStoryId ?? undefined },
-          run: async ({ setProgress, signal }) =>
-            scenesAtmosphereJobBody({
-              swap: () =>
-                getApi().scenes.swapAtmosphere({
-                  sceneId: id,
-                  atmosphereDescription: desc,
-                  baseImagePath: basePath,
-                  artStyle: form.artStyle,
-                  pose: atmoPose,
-                  persist: false
-                }),
-              signal,
-              discard: (p) => getApi().media.discardSheetDraft(p),
-              sceneId: id,
-              storyId: activeStoryId ?? '',
-              defaultLabel: t('scenes.swapAtmosphere'),
-              atmosphereDescription: desc,
-              setProgress
-            })
-        })
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('scenes.saveFirstForPlate'))
+        return
       }
-    })
+      if (sceneBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      const desc = atmoText.trim()
+      if (!desc) {
+        setActionError(t('scenes.atmoRequired'))
+        toast.error(t('scenes.atmoRequired'))
+        return
+      }
+      const base = pickBestSceneBaseImage(
+        form.gallery,
+        atmoBase || selectedImage?.path || null
+      )
+      if (!base?.path) {
+        setActionError(t('scenes.atmoNoBase'))
+        toast.error(t('scenes.atmoNoBase'))
+        return
+      }
+      startMediaGen({
+        kind: 'atmosphere-swap',
+        sceneId: id,
+        storyId: activeStoryId ?? undefined,
+        artStyle: form.artStyle,
+        galleryIdentityPaths: [base.path],
+        preferIdentityEdit: true,
+        atmosphereDescription: desc
+      })
+    } catch (e) {
+      const msg = formatUserError(e, t)
+      setActionError(msg)
+      toast.error(msg)
+    }
   }
 
   const handlePickImage = async (): Promise<void> => {
@@ -1136,73 +1112,74 @@ export function ScenesPage(): JSX.Element {
           activeTab={editorPanel}
           onTabChange={(id) => setEditorPanel(id as EditorPanel)}
           preview={
-            <div className="flex h-full flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
-                  {t('scenes.gallery')}
-                </h3>
-                <span className="text-[11px] text-ink-500">
-                  {filteredGallery.length}/{form.gallery.length}
-                </span>
-              </div>
-              {form.gallery.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {(
-                    [
-                      'all',
-                      'hero',
-                      'establishing',
-                      'identity',
-                      'interior',
-                      'atmosphere',
-                      'detail'
-                    ] as const
-                  ).map((layer) => (
-                    <button
-                      key={layer}
-                      type="button"
-                      className={[
-                        'rounded-full px-2 py-0.5 text-[10px] font-medium',
-                        layerFilter === layer
-                          ? 'bg-brand-600 text-white'
-                          : 'bg-ink-800 text-ink-400'
-                      ].join(' ')}
-                      onClick={() => setLayerFilter(layer)}
-                    >
-                      {t(`scenes.layer_${layer}`)}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="rounded-xl border border-ink-800 bg-ink-900/60">
-                {selectedImage ? (
-                  <LocalMediaImage
-                    filePath={selectedImage.path}
-                    alt={translateSceneGalleryLabel(selectedImage.label, t)}
-                    maxHeightClass="max-h-[min(36vh,400px)] lg:max-h-[min(48vh,480px)]"
-                    showMeta
-                    className="border-0 rounded-xl"
-                    actionsLayout="bar"
-                    introVideoBusy={editorBusy}
-                    introVideoPath={selectedImage.introVideoPath}
-                    introVideoHasDraft={
-                      Boolean(editingId) &&
-                      hasVideoPrepDraft(
-                        buildVideoPrepDraftKey(
-                          'scene-intro',
-                          { sceneId: editingId! },
-                          selectedImage.path
-                        )
-                      )
-                    }
-                    onIntroVideo={scenesIntroVideoHandler(
+            <EntityGalleryPanel
+              title={t('scenes.gallery')}
+              countLabel={`${filteredGallery.length}/${form.gallery.length}`}
+              layerFilter={
+                form.gallery.length > 0 ? (
+                  <>
+                    {(
+                      [
+                        'all',
+                        'hero',
+                        'establishing',
+                        'identity',
+                        'interior',
+                        'atmosphere',
+                        'detail'
+                      ] as const
+                    ).map((layer) => (
+                      <EntityGalleryLayerChip
+                        key={layer}
+                        active={layerFilter === layer}
+                        label={t(`scenes.layer_${layer}`)}
+                        onClick={() => setLayerFilter(layer)}
+                      />
+                    ))}
+                  </>
+                ) : null
+              }
+              previewPath={selectedImage?.path}
+              previewAlt={
+                selectedImage
+                  ? translateSceneGalleryLabel(selectedImage.label, t)
+                  : ''
+              }
+              maxHeightClass="max-h-[min(36vh,400px)] lg:max-h-[min(48vh,480px)]"
+              showMeta
+              introVideoBusy={editorBusy}
+              introVideoPath={selectedImage?.introVideoPath}
+              introVideoHasDraft={
+                Boolean(editingId) &&
+                Boolean(selectedImage?.path) &&
+                hasVideoPrepDraft(
+                  buildVideoPrepDraftKey(
+                    'scene-intro',
+                    { sceneId: editingId! },
+                    selectedImage?.path ?? ''
+                  )
+                )
+              }
+              onIntroVideo={
+                selectedImage
+                  ? scenesIntroVideoHandler(
                       editingId,
                       selectedImage.path,
                       handleGenerateIntroVideo
-                    )}
-                    isCover={form.coverPath === selectedImage.path}
-                    onSetAsCover={() => handleSetCover(selectedImage.path)}
-                    onRemove={() => {
+                    )
+                  : undefined
+              }
+              isCover={Boolean(
+                selectedImage && form.coverPath === selectedImage.path
+              )}
+              onSetAsCover={
+                selectedImage
+                  ? () => handleSetCover(selectedImage.path)
+                  : undefined
+              }
+              onRemove={
+                selectedImage
+                  ? () => {
                       scenesRemoveImage(
                         form.gallery,
                         selectedImage,
@@ -1216,48 +1193,42 @@ export function ScenesPage(): JSX.Element {
                           isCover: isSceneGalleryCoverPath
                         }
                       )
-                    }}
-                  />
-                ) : (
-                  <div className="flex h-40 flex-col items-center justify-center gap-2 px-3 text-xs text-ink-500">
-                    <p>{t('scenes.noPhotos')}</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <Button
-                        disabled={editorBusy}
-                        onClick={() => {
-                          setEditorPanel('refs')
-                          void handleGeneratePlate()
-                        }}
-                      >
-                        {t('scenes.generatePlate')}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={editorBusy}
-                        onClick={() => {
-                          setEditorPanel('refs')
-                          void handlePickExternalRef()
-                        }}
-                      >
-{t('common.uploadRef')}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <GalleryThumbStrip
-                items={filteredGallery}
-                selectedId={selectedImageId}
-                selectedIds={selectedImageIds}
-                multiSelect
-                coverPath={form.coverPath}
-                fallbackCoverPath={primarySceneGalleryPath(form.gallery)}
-                onSelect={setSelectedImageId}
-                onToggleSelect={scenesMakeToggleSelect(setSelectedImageIds)}
-                onReorder={handleReorderGallery}
-                labelOf={(g) => translateSceneGalleryLabel(g.label, t)}
-              />
-            </div>
+                    }
+                  : undefined
+              }
+              emptyIcon=""
+              emptyMessage={t('scenes.noPhotos')}
+              emptyActions={[
+                {
+                  label: t('scenes.generatePlate'),
+                  onClick: () => {
+                    setEditorPanel('refs')
+                    void handleGeneratePlate()
+                  },
+                  variant: 'primary',
+                  disabled: editorBusy
+                },
+                {
+                  label: t('common.uploadRef'),
+                  onClick: () => {
+                    setEditorPanel('refs')
+                    void handlePickExternalRef()
+                  },
+                  variant: 'secondary',
+                  disabled: editorBusy
+                }
+              ]}
+              items={filteredGallery}
+              selectedId={selectedImageId}
+              selectedIds={selectedImageIds}
+              multiSelect
+              coverPath={form.coverPath}
+              fallbackCoverPath={primarySceneGalleryPath(form.gallery)}
+              onSelect={setSelectedImageId}
+              onToggleSelect={scenesMakeToggleSelect(setSelectedImageIds)}
+              onReorder={handleReorderGallery}
+              labelOf={(g) => translateSceneGalleryLabel(g.label, t)}
+            />
           }
         >
           {editorPanel === 'profile' && (

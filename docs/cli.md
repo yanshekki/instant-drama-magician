@@ -103,7 +103,7 @@ Cross-build: mac installers need a Mac. Use `--force` only when you know the too
 
 ## Discovery & invoke
 
-Electron, Web, and CLI share **`registerAllHandlers`** — **138** channels.
+Electron, Web, and CLI share **`registerAllHandlers`** — **157** channels.
 
 ```bash
 instant-drama doctor --json
@@ -129,7 +129,53 @@ instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces include: `activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
+Namespaces include: `activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
+
+## Recent API surface (1.3.0)
+
+Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
+
+| Channel | Purpose | Example |
+|---------|---------|---------|
+| `mediaGen:extract` | Build material sections (library + `timeline-still` / `timeline-clip`) | `instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"S","entryId":"E"}]' --json` |
+| `mediaGen:polish` | Multi-vision prompt polish | `instant-drama mediaGen polish --args '[{...}]' --json` |
+| `mediaGen:generateImage` | One still; timeline kinds write continuity path | `instant-drama mediaGen generate-image --args '[{...}]' --json` |
+| `costumes:appendTryOnStill` | Append try-on still to costume multi-gallery | `instant-drama costumes append-try-on-still --args '[{"costumeId":"C","sourcePath":"/a.png"}]' --json` |
+| `costumes:generateDressed` | Generate dressed still | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
+| `videoPrep:create` | Prep still / open clip flow | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
+| `videoPrep:confirm` | Confirm video from still | `instant-drama videoPrep confirm --args '[{...}]' --json` |
+| `timeline:getAdvancedPrep` | Advanced studio snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
+| `timeline:setCastPrep` | Persist cast lock prep | `instant-drama timeline set-cast-prep --args '[{...}]' --json` |
+| `timeline:clearEntryStill` | Clear beat continuity still | `instant-drama timeline clear-entry-still --args '[{...}]' --json` |
+
+```bash
+instant-drama channels list --filter mediaGen --json
+instant-drama channels list --filter costumes --json
+instant-drama channels describe costumes:appendTryOnStill --json
+```
+
+### Verify CLI (smoke)
+
+```bash
+bash scripts/cli-smoke.sh
+# or manually:
+npm run instant-drama -- version
+npm run instant-drama -- doctor --json          # expect channelCount 157
+npm run instant-drama -- channels list --filter mediaGen --json
+npm run instant-drama -- channels describe mediaGen:extract --json
+npm run instant-drama -- channels describe costumes:appendTryOnStill --json
+npm run instant-drama -- help
+```
+
+Optional headless data plane (after `prisma db push` into `IDM_DATA_DIR`):
+
+```bash
+export IDM_DATA_DIR=./data
+export DATABASE_URL="file:${IDM_DATA_DIR}/instant-drama.db"
+npm run instant-drama -- --local --data-dir ./data stories list --json
+```
+
+FFmpeg: doctor may report unavailable if no system binary; the desktop app can use bundled `ffmpeg-static`, or set `FFMPEG_PATH`.
 
 ## Server
 
@@ -157,7 +203,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 | Capability | Status |
 |------------|--------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel count | **138** |
+| Channel count | **157** |
 | `instant-drama invoke` | ✅ any channel |
 | Domain sugar | ✅ all namespaces |
 | OpenAI tool schema | ✅ |

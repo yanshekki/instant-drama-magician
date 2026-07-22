@@ -517,12 +517,13 @@ export class GrokCliClient implements AIProvider {
 
   /**
    * OpenAI-compatible image edit (Grok Gateway: POST /v1/images/edits).
-   * Multipart field `image` only — gateway maxCount is 1 (optional `mask`).
-   * Use when the character already has a gallery image so identity stays consistent.
+   * Multipart field `image` maxCount is 1 (optional `mask`) — one edit base for export.
+   * Multi-reference vision belongs on chat polish (`image_url`×N), not this endpoint.
+   * Use when identity lock needs a single base still; final export is always one image.
    */
   async editImage(options: {
     prompt: string
-    /** Absolute path to the single reference image (API limit: 1). */
+    /** Absolute path to the single identity/edit-base still (edits API: 1 file). */
     imagePath: string
     aspectRatio?: string
     size?: string

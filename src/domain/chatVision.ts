@@ -195,33 +195,92 @@ export function imagePathToDataUrl(filePath: string): string | null {
  * data URL, throws (never silently drops the image — that made image-only fill
  * look broken).
  */
+/** Max stills attached to one chat vision request (polish / multi-ref). */
+export const MULTI_VISION_MAX_IMAGES = 8
+
+/**
+ * OpenAI-compatible user content with **multiple** reference stills.
+ * Chat/vision supports N image_url parts; final image export is still one frame.
+ *
+ * Empty path list → plain text. Claimed but unreadable paths are skipped when
+ * at least one image succeeds; if every claimed path fails, throws.
+ */
+export function buildMultiVisionUserContent(
+  textPrompt: string,
+  referenceImagePaths?: Array<string | null | undefined> | null,
+  opts?: { maxImages?: number; requireAll?: boolean }
+): string | ChatContentPart[] {
+  const max = opts?.maxImages ?? MULTI_VISION_MAX_IMAGES
+  const raw = (referenceImagePaths ?? [])
+    .map((p) => (typeof p === 'string' ? p.trim() : ''))
+    .filter(Boolean)
+  if (raw.length === 0) return textPrompt
+
+  const unique: string[] = []
+  for (const p of raw) {
+    if (!unique.includes(p)) unique.push(p)
+    if (unique.length >= max) break
+  }
+
+  const parts: ChatContentPart[] = [{ type: 'text', text: textPrompt }]
+  let attached = 0
+  const failed: string[] = []
+  for (const claimed of unique) {
+    const path = resolveReadableImagePath(claimed)
+    if (!path) {
+      failed.push(claimed)
+      if (opts?.requireAll) {
+        throw new AppError(
+          'VALIDATION',
+          'errors.visionImageUnreadable',
+          'errors.visionImageUnreadableDetail'
+        )
+      }
+      continue
+    }
+    const dataUrl = imagePathToDataUrl(path)
+    if (!dataUrl) {
+      failed.push(claimed)
+      if (opts?.requireAll) {
+        throw new AppError(
+          'VALIDATION',
+          'errors.visionImageUnreadable',
+          'errors.visionImageUnreadableDetail'
+        )
+      }
+      continue
+    }
+    parts.push({ type: 'image_url', image_url: { url: dataUrl } })
+    attached += 1
+  }
+
+  if (attached === 0) {
+    throw new AppError(
+      'VALIDATION',
+      'errors.visionImageUnreadable',
+      'errors.visionImageUnreadableDetail'
+    )
+  }
+  return parts
+}
+
+/**
+ * OpenAI-compatible user content: plain text, or text + image when path is readable.
+ *
+ * If a non-empty reference path was claimed but the file cannot be read into a
+ * data URL, throws (never silently drops the image — that made image-only fill
+ * look broken).
+ */
 export function buildVisionUserContent(
   textPrompt: string,
   referenceImagePath?: string | null
 ): string | ChatContentPart[] {
   const claimed = isReferenceImagePathClaimed(referenceImagePath)
   if (!claimed) return textPrompt
-
-  const path = resolveReadableImagePath(referenceImagePath)
-  if (!path) {
-    throw new AppError(
-      'VALIDATION',
-      'errors.visionImageUnreadable',
-      'errors.visionImageUnreadableDetail'
-    )
-  }
-  const dataUrl = imagePathToDataUrl(path)
-  if (!dataUrl) {
-    throw new AppError(
-      'VALIDATION',
-      'errors.visionImageUnreadable',
-      'errors.visionImageUnreadableDetail'
-    )
-  }
-  return [
-    { type: 'text', text: textPrompt },
-    { type: 'image_url', image_url: { url: dataUrl } }
-  ]
+  return buildMultiVisionUserContent(textPrompt, [referenceImagePath], {
+    requireAll: true,
+    maxImages: 1
+  })
 }
 
 /**

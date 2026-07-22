@@ -3,6 +3,8 @@ import {
   castSaveToast,
   stillReadyDecrement,
   batchTargets,
+  expandBatchTargetsForContinuity,
+  stillStatusHintKey,
   genLockedExtra,
   readyVideoEntryIds,
   shouldSilentPersistOnGen,
@@ -42,6 +44,33 @@ describe('timelineAdvancedPure', () => {
     expect(shouldSilentPersistOnBatch(true)).toBe(true)
     expect(stillStatusOrMissing(undefined)).toBe('missing')
     expect(stillStatusOrMissing('ready')).toBe('ready')
+
+    const chain = [
+      {
+        entryId: 'e0',
+        stillStatus: 'missing',
+        continuityKind: 'first' as const
+      },
+      {
+        entryId: 'e1',
+        stillStatus: 'missing',
+        continuityKind: 'text-only' as const
+      },
+      {
+        entryId: 'e2',
+        stillStatus: 'ready',
+        continuityKind: 'locked' as const
+      }
+    ]
+    const expanded = expandBatchTargetsForContinuity(
+      chain,
+      batchTargets(chain, 'missing')
+    )
+    expect(expanded.map((c) => c.entryId)).toEqual(['e0', 'e1'])
+    expect(stillStatusHintKey('stale')).toBe('stillStaleHint')
+    expect(stillStatusHintKey('missing', 'text-only')).toBe('stillNeedPrevHint')
+    expect(stillStatusHintKey('missing')).toBe('stillMissingHint')
+    expect(stillStatusHintKey('ready')).toBe('stillReadyHint')
   })
 
   it('async residual helpers', async () => {

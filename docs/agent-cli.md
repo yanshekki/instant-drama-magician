@@ -42,7 +42,7 @@ export IDM_JSON=1
 
 ## Discovery loop
 
-1. `instant-drama doctor --json` — connectivity + **~138 channels**
+1. `instant-drama doctor --json` — connectivity + **~157 channels**
 2. `instant-drama channels list --json` — live capabilities
 3. `instant-drama tools schema --openai` — OpenAI-style tool definitions
 4. Mutate via `instant-drama invoke` / `instant-drama <namespace> <action>`

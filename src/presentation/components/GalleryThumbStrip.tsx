@@ -11,21 +11,21 @@ export interface GalleryThumbItem {
 
 interface GalleryThumbStripProps {
   items: GalleryThumbItem[]
-  /** Primary selection (large preview / single-select mode). */
+  /** Primary selection (large preview only). */
   selectedId: string | null
   /**
    * Multi-select ids for identity-lock generation.
-   * When provided with onToggleSelect, click toggles multi selection
-   * and also updates primary via onSelect.
+   * Toggled only via the dedicated checkbox — not by clicking the thumb.
    */
   selectedIds?: string[]
   coverPath?: string | null
   /** Primary path when coverPath empty */
   fallbackCoverPath?: string | null
+  /** Switch large preview to this item. */
   onSelect: (id: string) => void
-  /** Multi-select toggle (shift/meta or plain when multiSelect). */
+  /** Multi-select toggle (checkbox only). */
   onToggleSelect?: (id: string) => void
-  /** When true, click toggles multi-select (default true if onToggleSelect set). */
+  /** When true, show multi-select checkboxes. */
   multiSelect?: boolean
   /** Drop fromId onto toId (arrayMove semantics). */
   onReorder: (fromId: string, toId: string) => void
@@ -35,8 +35,8 @@ interface GalleryThumbStripProps {
 }
 
 /**
- * Shared gallery thumbnail strip: fixed 80×80 cells (no layout jump),
- * drag-reorder (Electron-safe) + ← → on selection + optional multi-select.
+ * Gallery strip: click thumb = preview only; checkbox = multi-select for gen.
+ * Drag-reorder + ← → on the previewed item.
  */
 export function GalleryThumbStrip({
   items,
@@ -59,7 +59,7 @@ export function GalleryThumbStrip({
   if (items.length === 0) return null
 
   const multi = multiSelect ?? Boolean(onToggleSelect)
-  const multiSet = new Set(selectedIds ?? (selectedId ? [selectedId] : []))
+  const multiSet = new Set(selectedIds ?? [])
 
   const effectiveSelected =
     selectedId && items.some((i) => i.id === selectedId)
@@ -97,7 +97,7 @@ export function GalleryThumbStrip({
           onDragOver={dragOverMove}
         >
           {items.map((g) => {
-            const primary = effectiveSelected === g.id
+            const viewing = effectiveSelected === g.id
             const multiOn = multiSet.has(g.id)
             const isCover =
               coverPath === g.path ||
@@ -114,35 +114,25 @@ export function GalleryThumbStrip({
                   'relative h-20 w-20 shrink-0 cursor-grab overflow-hidden rounded-lg border-2 transition active:cursor-grabbing',
                   isDropTarget
                     ? 'border-brand-400 ring-2 ring-brand-500/50'
-                    : multiOn
-                      ? 'border-brand-500 ring-1 ring-brand-400/40'
-                      : primary
-                        ? 'border-brand-500/80'
+                    : viewing
+                      ? 'border-sky-400 ring-2 ring-sky-400/35'
+                      : multiOn
+                        ? 'border-brand-600/70'
                         : isCover
                           ? 'border-amber-500/80'
-                          : 'border-ink-700 opacity-85 hover:opacity-100'
+                          : 'border-ink-700 opacity-90 hover:opacity-100'
                 ].join(' ')}
                 onClick={(e) => {
                   if (consumeMovedClick(movedRef.current)) {
                     movedRef.current = false
                     return
                   }
-                  if (multi && onToggleSelect && (e.metaKey || e.ctrlKey || e.shiftKey || multi)) {
-                    // Default multi: plain click toggles when multiSelect mode
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || multiSelect !== false) {
-                      onToggleSelect(g.id)
-                      onSelect(g.id)
-                      return
-                    }
-                  }
+                  // Thumb body = preview only (never toggles multi-check)
                   onSelect(g.id)
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    if (multi && onToggleSelect) {
-                      onToggleSelect(g.id)
-                    }
                     onSelect(g.id)
                   }
                 }}
@@ -186,7 +176,10 @@ export function GalleryThumbStrip({
                     onReorder(fromId, g.id)
                   }
                 }}
-                title={label}
+                title={t('common.galleryPreviewTitle', {
+                  label,
+                  defaultValue: `Preview: ${label}`
+                })}
               >
                 <div className="pointer-events-none absolute inset-0">
                   <LocalMediaImage
@@ -200,19 +193,65 @@ export function GalleryThumbStrip({
                     hoverZoom={false}
                   />
                 </div>
-                {multiOn && (
-                  <span className="pointer-events-none absolute right-0.5 top-0.5 z-[7] flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[9px] font-bold text-white">
-                    ✓
-                  </span>
-                )}
+
+                {/* Dedicated multi-select control — separate from preview click */}
+                {multi && onToggleSelect ? (
+                  <button
+                    type="button"
+                    className={[
+                      'absolute left-0.5 top-0.5 z-[8] flex h-5 w-5 items-center justify-center rounded border shadow-sm transition',
+                      multiOn
+                        ? 'border-brand-400 bg-brand-500 text-white'
+                        : 'border-ink-500 bg-ink-950/90 text-transparent hover:border-brand-400 hover:text-ink-400'
+                    ].join(' ')}
+                    aria-label={
+                      multiOn
+                        ? t('common.galleryUncheckForGen', {
+                            defaultValue: 'Uncheck for generation'
+                          })
+                        : t('common.galleryCheckForGen', {
+                            defaultValue: 'Check for generation'
+                          })
+                    }
+                    aria-pressed={multiOn}
+                    title={
+                      multiOn
+                        ? t('common.galleryUncheckForGen', {
+                            defaultValue: 'Uncheck for generation'
+                          })
+                        : t('common.galleryCheckForGen', {
+                            defaultValue: 'Check for generation'
+                          })
+                    }
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onToggleSelect(g.id)
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <span className="text-[11px] font-bold leading-none">
+                      {multiOn ? '✓' : ''}
+                    </span>
+                  </button>
+                ) : null}
+
                 {isCover && (
-                  <span className="pointer-events-none absolute left-0.5 top-0.5 z-[6] rounded bg-amber-600/95 px-1 py-0.5 text-[8px] font-semibold text-white">
+                  <span className="pointer-events-none absolute right-0.5 top-0.5 z-[6] rounded bg-amber-600/95 px-1 py-0.5 text-[8px] font-semibold text-white">
                     {t('common.coverBadge')}
                   </span>
                 )}
-                <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] truncate bg-black/65 px-0.5 py-0.5 text-center text-[9px] text-white">
-                  {label}
-                </span>
+
+                {viewing ? (
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-sky-600/90 px-0.5 py-0.5 text-center text-[8px] font-semibold text-white">
+                    {t('common.galleryViewing', { defaultValue: 'Preview' })}
+                  </span>
+                ) : (
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] truncate bg-black/65 px-0.5 py-0.5 text-center text-[9px] text-white">
+                    {label}
+                  </span>
+                )}
               </div>
             )
           })}

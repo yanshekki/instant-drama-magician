@@ -110,7 +110,10 @@ import {
   type ImageGenConfirmPayload
 } from '../components/ImageGenConfirmModal'
 import { LocalMediaImage } from '../components/LocalMediaImage'
-import { GalleryThumbStrip } from '../components/GalleryThumbStrip'
+import {
+  EntityGalleryPanel,
+  EntityGalleryLayerChip
+} from '../components/EntityGalleryPanel'
 import {
   EditorField,
   EditorSelect,
@@ -207,6 +210,7 @@ export function CharactersPage(): JSX.Element {
     onWardrobeApply,
     activeJobs,
     startVideoPrep,
+    startMediaGen,
     hasVideoPrepDraft,
     continueVideoPrepDraft
   } = useAiJobs()
@@ -978,53 +982,48 @@ export function CharactersPage(): JSX.Element {
 
   const handleSwapCostume = async (): Promise<void> => {
     setActionError(null)
-    await charactersRunSwapCostume({
-      ensureSavedId,
-      isBusy: characterAiBusy,
-      costumeDescription: charactersCostumeDesc(swapCostumeText, form.costume),
-      setError: setActionError,
-      saveFirstMsg: t('characters.saveFirstForSheet'),
-      requiredMsg: t('characters.swapCostumeRequired'),
-      noBaseMsg: t('characters.swapCostumeNoBase'),
-      startedMsg: t('aiJobs.startedBackground'),
-      toastInfo: toast.info,
-      setBanner: setPageBanner,
-      pickBase: () =>
-        pickBestBaseImage(form.gallery, {
-          ageRange: form.ageRange,
-          preferredPath: swapBasePath || selectedImage?.path || null
-        }),
-      startJob: (characterId, baseImagePath, costumeDescription) => {
-        const artStyle = form.artStyle
-        startJob({
-          kind: 'costume-swap',
-          label: t('characters.swapCostume'),
-          scope: {
-            characterId,
-            storyId: activeStoryId ?? undefined
-          },
-          run: async ({ setProgress, signal }) =>
-            charactersSwapJobBody({
-              swap: () =>
-                getApi().characters.swapCostume({
-                  characterId,
-                  costumeDescription,
-                  baseImagePath,
-                  artStyle,
-                  pose: swapPose,
-                  persist: false
-                }),
-              signal,
-              discard: (p) => getApi().media.discardSheetDraft(p),
-              characterId,
-              storyId: activeStoryId ?? '',
-              costumeDescription,
-              defaultLabel: t('characters.swapCostume'),
-              setProgress
-            })
-        })
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('characters.saveFirstForSheet'))
+        return
       }
-    })
+      if (characterAiBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      const costumeDescription = charactersCostumeDesc(
+        swapCostumeText,
+        form.costume
+      )
+      if (!costumeDescription.trim()) {
+        setActionError(t('characters.swapCostumeRequired'))
+        toast.error(t('characters.swapCostumeRequired'))
+        return
+      }
+      const base = pickBestBaseImage(form.gallery, {
+        ageRange: form.ageRange,
+        preferredPath: swapBasePath || selectedImage?.path || null
+      })
+      if (!base?.path) {
+        setActionError(t('characters.swapCostumeNoBase'))
+        toast.error(t('characters.swapCostumeNoBase'))
+        return
+      }
+      startMediaGen({
+        kind: 'costume-swap',
+        characterId: id,
+        storyId: activeStoryId ?? undefined,
+        artStyle: form.artStyle,
+        galleryIdentityPaths: [base.path],
+        preferIdentityEdit: true,
+        costumeDescription
+      })
+    } catch (e) {
+      const msg = formatUserError(e, t)
+      setActionError(msg)
+      toast.error(msg)
+    }
   }
 
   /** Identity lock on selected gallery still(s). */
@@ -1045,63 +1044,38 @@ export function CharactersPage(): JSX.Element {
     artStyle?: ArtStyleId
   }): Promise<void> => {
     setActionError(null)
-    const variant = sheetVariant
-    const variantDef = getSheetVariant(variant)
-    const forcePure = charactersForcePureLayout(variantDef)
-    const wantIdentity = charactersResolveWantIdentity(
-      opts?.useIdentityEdit,
-      useIdentityRef
-    )
-    const paths = charactersGalleryPathsFromOpts(
-      opts?.referenceImagePath,
-      selectedPathsForIdentity
-    )
-    const artStyle = opts?.artStyle ?? form.artStyle
-    const profile = {
-      name: form.name.trim() || 'Character',
-      description: form.description.trim() || form.name.trim() || 'Character',
-      appearance: form.appearance.trim() || undefined,
-      personality: form.personality.trim() || undefined,
-      costume: form.costume.trim() || undefined,
-      ageRange: form.ageRange.trim() || undefined,
-      gender: form.gender.trim() || undefined,
-      visualTags: form.visualTags.trim() || undefined,
-      hardRules: form.hardRules.trim() || undefined
+    try {
+      const id = opts?.characterId || (await ensureSavedId())
+      if (!id) {
+        setActionError(t('characters.saveFirstForSheet'))
+        return
+      }
+      if (characterAiBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      const wantIdentity = charactersResolveWantIdentity(
+        opts?.useIdentityEdit,
+        useIdentityRef
+      )
+      const paths = charactersGalleryPathsFromOpts(
+        opts?.referenceImagePath,
+        selectedPathsForIdentity
+      )
+      startMediaGen({
+        kind: 'character-sheet',
+        characterId: id,
+        storyId: activeStoryId ?? undefined,
+        artStyle: opts?.artStyle ?? form.artStyle,
+        sheetVariant: sheetVariant,
+        galleryIdentityPaths: paths,
+        preferIdentityEdit: wantIdentity
+      })
+    } catch (e) {
+      const msg = formatUserError(e, t)
+      setActionError(msg)
+      toast.error(msg)
     }
-    const variantLabel = t(
-      `characters.${getSheetVariant(variant).labelKey}`
-    )
-    const styleLabel = t(`characters.${getArtStyle(artStyle).labelKey}`)
-    await charactersRunGenerateSheetSetup({
-      ensureSavedId,
-      characterId: opts?.characterId,
-      isBusy: characterAiBusy,
-      setError: setActionError,
-      saveFirstMsg: t('characters.saveFirstForSheet'),
-      forcePure,
-      wantIdentity,
-      useIdentityRef,
-      setUseIdentityRef,
-      paths,
-      resolveIdentity: resolveIdentityPaths,
-      buildPrompt: (useEdit) =>
-        useEdit
-          ? buildCharacterSheetEditPrompt(profile, variant, artStyle)
-          : buildCharacterSheetImagePrompt(profile, variant, artStyle),
-      maybeAppendMulti: (prompt, pths) => charactersBuildSheetMultiAppend(prompt, pths, getAiLocale(i18n.language), appendMultiRefNote as (p: string, paths: string[], locale?: string) => string),
-      ensureRules: (prompt) => ensureHardRules(prompt, form.hardRules),
-      modeLabel: '',
-      summaryParts: `${t('characters.sheetVariant')}: ${variantLabel} · ${t('characters.artStyle')}: ${styleLabel} · ${charactersSheetModeLabel(
-        forcePure,
-        charactersUseIdentityEdit(forcePure, wantIdentity),
-        {
-          force: t('characters.forcePureGenHint'),
-          identity: t('common.imageGenConfirmModeIdentity'),
-          pure: t('common.imageGenConfirmModePure')
-        }
-      )}`,
-      setConfirm: setImageGenConfirm
-    })
   }
 
   const runCharacterSheetJob = async (
@@ -1738,116 +1712,113 @@ export function CharactersPage(): JSX.Element {
             activeTab={editorPanel}
             onTabChange={(id) => setEditorPanel(id as EditorPanel)}
             preview={
-              <div className="flex h-full flex-col gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
-                    {t('characters.gallery')}
-                  </h3>
-                  <span className="text-[11px] text-ink-500">
-                    {filteredGallery.length}/{form.gallery.length}
-                  </span>
-                </div>
-                {form.gallery.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {(
-                      [
-                        'all',
-                        'identity',
-                        'nude',
-                        'base',
-                        'costume',
-                        'detail'
-                      ] as const
-                    ).map((layer) => {
-                      if (layer === 'nude' && isMinor) return null
-                      return (
-                        <button
-                          key={layer}
-                          type="button"
-                          className={[
-                            'rounded-full px-2 py-0.5 text-[10px] font-medium transition',
-                            galleryLayerFilter === layer
-                              ? 'bg-brand-600 text-white'
-                              : 'bg-ink-800 text-ink-400 hover:bg-ink-700 hover:text-ink-200'
-                          ].join(' ')}
-                          onClick={() => setGalleryLayerFilter(layer)}
-                        >
-                          {t(`characters.layerFilter_${layer}`)}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-                <div className="rounded-xl border border-ink-800 bg-ink-900/60">
-                  {selectedImage ? (
-                    <LocalMediaImage
-                      filePath={selectedImage.path}
-                      alt={translateCharacterGalleryLabel(
-                        selectedImage.label,
-                        t
-                      )}
-                      maxHeightClass="max-h-[min(36vh,420px)] lg:max-h-[min(48vh,520px)]"
-                      showMeta
-                      className="border-0 rounded-xl"
-                      actionsLayout="bar"
-                      introVideoBusy={editorAiBusy}
-                      introVideoPath={selectedImage.introVideoPath}
-                      introVideoHasDraft={
-                        Boolean(editingId) &&
-                        hasVideoPrepDraft(
-                          buildVideoPrepDraftKey(
-                            'character-intro',
-                            { characterId: editingId! },
-                            selectedImage.path
-                          )
+              <EntityGalleryPanel
+                title={t('characters.gallery')}
+                countLabel={`${filteredGallery.length}/${form.gallery.length}`}
+                layerFilter={
+                  form.gallery.length > 0 ? (
+                    <>
+                      {(
+                        [
+                          'all',
+                          'identity',
+                          'nude',
+                          'base',
+                          'costume',
+                          'detail'
+                        ] as const
+                      ).map((layer) => {
+                        if (layer === 'nude' && isMinor) return null
+                        return (
+                          <EntityGalleryLayerChip
+                            key={layer}
+                            active={galleryLayerFilter === layer}
+                            label={t(`characters.layerFilter_${layer}`)}
+                            onClick={() => setGalleryLayerFilter(layer)}
+                          />
                         )
-                      }
-                      onIntroVideo={charactersIntroVideoHandler(
+                      })}
+                    </>
+                  ) : null
+                }
+                previewPath={selectedImage?.path}
+                previewAlt={
+                  selectedImage
+                    ? translateCharacterGalleryLabel(selectedImage.label, t)
+                    : ''
+                }
+                maxHeightClass="max-h-[min(36vh,420px)] lg:max-h-[min(48vh,520px)]"
+                showMeta
+                introVideoBusy={editorAiBusy}
+                introVideoPath={selectedImage?.introVideoPath}
+                introVideoHasDraft={
+                  Boolean(editingId) &&
+                  Boolean(selectedImage?.path) &&
+                  hasVideoPrepDraft(
+                    buildVideoPrepDraftKey(
+                      'character-intro',
+                      { characterId: editingId! },
+                      selectedImage?.path ?? ''
+                    )
+                  )
+                }
+                onIntroVideo={
+                  selectedImage
+                    ? charactersIntroVideoHandler(
                         editingId,
                         selectedImage.path,
                         handleGenerateIntroVideo
-                      )}
-                      isCover={form.coverPath === selectedImage.path}
-                      onSetAsCover={() => handleSetCover(selectedImage.path)}
-                      onRemove={() => handleRemoveImage(selectedImage.id)}
-                    />
-                  ) : (
-                    <div className="flex h-48 flex-col items-center justify-center gap-2 px-4 text-center text-ink-500">
-                      <span className="text-3xl opacity-30">🖼</span>
-                      <p className="text-xs">{t('characters.noPhotos')}</p>
-                      <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-                        <Button
-                          variant="secondary"
-                          disabled={editorAiBusy}
-                          onClick={() => void handlePickExternalRef()}
-                        >
-                          {t('characters.addExternalRef')}
-                        </Button>
-                        <Button
-                          disabled={editorAiBusy}
-                          onClick={() => charactersGenerateSheetFromEmpty(setEditorPanel, () => void handleGenerateSheet())}
-                        >
-                          {t('characters.generateSheet')}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <GalleryThumbStrip
-                  items={filteredGallery}
-                  selectedId={selectedImageId}
-                  selectedIds={selectedImageIds}
-                  multiSelect
-                  coverPath={form.coverPath}
-                  fallbackCoverPath={primaryGalleryPath(form.gallery)}
-                  onSelect={setSelectedImageId}
-                  onToggleSelect={(id) => setSelectedImageIds((ids) => charactersToggleSelectIds(ids, id, toggleGallerySelection))}
-                  onReorder={handleReorderGallery}
-                  labelOf={(g) =>
-                    translateCharacterGalleryLabel(g.label, t)
+                      )
+                    : undefined
+                }
+                isCover={
+                  Boolean(
+                    selectedImage && form.coverPath === selectedImage.path
+                  )
+                }
+                onSetAsCover={
+                  selectedImage
+                    ? () => handleSetCover(selectedImage.path)
+                    : undefined
+                }
+                onRemove={
+                  selectedImage
+                    ? () => handleRemoveImage(selectedImage.id)
+                    : undefined
+                }
+                emptyMessage={t('characters.noPhotos')}
+                emptyActions={[
+                  {
+                    label: t('characters.addExternalRef'),
+                    onClick: () => void handlePickExternalRef(),
+                    variant: 'secondary',
+                    disabled: editorAiBusy
+                  },
+                  {
+                    label: t('characters.generateSheet'),
+                    onClick: () =>
+                      charactersGenerateSheetFromEmpty(setEditorPanel, () =>
+                        void handleGenerateSheet()
+                      ),
+                    variant: 'primary',
+                    disabled: editorAiBusy
                   }
-                />
-              </div>
+                ]}
+                items={filteredGallery}
+                selectedId={selectedImageId}
+                selectedIds={selectedImageIds}
+                multiSelect
+                coverPath={form.coverPath}
+                fallbackCoverPath={primaryGalleryPath(form.gallery)}
+                onSelect={setSelectedImageId}
+                onToggleSelect={(id) =>
+                  setSelectedImageIds((ids) =>
+                    charactersToggleSelectIds(ids, id, toggleGallerySelection)
+                  )
+                }
+                onReorder={handleReorderGallery}
+                labelOf={(g) => translateCharacterGalleryLabel(g.label, t)}
+              />
             }
           >
             {/* ── Profile ── */}

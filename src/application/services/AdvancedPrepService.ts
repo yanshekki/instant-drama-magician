@@ -194,10 +194,11 @@ export class AdvancedPrepService {
       ) {
         try {
           this.store.ensureStoryDirs(storyId)
+          // End frame so next beat locks to previous shot's end state (not open).
           await this.ffmpeg.extractStillFrame({
             videoPath: mediaPath,
             outputPath: stillPath,
-            atSeconds: 0.25
+            atSeconds: 'end'
           })
         } catch {
           /* best-effort — leave missing */

@@ -295,6 +295,12 @@ const api: ElectronApi & {
       baseImagePath?: string | null
       pose?: string | null
     }) => ipcRenderer.invoke('costumes:generateDressed', payload),
+    appendTryOnStill: (payload: {
+      costumeId: string
+      characterId?: string | null
+      sourcePath: string
+      label?: string | null
+    }) => ipcRenderer.invoke('costumes:appendTryOnStill', payload),
     generateIntroVideo: (payload: {
       costumeId: string
       sourceImagePath: string
@@ -311,6 +317,14 @@ const api: ElectronApi & {
       ipcRenderer.invoke('videoPrep:regenStill', payload),
     confirm: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('videoPrep:confirm', payload)
+  },
+  mediaGen: {
+    extract: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('mediaGen:extract', payload),
+    polish: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('mediaGen:polish', payload),
+    generateImage: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('mediaGen:generateImage', payload)
   },
   timeline: {
     list: (storyId: string) => ipcRenderer.invoke('timeline:list', storyId),

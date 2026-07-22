@@ -4,7 +4,7 @@ import { snapVideoSeconds } from '../../domain/videoDuration'
 import {
   buildClipPrompt,
   previousClipContext,
-  resolveClipRefImage,
+  resolveTimelineStillRefs,
   getPreviousTimelineEntry,
   buildContinuityLockPrompt,
   timelineBeatDisplayIndex
@@ -232,12 +232,14 @@ export class VideoStep implements PipelineStep {
         })
 
         try {
-          const ref = resolveClipRefImage({
+          const timelineRefs = resolveTimelineStillRefs({
             character,
             scene,
             prop,
-            previousContinuityPath
+            previousContinuityPath,
+            pathExists: (p) => existsSync(p)
           })
+          const refPath = timelineRefs.editBase
           const locale = 'zh-HK' as const
           const result = await polishThenGenerateVideo({
             ai,
@@ -248,7 +250,7 @@ export class VideoStep implements PipelineStep {
               locale,
               seconds,
               aspectRatio: context.aspectRatio,
-              hasRefImage: Boolean(ref?.path),
+              hasRefImage: Boolean(refPath),
               fallbackPrompt,
               storyTitle: story.title,
               styleNote: story.styleNote,
@@ -272,7 +274,7 @@ export class VideoStep implements PipelineStep {
             }),
             videoRequest: {
               durationSeconds: seconds,
-              refImagePath: ref?.path,
+              refImagePath: refPath ?? undefined,
               outputPath,
               aspectRatio: context.aspectRatio
             },
@@ -284,6 +286,33 @@ export class VideoStep implements PipelineStep {
             mediaError: null,
             videoJobId: result.jobId ?? null
           })
+          // End-frame continuity for next beat (best-effort)
+          try {
+            const contFn = media?.clipContinuityStillPath
+            if (contFn && result.outputPath) {
+              const { writeClipContinuityStillFromVideo } = await import(
+                '../video/writeClipContinuityStill'
+              )
+              const { FfmpegService } = await import(
+                '../../infrastructure/ffmpeg/FfmpegService'
+              )
+              await writeClipContinuityStillFromVideo({
+                ffmpeg: new FfmpegService(),
+                store: {
+                  ensureStoryDirs: () => undefined,
+                  clipContinuityStillPath: (sid: string, eid: string) =>
+                    contFn(sid, eid),
+                  isEntryStillUserCleared: () => false
+                } as never,
+                storyId: story.id,
+                entryId: entry.id,
+                videoPath: result.outputPath,
+                skipIfUserCleared: false
+              })
+            }
+          } catch {
+            /* best-effort */
+          }
           onClipProgress?.({
             entryId: entry.id,
             index: i,

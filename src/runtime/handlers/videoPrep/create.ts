@@ -83,6 +83,8 @@ reg(
       let materialsSummary = ''
       /** Hard rules to force onto polished professional prompt + still (by kind). */
       let prepHardRules: string | null = null
+      /** Multi-vision polish paths (timeline: prev + cast + library). */
+      let multiPolishPaths: string[] | null = null
       let stillOut = store.tmpImagePath('video_prep_still', '.png')
       const entityIds: {
         characterId?: string
@@ -390,7 +392,7 @@ reg(
         const {
           buildClipPrompt,
           previousClipContext,
-          resolveClipRefImage,
+          resolveTimelineStillRefs,
           getPreviousTimelineEntry,
           buildContinuityLockPrompt,
           timelineBeatDisplayIndex
@@ -637,26 +639,22 @@ reg(
           clipHardRules
         )
 
-        let resolvedSource = sourceImagePath
-        let resolvedRefSource: string | null = null
-        if (!resolvedSource) {
-          const ref = resolveClipRefImage({
-            character: char as never,
-            scene: scene as never,
-            prop: prop as never,
-            action: action
-              ? { refImagePath: (action.refImagePath as string | null) ?? null }
-              : null,
-            previousContinuityPath,
-            castRefPath
-          })
-          if (ref?.path && existsSync(ref.path)) {
-            resolvedSource = ref.path
-            resolvedRefSource = ref.source
-          }
-        } else if (previousContinuityPath) {
-          resolvedRefSource = 'prev-clip'
-        }
+        // Timeline: prev continuity always wins edit base (never skip for weak payload).
+        const timelineRefs = resolveTimelineStillRefs({
+          character: char as never,
+          scene: scene as never,
+          prop: prop as never,
+          action: action
+            ? { refImagePath: (action.refImagePath as string | null) ?? null }
+            : null,
+          previousContinuityPath,
+          castRefPath,
+          payloadSourcePath: sourceImagePath,
+          pathExists: (p) => existsSync(p)
+        })
+        const resolvedSource = timelineRefs.editBase
+        const resolvedRefSource: string | null = timelineRefs.editSource
+        multiPolishPaths = timelineRefs.polishPaths
 
         polishUserContent = buildClipVideoPolishUserPrompt({
           locale,
@@ -860,12 +858,20 @@ reg(
         }
       }
 
+      // Multi-vision polish: attach identity/source still(s) so LLM sees pixels
+      // (chat supports N image_url; still export remains one frame).
+      // Timeline uses multiPolishPaths (prev + cast + library); others: single source.
+      const polishRefPaths =
+        multiPolishPaths && multiPolishPaths.length > 0
+          ? multiPolishPaths
+          : [sourceImagePath].filter((p): p is string => Boolean(p?.trim()))
       const polished = await polishProfessionalVideoPrompt({
         ai: ctx.aiClient,
         locale,
         fallbackPrompt,
         polishUserContent,
-        hardRules: prepHardRules
+        hardRules: prepHardRules,
+        referenceImagePaths: polishRefPaths
       })
 
       // aspectRatio already coerced to 9:16 | 16:9 above
