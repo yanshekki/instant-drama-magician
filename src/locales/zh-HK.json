@@ -2003,7 +2003,7 @@
     "userExtraHint": "確認出片時會合併入最終影片 prompt。",
     "duration": "時長（秒）",
     "videoDoneGalleryHint": "介紹片已掛到來源靜圖；在參考圖庫選中該圖即可播放。完成頁亦可直接播放。",
-    "useStillAsKeyframe": "使用現有靜圖作關鍵幀",
+    "useStillAsKeyframe": "用現有靜圖作關鍵幀",
     "keyframePromptHint": "關鍵幀靜圖提示（圖像導演）。關鍵幀就緒後會再做影片動作潤飾。"
   }
 }

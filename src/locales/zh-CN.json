@@ -2003,7 +2003,7 @@
     "userExtraHint": "确认出片时会合并入最终影片 prompt。",
     "duration": "时长（秒）",
     "videoDoneGalleryHint": "介绍片已挂到来源静图；在参考图库选中该图即可播放。完成页亦可直接播放。",
-    "useStillAsKeyframe": "使用现有静图作关键帧",
+    "useStillAsKeyframe": "用现有静图作关键帧",
     "keyframePromptHint": "关键帧静图提示（图像导演）。关键帧就绪后再做影片动作润色。"
   }
 }

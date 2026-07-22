@@ -2003,7 +2003,7 @@
     "userExtraHint": "Merged when generating the final video.",
     "duration": "Duration (seconds)",
     "videoDoneGalleryHint": "Intro video is attached to the source still in the gallery — use Play there anytime.",
-    "useStillAsKeyframe": "Use still as keyframe",
-    "keyframePromptHint": "Keyframe still prompt (image director). Video motion polish runs after the keyframe is ready."
+    "useStillAsKeyframe": "既存の静止画をキーフレームに使う",
+    "keyframePromptHint": "キーフレーム用の静止画プロンプト（画像監督）。キーフレーム後に動画モーションを磨きます。"
   }
 }
