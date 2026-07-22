@@ -1934,91 +1934,111 @@ export function CharactersPage(): JSX.Element {
                   </CharactersField>
                 </section>
 
-                {/* Soul 目錄 — browse + full content (same catalog as Hub tab) */}
-                <section className="rounded-xl border border-ink-700 bg-ink-900/35 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
+                {/* Soul catalog — mobile: stack + fixed pane heights; desktop: 2-col */}
+                <section className="space-y-3 rounded-xl border border-ink-700 bg-ink-900/35 p-3 sm:p-4">
+                  <div className="space-y-2">
                     <div className="min-w-0">
                       <h3 className="text-sm font-semibold text-ink-100">
                         {t('characters.soulHub')}
                       </h3>
-                      <p className="mt-0.5 text-[11px] text-ink-500">
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-ink-500">
                         {t('characters.soulEditorHint')}
                       </p>
-                      {indexStatus && (
+                      {indexStatus ? (
                         <p className="mt-1 text-[10px] text-brand-300/90">
                           {indexStatus}
                         </p>
-                      )}
+                      ) : null}
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       <Button
                         variant="ghost"
-                        className="!py-1 text-xs"
-                        onClick={() => charactersOpenExternal((url) => void getApi().shell.openExternal(url), 'https://soulmd-hub.ysk.hk')}
+                        className="min-h-10 w-full !text-xs sm:w-auto"
+                        onClick={() =>
+                          charactersOpenExternal(
+                            (url) => void getApi().shell.openExternal(url),
+                            'https://soulmd-hub.ysk.hk'
+                          )
+                        }
                       >
                         {t('characters.openHub')}
                       </Button>
                       <Button
                         variant="secondary"
-                        className="!py-1 text-xs"
+                        className="min-h-10 w-full !text-xs sm:w-auto"
                         onClick={() => void handleImportSoul()}
                       >
                         {t('characters.importSoul')}
                       </Button>
                       <Button
-                        className="!py-1 text-xs"
+                        className="min-h-10 w-full !text-xs sm:w-auto"
                         disabled={editorAiBusy}
                         onClick={() => handleGenerateSoul()}
                         title={t('characters.generateSoulHint')}
                       >
                         {charactersGeneratingLabel(
-                      editorAiBusy,
-                      t('common.generating'),
-                      t('characters.generateSoul')
-                    )}
+                          editorAiBusy,
+                          t('common.generating'),
+                          t('characters.generateSoul')
+                        )}
                       </Button>
                     </div>
                   </div>
 
                   {(form.soulHubId != null || form.soulMdPath) && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-brand-800/40 bg-brand-950/25 px-3 py-2 text-[11px]">
-                      <span className="font-medium text-brand-200">
-                        {t('characters.soulLinked')}
-                      </span>
-                      <span className="min-w-0 truncate text-ink-300">
-                        {form.soulHubId != null
-                          ? t('characters.soulHubIdLabel', {
-                              id: form.soulHubId
+                    <div className="flex flex-col gap-2 rounded-lg border border-brand-800/40 bg-brand-950/25 px-3 py-2.5 text-[11px] sm:flex-row sm:flex-wrap sm:items-center">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium text-brand-200">
+                          {t('characters.soulLinked')}
+                        </span>
+                        <span className="ml-1.5 break-all text-ink-300 sm:truncate">
+                          {form.soulHubId != null
+                            ? t('characters.soulHubIdLabel', {
+                                id: form.soulHubId
+                              })
+                            : form.soulMdPath}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          variant="ghost"
+                          className="!min-h-9 !text-xs"
+                          disabled={busy}
+                          onClick={() =>
+                            void loadSoulPreview({
+                              soulMdPath: form.soulMdPath,
+                              soulHubId: form.soulHubId
                             })
-                          : form.soulMdPath}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        className="!py-0.5 !text-xs"
-                        disabled={busy}
-                        onClick={() => void loadSoulPreview({ soulMdPath: form.soulMdPath, soulHubId: form.soulHubId })}
-                      >
-                        {t('characters.reloadSoul')}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="!py-0.5 !text-xs text-rose-300"
-                        onClick={clearSoulLink}
-                      >
-                        {t('characters.soulClear')}
-                      </Button>
+                          }
+                        >
+                          {t('characters.reloadSoul')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="!min-h-9 !text-xs text-rose-300"
+                          onClick={clearSoulLink}
+                        >
+                          {t('characters.soulClear')}
+                        </Button>
+                      </div>
                     </div>
                   )}
 
-                  <div className="mt-3 flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Input
                       value={hubQ}
                       onChange={(e) => setHubQ(e.target.value)}
                       placeholder={t('characters.soulSearch')}
-                      onKeyDown={(e) => { charactersHubEnter(e.key, hubQ, (p, q) => void loadHubPage(p, q)) }}
+                      className="min-w-0 flex-1"
+                      onKeyDown={(e) => {
+                        charactersHubEnter(e.key, hubQ, (p, q) =>
+                          void loadHubPage(p, q)
+                        )
+                      }}
                     />
                     <Button
                       variant="secondary"
+                      className="min-h-10 w-full shrink-0 sm:w-auto"
                       disabled={busy}
                       onClick={() => void loadHubPage(1, hubQ)}
                     >
@@ -2027,13 +2047,17 @@ export function CharactersPage(): JSX.Element {
                   </div>
 
                   {suggestions.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
+                    <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto">
                       {suggestions.slice(0, 16).map((s) => (
                         <button
                           key={`${s.kind}-${s.label}`}
                           type="button"
-                          className="rounded-full border border-ink-700 bg-ink-950/80 px-2.5 py-0.5 text-[10px] text-ink-300 transition hover:border-brand-600/50 hover:text-brand-200"
-                          onClick={() => charactersSuggestionSearch(s.label, setHubQ, (p, q) => void loadHubPage(p, q))}
+                          className="rounded-full border border-ink-700 bg-ink-950/80 px-2.5 py-1 text-[10px] text-ink-300 transition hover:border-brand-600/50 hover:text-brand-200 touch-manipulation"
+                          onClick={() =>
+                            charactersSuggestionSearch(s.label, setHubQ, (p, q) =>
+                              void loadHubPage(p, q)
+                            )
+                          }
                         >
                           {s.label}
                         </button>
@@ -2041,13 +2065,14 @@ export function CharactersPage(): JSX.Element {
                     </div>
                   )}
 
-                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                  {/* Always stack on phone; side-by-side only lg+ — each pane has OWN scroll */}
+                  <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-stretch">
                     {/* Directory list */}
-                    <div className="flex min-h-0 flex-col rounded-lg border border-ink-800 bg-ink-950/50">
-                      <div className="border-b border-ink-800 px-3 py-2 text-[11px] font-medium text-ink-400">
+                    <div className="flex flex-col rounded-lg border border-ink-800 bg-ink-950/50">
+                      <div className="shrink-0 border-b border-ink-800 px-3 py-2 text-[11px] font-medium text-ink-400">
                         {t('characters.soulCatalogList')}
                       </div>
-                      <ul className="max-h-56 min-h-[8rem] flex-1 overflow-y-auto">
+                      <ul className="max-h-[min(40vh,14rem)] overflow-y-auto overscroll-contain sm:max-h-56 [-webkit-overflow-scrolling:touch]">
                         {hubItems.length === 0 ? (
                           <li className="px-3 py-6 text-center text-[11px] text-ink-500">
                             {busy
@@ -2063,7 +2088,7 @@ export function CharactersPage(): JSX.Element {
                               <li
                                 key={it.id}
                                 className={[
-                                  'flex items-start gap-2 border-b border-ink-800/60 px-2 py-2 transition',
+                                  'flex flex-col gap-2 border-b border-ink-800/60 px-2 py-2.5 transition sm:flex-row sm:items-start',
                                   active
                                     ? 'bg-brand-950/40'
                                     : 'hover:bg-ink-900/80'
@@ -2071,10 +2096,12 @@ export function CharactersPage(): JSX.Element {
                               >
                                 <button
                                   type="button"
-                                  className="min-w-0 flex-1 text-left"
-                                  onClick={() => void previewSoulFromCatalog(it.id, it.title)}
+                                  className="min-w-0 flex-1 text-left touch-manipulation"
+                                  onClick={() =>
+                                    void previewSoulFromCatalog(it.id, it.title)
+                                  }
                                 >
-                                  <span className="block truncate text-sm font-medium text-ink-100">
+                                  <span className="block text-sm font-medium leading-snug text-ink-100">
                                     {it.role_icon ?? '✦'} {it.title}
                                   </span>
                                   <span className="mt-0.5 line-clamp-2 block text-[11px] text-ink-500">
@@ -2083,7 +2110,7 @@ export function CharactersPage(): JSX.Element {
                                 </button>
                                 <Button
                                   variant="secondary"
-                                  className="!shrink-0 !py-1 !text-[10px]"
+                                  className="!min-h-9 w-full shrink-0 !text-[11px] sm:w-auto sm:!px-2.5"
                                   disabled={busy}
                                   onClick={() =>
                                     void applySoulFromHub(it.id, {
@@ -2098,21 +2125,21 @@ export function CharactersPage(): JSX.Element {
                           })
                         )}
                       </ul>
-                      <div className="flex items-center justify-center gap-2 border-t border-ink-800 py-1.5 text-[11px] text-ink-500">
+                      <div className="flex shrink-0 items-center justify-center gap-2 border-t border-ink-800 py-2 text-[11px] text-ink-500">
                         <Button
                           variant="ghost"
-                          className="!py-0.5 !text-xs"
+                          className="!min-h-9 !px-3 !text-xs"
                           disabled={busy || hubPage <= 1}
                           onClick={() => void loadHubPage(hubPage - 1)}
                         >
                           ←
                         </Button>
-                        <span>
+                        <span className="tabular-nums">
                           {hubPage} / {hubTotalPages}
                         </span>
                         <Button
                           variant="ghost"
-                          className="!py-0.5 !text-xs"
+                          className="!min-h-9 !px-3 !text-xs"
                           disabled={busy || hubPage >= hubTotalPages}
                           onClick={() => void loadHubPage(hubPage + 1)}
                         >
@@ -2121,13 +2148,13 @@ export function CharactersPage(): JSX.Element {
                       </div>
                     </div>
 
-                    {/* Full soul content — editable */}
-                    <div className="flex min-h-0 flex-col rounded-lg border border-ink-800 bg-ink-950/50">
-                      <div className="flex items-center justify-between gap-2 border-b border-ink-800 px-3 py-2">
-                        <span className="truncate text-[11px] font-medium text-ink-400">
+                    {/* Full soul content — editable, own height, no flex fight */}
+                    <div className="flex flex-col rounded-lg border border-ink-800 bg-ink-950/50">
+                      <div className="flex shrink-0 flex-col gap-2 border-b border-ink-800 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="min-w-0 text-[11px] font-medium text-ink-400">
                           {t('characters.soulFullContent')}
                           {(catalogPickTitle || form.soulHubId != null) && (
-                            <span className="ml-1 text-ink-300">
+                            <span className="ml-1 break-all text-ink-300">
                               ·{' '}
                               {charactersSoulTitleDisplay(
                                 catalogPickTitle,
@@ -2140,34 +2167,41 @@ export function CharactersPage(): JSX.Element {
                           catalogPickId,
                           form.soulHubId
                         ) && (
-                            <Button
-                              variant="secondary"
-                              className="!shrink-0 !py-0.5 !text-xs"
-                              disabled={busy}
-                              onClick={() => charactersUseSoulButtonClick(catalogPickId, (id, opts) => void applySoulFromHub(id, opts))}
-                            >
-                              {t('characters.useSoul')}
-                            </Button>
-                          )}
+                          <Button
+                            variant="secondary"
+                            className="!min-h-9 w-full shrink-0 !text-xs sm:w-auto"
+                            disabled={busy}
+                            onClick={() =>
+                              charactersUseSoulButtonClick(
+                                catalogPickId,
+                                (id, opts) => void applySoulFromHub(id, opts)
+                              )
+                            }
+                          >
+                            {t('characters.useSoul')}
+                          </Button>
+                        )}
                       </div>
-                      <div className="flex min-h-[12rem] flex-1 flex-col p-2">
+                      <div className="flex flex-col p-2">
                         {catalogLoading ? (
-                          <p className="p-2 text-center text-[11px] text-ink-500">
+                          <p className="p-3 text-center text-[11px] text-ink-500">
                             {t('characters.soulLoading')}
                           </p>
                         ) : (
                           <Textarea
-                            size="fill"
-                            className="min-h-[12rem] flex-1 resize-y font-mono text-[12px] leading-relaxed"
-                            value={
-                              catalogPickBody ?? form.soulPreview ?? ''
-                            }
-                            onChange={(e) => { const r = charactersSoulTextSetter(e.target.value); setCatalogPickBody(r.body); setForm(r.formUpdater) }}
+                            size="lg"
+                            className="min-h-[12rem] max-h-[min(50vh,22rem)] resize-y font-mono text-[12px] leading-relaxed sm:min-h-[14rem]"
+                            value={catalogPickBody ?? form.soulPreview ?? ''}
+                            onChange={(e) => {
+                              const r = charactersSoulTextSetter(e.target.value)
+                              setCatalogPickBody(r.body)
+                              setForm(r.formUpdater)
+                            }}
                             placeholder={t('characters.soulEditPlaceholder')}
                             aria-label={t('characters.soulFullContent')}
                           />
                         )}
-                        <p className="mt-1 px-1 text-[10px] leading-relaxed text-ink-600">
+                        <p className="mt-1.5 px-1 text-[10px] leading-relaxed text-ink-600">
                           {t('characters.soulEditHint')}
                         </p>
                       </div>
