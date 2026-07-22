@@ -6,11 +6,11 @@
 **Tagline：** AI 專業短劇生成桌面工具  
 **類型：** 跨平台 Electron 桌面應用  
 
-> ### 現況註記（v1.3.1）
+> ### 現況註記（v1.3.2）
 >
 > | 項目 | 目前 |
 > |------|------|
-> | 版本 | **1.3.1** |
+> | 版本 | **1.3.2** |
 > | 頁面 | Stories · Characters · **Costumes** · Scenes · Props · Timeline · Activity · Settings |
 > | i18n | **10** 種語系 |
 > | CLI／Web | 完整 **157** channel 共用 runtime |

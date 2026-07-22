@@ -131,7 +131,7 @@ instant-drama media check-ffmpeg --json
 
 Namespaces include: `activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
 
-## Recent API surface (1.3.1)
+## Recent API surface (1.3.2)
 
 Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 

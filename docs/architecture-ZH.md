@@ -2,7 +2,7 @@
 
 > **語言：** [English](./architecture.md) · [中文](./architecture-ZH.md)
 
-版本 **1.3.1**。Presentation → Application → Domain → Infrastructure，並以 **共用 handler runtime** 服務 Electron、Web 與 CLI。
+版本 **1.3.2**。Presentation → Application → Domain → Infrastructure，並以 **共用 handler runtime** 服務 Electron、Web 與 CLI。
 
 ## 分層
 

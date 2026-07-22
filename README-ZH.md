@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| **版本** | 1.3.1 |
+| **版本** | 1.3.2 |
 | **作者** | YSK Limited |
 | **聯絡** | [email@ysk.hk](mailto:email@ysk.hk) |
 | **授權** | MIT |
@@ -252,7 +252,7 @@ instant-drama doctor --json
 
 ```bash
 # Linux 範例
-sudo dpkg -i release/instant-drama-magician_1.3.1_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.3.2_amd64.deb
 # 或
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -318,7 +318,7 @@ instant-drama version
 ```bash
 instant-drama update              # 檢查 npm registry 是否有新版
 instant-drama update install --yes   # 全域安裝 latest（會驗證版本）
-instant-drama update install 1.3.1 --yes   # 釘選版本
+instant-drama update install 1.3.2 --yes   # 釘選版本
 ```
 
 `instant-drama doctor` 亦會報告 npm 更新狀態（可用 `IDM_SKIP_UPDATE=1` 略過）。

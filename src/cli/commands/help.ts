@@ -82,7 +82,7 @@ EXAMPLES
   instant-drama doctor --json
   instant-drama update
   instant-drama update install --yes
-  instant-drama update install 1.3.1 --yes
+  instant-drama update install 1.3.2 --yes
   instant-drama --local stories list --json
   instant-drama invoke stories:create '{"title":"Demo"}' --json
   instant-drama --url http://127.0.0.1:8787 --token $IDM_TOKEN channels list
