@@ -1,6 +1,7 @@
 /**
- * Drive AiJobs draft accept + VideoPrepHost registration from real pages.
- * Uses withAiShell (Hud + DraftModal + VideoPrepHost) and a probe for acceptDraft.
+ * Drive AiJobs draft accept + VideoPrepHost / MediaGenHost from real pages.
+ * Uses withAiShell (Hud + DraftModal + VideoPrepHost) plus MediaGenHost where
+ * photo/video gen goes through the materials → polish → generate shell.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
@@ -20,6 +21,7 @@ import {
   clickDialogConfirm,
   renderWithProviders
 } from '../../test/renderWithProviders'
+import { MediaGenHost } from '../components/MediaGenHost'
 import { useAiJobs } from '../context/AiJobsContext'
 import { CharactersPage } from './CharactersPage'
 import { PropsPage } from './PropsPage'
@@ -28,6 +30,28 @@ import { StoriesPage } from './StoriesPage'
 import { TimelinePage } from './TimelinePage'
 import { CostumesPage } from './CostumesPage'
 import { ActionsPage } from './ActionsPage'
+
+/** Minimal extract payload so polish is enabled (include ≥ 1). */
+const mediaGenExtractOk = {
+  entityIds: {},
+  sections: [
+    {
+      id: 'task-1',
+      kind: 'text-profile' as const,
+      title: 'Profile',
+      entityType: 'character' as const,
+      text: 'cyber noir lead',
+      include: true,
+      canBeEditBase: false,
+      group: 'task' as const
+    }
+  ],
+  editBaseSectionId: null,
+  fallbackPrompt: 'FALLBACK PROMPT FOR MEDIA GEN',
+  taskHint: 'task',
+  genOptions: { useIdentityEdit: false },
+  hardRules: null
+}
 
 const api = createMockApi()
 vi.mock('../../lib/api', () => ({
@@ -178,6 +202,67 @@ function seedCommon() {
     aspectRatio: '16:9',
     entityIds: { storyId: 'story-1', entryId: 'entry-1' }
   })
+  api.mediaGen.extract = vi.fn().mockResolvedValue({
+    kind: 'character-sheet',
+    ...mediaGenExtractOk
+  })
+  api.mediaGen.polish = vi.fn().mockResolvedValue({
+    polishedPrompt: 'POLISHED PROMPT LONG ENOUGH FOR GEN',
+    polished: true,
+    imageCount: 1
+  })
+  api.mediaGen.generateImage = vi.fn().mockResolvedValue({
+    path: '/tmp/media-gen.png',
+    draft: true,
+    panelLayout: 'bible',
+    artStyle: 'anime',
+    usedEdit: false,
+    promptUsed: 'POLISHED PROMPT LONG ENOUGH FOR GEN'
+  })
+}
+
+/** Drive MediaGenPrepModal: materials → polish → generate still → add to gallery. */
+async function completeMediaGenImageFlow(expectedPath?: string) {
+  await waitFor(
+    () => {
+      expect(
+        screen
+          .getAllByRole('button')
+          .some((b) => /Next:\s*polish/i.test((b.textContent || '').trim()))
+      ).toBe(true)
+    },
+    { timeout: 8000 }
+  )
+  await clickBtn(/Next:\s*polish/i)
+  await waitFor(
+    () => {
+      expect(
+        screen
+          .getAllByRole('button')
+          .some((b) => /^Generate image$/i.test((b.textContent || '').trim()))
+      ).toBe(true)
+    },
+    { timeout: 8000 }
+  )
+  await clickBtn(/^Generate image$/i)
+  await waitFor(
+    () => expect(api.mediaGen.generateImage).toHaveBeenCalled(),
+    { timeout: 8000 }
+  )
+  if (expectedPath) {
+    expect(api.mediaGen.generateImage).toHaveBeenCalled()
+  }
+  await waitFor(
+    () => {
+      expect(
+        screen
+          .getAllByRole('button')
+          .some((b) => /Add to gallery/i.test((b.textContent || '').trim()))
+      ).toBe(true)
+    },
+    { timeout: 8000 }
+  )
+  await clickBtn(/Add to gallery/i)
 }
 
 async function clickBtn(re: RegExp, opts?: { allowDisabled?: boolean }) {
@@ -273,12 +358,13 @@ describe('pages AiJobs + VideoPrep shell', () => {
       profileJson: '{}',
       raw: ''
     })
-    api.characters.generateSheet = vi.fn().mockResolvedValue({
+    api.mediaGen.generateImage = vi.fn().mockResolvedValue({
       path: '/tmp/sheet-draft.png',
-      label: 'Bible',
-      variant: 'bible',
+      draft: true,
+      panelLayout: 'bible',
+      artStyle: 'anime',
       usedEdit: false,
-      layer: 'identity'
+      promptUsed: 'POLISHED PROMPT LONG ENOUGH FOR GEN'
     })
     api.characters.commitSheet = vi.fn().mockResolvedValue({
       path: '/tmp/sheet-committed.png',
@@ -321,6 +407,7 @@ describe('pages AiJobs + VideoPrep shell', () => {
     await renderWithProviders(
       <>
         <JobsProbe />
+        <MediaGenHost />
         <CharactersPage />
       </>,
       { withAiShell: true, withToastHost: true }
@@ -340,24 +427,13 @@ describe('pages AiJobs + VideoPrep shell', () => {
     await acceptLatestDraft()
     await waitFor(() => expect(api.characters.update).toHaveBeenCalled())
 
+    // Sheet via MediaGen shell (materials → polish → generate → gallery draft)
     await clickBtn(/^References$/i)
     await clickBtn(/Generate professional reference/i)
-    await waitFor(() => {
-      expect(
-        screen
-          .getAllByRole('button')
-          .some((b) => /^Generate$/i.test((b.textContent || '').trim()))
-      ).toBe(true)
+    await waitFor(() => expect(api.mediaGen.extract).toHaveBeenCalled(), {
+      timeout: 8000
     })
-    const go = screen
-      .getAllByRole('button')
-      .find((b) => /^Generate$/i.test((b.textContent || '').trim()))
-    await act(async () => {
-      go?.click()
-    })
-    await waitFor(() => expect(api.characters.generateSheet).toHaveBeenCalled(), {
-      timeout: 5000
-    })
+    await completeMediaGenImageFlow('/tmp/sheet-draft.png')
     await acceptLatestDraft()
     await waitFor(() => expect(api.characters.commitSheet).toHaveBeenCalled())
 
@@ -368,21 +444,19 @@ describe('pages AiJobs + VideoPrep shell', () => {
     )
     await acceptLatestDraft()
 
-    // Intro video — host must be registered
+    // Intro video routes through MediaGen when host is registered
     await clickBtn(/^References$/i)
     await clickBtn(/Intro video|intro/i)
-    await waitFor(() => expect(api.videoPrep.create).toHaveBeenCalled(), {
-      timeout: 10000
-    })
-    // confirm mocked modal if open
-    if (screen.queryByTestId('vp-modal')) {
-      await act(async () => {
-        fireEvent.click(screen.getByText('vp-confirm'))
-      })
-      await waitFor(() =>
-        expect(api.videoPrep.confirm).toHaveBeenCalled()
-      ).catch(() => undefined)
-    }
+    await waitFor(
+      () => {
+        expect(api.mediaGen.extract).toHaveBeenCalledWith(
+          expect.objectContaining({ kind: 'character-intro' })
+        )
+      },
+      { timeout: 10000 }
+    )
+    // Cancel shell (video path not needed for host registration check)
+    await clickBtn(/^Cancel$/i)
   }, 45000)
 
   it('Props: AI fill accept + plate commit', async () => {
@@ -616,9 +690,27 @@ describe('pages AiJobs + VideoPrep shell', () => {
   it('Stories: cover draft commit', async () => {
     api.stories.list = vi.fn().mockResolvedValue([makeStory()])
     api.stories.get = vi.fn().mockResolvedValue(makeStoryDetail())
-    api.stories.generateCover = vi.fn().mockResolvedValue({
+    api.mediaGen.extract = vi.fn().mockResolvedValue({
+      kind: 'story-cover',
+      ...mediaGenExtractOk,
+      sections: [
+        {
+          id: 'task-cover',
+          kind: 'text-profile' as const,
+          title: 'Logline',
+          entityType: 'story' as const,
+          text: 'demo cover',
+          include: true,
+          canBeEditBase: false,
+          group: 'task' as const
+        }
+      ]
+    })
+    api.mediaGen.generateImage = vi.fn().mockResolvedValue({
       path: '/tmp/cover-draft.png',
-      label: 'Cover'
+      draft: true,
+      usedEdit: false,
+      promptUsed: 'POLISHED PROMPT LONG ENOUGH FOR GEN'
     })
     api.stories.commitCover = vi.fn().mockResolvedValue({
       path: '/tmp/cover-final.png'
@@ -631,6 +723,7 @@ describe('pages AiJobs + VideoPrep shell', () => {
     await renderWithProviders(
       <>
         <JobsProbe />
+        <MediaGenHost />
         <StoriesPage />
       </>,
       { withAiShell: true, withToastHost: true }
@@ -639,17 +732,14 @@ describe('pages AiJobs + VideoPrep shell', () => {
     await clickBtn(/^Edit$/i)
     await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
     await clickBtn(/Generate cover/i)
-    const go = screen
-      .getAllByRole('button')
-      .find((b) => /^Generate$/i.test((b.textContent || '').trim()))
-    if (go) {
-      await act(async () => {
-        go.click()
-      })
-    }
-    await waitFor(() => expect(api.stories.generateCover).toHaveBeenCalled(), {
-      timeout: 8000
-    })
+    await waitFor(
+      () =>
+        expect(api.mediaGen.extract).toHaveBeenCalledWith(
+          expect.objectContaining({ kind: 'story-cover' })
+        ),
+      { timeout: 8000 }
+    )
+    await completeMediaGenImageFlow('/tmp/cover-draft.png')
     await acceptLatestDraft()
     await waitFor(() => expect(api.stories.commitCover).toHaveBeenCalled())
   }, 35000)
