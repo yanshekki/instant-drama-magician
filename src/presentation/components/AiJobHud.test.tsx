@@ -3,7 +3,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (k: string) => (k.startsWith('aiJobs.step.') ? `STEP:${k}` : k),
+    t: (k: string) => {
+      // Only translate known step tokens so unknown messages fall through to raw
+      if (k === 'aiJobs.step.clip' || k === 'aiJobs.step.GENERATING') {
+        return `STEP:${k}`
+      }
+      return k
+    },
     i18n: { language: 'en' }
   })
 }))
@@ -49,19 +55,15 @@ describe('AiJobHud', () => {
   })
 
   it('renders running, pending draft, failed cards with actions', () => {
+    // visible = active + pending(2) + failed(2), max 4
     aiJobs.activeJobs = [
       {
         id: 'r1',
         status: 'running',
+        // raw message that is not media/scene/step key → formatStep fallback (line 51)
         label: 'Run job',
-        message: 'GENERATING',
+        message: 'custom-phase-xyz',
         progress: 0.4
-      },
-      {
-        id: 'q1',
-        status: 'queued',
-        label: 'Queued',
-        message: 'clip'
       }
     ]
     aiJobs.pendingDrafts = [
@@ -84,6 +86,7 @@ describe('AiJobHud', () => {
     ]
     render(<AiJobHud />)
     expect(screen.getByText('Run job')).toBeTruthy()
+    expect(screen.getByText(/custom-phase-xyz/)).toBeTruthy()
     fireEvent.click(screen.getAllByText('aiJobs.cancel')[0])
     expect(aiJobs.cancelJob).toHaveBeenCalled()
     fireEvent.click(screen.getByText('aiJobs.review'))

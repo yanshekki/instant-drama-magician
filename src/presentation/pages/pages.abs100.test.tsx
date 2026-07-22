@@ -13828,12 +13828,10 @@ describe('abs100 Stories pure residual helpers', () => {
 
 
 describe('abs100 Settings pure residual helpers', () => {
-  it.skip('covers every pure residual branch', async () => {
+  it('covers every pure residual branch', async () => {
     const S = await import('./SettingsPage')
-    if (typeof (S as any).settingsApiKeyPlaceholder !== 'function' && typeof (S as any).settingsApiKeyHint !== 'function') {
-      expect(typeof S.SettingsPage).toBe('function')
-      return
-    }
+    expect(typeof S.SettingsPage).toBe('function')
+    expect(typeof S.settingsApplyIpc).toBe('function')
 
     const msgs: string[] = []
     settingsApplyIpc(new Error('x'), (m) => msgs.push(m), (m) => msgs.push('t:' + m))
