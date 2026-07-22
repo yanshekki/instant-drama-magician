@@ -13,7 +13,6 @@ import type { HandlerContext } from './context'
 export function registerActionsHandlers(ctx: HandlerContext): void {
   const {
     reg,
-    host,
     actions,
     generation,
     activity
