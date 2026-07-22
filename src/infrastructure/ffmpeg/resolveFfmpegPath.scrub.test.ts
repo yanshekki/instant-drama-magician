@@ -205,7 +205,7 @@ describe('resolveFfmpegPath scrub branches', () => {
     mod.clearFfmpegPathCache()
     // explicit candidate under cwd already tested; add out/main relative via allowed
     const name = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
-    // cover isUsableFile false for 'ffmpeg' string
+    // cover usablePath false for bare 'ffmpeg' string
     process.env.FFMPEG_PATH = '  '
     expect(mod.resolveFfmpegPathFresh()).toBeTruthy()
   })

@@ -33,12 +33,6 @@ export function preferUnpackedAsar(p: string | null | undefined): string | null 
   return p
 }
 
-function isUsableFile(p: string | null | undefined): p is string {
-  if (!p || p === 'ffmpeg') return false
-  const fixed = preferUnpackedAsar(p) || p
-  return existsSync(fixed)
-}
-
 function usablePath(p: string | null | undefined): string | null {
   if (!p || p === 'ffmpeg') return null
   const fixed = preferUnpackedAsar(p) || p
