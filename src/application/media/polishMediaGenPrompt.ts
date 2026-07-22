@@ -8,6 +8,7 @@ import {
   buildMediaGenPolishUserText,
   extractPolishedMediaPrompt,
   includedMaterialImagePaths,
+  mediaGenMode,
   type MediaGenKind,
   type MediaGenMaterialSection
 } from '../../domain/mediaGenPrep'
@@ -24,6 +25,16 @@ export async function polishMediaGenPrompt(options: {
   /** Template prompt if LLM fails or returns too short. */
   fallbackPrompt: string
   hardRules?: string | null
+  /**
+   * Override polish director mode.
+   * Video shell uses `image` for keyframe still, then `video` before confirm.
+   */
+  mode?: 'image' | 'video'
+  /**
+   * When set (typically video stage), replaces generic materials user text.
+   * Still attaches multi-vision images from includedSections.
+   */
+  userTextOverride?: string | null
   maxTokens?: number
   signal?: AbortSignal
 }): Promise<{ prompt: string; polished: boolean; imageCount: number }> {
@@ -40,12 +51,20 @@ export async function polishMediaGenPrompt(options: {
     ensureHardRules(prompt, options.hardRules)
 
   const imagePaths = includedMaterialImagePaths(options.includedSections)
-  const userText = buildMediaGenPolishUserText({
-    kind: options.kind,
-    locale,
-    includedSections: options.includedSections,
-    taskHint: options.taskHint
-  })
+  const mode = options.mode ?? mediaGenMode(options.kind)
+  const override = options.userTextOverride?.trim() || ''
+  const userText =
+    override ||
+    buildMediaGenPolishUserText({
+      kind: options.kind,
+      locale,
+      includedSections: options.includedSections,
+      taskHint:
+        options.taskHint ||
+        (mode === 'video'
+          ? 'Write a professional IMAGE-TO-VIDEO director prompt (camera, performance, pacing).'
+          : undefined)
+    })
 
   let userContent: string | ReturnType<typeof buildMultiVisionUserContent> =
     userText
@@ -63,11 +82,11 @@ export async function polishMediaGenPrompt(options: {
       messages: [
         {
           role: 'system',
-          content: buildMediaGenPolishSystemPrompt(locale)
+          content: buildMediaGenPolishSystemPrompt(locale, { mode })
         },
         { role: 'user', content: userContent }
       ],
-      max_tokens: options.maxTokens ?? 1200
+      max_tokens: options.maxTokens ?? (mode === 'video' ? 1400 : 1200)
     })
     if (options.signal?.aborted) {
       throw new AppError('CANCELLED', 'errors.cancelled')

@@ -224,8 +224,13 @@ reg(
     const { FfmpegService } = await import(
       '../../infrastructure/ffmpeg/FfmpegService'
     )
+    const { resolveFfmpegPathFresh } = await import(
+      '../../infrastructure/ffmpeg/resolveFfmpegPath'
+    )
     try {
-      const svc = new FfmpegService()
+      // Prefer a fresh resolve so long-running servers recover after install/cwd changes
+      const preferred = resolveFfmpegPathFresh()
+      const svc = new FfmpegService(preferred === 'ffmpeg' ? undefined : preferred)
       await svc.ensureAvailable()
       // Path kept for support/diagnostics; UI only surfaces failures
       // (FFmpeg is a hard dependency of the product).
@@ -235,9 +240,20 @@ reg(
         path: svc.binaryPath
       }
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error)
+      const details =
+        error &&
+        typeof error === 'object' &&
+        'details' in error &&
+        typeof (error as { details?: unknown }).details === 'string'
+          ? (error as { details: string }).details
+          : undefined
       return {
         available: false,
-        message: error instanceof Error ? error.message : String(error)
+        message,
+        details,
+        path: resolveFfmpegPathFresh()
       }
     }
   })

@@ -97,7 +97,10 @@ export interface MediaGenPrepOpenRequest {
   entryId?: string
   panelLayout?: string | null
   artStyle?: string | null
+  /** Character sheet package (出圖方案) */
   sheetVariant?: string | null
+  /** Scene / prop plate variant */
+  plateVariant?: string | null
   galleryIdentityPaths?: string[]
   preferIdentityEdit?: boolean
   /** Costume swap / dress description */
@@ -105,6 +108,52 @@ export interface MediaGenPrepOpenRequest {
   /** Atmosphere swap text */
   atmosphereDescription?: string
   durationSeconds?: number
+  /**
+   * Intro / clip: use existing gallery still as keyframe (skip generateImage).
+   * Source = sourceImagePath || galleryIdentityPaths[0]
+   */
+  skipStillIfExists?: boolean
+  /** Explicit source still for skip / identity (also put in galleryIdentityPaths) */
+  sourceImagePath?: string
+  /** Video export aspect; default 16:9 */
+  aspectRatio?: string
+  /**
+   * Seed the user-extra box (e.g. timeline revision prompt).
+   * Merged into still generate and video confirm like typed userExtra.
+   */
+  userExtraPrompt?: string | null
+  /** Sequential timeline clip queue (after current finishes, open next). */
+  queueIndex?: number
+  queueTotal?: number
+  queueRemaining?: string[]
+  /**
+   * Policy for auto-advanced queue items (B4).
+   * When undefined, Host falls back to this request's skipStillIfExists.
+   */
+  queueSkipStillIfExists?: boolean
+  /**
+   * Per-entry revision / user-extra for remaining (and current) queue clips (B1).
+   * Key = timeline entryId.
+   */
+  queueUserExtraByEntryId?: Record<string, string>
+  /**
+   * Per-entry snap'd clip duration for queue handoff (R1).
+   * Key = timeline entryId.
+   */
+  queueDurationSecondsByEntryId?: Record<string, number>
+  /**
+   * Resume saved draft (still + prompts ready) — skip to keyframe/confirm-video.
+   * Same storage as VideoPrep drafts (continue video button).
+   */
+  resumeDraft?: {
+    polishedPrompt: string
+    videoPrompt?: string
+    stillPath: string
+    userExtraPrompt?: string
+    durationSeconds?: number
+    aspectRatio?: string
+    phase?: 'keyframe' | 'confirm-video' | 'review-prompt'
+  }
 }
 
 export interface MediaGenPrepResult {
@@ -113,6 +162,11 @@ export interface MediaGenPrepResult {
   artStyle?: string
   usedEdit?: boolean
   promptUsed?: string
+  sheetVariant?: string
+  plateVariant?: string
+  galleryLabel?: string
+  layer?: string
+  forcePureLayout?: boolean
 }
 
 function entityLabel(
@@ -147,13 +201,38 @@ export function MediaGenPrepModal({
   open,
   request,
   onClose,
-  onGenerated
+  onGenerated,
+  onSaveDraft,
+  onVideoDone
 }: {
   open: boolean
   request: MediaGenPrepOpenRequest | null
   onClose: () => void
   /** Image accept / still ready for host (gallery draft). */
   onGenerated: (result: MediaGenPrepResult) => void
+  /** Persist video mid-flow draft (compatible with hasVideoPrepDraft keys). */
+  onSaveDraft?: (payload: {
+    kind: string
+    polishedPrompt: string
+    videoPrompt: string
+    stillPath: string
+    userExtraPrompt: string
+    durationSeconds: number
+    aspectRatio: string
+    sourceImagePath?: string | null
+    queueIndex?: number
+    queueTotal?: number
+    queueRemaining?: string[]
+  }) => void
+  /** After video success — host may start next queue item. */
+  onVideoDone?: (detail: {
+    kind: string
+    path: string
+    stillPath: string | null
+    queueRemaining?: string[]
+    queueIndex?: number
+    queueTotal?: number
+  }) => void
 }): JSX.Element | null {
   const { t, i18n } = useTranslation()
   const mode = request
@@ -173,8 +252,16 @@ export function MediaGenPrepModal({
     panelLayout?: string
     artStyle?: string
     useIdentityEdit: boolean
+    sheetVariant?: string
+    plateVariant?: string
+    forcePureLayout?: boolean
+    galleryLabel?: string
+    layer?: string
+    aspectRatio?: string
   }>({ useIdentityEdit: false })
   const [polishedPrompt, setPolishedPrompt] = useState('')
+  /** Video director prompt (second polish after keyframe). */
+  const [videoPrompt, setVideoPrompt] = useState('')
   const [userExtra, setUserExtra] = useState('')
   const [durationSeconds, setDurationSeconds] = useState(10)
   const [polishedFlag, setPolishedFlag] = useState(false)
@@ -185,6 +272,10 @@ export function MediaGenPrepModal({
   const [resultPath, setResultPath] = useState<string | null>(null)
   const [resultMeta, setResultMeta] = useState<MediaGenPrepResult | null>(null)
   const [videoPath, setVideoPath] = useState<string | null>(null)
+  /** Continuity / skip-still path returned from extract */
+  const [existingStillPath, setExistingStillPath] = useState<string | null>(
+    null
+  )
 
   const locked = isMediaGenPrepPhaseLocked(phase) || busy
 
@@ -205,10 +296,14 @@ export function MediaGenPrepModal({
         panelLayout: request.panelLayout,
         artStyle: request.artStyle,
         sheetVariant: request.sheetVariant,
+        plateVariant: request.plateVariant,
         galleryIdentityPaths: request.galleryIdentityPaths,
         preferIdentityEdit: request.preferIdentityEdit,
+        costumeDescription: request.costumeDescription,
         atmosphereDescription: request.atmosphereDescription,
         durationSeconds: request.durationSeconds,
+        skipStillIfExists:
+          request.skipStillIfExists || Boolean(request.resumeDraft?.stillPath),
         locale: getAiLocale(i18n.language)
       } as never)
       setSections(r.sections as MediaGenMaterialSection[])
@@ -216,13 +311,54 @@ export function MediaGenPrepModal({
       setFallbackPrompt(r.fallbackPrompt ?? '')
       setTaskHint(r.taskHint ?? '')
       setHardRules(r.hardRules ?? null)
-      setGenOptions(r.genOptions)
+      setGenOptions({
+        ...r.genOptions,
+        aspectRatio:
+          request.aspectRatio ||
+          request.resumeDraft?.aspectRatio ||
+          (r.genOptions as { aspectRatio?: string }).aspectRatio
+      })
+      const resume = request.resumeDraft
+      const existing =
+        resume?.stillPath?.trim() ||
+        (r as { existingStillPath?: string | null }).existingStillPath?.trim() ||
+        request.sourceImagePath?.trim() ||
+        null
+      setExistingStillPath(existing)
+      setDurationSeconds(
+        resume?.durationSeconds ?? request.durationSeconds ?? 10
+      )
+      setUserExtra(
+        resume?.userExtraPrompt?.trim() ||
+          (typeof request.userExtraPrompt === 'string'
+            ? request.userExtraPrompt.trim()
+            : '') ||
+          ''
+      )
+      setVideoPath(null)
+      if (resume?.stillPath?.trim() && resume.polishedPrompt?.trim()) {
+        // Resume draft: land on keyframe / confirm-video with prompts ready
+        setPolishedPrompt(resume.polishedPrompt)
+        setVideoPrompt(
+          resume.videoPrompt?.trim() || resume.polishedPrompt
+        )
+        setResultPath(resume.stillPath.trim())
+        setResultMeta({
+          path: resume.stillPath.trim(),
+          promptUsed: resume.polishedPrompt
+        })
+        const p = resume.phase || 'confirm-video'
+        setPhase(
+          p === 'review-prompt' || p === 'keyframe' || p === 'confirm-video'
+            ? p
+            : 'confirm-video'
+        )
+        return
+      }
       setPolishedPrompt('')
-      setUserExtra('')
-      setDurationSeconds(request.durationSeconds ?? 10)
+      setVideoPrompt('')
       setResultPath(null)
       setResultMeta(null)
-      setVideoPath(null)
       setPhase('materials')
     } catch (e) {
       setErrorMessage(formatIpcError(e))
@@ -233,7 +369,7 @@ export function MediaGenPrepModal({
   useEffect(() => {
     if (!open || !request) return
     void loadExtract()
-    // Re-extract when entity / kind changes
+    // Re-extract when entity / kind / package / gallery selection changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     open,
@@ -243,6 +379,16 @@ export function MediaGenPrepModal({
     request?.sceneId,
     request?.propId,
     request?.storyId,
+    request?.entryId,
+    request?.costumeId,
+    request?.sheetVariant,
+    request?.plateVariant,
+    request?.artStyle,
+    request?.preferIdentityEdit,
+    request?.costumeDescription,
+    request?.atmosphereDescription,
+    // gallery paths: join so array identity changes still re-extract
+    (request?.galleryIdentityPaths ?? []).join('|'),
     loadExtract
   ])
 
@@ -292,17 +438,20 @@ export function MediaGenPrepModal({
     setErrorMessage(null)
     try {
       const included = sections.filter((s) => s.include)
+      // Always image director for the still / keyframe pipeline (video kinds too)
       const r = await getApi().mediaGen.polish({
         kind: request!.kind,
         includedSections: included as never,
         fallbackPrompt,
         taskHint,
         hardRules,
-        locale: getAiLocale(i18n.language)
-      })
+        locale: getAiLocale(i18n.language),
+        mode: 'image'
+      } as never)
       setPolishedPrompt(r.polishedPrompt)
       setPolishedFlag(r.polished)
       setImageCount(r.imageCount)
+      setVideoPrompt('')
       setPhase('review-prompt')
     } catch (e) {
       setErrorMessage(formatIpcError(e))
@@ -312,20 +461,132 @@ export function MediaGenPrepModal({
     }
   }
 
+  /** Second polish: motion director prompt for image-to-video (uses keyframe as ref). */
+  const prepareVideoConfirm = async (): Promise<void> => {
+    if (!request || !resultPath) return
+    setBusy(true)
+    setPhase('loading-polish')
+    setErrorMessage(null)
+    try {
+      const included = sections.filter((s) => s.include)
+      const keyframeSection: MediaGenMaterialSection = {
+        id: 'keyframe_still',
+        kind: 'ref-image',
+        title: 'Keyframe',
+        entityType: 'gallery',
+        imagePath: resultPath,
+        text: 'Generated keyframe still — IMAGE-TO-VIDEO must lock identity, wardrobe, set, and framing to this frame. Animate from this exact visual.',
+        include: true,
+        canBeEditBase: false,
+        group: 'refs'
+      }
+      const stillPrompt = polishedPrompt.trim()
+      const seconds = durationSeconds || request.durationSeconds || 10
+      const aspect =
+        request.aspectRatio === '9:16' || request.aspectRatio === '16:9'
+          ? request.aspectRatio
+          : genOptions.aspectRatio === '9:16' ||
+              genOptions.aspectRatio === '16:9'
+            ? genOptions.aspectRatio
+            : '16:9'
+      const locale = getAiLocale(i18n.language)
+      const videoFallback = [
+        stillPrompt,
+        'IMAGE-TO-VIDEO: animate this keyframe as a short-drama clip.',
+        'Camera motion and performance clear; keep identity and set locked to the keyframe still.',
+        `Duration target: ${seconds}s. Aspect: ${aspect}.`
+      ]
+        .filter(Boolean)
+        .join('\n')
+      const { buildMediaGenVideoPolishUserOverride } = await import(
+        '../../domain/mediaGenVideoPolishUser'
+      )
+      const userTextOverride = buildMediaGenVideoPolishUserOverride({
+        kind: request.kind,
+        locale,
+        seconds,
+        aspectRatio: aspect,
+        hasRefImage: true,
+        fallbackPrompt: videoFallback,
+        hardRules,
+        includedSections: [...included, keyframeSection],
+        revisionPrompt: userExtra.trim() || request.userExtraPrompt || null
+      })
+      const r = await getApi().mediaGen.polish({
+        kind: request.kind,
+        includedSections: [...included, keyframeSection] as never,
+        fallbackPrompt: videoFallback,
+        taskHint: `Professional image-to-video prompt from keyframe for ${request.kind}. Camera, performance, pacing; lock to keyframe still.`,
+        hardRules,
+        locale,
+        mode: 'video',
+        userTextOverride: userTextOverride || undefined
+      } as never)
+      setVideoPrompt(r.polishedPrompt)
+      setPolishedFlag(r.polished)
+      setPhase('confirm-video')
+    } catch (e) {
+      setErrorMessage(formatIpcError(e))
+      // Still allow confirm with still prompt as fallback
+      setVideoPrompt(polishedPrompt.trim())
+      setPhase('confirm-video')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const resolveSourceStill = (): string | null => {
+    if (!request) return null
+    if (existingStillPath?.trim()) return existingStillPath.trim()
+    const fromReq =
+      request.sourceImagePath?.trim() ||
+      request.galleryIdentityPaths?.find((p) => p?.trim())?.trim() ||
+      null
+    if (fromReq) return fromReq
+    const fromSections = sections
+      .filter((s) => s.include && s.imagePath?.trim())
+      .map((s) => s.imagePath!.trim())
+    return fromSections[0] ?? null
+  }
+
   const runGenerateStill = async (): Promise<void> => {
     if (!request || !polishedPrompt.trim()) return
     setBusy(true)
     setPhase('loading-generate')
     setErrorMessage(null)
     try {
+      const finalPrompt = [polishedPrompt.trim(), userExtra.trim()]
+        .filter(Boolean)
+        .join('\n\n')
+      // Intro / clip: reuse existing gallery still as keyframe (parity with videoPrep skipStill)
+      if (request.skipStillIfExists && mode === 'video') {
+        const src = resolveSourceStill()
+        if (src) {
+          const meta: MediaGenPrepResult = {
+            path: src,
+            artStyle: genOptions.artStyle ?? request.artStyle ?? undefined,
+            usedEdit: false,
+            promptUsed: finalPrompt,
+            galleryLabel: genOptions.galleryLabel
+          }
+          setResultPath(src)
+          setResultMeta(meta)
+          setPhase('keyframe')
+          return
+        }
+      }
       const baseSec = sections.find((s) => s.id === editBaseSectionId)
       const editBasePath =
         baseSec?.include && baseSec.canBeEditBase
           ? baseSec.imagePath?.trim() || null
           : null
-      const useIdentityEdit = Boolean(editBasePath)
+      const forcePure = genOptions.forcePureLayout === true
+      const useIdentityEdit = Boolean(editBasePath) && !forcePure
       const isTimeline =
         request.kind === 'timeline-still' || request.kind === 'timeline-clip'
+      const includedPaths = sections
+        .filter((s) => s.include && s.imagePath?.trim())
+        .map((s) => s.imagePath!.trim())
       const r = await getApi().mediaGen.generateImage({
         kind: request.kind,
         actionId: request.actionId,
@@ -335,12 +596,18 @@ export function MediaGenPrepModal({
         storyId: request.storyId,
         entryId: request.entryId,
         costumeId: request.costumeId,
-        polishedPrompt: polishedPrompt.trim(),
-        editBasePath,
+        polishedPrompt: finalPrompt,
+        editBasePath: forcePure ? null : editBasePath,
         useIdentityEdit,
         panelLayout: genOptions.panelLayout ?? request.panelLayout,
         artStyle: genOptions.artStyle ?? request.artStyle,
-        sheetVariant: request.sheetVariant,
+        sheetVariant:
+          genOptions.sheetVariant ?? request.sheetVariant ?? undefined,
+        plateVariant:
+          genOptions.plateVariant ?? request.plateVariant ?? undefined,
+        forcePureLayout: forcePure,
+        galleryIdentityPaths: includedPaths,
+        galleryLabel: genOptions.galleryLabel,
         hardRules,
         // Timeline refine writes continuity still immediately
         persist: isTimeline
@@ -350,7 +617,12 @@ export function MediaGenPrepModal({
         panelLayout: r.panelLayout,
         artStyle: r.artStyle,
         usedEdit: r.usedEdit,
-        promptUsed: r.promptUsed || polishedPrompt.trim()
+        promptUsed: r.promptUsed || finalPrompt,
+        sheetVariant: r.sheetVariant ?? genOptions.sheetVariant,
+        plateVariant: r.plateVariant ?? genOptions.plateVariant,
+        galleryLabel: r.galleryLabel ?? genOptions.galleryLabel,
+        layer: r.layer ?? genOptions.layer,
+        forcePureLayout: r.forcePureLayout ?? forcePure
       }
       setResultPath(r.path)
       setResultMeta(meta)
@@ -368,7 +640,9 @@ export function MediaGenPrepModal({
   }
 
   const handleConfirmVideo = async (): Promise<void> => {
-    if (!request || !resultPath || !polishedPrompt.trim()) return
+    const pro =
+      videoPrompt.trim() || polishedPrompt.trim()
+    if (!request || !resultPath || !pro) return
     setBusy(true)
     setPhase('loading-video')
     setErrorMessage(null)
@@ -382,6 +656,17 @@ export function MediaGenPrepModal({
         storyId: request.storyId,
         entryId: request.entryId
       }
+      // Prefer generated keyframe as video ref; keep original gallery path as source
+      const sourceStill =
+        request.sourceImagePath?.trim() ||
+        request.galleryIdentityPaths?.[0]?.trim() ||
+        resultPath
+      const ar =
+        request.aspectRatio ||
+        genOptions.aspectRatio ||
+        '16:9'
+      const aspectRatio =
+        ar === '9:16' || ar === '16:9' ? ar : '16:9'
       const r = await getApi().videoPrep.confirm({
         kind: request.kind as
           | 'character-intro'
@@ -390,14 +675,13 @@ export function MediaGenPrepModal({
           | 'costume-intro'
           | 'action-intro'
           | 'timeline-clip',
-        professionalPrompt: polishedPrompt.trim(),
+        professionalPrompt: pro,
         userExtraPrompt: userExtra.trim() || null,
         stillPath: resultPath,
-        sourceImagePath:
-          request.galleryIdentityPaths?.[0] ?? resultPath,
+        sourceImagePath: sourceStill,
         ...entityIds,
         durationSeconds: durationSeconds || request.durationSeconds || 10,
-        aspectRatio: '16:9',
+        aspectRatio,
         locale: getAiLocale(i18n.language)
       })
       setVideoPath(r.path)
@@ -413,16 +697,54 @@ export function MediaGenPrepModal({
             gallery: r.gallery,
             stillPath: resultPath,
             sourceImagePath:
-              request.galleryIdentityPaths?.[0] ?? resultPath
+              request.sourceImagePath ||
+              request.galleryIdentityPaths?.[0] ||
+              resultPath
           }
         })
       )
+      onVideoDone?.({
+        kind: request.kind,
+        path: r.path,
+        stillPath: resultPath,
+        queueRemaining: request.queueRemaining,
+        queueIndex: request.queueIndex,
+        queueTotal: request.queueTotal
+      })
     } catch (e) {
       setErrorMessage(formatIpcError(e))
       setPhase('confirm-video')
     } finally {
       setBusy(false)
     }
+  }
+
+  const handleSaveDraft = (): void => {
+    if (!request || !resultPath || !onSaveDraft) return
+    const pro = videoPrompt.trim() || polishedPrompt.trim()
+    if (!pro) return
+    const ar =
+      request.aspectRatio === '9:16' || request.aspectRatio === '16:9'
+        ? request.aspectRatio
+        : genOptions.aspectRatio === '9:16' || genOptions.aspectRatio === '16:9'
+          ? genOptions.aspectRatio
+          : '16:9'
+    onSaveDraft({
+      kind: request.kind,
+      polishedPrompt: polishedPrompt.trim() || pro,
+      videoPrompt: pro,
+      stillPath: resultPath,
+      userExtraPrompt: userExtra.trim(),
+      durationSeconds: durationSeconds || request.durationSeconds || 10,
+      aspectRatio: ar,
+      sourceImagePath:
+        request.sourceImagePath ||
+        request.galleryIdentityPaths?.[0] ||
+        resultPath,
+      queueIndex: request.queueIndex,
+      queueTotal: request.queueTotal,
+      queueRemaining: request.queueRemaining
+    })
   }
 
   const acceptImageResult = (): void => {
@@ -839,14 +1161,13 @@ export function MediaGenPrepModal({
               </div>
 
               <div>
-                <Label>
-                  {mode === 'video'
-                    ? t('mediaGen.polishPromptVideo')
-                    : t('mediaGen.polishPromptImage')}
-                </Label>
+                <Label>{t('mediaGen.polishPromptImage')}</Label>
                 <p className="mb-1 text-[10px] text-ink-500">
                   {mode === 'video'
-                    ? t('mediaGen.polishPromptVideoHint')
+                    ? t('mediaGen.keyframeHint', {
+                        defaultValue:
+                          'Keyframe still prompt (image director). Video motion polish runs after the keyframe is ready.'
+                      })
                     : t('mediaGen.polishPromptImageHint')}
                 </p>
                 <Textarea
@@ -920,11 +1241,16 @@ export function MediaGenPrepModal({
                 ) : null}
                 <div>
                   <Label>{t('mediaGen.polishPromptVideo')}</Label>
+                  <p className="mb-1 text-[10px] text-ink-500">
+                    {t('mediaGen.polishPromptVideoHint')}
+                  </p>
                   <Textarea
                     size="lg"
                     className="mt-1 min-h-[8rem] font-mono text-[12px]"
-                    value={polishedPrompt}
-                    onChange={(e) => setPolishedPrompt(e.target.value)}
+                    value={videoPrompt || polishedPrompt}
+                    onChange={(e) => setVideoPrompt(e.target.value)}
+                    dir="auto"
+                    spellCheck={false}
                   />
                 </div>
                 <div>
@@ -1035,7 +1361,11 @@ export function MediaGenPrepModal({
                 onClick={() => void runGenerateStill()}
               >
                 {mode === 'video'
-                  ? t('mediaGen.generateKeyframe')
+                  ? request.skipStillIfExists && resolveSourceStill()
+                    ? t('mediaGen.useStillAsKeyframe', {
+                        defaultValue: 'Use still as keyframe'
+                      })
+                    : t('mediaGen.generateKeyframe')
                   : t('mediaGen.generateImage')}
               </Button>
             </>
@@ -1059,6 +1389,15 @@ export function MediaGenPrepModal({
               >
                 {t('mediaGen.backMaterials')}
               </Button>
+              {onSaveDraft && resultPath ? (
+                <Button
+                  variant="secondary"
+                  disabled={locked}
+                  onClick={handleSaveDraft}
+                >
+                  {t('videoPrep.saveDraft')}
+                </Button>
+              ) : null}
               <Button
                 variant="secondary"
                 disabled={locked}
@@ -1069,7 +1408,8 @@ export function MediaGenPrepModal({
               </Button>
               <Button
                 disabled={locked}
-                onClick={() => setPhase('confirm-video')}
+                loading={busy}
+                onClick={() => void prepareVideoConfirm()}
               >
                 {t('mediaGen.nextConfirmVideo')}
               </Button>
@@ -1084,8 +1424,29 @@ export function MediaGenPrepModal({
               >
                 {t('mediaGen.steps.keyframe')}
               </Button>
+              {onSaveDraft && resultPath ? (
+                <Button
+                  variant="secondary"
+                  disabled={
+                    locked || !(videoPrompt.trim() || polishedPrompt.trim())
+                  }
+                  onClick={handleSaveDraft}
+                >
+                  {t('videoPrep.saveDraft')}
+                </Button>
+              ) : null}
               <Button
-                disabled={locked || !polishedPrompt.trim()}
+                variant="secondary"
+                disabled={locked}
+                loading={busy}
+                onClick={() => void prepareVideoConfirm()}
+              >
+                {t('mediaGen.repolish')}
+              </Button>
+              <Button
+                disabled={
+                  locked || !(videoPrompt.trim() || polishedPrompt.trim())
+                }
                 loading={busy}
                 onClick={() => void handleConfirmVideo()}
               >
@@ -1094,7 +1455,11 @@ export function MediaGenPrepModal({
             </>
           ) : null}
           {phase === 'video-done' ? (
-            <Button onClick={onClose}>{t('mediaGen.finish')}</Button>
+            <Button onClick={onClose}>
+              {(request.queueRemaining?.length ?? 0) > 0
+                ? t('videoPrep.nextClip')
+                : t('mediaGen.finish')}
+            </Button>
           ) : null}
           {phase === 'error' ? (
             <Button variant="ghost" onClick={onClose}>

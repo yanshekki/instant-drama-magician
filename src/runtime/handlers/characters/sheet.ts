@@ -1,5 +1,9 @@
 /**
  * registerCharactersSheet
+ *
+ * @deprecated UI production path: mediaGen:extract → polish → generateImage
+ * (kind=character-sheet) + characters:commitSheet.
+ * generateSheet remains for CLI / tests / low-level tooling.
  */
 import { existsSync, writeFileSync } from 'fs'
 import type { HandlerContext } from '../context'
@@ -22,6 +26,7 @@ export function registerCharactersSheet(ctx: HandlerContext): void {
     activity
   } = ctx
 
+/** @deprecated Prefer mediaGen character-sheet pipeline. */
 reg(
   'characters:generateSheet',
   (

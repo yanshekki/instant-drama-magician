@@ -202,6 +202,7 @@ reg(
   )
 )
 
+/** @deprecated Prefer mediaGen prop-plate extract/polish/generateImage. */
 reg(
   'props:generatePlate',
   (

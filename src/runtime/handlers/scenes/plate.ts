@@ -1,5 +1,8 @@
 /**
  * registerScenesPlate
+ *
+ * @deprecated UI: mediaGen scene-plate extract/polish/generateImage + scenes:commitPlate.
+ * generatePlate kept for CLI / tests.
  */
 import { existsSync, writeFileSync } from 'fs'
 import type { HandlerContext } from '../context'
@@ -14,6 +17,7 @@ export function registerScenesPlate(ctx: HandlerContext): void {
     activity
   } = ctx
 
+/** @deprecated Prefer mediaGen scene-plate pipeline. */
 reg(
   'scenes:generatePlate',
   (

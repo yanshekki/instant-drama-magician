@@ -9,6 +9,11 @@ export interface ChannelSpec {
   argsHint?: string
   destructive?: boolean
   desktopOnly?: boolean
+  /**
+   * UI production path prefers mediaGen:*; these remain for CLI / tests / commit helpers.
+   * Prefer mediaGen:extract → polish → generateImage (+ videoPrep:confirm for video).
+   */
+  deprecated?: boolean
 }
 
 /** Core channels available in headless/web runtime today */
@@ -242,13 +247,17 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   },
   {
     channel: 'characters:generateIntroVideo',
-    description: 'characters: generate intro video',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen character-intro + videoPrep:confirm. One-shot intro video.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'characters:generateSheet',
-    description: 'characters: generate sheet',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen:extract/polish/generateImage (kind=character-sheet). Direct sheet gen.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'characters:generateSoul',
@@ -277,8 +286,10 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   },
   {
     channel: 'characters:swapCostume',
-    description: 'characters: swap costume',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen costume-swap extract/polish/generateImage.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'characters:writeSoulContent',
@@ -302,8 +313,10 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   },
   {
     channel: 'costumes:generateIntroVideo',
-    description: 'costumes: generate intro video',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen costume-intro + videoPrep:confirm.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'costumes:get',
@@ -440,13 +453,17 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   },
   {
     channel: 'props:generateIntroVideo',
-    description: 'props: generate intro video',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen prop-intro + videoPrep:confirm.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'props:generatePlate',
-    description: 'props: generate plate',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen prop-plate extract/polish/generateImage.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'actions:aiFill',
@@ -460,13 +477,17 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   },
   {
     channel: 'actions:generateIntroVideo',
-    description: 'actions: generate intro video',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen action-intro + videoPrep:confirm.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'actions:generatePlate',
-    description: 'actions: generate plate',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen action-plate extract/polish/generateImage.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'mediaGen:extract',
@@ -511,18 +532,24 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   },
   {
     channel: 'scenes:generateIntroVideo',
-    description: 'scenes: generate intro video',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen scene-intro + videoPrep:confirm.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'scenes:generatePlate',
-    description: 'scenes: generate plate',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen scene-plate extract/polish/generateImage.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'scenes:swapAtmosphere',
-    description: 'scenes: swap atmosphere',
-    argsHint: '[{...}]'
+    description:
+      'DEPRECATED: use mediaGen atmosphere-swap extract/polish/generateImage.',
+    argsHint: '[{...}]',
+    deprecated: true
   },
   {
     channel: 'souls:categories',

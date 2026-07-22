@@ -25,7 +25,7 @@ describe('resolveFfmpegPath', () => {
     vi.restoreAllMocks()
   })
 
-  it('prefers FFMPEG_PATH env when file exists or is "ffmpeg"', async () => {
+  it('prefers FFMPEG_PATH when it is an existing file; bare "ffmpeg" does not short-circuit', async () => {
     const bin = join(tmp, 'custom-ffmpeg')
     writeFileSync(bin, 'x')
     process.env.FFMPEG_PATH = bin
@@ -34,9 +34,16 @@ describe('resolveFfmpegPath', () => {
     expect(mod.resolveFfmpegPath()).toBe(bin)
     expect(mod.resolveFfmpegPath()).toBe(bin)
 
+    // Bare command name must not skip bundled static (web/server env trap)
     mod.clearFfmpegPathCache()
     process.env.FFMPEG_PATH = 'ffmpeg'
-    expect(mod.resolveFfmpegPath()).toBe('ffmpeg')
+    const p = mod.resolveFfmpegPath()
+    expect(typeof p).toBe('string')
+    expect(p.length).toBeGreaterThan(0)
+    // Prefer real binary over bare PATH name when available
+    if (p !== 'ffmpeg') {
+      expect(existsSync(p)).toBe(true)
+    }
   })
 
   it('ignores FFMPEG_PATH when path missing, falls through', async () => {
@@ -55,8 +62,9 @@ describe('resolveFfmpegPath', () => {
     const mod = await import('./resolveFfmpegPath')
     mod.clearFfmpegPathCache()
     expect(mod.resolveFfmpegPath()).toBe(bin)
-    process.env.FFMPEG_PATH = 'ffmpeg'
-    expect(mod.resolveFfmpegPathFresh()).toBe('ffmpeg')
+    process.env.FFMPEG_PATH = join(tmp, 'other-ff')
+    writeFileSync(process.env.FFMPEG_PATH, 'y')
+    expect(mod.resolveFfmpegPathFresh()).toBe(process.env.FFMPEG_PATH)
   })
 
   it('returns a string path without env', async () => {
@@ -117,12 +125,16 @@ describe('resolveFfmpegPath', () => {
     expect(typeof p2).toBe('string')
   })
 
-  it('caches string "ffmpeg" as usable', async () => {
+  it('bare FFMPEG_PATH=ffmpeg falls through to bundled/PATH without sticky false cache', async () => {
     process.env.FFMPEG_PATH = 'ffmpeg'
     const mod = await import('./resolveFfmpegPath')
     mod.clearFfmpegPathCache()
-    expect(mod.resolveFfmpegPath()).toBe('ffmpeg')
-    expect(mod.resolveFfmpegPath()).toBe('ffmpeg')
+    const p1 = mod.resolveFfmpegPath()
+    expect(typeof p1).toBe('string')
+    // Second call should re-resolve bare cache and still return a usable path
+    const p2 = mod.resolveFfmpegPath()
+    expect(typeof p2).toBe('string')
+    if (p1 !== 'ffmpeg') expect(existsSync(p1)).toBe(true)
   })
 
   it('tryResourcesPath via mocked electron app (dev + packaged)', async () => {

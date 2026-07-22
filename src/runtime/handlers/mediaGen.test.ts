@@ -350,6 +350,52 @@ describe('registerMediagenHandlers', () => {
     expect(r.kind).toBe('costume-dress')
   })
 
+  it('extract timeline-clip surfaces existingStillPath when skipStillIfExists', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-mg-exist-'))
+    const ownStill = join(dir, 'e1_cont.png')
+    writeFileSync(ownStill, 'png')
+    const { h } = baseCtx({
+      stories: () =>
+        ({
+          get: vi.fn(async () =>
+            storyWithEntries([
+              {
+                id: 'e1',
+                order: 0,
+                startTime: 0,
+                endTime: 6,
+                dialogue: 'hi',
+                characterId: null
+              }
+            ])
+          )
+        }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () =>
+            mediaStore({
+              clipContinuityStillPath: () => ownStill,
+              readStoryCastPrepJson: () => null
+            })
+        }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      skipStillIfExists: true
+    })) as { existingStillPath?: string | null }
+    expect(r.existingStillPath).toBe(ownStill)
+
+    const r2 = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      skipStillIfExists: false
+    })) as { existingStillPath?: string | null }
+    expect(r2.existingStillPath).toBeNull()
+  })
+
   it('extract timeline-still builds prev_clip when previous still exists', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-mg-'))
     const prevStill = join(dir, 'e0_cont.png')
@@ -587,12 +633,12 @@ describe('registerMediagenHandlers', () => {
         }) as never
     })
 
+    // costume-intro covered separately (costumeId-only)
     for (const payload of [
       { kind: 'character-intro', characterId: 'c1' },
       { kind: 'scene-intro', sceneId: 'sc1' },
       { kind: 'prop-intro', propId: 'p1' },
-      { kind: 'action-intro', actionId: 'a1' },
-      { kind: 'costume-intro', characterId: 'c1', galleryIdentityPaths: [img] }
+      { kind: 'action-intro', actionId: 'a1' }
     ]) {
       const r = (await invokeRegistered(
         h as never,
@@ -673,6 +719,10 @@ describe('registerMediagenHandlers', () => {
             name: 'Aria',
             hardRules: null,
             artStyle: 'anime'
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
           }))
         }) as never,
       scenes: () =>
@@ -682,6 +732,10 @@ describe('registerMediagenHandlers', () => {
             title: 'Roof',
             hardRules: null,
             artStyle: null
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
           }))
         }) as never,
       props: () =>
@@ -691,6 +745,10 @@ describe('registerMediagenHandlers', () => {
             name: 'Badge',
             hardRules: null,
             artStyle: null
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
           }))
         }) as never,
       stories: () =>
@@ -756,8 +814,7 @@ describe('registerMediagenHandlers', () => {
     for (const kind of [
       'costume-dress',
       'costume-swap',
-      'character-intro',
-      'costume-intro'
+      'character-intro'
     ] as const) {
       const r = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
         kind,
@@ -766,6 +823,12 @@ describe('registerMediagenHandlers', () => {
       })) as { path: string }
       expect(r.path).toBeTruthy()
     }
+    const cosIntro = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'costume-intro',
+      costumeId: 'cos1',
+      polishedPrompt: prompt
+    })) as { path: string }
+    expect(cosIntro.path).toBeTruthy()
 
     // scene kinds
     for (const kind of [
@@ -1093,6 +1156,10 @@ describe('registerMediagenHandlers', () => {
             title: 'R',
             hardRules: null,
             artStyle: null
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
           }))
         }) as never,
       props: () =>
@@ -1102,6 +1169,10 @@ describe('registerMediagenHandlers', () => {
             name: 'B',
             hardRules: null,
             artStyle: null
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
           }))
         }) as never
     })
@@ -1305,6 +1376,10 @@ describe('registerMediagenHandlers', () => {
             artStyle: null,
             refImagePath: null,
             refSheetPath: null
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
           }))
         }) as never,
       scenes: () =>
@@ -1319,6 +1394,10 @@ describe('registerMediagenHandlers', () => {
             visualTags: null,
             hardRules: null,
             refImagePath: null
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
           }))
         }) as never,
       props: () =>
@@ -1332,6 +1411,10 @@ describe('registerMediagenHandlers', () => {
             hardRules: null,
             artStyle: null,
             refImagePath: null
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
           }))
         }) as never,
       stories: () =>
@@ -1402,7 +1485,7 @@ describe('registerMediagenHandlers', () => {
       persist: false
     })) as { path: string; draft: boolean }
     expect(ch.draft).toBe(true)
-    expect(ch.path).toContain('character_sheet')
+    expect(ch.path).toMatch(/sheet_bible|character_sheet/)
 
     const sc = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
       kind: 'scene-plate',
@@ -1410,7 +1493,7 @@ describe('registerMediagenHandlers', () => {
       polishedPrompt: prompt,
       persist: false
     })) as { path: string }
-    expect(sc.path).toContain('scene_plate')
+    expect(sc.path).toMatch(/scene_establishing|scene_plate/)
 
     // timeline cache: entry with no character → null fallback (1110)
     await invokeRegistered(h as never, 'mediaGen:generateImage', {
@@ -1560,6 +1643,297 @@ describe('registerMediagenHandlers', () => {
     expect(enhanceSpy).toHaveBeenCalled()
     vi.doUnmock('../../infrastructure/media/imageEnhance')
     vi.resetModules()
+  })
+
+  it('extract character-sheet uses sheetVariant layout + forcePureLayout for nude', async () => {
+    const img = mkImg('clothed.png')
+    const { h } = baseCtx({
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Aria',
+            appearance: 'silver hair',
+            costume: 'trench coat',
+            description: 'lead',
+            ageRange: '20s',
+            gender: 'female',
+            personality: 'cool',
+            mannerisms: 'smirks',
+            visualTags: 'rain',
+            hardRules: 'no logo',
+            artStyle: 'photo_cinematic',
+            refImagePath: img,
+            refSheetPath: null
+          }))
+        }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'character-sheet',
+      characterId: 'c1',
+      sheetVariant: 'turnaround',
+      preferIdentityEdit: true
+    })) as {
+      fallbackPrompt: string
+      taskHint: string
+      genOptions: {
+        sheetVariant?: string
+        forcePureLayout?: boolean
+        useIdentityEdit?: boolean
+      }
+      sections: Array<{ id: string; text: string; canBeEditBase?: boolean }>
+    }
+    expect(r.genOptions.sheetVariant).toBe('turnaround')
+    expect(r.fallbackPrompt).toMatch(/LAYOUT|turnaround|Turnaround/i)
+    expect(r.taskHint).toMatch(/turnaround/i)
+    expect(r.sections.some((s) => s.id === 'sheet_layout')).toBe(true)
+    expect(r.fallbackPrompt).toMatch(/Age:|20s|silver/i)
+
+    const nude = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'character-sheet',
+      characterId: 'c1',
+      sheetVariant: 'body_nude_front',
+      preferIdentityEdit: true,
+      galleryIdentityPaths: [img]
+    })) as {
+      genOptions: { forcePureLayout?: boolean; useIdentityEdit?: boolean }
+      editBaseSectionId: string | null
+      sections: Array<{ canBeEditBase?: boolean }>
+    }
+    expect(nude.genOptions.forcePureLayout).toBe(true)
+    expect(nude.editBaseSectionId).toBeNull()
+    expect(nude.sections.every((s) => s.canBeEditBase !== true)).toBe(true)
+  })
+
+  it('extract scene/prop plateVariant + costumeDescription free text', async () => {
+    const img = mkImg('ref.png')
+    const { h } = baseCtx({
+      scenes: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'sc1',
+            title: 'Roof',
+            description: 'night city',
+            locationType: 'rooftop',
+            timeOfDay: 'night',
+            weather: 'clear',
+            lighting: 'neon',
+            mood: 'tense',
+            colorPalette: 'cyan/magenta',
+            setDressing: 'AC units',
+            visualTags: 'city',
+            hardRules: null,
+            artStyle: 'anime',
+            refImagePath: img
+          }))
+        }) as never,
+      props: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'p1',
+            name: 'Badge',
+            description: 'brass star',
+            material: 'metal',
+            sizeNotes: 'palm',
+            condition: 'scratched',
+            visualTags: 'shiny',
+            hardRules: null,
+            artStyle: 'anime',
+            refImagePath: img
+          }))
+        }) as never,
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Aria',
+            appearance: 'silver',
+            costume: 'old coat',
+            hardRules: null,
+            artStyle: null,
+            refImagePath: img,
+            refSheetPath: null
+          }))
+        }) as never
+    })
+
+    const sc = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'scene-plate',
+      sceneId: 'sc1',
+      plateVariant: 'night_neon'
+    })) as {
+      fallbackPrompt: string
+      genOptions: { plateVariant?: string; galleryLabel?: string }
+    }
+    expect(sc.genOptions.plateVariant).toBe('night_neon')
+    expect(sc.fallbackPrompt).toMatch(/LAYOUT|neon|night/i)
+
+    const pr = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'prop-plate',
+      propId: 'p1',
+      plateVariant: 'detail'
+    })) as { genOptions: { plateVariant?: string }; fallbackPrompt: string }
+    expect(pr.genOptions.plateVariant).toBe('detail')
+    expect(pr.fallbackPrompt).toMatch(/LAYOUT|detail/i)
+
+    const cos = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'costume-swap',
+      characterId: 'c1',
+      costumeDescription: 'yellow raincoat with hood',
+      galleryIdentityPaths: [img],
+      preferIdentityEdit: true
+    })) as { fallbackPrompt: string; sections: Array<{ text: string }> }
+    expect(cos.fallbackPrompt).toMatch(/yellow raincoat/i)
+    expect(
+      cos.sections.some((s) => /yellow raincoat/i.test(s.text))
+    ).toBe(true)
+  })
+
+  it('polish accepts mode image/video override', async () => {
+    const { h, chat } = baseCtx()
+    await invokeRegistered(h as never, 'mediaGen:polish', {
+      kind: 'timeline-clip',
+      mode: 'image',
+      fallbackPrompt: 'FALLBACK PROMPT LONG ENOUGH FOR IMAGE GEN KEYFRAME',
+      includedSections: [
+        {
+          id: 't',
+          kind: 'text-profile',
+          title: 'Beat',
+          text: 'rooftop dialogue',
+          include: true
+        }
+      ]
+    })
+    expect(chat).toHaveBeenCalled()
+    const sys = (chat.mock.calls[0]?.[0] as { messages?: Array<{ content?: string }> })
+      ?.messages?.[0]?.content as string
+    expect(sys).toMatch(/image|靜圖|指示圖/i)
+
+    chat.mockClear()
+    await invokeRegistered(h as never, 'mediaGen:polish', {
+      kind: 'timeline-clip',
+      mode: 'video',
+      fallbackPrompt: 'FALLBACK PROMPT LONG ENOUGH FOR VIDEO GEN MOTION',
+      includedSections: [
+        {
+          id: 't',
+          kind: 'text-profile',
+          title: 'Beat',
+          text: 'rooftop dialogue',
+          include: true
+        }
+      ]
+    })
+    const sys2 = (chat.mock.calls[0]?.[0] as { messages?: Array<{ content?: string }> })
+      ?.messages?.[0]?.content as string
+    expect(sys2).toMatch(/video|鏡頭|camera/i)
+  })
+
+  it('extract action-intro uses domain video builder', async () => {
+    const { h } = baseCtx({
+      actions: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'a1',
+            name: 'Door kick',
+            description: 'boot the door',
+            intention: 'enter',
+            motionNotes: 'heel first',
+            cameraNotes: 'low angle',
+            hardRules: 'no logo',
+            artStyle: 'anime'
+          }))
+        }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'action-intro',
+      actionId: 'a1',
+      locale: 'en'
+    })) as { fallbackPrompt: string }
+    expect(r.fallbackPrompt).toMatch(/Door kick|motion|Camera/i)
+  })
+
+  it('extract costume-intro works with costumeId only', async () => {
+    const img = mkImg('cos.png')
+    const { h } = baseCtx({
+      costumes: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'cos1',
+            name: 'Trench',
+            description: 'long coat',
+            hardRules: null,
+            artStyle: 'anime',
+            refImagePath: img
+          }))
+        }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'costume-intro',
+      costumeId: 'cos1',
+      locale: 'en'
+    })) as { kind: string; fallbackPrompt: string }
+    expect(r.kind).toBe('costume-intro')
+    expect(r.fallbackPrompt).toMatch(/Trench|wardrobe|coat/i)
+  })
+
+  it('generateImage sheetVariant size + forcePure skips edit; multi-ref note', async () => {
+    const imgA = mkImg('a.png')
+    const imgB = mkImg('b.png')
+    const charUpdate = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const { h, generateImage, editImage } = baseCtx({
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Aria',
+            hardRules: null,
+            artStyle: 'photo_cinematic'
+          })),
+          update: charUpdate
+        }) as never
+    })
+    const prompt =
+      'Character reference sheet with exact layout and identity lock for drama.'
+
+    const pure = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'character-sheet',
+      characterId: 'c1',
+      sheetVariant: 'body_nude_front',
+      polishedPrompt: prompt,
+      editBasePath: imgA,
+      useIdentityEdit: true,
+      galleryIdentityPaths: [imgA, imgB]
+    })) as {
+      usedEdit: boolean
+      forcePureLayout?: boolean
+      sheetVariant?: string
+      path: string
+      promptUsed?: string
+    }
+    expect(pure.usedEdit).toBe(false)
+    expect(pure.forcePureLayout).toBe(true)
+    expect(pure.sheetVariant).toBe('body_nude_front')
+    expect(generateImage).toHaveBeenCalled()
+    expect(editImage).not.toHaveBeenCalled()
+    expect(pure.path).toMatch(/sheet_body_nude_front/)
+    expect(pure.promptUsed).toMatch(/Additional identity|identity stills/i)
+
+    const face = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'character-sheet',
+      characterId: 'c1',
+      sheetVariant: 'face_id',
+      artStyle: 'anime',
+      polishedPrompt: prompt
+    })) as { size?: string; sheetVariant?: string }
+    expect(face.sheetVariant).toBe('face_id')
+    // face_id is square class → 1024x1024 in test settings
+    expect(face.size).toBe('1024x1024')
+    expect(charUpdate).toHaveBeenCalled()
   })
 })
 

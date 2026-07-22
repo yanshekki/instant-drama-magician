@@ -30,6 +30,10 @@ import {
   serializeVideoPrepDraftStore,
   upsertVideoPrepDraft
 } from '../../domain/videoPrep'
+import {
+  videoPrepDraftToMediaGenResume,
+  videoPrepInputToMediaGenOpen
+} from '../../domain/mediaGenFromVideoPrep'
 import type {
   CharacterProfileFields,
   PropProfileFields,
@@ -1201,32 +1205,36 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
   )
 
   const startVideoPrep = useCallback((input: StartVideoPrepInput) => {
-    // Prefer unified MediaGen materials shell for video (same UX as photos).
-    // Skip when resuming a finished still draft (already past materials).
-    if (!input.resumeDraft && startMediaGenImpl.current) {
-      startMediaGenImpl.current({
-        kind: input.kind as import('../components/MediaGenPrepModal').MediaGenPrepKind,
-        characterId: input.entityIds.characterId,
-        sceneId: input.entityIds.sceneId,
-        propId: input.entityIds.propId,
-        costumeId: input.entityIds.costumeId,
-        actionId: input.entityIds.actionId,
-        storyId: input.entityIds.storyId,
-        entryId: input.entityIds.entryId,
-        galleryIdentityPaths: input.sourceImagePath
-          ? [input.sourceImagePath]
-          : [],
-        preferIdentityEdit: Boolean(input.sourceImagePath),
-        durationSeconds: input.durationSeconds
-      })
-      return
-    }
-    if (startVideoPrepImpl.current) {
-      startVideoPrepImpl.current(input)
-      return
-    }
-    console.warn('[aiJobs] startVideoPrep: host not registered')
-  }, [])
+    // All video UX → MediaGen shell (queue, skip still, revision, drafts).
+    // stillOnly batch stills use videoPrep.create directly (not this API).
+    // B2: resolve aspect from settings before open (resume draft keeps its own).
+    void (async () => {
+      let open = videoPrepInputToMediaGenOpen(input)
+      if (input.resumeDraft) {
+        open = videoPrepDraftToMediaGenResume(
+          input.resumeDraft,
+          input.queueRemaining ?? []
+        )
+      }
+      if (!open.aspectRatio) {
+        try {
+          const { resolveVideoAspectRatio } = await import(
+            '../lib/startIntroMediaGen'
+          )
+          open.aspectRatio = await resolveVideoAspectRatio()
+        } catch {
+          open.aspectRatio = '16:9'
+        }
+      }
+      const req =
+        open as import('../components/MediaGenPrepModal').MediaGenPrepOpenRequest
+      if (startMediaGenImpl.current) {
+        startMediaGenImpl.current(req)
+        return
+      }
+      setMediaGenRequest(req)
+    })()
+  }, [setMediaGenRequest])
 
   const registerStartMediaGen = useCallback(
     (
@@ -1295,6 +1303,7 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
     (key: string): boolean => {
       const saved = savedVideoPrepDrafts[key]
       if (!saved?.draft) return false
+      // Always resume into MediaGen (VideoPrep modal deprecated for drafts)
       startVideoPrep({
         kind: saved.draft.kind,
         entityIds: saved.draft.entityIds,

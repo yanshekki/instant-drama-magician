@@ -9,8 +9,25 @@ import {
 } from '../../infrastructure/update/npmPackageUpdate'
 import type { HandlerContext } from './context'
 
+/**
+ * True when running under a real Electron process (desktop).
+ * Headless web server / CLI must NOT load electron-updater — importing it
+ * still succeeds via the electron package stub and reports version 0.0.0 / desktop-dev.
+ */
+export function isElectronDesktopRuntime(
+  hostMode?: 'electron' | 'headless'
+): boolean {
+  if (hostMode === 'headless') return false
+  if (hostMode === 'electron') return true
+  return Boolean(process.versions.electron)
+}
+
 /** Exported for residual tests (import failure → null). */
-export async function loadUpdateService() {
+export async function loadUpdateService(
+  hostMode?: 'electron' | 'headless'
+) {
+  // Never load electron-updater outside Electron — avoids fake 0.0.0 / desktop-dev on web.
+  if (!isElectronDesktopRuntime(hostMode)) return null
   try {
     const mod = await import('../../infrastructure/update/AppUpdateService')
     return mod.appUpdateService
@@ -22,14 +39,15 @@ export async function loadUpdateService() {
 /** Exported for residual tests (web/packaged channel mapping). */
 export function nonDesktopUpdateState(
   status: 'dev-skipped' | 'web-skipped',
-  host: { isPackaged: boolean; appVersion: string }
+  host: { isPackaged: boolean; appVersion: string; mode?: 'electron' | 'headless' }
 ) {
+  const isElectron = isElectronDesktopRuntime(host.mode)
   const channel = detectInstallChannel({
-    isElectron: Boolean(process.versions.electron),
+    isElectron,
     isPackaged: host.isPackaged,
-    isWeb: !process.versions.electron
+    isWeb: !isElectron
   })
-  const isWeb = channel === 'web' || status === 'web-skipped'
+  const isWeb = channel === 'web' || status === 'web-skipped' || !isElectron
   return {
     channel: isWeb
       ? ('web' as const)
@@ -54,25 +72,27 @@ export function nonDesktopUpdateState(
 export function registerUpdatesHandlers(ctx: HandlerContext): void {
   const { reg, host, activity } = ctx
 
+  const webOrDevFallback = (): ReturnType<typeof nonDesktopUpdateState> =>
+    nonDesktopUpdateState(
+      isElectronDesktopRuntime(host.mode) ? 'dev-skipped' : 'web-skipped',
+      host
+    )
+
   reg('updates:status', async () => {
-    const svc = await loadUpdateService()
-    if (!svc) {
-      return nonDesktopUpdateState(
-        process.versions.electron ? 'dev-skipped' : 'web-skipped',
-        host
-      )
+    if (!isElectronDesktopRuntime(host.mode)) {
+      return webOrDevFallback()
     }
+    const svc = await loadUpdateService(host.mode)
+    if (!svc) return webOrDevFallback()
     return svc.getState()
   })
 
   reg('updates:check', async (opts?: { silent?: boolean }) => {
-    const svc = await loadUpdateService()
-    if (!svc) {
-      return nonDesktopUpdateState(
-        process.versions.electron ? 'dev-skipped' : 'web-skipped',
-        host
-      )
+    if (!isElectronDesktopRuntime(host.mode)) {
+      return webOrDevFallback()
     }
+    const svc = await loadUpdateService(host.mode)
+    if (!svc) return webOrDevFallback()
     const state = await svc.check({ silent: Boolean(opts?.silent) })
     activity.append({
       kind: 'update',
@@ -86,20 +106,25 @@ export function registerUpdatesHandlers(ctx: HandlerContext): void {
   })
 
   reg('updates:download', async () => {
-    const svc = await loadUpdateService()
-    if (!svc) {
-      return nonDesktopUpdateState(
-        process.versions.electron ? 'dev-skipped' : 'web-skipped',
-        host
-      )
+    if (!isElectronDesktopRuntime(host.mode)) {
+      return webOrDevFallback()
     }
+    const svc = await loadUpdateService(host.mode)
+    if (!svc) return webOrDevFallback()
     const state = await svc.download()
     activity.append({ kind: 'update', message: `download → ${state.status}` })
     return state
   })
 
   reg('updates:install', async () => {
-    const svc = await loadUpdateService()
+    if (!isElectronDesktopRuntime(host.mode)) {
+      return {
+        ok: false,
+        message: 'Auto-update is not available in the web app',
+        messageKey: 'updateWebOnly'
+      }
+    }
+    const svc = await loadUpdateService(host.mode)
     if (!svc) {
       return {
         ok: false,

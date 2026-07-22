@@ -491,14 +491,22 @@ export function ActionsPage(): JSX.Element {
       loadingMsg: t('common.loading'),
       hasDraft: hasVideoPrepDraft,
       continueDraft: continueVideoPrepDraft,
-      startVideoPrep: (id) =>
-        startVideoPrep({
-          kind: 'action-intro',
-          entityIds: { actionId: id },
-          sourceImagePath: sourcePath,
-          durationSeconds: 10,
-          locale: getAiLocale(i18n.language)
-        }),
+      startVideoPrep: (id) => {
+        void (async () => {
+          const { buildIntroMediaGenRequest } = await import(
+            '../lib/startIntroMediaGen'
+          )
+          const req = await buildIntroMediaGenRequest({
+            kind: 'action-intro',
+            sourceImagePath: sourcePath,
+            actionId: id,
+            storyId: activeStoryId ?? undefined,
+            artStyle: form.artStyle,
+            durationSeconds: 10
+          })
+          startMediaGen(req)
+        })()
+      },
       sourcePath,
       buildKey: (id, path) =>
         buildVideoPrepDraftKey('action-intro', { actionId: id }, path)

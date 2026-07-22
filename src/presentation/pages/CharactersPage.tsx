@@ -1104,17 +1104,22 @@ export function CharactersPage(): JSX.Element {
         draftKey
       ),
       update: () => update(characterId!, payload()),
-      startPrep: () =>
-        startVideoPrep({
-          kind: 'character-intro',
-          entityIds: {
+      startPrep: () => {
+        void (async () => {
+          const { buildIntroMediaGenRequest } = await import(
+            '../lib/startIntroMediaGen'
+          )
+          const req = await buildIntroMediaGenRequest({
+            kind: 'character-intro',
+            sourceImagePath: sourcePath,
             characterId: characterId!,
-            storyId: activeStoryId ?? undefined
-          },
-          sourceImagePath: sourcePath,
-          durationSeconds: 10,
-          locale: getAiLocale(i18n.language)
-        })
+            storyId: activeStoryId ?? undefined,
+            artStyle: form.artStyle,
+            durationSeconds: 10
+          })
+          startMediaGen(req)
+        })()
+      }
     })
   }
 

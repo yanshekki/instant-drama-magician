@@ -630,23 +630,25 @@ describe('AiJobsContext', () => {
 
   it('video prep draft store + continue + register', async () => {
     await mount()
-    const started: unknown[] = []
+    const mediaStarted: unknown[] = []
     await act(async () => {
-      latest!.registerStartVideoPrep((input) => {
-        started.push(input)
+      // Production continues drafts into MediaGen shell
+      latest!.registerStartMediaGen((req) => {
+        mediaStarted.push(req)
       })
       latest!.upsertSavedVideoPrepDraft(
         'k1',
         {
           kind: 'character-intro',
-          entityIds: ['c1'],
+          entityIds: { characterId: 'c1' },
           sourceImagePath: '/x.png',
           durationSeconds: 4,
           userExtraPrompt: '',
           queueIndex: 0,
           queueTotal: 1,
           stillPath: '/still.png',
-          motionPrompt: 'walk'
+          professionalPrompt: 'pro walk prompt long enough',
+          aspectRatio: '16:9'
         } as never,
         []
       )
@@ -654,20 +656,21 @@ describe('AiJobsContext', () => {
     expect(latest!.hasVideoPrepDraft('k1')).toBe(true)
     expect(latest!.getVideoPrepDraft('k1')).toBeTruthy()
     expect(latest!.continueVideoPrepDraft('k1')).toBe(true)
-    expect(started.length).toBe(1)
+    await waitFor(() => expect(mediaStarted.length).toBeGreaterThanOrEqual(1))
     await act(async () => {
       latest!.removeSavedVideoPrepDraft('k1')
       latest!.setVideoPrepDraft(null)
       latest!.setVideoPrepSession(null)
       latest!.startVideoPrep({
         kind: 'character-intro',
-        entityIds: ['c1'],
+        entityIds: { characterId: 'c1' },
         sourceImagePath: '/x.png'
       } as never)
-      latest!.registerStartVideoPrep(null)
+      await Promise.resolve()
+      latest!.registerStartMediaGen(null)
       latest!.startVideoPrep({
         kind: 'character-intro',
-        entityIds: ['c1'],
+        entityIds: { characterId: 'c1' },
         sourceImagePath: '/x.png'
       } as never)
     })

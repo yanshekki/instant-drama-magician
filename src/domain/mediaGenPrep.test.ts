@@ -3,7 +3,10 @@ import type { ActionCastRef } from './actionCastRefs'
 import {
   actionPlateTaskHint,
   buildActionPlateMaterialSections,
+  buildGenericEntityMaterialSections,
+  buildMediaGenPolishSystemPrompt,
   buildMediaGenPolishUserText,
+  buildTimelineBeatMaterialSections,
   extractPolishedMediaPrompt,
   includedMaterialImagePaths,
   mediaGenMode,
@@ -145,5 +148,57 @@ describe('mediaGenPrep', () => {
     expect(shellPhaseToStepIndex('keyframe', 'video')).toBe(2)
     expect(shellPhaseToStepIndex('result', 'image')).toBe(3)
     expect(shellPhaseToStepIndex('confirm-video', 'video')).toBe(3)
+  })
+
+  it('buildGenericEntityMaterialSections layout + forcePureLayout', () => {
+    const built = buildGenericEntityMaterialSections({
+      kind: 'character-sheet',
+      name: 'Aria',
+      profileText: 'Name: Aria\nAge: 20s',
+      artStyleId: 'photo_cinematic',
+      galleryPaths: ['/a.png'],
+      preferIdentityEdit: true,
+      forcePureLayout: true,
+      layoutSection: {
+        title: 'turnaround',
+        text: 'LAYOUT: 3-view turnaround. Wardrobe layer: body.'
+      },
+      fallbackPrompt: 'PROFESSIONAL TEMPLATE WITH LAYOUT turnaround',
+      genOptionsExtra: { sheetVariant: 'turnaround', galleryLabel: 'Turnaround' }
+    })
+    expect(built.editBaseSectionId).toBeNull()
+    expect(built.fallbackPrompt).toMatch(/PROFESSIONAL TEMPLATE/)
+    expect(built.sections.some((s) => s.entityType === 'layout')).toBe(true)
+    expect(built.genOptions.forcePureLayout).toBe(true)
+    expect(built.genOptions.sheetVariant).toBe('turnaround')
+    expect(
+      built.sections.find((s) => s.imagePath)?.canBeEditBase
+    ).toBe(false)
+  })
+
+  it('buildTimelineBeatMaterialSections multi cast refs', () => {
+    const built = buildTimelineBeatMaterialSections({
+      kind: 'timeline-still',
+      storyTitle: 'Demo',
+      displayIndex: 2,
+      dialogue: 'hello',
+      characters: [
+        { id: 'c1', name: 'A', imagePath: '/a.png' },
+        { id: 'c2', name: 'B', imagePath: '/b.png' }
+      ],
+      scenes: [{ id: 'sc1', name: 'Roof', imagePath: '/s.png' }],
+      props: [{ id: 'p1', name: 'Badge', imagePath: '/p.png' }]
+    })
+    const charSecs = built.sections.filter((s) => s.entityType === 'character')
+    expect(charSecs.length).toBe(2)
+    expect(built.sections.some((s) => s.entityType === 'scene')).toBe(true)
+    expect(built.fallbackPrompt).toMatch(/A, B|Cast/)
+  })
+
+  it('buildMediaGenPolishSystemPrompt video mode', () => {
+    const v = buildMediaGenPolishSystemPrompt('en', { mode: 'video' })
+    expect(v).toMatch(/video|camera/i)
+    const i = buildMediaGenPolishSystemPrompt('zh-HK')
+    expect(i).toMatch(/LAYOUT|出圖方案|layout/i)
   })
 })

@@ -14,7 +14,7 @@ import { DialogProvider } from '../presentation/context/DialogContext'
 import { AiJobsProvider } from '../presentation/context/AiJobsContext'
 import { AiJobHud } from '../presentation/components/AiJobHud'
 import { AiDraftModal } from '../presentation/components/AiDraftModal'
-import { VideoPrepHost } from '../presentation/components/VideoPrepHost'
+import { MediaGenHost } from '../presentation/components/MediaGenHost'
 
 let ready: Promise<unknown> | null = null
 
@@ -43,8 +43,8 @@ export type ProviderOptions = {
   withAiJobs?: boolean
   withToastHost?: boolean
   /**
-   * Mount AiJobHud + AiDraftModal + VideoPrepHost (as Layout does).
-   * Required for startJob draft accept and startVideoPrep registration.
+   * Mount AiJobHud + AiDraftModal + MediaGenHost (as Layout does).
+   * Required for startJob draft accept and startMediaGen / startVideoPrep→MediaGen.
    */
   withAiShell?: boolean
 }
@@ -69,7 +69,7 @@ export function TestProviders({
         {tree}
         <AiJobHud />
         <AiDraftModal />
-        <VideoPrepHost />
+        <MediaGenHost />
       </>
     )
   }

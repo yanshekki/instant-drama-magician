@@ -49,13 +49,19 @@ export class FfmpegService {
 
     if (await tryBin(this.ffmpegBin)) return
 
-    // Re-resolve (handles first-probe race / cwd change / bad cache)
+    // Re-resolve (handles first-probe race / cwd change / bad cache / asar path)
     const fresh = resolveFfmpegPathFresh()
     if (fresh !== this.ffmpegBin && (await tryBin(fresh))) return
 
+    // Last attempt: common Linux install locations
+    for (const cand of ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg']) {
+      if (cand !== this.ffmpegBin && (await tryBin(cand))) return
+    }
+
     throw new AppError(
       'FFMPEG_UNAVAILABLE',
-      'errors.ffmpegNotFound'
+      'errors.ffmpegNotFound',
+      `Tried: ${this.ffmpegBin} → ${fresh}`
     )
   }
 

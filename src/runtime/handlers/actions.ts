@@ -211,6 +211,7 @@ reg(
 )
 
 reg(
+  // @deprecated Prefer mediaGen action-plate extract/polish/generateImage
   'actions:generatePlate',
   (
     async (

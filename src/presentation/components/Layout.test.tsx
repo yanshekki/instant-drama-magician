@@ -30,9 +30,6 @@ vi.mock('../hooks/useMenuActions', () => ({
   useMenuActions: () => undefined
 }))
 vi.mock('./AiJobHud', () => ({ AiJobHud: () => <div data-testid="hud" /> }))
-vi.mock('./VideoPrepHost', () => ({
-  VideoPrepHost: () => <div data-testid="vph" />
-}))
 vi.mock('./MediaGenHost', () => ({
   MediaGenHost: () => <div data-testid="mgh" />
 }))
@@ -122,7 +119,7 @@ describe('Layout', () => {
     // Web badge may appear in sidebar + mobile top bar
     expect(screen.getAllByText('Web').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByTestId('hud')).toBeTruthy()
-    expect(screen.getByTestId('vph')).toBeTruthy()
+    expect(screen.getByTestId('mgh')).toBeTruthy()
     // YSK logo click
     fireEvent.click(screen.getByLabelText('YSK Limited'))
     await waitFor(() => expect(api.shell.openExternal).toHaveBeenCalled())

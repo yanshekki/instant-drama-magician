@@ -23,7 +23,6 @@ import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useMenuActions } from '../hooks/useMenuActions'
 import { AiJobHud } from './AiJobHud'
-import { VideoPrepHost } from './VideoPrepHost'
 import { MediaGenHost } from './MediaGenHost'
 import { AiDraftModal } from './AiDraftModal'
 import yskLogo from '../../assets/ysk-logo.svg'
@@ -521,8 +520,8 @@ export function Layout(): JSX.Element {
         <Outlet />
         <AiJobHud />
         <AiDraftModal />
+        {/* Video UX: MediaGenHost only. VideoPrepHost unmounted (legacy tests only). */}
         <MediaGenHost />
-        <VideoPrepHost />
       </main>
     </div>
   )

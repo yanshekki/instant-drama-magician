@@ -524,14 +524,21 @@ export function CostumesPage(): JSX.Element {
     getGallery: () => gallery,
     serializeGallery: serializeCharacterGallery,
     update: (id, payload) => getApi().costumes.update(id, payload as never),
-    startVideoPrep: (args) =>
-      startVideoPrep({
-        kind: 'costume-intro',
-        entityIds: { costumeId: args.costumeId },
-        sourceImagePath: args.sourcePath,
-        durationSeconds: 10,
-        locale: getAiLocale(i18n.language)
-      }),
+    startVideoPrep: (args) => {
+      void (async () => {
+        const { buildIntroMediaGenRequest } = await import(
+          '../lib/startIntroMediaGen'
+        )
+        const req = await buildIntroMediaGenRequest({
+          kind: 'costume-intro',
+          sourceImagePath: args.sourcePath,
+          costumeId: args.costumeId,
+          artStyle: lookStyle,
+          durationSeconds: 10
+        })
+        startMediaGen(req)
+      })()
+    },
     buildDraftKey: (costumeId, sourcePath) =>
       buildVideoPrepDraftKey('costume-intro', { costumeId }, sourcePath)
   })

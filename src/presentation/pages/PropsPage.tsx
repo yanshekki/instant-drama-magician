@@ -471,14 +471,22 @@ export function PropsPage(): JSX.Element {
       continueDraft: continueVideoPrepDraft,
       update: () => update(propId, payload()),
       toastError: toast.error,
-      start: () =>
-        startVideoPrep({
-          kind: 'prop-intro',
-          entityIds: { propId, storyId: activeStoryId ?? undefined },
-          sourceImagePath: sourcePath,
-          durationSeconds: 10,
-          locale: getAiLocale(i18n.language)
-        })
+      start: () => {
+        void (async () => {
+          const { buildIntroMediaGenRequest } = await import(
+            '../lib/startIntroMediaGen'
+          )
+          const req = await buildIntroMediaGenRequest({
+            kind: 'prop-intro',
+            sourceImagePath: sourcePath,
+            propId,
+            storyId: activeStoryId ?? undefined,
+            artStyle: form.artStyle,
+            durationSeconds: 10
+          })
+          startMediaGen(req)
+        })()
+      }
     })
   }
 
@@ -532,6 +540,7 @@ export function PropsPage(): JSX.Element {
         propId: id,
         storyId: activeStoryId ?? undefined,
         artStyle: form.artStyle,
+        plateVariant,
         galleryIdentityPaths: paths,
         preferIdentityEdit: wantIdentity
       })

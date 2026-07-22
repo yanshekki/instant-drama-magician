@@ -132,11 +132,24 @@ export function groupMaterialSections(sections: MediaGenMaterialSection[]): {
 
 export interface MediaGenGenOptions {
   panelLayout?: string
+  /** Character sheet package id (出圖方案) */
+  sheetVariant?: string
+  /** Scene / prop plate variant id */
+  plateVariant?: string
   artStyle?: string
   aspectRatio?: string
   size?: string
   durationSeconds?: number
   useIdentityEdit: boolean
+  /**
+   * When true, never image_edit (nude/base body packages).
+   * Cleared by extract when wardrobe layer forbids identity clone.
+   */
+  forcePureLayout?: boolean
+  /** Gallery label for commit (English short tag) */
+  galleryLabel?: string
+  /** Wardrobe / plate layer tag for gallery commit */
+  layer?: string
 }
 
 export interface MediaGenPrepDraft {
@@ -551,8 +564,29 @@ export function buildMediaGenPolishUserText(opts: {
 }
 
 export function buildMediaGenPolishSystemPrompt(
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: 'zh-HK' | 'en' = 'zh-HK',
+  opts?: { mode?: 'image' | 'video' }
 ): string {
+  if (opts?.mode === 'video') {
+    if (locale === 'en') {
+      return [
+        'You are a short-drama video director prompt writer (image-to-video).',
+        'Merge materials into ONE professional video prompt for a short clip.',
+        'Return ONLY the prompt — no markdown fences.',
+        'Include: subject identity locks from stills, camera move, performance/dialogue, pacing, lighting continuity.',
+        'Do not invent a different actor, location, or prop when refs are attached.',
+        'Hard rules at end if supplied.'
+      ].join('\n')
+    }
+    return [
+      '你是短劇 image-to-video 導演 prompt 撰寫者。',
+      '將材料合併為「一條」專業短片 video prompt。',
+      '只回傳 prompt 正文——不要 markdown 代碼塊。',
+      '須含：身份鎖定、鏡頭運動、表演／對白、節奏、光影連續。',
+      '有附圖時禁止換成另一演員、場景或道具。',
+      '有 HARD RULES 則置於文末。'
+    ].join('\n')
+  }
   if (locale === 'en') {
     return [
       'You are a short-drama image prompt director.',
@@ -561,6 +595,7 @@ export function buildMediaGenPolishSystemPrompt(
       'Highest priority: match faces/wardrobe/locations/props from attached images.',
       'Never substitute a different celebrity, salon clerk, or unrelated set when cast stills are provided.',
       'If multi-panel geometry is required, keep exact panel count and gutters.',
+      'If a LAYOUT / package section is present, the final prompt MUST implement that exact layout (panel count, poses, crop).',
       'Hard rules at end if supplied.'
     ].join('\n')
   }
@@ -571,6 +606,7 @@ export function buildMediaGenPolishSystemPrompt(
     '最高優先：附圖中的臉／服裝／場景／道具必須一致。',
     '有角色／場景靜圖時，禁止換成無關沙龍店員或另一間店。',
     '若要求多格板，保留精確格數與分隔。',
+    '若有 LAYOUT／出圖方案區塊，最終 prompt 必須嚴格執行該 layout（格數、姿勢、構圖）。',
     '有 HARD RULES 則置於文末。'
   ].join('\n')
 }
@@ -602,6 +638,21 @@ export function buildGenericEntityMaterialSections(opts: {
   artStyleId?: string | null
   galleryPaths?: string[]
   preferIdentityEdit?: boolean
+  /**
+   * Layout / package section (出圖方案, plate variant, costume task).
+   * Included as task material so polish sees exact geometry.
+   */
+  layoutSection?: {
+    id?: string
+    title: string
+    text: string
+  } | null
+  /** Professional template prompt (variant builders). Overrides generic fallback. */
+  fallbackPrompt?: string | null
+  /** Nude/base packages: never use identity edit base. */
+  forcePureLayout?: boolean
+  /** Extra genOptions merged into return (variant ids, labels, …). */
+  genOptionsExtra?: Partial<MediaGenGenOptions>
 }): {
   sections: MediaGenMaterialSection[]
   editBaseSectionId: string | null
@@ -613,6 +664,7 @@ export function buildGenericEntityMaterialSections(opts: {
   const paths = (opts.galleryPaths ?? [])
     .map((p) => p?.trim())
     .filter((p): p is string => Boolean(p))
+  const forcePure = opts.forcePureLayout === true
 
   paths.forEach((path, i) => {
     sections.push({
@@ -620,19 +672,28 @@ export function buildGenericEntityMaterialSections(opts: {
       kind: 'ref-image',
       title: opts.name || String(i + 1),
       entityType:
-        opts.kind === 'character-sheet'
+        opts.kind === 'character-sheet' ||
+        opts.kind === 'costume-dress' ||
+        opts.kind === 'costume-swap' ||
+        opts.kind === 'character-intro' ||
+        opts.kind === 'costume-intro'
           ? 'character'
-          : opts.kind === 'scene-plate'
+          : opts.kind === 'scene-plate' ||
+              opts.kind === 'atmosphere-swap' ||
+              opts.kind === 'scene-intro'
             ? 'scene'
-            : opts.kind === 'prop-plate'
+            : opts.kind === 'prop-plate' || opts.kind === 'prop-intro'
               ? 'prop'
               : opts.kind === 'story-cover'
                 ? 'story'
                 : 'gallery',
       imagePath: path,
-      text: `Identity / style reference still for ${opts.kind}. Match subject look when included.`,
+      text: forcePure
+        ? `Reference still for ${opts.kind}. Do NOT clone wardrobe or layout from this image when producing a pure layout package — use only for identity cues if at all.`
+        : `Identity / style reference still for ${opts.kind}. Match subject look when included.`,
       include: true,
-      canBeEditBase: true,
+      // Nude/base packages must not image_edit from clothed refs
+      canBeEditBase: !forcePure,
       editBasePriority: 100 - i,
       group: 'refs'
     })
@@ -643,17 +704,35 @@ export function buildGenericEntityMaterialSections(opts: {
     kind: 'text-profile',
     title: opts.name || 'Profile',
     entityType:
-      opts.kind === 'character-sheet'
+      opts.kind === 'character-sheet' ||
+      opts.kind === 'costume-dress' ||
+      opts.kind === 'costume-swap' ||
+      opts.kind === 'character-intro' ||
+      opts.kind === 'costume-intro'
         ? 'character'
-        : opts.kind === 'scene-plate'
+        : opts.kind === 'scene-plate' ||
+            opts.kind === 'atmosphere-swap' ||
+            opts.kind === 'scene-intro'
           ? 'scene'
-          : opts.kind === 'prop-plate'
+          : opts.kind === 'prop-plate' || opts.kind === 'prop-intro'
             ? 'prop'
             : 'story',
     text: opts.profileText,
     include: true,
     group: 'task'
   })
+
+  if (opts.layoutSection?.text?.trim()) {
+    sections.push({
+      id: opts.layoutSection.id || 'layout_package',
+      kind: 'prompt-block',
+      title: opts.layoutSection.title,
+      entityType: 'layout',
+      text: opts.layoutSection.text.trim(),
+      include: true,
+      group: 'task'
+    })
+  }
 
   sections.push({
     id: 'art_style',
@@ -677,19 +756,23 @@ export function buildGenericEntityMaterialSections(opts: {
     })
   }
 
-  const editBaseSectionId =
-    opts.preferIdentityEdit === true
-      ? pickDefaultEditBaseSectionId(sections)
-      : null
+  const preferIdentity =
+    !forcePure && opts.preferIdentityEdit === true
+  const editBaseSectionId = preferIdentity
+    ? pickDefaultEditBaseSectionId(sections)
+    : null
 
-  const fallbackPrompt = [
-    `Generate one high-quality short-drama ${opts.kind} image for "${opts.name}".`,
-    opts.profileText,
-    `Art: ${art.promptBlock || art.id}`,
-    'No watermark, no app UI chrome.'
-  ]
-    .filter(Boolean)
-    .join('\n')
+  const fallbackPrompt =
+    (opts.fallbackPrompt && opts.fallbackPrompt.trim()) ||
+    [
+      `Generate one high-quality short-drama ${opts.kind} image for "${opts.name}".`,
+      opts.profileText,
+      opts.layoutSection?.text?.trim() || null,
+      `Art: ${art.promptBlock || art.id}`,
+      'No watermark, no app UI chrome.'
+    ]
+      .filter(Boolean)
+      .join('\n')
 
   return {
     sections,
@@ -697,7 +780,9 @@ export function buildGenericEntityMaterialSections(opts: {
     fallbackPrompt,
     genOptions: {
       artStyle: art.id,
-      useIdentityEdit: Boolean(editBaseSectionId)
+      useIdentityEdit: Boolean(editBaseSectionId),
+      forcePureLayout: forcePure,
+      ...(opts.genOptionsExtra || {})
     }
   }
 }
@@ -706,6 +791,12 @@ export function buildGenericEntityMaterialSections(opts: {
  * Materials for one timeline beat still / clip refine (MediaGen shell).
  * Prefers previous continuity as edit base (same rule as resolveTimelineStillRefs).
  */
+export type TimelineBoundEntityRef = {
+  id?: string
+  name: string
+  imagePath?: string | null
+}
+
 export function buildTimelineBeatMaterialSections(opts: {
   kind: 'timeline-still' | 'timeline-clip'
   storyTitle: string
@@ -717,16 +808,23 @@ export function buildTimelineBeatMaterialSections(opts: {
   continuityLockText?: string | null
   castRefPath?: string | null
   castRefName?: string | null
+  /** @deprecated prefer characters[] — kept for single-primary callers */
   characterName?: string | null
   characterImagePath?: string | null
   sceneLabel?: string | null
   sceneImagePath?: string | null
   propName?: string | null
   propImagePath?: string | null
+  /** Multi-cast library stills (all bound characters). */
+  characters?: TimelineBoundEntityRef[]
+  scenes?: TimelineBoundEntityRef[]
+  props?: TimelineBoundEntityRef[]
   hardRules?: string | null
   artStyleId?: string | null
   durationSeconds?: number
   styleNote?: string | null
+  /** Optional video-oriented fallback when kind is timeline-clip. */
+  fallbackPrompt?: string | null
 }): {
   sections: MediaGenMaterialSection[]
   editBaseSectionId: string | null
@@ -738,10 +836,20 @@ export function buildTimelineBeatMaterialSections(opts: {
   const art = getArtStyle(opts.artStyleId ?? undefined)
   const beatN = opts.displayIndex || 1
   const isVideo = opts.kind === 'timeline-clip'
+  const seenPaths = new Set<string>()
+
+  const pushRef = (s: MediaGenMaterialSection): void => {
+    const p = s.imagePath?.trim()
+    if (p) {
+      if (seenPaths.has(p)) return
+      seenPaths.add(p)
+    }
+    sections.push(s)
+  }
 
   const prev = opts.previousContinuityPath?.trim() || null
   if (prev) {
-    sections.push({
+    pushRef({
       id: 'prev_clip',
       kind: 'ref-image',
       title: opts.previousBeatIndex
@@ -765,7 +873,7 @@ export function buildTimelineBeatMaterialSections(opts: {
 
   const cast = opts.castRefPath?.trim() || null
   if (cast) {
-    sections.push({
+    pushRef({
       id: 'cast_ref',
       kind: 'ref-image',
       title: opts.castRefName || opts.characterName || 'Cast',
@@ -779,53 +887,97 @@ export function buildTimelineBeatMaterialSections(opts: {
     })
   }
 
-  const charImg = opts.characterImagePath?.trim() || null
-  if (charImg && charImg !== cast && charImg !== prev) {
-    sections.push({
-      id: 'character_ref',
+  const charList: TimelineBoundEntityRef[] =
+    opts.characters && opts.characters.length > 0
+      ? opts.characters
+      : opts.characterName || opts.characterImagePath
+        ? [
+            {
+              name: opts.characterName || 'Character',
+              imagePath: opts.characterImagePath
+            }
+          ]
+        : []
+
+  charList.forEach((c, i) => {
+    const img = c.imagePath?.trim() || null
+    if (!img) return
+    pushRef({
+      id: `character_ref_${c.id || i}`,
       kind: 'ref-image',
-      title: opts.characterName || 'Character',
+      title: c.name || `Character ${i + 1}`,
       entityType: 'character',
-      imagePath: charImg,
-      text: `Character library still for "${opts.characterName || 'lead'}". Match face/hair/body.`,
-      include: !cast,
+      imagePath: img,
+      text: `Character library still for "${c.name || 'cast'}". Match face/hair/body.`,
+      include: !cast || i === 0,
       canBeEditBase: true,
-      editBasePriority: 120,
+      editBasePriority: 120 - i,
       group: 'refs'
     })
-  }
+  })
 
-  const sceneImg = opts.sceneImagePath?.trim() || null
-  if (sceneImg && sceneImg !== prev) {
-    sections.push({
-      id: 'scene_ref',
+  const sceneList: TimelineBoundEntityRef[] =
+    opts.scenes && opts.scenes.length > 0
+      ? opts.scenes
+      : opts.sceneLabel || opts.sceneImagePath
+        ? [
+            {
+              name: opts.sceneLabel || 'Scene',
+              imagePath: opts.sceneImagePath
+            }
+          ]
+        : []
+
+  sceneList.forEach((sc, i) => {
+    const img = sc.imagePath?.trim() || null
+    if (!img) return
+    pushRef({
+      id: `scene_ref_${sc.id || i}`,
       kind: 'ref-image',
-      title: opts.sceneLabel || 'Scene',
+      title: sc.name || `Scene ${i + 1}`,
       entityType: 'scene',
-      imagePath: sceneImg,
+      imagePath: img,
       text: 'Location plate — SPACE LOCK architecture, materials, light direction.',
       include: true,
       canBeEditBase: false,
-      editBasePriority: 60,
+      editBasePriority: 60 - i,
       group: 'refs'
     })
-  }
+  })
 
-  const propImg = opts.propImagePath?.trim() || null
-  if (propImg) {
-    sections.push({
-      id: 'prop_ref',
+  const propList: TimelineBoundEntityRef[] =
+    opts.props && opts.props.length > 0
+      ? opts.props
+      : opts.propName || opts.propImagePath
+        ? [
+            {
+              name: opts.propName || 'Prop',
+              imagePath: opts.propImagePath
+            }
+          ]
+        : []
+
+  propList.forEach((pr, i) => {
+    const img = pr.imagePath?.trim() || null
+    if (!img) return
+    pushRef({
+      id: `prop_ref_${pr.id || i}`,
       kind: 'ref-image',
-      title: opts.propName || 'Prop',
+      title: pr.name || `Prop ${i + 1}`,
       entityType: 'prop',
-      imagePath: propImg,
-      text: `Prop still for "${opts.propName || 'item'}". Match when the beat uses this prop.`,
+      imagePath: img,
+      text: `Prop still for "${pr.name || 'item'}". Match when the beat uses this prop.`,
       include: true,
       canBeEditBase: false,
-      editBasePriority: 40,
+      editBasePriority: 40 - i,
       group: 'refs'
     })
-  }
+  })
+
+  const primaryChar = charList[0]?.name || opts.characterName || null
+  const primaryScene = sceneList[0]?.name || opts.sceneLabel || null
+  const primaryProp = propList[0]?.name || opts.propName || null
+  const castNames = charList.map((c) => c.name).filter(Boolean)
 
   const beatText = [
     opts.beatBlock?.trim() || null,
@@ -846,9 +998,13 @@ export function buildTimelineBeatMaterialSections(opts: {
         ? `Style: ${opts.styleNote.trim().slice(0, 300)}`
         : null,
       beatText || 'No dialogue — play the visual action of this beat.',
-      opts.characterName ? `Primary character: ${opts.characterName}` : null,
-      opts.sceneLabel ? `Location: ${opts.sceneLabel}` : null,
-      opts.propName ? `Prop: ${opts.propName}` : null
+      castNames.length > 0
+        ? `Cast: ${castNames.join(', ')}.`
+        : primaryChar
+          ? `Primary character: ${primaryChar}`
+          : null,
+      primaryScene ? `Location: ${primaryScene}` : null,
+      primaryProp ? `Prop: ${primaryProp}` : null
     ]
       .filter(Boolean)
       .join('\n'),
@@ -892,21 +1048,27 @@ export function buildTimelineBeatMaterialSections(opts: {
 
   const editBaseSectionId = pickDefaultEditBaseSectionId(sections)
   const taskHint = isVideo
-    ? `Keyframe still then short-drama video for story "${opts.storyTitle}" beat #${beatN}. Continuity-lock previous frame when attached.`
+    ? `Keyframe still then short-drama video for story "${opts.storyTitle}" beat #${beatN}. Continuity-lock previous frame when attached. Include camera motion and dialogue performance.`
     : `One cinematic short-drama KEYFRAME still for story "${opts.storyTitle}" beat #${beatN}. Continuity-lock previous frame when attached. No watermark.`
 
-  const fallbackPrompt = [
-    taskHint,
-    opts.continuityLockText?.trim() || null,
-    beatText || null,
-    opts.characterName
-      ? `Character focus: ${opts.characterName}.`
-      : null,
-    `Art: ${art.promptBlock || art.id}`,
-    'Cinematic short drama; anatomically correct; no text overlay.'
-  ]
-    .filter(Boolean)
-    .join('\n')
+  const fallbackPrompt =
+    (opts.fallbackPrompt && opts.fallbackPrompt.trim()) ||
+    [
+      taskHint,
+      opts.continuityLockText?.trim() || null,
+      beatText || null,
+      castNames.length > 0
+        ? `Character focus: ${castNames.join(', ')}.`
+        : primaryChar
+          ? `Character focus: ${primaryChar}.`
+          : null,
+      `Art: ${art.promptBlock || art.id}`,
+      isVideo
+        ? 'Motion: natural performance, clear camera intent, short-drama pacing; no text overlay.'
+        : 'Cinematic short drama; anatomically correct; no text overlay.'
+    ]
+      .filter(Boolean)
+      .join('\n')
 
   return {
     sections,

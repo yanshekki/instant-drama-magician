@@ -660,17 +660,22 @@ export function ScenesPage(): JSX.Element {
       hasDraft: hasVideoPrepDraft(draftKey),
       continueDraft: scenesContinueDraftCb(continueVideoPrepDraft, draftKey),
       update: () => update(sceneId!, payload()),
-      startPrep: () =>
-        startVideoPrep({
-          kind: 'scene-intro',
-          entityIds: {
+      startPrep: () => {
+        void (async () => {
+          const { buildIntroMediaGenRequest } = await import(
+            '../lib/startIntroMediaGen'
+          )
+          const req = await buildIntroMediaGenRequest({
+            kind: 'scene-intro',
+            sourceImagePath: sourcePath,
             sceneId: sceneId!,
-            storyId: activeStoryId ?? undefined
-          },
-          sourceImagePath: sourcePath,
-          durationSeconds: 10,
-          locale: getAiLocale(i18n.language)
-        })
+            storyId: activeStoryId ?? undefined,
+            artStyle: form.artStyle,
+            durationSeconds: 10
+          })
+          startMediaGen(req)
+        })()
+      }
     })
   }
 
@@ -723,6 +728,7 @@ export function ScenesPage(): JSX.Element {
         sceneId: id,
         storyId: activeStoryId ?? undefined,
         artStyle: form.artStyle,
+        plateVariant,
         galleryIdentityPaths: paths,
         preferIdentityEdit: wantIdentity
       })

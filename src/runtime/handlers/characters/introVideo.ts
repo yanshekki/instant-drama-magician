@@ -1,5 +1,8 @@
 /**
  * registerCharactersIntroVideo
+ *
+ * @deprecated UI: mediaGen character-intro + videoPrep:confirm.
+ * One-shot generateIntroVideo kept for CLI / tests.
  */
 import { existsSync, readFileSync } from 'fs'
 import type { HandlerContext } from '../context'
@@ -16,6 +19,7 @@ export function registerCharactersIntroVideo(ctx: HandlerContext): void {
     activity
   } = ctx
 
+/** @deprecated Prefer mediaGen character-intro pipeline. */
 reg(
   'characters:generateIntroVideo',
   (

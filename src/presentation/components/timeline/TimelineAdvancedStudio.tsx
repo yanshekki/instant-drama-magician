@@ -306,13 +306,35 @@ export function TimelineAdvancedStudio({
   ): void => {
     if (genLocked) return
     const cell = snapRef.current?.cells.find((c) => c.entryId === entryId)
-    startMediaGen({
-      kind: mode === 'clip' ? 'timeline-clip' : 'timeline-still',
-      storyId,
-      entryId,
-      durationSeconds: cell?.durationSeconds ?? 10,
-      preferIdentityEdit: true
-    })
+    const stillReady =
+      Boolean(cell?.stillPath?.trim()) && cell?.stillStatus === 'ready'
+    void (async () => {
+      let aspectRatio: '16:9' | '9:16' = '16:9'
+      try {
+        const { resolveVideoAspectRatio } = await import(
+          '../../lib/startIntroMediaGen'
+        )
+        aspectRatio = await resolveVideoAspectRatio()
+      } catch {
+        /* default */
+      }
+      startMediaGen({
+        kind: mode === 'clip' ? 'timeline-clip' : 'timeline-still',
+        storyId,
+        entryId,
+        durationSeconds: cell?.durationSeconds ?? 10,
+        preferIdentityEdit: true,
+        aspectRatio,
+        // Reuse ready continuity still as keyframe for clip refine (P1#3)
+        skipStillIfExists: mode === 'clip' && stillReady,
+        sourceImagePath:
+          mode === 'clip' && stillReady ? cell!.stillPath : undefined,
+        galleryIdentityPaths:
+          mode === 'clip' && stillReady && cell?.stillPath
+            ? [cell.stillPath]
+            : undefined
+      })
+    })()
   }
 
   // MediaGen refine / video prep done → refresh storyboard stills

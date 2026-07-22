@@ -1,18 +1,48 @@
 /**
  * Resolve the ffmpeg binary for InstantDrama Magician.
- * Prefer env override, then bundled ffmpeg-static, then explicit
- * project/electron-relative paths, then PATH.
+ * Prefer env override, then Electron packaged unpack path, then ffmpeg-static,
+ * then project-relative paths, then PATH.
+ *
+ * Electron note: asarUnpack puts the binary under `app.asar.unpacked/…`.
+ * `require('ffmpeg-static')` may still return a path under `app.asar/…`
+ * where existsSync can succeed but spawn() cannot execute — rewrite required.
  */
 import { existsSync } from 'fs'
-import { dirname, join } from 'path'
+import { dirname, join, sep } from 'path'
 import { createRequire } from 'module'
 
 let cached: string | null = null
 
 const BIN_NAME = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
 
+/**
+ * Map `…/app.asar/node_modules/…` → `…/app.asar.unpacked/node_modules/…`
+ * so the real executable from asarUnpack is used.
+ */
+export function preferUnpackedAsar(p: string | null | undefined): string | null {
+  if (!p || typeof p !== 'string') return null
+  const marker = `${sep}app.asar${sep}`
+  const unpacked = `${sep}app.asar.unpacked${sep}`
+  if (p.includes(marker) && !p.includes(unpacked)) {
+    return p.split(marker).join(unpacked)
+  }
+  // Also handle trailing "app.asar" without trailing sep (rare)
+  if (p.endsWith(`${sep}app.asar`) || p.endsWith('/app.asar')) {
+    return `${p}.unpacked`
+  }
+  return p
+}
+
 function isUsableFile(p: string | null | undefined): p is string {
-  return Boolean(p && p !== 'ffmpeg' && existsSync(p))
+  if (!p || p === 'ffmpeg') return false
+  const fixed = preferUnpackedAsar(p) || p
+  return existsSync(fixed)
+}
+
+function usablePath(p: string | null | undefined): string | null {
+  if (!p || p === 'ffmpeg') return null
+  const fixed = preferUnpackedAsar(p) || p
+  return existsSync(fixed) ? fixed : null
 }
 
 /** @internal exported for tests — `hasFilename` overrides for branch coverage */
@@ -33,7 +63,8 @@ function tryBundledStatic(): string | null {
         : typeof mod?.default === 'string'
           ? mod.default
           : null
-    if (isUsableFile(p)) return p
+    const u = usablePath(p)
+    if (u) return u
   } catch {
     /* not installed / wrong platform */
   }
@@ -47,7 +78,8 @@ function tryBundledStatic(): string | null {
         : typeof mod?.default === 'string'
           ? mod.default
           : null
-    if (isUsableFile(p)) return p
+    const u = usablePath(p)
+    if (u) return u
   } catch {
     /* ignore */
   }
@@ -69,13 +101,14 @@ function tryExplicitCandidates(): string | null {
     join(dirname(here), 'node_modules', 'ffmpeg-static', BIN_NAME)
   ]
   for (const c of candidates) {
-    if (isUsableFile(c)) return c
+    const u = usablePath(c)
+    if (u) return u
   }
   return null
 }
 
 function tryResourcesPath(): string | null {
-  // electron packaged: optional extraResources/ffmpeg/ffmpeg
+  // electron packaged: asarUnpack → resources/app.asar.unpacked/node_modules/ffmpeg-static
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { app } = require('electron') as typeof import('electron')
@@ -84,7 +117,8 @@ function tryResourcesPath(): string | null {
       try {
         const appPath = app.getAppPath()
         const p = join(appPath, 'node_modules', 'ffmpeg-static', BIN_NAME)
-        if (isUsableFile(p)) return p
+        const u = usablePath(p)
+        if (u) return u
       } catch {
         /* ignore */
       }
@@ -92,18 +126,19 @@ function tryResourcesPath(): string | null {
     }
     const base = process.resourcesPath
     const candidates = [
-      join(base, 'ffmpeg', BIN_NAME),
-      join(base, BIN_NAME),
       join(
         base,
         'app.asar.unpacked',
         'node_modules',
         'ffmpeg-static',
         BIN_NAME
-      )
+      ),
+      join(base, 'ffmpeg', BIN_NAME),
+      join(base, BIN_NAME)
     ]
     for (const c of candidates) {
-      if (isUsableFile(c)) return c
+      const u = usablePath(c)
+      if (u) return u
     }
   } catch {
     /* not in electron main */
@@ -116,16 +151,38 @@ function tryResourcesPath(): string | null {
  * Cached after first successful resolve of an existing file / env.
  */
 export function resolveFfmpegPath(): string {
-  if (cached && (cached === 'ffmpeg' || existsSync(cached))) {
-    return cached
+  if (cached) {
+    // Never sticky-cache the bare PATH fallback — a later install / cwd fix
+    // should be able to pick up the real binary without restart.
+    if (cached === 'ffmpeg') {
+      cached = null
+    } else {
+      const fixed = usablePath(cached)
+      if (fixed) {
+        cached = fixed
+        return cached
+      }
+      cached = null
+    }
   }
 
+  // FFMPEG_PATH only wins when it points at a real file.
+  // Bare names like `ffmpeg` (common mis-set env) must NOT skip bundled static —
+  // otherwise web/server runs fail with errors.ffmpegNotFound while the binary sits in node_modules.
   const env = process.env.FFMPEG_PATH?.trim()
   if (env) {
-    if (env === 'ffmpeg' || existsSync(env)) {
-      cached = env
+    const u = usablePath(env)
+    if (u) {
+      cached = u
       return cached
     }
+  }
+
+  // Packaged Electron: prefer explicit unpacked path before require() (may hit asar).
+  const fromResources = tryResourcesPath()
+  if (fromResources) {
+    cached = fromResources
+    return cached
   }
 
   const bundled = tryBundledStatic()
@@ -140,15 +197,11 @@ export function resolveFfmpegPath(): string {
     return cached
   }
 
-  const fromResources = tryResourcesPath()
-  if (fromResources) {
-    cached = fromResources
-    return cached
-  }
-
-  // Last resort: hope PATH has ffmpeg (do not permanently cache failure path
-  // as absolute so re-resolve can pick up newly installed binaries).
-  cached = 'ffmpeg'
+  // Last resort: PATH command — prefer a custom bare name from env, else `ffmpeg`.
+  // Do not sticky-cache this forever (see top of function).
+  const bareCmd =
+    env && !env.includes('/') && !env.includes('\\') ? env : 'ffmpeg'
+  cached = bareCmd
   return cached
 }
 

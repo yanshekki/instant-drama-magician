@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getApi, isElectron } from '../../lib/api'
+import { canUse } from '../lib/webCapability'
 import {
   LEGAL_EFFECTIVE_DATE,
   LEGAL_VERSION,
@@ -164,7 +165,15 @@ export function SettingsPage(): JSX.Element {
       .media.checkFfmpeg()
       .then((r) => {
         // FFmpeg is mandatory; healthy state is silent (no useless badge).
-        setFfmpegError(r.available ? null : r.message || t('settings.ffmpegRequired'))
+        if (r.available) {
+          setFfmpegError(null)
+          return
+        }
+        const raw =
+          (r as { details?: string }).details ||
+          r.message ||
+          t('settings.ffmpegRequired')
+        setFfmpegError(raw)
       })
       .catch(() => setFfmpegError(t('settings.ffmpegRequired')))
     void getApi()
@@ -1192,7 +1201,7 @@ export function SettingsPage(): JSX.Element {
                       {t('settings.ffmpegRequired')}
                     </p>
                     <p className="mt-1.5 font-mono text-[10px] text-rose-200/70 break-all">
-                      {ffmpegError}
+                      {formatUserError(ffmpegError, t)}
                     </p>
                   </div>
                 )}
@@ -1200,9 +1209,11 @@ export function SettingsPage(): JSX.Element {
                   <div className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-2.5 shadow-theme-sm">
                     <p className="font-mono text-[11px] text-ink-400">
                       v{appInfo.version}
-                      {appInfo.isPackaged
-                        ? ` · ${t('app.packaged')}`
-                        : ` · ${t('app.dev')}`}
+                      {canUse('nativeUpdates')
+                        ? appInfo.isPackaged
+                          ? ` · ${t('app.packaged')}`
+                          : ` · ${t('app.dev')}`
+                        : ` · ${t('settings.channelWeb')}`}
                     </p>
                     <div className="mt-1.5 flex items-center gap-2">
                       <p
@@ -1211,45 +1222,73 @@ export function SettingsPage(): JSX.Element {
                       >
                         {appInfo.userData}
                       </p>
-                      <Button
-                        variant="secondary"
-                        className="!h-8 shrink-0 !px-2.5 !text-[11px]"
-                        onClick={() => {
-                          void (async () => {
-                            try {
-                              const r = (await getApi().shell.openPath(
-                                appInfo.userData
-                              )) as {
-                                ok?: boolean
-                                path?: string
-                                isDirectory?: boolean
-                                message?: string
-                              }
-                              if (r?.isDirectory || r?.path) {
-                                const p = r.path || appInfo.userData
-                                try {
-                                  await navigator.clipboard.writeText(p)
-                                  toast.success(
-                                    t('settings.dataPathCopied', { path: p })
-                                  )
-                                } catch {
-                                  toast.info(p)
+                      {canUse('openExportFolder') ? (
+                        <Button
+                          variant="secondary"
+                          className="!h-8 shrink-0 !px-2.5 !text-[11px]"
+                          onClick={() => {
+                            void (async () => {
+                              try {
+                                const r = (await getApi().shell.openPath(
+                                  appInfo.userData
+                                )) as {
+                                  ok?: boolean
+                                  path?: string
+                                  isDirectory?: boolean
+                                  message?: string
                                 }
-                                return
+                                if (r?.isDirectory || r?.path) {
+                                  const p = r.path || appInfo.userData
+                                  try {
+                                    await navigator.clipboard.writeText(p)
+                                    toast.success(
+                                      t('settings.dataPathCopied', { path: p })
+                                    )
+                                  } catch {
+                                    toast.info(p)
+                                  }
+                                  return
+                                }
+                                settingsToastPlain(
+                                  toast.error,
+                                  t('settings.openDataFolderFail')
+                                )
+                              } catch (e) {
+                                settingsToastIpcOr(
+                                  e,
+                                  toast.error,
+                                  t('settings.openDataFolderFail')
+                                )
                               }
-                              settingsToastPlain(toast.error, t('settings.openDataFolderFail'))
-                            } catch (e) {
-                              settingsToastIpcOr(
-                                e,
-                                toast.error,
-                                t('settings.openDataFolderFail')
-                              )
-                            }
-                          })()
-                        }}
-                      >
-                        {t('settings.openDataFolder')}
-                      </Button>
+                            })()
+                          }}
+                        >
+                          {t('settings.openDataFolder')}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          className="!h-8 shrink-0 !px-2.5 !text-[11px]"
+                          onClick={() => {
+                            void (async () => {
+                              try {
+                                await navigator.clipboard.writeText(
+                                  appInfo.userData
+                                )
+                                toast.success(
+                                  t('settings.dataPathCopied', {
+                                    path: appInfo.userData
+                                  })
+                                )
+                              } catch {
+                                toast.info(appInfo.userData)
+                              }
+                            })()
+                          }}
+                        >
+                          {t('common.copy')}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1285,9 +1324,16 @@ export function SettingsPage(): JSX.Element {
 
                   <p className="mt-2 font-mono text-[11px] text-ink-400">
                     {t('settings.version')}:{' '}
-                    {updateState?.currentVersion ?? appInfo?.version ?? '—'}
+                    {settingsDisplayVersion(
+                      updateState?.currentVersion,
+                      appInfo?.version
+                    )}
                     {updateState?.latestVersion &&
-                    updateState.latestVersion !== updateState.currentVersion
+                    updateState.latestVersion !==
+                      settingsDisplayVersion(
+                        updateState?.currentVersion,
+                        appInfo?.version
+                      )
                       ? ` → ${updateState.latestVersion}`
                       : ''}
                   </p>
@@ -1350,119 +1396,127 @@ export function SettingsPage(): JSX.Element {
                   ) : null}
 
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      variant="secondary"
-                      className="!h-8 !text-[11px]"
-                      disabled={
-                        updateBusy ||
-                        updateState?.canCheck === false ||
-                        updateState?.status === 'dev-skipped' ||
-                        updateState?.status === 'web-skipped'
-                      }
-                      onClick={() => {
-                        setUpdateBusy(true)
-                        void getApi()
-                          .updates.check()
-                          .then((s) => {
-                            setUpdateState(s)
-                            settingsToastUpdateCheck(s, {
-                              toastInfo: toast.info,
-                              toastSuccess: toast.success,
-                              toastError: toast.error,
-                              availableMsg: (v) =>
-                                t('settings.updateAvailableToast', {
-                                  version: v
-                                }),
-                              upToDateMsg: t('settings.updateUpToDate'),
-                              devSkippedMsg: settingsDevSkippedBound(
-                                (k) => t(`settings.${k}`),
-                                t('settings.updateDevSkipped')
-                              ),
-                              errorMsg: (m) => settingsFailMsg(m, t('settings.updateCheckFail'))
-                            })
-                          })
-                          .catch((e) =>
-                            settingsToastIpcOr(
-                              e,
-                              toast.error,
-                              t('settings.updateCheckFail')
-                            )
-                          )
-                          .finally(() => setUpdateBusy(false))
-                      }}
-                    >
-                      {t('settings.checkUpdate')}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      className="!h-8 !text-[11px]"
-                      disabled={
-                        updateBusy ||
-                        !(
-                          updateState?.canDownload ||
-                          updateState?.status === 'available'
-                        ) ||
-                        updateState?.status === 'downloaded'
-                      }
-                      onClick={() => {
-                        setUpdateBusy(true)
-                        void getApi()
-                          .updates.download()
-                          .then((s) => {
-                            setUpdateState(s)
-                            settingsToastUpdateDownload(s, {
-                              toastSuccess: toast.success,
-                              toastError: toast.error,
-                              okMsg: t('settings.updateDownloadedToast'),
-                              failMsg: settingsFailMsgBound(
-                                t('settings.updateDownloadFail')
+                    {canUse('nativeUpdates') ? (
+                      <>
+                        <Button
+                          variant="secondary"
+                          className="!h-8 !text-[11px]"
+                          disabled={
+                            updateBusy ||
+                            updateState?.canCheck === false ||
+                            updateState?.status === 'dev-skipped' ||
+                            updateState?.status === 'web-skipped'
+                          }
+                          onClick={() => {
+                            setUpdateBusy(true)
+                            void getApi()
+                              .updates.check()
+                              .then((s) => {
+                                setUpdateState(s)
+                                settingsToastUpdateCheck(s, {
+                                  toastInfo: toast.info,
+                                  toastSuccess: toast.success,
+                                  toastError: toast.error,
+                                  availableMsg: (v) =>
+                                    t('settings.updateAvailableToast', {
+                                      version: v
+                                    }),
+                                  upToDateMsg: t('settings.updateUpToDate'),
+                                  devSkippedMsg: settingsDevSkippedBound(
+                                    (k) => t(`settings.${k}`),
+                                    t('settings.updateDevSkipped')
+                                  ),
+                                  errorMsg: (m) =>
+                                    settingsFailMsg(
+                                      m,
+                                      t('settings.updateCheckFail')
+                                    )
+                                })
+                              })
+                              .catch((e) =>
+                                settingsToastIpcOr(
+                                  e,
+                                  toast.error,
+                                  t('settings.updateCheckFail')
+                                )
                               )
-                            })
-                          })
-                          .catch((e) =>
-                            settingsToastIpcOr(
-                              e,
-                              toast.error,
-                              t('settings.updateDownloadFail')
-                            )
-                          )
-                          .finally(() => setUpdateBusy(false))
-                      }}
-                    >
-                      {t('settings.downloadUpdate')}
-                    </Button>
-                    <Button
-                      className="!h-8 !text-[11px]"
-                      disabled={
-                        updateBusy ||
-                        !(
-                          updateState?.canAutoInstall ||
-                          updateState?.status === 'downloaded'
-                        )
-                      }
-                      onClick={() => {
-                        void getApi()
-                          .updates.install()
-                          .then((r) => {
-                            settingsToastUpdateInstall(
-                              r,
-                              toast.error,
-                              settingsFailMsgBound(
-                                t('settings.updateInstallFail')
+                              .finally(() => setUpdateBusy(false))
+                          }}
+                        >
+                          {t('settings.checkUpdate')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="!h-8 !text-[11px]"
+                          disabled={
+                            updateBusy ||
+                            !(
+                              updateState?.canDownload ||
+                              updateState?.status === 'available'
+                            ) ||
+                            updateState?.status === 'downloaded'
+                          }
+                          onClick={() => {
+                            setUpdateBusy(true)
+                            void getApi()
+                              .updates.download()
+                              .then((s) => {
+                                setUpdateState(s)
+                                settingsToastUpdateDownload(s, {
+                                  toastSuccess: toast.success,
+                                  toastError: toast.error,
+                                  okMsg: t('settings.updateDownloadedToast'),
+                                  failMsg: settingsFailMsgBound(
+                                    t('settings.updateDownloadFail')
+                                  )
+                                })
+                              })
+                              .catch((e) =>
+                                settingsToastIpcOr(
+                                  e,
+                                  toast.error,
+                                  t('settings.updateDownloadFail')
+                                )
                               )
+                              .finally(() => setUpdateBusy(false))
+                          }}
+                        >
+                          {t('settings.downloadUpdate')}
+                        </Button>
+                        <Button
+                          className="!h-8 !text-[11px]"
+                          disabled={
+                            updateBusy ||
+                            !(
+                              updateState?.canAutoInstall ||
+                              updateState?.status === 'downloaded'
                             )
-                          })
-                          .catch((e) =>
-                            settingsToastIpcOr(
-                              e,
-                              toast.error,
-                              t('settings.updateInstallFail')
-                            )
-                          )
-                      }}
-                    >
-                      {t('settings.installUpdate')}
-                    </Button>
+                          }
+                          onClick={() => {
+                            void getApi()
+                              .updates.install()
+                              .then((r) => {
+                                settingsToastUpdateInstall(
+                                  r,
+                                  toast.error,
+                                  settingsFailMsgBound(
+                                    t('settings.updateInstallFail')
+                                  )
+                                )
+                              })
+                              .catch((e) =>
+                                settingsToastIpcOr(
+                                  e,
+                                  toast.error,
+                                  t('settings.updateInstallFail')
+                                )
+                              )
+                          }}
+                        >
+                          {t('settings.installUpdate')}
+                        </Button>
+                      </>
+                    ) : null}
                     <Button
                       variant="secondary"
                       className="!h-8 !text-[11px]"
@@ -3062,6 +3116,20 @@ export function settingsIsWebLabel(
   other: string
 ): string {
   return isWeb ? web : other
+}
+
+/**
+ * Prefer a real semver over electron-updater's stub 0.0.0 (web / missing app).
+ */
+export function settingsDisplayVersion(
+  updateVersion?: string | null,
+  appVersion?: string | null
+): string {
+  const u = (updateVersion || '').trim()
+  const a = (appVersion || '').trim()
+  if (u && u !== '0.0.0') return u
+  if (a) return a
+  return u || '—'
 }
 
 export function settingsGatewayStatusOrNull<T>(

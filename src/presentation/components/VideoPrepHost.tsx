@@ -1,7 +1,12 @@
 /**
- * Owns video-prep wizard lifecycle:
- * open immediately → staged extract/polish/still → review → confirm → success / next.
- * Loading phases lock the UI; emergency exit aborts in-flight work.
+ * @deprecated LEGACY video-prep wizard — **not mounted in Layout**.
+ *
+ * Production: `MediaGenHost` only. `startVideoPrep` / draft continue open MediaGen.
+ * This module remains for unit tests (`VideoPrepHost.test.tsx`) and historical
+ * reference. Do not re-mount in Layout without a product decision.
+ *
+ * Still-active APIs (not this host): `videoPrep:create` (stillOnly batch),
+ * `videoPrep:confirm` (generateVideo from MediaGen).
  */
 import { shouldAutoCreateVideoPrep, patchIfRequestIdMatch } from '../../domain/residualLabels'
 import { useCallback, useEffect, useRef } from 'react'

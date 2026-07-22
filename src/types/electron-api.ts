@@ -239,6 +239,10 @@ export interface ElectronApi {
       title: string
       raw: string
     }>
+    /**
+     * @deprecated Prefer `mediaGen.extract` → `polish` → `generateImage`
+     * (kind `character-sheet`) then `commitSheet`.
+     */
     generateSheet: (payload: {
       characterId: string
       variant?: string
@@ -832,22 +836,23 @@ export interface ElectronApi {
   /** Media gen prep: materials checkboxes → multi-vision polish → one image */
   mediaGen: {
     extract: (payload: {
-      kind:
-        | 'action-plate'
-        | 'character-sheet'
-        | 'scene-plate'
-        | 'prop-plate'
-        | 'story-cover'
+      kind: string
       actionId?: string
       characterId?: string
       sceneId?: string
       propId?: string
       storyId?: string
+      costumeId?: string
+      entryId?: string
       panelLayout?: string | null
       artStyle?: string | null
       sheetVariant?: string | null
+      plateVariant?: string | null
       galleryIdentityPaths?: string[] | null
       preferIdentityEdit?: boolean
+      costumeDescription?: string
+      atmosphereDescription?: string
+      durationSeconds?: number
       locale?: 'zh-HK' | 'en'
     }) => Promise<{
       kind: string
@@ -869,8 +874,14 @@ export interface ElectronApi {
       taskHint: string
       genOptions: {
         panelLayout?: string
+        sheetVariant?: string
+        plateVariant?: string
         artStyle?: string
         useIdentityEdit: boolean
+        forcePureLayout?: boolean
+        galleryLabel?: string
+        layer?: string
+        durationSeconds?: number
       }
       hardRules?: string | null
     }>
@@ -881,6 +892,8 @@ export interface ElectronApi {
       taskHint?: string
       hardRules?: string | null
       locale?: 'zh-HK' | 'en'
+      mode?: 'image' | 'video'
+      userTextOverride?: string | null
     }) => Promise<{
       polishedPrompt: string
       polished: boolean
@@ -893,12 +906,18 @@ export interface ElectronApi {
       sceneId?: string
       propId?: string
       storyId?: string
+      entryId?: string
+      costumeId?: string
       polishedPrompt: string
       editBasePath?: string | null
       useIdentityEdit?: boolean
       panelLayout?: string | null
       artStyle?: string | null
       sheetVariant?: string | null
+      plateVariant?: string | null
+      forcePureLayout?: boolean
+      galleryIdentityPaths?: string[] | null
+      galleryLabel?: string | null
       hardRules?: string | null
       persist?: boolean
     }) => Promise<{
@@ -908,6 +927,13 @@ export interface ElectronApi {
       promptUsed?: string
       panelLayout?: string
       artStyle?: string
+      sheetVariant?: string
+      plateVariant?: string
+      forcePureLayout?: boolean
+      galleryLabel?: string
+      layer?: string
+      size?: string
+      aspectRatio?: string
     }>
   }
   /** Shared video prep: materials → LLM prompt → still review → confirm video */

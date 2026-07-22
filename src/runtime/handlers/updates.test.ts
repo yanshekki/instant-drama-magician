@@ -113,6 +113,13 @@ describe('registerUpdatesHandlers', () => {
         clear: vi.fn(),
         kinds: vi.fn(),
         path: '/l'
+      } as never,
+      // Desktop Electron host — headless/web must not load electron-updater
+      host: {
+        ...(makeHandlerContext().host as object),
+        mode: 'electron',
+        appVersion: '1.2.0',
+        isPackaged: true
       } as never
     })
     registerUpdatesHandlers(ctx)
@@ -128,6 +135,24 @@ describe('registerUpdatesHandlers', () => {
     await invokeRegistered(h as never, 'updates:install')
     expect(svc.quitAndInstall).toHaveBeenCalled()
     expect(append).toHaveBeenCalled()
+  })
+
+  it('web/headless skips AppUpdateService even if importable', async () => {
+    const ctx = makeHandlerContext({
+      host: {
+        ...(makeHandlerContext().host as object),
+        mode: 'headless',
+        appVersion: '1.3.1',
+        isPackaged: true
+      } as never
+    })
+    registerUpdatesHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(invokeRegistered(h as never, 'updates:status')).resolves.toMatchObject({
+      channel: 'web',
+      status: 'web-skipped',
+      currentVersion: '1.3.1'
+    })
   })
 
   it('null service fallbacks for status check download install', async () => {

@@ -107,6 +107,7 @@ export function TimelinePage(): JSX.Element {
     cancelJob,
     activeJobs,
     startVideoPrep,
+    startMediaGen,
     setVideoPrepSession,
     hasVideoPrepDraft,
     continueVideoPrepDraft
@@ -605,21 +606,61 @@ export function TimelinePage(): JSX.Element {
           t('videoPrep.queueProgress', { current, total }),
         singleLabel: t('timeline.generateClip'),
         skipStillIfExists: opts?.skipStillIfExists,
-        start: (args) =>
-          startVideoPrep({
-            kind: 'timeline-clip',
-            entityIds: { storyId, entryId: args.entryId },
-            durationSeconds: args.durationSeconds,
-            locale: getAiLocale(i18n.language),
-            userExtraPrompt: args.revisionPrompt,
-            queueIndex: args.queueIndex,
-            queueTotal: args.queueTotal,
-            queueRemaining: args.queueRemaining,
-            skipStillIfExists: args.skipStillIfExists
-          })
+        start: (args) => {
+          // All clips (single + queue) → MediaGen shell
+          void (async () => {
+            const { buildIntroMediaGenRequest } = await import(
+              '../lib/startIntroMediaGen'
+            )
+            const wantSkip = args.skipStillIfExists === true
+            // B1/R1: snapshot revision + duration for every id in this batch
+            const batchIds = [
+              args.entryId,
+              ...(args.queueRemaining ?? [])
+            ].filter(Boolean)
+            const queueUserExtraByEntryId: Record<string, string> = {}
+            const queueDurationSecondsByEntryId: Record<string, number> = {}
+            for (const id of batchIds) {
+              const rev = revisionByEntryRef.current[id]?.trim()
+              if (rev) queueUserExtraByEntryId[id] = rev
+              const ent = entriesRef.current.find((e) => e.id === id)
+              if (ent) {
+                queueDurationSecondsByEntryId[id] = snapVideoSeconds(
+                  Number(ent.endTime) - Number(ent.startTime)
+                )
+              }
+            }
+            // Current clip duration already snapped in timelineStartClipPrep
+            if (
+              args.durationSeconds > 0 &&
+              !queueDurationSecondsByEntryId[args.entryId]
+            ) {
+              queueDurationSecondsByEntryId[args.entryId] = args.durationSeconds
+            }
+            const req = await buildIntroMediaGenRequest({
+              kind: 'timeline-clip',
+              sourceImagePath: '',
+              storyId,
+              entryId: args.entryId,
+              durationSeconds: args.durationSeconds,
+              skipStillIfExists: wantSkip,
+              userExtraPrompt: args.revisionPrompt?.trim() || null
+            })
+            startMediaGen({
+              ...req,
+              queueIndex: args.queueIndex,
+              queueTotal: args.queueTotal,
+              queueRemaining: args.queueRemaining ?? [],
+              // B4: Host reuses this for auto-advanced clips
+              queueSkipStillIfExists: wantSkip,
+              queueUserExtraByEntryId,
+              queueDurationSecondsByEntryId
+            })
+          })()
+        }
       })
     },
-    [clipSeconds, i18n.language, startVideoPrep, t, toast]
+    [clipSeconds, i18n.language, startMediaGen, t, toast]
   )
 
   const handleGenerate = async (onlyFailed = false): Promise<void> => {

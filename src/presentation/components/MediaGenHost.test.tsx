@@ -114,7 +114,7 @@ describe('MediaGenHost', () => {
     }
   })
 
-  it('timeline-clip video mode returns early without draft', async () => {
+  it('timeline-clip video mode no-ops onGenerated (video via confirm + video-prep-done)', async () => {
     mediaGenRequest = {
       kind: 'timeline-clip',
       storyId: 's1',
@@ -129,7 +129,8 @@ describe('MediaGenHost', () => {
     await act(async () => {
       lastOnGenerated!({ path: '/lib/e1.png' })
     })
-    expect(events).toHaveLength(1)
+    // R2/B3: video kinds must not dispatch still-done from onGenerated
+    expect(events).toHaveLength(0)
     expect(startJob).not.toHaveBeenCalled()
   })
 
