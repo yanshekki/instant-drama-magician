@@ -205,8 +205,14 @@ import {
   costumesIsBusyJob,
   costumesMaybeContinueDraft,
   costumesMaybeSetDressBase,
+  costumesClearDressBaseIfInvalid,
+  costumesFilterListQuery,
+  costumesIntroOrUndefined,
+  costumesMakeRemoveImage,
+  costumesMakeReorder,
   costumesRefFallback,
-  costumesReorderGallery
+  costumesReorderGallery,
+  costumesStyleChip
 } from './CostumesPage'
 import {
   PropsPage,
@@ -4273,6 +4279,56 @@ describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
     ).toEqual([{ path: '/c.png', label: 'C', id: 'ref' }])
     expect(costumesRefFallback(null)).toEqual([])
     expect(costumesRefFallback({ refImagePath: null, name: 'C' })).toEqual([])
+
+    expect(
+      costumesClearDressBaseIfInvalid([{ path: '/a' }], '/b')
+    ).toBe('')
+    expect(
+      costumesClearDressBaseIfInvalid([{ path: '/a' }], '/a')
+    ).toBe('/a')
+    expect(costumesFilterListQuery(true, false)).toBe(true)
+    expect(costumesFilterListQuery(false, false)).toBe(false)
+    expect(costumesStyleChip('x', 'L')).toMatch(/L/)
+    expect(costumesStyleChip(null, 'L')).toBe('')
+    expect(costumesIntroOrUndefined(null, '/p', () => undefined)).toBeUndefined()
+    expect(typeof costumesIntroOrUndefined('id', '/p', () => undefined)).toBe(
+      'function'
+    )
+
+    let gal = [
+      { id: 'a', path: '/a' },
+      { id: 'b', path: '/b' }
+    ]
+    let look: string | null = '/a'
+    let sel: string | null = 'a'
+    costumesMakeRemoveImage({
+      getGallery: () => gal,
+      getLook: () => look,
+      removeItem: (g, id) => g.filter((x) => x.id !== id),
+      isCover: () => false,
+      primary: (g) => g[0]?.path ?? null,
+      setGallery: (g) => {
+        gal = g as typeof gal
+      },
+      setLook: (p) => {
+        look = p
+      },
+      setSelected: (id) => {
+        sel = id
+      }
+    })('a')
+    expect(gal).toHaveLength(1)
+    expect(look).toBe('/b')
+
+    const reo = costumesMakeReorder(
+      () => gal,
+      (g) => {
+        gal = g as typeof gal
+      }
+    )
+    reo('b', 'x') // no-op invalid
+    reo('b', 'b')
+    expect(gal[0].id).toBe('b')
   })
 
   it('Costumes dress filters intro link busy', async () => {

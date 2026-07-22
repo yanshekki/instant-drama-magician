@@ -321,9 +321,9 @@ export function CostumesPage(): JSX.Element {
   // Default base pick to auto when character changes or selected path vanished from list.
   useEffect(() => {
     if (!dressBasePath) return
-    if (!dressCharBaseOptions.some((o) => o.path === dressBasePath)) {
-      setDressBasePath('')
-    }
+    setDressBasePath(
+      costumesClearDressBaseIfInvalid(dressCharBaseOptions, dressBasePath)
+    )
   }, [dressCharBaseOptions, dressBasePath])
 
   const linksBrowser = useMemo(() => {
@@ -547,23 +547,16 @@ export function CostumesPage(): JSX.Element {
     toast.success(t('common.coverSet'))
   }
 
-  const handleRemoveImage = (id: string): void => {
-    const removed = gallery.find((g) => g.id === id)
-    const next = removeGalleryItem(gallery, id)
-    setGallery(next)
-    const adj = costumesAfterRemoveImage(
-      removed?.path,
-      lookImagePath,
-      next,
-      (gal, look) => isGalleryCoverPath(gal as never, look),
-      (gal) => primaryGalleryPath(gal as never)
-    )
-    if (adj.selectedId !== null || adj.look !== lookImagePath) {
-      if (adj.look !== lookImagePath) setLookImagePath(adj.look)
-      if (adj.selectedId) setSelectedGalId(adj.selectedId)
-      else if (removed && lookImagePath === removed.path) setSelectedGalId(null)
-    }
-  }
+  const handleRemoveImage = costumesMakeRemoveImage({
+    getGallery: () => gallery,
+    getLook: () => lookImagePath,
+    removeItem: removeGalleryItem as never,
+    isCover: (gal, look) => isGalleryCoverPath(gal as never, look),
+    primary: (gal) => primaryGalleryPath(gal as never),
+    setGallery,
+    setLook: setLookImagePath,
+    setSelected: setSelectedGalId
+  })
 
   const costumeBusy = (costumeId?: string | null): boolean =>
     isBlocked({
@@ -1113,9 +1106,7 @@ export function CostumesPage(): JSX.Element {
                 coverPath={lookImagePath}
                 onSelect={(id) => setSelectedGalId(id)}
                 onReorder={(fromId, toId) => {
-                  const next = costumesReorderGallery(gallery, fromId, toId)
-                  if (!next) return
-                  setGallery(next)
+                  costumesMakeReorder(() => gallery, setGallery)(fromId, toId)
                 }}
                 labelOf={(g) => translateCharacterGalleryLabel(g.label, t)}
               />
@@ -1919,4 +1910,77 @@ export function costumesRefFallback(
 ): { path: string; label: string; id: string }[] {
   if (!c?.refImagePath) return []
   return [{ path: c.refImagePath, label: c.name, id: 'ref' }]
+}
+
+
+export function costumesMakeRemoveImage(ops: {
+  getGallery: () => { id: string; path: string }[]
+  getLook: () => string | null
+  removeItem: (gal: { id: string; path: string }[], id: string) => { id: string; path: string }[]
+  isCover: (gal: { path: string }[], look: string | null) => boolean
+  primary: (gal: { path: string }[]) => string | null
+  setGallery: (g: { id: string; path: string }[]) => void
+  setLook: (p: string | null) => void
+  setSelected: (id: string | null) => void
+}): (id: string) => void {
+  return (id: string) => {
+    const gallery = ops.getGallery()
+    const lookImagePath = ops.getLook()
+    const removed = gallery.find((g) => g.id === id)
+    const next = ops.removeItem(gallery, id)
+    ops.setGallery(next)
+    const adj = costumesAfterRemoveImage(
+      removed?.path,
+      lookImagePath,
+      next,
+      ops.isCover,
+      ops.primary
+    )
+    if (adj.selectedId !== null || adj.look !== lookImagePath) {
+      if (adj.look !== lookImagePath) ops.setLook(adj.look)
+      if (adj.selectedId) ops.setSelected(adj.selectedId)
+      else if (removed && lookImagePath === removed.path) ops.setSelected(null)
+    }
+  }
+}
+
+export function costumesMakeReorder(
+  getGallery: () => { id: string }[],
+  setGallery: (g: { id: string }[]) => void
+): (fromId: string, toId: string) => void {
+  return (fromId, toId) => {
+    const next = costumesReorderGallery(getGallery(), fromId, toId)
+    if (!next) return
+    setGallery(next)
+  }
+}
+
+export function costumesClearDressBaseIfInvalid(
+  options: { path: string }[],
+  dressBasePath: string
+): string {
+  if (!options.some((o) => o.path === dressBasePath)) return ''
+  return dressBasePath
+}
+
+export function costumesFilterListQuery(
+  includesName: boolean,
+  includesDesc: boolean
+): boolean {
+  return includesName || includesDesc
+}
+
+export function costumesStyleChip(
+  artStyle: string | null | undefined,
+  label: string
+): string {
+  return artStyle ? ` · ${label}` : ''
+}
+
+export function costumesIntroOrUndefined(
+  editId: string | null | undefined,
+  path: string | undefined,
+  handler: (p: string) => void
+): (() => void) | undefined {
+  return editId && path ? () => handler(path) : undefined
 }
