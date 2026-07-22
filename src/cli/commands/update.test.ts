@@ -75,7 +75,7 @@ describe('cmdUpdate', () => {
     await cmdUpdate({ ...g, json: false } as never, ['check'], {})
     await cmdUpdate(g, ['install'], { yes: true })
     await cmdUpdate(g, ['install', '1.2.0'], { yes: true })
-    await cmdUpdate(g, ['install'], { version: 'v1.3.0', yes: true })
+    await cmdUpdate(g, ['install'], { version: 'v1.3.1', yes: true })
     await cmdUpdate(g, ['install'], { v: '1.4.0', yes: true })
 
     await expect(cmdUpdate(g, ['nope'], {})).rejects.toThrow(/process.exit/)

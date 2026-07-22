@@ -287,7 +287,7 @@ describe('Layout', () => {
     api.updates.download = vi.fn().mockResolvedValue({
       status: 'downloaded',
       currentVersion: '1.0.0',
-      latestVersion: '1.3.0'
+      latestVersion: '1.3.1'
     })
     api.updates.install = vi.fn().mockRejectedValue(new Error('inst'))
     await act(async () => {

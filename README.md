@@ -9,7 +9,7 @@ Cross-platform desktop (Electron) + optional browser remote control + full CLI `
 
 | | |
 |---|---|
-| **Version** | 1.3.0 |
+| **Version** | 1.3.1 |
 | **Vendor** | YSK Limited |
 | **Contact** | [email@ysk.hk](mailto:email@ysk.hk) |
 | **License** | MIT |
@@ -252,7 +252,7 @@ Local builds land in `release/`; or download from GitHub Releases.
 
 ```bash
 # Linux example
-sudo dpkg -i release/instant-drama-magician_1.3.0_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.3.1_amd64.deb
 # or
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -318,7 +318,7 @@ instant-drama version
 ```bash
 instant-drama update              # check npm registry for a newer version
 instant-drama update install --yes   # global install latest (with post-verify)
-instant-drama update install 1.3.0 --yes   # pin a version
+instant-drama update install 1.3.1 --yes   # pin a version
 ```
 
 `instant-drama doctor` also reports npm update status (skip with `IDM_SKIP_UPDATE=1`).

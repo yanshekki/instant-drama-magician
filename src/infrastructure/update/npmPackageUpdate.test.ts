@@ -20,8 +20,8 @@ describe('compareSemver', () => {
 
 describe('npmInstallCommand', () => {
   it('pins version and disables fund/audit', () => {
-    expect(npmInstallCommand(NPM_PACKAGE_NAME, '1.3.0')).toBe(
-      `npm install -g ${NPM_PACKAGE_NAME}@1.3.0 --no-fund --no-audit`
+    expect(npmInstallCommand(NPM_PACKAGE_NAME, '1.3.1')).toBe(
+      `npm install -g ${NPM_PACKAGE_NAME}@1.3.1 --no-fund --no-audit`
     )
     expect(npmInstallCommand()).toContain('@latest')
   })

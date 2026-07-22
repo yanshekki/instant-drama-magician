@@ -275,7 +275,7 @@ describe('Settings toward 90%', () => {
       status: 'downloading',
       channel: 'stable',
       currentVersion: '1.0.0',
-      latestVersion: '1.3.0',
+      latestVersion: '1.3.1',
       canCheck: true,
       canDownload: true,
       canAutoInstall: true,
@@ -283,11 +283,11 @@ describe('Settings toward 90%', () => {
       releaseNotes: '## Notes\n- fix\n- feat',
       releaseUrl: 'https://example.com/r',
       messageKey: 'updateAvailable',
-      installCommand: 'npm i -g x@1.3.0'
+      installCommand: 'npm i -g x@1.3.1'
     })
     api.updates.check = vi.fn().mockResolvedValue({
       status: 'available',
-      latestVersion: '1.3.0',
+      latestVersion: '1.3.1',
       currentVersion: '1.0.0'
     })
     api.updates.download = vi.fn().mockResolvedValue({
@@ -298,17 +298,17 @@ describe('Settings toward 90%', () => {
     api.updates.checkNpm = vi.fn().mockResolvedValue({
       packageName: 'instant-drama-magician',
       currentVersion: '1.0.0',
-      latestVersion: '1.3.0',
+      latestVersion: '1.3.1',
       updateAvailable: true,
       checkedAt: new Date().toISOString(),
-      installCommand: 'npm i -g instant-drama-magician@1.3.0'
+      installCommand: 'npm i -g instant-drama-magician@1.3.1'
     })
     api.updates.onState = vi.fn((cb: (s: unknown) => void) => {
       cb({
         status: 'downloading',
         progress: 55,
         currentVersion: '1.0.0',
-        latestVersion: '1.3.0',
+        latestVersion: '1.3.1',
         canCheck: true,
         canDownload: true,
         canAutoInstall: true,

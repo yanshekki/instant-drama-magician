@@ -93,7 +93,7 @@ describe('registerUpdatesHandlers', () => {
     const state = {
       status: 'idle',
       currentVersion: '1.2.0',
-      latestVersion: '1.3.0'
+      latestVersion: '1.3.1'
     }
     const svc = {
       getState: vi.fn(() => state),
