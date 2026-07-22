@@ -102,14 +102,12 @@ import {
   resolveIdentityPaths,
   toggleGallerySelection
 } from '../../domain/imageGenConfirm'
+import type { ImageGenConfirmPayload } from '../components/ImageGenConfirmModal'
 import {
   buildCharacterSheetEditPrompt,
   buildCharacterSheetImagePrompt
 } from '../../domain/characterMasterPrompt'
-import {
-  ImageGenConfirmModal,
-  type ImageGenConfirmPayload
-} from '../components/ImageGenConfirmModal'
+
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import {
   EntityGalleryPanel,
@@ -369,8 +367,6 @@ export function CharactersPage(): JSX.Element {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
-  const [imageGenConfirm, setImageGenConfirm] =
-    useState<ImageGenConfirmPayload | null>(null)
   const [busy, setBusy] = useState(false)
   const [pageBanner, setPageBanner] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -1077,54 +1073,6 @@ export function CharactersPage(): JSX.Element {
       setActionError(msg)
       toast.error(msg)
     }
-  }
-
-  const runCharacterSheetJob = async (
-    confirm: ImageGenConfirmPayload
-  ): Promise<void> => {
-    setImageGenConfirm(null)
-    await charactersRunSheetJob({
-      ensureSavedId,
-      isBusy: characterAiBusy,
-      setError: setActionError,
-      saveFirstMsg: t('characters.saveFirstForSheet'),
-      toastInfo: toast.info,
-      identityMsg: t('characters.genWithExternalRef'),
-      backgroundMsg: t('aiJobs.startedBackground'),
-      useIdentityEdit: confirm.useIdentityEdit,
-      startJob: (id) => {
-        const variant = sheetVariant
-        const artStyle = form.artStyle
-        startJob({
-          kind: 'character-sheet',
-          label: t('characters.generateSheet'),
-          scope: {
-            characterId: id,
-            storyId: activeStoryId ?? undefined
-          },
-          run: async ({ setProgress, signal }) =>
-            charactersSheetJobBody({
-              generate: () =>
-                getApi().characters.generateSheet({
-                  characterId: id,
-                  variant,
-                  referenceImagePath: confirm.referencePaths[0] ?? null,
-                  referenceImagePaths: confirm.referencePaths,
-                  useIdentityEdit: confirm.useIdentityEdit,
-                  persist: false,
-                  artStyle,
-                  promptOverride: confirm.prompt
-                }),
-              signal,
-              discard: (p) => getApi().media.discardSheetDraft(p),
-              characterId: id,
-              storyId: activeStoryId ?? '',
-              variant,
-              setProgress
-            })
-        })
-      }
-    })
   }
 
   /** Animate the selected still into a self-intro video using profile bible. */
@@ -2755,13 +2703,6 @@ export function CharactersPage(): JSX.Element {
           </EditorShell>
         )}
 
-        <ImageGenConfirmModal
-          open={Boolean(imageGenConfirm)}
-          payload={imageGenConfirm}
-          busy={editorAiBusy}
-          onCancel={() => setImageGenConfirm(null)}
-          onConfirm={(p) => void runCharacterSheetJob(p)}
-        />
       </div>
     </div>
   )

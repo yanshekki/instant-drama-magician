@@ -466,10 +466,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       if (!Array.isArray(timeline)) {
         throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound')
       }
-      const {
-        hydrateTimelineBindings,
-        parseIdList
-      } = await import('../../domain/timelineBindings')
+      const { hydrateTimelineBindings } = await import(
+        '../../domain/timelineBindings'
+      )
       const {
         getPreviousTimelineEntry,
         buildContinuityLockPrompt,
@@ -502,16 +501,11 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         characterId?: string | null
         sceneId?: string | null
         propId?: string | null
-        characterIds?: string | string[] | null
-        sceneIds?: string | string[] | null
-        propIds?: string | string[] | null
+        characterIds: string[]
+        sceneIds: string[]
+        propIds: string[]
       }
-      const toIdJson = (
-        v: string | string[] | null | undefined
-      ): string | null => {
-        if (Array.isArray(v)) return JSON.stringify(v)
-        return v ?? null
-      }
+      // hydrateTimelineBindings already expands legacy FK → id arrays
       const domainEntries = timeline.map((e) =>
         hydrateTimelineBindings(e as never)
       ) as TlEntry[]
@@ -539,12 +533,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         if (existsSync(cont)) previousContinuityPath = cont
       }
 
-      const charIds = parseIdList(
-        toIdJson(entry.characterIds),
-        entry.characterId
-      )
-      const sceneIds = parseIdList(toIdJson(entry.sceneIds), entry.sceneId)
-      const propIds = parseIdList(toIdJson(entry.propIds), entry.propId)
+      const charIds = entry.characterIds
+      const sceneIds = entry.sceneIds
+      const propIds = entry.propIds
       const primaryCharId = charIds[0] ?? null
       const primarySceneId = sceneIds[0] ?? null
       const primaryPropId = propIds[0] ?? null

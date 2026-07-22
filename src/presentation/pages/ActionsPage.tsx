@@ -38,10 +38,6 @@ import {
   type ArtStyleId
 } from '../../domain/characterArtStyles'
 import { toggleGallerySelection } from '../../domain/imageGenConfirm'
-import {
-  ImageGenConfirmModal,
-  type ImageGenConfirmPayload
-} from '../components/ImageGenConfirmModal'
 
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import {
@@ -174,8 +170,6 @@ export function ActionsPage(): JSX.Element {
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
-  const [imageGenConfirm, setImageGenConfirm] =
-    useState<ImageGenConfirmPayload | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
 
@@ -447,44 +441,6 @@ export function ActionsPage(): JSX.Element {
     } catch (e) {
       actionsApplyIpcError(e, setActionError, toast.error)
     }
-  }
-
-  /** Legacy ImageGenConfirm path (kept for tests / fallback callers). */
-  const runActionPlateJob = async (
-    confirm: ImageGenConfirmPayload
-  ): Promise<void> => {
-    setImageGenConfirm(null)
-    await actionsRunPlateJob({
-      ensureSavedId,
-      isBusy: (id) => actionBusy(id),
-      toastInfo: toast.info,
-      loadingMsg: t('common.loading'),
-      startedMsg: t('aiJobs.startedBackground'),
-      setError: setActionError,
-      toastError: toast.error,
-      startJob: (id, run) =>
-        startJob({
-          kind: 'action-plate',
-          label: t('actions.generatePlate'),
-          scope: { actionId: id, storyId: activeStoryId ?? undefined },
-          run
-        }),
-      generatePlate: (id) =>
-        getApi().actions.generatePlate({
-          actionId: id,
-          panelLayout: form.panelLayout,
-          artStyle: form.artStyle,
-          persist: false,
-          referenceImagePath: confirm.referencePaths[0] ?? null,
-          referenceImagePaths: confirm.referencePaths,
-          useIdentityEdit: confirm.useIdentityEdit,
-          promptOverride: confirm.prompt
-        }),
-      discardDraft: (p) => getApi().media.discardSheetDraft(p),
-      panelLayout: form.panelLayout,
-      plateLabel: t('actions.generatePlate'),
-      storyId: activeStoryId ?? ''
-    })
   }
 
   /** Append a local still into the unified gallery list. */
@@ -1003,13 +959,6 @@ export function ActionsPage(): JSX.Element {
           </div>
         )}
       </EditorShell>
-      <ImageGenConfirmModal
-        open={Boolean(imageGenConfirm)}
-        payload={imageGenConfirm}
-        busy={editorBusy}
-        onCancel={() => setImageGenConfirm(null)}
-        onConfirm={(p) => void runActionPlateJob(p)}
-      />
     </div>
   )
 }

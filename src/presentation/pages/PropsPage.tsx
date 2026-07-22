@@ -22,10 +22,6 @@ import {
   buildPropPlateEditPrompt,
   buildPropPlateImagePrompt
 } from '../../domain/propPlateVariants'
-import {
-  ImageGenConfirmModal,
-  type ImageGenConfirmPayload
-} from '../components/ImageGenConfirmModal'
 import { PlotContextPicker } from '../components/PlotContextPicker'
 import type { StoryWithCounts } from '../../types/domain'
 import {
@@ -188,8 +184,6 @@ export function PropsPage(): JSX.Element {
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
-  const [imageGenConfirm, setImageGenConfirm] =
-    useState<ImageGenConfirmPayload | null>(null)
   const [plateVariant, setPlateVariant] =
     useState<PropPlateVariantId>(DEFAULT_PROP_PLATE)
   const [plotSuggestOpen, setPlotSuggestOpen] = useState(false)
@@ -545,42 +539,6 @@ export function PropsPage(): JSX.Element {
       setActionError(msg)
       toast.error(msg)
     }
-  }
-
-  const runPropPlateJob = async (
-    confirm: ImageGenConfirmPayload
-  ): Promise<void> => {
-    setImageGenConfirm(null)
-    await propsRunPlateJob({
-      ensureSavedId,
-      isBusy: (id) => propBusy(id),
-      toastInfo: toast.info,
-      loadingMsg: t('common.loading'),
-      startedMsg: t('aiJobs.startedBackground'),
-      setError: setActionError,
-      toastError: toast.error,
-      startJob: (id, run) =>
-        startJob({
-          kind: 'prop-plate',
-          label: t('props.generatePlate'),
-          scope: { propId: id, storyId: activeStoryId ?? undefined },
-          run
-        }),
-      generatePlate: (id) =>
-        getApi().props.generatePlate({
-          propId: id,
-          variant: plateVariant,
-          referenceImagePath: confirm.referencePaths[0] ?? null,
-          referenceImagePaths: confirm.referencePaths,
-          useIdentityEdit: confirm.useIdentityEdit,
-          persist: false,
-          artStyle: form.artStyle,
-          promptOverride: confirm.prompt
-        }),
-      discardDraft: (p) => getApi().media.discardSheetDraft(p),
-      plateVariant,
-      storyId: activeStoryId ?? ''
-    })
   }
 
   const handlePickImage = async (): Promise<void> => {
@@ -1230,13 +1188,6 @@ export function PropsPage(): JSX.Element {
           </div>
         </div>
       )}
-      <ImageGenConfirmModal
-        open={Boolean(imageGenConfirm)}
-        payload={imageGenConfirm}
-        busy={editorBusy}
-        onCancel={() => setImageGenConfirm(null)}
-        onConfirm={(p) => void runPropPlateJob(p)}
-      />
     </div>
   )
 }

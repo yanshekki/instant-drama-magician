@@ -54,10 +54,7 @@ import {
   resolveIdentityPaths,
   toggleGallerySelection
 } from '../../domain/imageGenConfirm'
-import {
-  ImageGenConfirmModal,
-  type ImageGenConfirmPayload
-} from '../components/ImageGenConfirmModal'
+import type { ImageGenConfirmPayload } from '../components/ImageGenConfirmModal'
 
 import {
   ATMOSPHERE_POSES,
@@ -278,8 +275,6 @@ export function ScenesPage(): JSX.Element {
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
-  const [imageGenConfirm, setImageGenConfirm] =
-    useState<ImageGenConfirmPayload | null>(null)
   const [plateVariant, setPlateVariant] =
     useState<ScenePlateVariantId>(DEFAULT_SCENE_PLATE)
   const [aiIdea, setAiIdea] = useState('')
@@ -735,47 +730,6 @@ export function ScenesPage(): JSX.Element {
       setActionError(msg)
       toast.error(msg)
     }
-  }
-
-  const runScenePlateJob = async (
-    confirm: ImageGenConfirmPayload
-  ): Promise<void> => {
-    setImageGenConfirm(null)
-    await scenesRunPlateJob({
-      ensureSavedId,
-      isBusy: sceneBusy,
-      setError: setActionError,
-      saveFirstMsg: t('scenes.saveFirstForPlate'),
-      toastInfo: toast.info,
-      startedMsg: t('aiJobs.startedBackground'),
-      startJob: (id) => {
-        startJob({
-          kind: 'scene-plate',
-          label: t('scenes.generatePlate'),
-          scope: { sceneId: id, storyId: activeStoryId ?? undefined },
-          run: async ({ setProgress, signal }) =>
-            scenesPlateJobBody({
-              generate: () =>
-                getApi().scenes.generatePlate({
-                  sceneId: id,
-                  variant: plateVariant,
-                  referenceImagePath: confirm.referencePaths[0] ?? null,
-                  referenceImagePaths: confirm.referencePaths,
-                  useIdentityEdit: confirm.useIdentityEdit,
-                  persist: false,
-                  artStyle: form.artStyle,
-                  promptOverride: confirm.prompt
-                }),
-              signal,
-              discard: (p) => getApi().media.discardSheetDraft(p),
-              sceneId: id,
-              storyId: activeStoryId ?? '',
-              variant: plateVariant,
-              setProgress
-            })
-        })
-      }
-    })
   }
 
   const handleSwapAtmosphere = async (): Promise<void> => {
@@ -1808,13 +1762,6 @@ export function ScenesPage(): JSX.Element {
           </div>
         </div>
       )}
-      <ImageGenConfirmModal
-        open={Boolean(imageGenConfirm)}
-        payload={imageGenConfirm}
-        busy={editorBusy}
-        onCancel={() => setImageGenConfirm(null)}
-        onConfirm={(p) => void runScenePlateJob(p)}
-      />
     </div>
   )
 }

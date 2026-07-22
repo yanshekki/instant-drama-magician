@@ -75,10 +75,6 @@ import {
   toggleGallerySelection
 } from '../../domain/imageGenConfirm'
 import {
-  ImageGenConfirmModal,
-  type ImageGenConfirmPayload
-} from '../components/ImageGenConfirmModal'
-import {
   MAX_BEAT_ACTIONS,
   MAX_BEAT_CHARACTERS,
   MAX_BEAT_PROPS,
@@ -243,11 +239,6 @@ export function StoriesPage(): JSX.Element {
   const [selectedCoverId, setSelectedCoverId] = useState<string | null>(null)
   const [selectedCoverIds, setSelectedCoverIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
-  const [imageGenConfirm, setImageGenConfirm] =
-    useState<ImageGenConfirmPayload | null>(null)
-  const [pendingCoverStoryId, setPendingCoverStoryId] = useState<string | null>(
-    null
-  )
   const artGroups = useMemo(() => artStylesByGroup(), [])
   const selectedCoverImage = useMemo(() => {
     if (!coverGallery.length) return null
@@ -546,61 +537,6 @@ export function StoriesPage(): JSX.Element {
       artStyle: storyArtStyle,
       galleryIdentityPaths: paths,
       preferIdentityEdit: useId
-    })
-  }
-
-  const runStoryCoverJob = async (
-    confirm: ImageGenConfirmPayload
-  ): Promise<void> => {
-    setImageGenConfirm(null)
-    const sid = pendingCoverStoryId ?? editingId
-    setPendingCoverStoryId(null)
-    if (!sid) return
-    if (storyCoverBusyId(sid)) return
-    toast.info(t('aiJobs.startedBackground'))
-    startJob({
-      kind: 'story-cover',
-      label: t('stories.generateCover'),
-      scope: { storyId: sid },
-      run: async ({ setProgress, signal }) => {
-        setProgress(10, 'image')
-        const r = await getApi().stories.generateCover({
-          storyId: sid,
-          idea: aiIdea || null,
-          useIdentityEdit: confirm.useIdentityEdit,
-          referenceImagePath: confirm.referencePaths[0] ?? null,
-          referenceImagePaths: confirm.referencePaths,
-          locale: getAiLocale(i18n.language),
-          promptOverride: confirm.prompt
-        })
-        return storiesCoverJobFinishOrCancel({
-          cancelled: signal.cancelled,
-          discard: (p) => getApi().media.discardSheetDraft(p),
-          path: r.path,
-          onContinue: async () => {
-            setProgress(100, 'done')
-            if (sid === editingId) {
-              setCoverPath(r.path)
-              setCoverGallery((prev) => {
-                const next = appendGalleryItem(prev, {
-                  path: r.path,
-                  kind: 'gen',
-                  label: t('stories.generateCover')
-                })
-                setSelectedCoverId(next[next.length - 1]?.id ?? null)
-                return next
-              })
-            }
-            return {
-              type: 'story-cover' as const,
-              storyId: sid,
-              path: r.path,
-              label: r.label ?? t('stories.generateCover'),
-              usedEdit: r.usedEdit
-            }
-          }
-        })
-      }
     })
   }
 
@@ -1940,16 +1876,6 @@ export function StoriesPage(): JSX.Element {
           </div>
         )}
       </EditorShell>
-      <ImageGenConfirmModal
-        open={Boolean(imageGenConfirm)}
-        payload={imageGenConfirm}
-        busy={storyCoverBusy}
-        onCancel={storiesCancelImageGenBind(
-          setImageGenConfirm,
-          setPendingCoverStoryId
-        )}
-        onConfirm={(p) => void runStoryCoverJob(p)}
-      />
     </div>
   )
 }

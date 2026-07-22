@@ -51,10 +51,6 @@ import {
   pickBestBaseImage,
   type CostumeSwapPose
 } from '../../domain/costumeSwap'
-import {
-  ImageGenConfirmModal,
-  type ImageGenConfirmPayload
-} from '../components/ImageGenConfirmModal'
 import { getAiLocale } from '../../lib/aiLocale'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
@@ -147,8 +143,6 @@ export function CostumesPage(): JSX.Element {
   const [selectedGalId, setSelectedGalId] = useState<string | null>(null)
   /** Multi-select for identity-lock + browsing which stills feed try-on. */
   const [selectedGalIds, setSelectedGalIds] = useState<string[]>([])
-  const [imageGenConfirm, setImageGenConfirm] =
-    useState<ImageGenConfirmPayload | null>(null)
   const [busy, setBusy] = useState(false)
   const artGroups = useMemo(() => artStylesByGroup(), [])
   const poseGroups = useMemo(() => costumePosesByGroup(), [])
@@ -606,31 +600,6 @@ export function CostumesPage(): JSX.Element {
       costumeDescription: [lookName, lookDesc, dressNote].filter(Boolean).join('\n')
     })
   }
-
-  const runCostumeDressJob = costumesBindRunDressJob({
-    getEditId: () => editId,
-    getDressCharId: () => dressCharId,
-    isBlocked: () => costumesSwapBlocked(isBlocked, dressCharId),
-    toastInfo: toast.info,
-    runningMsg: t('aiJobs.running'),
-    backgroundMsg: t('aiJobs.startedBackground'),
-    setBanner: setPageBanner,
-    setConfirmNull: () => setImageGenConfirm(null),
-    startJob: costumesMakeStartSwap(startJob, t('costumes.generateDressed')),
-    generate: costumesApiGenerateDressed,
-    getPose: () => dressPose,
-    getResolvedBase: () => resolvedDressBasePath,
-    stillOpen: (costumeId) => editId === costumeId,
-    applyResult: costumesMakeApplyDress(
-      setLookImagePath,
-      setGallery,
-      setSelectedGalId
-    ),
-    parseGallery: (json, opts) => parseCharacterGallery(json, opts),
-    getGalleryFallback: () => gallery,
-    reload,
-    toastSuccess: () => toast.success(t('costumes.dressedOk'))
-  })
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
@@ -1478,13 +1447,6 @@ export function CostumesPage(): JSX.Element {
           </div>
         )}
       </EditorShell>
-      <ImageGenConfirmModal
-        open={Boolean(imageGenConfirm)}
-        payload={imageGenConfirm}
-        busy={busy || costumeBusy(editId)}
-        onCancel={() => setImageGenConfirm(null)}
-        onConfirm={(p) => void runCostumeDressJob(p)}
-      />
     </div>
   )
 }
