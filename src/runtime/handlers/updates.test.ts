@@ -153,6 +153,10 @@ describe('registerUpdatesHandlers', () => {
       status: 'web-skipped',
       currentVersion: '1.3.1'
     })
+    await expect(invokeRegistered(h as never, 'updates:install')).resolves.toMatchObject({
+      ok: false,
+      messageKey: 'updateWebOnly'
+    })
   })
 
   it('null service fallbacks for status check download install', async () => {
@@ -175,6 +179,7 @@ describe('registerUpdatesHandlers', () => {
       } as never,
       host: {
         ...(makeHandlerContext().host as object),
+        mode: 'electron',
         appVersion: '1.0.0',
         isPackaged: false
       } as never
@@ -189,7 +194,7 @@ describe('registerUpdatesHandlers', () => {
       await invokeRegistered(h as never, 'updates:check')
       await invokeRegistered(h as never, 'updates:download')
       const ins = await invokeRegistered(h as never, 'updates:install')
-      expect(ins).toMatchObject({ ok: false })
+      expect(ins).toMatchObject({ ok: false, messageKey: 'updateDevSkipped' })
     } else {
       // service still present — just exercise install path
       await invokeRegistered(h as never, 'updates:install')

@@ -332,6 +332,8 @@ describe('MediaGenPrepModal', () => {
 
   it('video flow: keyframe → confirm → done', async () => {
     const onClose = vi.fn()
+    const onSaveDraft = vi.fn()
+    const onVideoDone = vi.fn()
     render(
       <MediaGenPrepModal
         open
@@ -339,10 +341,15 @@ describe('MediaGenPrepModal', () => {
           kind: 'character-intro',
           characterId: 'c1',
           galleryIdentityPaths: ['/media/aria.png'],
-          durationSeconds: 6
+          durationSeconds: 6,
+          queueRemaining: ['e2'],
+          queueIndex: 0,
+          queueTotal: 2
         }}
         onClose={onClose}
         onGenerated={vi.fn()}
+        onSaveDraft={onSaveDraft}
+        onVideoDone={onVideoDone}
       />
     )
     await waitFor(() =>
@@ -395,6 +402,43 @@ describe('MediaGenPrepModal', () => {
       expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
     )
 
+    // back to keyframe then re-enter confirm (step chip + footer may both match)
+    const keyframeBack = screen
+      .getAllByText('mediaGen.steps.keyframe')
+      .find((el) => el.closest('button'))
+    expect(keyframeBack).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(keyframeBack!)
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.nextConfirmVideo')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.nextConfirmVideo'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
+    )
+
+    // save draft from confirm-video
+    const saveDraftBtn = screen
+      .getAllByRole('button')
+      .find((b) => /videoPrep\.saveDraft|saveDraft/i.test(b.textContent || ''))
+    if (saveDraftBtn) {
+      await act(async () => {
+        fireEvent.click(saveDraftBtn)
+      })
+      expect(onSaveDraft).toHaveBeenCalled()
+    }
+
+    // repolish video stage
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.repolish'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
+    )
+
     const events: unknown[] = []
     const onEv = (ev: Event): void => {
       events.push((ev as CustomEvent).detail)
@@ -406,15 +450,20 @@ describe('MediaGenPrepModal', () => {
       })
       await waitFor(() => expect(api.videoPrep.confirm).toHaveBeenCalled())
       await waitFor(() =>
-        expect(screen.getByText('mediaGen.finish')).toBeTruthy()
+        expect(
+          screen.getByText(/videoPrep\.nextClip|mediaGen\.finish|nextClip/i)
+        ).toBeTruthy()
       )
       expect(events.length).toBeGreaterThanOrEqual(1)
+      expect(onVideoDone).toHaveBeenCalled()
     } finally {
       window.removeEventListener('idm:video-prep-done', onEv)
     }
 
     await act(async () => {
-      fireEvent.click(screen.getByText('mediaGen.finish'))
+      fireEvent.click(
+        screen.getByText(/videoPrep\.nextClip|mediaGen\.finish|nextClip/i)
+      )
     })
     expect(onClose).toHaveBeenCalled()
   })

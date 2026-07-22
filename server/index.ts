@@ -5,11 +5,11 @@
  *
  * Default data dir matches desktop/CLI OS home paths (see domain/appPaths).
  */
-import { createRequire } from 'module'
 import { resolve } from 'path'
 import { EmbeddedWebServer } from '../src/infrastructure/webserver/EmbeddedWebServer'
 import { resolveAppPaths } from '../src/domain/appPaths'
 import { migrateAppDataIfNeeded } from '../src/application/services/AppDataMigrationService'
+import { resolveServerAppVersion } from '../src/domain/serverAppVersion'
 
 const PORT = Number(process.env.IDM_PORT || 8787)
 const HOST = process.env.IDM_HOST || '0.0.0.0'
@@ -26,28 +26,6 @@ const AUTH_DISABLED =
 const STATIC_DIR = resolve(
   process.env.IDM_STATIC_DIR || resolve(process.cwd(), 'out', 'renderer')
 )
-
-/** Prefer npm lifecycle env, then package.json — never fall back to 0.0.0. */
-function resolveServerAppVersion(): string {
-  const fromEnv = (process.env.npm_package_version || '').trim()
-  if (fromEnv) return fromEnv
-  try {
-    const req = createRequire(resolve(process.cwd(), 'package.json'))
-    const pkg = req('./package.json') as { version?: string }
-    if (pkg?.version?.trim()) return pkg.version.trim()
-  } catch {
-    /* ignore */
-  }
-  try {
-    // When started via `npx tsx server/index.ts`, require relative to this file
-    const req = createRequire(__filename)
-    const pkg = req('../package.json') as { version?: string }
-    if (pkg?.version?.trim()) return pkg.version.trim()
-  } catch {
-    /* ignore */
-  }
-  return '1.0.0'
-}
 
 function log(...args: unknown[]): void {
   // eslint-disable-next-line no-console
@@ -77,7 +55,9 @@ async function main(): Promise<void> {
     authToken: AUTH_TOKEN,
     authDisabled: AUTH_DISABLED,
     staticDir: STATIC_DIR,
-    appVersion: resolveServerAppVersion(),
+    appVersion: resolveServerAppVersion({
+      requireFrom: typeof __filename !== 'undefined' ? __filename : undefined
+    }),
     // Web server is a published runtime (not Electron dev). UI uses channel=web
     // for updates; isPackaged only affects desktop electron-updater paths.
     isPackaged: true

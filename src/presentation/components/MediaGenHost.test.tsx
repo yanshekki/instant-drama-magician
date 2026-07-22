@@ -16,6 +16,9 @@ const toast = {
 vi.mock('../context/ToastContext', () => ({ useToast: () => toast }))
 
 const startJob = vi.fn()
+const startMediaGen = vi.fn()
+const upsertDraft = vi.fn()
+const removeDraft = vi.fn()
 let mediaGenRequest: MediaGenPrepOpenRequest | null = null
 const setMediaGenRequest = vi.fn((r: MediaGenPrepOpenRequest | null) => {
   mediaGenRequest = r
@@ -27,7 +30,10 @@ vi.mock('../context/AiJobsContext', () => ({
     mediaGenRequest,
     setMediaGenRequest,
     startJob,
-    registerStartMediaGen
+    startMediaGen,
+    registerStartMediaGen,
+    upsertSavedVideoPrepDraft: upsertDraft,
+    removeSavedVideoPrepDraft: removeDraft
   })
 }))
 
@@ -41,17 +47,57 @@ vi.mock('react-i18next', () => ({
 
 let lastOnGenerated: ((r: MediaGenPrepResult) => void) | null = null
 let lastOnClose: (() => void) | null = null
+let lastOnSaveDraft:
+  | ((payload: {
+      kind: string
+      polishedPrompt: string
+      videoPrompt: string
+      stillPath: string
+      userExtraPrompt: string
+      durationSeconds: number
+      aspectRatio: string
+      sourceImagePath?: string | null
+      queueIndex?: number
+      queueTotal?: number
+      queueRemaining?: string[]
+    }) => void)
+  | null = null
+let lastOnVideoDone:
+  | ((detail: {
+      kind: string
+      path: string
+      stillPath: string | null
+      queueRemaining?: string[]
+      queueIndex?: number
+      queueTotal?: number
+    }) => void)
+  | null = null
 
 vi.mock('./MediaGenPrepModal', () => ({
   MediaGenPrepModal: (props: {
     open: boolean
     onGenerated: (r: MediaGenPrepResult) => void
     onClose: () => void
+    onSaveDraft?: typeof lastOnSaveDraft
+    onVideoDone?: typeof lastOnVideoDone
   }) => {
     lastOnGenerated = props.onGenerated
     lastOnClose = props.onClose
+    lastOnSaveDraft = props.onSaveDraft ?? null
+    lastOnVideoDone = props.onVideoDone ?? null
     return props.open ? <div data-testid="media-gen-modal" /> : null
   }
+}))
+
+vi.mock('../lib/startIntroMediaGen', () => ({
+  buildIntroMediaGenRequest: vi.fn(async (opts: Record<string, unknown>) => ({
+    kind: 'timeline-clip',
+    storyId: opts.storyId,
+    entryId: opts.entryId,
+    skipStillIfExists: opts.skipStillIfExists,
+    userExtraPrompt: opts.userExtraPrompt,
+    durationSeconds: opts.durationSeconds
+  }))
 }))
 
 import { MediaGenHost } from './MediaGenHost'
@@ -69,11 +115,16 @@ describe('MediaGenHost', () => {
     startJob.mockClear()
     toast.success.mockClear()
     toast.info.mockClear()
+    toast.error.mockClear()
     setMediaGenRequest.mockClear()
     registerStartMediaGen.mockClear()
+    upsertDraft.mockClear()
+    removeDraft.mockClear()
     mediaGenRequest = null
     lastOnGenerated = null
     lastOnClose = null
+    lastOnSaveDraft = null
+    lastOnVideoDone = null
   })
 
   it('registers startMediaGen and setMediaGenRequest on mount', async () => {
@@ -259,4 +310,169 @@ describe('MediaGenHost', () => {
       expect(draft).toMatchObject({ path: result.path })
     }
   )
+
+  it('onSaveDraft persists video prep draft and clears request', async () => {
+    mediaGenRequest = {
+      kind: 'character-intro',
+      characterId: 'c1',
+      storyId: 's1',
+      queueRemaining: ['e2'],
+      queueIndex: 0,
+      queueTotal: 2
+    }
+    render(<MediaGenHost />)
+    await waitFor(() => expect(lastOnSaveDraft).toBeTruthy())
+    await act(async () => {
+      lastOnSaveDraft!({
+        kind: 'character-intro',
+        polishedPrompt: 'still polished',
+        videoPrompt: 'video polished',
+        stillPath: '/still.png',
+        userExtraPrompt: 'extra',
+        durationSeconds: 10,
+        aspectRatio: '9:16',
+        sourceImagePath: '/src.png',
+        queueIndex: 0,
+        queueTotal: 2,
+        queueRemaining: ['e2']
+      })
+    })
+    expect(upsertDraft).toHaveBeenCalled()
+    expect(toast.success).toHaveBeenCalled()
+    expect(setMediaGenRequest).toHaveBeenCalledWith(null)
+  })
+
+  it('onSaveDraft no-ops without request and surfaces storage errors', async () => {
+    mediaGenRequest = { kind: 'scene-intro', sceneId: 'sc1' }
+    render(<MediaGenHost />)
+    await waitFor(() => expect(lastOnSaveDraft).toBeTruthy())
+    // Clear request via close first
+    mediaGenRequest = null
+    await act(async () => {
+      lastOnClose!()
+    })
+    await act(async () => {
+      lastOnSaveDraft!({
+        kind: 'scene-intro',
+        polishedPrompt: 'p',
+        videoPrompt: 'v',
+        stillPath: '/s.png',
+        userExtraPrompt: '',
+        durationSeconds: 6,
+        aspectRatio: '16:9'
+      })
+    })
+    // Host still has requestRef until re-render; force save error path
+    mediaGenRequest = { kind: 'prop-intro', propId: 'p1' }
+    upsertDraft.mockImplementationOnce(() => {
+      throw new Error('quota')
+    })
+    const { rerender } = render(<MediaGenHost />)
+    await waitFor(() => expect(lastOnSaveDraft).toBeTruthy())
+    await act(async () => {
+      lastOnSaveDraft!({
+        kind: 'prop-intro',
+        polishedPrompt: 'p',
+        videoPrompt: 'v',
+        stillPath: '/s.png',
+        userExtraPrompt: '',
+        durationSeconds: 6,
+        aspectRatio: '16:9'
+      })
+    })
+    expect(toast.error).toHaveBeenCalled()
+    void rerender
+  })
+
+  it('onVideoDone clears draft and queues next timeline clip', async () => {
+    mediaGenRequest = {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      queueRemaining: ['e2', 'e3'],
+      queueIndex: 0,
+      queueTotal: 3,
+      queueSkipStillIfExists: true,
+      queueUserExtraByEntryId: { e2: 'more rain' },
+      queueDurationSecondsByEntryId: { e2: 8 }
+    }
+    render(<MediaGenHost />)
+    await waitFor(() => expect(lastOnVideoDone).toBeTruthy())
+    await act(async () => {
+      lastOnVideoDone!({
+        kind: 'timeline-clip',
+        path: '/v1.mp4',
+        stillPath: '/s1.png',
+        queueRemaining: ['e2', 'e3'],
+        queueIndex: 0,
+        queueTotal: 3
+      })
+    })
+    expect(removeDraft).toHaveBeenCalled()
+    expect(toast.info).toHaveBeenCalled()
+  })
+
+  it('onVideoDone ignores non-queue video kinds and draft remove errors', async () => {
+    mediaGenRequest = {
+      kind: 'character-intro',
+      characterId: 'c1'
+    }
+    removeDraft.mockImplementationOnce(() => {
+      throw new Error('storage')
+    })
+    render(<MediaGenHost />)
+    await waitFor(() => expect(lastOnVideoDone).toBeTruthy())
+    await act(async () => {
+      lastOnVideoDone!({
+        kind: 'character-intro',
+        path: '/v.mp4',
+        stillPath: '/s.png'
+      })
+    })
+    // no queue progress toast for non-timeline
+    expect(toast.info).not.toHaveBeenCalled()
+  })
+
+  it('close after queue videoDone starts next timeline-clip via startMediaGen', async () => {
+    mediaGenRequest = {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      queueRemaining: ['e2'],
+      queueIndex: 0,
+      queueTotal: 2,
+      queueSkipStillIfExists: true,
+      queueUserExtraByEntryId: { e2: 'cinematic' },
+      queueDurationSecondsByEntryId: { e2: 8 }
+    }
+    render(<MediaGenHost />)
+    await waitFor(() => expect(lastOnVideoDone).toBeTruthy())
+    await act(async () => {
+      lastOnVideoDone!({
+        kind: 'timeline-clip',
+        path: '/v1.mp4',
+        stillPath: '/s1.png',
+        queueRemaining: ['e2'],
+        queueIndex: 0,
+        queueTotal: 2
+      })
+    })
+    startMediaGen.mockClear()
+    await act(async () => {
+      lastOnClose!()
+    })
+    await waitFor(() =>
+      expect(startMediaGen).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'timeline-clip',
+          storyId: 's1',
+          entryId: 'e2',
+          queueIndex: 1,
+          queueTotal: 2,
+          durationSeconds: 8,
+          userExtraPrompt: 'cinematic'
+        })
+      )
+    )
+  })
 })
