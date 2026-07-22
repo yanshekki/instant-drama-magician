@@ -81,12 +81,19 @@ describe('registerUpdatesHandlers', () => {
       expect.objectContaining({ message: expect.stringContaining('npm check') })
     )
 
+    // Headless/web always returns openUrl for the browser client (no server xdg-open)
     await expect(
       invokeRegistered(h2 as never, 'updates:openReleasePage', '1.0.0')
-    ).resolves.toMatchObject({ ok: true })
+    ).resolves.toMatchObject({
+      ok: true,
+      openUrl: expect.stringContaining('github.com')
+    })
     await expect(
       invokeRegistered(h2 as never, 'updates:openReleasePage')
-    ).resolves.toMatchObject({ ok: false })
+    ).resolves.toMatchObject({
+      ok: true,
+      openUrl: expect.stringContaining('/releases')
+    })
   })
 
   it('uses AppUpdateService when available', async () => {

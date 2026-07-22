@@ -1,7 +1,7 @@
 // @ts-nocheck — residual pure-helper typings; covered by page unit tests
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getApi, isElectron } from '../../lib/api'
+import { getApi, isElectron, isWebRuntime } from '../../lib/api'
 import { canUse } from '../lib/webCapability'
 import {
   LEGAL_EFFECTIVE_DATE,
@@ -192,6 +192,18 @@ export function SettingsPage(): JSX.Element {
     void getApi()
       .updates.status()
       .then((s) => setUpdateState(s))
+      .catch(() => undefined)
+    // Web has no desktop auto-update — silently probe npm so "new version" is visible
+    void getApi()
+      .updates.checkNpm()
+      .then((r) => {
+        setNpmUpdate({
+          latestVersion: r.latestVersion ?? null,
+          updateAvailable: Boolean(r.updateAvailable),
+          installCommand: r.installCommand || '',
+          error: r.error
+        })
+      })
       .catch(() => undefined)
     const unsub =
       getApi().updates.onState?.((s) => {
@@ -1324,25 +1336,39 @@ export function SettingsPage(): JSX.Element {
 
                   <p className="mt-2 font-mono text-[11px] text-ink-400">
                     {t('settings.version')}:{' '}
-                    {settingsDisplayVersion(
-                      updateState?.currentVersion,
-                      appInfo?.version
-                    )}
-                    {updateState?.latestVersion &&
-                    updateState.latestVersion !==
+                    {settingsVersionRangeLabel(
                       settingsDisplayVersion(
                         updateState?.currentVersion,
                         appInfo?.version
-                      )
-                      ? ` → ${updateState.latestVersion}`
-                      : ''}
+                      ),
+                      updateState?.latestVersion,
+                      npmUpdate?.latestVersion,
+                      npmUpdate?.updateAvailable
+                    )}
                   </p>
+
+                  {npmUpdate?.updateAvailable && npmUpdate.latestVersion ? (
+                    <p
+                      className="mt-1 rounded-lg border border-brand-500/35 bg-brand-950/40 px-2 py-1.5 text-[11px] text-brand-100"
+                      role="status"
+                    >
+                      {t('settings.npmUpdateAvailable', {
+                        version: npmUpdate.latestVersion
+                      })}
+                    </p>
+                  ) : null}
 
                   <p className="mt-1 text-[11px] text-ink-500">
                     {updateState?.messageKey
                       ? t(`settings.${updateState.messageKey}`, {
-                          version: updateState.latestVersion ?? '',
-                          latest: updateState.latestVersion ?? '',
+                          version:
+                            updateState.latestVersion ??
+                            npmUpdate?.latestVersion ??
+                            '',
+                          latest:
+                            updateState.latestVersion ??
+                            npmUpdate?.latestVersion ??
+                            '',
                           current: updateState.currentVersion ?? ''
                         })
                       : settingsUpdateStatusText(
@@ -1523,12 +1549,20 @@ export function SettingsPage(): JSX.Element {
                       onClick={() => {
                         void settingsOpenReleasePage({
                           openRelease: getApi().updates.openReleasePage,
-                          version: updateState?.latestVersion,
+                          version:
+                            updateState?.latestVersion ||
+                            npmUpdate?.latestVersion ||
+                            appInfo?.version,
                           releaseUrl: updateState?.releaseUrl,
-                          openExternal: (url) => getApi().shell.openExternal(url),
+                          openExternal: (url) =>
+                            getApi().shell.openExternal(url),
                           toastError: toast.error,
-                          failMsg: settingsFailMsgBound(t('settings.openReleaseFail')),
-                          failSimple: t('settings.openReleaseFail')
+                          failMsg: settingsFailMsgBound(
+                            t('settings.openReleaseFail')
+                          ),
+                          failSimple: t('settings.openReleaseFail'),
+                          // Web: never trust server xdg-open — open in this browser
+                          preferBrowser: isWebRuntime()
                         })
                       }}
                     >
@@ -2521,31 +2555,76 @@ export function settingsToastUpdateInstall(
 }
 
 export async function settingsOpenReleasePage(ops: {
-  openRelease?: (version?: string | null) => Promise<{ ok: boolean; message?: string }>
+  openRelease?: (
+    version?: string | null
+  ) => Promise<{ ok: boolean; message?: string; url?: string; openUrl?: string }>
   version?: string | null
   releaseUrl?: string | null
   openExternal: (url: string) => Promise<unknown>
   toastError: (m: string) => void
   failMsg: (m?: string) => string
   failSimple: string
+  /** Web SPA: open the URL in this browser (server cannot open tabs). */
+  preferBrowser?: boolean
 }): Promise<void> {
+  const fallbackUrl =
+    ops.releaseUrl?.trim() ||
+    (ops.version?.trim()
+      ? `https://github.com/yanshekki/instant-drama-magician/releases/tag/v${ops.version.replace(/^v/, '')}`
+      : 'https://github.com/yanshekki/instant-drama-magician/releases')
+
+  const openClient = async (url: string): Promise<void> => {
+    try {
+      await ops.openExternal(url)
+    } catch {
+      try {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      } catch {
+        ops.toastError(ops.failSimple)
+      }
+    }
+  }
+
+  if (ops.preferBrowser) {
+    await openClient(fallbackUrl)
+    return
+  }
+
   if (ops.openRelease) {
     try {
       const r = await ops.openRelease(ops.version)
-      if (!r.ok) ops.toastError(ops.failMsg(r.message))
+      const href = r.openUrl || r.url || fallbackUrl
+      if (!r.ok) {
+        // Still try client open so web/headless users are not stuck
+        await openClient(href)
+        if (r.message) ops.toastError(ops.failMsg(r.message))
+        return
+      }
+      // Desktop IPC may already have opened; web client needs the returned url
+      if (ops.preferBrowser || href) {
+        /* desktop openRelease already opened OS browser when ok */
+      }
     } catch {
-      ops.toastError(ops.failSimple)
+      await openClient(fallbackUrl)
     }
     return
   }
-  const url =
-    ops.releaseUrl ||
-    'https://github.com/yanshekki/instant-drama-magician/releases'
-  try {
-    await ops.openExternal(url)
-  } catch {
-    ops.toastError(ops.failSimple)
-  }
+  await openClient(fallbackUrl)
+}
+
+/** Show current, optional desktop latest, or npm latest when an update exists. */
+export function settingsVersionRangeLabel(
+  current: string,
+  desktopLatest?: string | null,
+  npmLatest?: string | null,
+  npmUpdateAvailable?: boolean
+): string {
+  const c = (current || '').trim() || '—'
+  const d = (desktopLatest || '').trim()
+  if (d && d !== c) return `${c} → ${d}`
+  const n = (npmLatest || '').trim()
+  if (npmUpdateAvailable && n && n !== c) return `${c} → ${n}`
+  return c
 }
 
 export async function settingsStopWebServer(ops: {

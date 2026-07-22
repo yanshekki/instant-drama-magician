@@ -157,13 +157,19 @@ export function registerUpdatesHandlers(ctx: HandlerContext): void {
 
   reg('updates:openReleasePage', async (version?: string) => {
     const href = githubReleaseUrl(version || undefined)
+    // Headless/web server: never xdg-open on the machine hosting the API —
+    // return openUrl so the browser client can window.open.
+    if (host.mode === 'headless' || !process.versions.electron) {
+      return { ok: true as const, url: href, openUrl: href }
+    }
     try {
       await host.shell.openExternal(href)
-      return { ok: true as const, url: href }
+      return { ok: true as const, url: href, openUrl: href }
     } catch (e) {
       return {
         ok: false as const,
         url: href,
+        openUrl: href,
         message: e instanceof Error ? e.message : String(e)
       }
     }

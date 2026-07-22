@@ -174,8 +174,21 @@ async function handleSpecial(
 
   if (channel === 'shell:openExternal') {
     const url = String(args[0] ?? '')
-    if (url) window.open(url, '_blank', 'noopener,noreferrer')
+    if (url) openInBrowserTab(url)
     return { ok: true, url }
+  }
+
+  // Server returns openUrl — open in the user's browser (not xdg-open on host)
+  if (channel === 'updates:openReleasePage') {
+    const result = (await invokeChannel(channel, args)) as {
+      ok?: boolean
+      url?: string
+      openUrl?: string
+      message?: string
+    }
+    const href = result?.openUrl || result?.url
+    if (href) openInBrowserTab(href)
+    return result
   }
 
   if (channel === 'media:pickRefImage' || channel === 'media:pickBgm') {

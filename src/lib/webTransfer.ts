@@ -52,6 +52,11 @@ export function triggerBrowserDownload(
 }
 
 export function openInBrowserTab(url: string): void {
+  // External product links (GitHub Releases, docs) must not get API ?token=
+  if (/^https?:\/\//i.test(url) && !/\/api\//i.test(url)) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return
+  }
   window.open(withAuthQuery(url), '_blank', 'noopener,noreferrer')
 }
 

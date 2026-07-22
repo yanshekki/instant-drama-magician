@@ -93,6 +93,8 @@ export function Layout(): JSX.Element {
     latest: string
     current: string
     downloaded?: boolean
+    /** npm channel (web SPA) — no desktop download/install buttons */
+    webNpm?: boolean
   } | null>(null)
   const promptedUpdate = useRef(false)
 
@@ -175,6 +177,30 @@ export function Layout(): JSX.Element {
       .catch(() => undefined)
     const unsubUpdate =
       getApi().updates.onState?.(handleUpdateState) ?? (() => undefined)
+
+    // Web SPA: desktop electron-updater is skipped — probe npm for newer CLI package
+    if (isWebRuntime()) {
+      void getApi()
+        .updates.checkNpm()
+        .then((r) => {
+          if (!r.updateAvailable || !r.latestVersion) return
+          setUpdateBanner({
+            latest: r.latestVersion,
+            current: r.currentVersion || '—',
+            webNpm: true
+          })
+          if (!promptedUpdate.current) {
+            promptedUpdate.current = true
+            toast.info(
+              t('settings.npmUpdateAvailable', {
+                version: r.latestVersion
+              }),
+              8000
+            )
+          }
+        })
+        .catch(() => undefined)
+    }
 
     // cover system-pref sync path once on mount
     onSystemSchemeChange(pref, syncTheme)
@@ -457,7 +483,25 @@ export function Layout(): JSX.Element {
                   })}
             </p>
             <div className="flex shrink-0 flex-wrap gap-2">
-              {!updateBanner.downloaded ? (
+              {updateBanner.webNpm ? (
+                <button
+                  type="button"
+                  className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-brand-500"
+                  onClick={() => {
+                    void getApi()
+                      .updates.openReleasePage(updateBanner.latest)
+                      .catch(() => {
+                        window.open(
+                          `https://github.com/yanshekki/instant-drama-magician/releases/tag/v${updateBanner.latest.replace(/^v/, '')}`,
+                          '_blank',
+                          'noopener,noreferrer'
+                        )
+                      })
+                  }}
+                >
+                  {t('settings.openReleasePage')}
+                </button>
+              ) : !updateBanner.downloaded ? (
                 <button
                   type="button"
                   className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-brand-500"

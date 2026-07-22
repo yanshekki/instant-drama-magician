@@ -89,6 +89,12 @@ describe('Layout', () => {
       currentVersion: '1.0.0',
       latestVersion: '1.2.0'
     })
+    // Default: no npm update (avoid racing banner with desktop update tests)
+    api.updates.checkNpm = vi.fn().mockResolvedValue({
+      updateAvailable: false,
+      latestVersion: '1.2.0',
+      currentVersion: '1.2.0'
+    })
     api.updates.onState = vi.fn((cb: (s: unknown) => void) => {
       // also fire downloaded
       setTimeout(() => {
