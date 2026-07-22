@@ -23,7 +23,7 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
-## 近期焦點（1.3.2）
+## 近期焦點（1.3.3）
 
 | 區域 | 測試（示例） |
 |------|----------------|

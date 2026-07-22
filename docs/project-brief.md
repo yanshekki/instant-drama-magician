@@ -6,11 +6,11 @@
 **Tagline:** AI professional short-drama desktop tool  
 **Type:** Cross-platform Electron desktop application  
 
-> ### Status note (v1.3.2)
+> ### Status note (v1.3.3)
 >
 > | Item | Current |
 > |------|---------|
-> | Version | **1.3.2** |
+> | Version | **1.3.3** |
 > | Pages | Stories · Characters · **Costumes** · Scenes · Props · Timeline · Activity · Settings |
 > | i18n | **10** locales |
 > | CLI / Web | Full **157**-channel shared runtime |

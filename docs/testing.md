@@ -11,7 +11,7 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.3.2)
+## Recent focus areas (1.3.3)
 
 | Area | Tests (examples) |
 |------|------------------|
