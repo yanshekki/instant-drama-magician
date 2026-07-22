@@ -301,7 +301,7 @@ export function Layout(): JSX.Element {
 
       <nav
         className="flex flex-1 flex-col gap-1 overflow-y-auto p-3"
-        aria-label={t('nav.main', { defaultValue: 'Main' })}
+        aria-label={t('nav.main')}
       >
         {navItems.map((item) => (
           <NavLink
@@ -446,7 +446,7 @@ export function Layout(): JSX.Element {
             type="button"
             className="inline-flex h-11 min-w-11 items-center justify-center rounded-lg border border-ink-700 bg-ink-950 text-ink-100 touch-manipulation hover:bg-ink-800"
             onClick={() => setNavOpen(true)}
-            aria-label={t('nav.openMenu', { defaultValue: 'Open menu' })}
+            aria-label={t('nav.openMenu')}
             aria-expanded={navOpen}
             aria-controls="app-sidebar"
           >

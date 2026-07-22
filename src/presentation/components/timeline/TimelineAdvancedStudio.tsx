@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { getApi } from '../../../lib/api'
 import { parseIpcError } from '../../../lib/ipc'
 import { getAiLocale } from '../../../lib/aiLocale'
+import { formatUserError } from '../../lib/formatUserError'
 import {
   applyCostumeSelection,
   applyGallerySelection,
@@ -210,7 +211,7 @@ export function TimelineAdvancedStudio({
       )
       return next
     } catch (e) {
-      toast.error(parseIpcError(e).message)
+      toast.error(formatUserError(parseIpcError(e).message, t))
       return null
     } finally {
       setSaving(false)
@@ -404,7 +405,7 @@ export function TimelineAdvancedStudio({
       await reload()
       toast.success(t('timeline.advanced.stillRemoved'))
     } catch (e) {
-      toast.error(parseIpcError(e).message)
+      toast.error(formatUserError(parseIpcError(e).message, t))
     } finally {
       setCellBusyId(null)
     }

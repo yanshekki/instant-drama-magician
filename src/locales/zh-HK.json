@@ -213,7 +213,11 @@
     "evtAiStatus": "檢查 AI 狀態",
     "evtAppInfo": "應用資訊",
     "evtIpc": "系統呼叫",
-    "evtGeneric": "活動"
+    "evtGeneric": "活動",
+    "sortFastest": "最快優先",
+    "sortByLevelAsc": "嚴重程度 ↑",
+    "sortByKind": "按種類",
+    "sortByMessage": "按訊息"
   },
   "common": {
     "create": "建立",
@@ -287,7 +291,10 @@
     "galleryPreviewTitle": "預覽：{{label}}",
     "galleryCheckForGen": "勾選用於生成",
     "galleryUncheckForGen": "取消勾選生成",
-    "galleryViewing": "預覽中"
+    "galleryViewing": "預覽中",
+    "retry": "重試",
+    "copy": "複製",
+    "nameRequired": "必須填寫名稱。"
   },
   "media": {
     "regenerate": "重新生成",
@@ -414,7 +421,8 @@
     "aiNeedCast": "請先在「選角／場／道具」加入至少一個角色或場景。",
     "aiReplaceBeatsConfirm": "將覆蓋現有劇情段落，確定繼續？",
     "castEmptyActions": "動作庫尚無動作。請先在「動作」頁建立。",
-    "beatActions": "動作（肢體）"
+    "beatActions": "動作（肢體）",
+    "saveFirst": "請先儲存故事。"
   },
   "characters": {
     "title": "角色",
@@ -1994,6 +2002,8 @@
     "userExtra": "額外備註（可選）",
     "userExtraHint": "確認出片時會合併入最終影片 prompt。",
     "duration": "時長（秒）",
-    "videoDoneGalleryHint": "介紹片已掛到來源靜圖；在參考圖庫選中該圖即可播放。完成頁亦可直接播放。"
+    "videoDoneGalleryHint": "介紹片已掛到來源靜圖；在參考圖庫選中該圖即可播放。完成頁亦可直接播放。",
+    "useStillAsKeyframe": "使用現有靜圖作關鍵幀",
+    "keyframePromptHint": "關鍵幀靜圖提示（圖像導演）。關鍵幀就緒後會再做影片動作潤飾。"
   }
 }

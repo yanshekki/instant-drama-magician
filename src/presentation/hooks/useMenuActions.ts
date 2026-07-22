@@ -9,6 +9,7 @@ import { parseIpcError } from '../../lib/ipc'
 import type { MenuAction } from '../../types/electron-api'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
+import { formatUserError } from '../lib/formatUserError'
 import { useDialog } from '../context/DialogContext'
 import { openLegalDocument } from '../components/LegalDocumentModal'
 
@@ -82,7 +83,7 @@ export function useMenuActions(): void {
               )
             }
           } catch (e) {
-            toast.error(parseIpcError(e).message)
+            toast.error(formatUserError(parseIpcError(e).message, t))
           }
           break
         }
@@ -101,7 +102,7 @@ export function useMenuActions(): void {
               )
             }
           } catch (e) {
-            toast.error(parseIpcError(e).message)
+            toast.error(formatUserError(parseIpcError(e).message, t))
           }
           break
         case 'import-full':
@@ -109,7 +110,7 @@ export function useMenuActions(): void {
             await getApi().app.importFullBackup()
             toast.success(t('backup.importFullOk'))
           } catch (e) {
-            toast.error(parseIpcError(e).message)
+            toast.error(formatUserError(parseIpcError(e).message, t))
           }
           break
         case 'export-support':
@@ -119,7 +120,7 @@ export function useMenuActions(): void {
               toast.success(t('settings.supportExported', { path: r.filePath }))
             }
           } catch (e) {
-            toast.error(parseIpcError(e).message)
+            toast.error(formatUserError(parseIpcError(e).message, t))
           }
           break
         case 'full-backup-exported':

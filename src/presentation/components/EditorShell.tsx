@@ -168,14 +168,12 @@ export function EditorShell({
                 aria-expanded={galleryOpen}
               >
                 <span className="font-medium text-ink-200">
-                  {t('editor.galleryToggle', {
-                    defaultValue: 'Gallery / references'
-                  })}
+                  {t('editor.galleryToggle')}
                 </span>
                 <span className="text-xs text-ink-500">
                   {galleryOpen
-                    ? t('editor.galleryCollapse', { defaultValue: 'Hide' })
-                    : t('editor.galleryExpand', { defaultValue: 'Show' })}
+                    ? t('editor.galleryCollapse')
+                    : t('editor.galleryExpand')}
                 </span>
               </button>
               {galleryOpen ? (

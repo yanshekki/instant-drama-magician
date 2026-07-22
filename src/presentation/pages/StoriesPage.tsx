@@ -634,7 +634,7 @@ export function StoriesPage(): JSX.Element {
       detail?.characters?.length ?? 0,
       detail?.scenes?.length ?? 0,
       setActionError,
-      t('stories.aiNeedSave'),
+      t('stories.saveFirst'),
       t('stories.aiNeedCast')
     )
     if (g !== 'ok') return

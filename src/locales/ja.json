@@ -213,7 +213,11 @@
     "evtAiStatus": "AI 状態を確認",
     "evtAppInfo": "アプリ情報",
     "evtIpc": "システム呼び出し",
-    "evtGeneric": "アクティビティ"
+    "evtGeneric": "アクティビティ",
+    "sortFastest": "Fastest first",
+    "sortByLevelAsc": "Severity ↑",
+    "sortByKind": "By kind",
+    "sortByMessage": "By message"
   },
   "common": {
     "create": "作成する",
@@ -287,7 +291,10 @@
     "galleryPreviewTitle": "Preview: {{label}}",
     "galleryCheckForGen": "Check for generation",
     "galleryUncheckForGen": "Uncheck for generation",
-    "galleryViewing": "Preview"
+    "galleryViewing": "Preview",
+    "retry": "Retry",
+    "copy": "Copy",
+    "nameRequired": "Name is required."
   },
   "media": {
     "regenerate": "再生する",
@@ -414,7 +421,8 @@
     "aiNeedCast": "まずキャストの下で少なくとも 1 つのキャラクターまたはシーンをリンクします。",
     "aiReplaceBeatsConfirm": "これにより、既存のスクリプト ビートが置き換えられます。続く？",
     "castEmptyActions": "ライブラリにはまだアクションがありません。",
-    "beatActions": "アクション（動作）"
+    "beatActions": "アクション（動作）",
+    "saveFirst": "Save the story first."
   },
   "characters": {
     "title": "キャラクター",
@@ -1994,6 +2002,8 @@
     "userExtra": "Extra notes (optional)",
     "userExtraHint": "Merged when generating the final video.",
     "duration": "Duration (seconds)",
-    "videoDoneGalleryHint": "Intro video is attached to the source still in the gallery — use Play there anytime."
+    "videoDoneGalleryHint": "Intro video is attached to the source still in the gallery — use Play there anytime.",
+    "useStillAsKeyframe": "Use still as keyframe",
+    "keyframePromptHint": "Keyframe still prompt (image director). Video motion polish runs after the keyframe is ready."
   }
 }

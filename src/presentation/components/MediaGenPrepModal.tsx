@@ -16,9 +16,11 @@ import {
   type MediaGenMaterialSection,
   type MediaGenShellPhase
 } from '../../domain/mediaGenPrep'
+import { translateMediaGenSectionTitle } from '../../domain/mediaGenSectionTitleI18n'
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
 import { getAiLocale } from '../../lib/aiLocale'
+import { formatUserError } from '../lib/formatUserError'
 import { Button, Label, Textarea } from './ui'
 import { LocalMediaImage } from './LocalMediaImage'
 
@@ -183,18 +185,10 @@ function sectionHeading(
   t: (k: string, o?: Record<string, unknown>) => string,
   s: MediaGenMaterialSection
 ): string {
-  const typeLabel = entityLabel(t, s.entityType)
-  if (s.entityType === 'gallery') {
-    return t('mediaGen.galleryBoard', { n: s.title })
-  }
-  if (s.entityType === 'layout') {
-    return t('mediaGen.layoutTitle', { id: s.title })
-  }
-  if (s.entityType === 'hardRules') {
-    return t('mediaGen.hardRulesTitle')
-  }
-  if (typeLabel && s.title) return `${typeLabel} · ${s.title}`
-  return s.title || typeLabel || s.id
+  return translateMediaGenSectionTitle(
+    { title: s.title, entityType: s.entityType, id: s.id },
+    t
+  )
 }
 
 export function MediaGenPrepModal({
@@ -361,7 +355,7 @@ export function MediaGenPrepModal({
       setResultMeta(null)
       setPhase('materials')
     } catch (e) {
-      setErrorMessage(formatIpcError(e))
+      setErrorMessage(formatUserError(formatIpcError(e), t))
       setPhase('error')
     }
   }, [request, i18n.language])
@@ -454,7 +448,7 @@ export function MediaGenPrepModal({
       setVideoPrompt('')
       setPhase('review-prompt')
     } catch (e) {
-      setErrorMessage(formatIpcError(e))
+      setErrorMessage(formatUserError(formatIpcError(e), t))
       setPhase('materials')
     } finally {
       setBusy(false)
@@ -526,7 +520,7 @@ export function MediaGenPrepModal({
       setPolishedFlag(r.polished)
       setPhase('confirm-video')
     } catch (e) {
-      setErrorMessage(formatIpcError(e))
+      setErrorMessage(formatUserError(formatIpcError(e), t))
       // Still allow confirm with still prompt as fallback
       setVideoPrompt(polishedPrompt.trim())
       setPhase('confirm-video')
@@ -632,7 +626,7 @@ export function MediaGenPrepModal({
         setPhase('result')
       }
     } catch (e) {
-      setErrorMessage(formatIpcError(e))
+      setErrorMessage(formatUserError(formatIpcError(e), t))
       setPhase(mode === 'video' ? 'review-prompt' : 'review-prompt')
     } finally {
       setBusy(false)
@@ -712,7 +706,7 @@ export function MediaGenPrepModal({
         queueTotal: request.queueTotal
       })
     } catch (e) {
-      setErrorMessage(formatIpcError(e))
+      setErrorMessage(formatUserError(formatIpcError(e), t))
       setPhase('confirm-video')
     } finally {
       setBusy(false)
@@ -766,9 +760,9 @@ export function MediaGenPrepModal({
   )
 
   const stepIndex = shellPhaseToStepIndex(phase, mode)
-  const kindLabel = t(`mediaGen.kind.${request.kind}`, {
-    defaultValue: request.kind
-  })
+  const kindKey = `mediaGen.kind.${request.kind}`
+  const kindRaw = t(kindKey)
+  const kindLabel = kindRaw === kindKey ? request.kind : kindRaw
   const shellTitle =
     mode === 'video'
       ? `${t('mediaGen.titleVideo')} · ${kindLabel}`
@@ -952,13 +946,9 @@ export function MediaGenPrepModal({
                   : phase === 'loading-polish'
                     ? t('mediaGen.phase.polish', { count: includedImages })
                     : phase === 'loading-video'
-                      ? t('mediaGen.phase.loadingVideo', {
-                          defaultValue: t('videoPrep.phase.loadingVideo')
-                        })
+                      ? t('mediaGen.phase.loadingVideo')
                       : mode === 'video'
-                        ? t('mediaGen.phase.loadingKeyframe', {
-                            defaultValue: 'Generating keyframe…'
-                          })
+                        ? t('mediaGen.phase.loadingKeyframe')
                         : t('mediaGen.phase.generate')}
               </p>
             </div>
@@ -1164,10 +1154,7 @@ export function MediaGenPrepModal({
                 <Label>{t('mediaGen.polishPromptImage')}</Label>
                 <p className="mb-1 text-[10px] text-ink-500">
                   {mode === 'video'
-                    ? t('mediaGen.keyframeHint', {
-                        defaultValue:
-                          'Keyframe still prompt (image director). Video motion polish runs after the keyframe is ready.'
-                      })
+                    ? t('mediaGen.keyframePromptHint')
                     : t('mediaGen.polishPromptImageHint')}
                 </p>
                 <Textarea
@@ -1314,10 +1301,7 @@ export function MediaGenPrepModal({
                 </p>
               ) : null}
               <p className="text-center text-[11px] text-ink-500">
-                {t('mediaGen.videoDoneGalleryHint', {
-                  defaultValue:
-                    'Intro video is attached to the source still in the gallery — you can play it there too.'
-                })}
+                {t('mediaGen.videoDoneGalleryHint')}
               </p>
             </div>
           ) : null}
@@ -1362,9 +1346,7 @@ export function MediaGenPrepModal({
               >
                 {mode === 'video'
                   ? request.skipStillIfExists && resolveSourceStill()
-                    ? t('mediaGen.useStillAsKeyframe', {
-                        defaultValue: 'Use still as keyframe'
-                      })
+                    ? t('mediaGen.useStillAsKeyframe')
                     : t('mediaGen.generateKeyframe')
                   : t('mediaGen.generateImage')}
               </Button>

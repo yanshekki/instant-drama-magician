@@ -8,6 +8,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { getApi, isWebRuntime } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import { useToast } from '../context/ToastContext'
 import { MediaZoomLightbox } from './MediaZoomLightbox'
 
@@ -223,7 +224,7 @@ export function LocalMediaImage({
       }
     } catch (err) {
       const body = parseIpcError(err)
-      toast.error(body.message)
+      toast.error(formatUserError(body.message, t))
     } finally {
       setSaveBusy(false)
     }
@@ -248,7 +249,7 @@ export function LocalMediaImage({
     try {
       await onIntroVideo()
     } catch (err) {
-      toast.error(parseIpcError(err).message)
+      toast.error(formatUserError(parseIpcError(err).message, t))
     } finally {
       setIntroBusyLocal(false)
     }
@@ -265,7 +266,7 @@ export function LocalMediaImage({
       setIntroPlayOpen(true)
     } catch (err) {
       const body = parseIpcError(err)
-      toast.error(body.message)
+      toast.error(formatUserError(body.message, t))
     } finally {
       setIntroPlayBusy(false)
     }

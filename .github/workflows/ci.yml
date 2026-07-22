@@ -35,6 +35,9 @@ jobs:
       - name: Locales verify
         run: npm run locales:verify
 
+      - name: Frontend i18n keys
+        run: npm run locales:frontend
+
       - name: Typecheck
         run: npm run typecheck
 

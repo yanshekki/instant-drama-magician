@@ -675,7 +675,7 @@ export function CharactersPage(): JSX.Element {
   const handleSave = async (): Promise<void> => {
     await charactersRunSave({
       name: form.name,
-      emptyMsg: t('common.nameRequired'),
+      emptyMsg: t('errors.nameRequired'),
       savedMsg: t('common.saved'),
       failedMsg: t('common.actionFailed'),
       editingId,
@@ -1094,7 +1094,7 @@ export function CharactersPage(): JSX.Element {
       toastError: toast.error,
       toastInfo: toast.info,
       msgs: {
-        saveFirst: t('characters.saveBeforeSheet'),
+        saveFirst: t('characters.saveFirstForSheet'),
         needImage: t('characters.introVideoNeedImage'),
         loading: t('aiJobs.running')
       },

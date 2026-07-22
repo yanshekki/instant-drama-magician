@@ -176,10 +176,7 @@ export function GalleryThumbStrip({
                     onReorder(fromId, g.id)
                   }
                 }}
-                title={t('common.galleryPreviewTitle', {
-                  label,
-                  defaultValue: `Preview: ${label}`
-                })}
+                title={t('common.galleryPreviewTitle', { label })}
               >
                 <div className="pointer-events-none absolute inset-0">
                   <LocalMediaImage
@@ -206,22 +203,14 @@ export function GalleryThumbStrip({
                     ].join(' ')}
                     aria-label={
                       multiOn
-                        ? t('common.galleryUncheckForGen', {
-                            defaultValue: 'Uncheck for generation'
-                          })
-                        : t('common.galleryCheckForGen', {
-                            defaultValue: 'Check for generation'
-                          })
+                        ? t('common.galleryUncheckForGen')
+                        : t('common.galleryCheckForGen')
                     }
                     aria-pressed={multiOn}
                     title={
                       multiOn
-                        ? t('common.galleryUncheckForGen', {
-                            defaultValue: 'Uncheck for generation'
-                          })
-                        : t('common.galleryCheckForGen', {
-                            defaultValue: 'Check for generation'
-                          })
+                        ? t('common.galleryUncheckForGen')
+                        : t('common.galleryCheckForGen')
                     }
                     onClick={(e) => {
                       e.preventDefault()
@@ -245,7 +234,7 @@ export function GalleryThumbStrip({
 
                 {viewing ? (
                   <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-sky-600/90 px-0.5 py-0.5 text-center text-[8px] font-semibold text-white">
-                    {t('common.galleryViewing', { defaultValue: 'Preview' })}
+                    {t('common.galleryViewing')}
                   </span>
                 ) : (
                   <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] truncate bg-black/65 px-0.5 py-0.5 text-center text-[9px] text-white">

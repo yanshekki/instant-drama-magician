@@ -213,7 +213,11 @@
     "evtAiStatus": "Checked AI status",
     "evtAppInfo": "App info",
     "evtIpc": "System call",
-    "evtGeneric": "Activity"
+    "evtGeneric": "Activity",
+    "sortFastest": "Fastest first",
+    "sortByLevelAsc": "Severity ↑",
+    "sortByKind": "By kind",
+    "sortByMessage": "By message"
   },
   "common": {
     "create": "Create",
@@ -287,7 +291,10 @@
     "galleryPreviewTitle": "Preview: {{label}}",
     "galleryCheckForGen": "Check for generation",
     "galleryUncheckForGen": "Uncheck for generation",
-    "galleryViewing": "Preview"
+    "galleryViewing": "Preview",
+    "retry": "Retry",
+    "copy": "Copy",
+    "nameRequired": "Name is required."
   },
   "media": {
     "regenerate": "Regenerate",
@@ -414,7 +421,8 @@
     "aiNeedCast": "Link at least one character or scene under Cast first.",
     "aiReplaceBeatsConfirm": "This will replace existing script beats. Continue?",
     "castEmptyActions": "No actions in the library yet.",
-    "beatActions": "Actions (motion)"
+    "beatActions": "Actions (motion)",
+    "saveFirst": "Save the story first."
   },
   "characters": {
     "title": "Characters",
@@ -1994,6 +2002,8 @@
     "userExtra": "Extra notes (optional)",
     "userExtraHint": "Merged when generating the final video.",
     "duration": "Duration (seconds)",
-    "videoDoneGalleryHint": "Intro video is attached to the source still in the gallery — use Play there anytime."
+    "videoDoneGalleryHint": "Intro video is attached to the source still in the gallery — use Play there anytime.",
+    "useStillAsKeyframe": "Use still as keyframe",
+    "keyframePromptHint": "Keyframe still prompt (image director). Video motion polish runs after the keyframe is ready."
   }
 }

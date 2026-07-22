@@ -213,7 +213,11 @@
     "evtAiStatus": "AI स्थिति जाँची",
     "evtAppInfo": "ऐप जानकारी",
     "evtIpc": "सिस्टम कॉल",
-    "evtGeneric": "गतिविधि"
+    "evtGeneric": "गतिविधि",
+    "sortFastest": "Fastest first",
+    "sortByLevelAsc": "Severity ↑",
+    "sortByKind": "By kind",
+    "sortByMessage": "By message"
   },
   "common": {
     "create": "बनाएं",
@@ -287,7 +291,10 @@
     "galleryPreviewTitle": "Preview: {{label}}",
     "galleryCheckForGen": "Check for generation",
     "galleryUncheckForGen": "Uncheck for generation",
-    "galleryViewing": "Preview"
+    "galleryViewing": "Preview",
+    "retry": "Retry",
+    "copy": "Copy",
+    "nameRequired": "Name is required."
   },
   "media": {
     "regenerate": "पुनः जेनरेट",
@@ -414,7 +421,8 @@
     "aiNeedCast": "पहले कास्ट के अंतर्गत कम से कम एक पात्र या दृश्य को लिंक करें।",
     "aiReplaceBeatsConfirm": "यह मौजूदा स्क्रिप्ट बीट्स को प्रतिस्थापित कर देगा। जारी रखना?",
     "castEmptyActions": "लाइब्रेरी में अभी तक कोई कार्रवाई नहीं.",
-    "beatActions": "क्रियाएँ (गति)"
+    "beatActions": "क्रियाएँ (गति)",
+    "saveFirst": "Save the story first."
   },
   "characters": {
     "title": "अक्षर",
@@ -1994,6 +2002,8 @@
     "userExtra": "Extra notes (optional)",
     "userExtraHint": "Merged when generating the final video.",
     "duration": "Duration (seconds)",
-    "videoDoneGalleryHint": "Intro video is attached to the source still in the gallery — use Play there anytime."
+    "videoDoneGalleryHint": "Intro video is attached to the source still in the gallery — use Play there anytime.",
+    "useStillAsKeyframe": "Use still as keyframe",
+    "keyframePromptHint": "Keyframe still prompt (image director). Video motion polish runs after the keyframe is ready."
   }
 }

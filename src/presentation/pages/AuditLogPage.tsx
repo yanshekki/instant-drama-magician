@@ -276,7 +276,7 @@ export function AuditLogPage(): JSX.Element {
       toast.success(t('audit.cleared'))
     } catch (e) {
       setError(parseIpcError(e).message)
-      toast.error(parseIpcError(e).message)
+      toast.error(formatUserError(parseIpcError(e).message, t))
     }
   }
 
@@ -521,11 +521,11 @@ export function AuditLogPage(): JSX.Element {
                       { value: 'ts:desc', label: t('audit.sortNewest') },
                       { value: 'ts:asc', label: t('audit.sortOldest') },
                       { value: 'ms:desc', label: t('audit.sortSlowest') },
-                      { value: 'ms:asc', label: t('audit.sortFastest', { defaultValue: 'Fastest first' }) },
+                      { value: 'ms:asc', label: t('audit.sortFastest') },
                       { value: 'level:desc', label: t('audit.sortByLevel') },
-                      { value: 'level:asc', label: t('audit.sortByLevelAsc', { defaultValue: 'Severity ↑' }) },
-                      { value: 'kind:asc', label: t('audit.sortByKind', { defaultValue: 'By kind' }) },
-                      { value: 'message:asc', label: t('audit.sortByMessage', { defaultValue: 'By message' }) }
+                      { value: 'level:asc', label: t('audit.sortByLevelAsc') },
+                      { value: 'kind:asc', label: t('audit.sortByKind') },
+                      { value: 'message:asc', label: t('audit.sortByMessage') }
                     ]}
                   />
                 </div>

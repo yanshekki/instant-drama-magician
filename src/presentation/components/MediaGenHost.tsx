@@ -207,8 +207,7 @@ export function MediaGenHost(): JSX.Element | null {
         toast.info(
           t('videoPrep.queueProgress', {
             current: (detail.queueIndex ?? 1) + 1,
-            total: detail.queueTotal ?? remaining.length + 1,
-            defaultValue: 'Next clip {{current}} / {{total}}'
+            total: detail.queueTotal ?? remaining.length + 1
           })
         )
       }
