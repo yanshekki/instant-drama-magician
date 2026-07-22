@@ -142,7 +142,7 @@ export function TimelineAdvancedStudio({
       setSnap(data)
       setCastPrep(data.castPrep ?? emptyStoryCastPrep())
     } catch (e) {
-      setError(parseIpcError(e).message)
+      setError(formatUserError(parseIpcError(e).message, t))
     } finally {
       setLoading(false)
     }

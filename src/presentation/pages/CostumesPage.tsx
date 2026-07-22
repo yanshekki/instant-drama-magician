@@ -161,7 +161,7 @@ export function CostumesPage(): JSX.Element {
       setItems(sortByUpdatedAtDesc(list))
       setCharacters(sortByUpdatedAtDesc(chars))
     } catch (e) {
-      setError(parseIpcError(e).message)
+      setError(formatUserError(parseIpcError(e).message, t))
     } finally {
       setLoading(false)
     }

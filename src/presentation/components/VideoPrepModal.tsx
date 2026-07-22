@@ -14,6 +14,7 @@ import {
 } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
+import { formatUserError } from '../lib/formatUserError'
 import { getAiLocale } from '../../lib/aiLocale'
 import { continuityBadgeKey } from '../../domain/residualLabels'
 import { canSubmitRegenNotes, handleRegenNotesGate, handleRegenCatch, onLockedEscape } from './uiResidualPure'
@@ -139,7 +140,7 @@ export function VideoPrepModal({
         /* v8 ignore next */
         () => onPhaseChange('review'),
         /* v8 ignore next */
-        (msg) => toast.error(msg),
+        (msg) => toast.error(formatUserError(msg, t)),
         /* v8 ignore next */
         e,
         /* v8 ignore next */

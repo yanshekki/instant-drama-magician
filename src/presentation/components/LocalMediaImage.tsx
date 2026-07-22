@@ -148,7 +148,7 @@ export function LocalMediaImage({
           setError(null)
         } else {
           setMissingFile(false)
-          setError(body.message)
+          setError(formatUserError(body.message, t))
         }
       })
     return () => {

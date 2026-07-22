@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getApi } from '../../../lib/api'
+import { formatUserError } from '../../lib/formatUserError'
 import type { TimelineEntry } from '../../../types/domain'
 import { Button } from '../ui'
 import { tMediaStatus } from '../../lib/statusLabels'
@@ -77,7 +78,7 @@ export function PreviewPlayer({
         setSrc(url)
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
+        if (!cancelled) setError(formatUserError(e instanceof Error ? e.message : String(e), t))
       })
     return () => {
       cancelled = true

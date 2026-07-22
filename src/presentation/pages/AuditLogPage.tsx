@@ -115,7 +115,7 @@ export function AuditLogPage(): JSX.Element {
       setEntries(r.entries)
       setLogPath(r.path)
     } catch (e) {
-      setError(parseIpcError(e).message)
+      setError(formatUserError(parseIpcError(e).message, t))
     } finally {
       setLoading(false)
     }
@@ -275,7 +275,7 @@ export function AuditLogPage(): JSX.Element {
       await load()
       toast.success(t('audit.cleared'))
     } catch (e) {
-      setError(parseIpcError(e).message)
+      setError(formatUserError(parseIpcError(e).message, t))
       toast.error(formatUserError(parseIpcError(e).message, t))
     }
   }

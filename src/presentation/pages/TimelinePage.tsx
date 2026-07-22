@@ -238,7 +238,7 @@ export function TimelinePage(): JSX.Element {
         setCastProps(prps as Prop[])
         setCastActions(acts as Action[])
       },
-      toastError: (m) => toast.error(m)
+      toastError: (m) => toast.error(formatUserError(m, t))
     })
   }, [activeStoryId, toast])
 
@@ -508,7 +508,7 @@ export function TimelinePage(): JSX.Element {
       doneMsg: t('timeline.packAbutDone'),
       toastInfo: toast.info,
       toastSuccess: toast.success,
-      toastError: toast.error,
+      toastError: (m) => toast.error(formatUserError(m, t)),
       setBusy: setPackAbutBusy,
       setError: setActionError,
       isPacked: (e) => TimelineService.isAlreadyPacked(e as never),
@@ -545,7 +545,7 @@ export function TimelinePage(): JSX.Element {
       commit: commitBeatScriptEdit,
       update,
       toastSuccess: () => toast.success(t('common.saved')),
-      toastError: (m) => toast.error(m)
+      toastError: (m) => toast.error(formatUserError(m, t))
     })
   }
 
@@ -560,7 +560,7 @@ export function TimelinePage(): JSX.Element {
       setPlayhead,
       setClipSeconds: (n) => setClipSeconds(n as GrokVideoSeconds),
       toastSuccess: (n) => toast.success(t('timeline.clipDurationSet', { n })),
-      toastError: (m) => toast.error(m)
+      toastError: (m) => toast.error(formatUserError(m, t))
     })
   }
 
@@ -575,7 +575,7 @@ export function TimelinePage(): JSX.Element {
       remove,
       clearSelected: () => setSelectedId(null),
       toastSuccess: () => toast.success(t('common.deleted')),
-      toastError: (m) => toast.error(m)
+      toastError: (m) => toast.error(formatUserError(m, t))
     })
   }
 
@@ -772,7 +772,7 @@ export function TimelinePage(): JSX.Element {
     openHistory: () => setExportHistoryOpen(true),
     refreshHistory: refreshExportHistory,
     toastSuccess: (path) => toast.success(t('pipeline.exportOk', { path })),
-    toastError: toast.error,
+    toastError: (m) => toast.error(formatUserError(m, t)),
     openFolder: (path) => void getApi().shell.showItemInFolder(path)
   })
 
@@ -788,7 +788,7 @@ export function TimelinePage(): JSX.Element {
     setHistory: setExportHistory,
     setLatest: setLastExportPath,
     toastSuccess: () => toast.success(t('timeline.exportDeleted')),
-    toastError: (m) => toast.error(m)
+    toastError: (m) => toast.error(formatUserError(m, t))
   })
 
   const handleRunClip = async (entryId: string): Promise<void> => {

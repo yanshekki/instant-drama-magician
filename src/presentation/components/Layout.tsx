@@ -21,6 +21,7 @@ import {
 import { changeUiLanguage } from '../../lib/i18n'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
+import { formatUserError } from '../lib/formatUserError'
 import { useMenuActions } from '../hooks/useMenuActions'
 import { AiJobHud } from './AiJobHud'
 import { MediaGenHost } from './MediaGenHost'
@@ -533,7 +534,10 @@ export function Layout(): JSX.Element {
                       .then((r) => {
                         if (!r.ok) {
                           toast.error(
-                            r.message || t('settings.updateInstallFail')
+                            formatUserError(
+                              r.message || t('settings.updateInstallFail'),
+                              t
+                            )
                           )
                         }
                       })

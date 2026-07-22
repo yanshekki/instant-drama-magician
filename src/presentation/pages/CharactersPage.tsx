@@ -575,7 +575,7 @@ export function CharactersPage(): JSX.Element {
         charactersLoadSoulPreviewForm(r.content, setForm)
       } catch (e) {
         charactersLoadSoulPreviewForm(null, setForm)
-        setActionError(parseIpcError(e).message)
+        setActionError(formatUserError(parseIpcError(e).message, t))
       }
     },
     []
