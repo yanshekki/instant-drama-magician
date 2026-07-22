@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { TimelineService } from '../../application/TimelineService'
@@ -80,11 +80,7 @@ export function formatExportSize(n?: number | null): string {
 export function formatExportWhen(iso: string, lang?: string): string {
   const d = Date.parse(iso)
   if (!Number.isFinite(d)) return iso
-  try {
-    return new Date(d).toLocaleString(lang || undefined)
-  } catch {
-    return new Date(d).toLocaleString()
-  }
+  return timelineLocaleString(d, lang)
 }
 
 export function TimelinePage(): JSX.Element {
@@ -184,51 +180,45 @@ export function TimelinePage(): JSX.Element {
         kind: ['pipeline', 'clip', 'video-prep', 'video-confirm']
       })
   )
-  const clipBusyId =
-    activeJobs.find(
-      (j) =>
-        (j.kind === 'clip' ||
-          j.kind === 'video-prep' ||
-          j.kind === 'video-confirm') &&
-        (j.status === 'running' || j.status === 'queued') &&
-        j.scope.storyId === activeStoryId
-    )?.scope.entryId ?? null
+  const clipBusyId = timelineFindClipBusyId(activeJobs, activeStoryId)
   const busy = storyGenBusy
 
   const loadCast = useCallback(async (): Promise<void> => {
-    if (!activeStoryId) {
-      setCastCharacters([])
-      setCastScenes([])
-      setCastProps([])
-      setCastActions([])
-      return
-    }
-    try {
-      const [chars, scns, prps, acts] = await Promise.all([
-        getApi().characters.list({
-          storyId: activeStoryId,
-          forStory: true
-        }) as Promise<Character[]>,
-        getApi().scenes.list({
-          storyId: activeStoryId,
-          forStory: true
-        }) as Promise<StoryCastScene[]>,
-        getApi().props.list({
-          storyId: activeStoryId,
-          forStory: true
-        }) as Promise<Prop[]>,
-        getApi().actions.list({
-          storyId: activeStoryId,
-          forStory: true
-        }) as Promise<Action[]>
-      ])
-      setCastCharacters(chars)
-      setCastScenes(scns)
-      setCastProps(prps)
-      setCastActions(acts)
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
+    await timelineLoadCast({
+      storyId: activeStoryId,
+      clear: () => {
+        setCastCharacters([])
+        setCastScenes([])
+        setCastProps([])
+        setCastActions([])
+      },
+      load: () =>
+        Promise.all([
+          getApi().characters.list({
+            storyId: activeStoryId!,
+            forStory: true
+          }) as Promise<Character[]>,
+          getApi().scenes.list({
+            storyId: activeStoryId!,
+            forStory: true
+          }) as Promise<StoryCastScene[]>,
+          getApi().props.list({
+            storyId: activeStoryId!,
+            forStory: true
+          }) as Promise<Prop[]>,
+          getApi().actions.list({
+            storyId: activeStoryId!,
+            forStory: true
+          }) as Promise<Action[]>
+        ]),
+      setAll: (chars, scns, prps, acts) => {
+        setCastCharacters(chars as Character[])
+        setCastScenes(scns as StoryCastScene[])
+        setCastProps(prps as Prop[])
+        setCastActions(acts as Action[])
+      },
+      toastError: (m) => toast.error(m)
+    })
   }, [activeStoryId, toast])
 
   useEffect(() => {
@@ -252,66 +242,37 @@ export function TimelinePage(): JSX.Element {
     void getApi()
       .settings.get()
       .then((s: AppSettings) => {
-        setVideoMode(s.videoMode)
-        setSnapEnabled(s.snapEnabled !== false)
-        setSnapGridSec(
-          typeof s.snapGridSec === 'number' && s.snapGridSec > 0
-            ? s.snapGridSec
-            : 0.5
+        timelineApplySettingsSnap(
+          s,
+          setVideoMode,
+          setSnapEnabled,
+          setSnapGridSec,
+          setExportInitial
         )
-        setExportInitial({
-          exportProfile: s.exportProfile,
-          burnSubtitles: s.burnSubtitles,
-          includeSilentAudio: s.includeSilentAudio,
-          openExportFolder: s.openExportFolder,
-          bgmVolume: s.bgmVolume,
-          dialogueVolume: s.dialogueVolume
-        })
       })
       .catch(() => undefined)
   }, [])
 
   const persistSnapSettings = useCallback(
     async (next: { snapEnabled?: boolean; snapGridSec?: number }) => {
-      if (next.snapEnabled !== undefined) setSnapEnabled(next.snapEnabled)
-      if (next.snapGridSec !== undefined) setSnapGridSec(next.snapGridSec)
-      try {
-        await getApi().settings.set({
-          ...(next.snapEnabled !== undefined
-            ? { snapEnabled: next.snapEnabled }
-            : {}),
-          ...(next.snapGridSec !== undefined
-            ? { snapGridSec: next.snapGridSec }
-            : {})
-        })
-      } catch {
-        /* non-fatal */
-      }
+      await timelinePersistSnap({
+        next,
+        setEnabled: setSnapEnabled,
+        setGrid: setSnapGridSec,
+        setSettings: (patch) => getApi().settings.set(patch as never)
+      })
     },
     []
   )
 
   const refreshExportHistory = useCallback(async (): Promise<void> => {
-    if (!activeStoryId) {
-      setExportHistory([])
-      setLastExportPath(null)
-      return
-    }
-    try {
-      const api = getApi().media
-      if (typeof api.listExports !== 'function') {
-        setExportHistory([])
-        setLastExportPath(null)
-        return
-      }
-      const r = await api.listExports(activeStoryId)
-      setExportHistory(Array.isArray(r.items) ? r.items : [])
-      setLastExportPath(r.latestPath ?? null)
-    } catch (e) {
-      // Surface once in console; keep empty state visible in UI
-      console.warn('[timeline] listExports failed', e)
-      setExportHistory([])
-    }
+    await timelineRefreshExports({
+      storyId: activeStoryId,
+      listExports: getApi().media.listExports?.bind(getApi().media),
+      setHistory: setExportHistory as (items: never[]) => void,
+      setLatest: setLastExportPath,
+      onWarn: (e) => console.warn('[timeline] listExports failed', e)
+    })
   }, [activeStoryId])
 
   useEffect(() => {
@@ -322,17 +283,14 @@ export function TimelinePage(): JSX.Element {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
-        void (async () => {
-          if (e.shiftKey) {
-            if (await history.redo()) {
-              toast.success(t('timeline.redoDone'))
-              await reload()
-            }
-          } else if (await history.undo()) {
-            toast.success(t('timeline.undoDone'))
-            await reload()
-          }
-        })()
+        void timelineHandleKeyUndo({
+          shift: e.shiftKey,
+          undo: () => history.undo(),
+          redo: () => history.redo(),
+          toastUndo: () => toast.success(t('timeline.undoDone')),
+          toastRedo: () => toast.success(t('timeline.redoDone')),
+          reload
+        })
       }
     }
     window.addEventListener('keydown', onKey)
@@ -358,18 +316,16 @@ export function TimelinePage(): JSX.Element {
    * If current selection was deleted, re-select first remaining.
    */
   useEffect(() => {
-    if (entries.length === 0) {
-      if (selectedId != null) setSelectedId(null)
+    const r = timelineAutoSelectFirst(entries, selectedId)
+    if (r.clear) {
+      setSelectedId(null)
       return
     }
-    const stillThere =
-      selectedId != null && entries.some((e) => e.id === selectedId)
-    if (stillThere) return
-    const first = [...entries].sort((a, b) => a.startTime - b.startTime)[0]
-    if (!first) return
-    setSelectedId(first.id)
-    setPlayhead(first.startTime)
-    setIsPlaying(false)
+    if (r.selectId) {
+      setSelectedId(r.selectId)
+      if (r.playhead != null) setPlayhead(r.playhead)
+      setIsPlaying(false)
+    }
   }, [entries, selectedId])
 
   const entriesRef = useRef(entries)
@@ -385,24 +341,14 @@ export function TimelinePage(): JSX.Element {
    * Returns false if story ended.
    */
   const advanceToNextClip = useCallback(
-    (fromTime: number): boolean => {
-      const candidate = timelinePickNextClip(entriesRef.current, fromTime)
-      if (!candidate) {
-        setIsPlaying(false)
-        setPlayhead(Math.max(totalDuration, fromTime))
-        return false
-      }
-      setSelectedId(candidate.id)
-      setPlayhead(candidate.startTime)
-      // Non-playable: skip after a short beat (gap clock / empty preview)
-      if (timelineClipNeedsSkip(candidate.mediaStatus, candidate.mediaPath)) {
-        window.setTimeout(() => {
-          if (!isPlayingRef.current) return
-          advanceToNextClip(candidate.endTime)
-        }, 50)
-      }
-      return true
-    },
+    timelineMakeAdvance({
+      getList: () => entriesRef.current,
+      getTotal: () => totalDuration,
+      isPlaying: () => isPlayingRef.current,
+      setPlaying: setIsPlaying,
+      setPlayhead,
+      setSelected: setSelectedId
+    }),
     [totalDuration]
   )
 
@@ -410,13 +356,7 @@ export function TimelinePage(): JSX.Element {
   useEffect(() => {
     if (!isPlaying) return
     const cur = entriesRef.current.find((e) => e.id === selectedIdRef.current)
-    const needsClock =
-      !cur ||
-      cur.mediaStatus !== 'READY' ||
-      !cur.mediaPath ||
-      playhead < cur.startTime ||
-      playhead >= cur.endTime
-    if (!needsClock) return
+    if (!timelineNeedsGapClock(cur, playhead)) return
 
     let raf = 0
     let last = performance.now()
@@ -433,12 +373,7 @@ export function TimelinePage(): JSX.Element {
           hit,
           selectedIdRef.current
         )
-        if (r.stop) {
-          setIsPlaying(false)
-          return r.value
-        }
-        if (r.selectId) setSelectedId(r.selectId)
-        return r.value
+        return timelineApplyRafResult(r, setIsPlaying, setSelectedId)
       })
       raf = requestAnimationFrame(tick)
     }
@@ -447,12 +382,9 @@ export function TimelinePage(): JSX.Element {
   }, [isPlaying, totalDuration, selectedId, selected?.mediaStatus, playhead])
 
   useEffect(() => {
-    return onPipelineDone(() => {
-      void reload()
-      void refreshStories()
-      void refreshAiStatus()
-      void loadCast()
-    })
+    return onPipelineDone(
+      timelineMakePipelineDone(reload, refreshStories, refreshAiStatus, loadCast)
+    )
   }, [onPipelineDone, reload, refreshStories, refreshAiStatus, loadCast])
 
   useEffect(() => {
@@ -460,20 +392,16 @@ export function TimelinePage(): JSX.Element {
       if (activeStoryId && payload.storyId !== activeStoryId) return
       setStepIndex(payload.index + 1)
       setStepTotal(Math.max(1, payload.total))
-      const stepKey = STEP_I18N[payload.step]
-      const human = stepKey ? t(stepKey) : payload.step
-      setCurrentStepLabel(human)
+      setCurrentStepLabel(
+        timelineProgressStepLabel(payload.step, STEP_I18N, t)
+      )
       if (payload.entryId && payload.mediaStatus) {
         setLiveClipStatus((prev) => ({
           ...prev,
           [payload.entryId!]: payload.mediaStatus!
         }))
       }
-      // Refresh list when a clip finishes so player can pick up READY media
-      if (
-        payload.entryId &&
-        (payload.mediaStatus === 'READY' || payload.mediaStatus === 'FAILED')
-      ) {
+      if (timelineShouldReloadOnProgress(payload.entryId, payload.mediaStatus)) {
         void reload()
       }
     })
@@ -487,120 +415,51 @@ export function TimelinePage(): JSX.Element {
     )
     const propMap = new Map(castProps.map((p) => [p.id, p.name]))
     const actionMap = new Map(castActions.map((a) => [a.id, a.name]))
+    const lookup = {
+      char: (id: string) => charMap.get(id),
+      scene: (id: string) => sceneMap.get(id),
+      prop: (id: string) => propMap.get(id),
+      action: (id: string) => actionMap.get(id)
+    }
     for (const e of entries) {
-      const charIds =
-        e.characterIds?.length
-          ? e.characterIds
-          : e.characterId
-            ? [e.characterId]
-            : []
-      const sceneIds =
-        e.sceneIds?.length ? e.sceneIds : e.sceneId ? [e.sceneId] : []
-      const propIds =
-        e.propIds?.length ? e.propIds : e.propId ? [e.propId] : []
-      const actionIds =
-        e.actionIds?.length
-          ? e.actionIds
-          : e.actionId
-            ? [e.actionId]
-            : []
-      const names = [
-        ...charIds.map((id) => charMap.get(id)).filter(Boolean),
-        ...sceneIds.map((id) => sceneMap.get(id)).filter(Boolean),
-        ...propIds.map((id) => propMap.get(id)).filter(Boolean),
-        ...actionIds.map((id) => actionMap.get(id)).filter(Boolean)
-      ]
-      map[e.id] =
-        (e.dialogue && e.dialogue.trim()) ||
-        (names.length ? names.join(' · ') : null) ||
-        `#${e.order + 1}`
+      map[e.id] = timelineLabelForEntry(e, lookup)
     }
     return map
   }, [entries, castCharacters, castScenes, castProps, castActions])
 
   const selectedBindings = useMemo(() => {
     if (!selected) return [] as string[]
-    const chips: string[] = []
-    const charIds =
-      selected.characterIds?.length
-        ? selected.characterIds
-        : selected.characterId
-          ? [selected.characterId]
-          : []
-    const sceneIds =
-      selected.sceneIds?.length
-        ? selected.sceneIds
-        : selected.sceneId
-          ? [selected.sceneId]
-          : []
-    const propIds =
-      selected.propIds?.length
-        ? selected.propIds
-        : selected.propId
-          ? [selected.propId]
-          : []
-    const actionIds =
-      selected.actionIds?.length
-        ? selected.actionIds
-        : selected.actionId
-          ? [selected.actionId]
-          : []
-    for (const id of charIds) {
-      const c = castCharacters.find((x) => x.id === id)
-      if (c) chips.push(c.name)
-    }
-    for (const id of sceneIds) {
-      const s = castScenes.find((x) => x.id === id)
-      if (s) chips.push(sceneCastLabel(s))
-    }
-    for (const id of propIds) {
-      const p = castProps.find((x) => x.id === id)
-      if (p) chips.push(p.name)
-    }
-    for (const id of actionIds) {
-      const a = castActions.find((x) => x.id === id)
-      if (a) chips.push(a.name)
-    }
-    return chips
+    const ids = timelineBindingIds(selected)
+    return timelineBindingChips(ids, {
+      char: (id) => castCharacters.find((x) => x.id === id)?.name,
+      scene: (id) => {
+        const s = castScenes.find((x) => x.id === id)
+        return s ? sceneCastLabel(s) : undefined
+      },
+      prop: (id) => castProps.find((x) => x.id === id)?.name,
+      action: (id) => castActions.find((x) => x.id === id)?.name
+    })
   }, [selected, castCharacters, castScenes, castProps, castActions])
 
-  const openStoryEditor = (): void => {
-    navigate('/')
-  }
+  const openStoryEditor = timelineBindNavigate(navigate, '/')
 
   const addAsset = async (
     payload: AssetDropPayload,
     atTime?: number
   ): Promise<void> => {
-    if (!activeStoryId) return
-    const duration = clipSeconds
-    let startTime: number
-    let order: number
-    if (atTime !== undefined) {
-      startTime = Math.max(0, atTime)
-      order = entries.length
-    } else {
-      const slot = TimelineService.suggestNextSlot(entries, duration)
-      startTime = slot.startTime
-      order = slot.order
-    }
-    const range = TimelineService.clampDuration(
-      startTime,
-      startTime + duration,
-      10
-    )
-    await create({
-      startTime: range.startTime,
-      endTime: range.endTime,
-      order,
-      characterId: payload.kind === 'character' ? payload.id : null,
-      sceneId: payload.kind === 'scene' ? payload.id : null,
-      propId: payload.kind === 'prop' ? payload.id : null,
-      actionId: payload.kind === 'action' ? payload.id : null,
-      dialogue: null
+    await timelineAddAsset({
+      storyId: activeStoryId,
+      clipSeconds,
+      atTime,
+      entriesLen: entries.length,
+      suggestSlot: timelineMakeSuggestSlot(),
+      entries,
+      clamp: (s, e, m) => TimelineService.clampDuration(s, e, m),
+      payload,
+      create,
+      refreshStories,
+      toastSuccess: () => toast.success(t('timeline.addClip'))
     })
-    await refreshStories()
-    toast.success(t('timeline.addClip'))
   }
 
   const persistMove = async (
@@ -609,144 +468,94 @@ export function TimelinePage(): JSX.Element {
     endTime: number
   ): Promise<void> => {
     const prev = entries.find((e) => e.id === id)
-    if (prev) {
-      history.recordUpdate(
-        id,
-        { startTime: prev.startTime, endTime: prev.endTime },
-        { startTime, endTime }
-      )
-    }
-    await update(id, { startTime, endTime })
+    await timelinePersistMove({
+      id,
+      startTime,
+      endTime,
+      prev,
+      record: (i, p, n) => history.recordUpdate(i, p, n),
+      update
+    })
   }
 
   /** Pack all clips end-to-end (no gaps), keep each duration & relative order. */
   const handlePackAbut = async (): Promise<void> => {
-    if (entries.length < 2) {
-      toast.info(t('timeline.packAbutNeedClips'))
-      return
-    }
-    if (TimelineService.isAlreadyPacked(entries)) {
-      toast.info(t('timeline.packAbutAlready'))
-      return
-    }
-    const plan = TimelineService.packAbutting(entries)
-    setPackAbutBusy(true)
-    setActionError(null)
-    try {
-      const byId = new Map(entries.map((e) => [e.id, e]))
-      const api = getApi()
-      for (const slot of plan) {
-        const prev = byId.get(slot.id)
-        if (!prev) continue
-        const changed =
-          prev.startTime !== slot.startTime ||
-          prev.endTime !== slot.endTime ||
-          prev.order !== slot.order
-        if (!changed) continue
-        history.recordUpdate(
-          slot.id,
-          {
-            startTime: prev.startTime,
-            endTime: prev.endTime,
-            order: prev.order
-          },
-          {
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            order: slot.order
-          }
-        )
-        await api.timeline.update(slot.id, {
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          order: slot.order
-        })
-      }
-      await reload()
-      setPlayhead(0)
-      setIsPlaying(false)
-      toast.success(t('timeline.packAbutDone'))
-    } catch (e) {
-      setActionError(parseIpcError(e).message)
-      toast.error(parseIpcError(e).message)
-    } finally {
-      setPackAbutBusy(false)
-    }
+    await timelineRunPackAbut({
+      entries,
+      needMsg: t('timeline.packAbutNeedClips'),
+      alreadyMsg: t('timeline.packAbutAlready'),
+      doneMsg: t('timeline.packAbutDone'),
+      toastInfo: toast.info,
+      toastSuccess: toast.success,
+      toastError: toast.error,
+      setBusy: setPackAbutBusy,
+      setError: setActionError,
+      isPacked: (e) => TimelineService.isAlreadyPacked(e as never),
+      pack: (e) => TimelineService.packAbutting(e as never),
+      recordUpdate: (id, prev, next) => history.recordUpdate(id, prev, next),
+      update: (id, patch) => getApi().timeline.update(id, patch),
+      reload,
+      setPlayhead,
+      setPlaying: setIsPlaying
+    })
   }
 
-  const handleUndoLocal = async (): Promise<void> => {
-    if (await history.undo()) {
-      toast.success(t('timeline.undoDone'))
-      await reload()
-    }
-  }
+  const handleUndoLocal = timelineBindUndoRedo({
+    mode: 'undo',
+    undo: () => history.undo(),
+    redo: () => history.redo(),
+    toast: () => toast.success(t('timeline.undoDone')),
+    reload
+  })
 
-  const handleRedoLocal = async (): Promise<void> => {
-    if (await history.redo()) {
-      toast.success(t('timeline.redoDone'))
-      await reload()
-    }
-  }
+  const handleRedoLocal = timelineBindUndoRedo({
+    mode: 'redo',
+    undo: () => history.undo(),
+    redo: () => history.redo(),
+    toast: () => toast.success(t('timeline.redoDone')),
+    reload
+  })
 
   const handleSaveDialogue = async (): Promise<void> => {
-    if (!selectedId) return
-    try {
-      const committed = commitBeatScriptEdit(
-        dialogue,
-        getAiLocale(i18n.language)
-      )
-      await update(selectedId, {
-        dialogue: committed.dialogue ?? (dialogue.trim() || null),
-        beatContentJson: committed.beatContentJson
-      })
-      toast.success(t('common.saved'))
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
+    await timelineRunSaveDialogue({
+      selectedId,
+      dialogue,
+      locale: getAiLocale(i18n.language),
+      commit: commitBeatScriptEdit,
+      update,
+      toastSuccess: () => toast.success(t('common.saved')),
+      toastError: (m) => toast.error(m)
+    })
   }
 
   /** AI clip length 6s | 10s — updates endTime and refreshes the Konva track. */
   const handleClipDuration = async (seconds: GrokVideoSeconds): Promise<void> => {
-    if (!selected) return
-    const cur = snapVideoSeconds(selected.endTime - selected.startTime)
-    if (cur === seconds) return
-    const range = snapClipRange(selected.startTime, selected.startTime + seconds)
-    try {
-      const ok = await update(selected.id, {
-        startTime: range.startTime,
-        endTime: range.endTime
-      })
-      if (ok) {
-        // Keep playhead inside the clip after resize
-        setPlayhead((ph) => {
-          if (ph < range.startTime) return range.startTime
-          if (ph >= range.endTime) return Math.max(range.startTime, range.endTime - 0.05)
-          return ph
-        })
-        setClipSeconds(seconds)
-        toast.success(
-          t('timeline.clipDurationSet', { n: seconds })
-        )
-      }
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
+    await timelineRunClipDuration({
+      selected,
+      seconds,
+      snapCurrent: (s, e) => snapVideoSeconds(e - s),
+      snapRange: (s, e) => snapClipRange(s, e),
+      update,
+      setPlayhead,
+      setClipSeconds: (n) => setClipSeconds(n as GrokVideoSeconds),
+      toastSuccess: (n) => toast.success(t('timeline.clipDurationSet', { n })),
+      toastError: (m) => toast.error(m)
+    })
   }
 
   const handleDeleteClip = async (): Promise<void> => {
-    if (!selected) return
-    const ok = await dialog.confirm({
-      message: t('common.confirmDelete'),
-      variant: 'danger'
+    await timelineRunDeleteClip({
+      selected,
+      confirm: () =>
+        dialog.confirm({
+          message: t('common.confirmDelete'),
+          variant: 'danger'
+        }),
+      remove,
+      clearSelected: () => setSelectedId(null),
+      toastSuccess: () => toast.success(t('common.deleted')),
+      toastError: (m) => toast.error(m)
     })
-    if (!ok) return
-    try {
-      await remove(selected.id)
-      setSelectedId(null)
-      toast.success(t('common.deleted'))
-    } catch (e) {
-      toast.error(parseIpcError(e).message)
-    }
   }
 
   /**
@@ -762,93 +571,67 @@ export function TimelinePage(): JSX.Element {
       entryIds: string[],
       opts?: { skipStillIfExists?: boolean }
     ): void => {
-      const ids = entryIds.filter(Boolean)
-      if (timelineNoFailedClips(ids.length, toast.info, t('pipeline.noFailedClips'))) {
-        return
-      }
-      const [first, ...rest] = ids
-      const entry = entriesRef.current.find((e) => e.id === first)
-      const revisionPrompt =
-        revisionByEntryRef.current[first]?.trim() || ''
-      const durationSeconds = snapVideoSeconds(
-        entry ? entry.endTime - entry.startTime : clipSeconds
-      )
-      setSelectedId(first)
-      setCurrentStepLabel(
-        ids.length > 1
-          ? t('videoPrep.queueProgress', { current: 1, total: ids.length })
-          : t('timeline.generateClip')
-      )
-      startVideoPrep({
-        kind: 'timeline-clip',
-        entityIds: { storyId, entryId: first },
-        durationSeconds,
-        locale: getAiLocale(i18n.language),
-        userExtraPrompt: revisionPrompt,
-        queueIndex: 1,
-        queueTotal: ids.length,
-        queueRemaining: rest,
-        skipStillIfExists: opts?.skipStillIfExists
+      timelineStartClipPrep({
+        entryIds,
+        noFailedMsg: t('pipeline.noFailedClips'),
+        toastInfo: toast.info,
+        getEntry: (id) => entriesRef.current.find((e) => e.id === id),
+        revisionOf: (id) => revisionByEntryRef.current[id] ?? '',
+        defaultSeconds: clipSeconds,
+        snapSeconds: snapVideoSeconds,
+        setSelected: setSelectedId,
+        setStepLabel: setCurrentStepLabel,
+        multiLabel: (current, total) =>
+          t('videoPrep.queueProgress', { current, total }),
+        singleLabel: t('timeline.generateClip'),
+        skipStillIfExists: opts?.skipStillIfExists,
+        start: (args) =>
+          startVideoPrep({
+            kind: 'timeline-clip',
+            entityIds: { storyId, entryId: args.entryId },
+            durationSeconds: args.durationSeconds,
+            locale: getAiLocale(i18n.language),
+            userExtraPrompt: args.revisionPrompt,
+            queueIndex: args.queueIndex,
+            queueTotal: args.queueTotal,
+            queueRemaining: args.queueRemaining,
+            skipStillIfExists: args.skipStillIfExists
+          })
       })
     },
     [clipSeconds, i18n.language, startVideoPrep, t, toast]
   )
 
   const handleGenerate = async (onlyFailed = false): Promise<void> => {
-    if (!activeStoryId || busy) return
-    if (onlyFailed) {
-      const need = [...entries]
-        .filter(
-          (e) => e.mediaStatus === 'FAILED' || e.mediaStatus === 'EMPTY'
-        )
-        .sort((a, b) => a.order - b.order)
-      if (
-        timelineNoFailedClips(need.length, toast.info, t('pipeline.noFailedClips'))
-      ) {
-        return
-      }
-    } else if (entries.length === 0) {
-      toast.info(t('timeline.noEntries'))
-      return
-    }
-    const modeHint = t('videoPrep.timelineBatchHint')
-    if (
-      !(await dialog.confirm({
-        message: modeHint,
-        confirmLabel: t('common.ok')
-      }))
-    ) {
-      return
-    }
-    if (videoMode !== 'stub' && missingRefs.length > 0) {
-      const ok = await dialog.confirm({
-        message: t('pipeline.missingRefConfirm', {
-          names: missingRefs.map((c) => c.name).join(', ')
-        }),
-        confirmLabel: t('common.ok')
-      })
-      if (!ok) return
-    }
-    const storyId = activeStoryId
+    const gate = await timelineConfirmGenerate({
+      onlyFailed,
+      busy,
+      hasStory: Boolean(activeStoryId),
+      entries,
+      missingRefs,
+      videoMode,
+      noFailedMsg: t('pipeline.noFailedClips'),
+      noEntriesMsg: t('timeline.noEntries'),
+      modeHint: t('videoPrep.timelineBatchHint'),
+      missingRefMsg: (names) => t('pipeline.missingRefConfirm', { names }),
+      toastInfo: toast.info,
+      confirm: (message) =>
+        dialog.confirm({ message, confirmLabel: t('common.ok') }),
+      okLabel: t('common.ok')
+    })
+    if (gate === 'blocked' || gate === 'empty' || gate === 'cancel') return
+    const storyId = activeStoryId!
     setActionError(null)
     setLiveClipStatus({})
     setStepIndex(0)
 
-    // Retry failed / empty: interactive video-prep only (no auto pipeline video).
-    if (onlyFailed) {
-      const need = [...entries]
-        .filter(
-          (e) => e.mediaStatus === 'FAILED' || e.mediaStatus === 'EMPTY'
-        )
-        .sort((a, b) => a.order - b.order)
-        .map((e) => e.id)
+    if (gate === 'retry') {
+      const need = timelineFailedOrEmptyIds(entries)
       setCurrentStepLabel(t('common.retryFailed'))
       startClipPrepQueue(storyId, need)
       return
     }
 
-    // Full generate: prep pipeline (script…timeline) without auto video, then
-    // sequential video-prep for every clip.
     setCurrentStepLabel(t('common.generate'))
     toast.info(t('aiJobs.startedBackground'))
     startJob({
@@ -861,15 +644,11 @@ export function TimelinePage(): JSX.Element {
           interactiveVideo: true
         })) as GenerationResult
         if (signal.cancelled) return
-        const summary = result.steps
-          .map((s) => {
-            const human = STEP_I18N[s.step] ? t(STEP_I18N[s.step]) : s.step
-            return s.success
-              ? `✓ ${human}${s.degraded ? ` (${t('pipeline.degraded')})` : ''}`
-              : `✗ ${human}: ${s.error ?? 'failed'}`
-          })
-          .join('\n')
-        const anyDegraded = result.steps.some((s) => s.degraded)
+        const { summary, anyDegraded } = timelinePipelineSummary(
+          result.steps,
+          (step) => (STEP_I18N[step] ? t(STEP_I18N[step]) : step),
+          t('pipeline.degraded')
+        )
         setProgress(85, 'video-queue')
         if (!result.success) {
           setProgress(100, 'done')
@@ -882,26 +661,17 @@ export function TimelinePage(): JSX.Element {
             degraded: anyDegraded
           }
         }
-        // Reload timeline ids after pipeline may have rewritten entries
-        let entryIds: string[] = []
-        try {
-          const list = (await getApi().timeline.list(storyId)) as Array<{
-            id: string
-            order: number
-          }>
-          entryIds = [...list]
-            .sort((a, b) => a.order - b.order)
-            .map((e) => e.id)
-        } catch {
-          entryIds = [...entriesRef.current]
-            .sort((a, b) => a.order - b.order)
-            .map((e) => e.id)
-        }
+        const entryIds = await timelineCollectEntryIds({
+          list: () =>
+            getApi().timeline.list(storyId) as Promise<
+              Array<{ id: string; order: number }>
+            >,
+          fallback: entriesRef.current
+        })
         setProgress(100, 'done')
         toast.success(
           anyDegraded ? t('pipeline.degraded') : t('aiJobs.pipelineOk')
         )
-        // Kick interactive per-clip video-prep queue on main thread
         queueMicrotask(() => {
           startClipPrepQueue(storyId, entryIds)
         })
@@ -917,120 +687,68 @@ export function TimelinePage(): JSX.Element {
   }
 
   const handleCancel = async (): Promise<void> => {
-    setVideoPrepSession(null)
-    const running = activeJobs.filter(
-      (j) =>
-        j.scope.storyId === activeStoryId &&
-        (j.kind === 'pipeline' ||
-          j.kind === 'clip' ||
-          j.kind === 'video-prep' ||
-          j.kind === 'video-confirm')
-    )
-    for (const j of running) {
-      await cancelJob(j.id)
-    }
-    toast.info(t('pipeline.cancelling'))
-  }
-
-  const handleExportFinal = async (
-    rawOpts: ExportFinalOptions
-  ): Promise<void> => {
-    if (!activeStoryId) return
-    const opts = defaultExportFinalOptions(rawOpts)
-    setExporting(true)
-    setActionError(null)
-    try {
-      const pre = await getApi().media.exportPreflight(activeStoryId)
-      if (!pre.canExport) {
-        const msg =
-          pre.ffmpegMessage && !/ffmpeg OK/i.test(pre.ffmpegMessage)
-            ? `${t('pipeline.needFfmpeg')}${
-                pre.ffmpegMessage ? `（${pre.ffmpegMessage}）` : ''
-              }`
-            : t('pipeline.needFfmpeg')
-        setActionError(msg)
-        toast.error(msg)
-        return
-      }
-      if (pre.willUseFallback) {
-        const ok = await dialog.confirm({
-          message: `${pre.warnings.join('\n')}\n\n${t('pipeline.exportFallbackConfirm')}`,
-          confirmLabel: t('common.ok')
-        })
-        if (!ok) return
-      }
-      const { outputPath } = await getApi().media.exportFinal(
-        activeStoryId,
-        opts
-      )
-      setLastExportPath(outputPath)
-      setExportInitial(opts)
-      setExportDialogOpen(false)
-      setExportHistoryOpen(true)
-      await refreshExportHistory()
-      toast.success(t('pipeline.exportOk', { path: outputPath }))
-      if (opts.openExportFolder) {
-        void getApi().shell.showItemInFolder(outputPath)
-      }
-    } catch (e) {
-      const err = parseIpcError(e)
-      const msg =
-        err.code === 'FFMPEG_UNAVAILABLE' || /ffmpeg/i.test(err.message)
-          ? t('pipeline.needFfmpeg')
-          : `${err.message}${err.details ? ` — ${err.details}` : ''}`
-      setActionError(msg)
-      toast.error(msg)
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  const handleDeleteExport = async (exportId: string): Promise<void> => {
-    if (!activeStoryId) return
-    const ok = await dialog.confirm({
-      message: t('timeline.exportDeleteConfirm'),
-      confirmLabel: t('common.delete'),
-      variant: 'danger'
-    })
-    if (!ok) return
-    await timelineRunDeleteExport({
-      exportId,
+    await timelineRunCancelJobs({
+      clearSession: () => setVideoPrepSession(null),
+      jobs: activeJobs,
       storyId: activeStoryId,
-      setBusy: setExportDeleteBusyId,
-      deleteExport: (sid, eid) => getApi().media.deleteExport(sid, eid),
-      setHistory: setExportHistory,
-      setLatest: setLastExportPath,
-      toastSuccess: () => toast.success(t('timeline.exportDeleted')),
-      toastError: (m) => toast.error(m)
+      cancel: cancelJob,
+      toastInfo: () => toast.info(t('pipeline.cancelling'))
     })
   }
+
+  const handleExportFinal = timelineBindExportFinal({
+    getStoryId: () => activeStoryId,
+    setExporting,
+    setError: setActionError,
+    preflight: (id) => getApi().media.exportPreflight(id),
+    needFfmpeg: t('pipeline.needFfmpeg'),
+    fallbackConfirm: t('pipeline.exportFallbackConfirm'),
+    confirm: (message) => timelineDialogOk(dialog.confirm, message, t('common.ok')),
+    exportFinal: (id, opts) => getApi().media.exportFinal(id, opts),
+    setLastPath: setLastExportPath,
+    setInitial: setExportInitial,
+    closeDialog: () => setExportDialogOpen(false),
+    openHistory: () => setExportHistoryOpen(true),
+    refreshHistory: refreshExportHistory,
+    toastSuccess: (path) => toast.success(t('pipeline.exportOk', { path })),
+    toastError: toast.error,
+    openFolder: (path) => void getApi().shell.showItemInFolder(path)
+  })
+
+  const handleDeleteExport = timelineBindDeleteExport({
+    getStoryId: () => activeStoryId,
+    confirm: timelineMakeDangerConfirm(
+      dialog.confirm,
+      t('timeline.exportDeleteConfirm'),
+      t('common.delete')
+    ),
+    setBusy: setExportDeleteBusyId,
+    deleteExport: (sid, eid) => getApi().media.deleteExport(sid, eid),
+    setHistory: setExportHistory,
+    setLatest: setLastExportPath,
+    toastSuccess: () => toast.success(t('timeline.exportDeleted')),
+    toastError: (m) => toast.error(m)
+  })
 
   const handleRunClip = async (entryId: string): Promise<void> => {
-    if (!activeStoryId || busy) return
-    if (videoMode !== 'stub' && missingRefs.length > 0) {
-      const ok = await dialog.confirm({
-        message: t('pipeline.missingRefConfirm', {
-          names: missingRefs.map((c) => c.name).join(', ')
-        }),
-        confirmLabel: t('common.ok')
-      })
-      if (!ok) return
-    }
-    setActionError(null)
     const draftKey = buildVideoPrepDraftKey('timeline-clip', {
-      storyId: activeStoryId,
+      storyId: activeStoryId ?? '',
       entryId
     })
-    if (
-      timelineContinueClipDraft(hasVideoPrepDraft(draftKey), () =>
-        continueVideoPrepDraft(draftKey)
-      )
-    ) {
-      return
-    }
-    // Prefer reusing advanced-prep / continuity still when present
-    startClipPrepQueue(activeStoryId, [entryId], {
-      skipStillIfExists: true
+    await timelineRunClip({
+      storyId: activeStoryId,
+      busy,
+      videoMode,
+      missingRefs,
+      missingRefMsg: (names) => t('pipeline.missingRefConfirm', { names }),
+      confirm: timelineMakeOkConfirm(dialog.confirm, t('common.ok')),
+      setError: setActionError,
+      draftKey,
+      hasDraft: Boolean(activeStoryId && hasVideoPrepDraft(draftKey)),
+      continueDraft: () => continueVideoPrepDraft(draftKey),
+      startQueue: (sid, ids) =>
+        startClipPrepQueue(sid, ids, { skipStillIfExists: true }),
+      entryId
     })
   }
 
@@ -1057,16 +775,14 @@ export function TimelinePage(): JSX.Element {
         entityIds?: { storyId?: string; entryId?: string }
         path?: string
       }
-      if (d?.kind !== 'timeline-clip') return
-      if (!activeStoryId || d.entityIds?.storyId !== activeStoryId) return
-      void reload()
-      if (d.entityIds?.entryId) {
-        setLiveClipStatus((prev) => ({
-          ...prev,
-          [d.entityIds!.entryId!]: 'READY'
-        }))
-        setSelectedId(d.entityIds.entryId)
-      }
+      timelineOnVideoPrepDone(
+        d,
+        activeStoryId,
+        () => void reload(),
+        (entryId) =>
+          setLiveClipStatus((prev) => ({ ...prev, [entryId]: 'READY' })),
+        setSelectedId
+      )
     }
     window.addEventListener('idm:video-prep-done', onDone)
     return () => window.removeEventListener('idm:video-prep-done', onDone)
@@ -1074,74 +790,59 @@ export function TimelinePage(): JSX.Element {
 
   /** Timeline play for whole story (sequential clips). Wrap to 0 when at end. */
   const handleTogglePlay = (): void => {
-    if (isPlaying) {
+    const r = timelineTogglePlayState({
+      isPlaying,
+      playhead,
+      totalDuration,
+      entries
+    })
+    if (r.stop) {
       setIsPlaying(false)
       return
     }
-    const end = Math.max(totalDuration, 0.1)
-    if (playhead >= end - 0.05) {
-      setPlayhead(0)
-      const first = [...entries].sort((a, b) => a.startTime - b.startTime)[0]
-      if (first) setSelectedId(first.id)
-    } else {
-      // Ensure selection matches playhead so the correct media loads
-      const hit = entries.find(
-        (e) => playhead >= e.startTime && playhead < e.endTime
-      )
-      if (hit) setSelectedId(hit.id)
-      else if (entries.length > 0) {
-        const next = entries
-          .filter((e) => e.startTime >= playhead)
-          .sort((a, b) => a.startTime - b.startTime)[0]
-        if (next) {
-          setSelectedId(next.id)
-          setPlayhead(next.startTime)
-        }
-      }
-    }
-    setIsPlaying(true)
+    if (r.playhead != null) setPlayhead(r.playhead)
+    if (r.selectId !== undefined && r.selectId != null) setSelectedId(r.selectId)
+    if (r.start) setIsPlaying(true)
   }
 
-  const handleMediaClock = useCallback((globalTime: number): void => {
-    if (!isPlayingRef.current) return
-    setPlayhead(globalTime)
-  }, [])
+  const handleMediaClock = useCallback(
+    timelineMakeMediaClock(() => isPlayingRef.current, setPlayhead),
+    []
+  )
 
-  const handleClipEnded = useCallback((): void => {
-    if (!isPlayingRef.current) return
-    const cur = entriesRef.current.find((e) => e.id === selectedIdRef.current)
-    const from = cur ? cur.endTime : playhead
-    advanceToNextClip(from)
-  }, [advanceToNextClip, playhead])
+  const handleClipEnded = useCallback(
+    timelineMakeClipEnded({
+      isPlaying: () => isPlayingRef.current,
+      getEntries: () => entriesRef.current,
+      getSelected: () => selectedIdRef.current,
+      getPlayhead: () => playhead,
+      advance: advanceToNextClip
+    }),
+    [advanceToNextClip, playhead]
+  )
 
   /** Select a clip and keep playhead inside it so the preview shows that media. */
   const selectClip = (id: string | null): void => {
-    if (id == null) {
-      setSelectedId(null)
-      return
-    }
-    setSelectedId(id)
-    setIsPlaying(false)
-    const clip = entries.find((e) => e.id === id)
-    if (!clip) return
-    if (playhead < clip.startTime || playhead >= clip.endTime) {
-      setPlayhead(clip.startTime)
-    }
+    const r = timelineSelectClipState(id, entries, playhead)
+    setSelectedId(r.selectedId)
+    if (r.stopPlaying) setIsPlaying(false)
+    if (r.playhead != null) setPlayhead(r.playhead)
   }
 
   const handleImportClip = async (): Promise<void> => {
-    if (!activeStoryId || !selectedId) return
-    const result = await getApi().media.importClip(activeStoryId, selectedId)
-    if (result) {
-      await reload()
-      toast.success(t('timeline.importClip'))
-    }
+    await timelineImportClip({
+      storyId: activeStoryId,
+      selectedId,
+      importClip: (s, e) => getApi().media.importClip(s, e),
+      reload,
+      toastSuccess: () => toast.success(t('timeline.importClip'))
+    })
   }
 
-  const handleOpenClip = async (): Promise<void> => {
-    if (!selected?.mediaPath) return
-    await getApi().media.openClip(selected.mediaPath)
-  }
+  const handleOpenClip = timelineBindOpenClip({
+    getPath: () => selected?.mediaPath,
+    open: (p) => getApi().media.openClip(p)
+  })
 
   const storyPicker = (
     <Select
@@ -1255,7 +956,7 @@ export function TimelinePage(): JSX.Element {
       <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
         <PageHeader
           title={t('timeline.title')}
-          subtitle={t('timeline.subtitle')}
+          subtitle={timelineSubtitleOrFallback(Boolean(activeStory), activeStory?.title, t('timeline.subtitle'))}
           actions={storyPicker}
         />
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
@@ -1277,11 +978,10 @@ export function TimelinePage(): JSX.Element {
     <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
       <PageHeader
         title={t('timeline.title')}
-        subtitle={
-          activeStory
-            ? `${t('timeline.subtitle')} · ${activeStory.title}`
-            : t('timeline.subtitle')
-        }
+        subtitle={timelineHeaderSubtitle(
+          activeStory,
+          t('timeline.subtitle')
+        )}
         actions={timelineToolbar}
       />
 
@@ -1324,10 +1024,7 @@ export function TimelinePage(): JSX.Element {
               <div className="mb-1.5 flex justify-between text-[11px] text-ink-400">
                 <span>
                   {t('common.generating')}
-                  {currentStepLabel ? ` · ${currentStepLabel}` : ''}
-                  {stepTotal > 0
-                    ? ` (${Math.min(stepIndex, stepTotal)}/${stepTotal})`
-                    : ''}
+                  {timelineStepSuffix(currentStepLabel, stepIndex, stepTotal)}
                 </span>
                 <span>{progressPct}%</span>
               </div>
@@ -1351,12 +1048,13 @@ export function TimelinePage(): JSX.Element {
                 pxPerSec={pxPerSec}
                 onPxPerSecChange={setPxPerSec}
                 onPlayheadChange={(t) => {
-                  setIsPlaying(false)
-                  setPlayhead(t)
-                  const hit = entries.find(
-                    (e) => t >= e.startTime && t < e.endTime
-                  )
-                  if (hit && hit.id !== selectedId) setSelectedId(hit.id)
+                  timelineMakeScrub(
+                    entries,
+                    selectedId,
+                    setIsPlaying,
+                    setPlayhead,
+                    setSelectedId
+                  )(t)
                 }}
                 onSelect={selectClip}
                 onMove={(id, s, e) => void persistMove(id, s, e)}
@@ -1380,10 +1078,10 @@ export function TimelinePage(): JSX.Element {
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-6 py-3 lg:flex-row">
             {/* Preview fills remaining left space */}
             <div className="flex min-h-[200px] min-w-0 flex-1 flex-col lg:min-h-0">
-              {(error || actionError) && (
-                <p className="mb-2 shrink-0 rounded-xl border border-rose-900/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">
-                  {formatUserError(error?.message ?? actionError, t)}
-                </p>
+              {timelineErrorBannerElement(
+                error,
+                actionError,
+                (m) => formatUserError(m, t)
               )}
               <PreviewPlayer
                 className="min-h-0 flex-1"
@@ -1489,25 +1187,15 @@ export function TimelinePage(): JSX.Element {
                     <p className="mb-1 text-[10px] leading-relaxed text-ink-500">
                       {t('stories.beatScriptHint')}
                     </p>
-                    {(() => {
-                      const spoken = extractSpokenLines(
-                        parseBeatContent(dialogue, selected.beatContentJson)
-                      )
-                      return spoken ? (
-                        <p className="mb-1 text-[10px] text-ink-400">
-                          {t('stories.beatSpokenPreview', {
-                            text:
-                              spoken.length > 60
-                                ? `${spoken.slice(0, 60)}…`
-                                : spoken
-                          })}
-                        </p>
-                      ) : (
-                        <p className="mb-1 text-[10px] text-ink-500">
-                          {t('stories.beatNoSpoken')}
-                        </p>
-                      )
-                    })()}
+                    <p className="mb-1 text-[10px] text-ink-400">
+                      {timelineSpokenDisplay(
+                        extractSpokenLines(
+                          parseBeatContent(dialogue, selected.beatContentJson)
+                        ),
+                        (text) => t('stories.beatSpokenPreview', { text }),
+                        t('stories.beatNoSpoken')
+                      )}
+                    </p>
                     <Textarea
                       size="sm"
                       value={dialogue}
@@ -1542,12 +1230,11 @@ export function TimelinePage(): JSX.Element {
                         disabled={busy}
                         onClick={() => handleRunClip(selected.id)}
                       >
-                        {clipBusyId === selected.id
-                          ? t('common.generating')
-                          : clipGenerateLabel(
-                              selected.id,
-                              selected.mediaStatus
-                            )}
+                        {timelineGeneratingLabel(
+                          clipBusyId === selected.id,
+                          t('common.generating'),
+                          clipGenerateLabel(selected.id, selected.mediaStatus)
+                        )}
                       </Button>
                       <Button
                         variant="secondary"
@@ -1650,11 +1337,11 @@ export function TimelinePage(): JSX.Element {
                               <span
                                 className={[
                                   'rounded-full px-1.5 py-0.5 text-[9px]',
-                                  mediaBadge[
-                                    status in mediaBadge
-                                      ? status
-                                      : e.mediaStatus
-                                  ]
+                                  timelineMediaBadgeClass(
+                                    status,
+                                    mediaBadge,
+                                    e.mediaStatus
+                                  )
                                 ].join(' ')}
                               >
                                 {tMediaStatus(t, status)}
@@ -1668,21 +1355,20 @@ export function TimelinePage(): JSX.Element {
                                 variant="ghost"
                                 className="!shrink-0 !px-1.5 !py-0.5 text-[10px]"
                                 disabled={busy}
-                                onClick={(ev) => {
-                                  ev.stopPropagation()
-                                  void handleRunClip(e.id)
-                                }}
+                                onClick={timelineStopAndRun(e.id, handleRunClip)}
                               >
-                                {clipBusyId === e.id
-                                  ? t('common.generating')
-                                  : clipGenerateLabel(e.id, e.mediaStatus)}
+                                {timelineGeneratingLabel(
+                                  clipBusyId === e.id,
+                                  t('common.generating'),
+                                  clipGenerateLabel(e.id, e.mediaStatus)
+                                )}
                               </Button>
                             </div>
-                            {live && live !== e.mediaStatus && (
+                            {timelineLiveStatusSuffix(live, e.mediaStatus) ? (
                               <p className="mt-0.5 text-[10px] text-amber-200">
                                 → {tMediaStatus(t, live)}
                               </p>
-                            )}
+                            ) : null}
                           </li>
                         )
                       })}
@@ -1699,9 +1385,10 @@ export function TimelinePage(): JSX.Element {
         open={exportDialogOpen}
         initial={exportInitial}
         busy={exporting}
-        onCancel={() => {
-          if (!exporting) setExportDialogOpen(false)
-        }}
+        onCancel={timelineMakeMaybeClose(
+          () => exporting,
+          () => setExportDialogOpen(false)
+        )}
         onConfirm={(opts) => void handleExportFinal(opts)}
       />
 
@@ -1712,9 +1399,10 @@ export function TimelinePage(): JSX.Element {
           role="dialog"
           aria-modal="true"
           aria-label={t('timeline.exportHistory')}
-          onClick={() => {
-            if (!exportDeleteBusyId) setExportHistoryOpen(false)
-          }}
+          onClick={timelineMakeMaybeClose(
+            () => Boolean(exportDeleteBusyId),
+            () => setExportHistoryOpen(false)
+          )}
         >
           <div
             className="flex max-h-[min(85vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-ink-700 bg-ink-950 shadow-theme-md"
@@ -1774,9 +1462,11 @@ export function TimelinePage(): JSX.Element {
                                 : 'bg-brand-950/80 text-brand-100'
                             ].join(' ')}
                           >
-                            {item.kind === 'board'
-                              ? t('timeline.exportKindBoard')
-                              : t('timeline.exportKindFinal')}
+                            {timelineExportKindLabel(
+                              item.kind,
+                              t('timeline.exportKindBoard'),
+                              t('timeline.exportKindFinal')
+                            )}
                           </span>
                           {isLatest && (
                             <span className="rounded bg-emerald-950/60 px-1.5 py-0.5 text-[10px] text-emerald-200">
@@ -1789,9 +1479,7 @@ export function TimelinePage(): JSX.Element {
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-500">
                           {formatExportWhen(item.createdAt, i18n.language)}
-                          {item.sizeBytes != null
-                            ? ` · ${formatExportSize(item.sizeBytes)}`
-                            : ''}
+                          {timelineExportSizeSuffix(item.sizeBytes)}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           <Button
@@ -1807,7 +1495,9 @@ export function TimelinePage(): JSX.Element {
                             variant="ghost"
                             className="!px-2.5 !py-1 !text-[11px]"
                             onClick={() =>
-                              void getApi().shell.showItemInFolder(item.path)
+                              void timelineShowInFolder(item.path, (p) =>
+                                getApi().shell.showItemInFolder(p)
+                              )
                             }
                           >
                             {t('pipeline.openFolder')}
@@ -1841,19 +1531,19 @@ export function TimelinePage(): JSX.Element {
         </div>
       ) : null}
 
-      {activeStoryId ? (
+      {timelineMaybeAdvanced(activeStoryId, (id) => (
         <TimelineAdvancedStudio
-          storyId={activeStoryId}
+          storyId={id}
           open={advancedOpen}
           onClose={() => setAdvancedOpen(false)}
           onRefreshTimeline={() => void reload()}
           onStartVideoQueue={(entryIds, opts) => {
-            startClipPrepQueue(activeStoryId, entryIds, {
+            startClipPrepQueue(id, entryIds, {
               skipStillIfExists: opts?.skipStill !== false
             })
           }}
         />
-      ) : null}
+      ))}
     </div>
   )
 }
@@ -1867,6 +1557,25 @@ export function timelineJobMatchesStory(
   return (
     (j.status === 'running' || j.status === 'queued') &&
     j.scope.storyId === activeStoryId
+  )
+}
+
+export function timelineFindClipBusyId(
+  activeJobs: Array<{
+    kind: string
+    status: string
+    scope: { storyId?: string; entryId?: string }
+  }>,
+  activeStoryId: string | null
+): string | null {
+  return (
+    activeJobs.find(
+      (j) =>
+        (j.kind === 'clip' ||
+          j.kind === 'video-prep' ||
+          j.kind === 'video-confirm') &&
+        timelineJobMatchesStory(j, activeStoryId)
+    )?.scope.entryId ?? null
   )
 }
 
@@ -1931,7 +1640,6 @@ export function timelineApplyIpc(
   setError: (m: string) => void,
   toastError: (m: string) => void
 ): string {
-  // local parse to avoid circular issues in pure tests
   const msg =
     e instanceof Error
       ? e.message
@@ -2045,4 +1753,1529 @@ export function timelineExportSizeOrEmpty(
   n?: number | null
 ): string {
   return formatExportSize(n)
+}
+
+export function timelineLocaleString(d: number, lang?: string): string {
+  try {
+    return new Date(d).toLocaleString(lang || undefined)
+  } catch {
+    // Fallback when toLocaleString is unavailable / throws (rare runtime edge).
+    return new Date(d).toISOString()
+  }
+}
+
+export function timelineNeedsGapClock(
+  cur:
+    | {
+        mediaStatus: string
+        mediaPath?: string | null
+        startTime: number
+        endTime: number
+      }
+    | undefined
+    | null,
+  playhead: number
+): boolean {
+  return (
+    !cur ||
+    cur.mediaStatus !== 'READY' ||
+    !cur.mediaPath ||
+    playhead < cur.startTime ||
+    playhead >= cur.endTime
+  )
+}
+
+export function timelineAdvanceResult(
+  list: Array<{
+    id: string
+    startTime: number
+    endTime: number
+    mediaStatus: string
+    mediaPath?: string | null
+  }>,
+  fromTime: number,
+  totalDuration: number
+): {
+  ended: boolean
+  playhead: number
+  selectId?: string
+  skipFrom?: number
+} {
+  const candidate = timelinePickNextClip(list, fromTime)
+  if (!candidate) {
+    return {
+      ended: true,
+      playhead: Math.max(totalDuration, fromTime)
+    }
+  }
+  const skip = timelineClipNeedsSkip(candidate.mediaStatus, candidate.mediaPath)
+  return {
+    ended: false,
+    playhead: candidate.startTime,
+    selectId: candidate.id,
+    skipFrom: skip ? candidate.endTime : undefined
+  }
+}
+
+export function timelineBindingIds(selected: {
+  characterIds?: string[] | null
+  characterId?: string | null
+  sceneIds?: string[] | null
+  sceneId?: string | null
+  propIds?: string[] | null
+  propId?: string | null
+  actionIds?: string[] | null
+  actionId?: string | null
+}): {
+  charIds: string[]
+  sceneIds: string[]
+  propIds: string[]
+  actionIds: string[]
+} {
+  return {
+    charIds: timelineIdsOrFallback(selected.characterIds, selected.characterId),
+    sceneIds: timelineIdsOrFallback(selected.sceneIds, selected.sceneId),
+    propIds: timelineIdsOrFallback(selected.propIds, selected.propId),
+    actionIds: timelineIdsOrFallback(selected.actionIds, selected.actionId)
+  }
+}
+
+export function timelineBindingChips(
+  ids: {
+    charIds: string[]
+    sceneIds: string[]
+    propIds: string[]
+    actionIds: string[]
+  },
+  lookup: {
+    char: (id: string) => string | undefined
+    scene: (id: string) => string | undefined
+    prop: (id: string) => string | undefined
+    action: (id: string) => string | undefined
+  }
+): string[] {
+  const chips: string[] = []
+  for (const id of ids.charIds) {
+    const n = lookup.char(id)
+    if (n) chips.push(n)
+  }
+  for (const id of ids.sceneIds) {
+    const n = lookup.scene(id)
+    if (n) chips.push(n)
+  }
+  for (const id of ids.propIds) {
+    const n = lookup.prop(id)
+    if (n) chips.push(n)
+  }
+  for (const id of ids.actionIds) {
+    const n = lookup.action(id)
+    if (n) chips.push(n)
+  }
+  return chips
+}
+
+export function timelineLabelForEntry(
+  e: {
+    id: string
+    order: number
+    dialogue?: string | null
+    characterIds?: string[] | null
+    characterId?: string | null
+    sceneIds?: string[] | null
+    sceneId?: string | null
+    propIds?: string[] | null
+    propId?: string | null
+    actionIds?: string[] | null
+    actionId?: string | null
+  },
+  lookup: {
+    char: (id: string) => string | undefined
+    scene: (id: string) => string | undefined
+    prop: (id: string) => string | undefined
+    action: (id: string) => string | undefined
+  }
+): string {
+  const ids = timelineBindingIds(e)
+  const names = [
+    ...ids.charIds.map((id) => lookup.char(id)).filter(Boolean),
+    ...ids.sceneIds.map((id) => lookup.scene(id)).filter(Boolean),
+    ...ids.propIds.map((id) => lookup.prop(id)).filter(Boolean),
+    ...ids.actionIds.map((id) => lookup.action(id)).filter(Boolean)
+  ] as string[]
+  return (
+    (e.dialogue && e.dialogue.trim()) ||
+    timelineEntryLabel(names, e.order)
+  )
+}
+
+export async function timelineRefreshExports(ops: {
+  storyId: string | null
+  listExports?: (
+    storyId: string
+  ) => Promise<{ items?: unknown[]; latestPath?: string | null }>
+  setHistory: (items: never[]) => void
+  setLatest: (path: string | null) => void
+  onWarn?: (e: unknown) => void
+}): Promise<void> {
+  if (!ops.storyId) {
+    ops.setHistory([])
+    ops.setLatest(null)
+    return
+  }
+  if (typeof ops.listExports !== 'function') {
+    ops.setHistory([])
+    ops.setLatest(null)
+    return
+  }
+  try {
+    const r = await ops.listExports(ops.storyId)
+    ops.setHistory((Array.isArray(r.items) ? r.items : []) as never[])
+    ops.setLatest(r.latestPath ?? null)
+  } catch (e) {
+    ops.onWarn?.(e)
+    ops.setHistory([])
+  }
+}
+
+export async function timelinePersistSnap(ops: {
+  next: { snapEnabled?: boolean; snapGridSec?: number }
+  setEnabled: (v: boolean) => void
+  setGrid: (v: number) => void
+  setSettings: (patch: Record<string, unknown>) => Promise<unknown>
+}): Promise<void> {
+  if (ops.next.snapEnabled !== undefined) ops.setEnabled(ops.next.snapEnabled)
+  if (ops.next.snapGridSec !== undefined) ops.setGrid(ops.next.snapGridSec)
+  try {
+    await ops.setSettings({
+      ...(ops.next.snapEnabled !== undefined
+        ? { snapEnabled: ops.next.snapEnabled }
+        : {}),
+      ...(ops.next.snapGridSec !== undefined
+        ? { snapGridSec: ops.next.snapGridSec }
+        : {})
+    })
+  } catch {
+    /* non-fatal */
+  }
+}
+
+export async function timelineHandleKeyUndo(ops: {
+  shift: boolean
+  undo: () => Promise<boolean>
+  redo: () => Promise<boolean>
+  toastUndo: () => void
+  toastRedo: () => void
+  reload: () => Promise<void>
+}): Promise<void> {
+  if (ops.shift) {
+    if (await ops.redo()) {
+      ops.toastRedo()
+      await ops.reload()
+    }
+  } else if (await ops.undo()) {
+    ops.toastUndo()
+    await ops.reload()
+  }
+}
+
+export function timelineAutoSelectFirst(
+  entries: Array<{ id: string; startTime: number }>,
+  selectedId: string | null
+): { clear: boolean; selectId?: string; playhead?: number } {
+  if (entries.length === 0) {
+    return { clear: selectedId != null }
+  }
+  const stillThere =
+    selectedId != null && entries.some((e) => e.id === selectedId)
+  if (stillThere) return { clear: false }
+  const first = [...entries].sort((a, b) => a.startTime - b.startTime)[0]
+  if (!first) return { clear: false }
+  return { clear: false, selectId: first.id, playhead: first.startTime }
+}
+
+export async function timelineRunPackAbut(ops: {
+  entries: Array<{
+    id: string
+    startTime: number
+    endTime: number
+    order: number
+  }>
+  needMsg: string
+  alreadyMsg: string
+  doneMsg: string
+  toastInfo: (m: string) => void
+  toastSuccess: (m: string) => void
+  toastError: (m: string) => void
+  setBusy: (v: boolean) => void
+  setError: (m: string | null) => void
+  isPacked: (e: typeof ops.entries) => boolean
+  pack: (
+    e: typeof ops.entries
+  ) => Array<{ id: string; startTime: number; endTime: number; order: number }>
+  recordUpdate: (
+    id: string,
+    prev: { startTime: number; endTime: number; order: number },
+    next: { startTime: number; endTime: number; order: number }
+  ) => void
+  update: (
+    id: string,
+    patch: { startTime: number; endTime: number; order: number }
+  ) => Promise<unknown>
+  reload: () => Promise<void>
+  setPlayhead: (n: number) => void
+  setPlaying: (v: boolean) => void
+}): Promise<'need' | 'already' | 'ok' | 'error'> {
+  if (ops.entries.length < 2) {
+    ops.toastInfo(ops.needMsg)
+    return 'need'
+  }
+  if (ops.isPacked(ops.entries)) {
+    ops.toastInfo(ops.alreadyMsg)
+    return 'already'
+  }
+  const plan = ops.pack(ops.entries)
+  ops.setBusy(true)
+  ops.setError(null)
+  try {
+    const byId = new Map(ops.entries.map((e) => [e.id, e]))
+    for (const slot of plan) {
+      const prev = byId.get(slot.id)
+      if (!prev) continue
+      const changed =
+        prev.startTime !== slot.startTime ||
+        prev.endTime !== slot.endTime ||
+        prev.order !== slot.order
+      if (!changed) continue
+      ops.recordUpdate(
+        slot.id,
+        {
+          startTime: prev.startTime,
+          endTime: prev.endTime,
+          order: prev.order
+        },
+        {
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          order: slot.order
+        }
+      )
+      await ops.update(slot.id, {
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        order: slot.order
+      })
+    }
+    await ops.reload()
+    ops.setPlayhead(0)
+    ops.setPlaying(false)
+    ops.toastSuccess(ops.doneMsg)
+    return 'ok'
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    ops.setError(msg)
+    ops.toastError(msg)
+    return 'error'
+  } finally {
+    ops.setBusy(false)
+  }
+}
+
+export async function timelineRunUndoRedo(ops: {
+  mode: 'undo' | 'redo'
+  undo: () => Promise<boolean>
+  redo: () => Promise<boolean>
+  toast: () => void
+  reload: () => Promise<void>
+}): Promise<boolean> {
+  const ok = ops.mode === 'undo' ? await ops.undo() : await ops.redo()
+  if (ok) {
+    ops.toast()
+    await ops.reload()
+  }
+  return ok
+}
+
+export async function timelineRunSaveDialogue(ops: {
+  selectedId: string | null
+  dialogue: string
+  locale: string
+  commit: (
+    dialogue: string,
+    locale: string
+  ) => { dialogue: string | null; beatContentJson: string | null }
+  update: (
+    id: string,
+    patch: { dialogue: string | null; beatContentJson: string | null }
+  ) => Promise<unknown>
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): Promise<'no-sel' | 'ok' | 'error'> {
+  if (!ops.selectedId) return 'no-sel'
+  try {
+    const committed = ops.commit(ops.dialogue, ops.locale)
+    await ops.update(ops.selectedId, {
+      dialogue: committed.dialogue ?? (ops.dialogue.trim() || null),
+      beatContentJson: committed.beatContentJson
+    })
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    ops.toastError(e instanceof Error ? e.message : String(e))
+    return 'error'
+  }
+}
+
+export async function timelineRunClipDuration(ops: {
+  selected: { id: string; startTime: number; endTime: number } | null
+  seconds: number
+  snapCurrent: (start: number, end: number) => number
+  snapRange: (
+    start: number,
+    end: number
+  ) => { startTime: number; endTime: number }
+  update: (
+    id: string,
+    patch: { startTime: number; endTime: number }
+  ) => Promise<boolean>
+  setPlayhead: (fn: (ph: number) => number) => void
+  setClipSeconds: (n: number) => void
+  toastSuccess: (n: number) => void
+  toastError: (m: string) => void
+}): Promise<'no-sel' | 'same' | 'ok' | 'error'> {
+  if (!ops.selected) return 'no-sel'
+  const cur = ops.snapCurrent(
+    ops.selected.startTime,
+    ops.selected.endTime
+  )
+  if (cur === ops.seconds) return 'same'
+  const range = ops.snapRange(
+    ops.selected.startTime,
+    ops.selected.startTime + ops.seconds
+  )
+  try {
+    const ok = await ops.update(ops.selected.id, {
+      startTime: range.startTime,
+      endTime: range.endTime
+    })
+    if (ok) {
+      ops.setPlayhead((ph) => {
+        if (ph < range.startTime) return range.startTime
+        if (ph >= range.endTime)
+          return Math.max(range.startTime, range.endTime - 0.05)
+        return ph
+      })
+      ops.setClipSeconds(ops.seconds)
+      ops.toastSuccess(ops.seconds)
+      return 'ok'
+    }
+    return 'error'
+  } catch (e) {
+    ops.toastError(e instanceof Error ? e.message : String(e))
+    return 'error'
+  }
+}
+
+export async function timelineRunDeleteClip(ops: {
+  selected: { id: string } | null
+  confirm: () => Promise<boolean>
+  remove: (id: string) => Promise<unknown>
+  clearSelected: () => void
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): Promise<'no-sel' | 'cancel' | 'ok' | 'error'> {
+  if (!ops.selected) return 'no-sel'
+  if (!(await ops.confirm())) return 'cancel'
+  try {
+    await ops.remove(ops.selected.id)
+    ops.clearSelected()
+    ops.toastSuccess()
+    return 'ok'
+  } catch (e) {
+    ops.toastError(e instanceof Error ? e.message : String(e))
+    return 'error'
+  }
+}
+
+export function timelineStartClipPrep(ops: {
+  entryIds: string[]
+  noFailedMsg: string
+  toastInfo: (m: string) => void
+  getEntry: (id: string) =>
+    | { startTime: number; endTime: number }
+    | undefined
+  revisionOf: (id: string) => string
+  defaultSeconds: number
+  snapSeconds: (n: number) => number
+  setSelected: (id: string) => void
+  setStepLabel: (s: string) => void
+  multiLabel: (current: number, total: number) => string
+  singleLabel: string
+  start: (args: {
+    entryId: string
+    durationSeconds: number
+    revisionPrompt: string
+    queueIndex: number
+    queueTotal: number
+    queueRemaining: string[]
+    skipStillIfExists?: boolean
+  }) => void
+  skipStillIfExists?: boolean
+}): boolean {
+  const ids = ops.entryIds.filter(Boolean)
+  if (timelineNoFailedClips(ids.length, ops.toastInfo, ops.noFailedMsg)) {
+    return false
+  }
+  const [first, ...rest] = ids
+  const entry = ops.getEntry(first)
+  const revisionPrompt = ops.revisionOf(first)?.trim() || ''
+  const durationSeconds = ops.snapSeconds(
+    entry ? entry.endTime - entry.startTime : ops.defaultSeconds
+  )
+  ops.setSelected(first)
+  ops.setStepLabel(
+    ids.length > 1
+      ? ops.multiLabel(1, ids.length)
+      : ops.singleLabel
+  )
+  ops.start({
+    entryId: first,
+    durationSeconds,
+    revisionPrompt,
+    queueIndex: 1,
+    queueTotal: ids.length,
+    queueRemaining: rest,
+    skipStillIfExists: ops.skipStillIfExists
+  })
+  return true
+}
+
+export function timelineFailedOrEmptyIds(
+  entries: Array<{ id: string; order: number; mediaStatus: string }>
+): string[] {
+  return [...entries]
+    .filter(
+      (e) => e.mediaStatus === 'FAILED' || e.mediaStatus === 'EMPTY'
+    )
+    .sort((a, b) => a.order - b.order)
+    .map((e) => e.id)
+}
+
+export async function timelineConfirmGenerate(ops: {
+  onlyFailed: boolean
+  busy: boolean
+  hasStory: boolean
+  entries: Array<{ id: string; order: number; mediaStatus: string }>
+  missingRefs: Array<{ name: string }>
+  videoMode: string
+  noFailedMsg: string
+  noEntriesMsg: string
+  modeHint: string
+  missingRefMsg: (names: string) => string
+  toastInfo: (m: string) => void
+  confirm: (message: string) => Promise<boolean>
+  okLabel: string
+}): Promise<'blocked' | 'empty' | 'cancel' | 'ok' | 'retry'> {
+  if (!ops.hasStory || ops.busy) return 'blocked'
+  if (ops.onlyFailed) {
+    const need = timelineFailedOrEmptyIds(ops.entries)
+    if (timelineNoFailedClips(need.length, ops.toastInfo, ops.noFailedMsg)) {
+      return 'empty'
+    }
+  } else if (ops.entries.length === 0) {
+    ops.toastInfo(ops.noEntriesMsg)
+    return 'empty'
+  }
+  if (!(await ops.confirm(ops.modeHint))) return 'cancel'
+  if (ops.videoMode !== 'stub' && ops.missingRefs.length > 0) {
+    const ok = await ops.confirm(
+      ops.missingRefMsg(ops.missingRefs.map((c) => c.name).join(', '))
+    )
+    if (!ok) return 'cancel'
+  }
+  return ops.onlyFailed ? 'retry' : 'ok'
+}
+
+export function timelinePipelineSummary(
+  steps: Array<{
+    step: string
+    success: boolean
+    degraded?: boolean
+    error?: string
+  }>,
+  stepLabel: (step: string) => string,
+  degradedWord: string
+): { summary: string; anyDegraded: boolean } {
+  const summary = steps
+    .map((s) => {
+      const human = stepLabel(s.step)
+      return s.success
+        ? `✓ ${human}${s.degraded ? ` (${degradedWord})` : ''}`
+        : `✗ ${human}: ${s.error ?? 'failed'}`
+    })
+    .join('\n')
+  return {
+    summary,
+    anyDegraded: steps.some((s) => s.degraded)
+  }
+}
+
+export async function timelineCollectEntryIds(ops: {
+  list: () => Promise<Array<{ id: string; order: number }>>
+  fallback: Array<{ id: string; order: number }>
+}): Promise<string[]> {
+  try {
+    const list = await ops.list()
+    return [...list].sort((a, b) => a.order - b.order).map((e) => e.id)
+  } catch {
+    return [...ops.fallback].sort((a, b) => a.order - b.order).map((e) => e.id)
+  }
+}
+
+export async function timelineRunCancelJobs(ops: {
+  clearSession: () => void
+  jobs: Array<{ id: string; kind: string; scope: { storyId?: string } }>
+  storyId: string | null
+  cancel: (id: string) => Promise<unknown>
+  toastInfo: () => void
+}): Promise<void> {
+  ops.clearSession()
+  const running = ops.jobs.filter(
+    (j) =>
+      j.scope.storyId === ops.storyId &&
+      (j.kind === 'pipeline' ||
+        j.kind === 'clip' ||
+        j.kind === 'video-prep' ||
+        j.kind === 'video-confirm')
+  )
+  for (const j of running) {
+    await ops.cancel(j.id)
+  }
+  ops.toastInfo()
+}
+
+export function timelineExportFfmpegMsg(
+  pre: { ffmpegMessage?: string | null },
+  needFfmpeg: string
+): string {
+  if (pre.ffmpegMessage && !/ffmpeg OK/i.test(pre.ffmpegMessage)) {
+    return `${needFfmpeg}${
+      pre.ffmpegMessage ? `（${pre.ffmpegMessage}）` : ''
+    }`
+  }
+  return needFfmpeg
+}
+
+export function timelineExportCatchMsg(
+  e: unknown,
+  needFfmpeg: string
+): string {
+  const err =
+    e && typeof e === 'object'
+      ? (e as { code?: string; message?: string; details?: string })
+      : { message: String(e) }
+  const message = err.message != null ? String(err.message) : String(e)
+  if (err.code === 'FFMPEG_UNAVAILABLE' || /ffmpeg/i.test(message)) {
+    return needFfmpeg
+  }
+  return `${message}${err.details ? ` — ${err.details}` : ''}`
+}
+
+export async function timelineRunExportFinal(ops: {
+  storyId: string | null
+  opts: ExportFinalOptions
+  setExporting: (v: boolean) => void
+  setError: (m: string | null) => void
+  preflight: (id: string) => Promise<{
+    canExport: boolean
+    ffmpegMessage?: string | null
+    willUseFallback?: boolean
+    warnings: string[]
+  }>
+  needFfmpeg: string
+  fallbackConfirm: string
+  confirm: (message: string) => Promise<boolean>
+  exportFinal: (
+    id: string,
+    opts: ExportFinalOptions
+  ) => Promise<{ outputPath: string }>
+  setLastPath: (p: string) => void
+  setInitial: (o: ExportFinalOptions) => void
+  closeDialog: () => void
+  openHistory: () => void
+  refreshHistory: () => Promise<void>
+  toastSuccess: (path: string) => void
+  toastError: (m: string) => void
+  openFolder?: (path: string) => void
+}): Promise<'no-story' | 'blocked' | 'cancel' | 'ok' | 'error'> {
+  if (!ops.storyId) return 'no-story'
+  const opts = defaultExportFinalOptions(ops.opts)
+  ops.setExporting(true)
+  ops.setError(null)
+  try {
+    const pre = await ops.preflight(ops.storyId)
+    if (!pre.canExport) {
+      const msg = timelineExportFfmpegMsg(pre, ops.needFfmpeg)
+      ops.setError(msg)
+      ops.toastError(msg)
+      return 'blocked'
+    }
+    if (pre.willUseFallback) {
+      const ok = await ops.confirm(
+        `${pre.warnings.join('\n')}\n\n${ops.fallbackConfirm}`
+      )
+      if (!ok) return 'cancel'
+    }
+    const { outputPath } = await ops.exportFinal(ops.storyId, opts)
+    ops.setLastPath(outputPath)
+    ops.setInitial(opts)
+    ops.closeDialog()
+    ops.openHistory()
+    await ops.refreshHistory()
+    ops.toastSuccess(outputPath)
+    if (opts.openExportFolder) {
+      ops.openFolder?.(outputPath)
+    }
+    return 'ok'
+  } catch (e) {
+    const msg = timelineExportCatchMsg(e, ops.needFfmpeg)
+    ops.setError(msg)
+    ops.toastError(msg)
+    return 'error'
+  } finally {
+    ops.setExporting(false)
+  }
+}
+
+export async function timelineRunClip(ops: {
+  storyId: string | null
+  busy: boolean
+  videoMode: string
+  missingRefs: Array<{ name: string }>
+  missingRefMsg: (names: string) => string
+  confirm: (message: string) => Promise<boolean>
+  setError: (m: string | null) => void
+  draftKey: string
+  hasDraft: boolean
+  continueDraft: () => void
+  startQueue: (storyId: string, ids: string[]) => void
+  entryId: string
+}): Promise<'blocked' | 'cancel' | 'draft' | 'started'> {
+  if (!ops.storyId || ops.busy) return 'blocked'
+  if (ops.videoMode !== 'stub' && ops.missingRefs.length > 0) {
+    const ok = await ops.confirm(
+      ops.missingRefMsg(ops.missingRefs.map((c) => c.name).join(', '))
+    )
+    if (!ok) return 'cancel'
+  }
+  ops.setError(null)
+  if (timelineContinueClipDraft(ops.hasDraft, ops.continueDraft)) {
+    return 'draft'
+  }
+  ops.startQueue(ops.storyId, [ops.entryId])
+  return 'started'
+}
+
+export function timelineOnVideoPrepDone(
+  d: {
+    kind?: string
+    entityIds?: { storyId?: string; entryId?: string }
+    path?: string
+  } | null
+    | undefined,
+  activeStoryId: string | null,
+  reload: () => void,
+  setLive: (entryId: string) => void,
+  setSelected: (id: string) => void
+): boolean {
+  if (d?.kind !== 'timeline-clip') return false
+  if (!activeStoryId || d.entityIds?.storyId !== activeStoryId) return false
+  void reload()
+  if (d.entityIds?.entryId) {
+    setLive(d.entityIds.entryId)
+    setSelected(d.entityIds.entryId)
+  }
+  return true
+}
+
+export function timelineTogglePlayState(ops: {
+  isPlaying: boolean
+  playhead: number
+  totalDuration: number
+  entries: Array<{ id: string; startTime: number; endTime: number }>
+}): {
+  stop?: boolean
+  playhead?: number
+  selectId?: string | null
+  start: boolean
+} {
+  if (ops.isPlaying) {
+    return { stop: true, start: false }
+  }
+  const end = Math.max(ops.totalDuration, 0.1)
+  if (ops.playhead >= end - 0.05) {
+    const first = [...ops.entries].sort((a, b) => a.startTime - b.startTime)[0]
+    return {
+      playhead: 0,
+      selectId: first?.id ?? null,
+      start: true
+    }
+  }
+  const hit = ops.entries.find(
+    (e) => ops.playhead >= e.startTime && ops.playhead < e.endTime
+  )
+  if (hit) {
+    return { selectId: hit.id, start: true }
+  }
+  if (ops.entries.length > 0) {
+    const next = ops.entries
+      .filter((e) => e.startTime >= ops.playhead)
+      .sort((a, b) => a.startTime - b.startTime)[0]
+    if (next) {
+      return { selectId: next.id, playhead: next.startTime, start: true }
+    }
+  }
+  return { start: true }
+}
+
+export function timelineSelectClipState(
+  id: string | null,
+  entries: Array<{ id: string; startTime: number; endTime: number }>,
+  playhead: number
+): {
+  selectedId: string | null
+  playhead?: number
+  stopPlaying: boolean
+} {
+  if (id == null) {
+    return { selectedId: null, stopPlaying: false }
+  }
+  const clip = entries.find((e) => e.id === id)
+  if (!clip) {
+    return { selectedId: id, stopPlaying: true }
+  }
+  if (playhead < clip.startTime || playhead >= clip.endTime) {
+    return {
+      selectedId: id,
+      playhead: clip.startTime,
+      stopPlaying: true
+    }
+  }
+  return { selectedId: id, stopPlaying: true }
+}
+
+export async function timelineAddAsset(ops: {
+  storyId: string | null
+  clipSeconds: number
+  atTime: number | undefined
+  entriesLen: number
+  suggestSlot: (
+    entries: unknown[],
+    duration: number
+  ) => { startTime: number; order: number }
+  entries: unknown[]
+  clamp: (
+    start: number,
+    end: number,
+    max: number
+  ) => { startTime: number; endTime: number }
+  payload: AssetDropPayload
+  create: (input: {
+    startTime: number
+    endTime: number
+    order: number
+    characterId: string | null
+    sceneId: string | null
+    propId: string | null
+    actionId: string | null
+    dialogue: null
+  }) => Promise<unknown>
+  refreshStories: () => Promise<void>
+  toastSuccess: () => void
+}): Promise<boolean> {
+  if (!ops.storyId) return false
+  const duration = ops.clipSeconds
+  let startTime: number
+  let order: number
+  if (ops.atTime !== undefined) {
+    startTime = Math.max(0, ops.atTime)
+    order = ops.entriesLen
+  } else {
+    const slot = ops.suggestSlot(ops.entries, duration)
+    startTime = slot.startTime
+    order = slot.order
+  }
+  const range = ops.clamp(startTime, startTime + duration, 10)
+  await ops.create({
+    startTime: range.startTime,
+    endTime: range.endTime,
+    order,
+    characterId: ops.payload.kind === 'character' ? ops.payload.id : null,
+    sceneId: ops.payload.kind === 'scene' ? ops.payload.id : null,
+    propId: ops.payload.kind === 'prop' ? ops.payload.id : null,
+    actionId: ops.payload.kind === 'action' ? ops.payload.id : null,
+    dialogue: null
+  })
+  await ops.refreshStories()
+  ops.toastSuccess()
+  return true
+}
+
+export async function timelinePersistMove(ops: {
+  id: string
+  startTime: number
+  endTime: number
+  prev: { startTime: number; endTime: number } | undefined
+  record: (
+    id: string,
+    prev: { startTime: number; endTime: number },
+    next: { startTime: number; endTime: number }
+  ) => void
+  update: (
+    id: string,
+    patch: { startTime: number; endTime: number }
+  ) => Promise<unknown>
+}): Promise<void> {
+  if (ops.prev) {
+    ops.record(
+      ops.id,
+      { startTime: ops.prev.startTime, endTime: ops.prev.endTime },
+      { startTime: ops.startTime, endTime: ops.endTime }
+    )
+  }
+  await ops.update(ops.id, {
+    startTime: ops.startTime,
+    endTime: ops.endTime
+  })
+}
+
+export function timelineMediaBadgeClass(
+  status: string,
+  badge: Record<string, string>,
+  fallbackStatus: string
+): string {
+  return badge[status in badge ? status : fallbackStatus] ?? badge[fallbackStatus] ?? ''
+}
+
+export function timelineExportKindLabel(
+  kind: string,
+  board: string,
+  final: string
+): string {
+  return kind === 'board' ? board : final
+}
+
+export function timelineExportSizeSuffix(
+  sizeBytes: number | null | undefined
+): string {
+  return sizeBytes != null ? ` · ${formatExportSize(sizeBytes)}` : ''
+}
+
+export function timelineProgressStepLabel(
+  step: string,
+  stepMap: Record<string, string>,
+  t: (k: string) => string
+): string {
+  const stepKey = stepMap[step]
+  return stepKey ? t(stepKey) : step
+}
+
+export function timelineShouldReloadOnProgress(
+  entryId: string | undefined,
+  mediaStatus: string | undefined
+): boolean {
+  return Boolean(
+    entryId && (mediaStatus === 'READY' || mediaStatus === 'FAILED')
+  )
+}
+
+export async function timelineLoadCast(ops: {
+  storyId: string | null
+  clear: () => void
+  load: () => Promise<[unknown[], unknown[], unknown[], unknown[]]>
+  setAll: (
+    chars: unknown[],
+    scns: unknown[],
+    prps: unknown[],
+    acts: unknown[]
+  ) => void
+  toastError: (m: string) => void
+}): Promise<void> {
+  if (!ops.storyId) {
+    ops.clear()
+    return
+  }
+  try {
+    const [chars, scns, prps, acts] = await ops.load()
+    ops.setAll(chars, scns, prps, acts)
+  } catch (e) {
+    ops.toastError(e instanceof Error ? e.message : String(e))
+  }
+}
+
+export function timelineApplySettingsSnap(
+  s: {
+    videoMode?: string
+    snapEnabled?: boolean
+    snapGridSec?: number
+    exportProfile?: string
+    burnSubtitles?: boolean
+    includeSilentAudio?: boolean
+    openExportFolder?: boolean
+    bgmVolume?: number
+    dialogueVolume?: number
+  },
+  setVideoMode: (m: string) => void,
+  setSnapEnabled: (v: boolean) => void,
+  setSnapGridSec: (v: number) => void,
+  setExportInitial: (o: Partial<ExportFinalOptions>) => void
+): void {
+  if (s.videoMode) setVideoMode(s.videoMode)
+  setSnapEnabled(s.snapEnabled !== false)
+  setSnapGridSec(
+    typeof s.snapGridSec === 'number' && s.snapGridSec > 0
+      ? s.snapGridSec
+      : 0.5
+  )
+  setExportInitial({
+    exportProfile: s.exportProfile,
+    burnSubtitles: s.burnSubtitles,
+    includeSilentAudio: s.includeSilentAudio,
+    openExportFolder: s.openExportFolder,
+    bgmVolume: s.bgmVolume,
+    dialogueVolume: s.dialogueVolume
+  })
+}
+
+export async function timelineImportClip(ops: {
+  storyId: string | null
+  selectedId: string | null
+  importClip: (
+    storyId: string,
+    entryId: string
+  ) => Promise<unknown>
+  reload: () => Promise<void>
+  toastSuccess: () => void
+}): Promise<boolean> {
+  if (!ops.storyId || !ops.selectedId) return false
+  const result = await ops.importClip(ops.storyId, ops.selectedId)
+  if (result) {
+    await ops.reload()
+    ops.toastSuccess()
+    return true
+  }
+  return false
+}
+
+export async function timelineOpenClip(ops: {
+  mediaPath: string | null | undefined
+  open: (path: string) => Promise<unknown>
+}): Promise<boolean> {
+  if (!ops.mediaPath) return false
+  await ops.open(ops.mediaPath)
+  return true
+}
+
+
+export function timelineBindUndoRedo(ops: {
+  mode: 'undo' | 'redo'
+  undo: () => Promise<boolean>
+  redo: () => Promise<boolean>
+  toast: () => void
+  reload: () => Promise<void>
+}): () => Promise<void> {
+  return async () => {
+    await timelineRunUndoRedo(ops)
+  }
+}
+
+export function timelineBindNavigate(
+  navigate: (path: string) => void,
+  path: string
+): () => void {
+  return () => navigate(path)
+}
+
+export function timelineBindExportFinal(ops: {
+  getStoryId: () => string | null
+  setExporting: (v: boolean) => void
+  setError: (m: string | null) => void
+  preflight: (id: string) => Promise<{
+    canExport: boolean
+    ffmpegMessage?: string | null
+    willUseFallback?: boolean
+    warnings: string[]
+  }>
+  needFfmpeg: string
+  fallbackConfirm: string
+  confirm: (message: string) => Promise<boolean>
+  exportFinal: (
+    id: string,
+    opts: ExportFinalOptions
+  ) => Promise<{ outputPath: string }>
+  setLastPath: (p: string) => void
+  setInitial: (o: ExportFinalOptions) => void
+  closeDialog: () => void
+  openHistory: () => void
+  refreshHistory: () => Promise<void>
+  toastSuccess: (path: string) => void
+  toastError: (m: string) => void
+  openFolder?: (path: string) => void
+}): (rawOpts: ExportFinalOptions) => Promise<void> {
+  return async (rawOpts) => {
+    await timelineRunExportFinal({
+      storyId: ops.getStoryId(),
+      opts: rawOpts,
+      setExporting: ops.setExporting,
+      setError: ops.setError,
+      preflight: ops.preflight,
+      needFfmpeg: ops.needFfmpeg,
+      fallbackConfirm: ops.fallbackConfirm,
+      confirm: ops.confirm,
+      exportFinal: ops.exportFinal,
+      setLastPath: ops.setLastPath,
+      setInitial: ops.setInitial,
+      closeDialog: ops.closeDialog,
+      openHistory: ops.openHistory,
+      refreshHistory: ops.refreshHistory,
+      toastSuccess: ops.toastSuccess,
+      toastError: ops.toastError,
+      openFolder: ops.openFolder
+    })
+  }
+}
+
+export function timelineBindDeleteExport(ops: {
+  getStoryId: () => string | null
+  confirm: () => Promise<boolean>
+  setBusy: (id: string | null) => void
+  deleteExport: (
+    storyId: string,
+    exportId: string
+  ) => Promise<{ items: unknown[]; latestPath: string | null }>
+  setHistory: (items: never[]) => void
+  setLatest: (path: string | null) => void
+  toastSuccess: () => void
+  toastError: (m: string) => void
+}): (exportId: string) => Promise<void> {
+  return async (exportId) => {
+    const storyId = ops.getStoryId()
+    if (!storyId) return
+    if (!(await ops.confirm())) return
+    await timelineRunDeleteExport({
+      exportId,
+      storyId,
+      setBusy: ops.setBusy,
+      deleteExport: ops.deleteExport,
+      setHistory: ops.setHistory,
+      setLatest: ops.setLatest,
+      toastSuccess: ops.toastSuccess,
+      toastError: ops.toastError
+    })
+  }
+}
+
+export function timelineBindOpenClip(ops: {
+  getPath: () => string | null | undefined
+  open: (path: string) => Promise<unknown>
+}): () => Promise<void> {
+  return async () => {
+    await timelineOpenClip({ mediaPath: ops.getPath(), open: ops.open })
+  }
+}
+
+export function timelineMediaClockTick(
+  playing: boolean,
+  globalTime: number,
+  setPlayhead: (n: number) => void
+): void {
+  if (!playing) return
+  setPlayhead(globalTime)
+}
+
+export function timelineClipEndedTick(
+  playing: boolean,
+  entries: Array<{ id: string; endTime: number }>,
+  selectedId: string | null,
+  playhead: number,
+  advance: (from: number) => void
+): void {
+  if (!playing) return
+  const cur = entries.find((e) => e.id === selectedId)
+  const from = cur ? cur.endTime : playhead
+  advance(from)
+}
+
+export function timelineOnPipelineDone(
+  reload: () => void | Promise<void>,
+  refreshStories: () => void | Promise<void>,
+  refreshAiStatus: () => void | Promise<void>,
+  loadCast: () => void | Promise<void>
+): void {
+  void reload()
+  void refreshStories()
+  void refreshAiStatus()
+  void loadCast()
+}
+
+export function timelineMaybeCloseExport(
+  busy: boolean,
+  close: () => void
+): void {
+  if (!busy) close()
+}
+
+export function timelineScrubTo(
+  t: number,
+  entries: Array<{ id: string; startTime: number; endTime: number }>,
+  selectedId: string | null,
+  setPlaying: (v: boolean) => void,
+  setPlayhead: (n: number) => void,
+  setSelected: (id: string) => void
+): void {
+  setPlaying(false)
+  setPlayhead(t)
+  const hit = entries.find((e) => t >= e.startTime && t < e.endTime)
+  if (hit && hit.id !== selectedId) setSelected(hit.id)
+}
+
+export async function timelineShowInFolder(
+  path: string,
+  show: (p: string) => Promise<unknown>
+): Promise<void> {
+  await show(path)
+}
+
+export function timelineStopAndRun(
+  id: string,
+  run: (id: string) => void | Promise<void>
+): (ev: { stopPropagation: () => void }) => void {
+  return (ev) => {
+    ev.stopPropagation()
+    void run(id)
+  }
+}
+
+export function timelineDoAdvance(ops: {
+  list: Array<{
+    id: string
+    startTime: number
+    endTime: number
+    mediaStatus: string
+    mediaPath?: string | null
+  }>
+  fromTime: number
+  totalDuration: number
+  isPlaying: () => boolean
+  setPlaying: (v: boolean) => void
+  setPlayhead: (n: number) => void
+  setSelected: (id: string) => void
+  scheduleSkip: (from: number, again: (from: number) => void) => void
+  again: (from: number) => void
+}): boolean {
+  const r = timelineAdvanceResult(ops.list, ops.fromTime, ops.totalDuration)
+  if (r.ended) {
+    ops.setPlaying(false)
+    ops.setPlayhead(r.playhead)
+    return false
+  }
+  if (r.selectId) ops.setSelected(r.selectId)
+  ops.setPlayhead(r.playhead)
+  if (r.skipFrom != null) {
+    ops.scheduleSkip(r.skipFrom, ops.again)
+  }
+  return true
+}
+
+export function timelineSubtitleOrFallback(
+  hasStory: boolean,
+  storyTitle: string | undefined,
+  fallback: string
+): string {
+  return hasStory && storyTitle ? storyTitle : fallback
+}
+
+export function timelineLiveStatusSuffix(
+  live: string | undefined,
+  status: string
+): string {
+  return live && live !== status ? live : ''
+}
+
+
+export function timelineScheduleSkip(
+  from: number,
+  again: (from: number) => void,
+  isPlaying: () => boolean,
+  delayMs = 50
+): void {
+  window.setTimeout(() => {
+    if (!isPlaying()) return
+    again(from)
+  }, delayMs)
+}
+
+export function timelineApplyRafResult(
+  r: { stop: boolean; value: number; selectId?: string },
+  setPlaying: (v: boolean) => void,
+  setSelected: (id: string) => void
+): number {
+  if (r.stop) {
+    setPlaying(false)
+    return r.value
+  }
+  if (r.selectId) setSelected(r.selectId)
+  return r.value
+}
+
+export function timelineDialogOk(
+  confirm: (opts: { message: string; confirmLabel: string }) => Promise<boolean>,
+  message: string,
+  okLabel: string
+): Promise<boolean> {
+  return confirm({ message, confirmLabel: okLabel })
+}
+
+export function timelineDialogDanger(
+  confirm: (opts: {
+    message: string
+    confirmLabel: string
+    variant: 'danger'
+  }) => Promise<boolean>,
+  message: string,
+  deleteLabel: string
+): Promise<boolean> {
+  return confirm({
+    message,
+    confirmLabel: deleteLabel,
+    variant: 'danger'
+  })
+}
+
+export function timelineSuggestSlot(
+  entries: unknown[],
+  duration: number,
+  suggest: (
+    entries: unknown[],
+    duration: number
+  ) => { startTime: number; order: number }
+): { startTime: number; order: number } {
+  return suggest(entries, duration)
+}
+
+export function timelineErrorBannerText(
+  errorMessage: string | undefined,
+  actionError: string | null
+): string | null {
+  return errorMessage ?? actionError
+}
+
+export function timelineSpokenBlock(
+  spoken: string | null | undefined
+): { kind: 'spoken'; text: string } | { kind: 'none' } {
+  if (spoken) return { kind: 'spoken', text: timelineSpokenPreview(spoken) }
+  return { kind: 'none' }
+}
+
+export function timelineShowAdvanced(
+  activeStoryId: string | null
+): boolean {
+  return Boolean(activeStoryId)
+}
+
+
+export function timelineMakeAdvance(ops: {
+  getList: () => Array<{
+    id: string
+    startTime: number
+    endTime: number
+    mediaStatus: string
+    mediaPath?: string | null
+  }>
+  getTotal: () => number
+  isPlaying: () => boolean
+  setPlaying: (v: boolean) => void
+  setPlayhead: (n: number) => void
+  setSelected: (id: string) => void
+}): (fromTime: number) => boolean {
+  const advance = (fromTime: number): boolean =>
+    timelineDoAdvance({
+      list: ops.getList(),
+      fromTime,
+      totalDuration: ops.getTotal(),
+      isPlaying: ops.isPlaying,
+      setPlaying: ops.setPlaying,
+      setPlayhead: ops.setPlayhead,
+      setSelected: ops.setSelected,
+      scheduleSkip: (from, again) =>
+        timelineScheduleSkip(from, again, ops.isPlaying),
+      again: (from) => advance(from)
+    })
+  return advance
+}
+
+export function timelineMakePipelineDone(
+  reload: () => void | Promise<void>,
+  refreshStories: () => void | Promise<void>,
+  refreshAiStatus: () => void | Promise<void>,
+  loadCast: () => void | Promise<void>
+): () => void {
+  return () =>
+    timelineOnPipelineDone(reload, refreshStories, refreshAiStatus, loadCast)
+}
+
+export function timelineMakeSuggestSlot(): (
+  entries: unknown[],
+  duration: number
+) => { startTime: number; order: number } {
+  return (e, d) =>
+    timelineSuggestSlot(e, d, (x, y) =>
+      TimelineService.suggestNextSlot(x as never, y)
+    )
+}
+
+export function timelineMakeDangerConfirm(
+  confirm: (opts: {
+    message: string
+    confirmLabel: string
+    variant: 'danger'
+  }) => Promise<boolean>,
+  message: string,
+  deleteLabel: string
+): () => Promise<boolean> {
+  return () => timelineDialogDanger(confirm, message, deleteLabel)
+}
+
+export function timelineMakeOkConfirm(
+  confirm: (opts: { message: string; confirmLabel: string }) => Promise<boolean>,
+  okLabel: string
+): (message: string) => Promise<boolean> {
+  return (message) => timelineDialogOk(confirm, message, okLabel)
+}
+
+export function timelineMakeMediaClock(
+  isPlaying: () => boolean,
+  setPlayhead: (n: number) => void
+): (globalTime: number) => void {
+  return (globalTime) =>
+    timelineMediaClockTick(isPlaying(), globalTime, setPlayhead)
+}
+
+export function timelineMakeClipEnded(ops: {
+  isPlaying: () => boolean
+  getEntries: () => Array<{ id: string; endTime: number }>
+  getSelected: () => string | null
+  getPlayhead: () => number
+  advance: (from: number) => void
+}): () => void {
+  return () =>
+    timelineClipEndedTick(
+      ops.isPlaying(),
+      ops.getEntries(),
+      ops.getSelected(),
+      ops.getPlayhead(),
+      ops.advance
+    )
+}
+
+export function timelineMakeScrub(
+  entries: Array<{ id: string; startTime: number; endTime: number }>,
+  selectedId: string | null,
+  setPlaying: (v: boolean) => void,
+  setPlayhead: (n: number) => void,
+  setSelected: (id: string) => void
+): (t: number) => void {
+  return (t) =>
+    timelineScrubTo(
+      t,
+      entries,
+      selectedId,
+      setPlaying,
+      setPlayhead,
+      setSelected
+    )
+}
+
+export function timelineMakeMaybeClose(
+  isBusy: () => boolean,
+  close: () => void
+): () => void {
+  return () => timelineMaybeCloseExport(isBusy(), close)
+}
+
+
+export function timelineHeaderSubtitle(
+  story: { title: string } | null | undefined,
+  base: string
+): string {
+  return story ? `${base} · ${story.title}` : base
+}
+
+export function timelineStepSuffix(
+  currentStepLabel: string | null | undefined,
+  stepIndex: number,
+  stepTotal: number
+): string {
+  const a = currentStepLabel ? ` · ${currentStepLabel}` : ''
+  const b =
+    stepTotal > 0
+      ? ` (${Math.min(stepIndex, stepTotal)}/${stepTotal})`
+      : ''
+  return `${a}${b}`
+}
+
+export function timelineErrorVisible(
+  errorMessage: string | undefined,
+  actionError: string | null
+): string {
+  return timelineErrorBannerText(errorMessage, actionError) ?? ''
+}
+
+
+export function timelineShouldShowError(
+  error: { message?: string } | null | undefined,
+  actionError: string | null
+): boolean {
+  return Boolean(error || actionError)
+}
+
+export function timelineSpokenDisplay(
+  spoken: string | null | undefined,
+  spokenMsg: (text: string) => string,
+  noneMsg: string
+): string {
+  if (spoken) return spokenMsg(timelineSpokenPreview(spoken))
+  return noneMsg
+}
+
+export function timelineAdvancedClosed(): null {
+  return null
+}
+
+
+export function timelineErrorBannerElement(
+  error: { message?: string } | null | undefined,
+  actionError: string | null,
+  format: (m: string) => string
+): React.ReactElement | null {
+  if (!timelineShouldShowError(error, actionError)) return null
+  return (
+    <p className="mb-2 shrink-0 rounded-xl border border-rose-900/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">
+      {format(timelineErrorVisible(error?.message, actionError))}
+    </p>
+  )
+}
+
+export function timelineAdvancedSlot(
+  show: boolean,
+  studio: React.ReactNode
+): React.ReactNode {
+  return show ? studio : timelineAdvancedClosed()
+}
+
+export function timelineMaybeAdvanced(
+  storyId: string | null,
+  render: (id: string) => React.ReactNode
+): React.ReactNode {
+  if (!timelineShowAdvanced(storyId)) return timelineAdvancedClosed()
+  return render(storyId!)
 }

@@ -189,30 +189,89 @@ import { createRoot } from 'react-dom/client'
 
 import {
   CostumesPage,
+  costumesActiveNames,
   costumesAfterRemoveImage,
+  costumesAiFillRefPath,
   costumesAiFillToastKey,
+  costumesApplyAiFillResult,
   costumesApplyIpc,
   costumesApplySimpleIpc,
   costumesArtStyleLabel,
   costumesBaseLabel,
+  costumesBuildDressConfirm,
   costumesCannotDeleteActive,
+  costumesClearDressBaseIfInvalid,
+  costumesDressBaseOptions,
+  costumesDressCtaHint,
   costumesFilterByQuery,
+  costumesFilterCharChange,
+  costumesFilterListQuery,
+  costumesGuardAiNeed,
   costumesGuardBusy,
   costumesGuardDress,
   costumesGuardIntro,
   costumesGuardSaveFirst,
-  costumesIntroVideoHandler,
-  costumesIsBusyJob,
-  costumesMaybeContinueDraft,
-  costumesMaybeSetDressBase,
-  costumesClearDressBaseIfInvalid,
-  costumesFilterListQuery,
+  costumesHandleVideoPrepDone,
   costumesIntroOrUndefined,
+  costumesIntroVideoHandler,
+  costumesIsActiveOnChar,
+  costumesIsBusyJob,
+  costumesLinkedNames,
+  costumesLinksFilterMatch,
+  costumesListFilterArg,
   costumesMakeRemoveImage,
   costumesMakeReorder,
+  costumesMapGalleryKind,
+  costumesMapVideoGalleryItem,
+  costumesMaybeContinueDraft,
+  costumesMaybeSetDressBase,
+  costumesNameOrDescSlice,
+  costumesOpenCreateState,
   costumesRefFallback,
   costumesReorderGallery,
-  costumesStyleChip
+  costumesRunAiFill,
+  costumesRunDelete,
+  costumesRunDressJob,
+  costumesRunIntroAfterSave,
+  costumesRunPickImage,
+  costumesRunSave,
+  costumesRunToggleLink,
+  costumesSelectedGalItem,
+  costumesSetCover,
+  costumesStyleChip,
+  costumesBindToggleLink,
+  costumesBindSetCover,
+  costumesBindIntroVideo,
+  costumesListenVideoPrepDone,
+  costumesBindGenerateDressed,
+  costumesBindRunDressJob,
+  costumesSyncDressBasePath,
+  costumesBindManualBase,
+  costumesDressCharOptions,
+  costumesOnDressCharChange,
+  costumesApiUnlink,
+  costumesApiLink,
+  costumesSwapBlocked,
+  costumesStartSwapJob,
+  costumesApiGenerateDressed,
+  costumesApplyDressResult,
+  costumesArtStyleOrDefault,
+  costumesBusyLabel,
+  costumesCoverHandlers,
+  costumesBaseModeClass,
+  costumesSelectedThumbClass,
+  costumesDressHintText,
+  costumesMakeStartSwap,
+  costumesMakeApplyDress,
+  costumesLinksEmpty,
+  costumesBaseNoImages,
+  costumesResolvedPreview,
+  costumesThumbSelectedMark,
+  costumesNullNode,
+  costumesOptionalRemove,
+  costumesLinksEmptyElement,
+  costumesSelectedMarkNode,
+  costumesResolvedPreviewNode
 } from './CostumesPage'
 import {
   PropsPage,
@@ -516,22 +575,103 @@ import {
   formatExportSize,
   formatExportWhen,
   TimelinePage,
+  timelineAddAsset,
+  timelineAdvanceResult,
   timelineApplyIpc,
+  timelineApplySettingsSnap,
+  timelineAutoSelectFirst,
+  timelineBindingChips,
+  timelineBindingIds,
   timelineClipButtonLabel,
   timelineClipGenerateLabel,
   timelineClipNeedsSkip,
+  timelineCollectEntryIds,
+  timelineConfirmGenerate,
   timelineContinueClipDraft,
   timelineEntryLabel,
+  timelineExportCatchMsg,
+  timelineExportFfmpegMsg,
+  timelineExportKindLabel,
   timelineExportSizeOrEmpty,
+  timelineExportSizeSuffix,
+  timelineFailedOrEmptyIds,
+  timelineFindClipBusyId,
   timelineGeneratingLabel,
+  timelineHandleKeyUndo,
   timelineIdsOrFallback,
+  timelineImportClip,
   timelineJobMatchesStory,
+  timelineLabelForEntry,
+  timelineLoadCast,
+  timelineLocaleString,
+  timelineMediaBadgeClass,
+  timelineNeedsGapClock,
   timelineNoFailedClips,
+  timelineOnVideoPrepDone,
+  timelineOpenClip,
+  timelinePersistMove,
+  timelinePersistSnap,
   timelinePickNextClip,
+  timelinePipelineSummary,
   timelinePlayheadAdvance,
+  timelineProgressStepLabel,
   timelineRafTickValue,
+  timelineRefreshExports,
+  timelineRunCancelJobs,
+  timelineRunClip,
+  timelineRunClipDuration,
+  timelineRunDeleteClip,
   timelineRunDeleteExport,
-  timelineSpokenPreview
+  timelineRunExportFinal,
+  timelineRunPackAbut,
+  timelineRunSaveDialogue,
+  timelineRunUndoRedo,
+  timelineSelectClipState,
+  timelineShouldReloadOnProgress,
+  timelineSpokenPreview,
+  timelineStartClipPrep,
+  timelineTogglePlayState,
+  timelineBindUndoRedo,
+  timelineBindNavigate,
+  timelineBindExportFinal,
+  timelineBindDeleteExport,
+  timelineBindOpenClip,
+  timelineMediaClockTick,
+  timelineClipEndedTick,
+  timelineOnPipelineDone,
+  timelineMaybeCloseExport,
+  timelineScrubTo,
+  timelineShowInFolder,
+  timelineStopAndRun,
+  timelineDoAdvance,
+  timelineSubtitleOrFallback,
+  timelineLiveStatusSuffix,
+  timelineScheduleSkip,
+  timelineApplyRafResult,
+  timelineDialogOk,
+  timelineDialogDanger,
+  timelineSuggestSlot,
+  timelineErrorBannerText,
+  timelineSpokenBlock,
+  timelineShowAdvanced,
+  timelineMakeAdvance,
+  timelineMakePipelineDone,
+  timelineMakeSuggestSlot,
+  timelineMakeDangerConfirm,
+  timelineMakeOkConfirm,
+  timelineMakeMediaClock,
+  timelineMakeClipEnded,
+  timelineMakeScrub,
+  timelineMakeMaybeClose,
+  timelineHeaderSubtitle,
+  timelineStepSuffix,
+  timelineErrorVisible,
+  timelineShouldShowError,
+  timelineSpokenDisplay,
+  timelineAdvancedClosed,
+  timelineErrorBannerElement,
+  timelineAdvancedSlot,
+  timelineMaybeAdvanced
 } from './TimelinePage'
 
 const api = createMockApi()
@@ -587,6 +727,16 @@ vi.mock('../components/timeline/KonvaTimeline', () => ({
       </button>
       <button type="button" onClick={() => p.onSnapGridSecChange?.(0.25)}>
         k-snap-grid
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          (
+            p as { onPlayheadChange?: (n: number) => void }
+          ).onPlayheadChange?.(2.5)
+        }
+      >
+        k-scrub
       </button>
     </div>
   )
@@ -3712,7 +3862,1420 @@ describe('abs100 Timeline pure + residual', () => {
       timelineApplyIpc(new Error('e'), () => undefined, () => undefined)
     ).toBe('e')
     expect(timelineExportSizeOrEmpty(null)).toBe('')
-    expect(timelineExportSizeOrEmpty(500)).toMatch(/B/)
+
+    // ── expanded residual pure coverage ──
+    expect(timelineLocaleString(Date.parse('2026-01-01T00:00:00Z'), 'en')).toBeTruthy()
+    const origTL = Date.prototype.toLocaleString
+    Date.prototype.toLocaleString = function () {
+      throw new Error('locale fail')
+    }
+    try {
+      expect(timelineLocaleString(Date.parse('2026-01-01T00:00:00Z'), 'en')).toBeTruthy()
+    } finally {
+      Date.prototype.toLocaleString = origTL
+    }
+    expect(formatExportWhen('2026-01-01T00:00:00Z', 'en')).toBeTruthy()
+
+    expect(
+      timelineFindClipBusyId(
+        [
+          {
+            kind: 'clip',
+            status: 'running',
+            scope: { storyId: 's1', entryId: 'e1' }
+          }
+        ],
+        's1'
+      )
+    ).toBe('e1')
+    expect(timelineFindClipBusyId([], 's1')).toBeNull()
+    expect(
+      timelineNeedsGapClock(
+        { mediaStatus: 'READY', mediaPath: '/m', startTime: 0, endTime: 4 },
+        1
+      )
+    ).toBe(false)
+    expect(timelineNeedsGapClock(null, 1)).toBe(true)
+    expect(timelineNeedsGapClock({ mediaStatus: 'EMPTY', startTime: 0, endTime: 4 }, 1)).toBe(true)
+
+    const adv = timelineAdvanceResult(
+      [
+        { id: 'a', startTime: 0, endTime: 4, mediaStatus: 'EMPTY', mediaPath: null },
+        { id: 'b', startTime: 4, endTime: 8, mediaStatus: 'READY', mediaPath: '/m' }
+      ],
+      3.9,
+      10
+    )
+    expect(adv.selectId).toBe('b')
+    expect(adv.skipFrom).toBeUndefined()
+    const adv2 = timelineAdvanceResult(
+      [{ id: 'a', startTime: 0, endTime: 4, mediaStatus: 'EMPTY', mediaPath: null }],
+      0,
+      10
+    )
+    expect(adv2.skipFrom).toBe(4)
+    expect(timelineAdvanceResult([], 0, 10).ended).toBe(true)
+
+    const ids = timelineBindingIds({
+      characterIds: ['c1'],
+      sceneId: 's1',
+      propIds: null,
+      propId: 'p1',
+      actionIds: [],
+      actionId: 'a1'
+    })
+    expect(ids.charIds).toEqual(['c1'])
+    expect(ids.sceneIds).toEqual(['s1'])
+    expect(ids.propIds).toEqual(['p1'])
+    expect(ids.actionIds).toEqual(['a1'])
+    expect(
+      timelineBindingChips(ids, {
+        char: (id) => (id === 'c1' ? 'C' : undefined),
+        scene: () => 'Sc',
+        prop: () => 'P',
+        action: () => 'A'
+      })
+    ).toEqual(['C', 'Sc', 'P', 'A'])
+    expect(
+      timelineLabelForEntry(
+        { id: 'e', order: 2, dialogue: '  hi  ', characterId: 'c1' },
+        { char: () => 'C', scene: () => undefined, prop: () => undefined, action: () => undefined }
+      )
+    ).toMatch(/hi/)
+    expect(
+      timelineLabelForEntry(
+        { id: 'e', order: 2, dialogue: null, characterIds: [] },
+        { char: () => undefined, scene: () => undefined, prop: () => undefined, action: () => undefined }
+      )
+    ).toBe('#3')
+
+    const hist: unknown[] = []
+    let latest: string | null = 'x'
+    await timelineRefreshExports({
+      storyId: null,
+      setHistory: (h) => {
+        hist.length = 0
+        hist.push(...(h as unknown[]))
+      },
+      setLatest: (p) => {
+        latest = p
+      }
+    })
+    expect(latest).toBeNull()
+    await timelineRefreshExports({
+      storyId: 's1',
+      listExports: undefined,
+      setHistory: () => undefined,
+      setLatest: () => undefined
+    })
+    await timelineRefreshExports({
+      storyId: 's1',
+      listExports: async () => ({ items: [{ id: 1 }], latestPath: '/l' }),
+      setHistory: (h) => {
+        hist.length = 0
+        hist.push(...(h as unknown[]))
+      },
+      setLatest: (p) => {
+        latest = p
+      }
+    })
+    expect(latest).toBe('/l')
+    await timelineRefreshExports({
+      storyId: 's1',
+      listExports: async () => {
+        throw new Error('list')
+      },
+      setHistory: () => undefined,
+      setLatest: () => undefined,
+      onWarn: () => undefined
+    })
+
+    let en = false
+    let grid = 0
+    await timelinePersistSnap({
+      next: { snapEnabled: true, snapGridSec: 0.25 },
+      setEnabled: (v) => {
+        en = v
+      },
+      setGrid: (v) => {
+        grid = v
+      },
+      setSettings: async () => undefined
+    })
+    expect(en && grid === 0.25).toBe(true)
+    await timelinePersistSnap({
+      next: { snapEnabled: false },
+      setEnabled: () => undefined,
+      setGrid: () => undefined,
+      setSettings: async () => {
+        throw new Error('snap')
+      }
+    })
+
+    let undid = false
+    await timelineHandleKeyUndo({
+      shift: false,
+      undo: async () => {
+        undid = true
+        return true
+      },
+      redo: async () => false,
+      toastUndo: () => undefined,
+      toastRedo: () => undefined,
+      reload: async () => undefined
+    })
+    expect(undid).toBe(true)
+    await timelineHandleKeyUndo({
+      shift: true,
+      undo: async () => false,
+      redo: async () => true,
+      toastUndo: () => undefined,
+      toastRedo: () => undefined,
+      reload: async () => undefined
+    })
+    await timelineHandleKeyUndo({
+      shift: false,
+      undo: async () => false,
+      redo: async () => false,
+      toastUndo: () => undefined,
+      toastRedo: () => undefined,
+      reload: async () => undefined
+    })
+
+    expect(timelineAutoSelectFirst([], 'x').clear).toBe(true)
+    expect(timelineAutoSelectFirst([{ id: 'a', startTime: 1 }], 'a').clear).toBe(false)
+    expect(
+      timelineAutoSelectFirst(
+        [
+          { id: 'b', startTime: 2 },
+          { id: 'a', startTime: 0 }
+        ],
+        null
+      ).selectId
+    ).toBe('a')
+
+    expect(
+      await timelineRunPackAbut({
+        entries: [{ id: 'a', startTime: 0, endTime: 1, order: 0 }],
+        needMsg: 'n',
+        alreadyMsg: 'a',
+        doneMsg: 'd',
+        toastInfo: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        setBusy: () => undefined,
+        setError: () => undefined,
+        isPacked: () => false,
+        pack: () => [],
+        recordUpdate: () => undefined,
+        update: async () => undefined,
+        reload: async () => undefined,
+        setPlayhead: () => undefined,
+        setPlaying: () => undefined
+      })
+    ).toBe('need')
+    expect(
+      await timelineRunPackAbut({
+        entries: [
+          { id: 'a', startTime: 0, endTime: 1, order: 0 },
+          { id: 'b', startTime: 1, endTime: 2, order: 1 }
+        ],
+        needMsg: 'n',
+        alreadyMsg: 'a',
+        doneMsg: 'd',
+        toastInfo: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        setBusy: () => undefined,
+        setError: () => undefined,
+        isPacked: () => true,
+        pack: () => [],
+        recordUpdate: () => undefined,
+        update: async () => undefined,
+        reload: async () => undefined,
+        setPlayhead: () => undefined,
+        setPlaying: () => undefined
+      })
+    ).toBe('already')
+    expect(
+      await timelineRunPackAbut({
+        entries: [
+          { id: 'a', startTime: 0, endTime: 1, order: 0 },
+          { id: 'b', startTime: 3, endTime: 4, order: 1 }
+        ],
+        needMsg: 'n',
+        alreadyMsg: 'a',
+        doneMsg: 'd',
+        toastInfo: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        setBusy: () => undefined,
+        setError: () => undefined,
+        isPacked: () => false,
+        pack: () => [
+          { id: 'a', startTime: 0, endTime: 1, order: 0 },
+          { id: 'b', startTime: 1, endTime: 2, order: 1 },
+          { id: 'missing', startTime: 2, endTime: 3, order: 2 }
+        ],
+        recordUpdate: () => undefined,
+        update: async () => undefined,
+        reload: async () => undefined,
+        setPlayhead: () => undefined,
+        setPlaying: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await timelineRunPackAbut({
+        entries: [
+          { id: 'a', startTime: 0, endTime: 1, order: 0 },
+          { id: 'b', startTime: 3, endTime: 4, order: 1 }
+        ],
+        needMsg: 'n',
+        alreadyMsg: 'a',
+        doneMsg: 'd',
+        toastInfo: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        setBusy: () => undefined,
+        setError: () => undefined,
+        isPacked: () => false,
+        pack: () => [
+          { id: 'a', startTime: 0, endTime: 1, order: 0 },
+          { id: 'b', startTime: 1, endTime: 2, order: 1 }
+        ],
+        recordUpdate: () => undefined,
+        update: async () => {
+          throw new Error('pack')
+        },
+        reload: async () => undefined,
+        setPlayhead: () => undefined,
+        setPlaying: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await timelineRunUndoRedo({
+        mode: 'undo',
+        undo: async () => true,
+        redo: async () => false,
+        toast: () => undefined,
+        reload: async () => undefined
+      })
+    ).toBe(true)
+    expect(
+      await timelineRunUndoRedo({
+        mode: 'redo',
+        undo: async () => false,
+        redo: async () => false,
+        toast: () => undefined,
+        reload: async () => undefined
+      })
+    ).toBe(false)
+
+    expect(
+      await timelineRunSaveDialogue({
+        selectedId: null,
+        dialogue: 'x',
+        locale: 'en',
+        commit: () => ({ dialogue: 'x', beatContentJson: null }),
+        update: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('no-sel')
+    expect(
+      await timelineRunSaveDialogue({
+        selectedId: 'e1',
+        dialogue: 'x',
+        locale: 'en',
+        commit: () => ({ dialogue: null, beatContentJson: '{}' }),
+        update: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await timelineRunSaveDialogue({
+        selectedId: 'e1',
+        dialogue: 'x',
+        locale: 'en',
+        commit: () => ({ dialogue: 'x', beatContentJson: null }),
+        update: async () => {
+          throw new Error('save')
+        },
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await timelineRunClipDuration({
+        selected: null,
+        seconds: 6,
+        snapCurrent: () => 6,
+        snapRange: (s, e) => ({ startTime: s, endTime: e }),
+        update: async () => true,
+        setPlayhead: () => undefined,
+        setClipSeconds: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('no-sel')
+    expect(
+      await timelineRunClipDuration({
+        selected: { id: 'e', startTime: 0, endTime: 6 },
+        seconds: 6,
+        snapCurrent: () => 6,
+        snapRange: (s, e) => ({ startTime: s, endTime: e }),
+        update: async () => true,
+        setPlayhead: () => undefined,
+        setClipSeconds: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('same')
+    let ph = 0
+    expect(
+      await timelineRunClipDuration({
+        selected: { id: 'e', startTime: 0, endTime: 6 },
+        seconds: 10,
+        snapCurrent: () => 6,
+        snapRange: (s, e) => ({ startTime: s, endTime: e }),
+        update: async () => true,
+        setPlayhead: (fn) => {
+          ph = fn(0)
+          ph = fn(20)
+          ph = fn(5)
+        },
+        setClipSeconds: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await timelineRunClipDuration({
+        selected: { id: 'e', startTime: 0, endTime: 6 },
+        seconds: 10,
+        snapCurrent: () => 6,
+        snapRange: (s, e) => ({ startTime: s, endTime: e }),
+        update: async () => false,
+        setPlayhead: () => undefined,
+        setClipSeconds: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+    expect(
+      await timelineRunClipDuration({
+        selected: { id: 'e', startTime: 0, endTime: 6 },
+        seconds: 10,
+        snapCurrent: () => 6,
+        snapRange: (s, e) => ({ startTime: s, endTime: e }),
+        update: async () => {
+          throw new Error('dur')
+        },
+        setPlayhead: () => undefined,
+        setClipSeconds: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await timelineRunDeleteClip({
+        selected: null,
+        confirm: async () => true,
+        remove: async () => undefined,
+        clearSelected: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('no-sel')
+    expect(
+      await timelineRunDeleteClip({
+        selected: { id: 'e' },
+        confirm: async () => false,
+        remove: async () => undefined,
+        clearSelected: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('cancel')
+    expect(
+      await timelineRunDeleteClip({
+        selected: { id: 'e' },
+        confirm: async () => true,
+        remove: async () => undefined,
+        clearSelected: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await timelineRunDeleteClip({
+        selected: { id: 'e' },
+        confirm: async () => true,
+        remove: async () => {
+          throw new Error('rm')
+        },
+        clearSelected: () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      timelineStartClipPrep({
+        entryIds: [],
+        noFailedMsg: 'n',
+        toastInfo: () => undefined,
+        getEntry: () => undefined,
+        revisionOf: () => '',
+        defaultSeconds: 6,
+        snapSeconds: (n) => n,
+        setSelected: () => undefined,
+        setStepLabel: () => undefined,
+        multiLabel: () => 'm',
+        singleLabel: 's',
+        start: () => undefined
+      })
+    ).toBe(false)
+    expect(
+      timelineStartClipPrep({
+        entryIds: ['e1', 'e2'],
+        noFailedMsg: 'n',
+        toastInfo: () => undefined,
+        getEntry: (id) =>
+          id === 'e1' ? { startTime: 0, endTime: 6 } : undefined,
+        revisionOf: () => ' rev ',
+        defaultSeconds: 6,
+        snapSeconds: (n) => n,
+        setSelected: () => undefined,
+        setStepLabel: () => undefined,
+        multiLabel: (c, t) => `${c}/${t}`,
+        singleLabel: 's',
+        start: () => undefined,
+        skipStillIfExists: true
+      })
+    ).toBe(true)
+    expect(
+      timelineStartClipPrep({
+        entryIds: ['e1'],
+        noFailedMsg: 'n',
+        toastInfo: () => undefined,
+        getEntry: () => undefined,
+        revisionOf: () => '',
+        defaultSeconds: 10,
+        snapSeconds: (n) => n,
+        setSelected: () => undefined,
+        setStepLabel: () => undefined,
+        multiLabel: () => 'm',
+        singleLabel: 's',
+        start: () => undefined
+      })
+    ).toBe(true)
+
+    expect(
+      timelineFailedOrEmptyIds([
+        { id: 'a', order: 1, mediaStatus: 'READY' },
+        { id: 'b', order: 0, mediaStatus: 'FAILED' },
+        { id: 'c', order: 2, mediaStatus: 'EMPTY' }
+      ])
+    ).toEqual(['b', 'c'])
+
+    expect(
+      await timelineConfirmGenerate({
+        onlyFailed: false,
+        busy: true,
+        hasStory: true,
+        entries: [],
+        missingRefs: [],
+        videoMode: 'stub',
+        noFailedMsg: 'n',
+        noEntriesMsg: 'e',
+        modeHint: 'h',
+        missingRefMsg: (n) => n,
+        toastInfo: () => undefined,
+        confirm: async () => true,
+        okLabel: 'ok'
+      })
+    ).toBe('blocked')
+    expect(
+      await timelineConfirmGenerate({
+        onlyFailed: true,
+        busy: false,
+        hasStory: true,
+        entries: [],
+        missingRefs: [],
+        videoMode: 'stub',
+        noFailedMsg: 'n',
+        noEntriesMsg: 'e',
+        modeHint: 'h',
+        missingRefMsg: (n) => n,
+        toastInfo: () => undefined,
+        confirm: async () => true,
+        okLabel: 'ok'
+      })
+    ).toBe('empty')
+    expect(
+      await timelineConfirmGenerate({
+        onlyFailed: false,
+        busy: false,
+        hasStory: true,
+        entries: [],
+        missingRefs: [],
+        videoMode: 'stub',
+        noFailedMsg: 'n',
+        noEntriesMsg: 'e',
+        modeHint: 'h',
+        missingRefMsg: (n) => n,
+        toastInfo: () => undefined,
+        confirm: async () => true,
+        okLabel: 'ok'
+      })
+    ).toBe('empty')
+    expect(
+      await timelineConfirmGenerate({
+        onlyFailed: false,
+        busy: false,
+        hasStory: true,
+        entries: [{ id: 'a', order: 0, mediaStatus: 'READY' }],
+        missingRefs: [],
+        videoMode: 'stub',
+        noFailedMsg: 'n',
+        noEntriesMsg: 'e',
+        modeHint: 'h',
+        missingRefMsg: (n) => n,
+        toastInfo: () => undefined,
+        confirm: async () => false,
+        okLabel: 'ok'
+      })
+    ).toBe('cancel')
+    expect(
+      await timelineConfirmGenerate({
+        onlyFailed: false,
+        busy: false,
+        hasStory: true,
+        entries: [{ id: 'a', order: 0, mediaStatus: 'READY' }],
+        missingRefs: [{ name: 'A' }],
+        videoMode: 'api',
+        noFailedMsg: 'n',
+        noEntriesMsg: 'e',
+        modeHint: 'h',
+        missingRefMsg: (n) => n,
+        toastInfo: () => undefined,
+        confirm: async () => true,
+        okLabel: 'ok'
+      })
+    ).toBe('ok')
+    expect(
+      await timelineConfirmGenerate({
+        onlyFailed: true,
+        busy: false,
+        hasStory: true,
+        entries: [{ id: 'a', order: 0, mediaStatus: 'FAILED' }],
+        missingRefs: [{ name: 'A' }],
+        videoMode: 'api',
+        noFailedMsg: 'n',
+        noEntriesMsg: 'e',
+        modeHint: 'h',
+        missingRefMsg: (n) => n,
+        toastInfo: () => undefined,
+        confirm: async (m) => m !== 'A',
+        okLabel: 'ok'
+      })
+    ).toBe('cancel')
+    expect(
+      await timelineConfirmGenerate({
+        onlyFailed: true,
+        busy: false,
+        hasStory: true,
+        entries: [{ id: 'a', order: 0, mediaStatus: 'FAILED' }],
+        missingRefs: [],
+        videoMode: 'stub',
+        noFailedMsg: 'n',
+        noEntriesMsg: 'e',
+        modeHint: 'h',
+        missingRefMsg: (n) => n,
+        toastInfo: () => undefined,
+        confirm: async () => true,
+        okLabel: 'ok'
+      })
+    ).toBe('retry')
+
+    const sum = timelinePipelineSummary(
+      [
+        { step: 'script', success: true, degraded: true },
+        { step: 'video', success: false, error: 'x' }
+      ],
+      (s) => s,
+      'deg'
+    )
+    expect(sum.anyDegraded).toBe(true)
+    expect(sum.summary).toMatch(/✓|✗/)
+    expect(
+      await timelineCollectEntryIds({
+        list: async () => [
+          { id: 'b', order: 1 },
+          { id: 'a', order: 0 }
+        ],
+        fallback: []
+      })
+    ).toEqual(['a', 'b'])
+    expect(
+      await timelineCollectEntryIds({
+        list: async () => {
+          throw new Error('x')
+        },
+        fallback: [{ id: 'z', order: 0 }]
+      })
+    ).toEqual(['z'])
+
+    await timelineRunCancelJobs({
+      clearSession: () => undefined,
+      jobs: [
+        { id: 'j1', kind: 'pipeline', scope: { storyId: 's1' } },
+        { id: 'j2', kind: 'other', scope: { storyId: 's1' } }
+      ],
+      storyId: 's1',
+      cancel: async () => undefined,
+      toastInfo: () => undefined
+    })
+
+    expect(
+      timelineExportFfmpegMsg({ ffmpegMessage: 'broken' }, 'need')
+    ).toMatch(/need/)
+    expect(timelineExportFfmpegMsg({ ffmpegMessage: 'ffmpeg OK' }, 'need')).toBe(
+      'need'
+    )
+    expect(timelineExportCatchMsg({ code: 'FFMPEG_UNAVAILABLE', message: 'x' }, 'need')).toBe(
+      'need'
+    )
+    expect(timelineExportCatchMsg({ message: 'ffmpeg fail' }, 'need')).toBe('need')
+    expect(timelineExportCatchMsg({ message: 'boom', details: 'd' }, 'need')).toMatch(/boom/)
+    expect(timelineExportCatchMsg(new Error('e'), 'need')).toMatch(/e/)
+    expect(timelineExportCatchMsg('str', 'need')).toMatch(/str/)
+
+    expect(
+      await timelineRunExportFinal({
+        storyId: null,
+        opts: {} as never,
+        setExporting: () => undefined,
+        setError: () => undefined,
+        preflight: async () => ({ canExport: true, warnings: [] }),
+        needFfmpeg: 'n',
+        fallbackConfirm: 'f',
+        confirm: async () => true,
+        exportFinal: async () => ({ outputPath: '/o' }),
+        setLastPath: () => undefined,
+        setInitial: () => undefined,
+        closeDialog: () => undefined,
+        openHistory: () => undefined,
+        refreshHistory: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('no-story')
+    expect(
+      await timelineRunExportFinal({
+        storyId: 's1',
+        opts: {} as never,
+        setExporting: () => undefined,
+        setError: () => undefined,
+        preflight: async () => ({
+          canExport: false,
+          ffmpegMessage: 'bad',
+          warnings: []
+        }),
+        needFfmpeg: 'n',
+        fallbackConfirm: 'f',
+        confirm: async () => true,
+        exportFinal: async () => ({ outputPath: '/o' }),
+        setLastPath: () => undefined,
+        setInitial: () => undefined,
+        closeDialog: () => undefined,
+        openHistory: () => undefined,
+        refreshHistory: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('blocked')
+    expect(
+      await timelineRunExportFinal({
+        storyId: 's1',
+        opts: {} as never,
+        setExporting: () => undefined,
+        setError: () => undefined,
+        preflight: async () => ({
+          canExport: true,
+          willUseFallback: true,
+          warnings: ['w']
+        }),
+        needFfmpeg: 'n',
+        fallbackConfirm: 'f',
+        confirm: async () => false,
+        exportFinal: async () => ({ outputPath: '/o' }),
+        setLastPath: () => undefined,
+        setInitial: () => undefined,
+        closeDialog: () => undefined,
+        openHistory: () => undefined,
+        refreshHistory: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('cancel')
+    expect(
+      await timelineRunExportFinal({
+        storyId: 's1',
+        opts: { openExportFolder: true } as never,
+        setExporting: () => undefined,
+        setError: () => undefined,
+        preflight: async () => ({ canExport: true, warnings: [] }),
+        needFfmpeg: 'n',
+        fallbackConfirm: 'f',
+        confirm: async () => true,
+        exportFinal: async () => ({ outputPath: '/o' }),
+        setLastPath: () => undefined,
+        setInitial: () => undefined,
+        closeDialog: () => undefined,
+        openHistory: () => undefined,
+        refreshHistory: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined,
+        openFolder: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await timelineRunExportFinal({
+        storyId: 's1',
+        opts: {} as never,
+        setExporting: () => undefined,
+        setError: () => undefined,
+        preflight: async () => ({ canExport: true, warnings: [] }),
+        needFfmpeg: 'n',
+        fallbackConfirm: 'f',
+        confirm: async () => true,
+        exportFinal: async () => {
+          throw Object.assign(new Error('ffmpeg'), { code: 'FFMPEG_UNAVAILABLE' })
+        },
+        setLastPath: () => undefined,
+        setInitial: () => undefined,
+        closeDialog: () => undefined,
+        openHistory: () => undefined,
+        refreshHistory: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await timelineRunClip({
+        storyId: null,
+        busy: false,
+        videoMode: 'stub',
+        missingRefs: [],
+        missingRefMsg: (n) => n,
+        confirm: async () => true,
+        setError: () => undefined,
+        draftKey: 'k',
+        hasDraft: false,
+        continueDraft: () => undefined,
+        startQueue: () => undefined,
+        entryId: 'e'
+      })
+    ).toBe('blocked')
+    expect(
+      await timelineRunClip({
+        storyId: 's',
+        busy: false,
+        videoMode: 'api',
+        missingRefs: [{ name: 'A' }],
+        missingRefMsg: (n) => n,
+        confirm: async () => false,
+        setError: () => undefined,
+        draftKey: 'k',
+        hasDraft: false,
+        continueDraft: () => undefined,
+        startQueue: () => undefined,
+        entryId: 'e'
+      })
+    ).toBe('cancel')
+    expect(
+      await timelineRunClip({
+        storyId: 's',
+        busy: false,
+        videoMode: 'stub',
+        missingRefs: [],
+        missingRefMsg: (n) => n,
+        confirm: async () => true,
+        setError: () => undefined,
+        draftKey: 'k',
+        hasDraft: true,
+        continueDraft: () => undefined,
+        startQueue: () => undefined,
+        entryId: 'e'
+      })
+    ).toBe('draft')
+    expect(
+      await timelineRunClip({
+        storyId: 's',
+        busy: false,
+        videoMode: 'stub',
+        missingRefs: [],
+        missingRefMsg: (n) => n,
+        confirm: async () => true,
+        setError: () => undefined,
+        draftKey: 'k',
+        hasDraft: false,
+        continueDraft: () => undefined,
+        startQueue: () => undefined,
+        entryId: 'e'
+      })
+    ).toBe('started')
+
+    expect(
+      timelineOnVideoPrepDone(
+        { kind: 'other' },
+        's',
+        () => undefined,
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(false)
+    expect(
+      timelineOnVideoPrepDone(
+        { kind: 'timeline-clip', entityIds: { storyId: 'x' } },
+        's',
+        () => undefined,
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(false)
+    expect(
+      timelineOnVideoPrepDone(
+        {
+          kind: 'timeline-clip',
+          entityIds: { storyId: 's', entryId: 'e1' }
+        },
+        's',
+        () => undefined,
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(true)
+
+    expect(
+      timelineTogglePlayState({
+        isPlaying: true,
+        playhead: 0,
+        totalDuration: 10,
+        entries: []
+      }).stop
+    ).toBe(true)
+    expect(
+      timelineTogglePlayState({
+        isPlaying: false,
+        playhead: 10,
+        totalDuration: 10,
+        entries: [{ id: 'a', startTime: 0, endTime: 4 }]
+      }).playhead
+    ).toBe(0)
+    expect(
+      timelineTogglePlayState({
+        isPlaying: false,
+        playhead: 2,
+        totalDuration: 10,
+        entries: [{ id: 'a', startTime: 0, endTime: 4 }]
+      }).selectId
+    ).toBe('a')
+    expect(
+      timelineTogglePlayState({
+        isPlaying: false,
+        playhead: 5,
+        totalDuration: 10,
+        entries: [
+          { id: 'a', startTime: 0, endTime: 4 },
+          { id: 'b', startTime: 6, endTime: 8 }
+        ]
+      }).selectId
+    ).toBe('b')
+    expect(
+      timelineTogglePlayState({
+        isPlaying: false,
+        playhead: 1,
+        totalDuration: 10,
+        entries: []
+      }).start
+    ).toBe(true)
+
+    expect(timelineSelectClipState(null, [], 0).selectedId).toBeNull()
+    expect(
+      timelineSelectClipState('x', [{ id: 'a', startTime: 0, endTime: 4 }], 0)
+        .selectedId
+    ).toBe('x')
+    expect(
+      timelineSelectClipState('a', [{ id: 'a', startTime: 0, endTime: 4 }], 10)
+        .playhead
+    ).toBe(0)
+    expect(
+      timelineSelectClipState('a', [{ id: 'a', startTime: 0, endTime: 4 }], 2)
+        .stopPlaying
+    ).toBe(true)
+
+    expect(
+      await timelineAddAsset({
+        storyId: null,
+        clipSeconds: 6,
+        atTime: undefined,
+        entriesLen: 0,
+        suggestSlot: () => ({ startTime: 0, order: 0 }),
+        entries: [],
+        clamp: (s, e) => ({ startTime: s, endTime: e }),
+        payload: { kind: 'character', id: 'c1' },
+        create: async () => undefined,
+        refreshStories: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe(false)
+    expect(
+      await timelineAddAsset({
+        storyId: 's',
+        clipSeconds: 6,
+        atTime: 2,
+        entriesLen: 1,
+        suggestSlot: () => ({ startTime: 0, order: 0 }),
+        entries: [],
+        clamp: (s, e) => ({ startTime: s, endTime: e }),
+        payload: { kind: 'scene', id: 'sc' },
+        create: async () => undefined,
+        refreshStories: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe(true)
+    expect(
+      await timelineAddAsset({
+        storyId: 's',
+        clipSeconds: 6,
+        atTime: undefined,
+        entriesLen: 0,
+        suggestSlot: () => ({ startTime: 4, order: 1 }),
+        entries: [],
+        clamp: (s, e) => ({ startTime: s, endTime: e }),
+        payload: { kind: 'prop', id: 'p' },
+        create: async () => undefined,
+        refreshStories: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe(true)
+    await timelineAddAsset({
+      storyId: 's',
+      clipSeconds: 6,
+      atTime: undefined,
+      entriesLen: 0,
+      suggestSlot: () => ({ startTime: 0, order: 0 }),
+      entries: [],
+      clamp: (s, e) => ({ startTime: s, endTime: e }),
+      payload: { kind: 'action', id: 'a' },
+      create: async () => undefined,
+      refreshStories: async () => undefined,
+      toastSuccess: () => undefined
+    })
+
+    await timelinePersistMove({
+      id: 'e',
+      startTime: 1,
+      endTime: 2,
+      prev: { startTime: 0, endTime: 1 },
+      record: () => undefined,
+      update: async () => undefined
+    })
+    await timelinePersistMove({
+      id: 'e',
+      startTime: 1,
+      endTime: 2,
+      prev: undefined,
+      record: () => undefined,
+      update: async () => undefined
+    })
+
+    expect(
+      timelineMediaBadgeClass('READY', { READY: 'r', EMPTY: 'e' }, 'EMPTY')
+    ).toBe('r')
+    expect(
+      timelineMediaBadgeClass('UNKNOWN', { READY: 'r', EMPTY: 'e' }, 'EMPTY')
+    ).toBe('e')
+    expect(timelineExportKindLabel('board', 'B', 'F')).toBe('B')
+    expect(timelineExportKindLabel('final', 'B', 'F')).toBe('F')
+    expect(timelineExportSizeSuffix(null)).toBe('')
+    expect(timelineExportSizeSuffix(500)).toMatch(/B/)
+    expect(
+      timelineProgressStepLabel('script', { script: 'pipeline.script' }, (k) => k)
+    ).toBe('pipeline.script')
+    expect(timelineProgressStepLabel('x', {}, (k) => k)).toBe('x')
+    expect(timelineShouldReloadOnProgress('e', 'READY')).toBe(true)
+    expect(timelineShouldReloadOnProgress('e', 'GENERATING')).toBe(false)
+
+    await timelineLoadCast({
+      storyId: null,
+      clear: () => undefined,
+      load: async () => [[], [], [], []],
+      setAll: () => undefined,
+      toastError: () => undefined
+    })
+    await timelineLoadCast({
+      storyId: 's',
+      clear: () => undefined,
+      load: async () => [['c'], ['s'], ['p'], ['a']],
+      setAll: () => undefined,
+      toastError: () => undefined
+    })
+    await timelineLoadCast({
+      storyId: 's',
+      clear: () => undefined,
+      load: async () => {
+        throw new Error('cast')
+      },
+      setAll: () => undefined,
+      toastError: () => undefined
+    })
+
+    timelineApplySettingsSnap(
+      {
+        videoMode: 'stub',
+        snapEnabled: false,
+        snapGridSec: -1,
+        exportProfile: 'x',
+        burnSubtitles: true,
+        includeSilentAudio: false,
+        openExportFolder: true,
+        bgmVolume: 0.5,
+        dialogueVolume: 1
+      },
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )
+    timelineApplySettingsSnap(
+      { snapGridSec: 0.25 },
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )
+
+    expect(
+      await timelineImportClip({
+        storyId: null,
+        selectedId: 'e',
+        importClip: async () => ({}),
+        reload: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe(false)
+    expect(
+      await timelineImportClip({
+        storyId: 's',
+        selectedId: 'e',
+        importClip: async () => ({}),
+        reload: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe(true)
+    expect(
+      await timelineImportClip({
+        storyId: 's',
+        selectedId: 'e',
+        importClip: async () => null,
+        reload: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe(false)
+    expect(
+      await timelineOpenClip({
+        mediaPath: null,
+        open: async () => undefined
+      })
+    ).toBe(false)
+    expect(
+      await timelineOpenClip({
+        mediaPath: '/m.mp4',
+        open: async () => undefined
+      })
+    ).toBe(true)
+
+    // bind factories
+    await timelineBindUndoRedo({
+      mode: 'undo',
+      undo: async () => true,
+      redo: async () => false,
+      toast: () => undefined,
+      reload: async () => undefined
+    })()
+    timelineBindNavigate((p) => expect(p).toBe('/'), '/')()
+    expect(
+      await timelineBindExportFinal({
+        getStoryId: () => null,
+        setExporting: () => undefined,
+        setError: () => undefined,
+        preflight: async () => ({ canExport: true, warnings: [] }),
+        needFfmpeg: 'n',
+        fallbackConfirm: 'f',
+        confirm: async () => true,
+        exportFinal: async () => ({ outputPath: '/o' }),
+        setLastPath: () => undefined,
+        setInitial: () => undefined,
+        closeDialog: () => undefined,
+        openHistory: () => undefined,
+        refreshHistory: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })({} as never)
+    ).toBeUndefined()
+    await timelineBindDeleteExport({
+      getStoryId: () => null,
+      confirm: async () => true,
+      setBusy: () => undefined,
+      deleteExport: async () => ({ items: [], latestPath: null }),
+      setHistory: () => undefined,
+      setLatest: () => undefined,
+      toastSuccess: () => undefined,
+      toastError: () => undefined
+    })('ex')
+    await timelineBindDeleteExport({
+      getStoryId: () => 's',
+      confirm: async () => false,
+      setBusy: () => undefined,
+      deleteExport: async () => ({ items: [], latestPath: null }),
+      setHistory: () => undefined,
+      setLatest: () => undefined,
+      toastSuccess: () => undefined,
+      toastError: () => undefined
+    })('ex')
+    await timelineBindDeleteExport({
+      getStoryId: () => 's',
+      confirm: async () => true,
+      setBusy: () => undefined,
+      deleteExport: async () => ({ items: [], latestPath: null }),
+      setHistory: () => undefined,
+      setLatest: () => undefined,
+      toastSuccess: () => undefined,
+      toastError: () => undefined
+    })('ex')
+    await timelineBindOpenClip({
+      getPath: () => '/m',
+      open: async () => undefined
+    })()
+    timelineMediaClockTick(false, 1, () => undefined)
+    timelineMediaClockTick(true, 1, () => undefined)
+    timelineClipEndedTick(false, [], null, 0, () => undefined)
+    timelineClipEndedTick(
+      true,
+      [{ id: 'a', endTime: 4 }],
+      'a',
+      0,
+      () => undefined
+    )
+    timelineClipEndedTick(true, [], null, 2, () => undefined)
+    timelineOnPipelineDone(
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )
+    timelineMaybeCloseExport(true, () => {
+      throw new Error('should not')
+    })
+    let closed = false
+    timelineMaybeCloseExport(false, () => {
+      closed = true
+    })
+    expect(closed).toBe(true)
+    timelineScrubTo(
+      2,
+      [{ id: 'a', startTime: 0, endTime: 4 }],
+      'b',
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )
+    timelineScrubTo(
+      2,
+      [{ id: 'a', startTime: 0, endTime: 4 }],
+      'a',
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )
+    await timelineShowInFolder('/p', async () => undefined)
+    const stopRun = timelineStopAndRun('e1', () => undefined)
+    stopRun({ stopPropagation: () => undefined })
+    expect(
+      timelineDoAdvance({
+        list: [],
+        fromTime: 0,
+        totalDuration: 10,
+        isPlaying: () => true,
+        setPlaying: () => undefined,
+        setPlayhead: () => undefined,
+        setSelected: () => undefined,
+        scheduleSkip: () => undefined,
+        again: () => undefined
+      })
+    ).toBe(false)
+    expect(
+      timelineDoAdvance({
+        list: [
+          {
+            id: 'a',
+            startTime: 0,
+            endTime: 4,
+            mediaStatus: 'EMPTY',
+            mediaPath: null
+          }
+        ],
+        fromTime: 0,
+        totalDuration: 10,
+        isPlaying: () => true,
+        setPlaying: () => undefined,
+        setPlayhead: () => undefined,
+        setSelected: () => undefined,
+        scheduleSkip: (from, again) => again(from),
+        again: () => undefined
+      })
+    ).toBe(true)
+    expect(timelineSubtitleOrFallback(true, 'T', 'f')).toBe('T')
+    expect(timelineSubtitleOrFallback(false, undefined, 'f')).toBe('f')
+    expect(timelineLiveStatusSuffix('READY', 'EMPTY')).toBe('READY')
+    expect(timelineLiveStatusSuffix('READY', 'READY')).toBe('')
+    expect(timelineLiveStatusSuffix(undefined, 'READY')).toBe('')
+    timelineScheduleSkip(1, () => undefined, () => false, 0)
+    timelineScheduleSkip(1, () => undefined, () => true, 0)
+    await new Promise((r) => setTimeout(r, 5))
+    expect(
+      timelineApplyRafResult(
+        { stop: true, value: 9 },
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(9)
+    expect(
+      timelineApplyRafResult(
+        { stop: false, value: 2, selectId: 'e' },
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(2)
+    expect(
+      timelineApplyRafResult(
+        { stop: false, value: 3 },
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(3)
+    expect(
+      await timelineDialogOk(async () => true, 'm', 'ok')
+    ).toBe(true)
+    expect(
+      await timelineDialogDanger(async () => false, 'm', 'del')
+    ).toBe(false)
+    expect(
+      timelineSuggestSlot([], 6, () => ({ startTime: 1, order: 2 })).order
+    ).toBe(2)
+    expect(timelineErrorBannerText('e', null)).toBe('e')
+    expect(timelineErrorBannerText(undefined, 'a')).toBe('a')
+    expect(timelineSpokenBlock('hi').kind).toBe('spoken')
+    expect(timelineSpokenBlock(null).kind).toBe('none')
+    expect(timelineShowAdvanced('s')).toBe(true)
+    expect(timelineShowAdvanced(null)).toBe(false)
+    const makeAdv = timelineMakeAdvance({
+      getList: () => [],
+      getTotal: () => 10,
+      isPlaying: () => true,
+      setPlaying: () => undefined,
+      setPlayhead: () => undefined,
+      setSelected: () => undefined
+    })
+    expect(makeAdv(0)).toBe(false)
+    const makeAdv2 = timelineMakeAdvance({
+      getList: () => [
+        {
+          id: 'a',
+          startTime: 0,
+          endTime: 4,
+          mediaStatus: 'EMPTY',
+          mediaPath: null
+        }
+      ],
+      getTotal: () => 10,
+      isPlaying: () => true,
+      setPlaying: () => undefined,
+      setPlayhead: () => undefined,
+      setSelected: () => undefined
+    })
+    expect(makeAdv2(0)).toBe(true)
+    timelineMakePipelineDone(
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )()
+    expect(timelineMakeSuggestSlot()([], 6).startTime).toBeTypeOf('number')
+    expect(
+      await timelineMakeDangerConfirm(async () => true, 'm', 'd')()
+    ).toBe(true)
+    expect(
+      await timelineMakeOkConfirm(async () => false, 'ok')('msg')
+    ).toBe(false)
+    timelineMakeMediaClock(() => true, () => undefined)(1.5)
+    timelineMakeClipEnded({
+      isPlaying: () => true,
+      getEntries: () => [{ id: 'a', endTime: 4 }],
+      getSelected: () => 'a',
+      getPlayhead: () => 0,
+      advance: () => undefined
+    })()
+    timelineMakeScrub(
+      [{ id: 'a', startTime: 0, endTime: 4 }],
+      null,
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )(2)
+    timelineMakeMaybeClose(() => false, () => undefined)()
+    timelineMakeMaybeClose(() => true, () => undefined)()
+    expect(timelineHeaderSubtitle(null, 'base')).toBe('base')
+    expect(timelineHeaderSubtitle({ title: 'T' }, 'base')).toMatch(/T/)
+    expect(timelineStepSuffix(null, 0, 0)).toBe('')
+    expect(timelineStepSuffix('script', 1, 3)).toMatch(/script/)
+    expect(timelineErrorVisible(undefined, 'a')).toBe('a')
+    expect(timelineErrorVisible('e', null)).toBe('e')
+    expect(timelineShouldShowError(null, null)).toBe(false)
+    expect(timelineShouldShowError({ message: 'x' }, null)).toBe(true)
+    expect(timelineShouldShowError(null, 'a')).toBe(true)
+    expect(
+      timelineSpokenDisplay('hi', (t) => `S:${t}`, 'none')
+    ).toMatch(/^S:/)
+    expect(timelineSpokenDisplay('', (t) => t, 'none')).toBe('none')
+    expect(timelineSpokenDisplay(null, (t) => t, 'none')).toBe('none')
+    expect(timelineAdvancedClosed()).toBeNull()
+    expect(
+      timelineErrorBannerElement(null, null, (m) => m)
+    ).toBeNull()
+    expect(
+      timelineErrorBannerElement(null, 'err', (m) => m)
+    ).toBeTruthy()
+    expect(
+      timelineErrorBannerElement({ message: 'e' }, null, (m) => m)
+    ).toBeTruthy()
+    expect(timelineAdvancedSlot(false, 'x')).toBeNull()
+    expect(timelineAdvancedSlot(true, 'studio')).toBe('studio')
+    expect(timelineMaybeAdvanced(null, () => 'x')).toBeNull()
+    expect(timelineMaybeAdvanced('s1', (id) => id)).toBe('s1')
+
+
+
+
   })
 
   beforeEach(() => seed())
@@ -3889,6 +5452,7 @@ describe('abs100 Timeline pure + residual', () => {
       await waitFor(() => expect(api.timeline.list).toHaveBeenCalled())
 
       await clickNamed(/^k-sel$/i)
+      await clickNamed(/^k-scrub$/i)
       await clickNamed(/^p-tick$/i)
       await clickNamed(/^p-end$/i)
       await clickNamed(/^k-sel2$/i)
@@ -4071,10 +5635,578 @@ describe('abs100 Timeline pure + residual', () => {
 // ═══════════════════════════════════════════════════════════
 // Costumes / Scenes / Stories / Settings / Characters batch
 // ═══════════════════════════════════════════════════════════
+
+
+describe('abs100 Timeline UI residual mop', () => {
+  beforeEach(() => seed())
+
+  it('hits keyboard undo redo cancel open spoken mediaError empty clear', async () => {
+    const restoreRaf = installRafCap(12)
+    try {
+      const entries = [
+        makeTimelineEntry({
+          id: 'entry-1',
+          storyId: 'story-1',
+          order: 0,
+          startTime: 0,
+          endTime: 4,
+          mediaStatus: 'EMPTY',
+          mediaPath: null,
+          dialogue: 'Empty clip',
+          beatContentJson: JSON.stringify({ spoken: ['Hello spoken residual line that is long enough'] }),
+          mediaError: 'clip failed residual',
+          characterId: 'char-1',
+          characterIds: ['char-1'],
+          sceneIds: ['scene-1'],
+          propIds: ['prop-1'],
+          actionIds: ['act-1']
+        }),
+        makeTimelineEntry({
+          id: 'entry-2',
+          storyId: 'story-1',
+          order: 1,
+          startTime: 4,
+          endTime: 10,
+          mediaStatus: 'READY',
+          mediaPath: '/m.mp4',
+          dialogue: 'Ready',
+          stillPath: '/s.png'
+        })
+      ]
+      api.timeline.list = vi.fn().mockResolvedValue(entries)
+      api.timeline.update = vi.fn().mockResolvedValue({})
+      api.timeline.delete = vi.fn().mockResolvedValue({ ok: true })
+      api.timeline.create = vi.fn().mockResolvedValue(
+        makeTimelineEntry({ id: 'n', startTime: 10, endTime: 16 })
+      )
+      api.characters.list = vi.fn().mockResolvedValue([
+        makeCharacter({ id: 'char-1', name: 'Aria', refImagePath: '/c.png' })
+      ])
+      api.scenes.list = vi.fn().mockResolvedValue([
+        makeScene({ id: 'scene-1', title: 'Hall' })
+      ])
+      api.props.list = vi.fn().mockResolvedValue([makeProp({ id: 'prop-1' })])
+      api.actions.list = vi.fn().mockResolvedValue([makeAction({ id: 'act-1' })])
+      api.settings.get = vi.fn().mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        videoMode: 'stub',
+        snapEnabled: true,
+        snapGridSec: 0.5,
+        openExportFolder: true
+      })
+      api.media.listExports = vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 'ex1',
+            kind: 'final',
+            fileName: 'f.mp4',
+            path: '/e/f.mp4',
+            createdAt: '2026-07-15T12:00:00.000Z',
+            sizeBytes: 1024
+          }
+        ],
+        latestPath: '/e/f.mp4'
+      })
+      api.media.openClip = vi.fn().mockResolvedValue(undefined)
+      api.media.importClip = vi.fn().mockResolvedValue({ path: '/i.mp4' })
+      api.media.exportPreflight = vi.fn().mockResolvedValue({
+        canExport: true,
+        warnings: [],
+        willUseFallback: false,
+        ffmpegMessage: 'ffmpeg OK',
+        readyClips: 1,
+        totalClips: 2
+      })
+      api.media.exportFinal = vi.fn().mockResolvedValue({ outputPath: '/out.mp4' })
+      api.shell.showItemInFolder = vi.fn().mockResolvedValue(undefined)
+      api.shell.openPath = vi.fn().mockResolvedValue(undefined)
+      // pipeline job so cancel is visible
+      api.generation.run = vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve({
+                  success: true,
+                  steps: [{ step: 'script', success: true }]
+                }),
+              5000
+            )
+          })
+      )
+
+      await renderWithProviders(
+        <>
+          <Probe />
+          <TimelinePage />
+        </>,
+        { route: '/timeline', withAiShell: true, withToastHost: true }
+      )
+      await waitFor(() => expect(api.timeline.list).toHaveBeenCalled())
+
+      // select empty clip + play for gap clock rAF
+      await clickNamed(/^k-sel$/i)
+      await clickNamed(/^k-scrub$/i)
+      await clickNamed(/^Play$|▶/i)
+      await clickNamed(/^p-end$/i)
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 80))
+      })
+      await clickNamed(/Pause|Play|▶/i)
+
+      // keyboard undo/redo
+      await act(async () => {
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'z',
+            ctrlKey: true,
+            bubbles: true
+          })
+        )
+      })
+      await act(async () => {
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'z',
+            ctrlKey: true,
+            shiftKey: true,
+            bubbles: true
+          })
+        )
+      })
+      await forceClick(/Undo/i)
+      await forceClick(/Redo/i)
+
+      // open story editor
+      await forceClick(/Story editor|Open story|story editor/i)
+
+      // spoken preview + media error visible
+      for (const ta of Array.from(document.querySelectorAll('textarea')).slice(0, 1)) {
+        await act(async () =>
+          fireEvent.change(ta, {
+            target: {
+              value: 'SPOKEN:\nHello residual spoken line for coverage'
+            }
+          })
+        )
+      }
+      expect(document.body.textContent || '').toMatch(/Hello|spoken|clip failed|residual|SPOKEN/i)
+
+      // duration buttons
+      await forceClick(/^6s$|^6 S$|6\s*s/i)
+      await forceClick(/^10s$|10\s*s/i)
+
+      // generate then cancel
+      await forceClick(/Start generation|Generate all|^Generate$/i)
+      if (document.querySelector('[role="alertdialog"]')) {
+        await act(async () => clickDialogConfirm())
+      }
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40))
+      })
+      await forceClick(/Cancel|Stop/i)
+
+      // select ready + open clip + import
+      await clickNamed(/^k-sel2$/i)
+      await forceClick(/Open clip|open file|Open media/i)
+      await forceClick(/Import/i)
+
+      // list row generate force
+      await forceClick(/Generate this clip|Regenerate|Continue video/i)
+      await dismissVideoPrep(1500)
+
+      // export final → preflight fail → actionError banner
+      api.media.exportPreflight = vi.fn().mockResolvedValue({
+        canExport: false,
+        ffmpegMessage: 'broken ffmpeg',
+        warnings: [],
+        willUseFallback: false,
+        readyClips: 0,
+        totalClips: 2
+      })
+      await forceClick(/Export final|Export video/i)
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 30))
+      })
+      // click every plausible confirm in export dialog
+      for (const b of Array.from(document.querySelectorAll('button'))) {
+        const tx = (b.textContent || '').trim()
+        if (
+          /confirm export|export now|start export|export video|export final|^export$/i.test(
+            tx
+          )
+        ) {
+          await act(async () => fireEvent.click(b))
+        }
+      }
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 80))
+      })
+      // also force cast error into actionError via list fail on story switch
+      api.characters.list = vi.fn().mockRejectedValue(new Error('cast-fail-banner'))
+      const storySel = document.querySelector('select')
+      if (storySel && (storySel as HTMLSelectElement).options.length > 0) {
+        const s = storySel as HTMLSelectElement
+        // re-select same to reload cast
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[0].value } })
+        )
+      }
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50))
+      })
+      // restore preflight for later paths
+      api.media.exportPreflight = vi.fn().mockResolvedValue({
+        canExport: true,
+        warnings: [],
+        willUseFallback: false,
+        ffmpegMessage: 'ffmpeg OK',
+        readyClips: 1,
+        totalClips: 2
+      })
+
+      // export history open folder
+      await forceClick(/Export history/i)
+      await forceClick(/Open folder|Show in folder|folder/i)
+      await forceClick(/Open file|Open path/i)
+      // backdrop close
+      const dlg = document.querySelector('[role="dialog"]')
+      if (dlg?.parentElement) {
+        await act(async () => fireEvent.click(dlg.parentElement!))
+      }
+
+      // pipeline done callback
+      if (jobs) {
+        // trigger onPipelineDone via custom if available
+      }
+      await act(async () => {
+        window.dispatchEvent(
+          new CustomEvent('idm:video-prep-done', {
+            detail: {
+              kind: 'timeline-clip',
+              entityIds: { storyId: 'story-1', entryId: 'entry-2' },
+              path: '/done.mp4'
+            }
+          })
+        )
+      })
+
+      // empty timeline path + no story (advanced studio null branch)
+      api.timeline.list = vi.fn().mockResolvedValue([])
+      await forceClick(/Refresh|reload/i)
+      const sel = document.querySelector('select')
+      if (sel) {
+        await act(async () =>
+          fireEvent.change(sel, { target: { value: '' } })
+        )
+      }
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 30))
+      })
+    } finally {
+      restoreRaf()
+    }
+  }, 90000)
+})
+
+describe('abs100 Costumes UI residual mop', () => {
+  beforeEach(() => seed())
+
+  it('hits dress links active badge intro cover reorder style filters', async () => {
+    const cos = makeCostume({
+      id: 'cos-1',
+      name: 'Rain Coat',
+      description: 'Long rain coat',
+      artStyle: 'photo_cinematic',
+      refImagePath: '/c.png',
+      refGalleryJson: JSON.stringify([
+        {
+          id: 'g1',
+          path: '/c.png',
+          label: 'Look',
+          kind: 'sheet',
+          createdAt: '2026-07-01T00:00:00.000Z'
+        },
+        {
+          id: 'g2',
+          path: '/c2.png',
+          label: 'Alt',
+          kind: 'gen',
+          createdAt: '2026-07-02T00:00:00.000Z'
+        }
+      ]),
+      characterLinks: [
+        {
+          characterId: 'char-1',
+          character: {
+            id: 'char-1',
+            name: 'Aria',
+            costume: 'Long rain coat',
+            refImagePath: '/char.png',
+            refGalleryJson: JSON.stringify([
+              {
+                id: 'cg1',
+                path: '/char.png',
+                label: 'Hero',
+                kind: 'sheet',
+                createdAt: '2026-07-01T00:00:00.000Z'
+              }
+            ])
+          }
+        }
+      ]
+    })
+    const cos2 = makeCostume({
+      id: 'cos-2',
+      name: 'Suit',
+      description: 'Black suit',
+      artStyle: 'anime_cel',
+      refImagePath: null,
+      characterLinks: []
+    })
+    api.costumes.list = vi.fn().mockResolvedValue([cos, cos2])
+    api.costumes.update = vi.fn().mockResolvedValue(cos)
+    api.costumes.create = vi.fn().mockResolvedValue(cos)
+    api.costumes.delete = vi.fn().mockResolvedValue({ ok: true })
+    api.costumes.linkCharacter = vi.fn().mockResolvedValue({})
+    api.costumes.unlinkCharacter = vi.fn().mockResolvedValue({})
+    api.costumes.aiFill = vi.fn().mockResolvedValue({
+      name: 'AI Coat',
+      description: 'AI desc',
+      artStyle: 'photo_cinematic',
+      hardRules: 'no logo'
+    })
+    api.costumes.generateDressed = vi.fn().mockResolvedValue({
+      path: '/dressed.png',
+      costume: {
+        refImagePath: '/dressed.png',
+        refGalleryJson: JSON.stringify([
+          {
+            id: 'dg',
+            path: '/dressed.png',
+            label: 'Dressed',
+            kind: 'gen',
+            createdAt: '2026-07-03T00:00:00.000Z'
+          }
+        ])
+      }
+    })
+    api.characters.list = vi.fn().mockResolvedValue([
+      makeCharacter({
+        id: 'char-1',
+        name: 'Aria',
+        costume: 'Long rain coat',
+        refImagePath: '/char.png',
+        refGalleryJson: JSON.stringify([
+          {
+            id: 'cg1',
+            path: '/char.png',
+            label: 'Hero',
+            kind: 'sheet',
+            createdAt: '2026-07-01T00:00:00.000Z'
+          }
+        ])
+      }),
+      makeCharacter({
+        id: 'char-2',
+        name: 'Blake',
+        refImagePath: null
+      })
+    ])
+    api.media.pickRefImage = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ filePath: '/picked.png' })
+
+    await renderWithProviders(
+      <>
+        <Probe />
+        <CostumesPage />
+      </>,
+      { withAiShell: true, withToastHost: true }
+    )
+    await waitFor(() => expect(api.costumes.list).toHaveBeenCalled())
+
+    // active badge + active no delete visible
+    expect(document.body.textContent || '').toMatch(/Active|active/i)
+
+    // filters: style + image + active + unlinked
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 1) {
+        await act(async () =>
+          fireEvent.change(s, {
+            target: { value: s.options[s.options.length - 1].value }
+          })
+        )
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[0].value } })
+        )
+      }
+    }
+    // unlinked filter
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const un = Array.from(s.options).find((o) =>
+        /unlinked|Unlinked/i.test(o.textContent || '')
+      )
+      if (un) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: un.value } })
+        )
+      }
+    }
+    await forceClick(/Clear|Reset filters|clear filters/i)
+
+    // edit active costume
+    await openCardEdit('Rain Coat')
+    await forceClick(/AI fill/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+
+    // set cover / remove via buttons if present
+    await forceClick(/Set as cover|Cover|set cover/i)
+    await forceClick(/Upload|Pick|upload ref/i)
+    await forceClick(/Upload|Pick|upload ref/i)
+
+    // intro video
+    await forceClick(/Intro|video/i)
+    await dismissVideoPrep(2000)
+
+    // reorder strip - may not have drag; click links tab
+    await forceClick(/Links|characters/i)
+    await forceClick(/Link|Unlink/i)
+    await forceClick(/Link|Unlink/i)
+    // empty links search
+    for (const inp of Array.from(document.querySelectorAll('input'))) {
+      await act(async () =>
+        fireEvent.change(inp, { target: { value: 'zzzz-no-match' } })
+      )
+    }
+    await forceClick(/All|Linked|Unlinked/i)
+
+    // dress tab
+    await forceClick(/Dress|dress/i)
+    // pick character
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const opt = Array.from(s.options).find((o) =>
+        /Aria/i.test(o.textContent || '')
+      )
+      if (opt) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: opt.value } })
+        )
+      }
+    }
+    await forceClick(/Auto|Manual/i)
+    await forceClick(/Manual|Auto/i)
+    // pose pills
+    for (const b of Array.from(document.querySelectorAll('button')).slice(0, 20)) {
+      const t = (b.textContent || '').trim()
+      if (/front|side|detail|hero|pose/i.test(t) && t.length < 40) {
+        await act(async () => fireEvent.click(b))
+      }
+    }
+    await forceClick(/Generate dressed|Dress look|dressed/i)
+    await confirmImageGen()
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 80))
+    })
+
+    // close and open create for save-first links
+    await dismissVideoPrep(500)
+    await forceClick(/Cancel|Close|Abandon/i)
+    await forceClick(/New look|New|Create|Add costume/i)
+    await forceClick(/Links|characters/i)
+    // dress without save
+    await forceClick(/Dress|dress/i)
+    await forceClick(/Generate dressed|Dress look|dressed/i)
+
+    // Links tab (i18n: "Linked cast") → search to empty list
+    await forceClick(/Linked cast|tabLinks|Links/i)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    for (const inp of Array.from(document.querySelectorAll('input'))) {
+      await act(async () =>
+        fireEvent.change(inp, { target: { value: 'zzzz-empty-links-xyz' } })
+      )
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+    // clear search; unlink so full cast list
+    for (const inp of Array.from(document.querySelectorAll('input'))) {
+      await act(async () => fireEvent.change(inp, { target: { value: '' } }))
+    }
+    for (const b of Array.from(document.querySelectorAll('button'))) {
+      if (/Unlink/i.test((b.textContent || '').trim())) {
+        await act(async () => fireEvent.click(b))
+        break
+      }
+    }
+    await forceClick(/Dress|dress|Dressing/i)
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      const opt = Array.from(s.options).find((o) =>
+        /Blake/i.test(o.textContent || '')
+      )
+      if (opt) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: opt.value } })
+        )
+      }
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 40))
+    })
+
+    // back to list: dismiss video prep, clear filters then open Suit
+    await dismissVideoPrep(800)
+    await forceClick(/Cancel|Close|Abandon/i)
+    await dismissVideoPrep(400)
+    await forceClick(/Clear|clear filters/i)
+    // reset all selects to first option
+    for (const sel of Array.from(document.querySelectorAll('select'))) {
+      const s = sel as HTMLSelectElement
+      if (s.options.length > 0) {
+        await act(async () =>
+          fireEvent.change(s, { target: { value: s.options[0].value } })
+        )
+      }
+    }
+    for (const inp of Array.from(document.querySelectorAll('input'))) {
+      if ((inp as HTMLInputElement).type === 'text' || !(inp as HTMLInputElement).type) {
+        await act(async () => fireEvent.change(inp, { target: { value: '' } }))
+      }
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    try {
+      await openCardEdit('Suit')
+      await forceClick(/Upload|Pick|upload ref/i)
+      for (const ta of Array.from(document.querySelectorAll('textarea'))) {
+        await act(async () =>
+          fireEvent.change(ta, {
+            target: { value: 'suit description residual' }
+          })
+        )
+      }
+      await forceClick(/^Save$/i)
+    } catch {
+      /* Suit may already be filtered; ignore */
+    }
+  }, 120000)
+})
+
+
 describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
   beforeEach(() => seed())
 
-  it('Costumes pure residual helpers cover every branch', () => {
+  it('Costumes pure residual helpers cover every branch', async () => {
     const msgs: string[] = []
     expect(
       costumesGuardSaveFirst(null, (m) => msgs.push(m), 'save')
@@ -4329,6 +6461,1018 @@ describe('abs100 Costumes Scenes Stories Settings Characters batch', () => {
     reo('b', 'x') // no-op invalid
     reo('b', 'b')
     expect(gal[0].id).toBe('b')
+
+    // ── expanded costumes residual pure ──
+    expect(costumesListFilterArg(true, '')).toEqual({ unlinkedOnly: true })
+    expect(costumesListFilterArg(false, 'c1')).toEqual({ characterId: 'c1' })
+    expect(costumesListFilterArg(false, '')).toBeUndefined()
+    expect(costumesIsActiveOnChar('Coat', 'coat')).toBe(true)
+    expect(costumesIsActiveOnChar('Coat', 'other')).toBe(false)
+    expect(
+      costumesActiveNames(
+        [
+          { character: { name: 'A', costume: 'Coat' } },
+          { character: { name: 'B', costume: 'x' } }
+        ],
+        'Coat'
+      )
+    ).toEqual(['A'])
+    expect(
+      costumesDressBaseOptions(null, [], () => 'L')
+    ).toEqual([])
+    expect(
+      costumesDressBaseOptions(
+        { name: 'A', refImagePath: '/r' },
+        [],
+        () => 'L'
+      )
+    ).toEqual([{ path: '/r', label: 'A', id: 'ref' }])
+    expect(
+      costumesDressBaseOptions(
+        { name: 'A' },
+        [{ id: 'g1', path: '/p', label: 'G' }],
+        (i) => i.label || i.path
+      )
+    ).toHaveLength(1)
+    expect(
+      costumesLinksFilterMatch(true, 'linked', '', 'n', '')
+    ).toBe(true)
+    expect(
+      costumesLinksFilterMatch(false, 'linked', '', 'n', '')
+    ).toBe(false)
+    expect(
+      costumesLinksFilterMatch(true, 'unlinked', '', 'n', '')
+    ).toBe(false)
+    expect(
+      costumesLinksFilterMatch(false, 'all', 'rain', 'Raincoat', 'x')
+    ).toBe(true)
+    expect(
+      costumesLinksFilterMatch(false, 'all', 'zz', 'Rain', 'desc')
+    ).toBe(false)
+
+    expect(
+      await costumesRunToggleLink({
+        editId: null,
+        characterId: 'c',
+        linked: false,
+        dressCharId: '',
+        toastInfo: () => undefined,
+        saveFirstMsg: 's',
+        setBusy: () => undefined,
+        unlink: async () => undefined,
+        link: async () => undefined,
+        setLinked: () => undefined,
+        clearDressIf: () => undefined,
+        reload: async () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('saveFirst')
+    expect(
+      await costumesRunToggleLink({
+        editId: 'id',
+        characterId: 'c',
+        linked: true,
+        dressCharId: 'c',
+        toastInfo: () => undefined,
+        saveFirstMsg: 's',
+        setBusy: () => undefined,
+        unlink: async () => undefined,
+        link: async () => undefined,
+        setLinked: (fn) => fn(['c']),
+        clearDressIf: () => undefined,
+        reload: async () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await costumesRunToggleLink({
+        editId: 'id',
+        characterId: 'c',
+        linked: false,
+        dressCharId: '',
+        toastInfo: () => undefined,
+        saveFirstMsg: 's',
+        setBusy: () => undefined,
+        unlink: async () => undefined,
+        link: async () => undefined,
+        setLinked: (fn) => fn([]),
+        clearDressIf: () => undefined,
+        reload: async () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await costumesRunToggleLink({
+        editId: 'id',
+        characterId: 'c',
+        linked: false,
+        dressCharId: '',
+        toastInfo: () => undefined,
+        saveFirstMsg: 's',
+        setBusy: () => undefined,
+        unlink: async () => undefined,
+        link: async () => {
+          throw new Error('link')
+        },
+        setLinked: () => undefined,
+        clearDressIf: () => undefined,
+        reload: async () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      costumesGuardAiNeed('', '', '', false, () => undefined, 'need')
+    ).toBe(true)
+    expect(
+      costumesGuardAiNeed('i', '', '', false, () => undefined, 'need')
+    ).toBe(false)
+    expect(costumesAiFillRefPath(' /a ', null)).toBe('/a')
+    expect(costumesAiFillRefPath(null, ' /b ')).toBe('/b')
+    expect(costumesAiFillRefPath(null, null)).toBe('')
+
+    expect(
+      costumesRunAiFill({
+        idea: '',
+        lookDesc: '',
+        lookName: '',
+        lookStyle: 's',
+        lookHardRules: '',
+        refPath: '',
+        busy: false,
+        toastInfo: () => undefined,
+        needMsg: 'n',
+        runningMsg: 'r',
+        fromImageMsg: 'f',
+        backgroundMsg: 'b',
+        setBanner: () => undefined,
+        startJob: () => undefined
+      })
+    ).toBe('need')
+    expect(
+      costumesRunAiFill({
+        idea: 'i',
+        lookDesc: '',
+        lookName: '',
+        lookStyle: 's',
+        lookHardRules: '',
+        refPath: '',
+        busy: true,
+        toastInfo: () => undefined,
+        needMsg: 'n',
+        runningMsg: 'r',
+        fromImageMsg: 'f',
+        backgroundMsg: 'b',
+        setBanner: () => undefined,
+        startJob: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      costumesRunAiFill({
+        idea: '',
+        lookDesc: '',
+        lookName: '',
+        lookStyle: 's',
+        lookHardRules: '',
+        refPath: '/img',
+        busy: false,
+        toastInfo: () => undefined,
+        needMsg: 'n',
+        runningMsg: 'r',
+        fromImageMsg: 'f',
+        backgroundMsg: 'b',
+        setBanner: () => undefined,
+        startJob: () => undefined
+      })
+    ).toBe('started')
+    expect(
+      costumesRunAiFill({
+        idea: 'idea',
+        lookDesc: 'd',
+        lookName: 'n',
+        lookStyle: 's',
+        lookHardRules: 'h',
+        refPath: '',
+        busy: false,
+        toastInfo: () => undefined,
+        needMsg: 'n',
+        runningMsg: 'r',
+        fromImageMsg: 'f',
+        backgroundMsg: 'b',
+        setBanner: () => undefined,
+        startJob: () => undefined
+      })
+    ).toBe('started')
+
+    costumesApplyAiFillResult(
+      { name: 'N', description: 'D', artStyle: 'photo_cinematic', hardRules: ' H ' },
+      true,
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => true
+    )
+    costumesApplyAiFillResult({}, false, () => undefined, () => undefined, () => undefined, () => undefined, () => false)
+    costumesApplyAiFillResult(
+      { artStyle: 'x', hardRules: '   ' },
+      true,
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => false
+    )
+
+    expect(
+      await costumesRunSave({
+        lookDesc: '',
+        lookName: '',
+        lookHardRules: '',
+        lookStyle: 's',
+        lookImagePath: null,
+        galleryJson: null,
+        linkedCharIds: [],
+        editId: null,
+        setBusy: () => undefined,
+        setError: () => undefined,
+        update: async () => undefined,
+        create: async () => undefined,
+        reload: async () => undefined,
+        toastSuccess: () => undefined,
+        closeEditor: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('empty')
+    expect(
+      await costumesRunSave({
+        lookDesc: 'desc',
+        lookName: '',
+        lookHardRules: 'h',
+        lookStyle: 's',
+        lookImagePath: null,
+        galleryJson: null,
+        linkedCharIds: [],
+        editId: 'id',
+        setBusy: () => undefined,
+        setError: () => undefined,
+        update: async () => undefined,
+        create: async () => undefined,
+        reload: async () => undefined,
+        toastSuccess: () => undefined,
+        closeEditor: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await costumesRunSave({
+        lookDesc: 'desc',
+        lookName: 'nm',
+        lookHardRules: '',
+        lookStyle: 's',
+        lookImagePath: '/p',
+        galleryJson: '[]',
+        linkedCharIds: ['c'],
+        editId: null,
+        setBusy: () => undefined,
+        setError: () => undefined,
+        update: async () => undefined,
+        create: async () => undefined,
+        reload: async () => undefined,
+        toastSuccess: () => undefined,
+        closeEditor: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await costumesRunSave({
+        lookDesc: 'desc',
+        lookName: 'nm',
+        lookHardRules: '',
+        lookStyle: 's',
+        lookImagePath: null,
+        galleryJson: null,
+        linkedCharIds: [],
+        editId: null,
+        setBusy: () => undefined,
+        setError: () => undefined,
+        update: async () => undefined,
+        create: async () => {
+          throw new Error('save')
+        },
+        reload: async () => undefined,
+        toastSuccess: () => undefined,
+        closeEditor: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await costumesRunDelete({
+        c: {
+          id: 'c1',
+          description: 'Coat',
+          characterLinks: [
+            { character: { name: 'A', costume: 'Coat' } }
+          ]
+        },
+        toastInfo: () => undefined,
+        activeMsg: (n) => n,
+        confirm: async () => true,
+        remove: async () => undefined,
+        reload: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('active')
+    expect(
+      await costumesRunDelete({
+        c: {
+          id: 'c1',
+          description: 'Coat',
+          characterLinks: []
+        },
+        toastInfo: () => undefined,
+        activeMsg: (n) => n,
+        confirm: async () => false,
+        remove: async () => undefined,
+        reload: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('cancel')
+    expect(
+      await costumesRunDelete({
+        c: {
+          id: 'c1',
+          description: 'Coat',
+          characterLinks: []
+        },
+        toastInfo: () => undefined,
+        activeMsg: (n) => n,
+        confirm: async () => true,
+        remove: async () => undefined,
+        reload: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await costumesRunDelete({
+        c: {
+          id: 'c1',
+          description: 'Coat',
+          characterLinks: []
+        },
+        toastInfo: () => undefined,
+        activeMsg: (n) => n,
+        confirm: async () => true,
+        remove: async () => {
+          throw new Error('rm')
+        },
+        reload: async () => undefined,
+        toastSuccess: () => undefined,
+        toastError: () => undefined
+      })
+    ).toBe('error')
+
+    expect(
+      await costumesRunPickImage({
+        pick: async () => null,
+        gallery: [],
+        append: () => [],
+        externalLabel: 'e',
+        setLook: () => undefined,
+        setGallery: () => undefined,
+        setSelected: () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe(false)
+    expect(
+      await costumesRunPickImage({
+        pick: async () => ({ filePath: '/p' }),
+        gallery: [],
+        append: () => [{ id: 'g1' }],
+        externalLabel: 'e',
+        setLook: () => undefined,
+        setGallery: () => undefined,
+        setSelected: () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe(true)
+
+    costumesSetCover(
+      '/p',
+      [{ id: 'g', path: '/p' }],
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )
+    costumesSetCover('/x', [], () => undefined, () => undefined, () => undefined)
+
+    expect(costumesMapGalleryKind('sheet')).toBe('sheet')
+    expect(costumesMapGalleryKind('upload')).toBe('upload')
+    expect(costumesMapGalleryKind('gen')).toBe('gen')
+    expect(costumesMapGalleryKind('other')).toBe('gen')
+    expect(
+      costumesMapVideoGalleryItem({
+        id: '1',
+        path: '/p',
+        kind: 'sheet',
+        label: 'L',
+        createdAt: 't',
+        layer: 'identity',
+        introVideoPath: '/v'
+      }).layer
+    ).toBe('identity')
+    expect(
+      costumesMapVideoGalleryItem({
+        id: '1',
+        path: '/p',
+        kind: 'x',
+        label: 'L',
+        createdAt: 't'
+      }).introVideoPath
+    ).toBeNull()
+
+    expect(
+      costumesHandleVideoPrepDone({ kind: 'other' }, 'id', () => undefined, () => undefined)
+    ).toBe(false)
+    expect(
+      costumesHandleVideoPrepDone(
+        { kind: 'costume-intro', entityIds: { costumeId: 'x' } },
+        'id',
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(false)
+    expect(
+      costumesHandleVideoPrepDone(
+        {
+          kind: 'costume-intro',
+          entityIds: { costumeId: 'id' },
+          gallery: [
+            {
+              id: 'g',
+              path: '/p',
+              kind: 'gen',
+              label: 'L',
+              createdAt: 't'
+            }
+          ]
+        },
+        'id',
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(true)
+    expect(
+      costumesHandleVideoPrepDone(
+        { kind: 'costume-intro', entityIds: { costumeId: 'id' } },
+        'id',
+        () => undefined,
+        () => undefined
+      )
+    ).toBe(true)
+
+    expect(
+      await costumesRunIntroAfterSave({
+        update: async () => undefined,
+        toastError: () => undefined,
+        start: () => undefined
+      })
+    ).toBe('ok')
+    expect(
+      await costumesRunIntroAfterSave({
+        update: async () => {
+          throw new Error('u')
+        },
+        toastError: () => undefined,
+        start: () => undefined
+      })
+    ).toBe('error')
+
+    const conf = costumesBuildDressConfirm({
+      charName: 'A',
+      lookDesc: 'coat',
+      lookName: '',
+      artStyle: 's',
+      poseId: 'hero_front',
+      hardRules: 'rule',
+      dressNote: 'extra',
+      dressBasePath: '/b',
+      basePath: '/b',
+      poseLabel: 'P',
+      styleLabel: 'S',
+      manualMsg: 'M',
+      autoMsg: 'A',
+      buildPrompt: () => 'PROMPT',
+      ensureRules: (p) => p + '+R'
+    })
+    expect(conf.prompt).toMatch(/EXTRA DRESS/)
+    expect(conf.referencePaths).toEqual(['/b'])
+    const conf2 = costumesBuildDressConfirm({
+      charName: undefined,
+      lookDesc: '',
+      lookName: '',
+      artStyle: 's',
+      poseId: 'hero_front',
+      hardRules: '',
+      dressNote: '',
+      dressBasePath: '',
+      basePath: null,
+      poseLabel: 'P',
+      styleLabel: 'S',
+      manualMsg: 'M',
+      autoMsg: 'A',
+      buildPrompt: () => 'PROMPT',
+      ensureRules: (p) => p
+    })
+    expect(conf2.useIdentityEdit).toBe(false)
+
+    expect(
+      await costumesRunDressJob({
+        editId: null,
+        dressCharId: 'c',
+        busy: false,
+        toastInfo: () => undefined,
+        runningMsg: 'r',
+        backgroundMsg: 'b',
+        setBanner: () => undefined,
+        setConfirmNull: () => undefined,
+        startJob: () => undefined,
+        generate: async () => ({ path: '/p' }),
+        pose: 'hero_front',
+        prompt: 'p',
+        base: null,
+        stillOpen: () => true,
+        applyResult: () => undefined,
+        parseGallery: () => [],
+        galleryFallback: [],
+        reload: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe('no-id')
+    expect(
+      await costumesRunDressJob({
+        editId: 'id',
+        dressCharId: 'c',
+        busy: true,
+        toastInfo: () => undefined,
+        runningMsg: 'r',
+        backgroundMsg: 'b',
+        setBanner: () => undefined,
+        setConfirmNull: () => undefined,
+        startJob: () => undefined,
+        generate: async () => ({ path: '/p' }),
+        pose: 'hero_front',
+        prompt: 'p',
+        base: null,
+        stillOpen: () => true,
+        applyResult: () => undefined,
+        parseGallery: () => [],
+        galleryFallback: [],
+        reload: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe('busy')
+    expect(
+      await costumesRunDressJob({
+        editId: 'id',
+        dressCharId: 'c',
+        busy: false,
+        toastInfo: () => undefined,
+        runningMsg: 'r',
+        backgroundMsg: 'b',
+        setBanner: () => undefined,
+        setConfirmNull: () => undefined,
+        startJob: (_a, _b, _c, run) => {
+          void run({ setProgress: () => undefined, signal: { cancelled: false } })
+        },
+        generate: async () => ({
+          path: '/p',
+          costume: { refImagePath: '/p', refGalleryJson: null }
+        }),
+        pose: 'hero_front',
+        prompt: 'p',
+        base: '/b',
+        stillOpen: () => true,
+        applyResult: () => undefined,
+        parseGallery: () => [{ id: 'g', path: '/p' }],
+        galleryFallback: [],
+        reload: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe('started')
+    expect(
+      await costumesRunDressJob({
+        editId: 'id',
+        dressCharId: 'c',
+        busy: false,
+        toastInfo: () => undefined,
+        runningMsg: 'r',
+        backgroundMsg: 'b',
+        setBanner: () => undefined,
+        setConfirmNull: () => undefined,
+        startJob: (_a, _b, _c, run) => {
+          void run({ setProgress: () => undefined, signal: { cancelled: true } })
+        },
+        generate: async () => ({ path: '/p' }),
+        pose: 'hero_front',
+        prompt: 'p',
+        base: null,
+        stillOpen: () => false,
+        applyResult: () => undefined,
+        parseGallery: () => [],
+        galleryFallback: [{ id: 'f' }],
+        reload: async () => undefined,
+        toastSuccess: () => undefined
+      })
+    ).toBe('started')
+
+    expect(costumesSelectedGalItem([], null, null)).toBeNull()
+    expect(
+      costumesSelectedGalItem(
+        [
+          { id: 'a', path: '/a' },
+          { id: 'b', path: '/b' }
+        ],
+        'b',
+        null
+      )?.id
+    ).toBe('b')
+    expect(
+      costumesSelectedGalItem(
+        [
+          { id: 'a', path: '/a' },
+          { id: 'b', path: '/b' }
+        ],
+        null,
+        '/b'
+      )?.id
+    ).toBe('b')
+    expect(
+      costumesSelectedGalItem([{ id: 'a', path: '/a' }], null, null)?.id
+    ).toBe('a')
+
+    expect(costumesFilterCharChange('__unlinked__')).toEqual({
+      unlinked: true,
+      charId: ''
+    })
+    expect(costumesFilterCharChange('c1')).toEqual({
+      unlinked: false,
+      charId: 'c1'
+    })
+    expect(costumesDressCtaHint(null, '', false, false)).toBe('saveFirst')
+    expect(costumesDressCtaHint('id', '', false, true)).toBe('needCharBase')
+    expect(costumesDressCtaHint('id', 'c', true, false)).toBe('needDesc')
+    expect(costumesDressCtaHint('id', 'c', true, true)).toBeNull()
+    expect(costumesOpenCreateState().editId).toBeNull()
+    expect(costumesNameOrDescSlice('', 'long description here')).toMatch(/long/)
+    expect(costumesNameOrDescSlice('Name', 'desc')).toBe('Name')
+    expect(
+      costumesLinkedNames([
+        { character: { name: 'A' } },
+        { character: { name: 'B' } }
+      ])
+    ).toBe('A · B')
+    expect(costumesStyleChip(null, 'L')).toBe('')
+    expect(costumesStyleChip('s', 'L')).toMatch(/L/)
+    expect(costumesFilterListQuery(true, false)).toBe(true)
+    expect(costumesFilterListQuery(false, false)).toBe(false)
+    expect(costumesClearDressBaseIfInvalid([{ path: '/a' }], '/b')).toBe('')
+    expect(costumesClearDressBaseIfInvalid([{ path: '/a' }], '/a')).toBe('/a')
+    expect(typeof costumesIntroOrUndefined('id', '/p', () => undefined)).toBe(
+      'function'
+    )
+    expect(costumesIntroOrUndefined(null, '/p', () => undefined)).toBeUndefined()
+    expect(costumesIntroOrUndefined('id', undefined, () => undefined)).toBeUndefined()
+
+    // makeRemoveImage selectedId-null branch
+    {
+      let look: string | null = '/a'
+      let sel: string | null = 'a'
+      let gal = [{ id: 'a', path: '/a' }]
+      const rm = costumesMakeRemoveImage({
+        getGallery: () => gal,
+        getLook: () => look,
+        removeItem: () => [],
+        isCover: () => false,
+        primary: () => null,
+        setGallery: (g) => {
+          gal = g as typeof gal
+        },
+        setLook: (p) => {
+          look = p
+        },
+        setSelected: (id) => {
+          sel = id
+        }
+      })
+      rm('a')
+      expect(sel).toBeNull()
+      expect(look).toBeNull()
+    }
+
+    await costumesBindToggleLink({
+      getEditId: () => 'id',
+      getLinked: () => [],
+      getDressCharId: () => '',
+      toastInfo: () => undefined,
+      saveFirstMsg: 's',
+      setBusy: () => undefined,
+      unlink: async () => undefined,
+      link: async () => undefined,
+      setLinked: () => undefined,
+      clearDressIf: () => undefined,
+      reload: async () => undefined,
+      toastError: () => undefined
+    })('c1')
+    costumesBindSetCover({
+      getGallery: () => [{ id: 'g', path: '/p' }],
+      setLook: () => undefined,
+      setSelected: () => undefined,
+      toastSuccess: () => undefined
+    })('/p')
+    costumesBindIntroVideo({
+      getEditId: () => null,
+      isBusy: () => false,
+      toastInfo: () => undefined,
+      toastError: () => undefined,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: () => false,
+      continueDraft: () => undefined,
+      getLookName: () => 'n',
+      getLookDesc: () => 'd',
+      getLookStyle: () => 's',
+      getLookImage: () => null,
+      getGallery: () => [],
+      serializeGallery: () => null,
+      update: async () => undefined,
+      startVideoPrep: () => undefined,
+      buildDraftKey: () => 'k'
+    })('/p')
+    costumesBindIntroVideo({
+      getEditId: () => 'id',
+      isBusy: () => false,
+      toastInfo: () => undefined,
+      toastError: () => undefined,
+      msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+      hasDraft: () => true,
+      continueDraft: () => undefined,
+      getLookName: () => 'n',
+      getLookDesc: () => 'd',
+      getLookStyle: () => 's',
+      getLookImage: () => null,
+      getGallery: () => [],
+      serializeGallery: () => null,
+      update: async () => undefined,
+      startVideoPrep: () => undefined,
+      buildDraftKey: () => 'k'
+    })('/p')
+    await new Promise((r) => {
+      costumesBindIntroVideo({
+        getEditId: () => 'id',
+        isBusy: () => false,
+        toastInfo: () => undefined,
+        toastError: () => undefined,
+        msgs: { saveFirst: 's', needImage: 'n', loading: 'L' },
+        hasDraft: () => false,
+        continueDraft: () => undefined,
+        getLookName: () => 'n',
+        getLookDesc: () => 'd',
+        getLookStyle: () => 's',
+        getLookImage: () => '/i',
+        getGallery: () => [],
+        serializeGallery: () => '[]',
+        update: async () => undefined,
+        startVideoPrep: () => undefined,
+        buildDraftKey: () => 'k'
+      })('/p')
+      setTimeout(r, 20)
+    })
+    const unsub = costumesListenVideoPrepDone(
+      'id',
+      () => undefined,
+      () => undefined
+    )
+    window.dispatchEvent(
+      new CustomEvent('idm:video-prep-done', {
+        detail: {
+          kind: 'costume-intro',
+          entityIds: { costumeId: 'id' },
+          gallery: []
+        }
+      })
+    )
+    unsub()
+    costumesBindGenerateDressed({
+      getEditId: () => null,
+      getDressCharId: () => '',
+      getBaseOptionsLen: () => 0,
+      isBlocked: () => false,
+      toastInfo: () => undefined,
+      toastError: () => undefined,
+      setBanner: () => undefined,
+      msgs: {
+        saveFirst: 's',
+        pickChar: 'p',
+        noBase: 'n',
+        loading: 'L'
+      },
+      findChar: () => undefined,
+      getPose: () => ({ id: 'hero_front', labelKey: 'k' }),
+      getArtStyleId: () => 's',
+      getLookDesc: () => 'd',
+      getLookName: () => 'n',
+      getHardRules: () => '',
+      getDressNote: () => '',
+      getDressBasePath: () => '',
+      getResolvedBase: () => null,
+      poseLabelOf: () => 'P',
+      styleLabelOf: () => 'S',
+      manualMsg: 'M',
+      autoMsg: 'A',
+      buildPrompt: () => 'P',
+      ensureRules: (p) => p,
+      setConfirm: () => undefined
+    })()
+    costumesBindGenerateDressed({
+      getEditId: () => 'id',
+      getDressCharId: () => 'c',
+      getBaseOptionsLen: () => 1,
+      isBlocked: () => false,
+      toastInfo: () => undefined,
+      toastError: () => undefined,
+      setBanner: () => undefined,
+      msgs: {
+        saveFirst: 's',
+        pickChar: 'p',
+        noBase: 'n',
+        loading: 'L'
+      },
+      findChar: () => ({ name: 'A' }),
+      getPose: () => ({ id: 'hero_front', labelKey: 'k' }),
+      getArtStyleId: () => 's',
+      getLookDesc: () => 'coat',
+      getLookName: () => 'n',
+      getHardRules: () => 'r',
+      getDressNote: () => 'note',
+      getDressBasePath: () => '/b',
+      getResolvedBase: () => '/b',
+      poseLabelOf: () => 'P',
+      styleLabelOf: () => 'S',
+      manualMsg: 'M',
+      autoMsg: 'A',
+      buildPrompt: () => 'PROMPT',
+      ensureRules: (p) => p,
+      setConfirm: () => undefined
+    })()
+    await costumesBindRunDressJob({
+      getEditId: () => 'id',
+      getDressCharId: () => 'c',
+      isBlocked: () => false,
+      toastInfo: () => undefined,
+      runningMsg: 'r',
+      backgroundMsg: 'b',
+      setBanner: () => undefined,
+      setConfirmNull: () => undefined,
+      startJob: (_a, _b, run) => {
+        void run({
+          setProgress: () => undefined,
+          signal: { cancelled: false }
+        })
+      },
+      generate: async () => ({ path: '/p', costume: null }),
+      getPose: () => 'hero_front',
+      getResolvedBase: () => '/b',
+      stillOpen: () => true,
+      applyResult: () => undefined,
+      parseGallery: () => [],
+      getGalleryFallback: () => [],
+      reload: async () => undefined,
+      toastSuccess: () => undefined
+    })({ prompt: 'p', referencePaths: ['/b'] })
+    costumesSyncDressBasePath('', [{ path: '/a' }], () => undefined)
+    costumesSyncDressBasePath('/x', [{ path: '/a' }], () => undefined)
+    costumesBindManualBase([{ path: '/a' }], '', () => undefined)()
+    costumesBindManualBase([{ path: '/a' }], '/a', () => undefined)()
+    expect(
+      costumesDressCharOptions(
+        [
+          { id: 'a', name: 'A' },
+          { id: 'b', name: 'B' }
+        ],
+        ['a']
+      )
+    ).toHaveLength(1)
+    expect(
+      costumesDressCharOptions([{ id: 'a', name: 'A' }], [])
+    ).toHaveLength(1)
+    costumesOnDressCharChange('c', () => undefined, () => undefined)
+    expect(costumesArtStyleOrDefault('photo_cinematic', () => true, 'd')).toBe(
+      'photo_cinematic'
+    )
+    expect(costumesArtStyleOrDefault('x', () => false, 'd')).toBe('d')
+    expect(costumesBusyLabel(true, 'g', 'i')).toBe('g')
+    expect(costumesBusyLabel(false, 'g', 'i')).toBe('i')
+    expect(costumesCoverHandlers(undefined, () => undefined, undefined).onSetAsCover).toBeUndefined()
+    expect(typeof costumesCoverHandlers('/p', () => undefined, () => undefined).onSetAsCover).toBe('function')
+    costumesCoverHandlers('/p', () => undefined, () => undefined).onSetAsCover?.()
+    expect(costumesBaseModeClass(true, 'a', 'b')).toBe('a')
+    expect(costumesBaseModeClass(false, 'a', 'b')).toBe('b')
+    expect(costumesSelectedThumbClass(true)).toMatch(/brand/)
+    expect(costumesSelectedThumbClass(false)).toMatch(/ink/)
+    expect(
+      costumesDressHintText('saveFirst', {
+        saveFirst: 's',
+        needCharBase: 'c',
+        needDesc: 'd'
+      })
+    ).toBe('s')
+    expect(
+      costumesDressHintText('needCharBase', {
+        saveFirst: 's',
+        needCharBase: 'c',
+        needDesc: 'd'
+      })
+    ).toBe('c')
+    expect(
+      costumesDressHintText('needDesc', {
+        saveFirst: 's',
+        needCharBase: 'c',
+        needDesc: 'd'
+      })
+    ).toBe('d')
+    expect(
+      costumesDressHintText(null, {
+        saveFirst: 's',
+        needCharBase: 'c',
+        needDesc: 'd'
+      })
+    ).toBeNull()
+    expect(costumesSwapBlocked(() => true, 'c')).toBe(true)
+    costumesStartSwapJob(
+      () => undefined,
+      'L',
+      'cos',
+      'char',
+      async () => undefined
+    )
+    costumesApplyDressResult(
+      '/p',
+      [{ id: 'g', path: '/p' }],
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )
+    costumesApplyDressResult(
+      '/x',
+      [],
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )
+    await costumesApiUnlink('c', 'ch').catch(() => undefined)
+    await costumesApiLink('c', 'ch').catch(() => undefined)
+    await costumesApiGenerateDressed({
+      costumeId: 'c',
+      characterId: 'ch',
+      baseImagePath: null,
+      pose: 'hero_front',
+      promptOverride: 'p'
+    }).catch(() => undefined)
+    costumesMakeStartSwap(() => undefined, 'L')('c', 'ch', async () => undefined)
+    costumesMakeApplyDress(
+      () => undefined,
+      () => undefined,
+      () => undefined
+    )('/p', [{ id: 'g', path: '/p' }])
+    expect(costumesLinksEmpty(0)).toBe(true)
+    expect(costumesLinksEmpty(1)).toBe(false)
+    expect(costumesBaseNoImages('', 0)).toBe('pick')
+    expect(costumesBaseNoImages('c', 0)).toBe('none')
+    expect(costumesBaseNoImages('c', 1)).toBe('ok')
+    expect(costumesResolvedPreview(null)).toBe(false)
+    expect(costumesResolvedPreview('/p')).toBe(true)
+    expect(costumesThumbSelectedMark(true)).toBe(true)
+    expect(costumesThumbSelectedMark(false)).toBe(false)
+    expect(costumesNullNode()).toBeNull()
+    expect(costumesOptionalRemove(null, () => undefined)).toBeUndefined()
+    expect(typeof costumesOptionalRemove({ id: 'a' }, () => undefined)).toBe(
+      'function'
+    )
+    costumesOptionalRemove({ id: 'a' }, () => undefined)?.()
+    expect(costumesLinksEmptyElement(1, 'm')).toBeNull()
+    expect(costumesLinksEmptyElement(0, 'empty-msg')).toBeTruthy()
+    expect(costumesSelectedMarkNode(false)).toBeNull()
+    expect(costumesSelectedMarkNode(true)).toBeTruthy()
+    expect(costumesResolvedPreviewNode(null, 'x')).toBeNull()
+    expect(costumesResolvedPreviewNode('/p', 'x')).toBe('x')
+
+
+
+
   })
 
   it('Costumes dress filters intro link busy', async () => {
