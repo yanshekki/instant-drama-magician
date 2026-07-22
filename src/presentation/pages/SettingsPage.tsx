@@ -193,18 +193,21 @@ export function SettingsPage(): JSX.Element {
       .updates.status()
       .then((s) => setUpdateState(s))
       .catch(() => undefined)
-    // Web has no desktop auto-update — silently probe npm so "new version" is visible
-    void getApi()
-      .updates.checkNpm()
-      .then((r) => {
-        setNpmUpdate({
-          latestVersion: r.latestVersion ?? null,
-          updateAvailable: Boolean(r.updateAvailable),
-          installCommand: r.installCommand || '',
-          error: r.error
+    // Web has no desktop auto-update — silently probe npm so "new version" is visible.
+    // Optional: older shells / partial mocks may omit checkNpm — never throw on mount.
+    const checkNpm = getApi().updates?.checkNpm
+    if (typeof checkNpm === 'function') {
+      void checkNpm()
+        .then((r) => {
+          setNpmUpdate({
+            latestVersion: r.latestVersion ?? null,
+            updateAvailable: Boolean(r.updateAvailable),
+            installCommand: r.installCommand || '',
+            error: r.error
+          })
         })
-      })
-      .catch(() => undefined)
+        .catch(() => undefined)
+    }
     const unsub =
       getApi().updates.onState?.((s) => {
         setUpdateState(s)
