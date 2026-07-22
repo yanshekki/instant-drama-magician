@@ -198,7 +198,9 @@ describe('mediaGenPrep', () => {
   it('buildMediaGenPolishSystemPrompt video mode', () => {
     const v = buildMediaGenPolishSystemPrompt('en', { mode: 'video' })
     expect(v).toMatch(/video|camera/i)
+    expect(v).toMatch(/materials and seed|Demo story|fixed sample/i)
     const i = buildMediaGenPolishSystemPrompt('zh-HK')
     expect(i).toMatch(/LAYOUT|出圖方案|layout/i)
+    expect(i).toMatch(/固定樣本|Demo|材料/)
   })
 })

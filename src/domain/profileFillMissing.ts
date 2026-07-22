@@ -65,8 +65,8 @@ export function buildFillMissingSystemPrompt(
       'You complete short-drama asset profile fields that were left empty.',
       `Return ONLY one JSON object with EXACTLY these keys (and no others): ${keys}.`,
       'Each value MUST be a non-empty JSON string (never null, never a JSON array).',
-      'visualTags (if present): English comma-separated string, e.g. "gold, necklace" — NEVER an array.',
-      'Stay consistent with the partial profile and any attached reference image.',
+      'visualTags (if present): English comma-separated string (format example only: "gold, necklace") — NEVER an array; invent tags that match THIS asset, do not copy the example.',
+      'Stay consistent with the partial profile and any attached reference image only — do not invent a different plot, location, or sample world not already implied by the partial/image.',
       'No markdown fences, no commentary.'
     ].join('\n')
   }
@@ -74,8 +74,8 @@ export function buildFillMissingSystemPrompt(
     '你負責補齊短劇資產設定中「仍然空白」的欄位。',
     `只回傳一個 JSON 物件，且只能包含這些鍵：${keys}。`,
     '每個值必須是非空 JSON 字串（不可 null、不可 JSON 陣列）。',
-    '若含 visualTags：英文逗號分隔字串，例如 "gold, necklace"——禁止陣列。',
-    '須與已有部分設定及參考圖一致。',
+    '若含 visualTags：英文逗號分隔字串（格式例："gold, necklace"，勿照抄例子，須貼合本資產）——禁止陣列。',
+    '只根據已有部分設定及參考圖補齊；勿另起未見於 partial／圖的劇情、地點或樣本世界。',
     '不要 markdown、不要解說。'
   ].join('\n')
 }

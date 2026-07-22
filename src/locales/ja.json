@@ -336,7 +336,7 @@
     "subtitle": "複数の独立した短編ドラマを作成および管理する",
     "new": "新しい物語",
     "titleLabel": "タイトル",
-    "titlePlaceholder": "例：スクールバスの最終停留所",
+    "titlePlaceholder": "例：カフェでの再会",
     "status": "状態",
     "statusHint": "進捗を手動設定。一括生成でも自動更新されます。",
     "statusDraft": "下書き",

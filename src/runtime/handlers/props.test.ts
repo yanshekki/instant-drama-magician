@@ -81,7 +81,7 @@ describe('registerPropsHandlers', () => {
     expect(svc.delete).toHaveBeenCalledWith('p1')
   })
 
-  it('aiFill validates and fills from idea, draft, image, story context', async () => {
+  it('aiFill validates and fills from idea, draft, image; story only on suggest', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-prop-'))
     const img = join(dir, 'ref.png')
     writeFileSync(img, 'png')
@@ -133,13 +133,30 @@ describe('registerPropsHandlers', () => {
       expect.objectContaining({ message: 'aiRefineProp' })
     )
 
-    // draft + storyId injects story context
+    // draft + storyId alone must NOT inject story
+    findUnique.mockClear()
+    chat.mockClear()
     await invokeRegistered(h as never, 'props:aiFill', {
       storyId: 's1',
       existingDraft: { name: 'U', description: 'd' },
       locale: 'en'
     })
+    expect(findUnique).not.toHaveBeenCalled()
+    const silentUser = JSON.stringify(chat.mock.calls[0]?.[0]?.messages ?? [])
+    expect(silentUser).not.toMatch(/Night Rain|neon wet/)
+
+    // explicit suggestFromStory injects title/style
+    findUnique.mockClear()
+    chat.mockClear()
+    await invokeRegistered(h as never, 'props:aiFill', {
+      storyId: 's1',
+      suggestFromStory: true,
+      idea: 'prop for the plot',
+      locale: 'en'
+    })
     expect(findUnique).toHaveBeenCalled()
+    const suggestUser = JSON.stringify(chat.mock.calls[0]?.[0]?.messages ?? [])
+    expect(suggestUser).toMatch(/Night Rain/)
 
     // image-only path (en + zh)
     await invokeRegistered(h as never, 'props:aiFill', {

@@ -1175,7 +1175,8 @@ export function PropsPage(): JSX.Element {
                           idea,
                           storyId: plotStoryId,
                           locale: getAiLocale(i18n.language),
-                          existingDraft: hasDraft ? snapshot : undefined
+                          existingDraft: hasDraft ? snapshot : undefined,
+                          suggestFromStory: true
                         })
                         if (signal.cancelled) return
                         setProgress(100, 'done')

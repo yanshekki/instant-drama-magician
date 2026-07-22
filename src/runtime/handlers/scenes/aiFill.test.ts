@@ -203,6 +203,29 @@ describe('registerScenesAiFill', () => {
     expect(r.profile.title).toBeTruthy()
   })
 
+  it('draft + storyId without suggestFromStory does not inject story sample', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: SCENE_JSON } }]
+    }))
+    const findUnique = vi.fn(async () => storyBundle())
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() }
+    })
+    ;(ctx.host as { getPrisma: () => unknown }).getPrisma = () => ({
+      story: { findUnique }
+    })
+    registerScenesAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      storyId: 's1',
+      existingDraft: { title: 'Dock', description: 'wet pier' },
+      locale: 'en'
+    })
+    expect(findUnique).not.toHaveBeenCalled()
+    const msgs = JSON.stringify(chat.mock.calls[0]?.[0]?.messages ?? [])
+    expect(msgs).not.toMatch(/Rain|noir|wet alley|Story title/i)
+  })
+
   it('image-only en invent and missing-fill raw and aiFillSceneFromImage', async () => {
     const { writeFileSync, mkdtempSync, rmSync } = await import('fs')
     const { join } = await import('path')

@@ -562,6 +562,8 @@ export interface ElectronApi {
       storyId?: string
       locale?: 'zh-HK' | 'en'
       existingDraft?: Record<string, string | undefined | null>
+      /** Explicit suggest-from-story — only then inject story title/style */
+      suggestFromStory?: boolean
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
     }) => Promise<{

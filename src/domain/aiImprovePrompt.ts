@@ -120,13 +120,15 @@ export function buildImproveUserPrompt(parts: ImprovePromptParts): string {
   }
 
   lines.push('')
+  // Only when caller explicitly passed story/style (e.g. suggestFromStory).
+  // Never treat missing title/style as license to invent a default world.
   const hasStory = Boolean(parts.storyTitle?.trim())
   const hasStyle = Boolean(parts.styleNote?.trim())
   if (hasStory || hasStyle) {
     lines.push(
       en
-        ? 'Additional context provided with this request (use when helpful; do not invent a different world; user idea/draft still wins on conflict):'
-        : '本次一併提供的上下文（有用就用；勿另起世界；與 idea／表單衝突時以用戶為準）：'
+        ? 'Explicit context in THIS request only (use for continuity; do not import any other sample world; user idea/draft wins on conflict):'
+        : '僅限本次請求明確附上的上下文（作 continuity；勿引入其他樣本世界；與 idea／表單衝突時以用戶為準）：'
     )
     if (hasStory) {
       lines.push(

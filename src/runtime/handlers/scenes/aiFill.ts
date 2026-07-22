@@ -73,11 +73,10 @@ reg(
       if (payload.suggestFromStory && !payload.storyId?.trim()) {
         throw new AppError('VALIDATION', 'errors.storyIdRequired')
       }
-      // Pure invent-from-idea: only user idea (+ empty form). Inject story
-      // cast/style only when refining a draft or explicitly suggesting from story.
+      // Inject story cast/style/scenes only on explicit suggestFromStory.
+      // Draft refine = improve form only — never silent activeStory / Demo sample.
       const { shouldInjectStoryContext } = await import('../../../domain/storyContextPolicy')
       const injectStoryContext = shouldInjectStoryContext({
-        hasDraft,
         suggestFromStory: Boolean(payload.suggestFromStory)
       })
       if (payload.storyId && injectStoryContext) {

@@ -87,7 +87,7 @@ describe('registerActionsHandlers', () => {
     expect(svc.unlinkStory).toHaveBeenCalledWith('s1', 'a1')
   })
 
-  it('aiFill idea/draft/image/story paths', async () => {
+  it('aiFill idea/draft/image paths; never silent-injects story', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-act-'))
     const img = join(dir, 'r.png')
     writeFileSync(img, 'png')
@@ -138,11 +138,20 @@ describe('registerActionsHandlers', () => {
       expect.objectContaining({ message: 'aiRefineAction' })
     )
 
+    // draft + storyId must NOT load / inject story (no fixed sample bleed)
+    findUnique.mockClear()
+    chat.mockClear()
     await invokeRegistered(h as never, 'actions:aiFill', {
       storyId: 's1',
       existingDraft: { name: 'Kick', description: 'd' }
     })
-    expect(findUnique).toHaveBeenCalled()
+    expect(findUnique).not.toHaveBeenCalled()
+    const userMsg = String(
+      chat.mock.calls[0]?.[0]?.messages?.find(
+        (m: { role: string }) => m.role === 'user'
+      )?.content ?? ''
+    )
+    expect(userMsg).not.toMatch(/Heist|noir|故事脈絡|Story context/i)
 
     await invokeRegistered(h as never, 'actions:aiFill', {
       referenceImagePath: img,

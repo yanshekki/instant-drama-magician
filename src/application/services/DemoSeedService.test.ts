@@ -84,10 +84,10 @@ describe('DemoSeedService', () => {
     const prisma = seedPrisma()
     const svc = new DemoSeedService(prisma as never)
     const r = await svc.seed('en')
-    expect(r.title).toMatch(/School Bus|Last Stop/i)
+    expect(r.title).toMatch(/Café|Cafe|Reunion/i)
     const storyCall = (prisma.story.create as ReturnType<typeof vi.fn>).mock
       .calls[0][0]
-    expect(storyCall.data.styleNote).toMatch(/gold-light|cinematic/i)
+    expect(storyCall.data.styleNote).toMatch(/natural-light|cinematic/i)
     const charNames = (prisma.character.create as ReturnType<typeof vi.fn>).mock.calls.map(
       (c: [{ data: { name: string } }]) => c[0].data.name
     )

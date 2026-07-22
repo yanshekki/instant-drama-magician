@@ -108,18 +108,8 @@ reg(
           'errors.ideaOrImageRequired'
         )
       }
-      const { shouldInjectStoryContext } = await import(
-        '../../domain/storyContextPolicy'
-      )
-      let storyTitle: string | undefined
-      let styleNote: string | null | undefined
-      if (payload.storyId && shouldInjectStoryContext({ hasDraft })) {
-        const story = await host.getPrisma().story.findUnique({
-          where: { id: payload.storyId }
-        })
-        storyTitle = story?.title
-        styleNote = story?.styleNote
-      }
+      // Never silently inject active story / Demo into action fill.
+      // storyId is only for activity scope; blanks are invented by the LLM.
       const ideaForPrompt =
         idea ||
         (hasImage
@@ -133,8 +123,6 @@ reg(
         hasImage ? visionFillUserPreamble(locale, 'action') : null,
         buildActionMasterUserPrompt({
           idea: ideaForPrompt,
-          storyTitle,
-          styleNote,
           locale,
           existingDraft: hasDraft
             ? {

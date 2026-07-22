@@ -3,22 +3,23 @@ import type { PrismaClient } from '../../types/prisma'
 /**
  * Seeds a minimal demo story so first-run users can try the full path.
  * Assets are global library rows, linked to the story via M2M joins.
- * Theme is intentionally NEUTRAL (not rain-night) so it does not leak into
- * unrelated character invent defaults.
+ *
+ * Sample content is UI/first-run only — never injected into unrelated AI fill.
+ * Keep theme ordinary so it is not mistaken for a product default world.
  */
 export class DemoSeedService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async seed(locale: 'zh-HK' | 'en' = 'zh-HK'): Promise<{ storyId: string; title: string }> {
     const zh = locale === 'zh-HK'
-    const title = zh ? 'Demo：校巴最後一站' : 'Demo: Last Stop on the School Bus'
+    const title = zh ? 'Demo：咖啡店再遇' : 'Demo: Café Reunion'
 
     const story = await this.prisma.story.create({
       data: {
         title,
         styleNote: zh
-          ? '午後金光寫實風格，溫暖色調，手持輕微晃動，電影感。'
-          : 'Afternoon gold-light realism; warm grade; slight handheld; cinematic.'
+          ? '午後自然光寫實風格，溫暖色調，手持輕微晃動，電影感。'
+          : 'Afternoon natural-light realism; warm grade; slight handheld; cinematic.'
       }
     })
 
@@ -46,13 +47,13 @@ export class DemoSeedService {
     const scene1 = await this.prisma.scene.create({
       data: {
         description: zh
-          ? '午後巴士站簷篷下，陽光斜切，行人稀少。'
-          : 'Under a bus-stop awning in the afternoon; slanted sun; few pedestrians.',
+          ? '街角小咖啡店靠窗位，午後陽光斜切桌面，人不多。'
+          : 'Window seat in a corner café; afternoon sun on the table; few customers.',
         script: zh
-          ? '阿明放下公事包，望向尾班車方向。'
-          : 'Ming sets down his bag and looks toward the last bus.',
+          ? '阿明放下公事包，望向門外街景。'
+          : 'Ming sets down his bag and looks out at the street.',
         status: 'PENDING',
-        title: zh ? '巴士站簷篷' : 'Bus stop awning'
+        title: zh ? '咖啡店靠窗' : 'Café window seat'
       }
     })
     const scene2 = await this.prisma.scene.create({
@@ -107,22 +108,22 @@ export class DemoSeedService {
     const beat1Script = zh
       ? [
           '【心情】疲倦、戒備',
-          '【氣氛】午後簷篷；斜陽',
+          '【氣氛】午後咖啡店；斜陽',
           '【鏡頭】中景，跟手到公事包',
-          '【聲效】遠方車聲、鞋底擦地',
-          '【動作｜阿明】放下公事包，望向尾班車方向，深呼吸',
+          '【聲效】輕聲杯碟、街外車聲',
+          '【動作｜阿明】放下公事包，望向門外，深呼吸',
           '【表情｜阿明】眉心微緊，目光游移',
-          '【對白｜阿明｜低聲】……又錯過一班。',
+          '【對白｜阿明｜低聲】……又嚟呢度。',
           '【對白｜阿明｜自語】（停半拍）……你仲喺附近？'
         ].join('\n')
       : [
           '[MOOD] weary, guarded',
-          '[ATMO] afternoon awning; slanted sun',
+          '[ATMO] afternoon café; slanted sun',
           '[CAMERA] medium, follow hand to bag',
-          '[SFX] distant traffic, shoe scrape',
-          '[ACTION|Ming] sets bag down, looks toward the last bus, breathes',
+          '[SFX] soft cups, distant traffic',
+          '[ACTION|Ming] sets bag down, looks outside, breathes',
           '[EXPR|Ming] slight furrow, eyes searching',
-          '[DIALOGUE|Ming|low] …Missed another one.',
+          '[DIALOGUE|Ming|low] …Back here again.',
           '[DIALOGUE|Ming|aside] (beat) …Are you still nearby?'
         ].join('\n')
     const beat2Script = zh

@@ -1,31 +1,37 @@
 /**
  * Policy: only feed the model what the user actually provided.
- * - If idea / form / extras are rich → follow them.
- * - If sparse or empty → let the model invent freely to complete the task.
- * - Never seed content from unprovided sources (e.g. active story style
- *   when inventing a standalone character).
  *
- * No hard-coded theme bans (no “never rain”, no “never Demo”) — those overfit
- * one bug and fail on the next unrelated default.
+ * Create: idea / reference image / explicit extras (e.g. soul text).
+ * Improve: same + filled form fields — polish & complete; no silent world inject.
+ * Suggest-from-story: only when the user explicitly opts in (suggestFromStory).
+ *
+ * Never seed plot/location/style from unprovided sources (active story, Demo seed,
+ * or any fixed sample). No theme blacklists — fix injection contracts instead.
  */
 
 export interface StoryContextInjectFlags {
-  /** Form already has filled fields (refine / polish) */
+  /**
+   * @deprecated Ignored. Draft means Improve mode (polish form), not “use story”.
+   * Kept optional so call sites can pass it without breaking.
+   */
   hasDraft?: boolean
-  /** Linked soul / extra identity bible */
+  /**
+   * @deprecated Ignored for story injection. Soul is passed as explicit text extras.
+   */
   hasSoul?: boolean
-  /** Explicit “suggest next beat from story” actions */
+  /** Explicit “suggest from story / plot segment” user action */
   suggestFromStory?: boolean
 }
 
 /**
- * For scenes / props / wardrobe-style continuity: inject story only when
- * refining existing work or the user explicitly asked “from story”.
+ * Inject story title / style / cast / scenes into asset AI fill only when the
+ * user explicitly asked “from story”. Having a form draft or open activeStory
+ * alone must NEVER inject fixed samples.
  */
 export function shouldInjectStoryContext(
   flags: StoryContextInjectFlags
 ): boolean {
-  return Boolean(flags.hasDraft || flags.hasSoul || flags.suggestFromStory)
+  return Boolean(flags.suggestFromStory)
 }
 
 /**
@@ -37,25 +43,27 @@ export function shouldInjectStoryContextForCharacter(): boolean {
 }
 
 /**
- * Principle-based invent rules for master system prompts (any domain).
- * No theme blacklists — only “use what’s given; invent the rest if missing”.
+ * Principle-based invent + improve rules for master system prompts (any domain).
+ * No theme blacklists — only “use what’s given; invent blanks; never silent samples”.
  */
 export function inventFromProvidedSourcesRules(
   locale: 'zh-HK' | 'en' = 'zh-HK'
 ): string[] {
   if (locale === 'en') {
     return [
-      'Sources of truth, in order: (1) user idea / request, (2) filled form fields, (3) linked extras (soul, cast lists, etc.) when provided.',
-      'Use ALL provided sources. If a field or idea is missing or thin, invent freely to complete a filmable result — do not leave critical keys empty when inventing.',
-      'Do NOT pull identity, plot, weather, job, location, or style from sources that were not provided in this request (e.g. an active story title/style that is not in the prompt).',
-      'When story/style context IS included below, treat it as optional production continuity — follow it only where it helps consistency; never override an explicit user idea.'
+      'Sources of truth, in order: (1) user idea / request, (2) filled form fields, (3) linked extras (soul, cast lists, story blocks) only when they appear in THIS prompt, (4) attached reference image.',
+      'Create mode (thin/empty form): invent freely from the idea/image so every critical key is filmable and related — do not leave required keys empty.',
+      'Improve mode (form has content): polish and complete missing fields consistent with the draft; do not replace core identity unless the user asks.',
+      'Do NOT import identity, plot, weather, job, location, era, or style from anything not written in this prompt (no active story, no Demo seed, no app default world).',
+      'When a story/style block IS present below, use it only for production continuity; never override an explicit user idea.'
     ]
   }
   return [
-    '依據來源（優先序）：（1）用戶 idea／指示，（2）已填表單，（3）已提供的額外上下文（soul、選角列表等）。',
-    '凡已提供的內容均須使用。若 idea 或欄位空白／不足，請自由補齊可拍攝內容——創作時勿將關鍵欄位留空。',
-    '不得從「本次請求未提供」的來源臆造身份、劇情、天氣、職業、地點或風格（例如 prompt 中未出現的故事標題／風格）。',
-    '若下方附有故事／風格：僅作可選 continuity；有助一致時採用，但不可覆蓋用戶明確 idea。'
+    '依據來源（優先序）：（1）用戶 idea／指示，（2）已填表單，（3）僅當「本次 prompt 已寫出」的額外上下文（soul、選角、故事區塊等），（4）附上的參考圖。',
+    '創作模式（表單空白／極少）：按 idea／圖自由創作，補齊可拍攝的關鍵欄位，內容須與用戶構想相關——勿留空必填鍵。',
+    '改進模式（表單已有內容）：潤飾並補齊空白欄，與已填內容一致；除非用戶要求，否則勿改核心身份。',
+    '不得從「本次 prompt 未出現」的來源引入身份、劇情、天氣、職業、地點、時代或風格（禁止 active 故事、Demo 樣本、App 預設世界觀）。',
+    '若下方明確附有故事／風格區塊：僅作 continuity；不可覆蓋用戶明確 idea。'
   ]
 }
 

@@ -67,6 +67,8 @@ reg(
         storyId?: string
         locale?: 'zh-HK' | 'en'
         existingDraft?: Record<string, string | undefined | null>
+        /** Explicit “suggest from story” — only then inject story title/style */
+        suggestFromStory?: boolean
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
       }
@@ -96,7 +98,7 @@ reg(
           'errors.ideaOrImageRequired'
         )
       }
-      // Pure invent-from-idea: skip active story style (Demo rain etc.)
+      // Inject story only on explicit suggestFromStory — never from draft/activeStory.
       const { shouldInjectStoryContext } = await import(
         '../../domain/storyContextPolicy'
       )
@@ -104,7 +106,9 @@ reg(
       let styleNote: string | null | undefined
       if (
         payload.storyId &&
-        shouldInjectStoryContext({ hasDraft })
+        shouldInjectStoryContext({
+          suggestFromStory: Boolean(payload.suggestFromStory)
+        })
       ) {
         const story = await host.getPrisma().story.findUnique({
           where: { id: payload.storyId }

@@ -46,24 +46,27 @@ const fullCast: ActionCastRef[] = [
 ]
 
 describe('actionMasterPrompt', () => {
-  it('system prompt requires all keys (zh + en)', () => {
+  it('system prompt requires all keys and invent-from-provided rules', () => {
     const zh = buildActionMasterSystemPrompt('zh-HK')
     expect(zh).toMatch(/必須輸出|每一個鍵|JSON/)
     expect(zh).toContain('motionNotes')
+    expect(zh).toMatch(/創作模式|改進模式|依據來源/)
     for (const k of ACTION_PROFILE_JSON_KEYS) {
       expect(zh).toContain(k)
     }
     const en = buildActionMasterSystemPrompt('en')
     expect(en.toLowerCase()).toMatch(/json|key/)
+    expect(en).toMatch(/Create mode|Improve mode|Sources of truth/i)
   })
 
-  it('user prompt includes idea and draft', () => {
+  it('user prompt includes idea and draft; no story without params', () => {
     const u = buildActionMasterUserPrompt({
       locale: 'en',
       idea: 'kick door',
-      draft: { name: 'Kick', description: 'boot to wood' }
+      existingDraft: { name: 'Kick', description: 'boot to wood' }
     })
     expect(u).toMatch(/kick door|Kick/i)
+    expect(u).not.toMatch(/Story context|故事脈絡/)
   })
 
   it('extractActionProfileJson coerces visualTags array', () => {

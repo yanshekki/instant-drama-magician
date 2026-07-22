@@ -574,6 +574,7 @@ export function buildMediaGenPolishSystemPrompt(
         'Merge materials into ONE professional video prompt for a short clip.',
         'Return ONLY the prompt — no markdown fences.',
         'Include: subject identity locks from stills, camera move, performance/dialogue, pacing, lighting continuity.',
+        'Use only facts present in materials and seed; do not import a fixed sample world or Demo story.',
         'Do not invent a different actor, location, or prop when refs are attached.',
         'Hard rules at end if supplied.'
       ].join('\n')
@@ -583,6 +584,7 @@ export function buildMediaGenPolishSystemPrompt(
       '將材料合併為「一條」專業短片 video prompt。',
       '只回傳 prompt 正文——不要 markdown 代碼塊。',
       '須含：身份鎖定、鏡頭運動、表演／對白、節奏、光影連續。',
+      '只用材料與 seed 中的事實；勿引入固定樣本世界或 Demo 故事。',
       '有附圖時禁止換成另一演員、場景或道具。',
       '有 HARD RULES 則置於文末。'
     ].join('\n')
@@ -593,6 +595,7 @@ export function buildMediaGenPolishSystemPrompt(
       'Merge the selected materials and attached reference stills into ONE image prompt.',
       'Return ONLY the prompt — no markdown fences.',
       'Highest priority: match faces/wardrobe/locations/props from attached images.',
+      'Use only facts present in materials and seed; do not import a fixed sample world or Demo story.',
       'Never substitute a different celebrity, salon clerk, or unrelated set when cast stills are provided.',
       'If multi-panel geometry is required, keep exact panel count and gutters.',
       'If a LAYOUT / package section is present, the final prompt MUST implement that exact layout (panel count, poses, crop).',
@@ -604,6 +607,7 @@ export function buildMediaGenPolishSystemPrompt(
     '將用戶勾選材料與附圖合併為「一條」出圖 prompt。',
     '只回傳 prompt 正文——不要 markdown 代碼塊。',
     '最高優先：附圖中的臉／服裝／場景／道具必須一致。',
+    '只用材料與 seed 中的事實；勿引入固定樣本世界或 Demo 故事。',
     '有角色／場景靜圖時，禁止換成無關沙龍店員或另一間店。',
     '若要求多格板，保留精確格數與分隔。',
     '若有 LAYOUT／出圖方案區塊，最終 prompt 必須嚴格執行該 layout（格數、姿勢、構圖）。',

@@ -336,7 +336,7 @@
     "subtitle": "建立及管理多個獨立短劇故事",
     "new": "新故事",
     "titleLabel": "故事標題",
-    "titlePlaceholder": "例如：校巴最後一站",
+    "titlePlaceholder": "例如：咖啡店再遇",
     "status": "狀態",
     "statusHint": "可手動標記進度；整批生成時亦會自動更新。",
     "statusDraft": "草稿",

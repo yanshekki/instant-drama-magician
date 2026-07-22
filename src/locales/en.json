@@ -336,7 +336,7 @@
     "subtitle": "Create and manage multiple independent short dramas",
     "new": "New story",
     "titleLabel": "Title",
-    "titlePlaceholder": "e.g., Last Stop on the School Bus",
+    "titlePlaceholder": "e.g., Café Reunion",
     "status": "Status",
     "statusHint": "Set progress manually; batch generation also updates this automatically.",
     "statusDraft": "Draft",

@@ -60,11 +60,13 @@ describe('hardRulesMaterialsBlock + system polish prompt', () => {
     expect(zh).toContain('水印')
   })
 
-  it('buildVideoPromptPolishSystemPrompt en/zh', () => {
+  it('buildVideoPromptPolishSystemPrompt en/zh forbids silent sample worlds', () => {
     const zh = buildVideoPromptPolishSystemPrompt('zh-HK')
     expect(zh.length).toBeGreaterThan(40)
+    expect(zh).toMatch(/固定樣本|Demo|材料/)
     const en = buildVideoPromptPolishSystemPrompt('en')
     expect(en).toMatch(/image-to-video|director|prompt/i)
+    expect(en).toMatch(/materials and seed|Demo story|fixed sample/i)
   })
 })
 

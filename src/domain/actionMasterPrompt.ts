@@ -26,6 +26,7 @@ import {
   hardRulesAiInstruction,
   normalizeHardRules
 } from './promptHardRules'
+import { inventFromProvidedSourcesRules } from './storyContextPolicy'
 
 export interface ActionProfileFields {
   name?: string
@@ -58,6 +59,7 @@ export function buildActionMasterSystemPrompt(
       'You are a short-drama motion director. Output ONLY valid JSON for an action/motion guide asset.',
       `Fields: ${ACTION_PROFILE_JSON_KEYS.join(', ')}.`,
       ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, 'en'),
+      ...inventFromProvidedSourcesRules('en'),
       hardRulesAiInstruction('en'),
       'Be concrete: body parts, tempo, weight, prop paths, staging. No markdown.'
     ].join('\n')
@@ -66,6 +68,7 @@ export function buildActionMasterSystemPrompt(
     '你是短劇動作指導。只輸出有效 JSON，描述一項可拍攝的動作指導。',
     `欄位：${ACTION_PROFILE_JSON_KEYS.join(', ')}。`,
     ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, 'zh-HK'),
+    ...inventFromProvidedSourcesRules('zh-HK'),
     hardRulesAiInstruction('zh-HK'),
     '要具體：身體部位、節奏、力度、道具路徑、走位。不要 markdown。'
   ].join('\n')

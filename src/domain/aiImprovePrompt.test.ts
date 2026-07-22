@@ -46,17 +46,22 @@ describe('aiImprovePrompt', () => {
     expect(p).not.toMatch(/IMPROVE MODE/)
   })
 
-  it('includes provided story/style as additional context', () => {
+  it('includes provided story/style as explicit context only', () => {
     const p = buildImproveUserPrompt({
       locale: 'zh-HK',
       idea: '鋼琴老師',
       storyTitle: '校巴最後一站',
       styleNote: '午後金光'
     })
-    expect(p).toMatch(/一併提供|Additional context/)
+    expect(p).toMatch(/明確附上|Explicit context|本次請求/)
     expect(p).toContain('鋼琴老師')
     expect(p).toContain('校巴最後一站')
     expect(p).toContain('午後金光')
+    const bare = buildImproveUserPrompt({
+      locale: 'en',
+      idea: 'piano teacher'
+    })
+    expect(bare).not.toMatch(/Story title|Style note/)
   })
 
   it('truncateForPrompt and draftHasContent edge cases', () => {

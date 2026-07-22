@@ -217,7 +217,7 @@
     "sortFastest": "最快优先",
     "sortByLevelAsc": "严重程度 ↑",
     "sortByKind": "按种类",
-    "sortByMessage": "按消息"
+    "sortByMessage": "按讯息"
   },
   "common": {
     "create": "建立",
@@ -336,7 +336,7 @@
     "subtitle": "建立及管理多个独立短剧故事",
     "new": "新故事",
     "titleLabel": "故事标题",
-    "titlePlaceholder": "例如：校巴最后一站",
+    "titlePlaceholder": "例如：咖啡店再遇",
     "status": "状态",
     "statusHint": "可手动标记进度；整批生成时亦会自动更新。",
     "statusDraft": "草稿",
@@ -422,7 +422,7 @@
     "aiReplaceBeatsConfirm": "将覆盖现有剧情段落，确定继续？",
     "castEmptyActions": "动作库尚无动作。请先在「动作」页建立。",
     "beatActions": "动作（肢体）",
-    "saveFirst": "请先保存故事。"
+    "saveFirst": "请先储存故事。"
   },
   "characters": {
     "title": "角色",
@@ -2004,6 +2004,6 @@
     "duration": "时长（秒）",
     "videoDoneGalleryHint": "介绍片已挂到来源静图；在参考图库选中该图即可播放。完成页亦可直接播放。",
     "useStillAsKeyframe": "用现有静图作关键帧",
-    "keyframePromptHint": "关键帧静图提示（图像导演）。关键帧就绪后再做影片动作润色。"
+    "keyframePromptHint": "关键帧静图提示（图像导演）。关键帧就绪后会再做影片动作润饰。"
   }
 }
