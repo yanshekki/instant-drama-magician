@@ -132,6 +132,11 @@
     "openMenu": "Open menu",
     "main": "Main navigation"
   },
+  "editor": {
+    "galleryToggle": "Gallery / references",
+    "galleryExpand": "Show",
+    "galleryCollapse": "Hide"
+  },
   "audit": {
     "title": "Registro de atividade",
     "subtitle": "Exportações, geração, erros e eventos do sistema — para suporte e depuração",

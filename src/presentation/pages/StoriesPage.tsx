@@ -42,6 +42,7 @@ import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
 import { PageHeader } from '../components/PageHeader'
+import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import { EntityGalleryPanel } from '../components/EntityGalleryPanel'
 import {
@@ -957,7 +958,7 @@ export function StoriesPage(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
+    <div className={pageRootClass}>
       <PageHeader
         title={t('stories.title')}
         subtitle={t('stories.subtitle')}
@@ -975,7 +976,7 @@ export function StoriesPage(): JSX.Element {
       />
 
       {!editorOpen && (
-      <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <div className={pageScrollClass}>
         <LibraryPageBody
           footer={
             !loading && stories.length > 0 ? (

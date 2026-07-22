@@ -25,16 +25,17 @@ export function AiDraftModal(): JSX.Element | null {
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-overlay/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[70] flex items-stretch justify-center bg-overlay/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={t('aiJobs.draftTitle')}
       onClick={close}
     >
       <div
-        className="max-h-[min(90vh,52rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-ink-700 bg-ink-950 p-5 shadow-2xl"
+        className="flex h-[100dvh] max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden border-0 border-ink-700 bg-ink-950 shadow-2xl sm:h-auto sm:max-h-[min(90vh,52rem)] sm:rounded-2xl sm:border pb-[env(safe-area-inset-bottom,0px)]"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 [-webkit-overflow-scrolling:touch]">
         <h2 className="text-lg font-semibold text-ink-50">
           {t('aiJobs.draftTitle')}
         </h2>
@@ -257,8 +258,9 @@ export function AiDraftModal(): JSX.Element | null {
             </div>
           )}
         </div>
+        </div>
 
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-ink-800 px-4 py-3 sm:flex-row sm:flex-wrap sm:justify-end sm:px-5 sm:py-4">
           {draft.type === 'character-profile' ||
           draft.type === 'character-sheet' ||
           draft.type === 'wardrobe-suggest' ||
@@ -271,11 +273,15 @@ export function AiDraftModal(): JSX.Element | null {
             <>
               <Button
                 variant="ghost"
+                className="w-full min-h-11 sm:w-auto"
                 onClick={() => void discardDraft(job.id)}
               >
                 {t('aiJobs.discard')}
               </Button>
-              <Button onClick={() => void acceptDraft(job.id)}>
+              <Button
+                className="w-full min-h-11 sm:w-auto"
+                onClick={() => void acceptDraft(job.id)}
+              >
                 {draft.type === 'character-sheet' ||
                 draft.type === 'scene-plate' ||
                 draft.type === 'prop-plate' ||
@@ -287,7 +293,10 @@ export function AiDraftModal(): JSX.Element | null {
               </Button>
             </>
           ) : (
-            <Button onClick={() => void acceptDraft(job.id)}>
+            <Button
+              className="w-full min-h-11 sm:w-auto"
+              onClick={() => void acceptDraft(job.id)}
+            >
               {t('aiJobs.acknowledge')}
             </Button>
           )}

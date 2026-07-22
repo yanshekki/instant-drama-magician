@@ -6,6 +6,8 @@ import { formatUserError } from '../lib/formatUserError'
 import { LibraryFilterSelect } from '../components/LibraryFilterSelect'
 import { libraryToolbar } from '../components/libraryToolbar'
 import { PageHeader } from '../components/PageHeader'
+import { pageRootClass } from '../lib/mobileLayout'
+import { canUse } from '../lib/webCapability'
 import { Button } from '../components/ui'
 import { useDialog } from '../context/DialogContext'
 import { useToast } from '../context/ToastContext'
@@ -308,7 +310,7 @@ export function AuditLogPage(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className={pageRootClass}>
       <PageHeader
         title={t('audit.title')}
         subtitle={t('audit.subtitle')}
@@ -321,17 +323,19 @@ export function AuditLogPage(): JSX.Element {
             >
               {t('common.refresh')}
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => void getApi().activity.openLogFolder()}
-            >
-              {t('audit.openFolder')}
-            </Button>
+            {canUse('openExportFolder') ? (
+              <Button
+                variant="ghost"
+                onClick={() => void getApi().activity.openLogFolder()}
+              >
+                {t('audit.openFolder')}
+              </Button>
+            ) : null}
           </>
         }
       />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 pb-4 pt-1 sm:px-6 lg:flex-row lg:px-8">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain px-3 pb-4 pt-1 sm:gap-4 sm:px-6 lg:flex-row lg:overflow-hidden lg:px-8">
         {/* Main column */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           {/* Summary cards */}

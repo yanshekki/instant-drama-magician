@@ -132,6 +132,11 @@
     "openMenu": "Open menu",
     "main": "Main navigation"
   },
+  "editor": {
+    "galleryToggle": "Gallery / references",
+    "galleryExpand": "Show",
+    "galleryCollapse": "Hide"
+  },
   "audit": {
     "title": "Журнал активности",
     "subtitle": "Экспорт, генерация, ошибки и системные события — для поддержки и отладки",

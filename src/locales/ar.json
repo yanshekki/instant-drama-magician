@@ -132,6 +132,11 @@
     "openMenu": "Open menu",
     "main": "Main navigation"
   },
+  "editor": {
+    "galleryToggle": "Gallery / references",
+    "galleryExpand": "Show",
+    "galleryCollapse": "Hide"
+  },
   "audit": {
     "title": "سجل النشاط",
     "subtitle": "التصدير والتوليد والأخطاء وأحداث النظام — للدعم والتشخيص",

@@ -132,6 +132,11 @@
     "openMenu": "Open menu",
     "main": "Main navigation"
   },
+  "editor": {
+    "galleryToggle": "Gallery / references",
+    "galleryExpand": "Show",
+    "galleryCollapse": "Hide"
+  },
   "audit": {
     "title": "アクティビティログ",
     "subtitle": "書き出し・生成・エラー・システム操作を記録（サポートとデバッグ用）",

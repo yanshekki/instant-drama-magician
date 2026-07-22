@@ -36,6 +36,10 @@ import { useAiJobs } from '../context/AiJobsContext'
 import { useTimeline } from '../hooks/useTimeline'
 import { PageHeader } from '../components/PageHeader'
 import {
+  pageRootClass,
+  timelineBottomBarClass
+} from '../lib/mobileLayout'
+import {
   sceneCastLabel,
   type StoryCastScene
 } from '../components/timeline/timelineLabels'
@@ -969,13 +973,13 @@ export function TimelinePage(): JSX.Element {
 
   if (!activeStoryId) {
     return (
-      <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
+      <div className={pageRootClass}>
         <PageHeader
           title={t('timeline.title')}
           subtitle={timelineSubtitleOrFallback(Boolean(activeStory), activeStory?.title, t('timeline.subtitle'))}
           actions={storyPicker}
         />
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-6 sm:p-8">
           <EmptyState message={t('timeline.pickStoryHint')} />
           {stories.length === 0 && (
             <Button variant="secondary" onClick={() => navigate('/stories')}>
@@ -991,18 +995,25 @@ export function TimelinePage(): JSX.Element {
     stepTotal > 0 ? Math.round((stepIndex / stepTotal) * 100) : 0
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
+    <div className={pageRootClass}>
       <PageHeader
         title={t('timeline.title')}
         subtitle={timelineHeaderSubtitle(
           activeStory,
           t('timeline.subtitle')
         )}
-        actions={timelineToolbar}
+        actions={
+          <>
+            <div className="w-full md:hidden">{storyPicker}</div>
+            <div className="hidden w-full flex-wrap items-center justify-end gap-2 md:flex">
+              {timelineToolbar}
+            </div>
+          </>
+        }
       />
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-ink-800/80 lg:border-r">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain lg:flex-row lg:overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col border-ink-800/80 lg:min-h-0 lg:overflow-hidden lg:border-r">
           {/* Status chips */}
           <div className="flex flex-wrap items-center gap-1.5 border-b border-ink-800/80 px-3 py-2 sm:gap-2 sm:px-6 sm:py-3">
             <span className="rounded-full border border-ink-700/80 bg-ink-900/60 px-2.5 py-1 text-[11px] text-ink-300">
@@ -1398,6 +1409,47 @@ export function TimelinePage(): JSX.Element {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile primary actions — always reachable */}
+      <div className={timelineBottomBarClass}>
+        {busy ? (
+          <Button
+            variant="danger"
+            className="min-h-11 flex-1"
+            onClick={() => void handleCancel()}
+          >
+            {t('timeline.toolbarCancel')}
+          </Button>
+        ) : (
+          <>
+            {failedCount > 0 ? (
+              <Button
+                variant="secondary"
+                className="min-h-11 flex-1"
+                disabled={exporting}
+                onClick={() => void handleGenerate(true)}
+              >
+                {t('timeline.toolbarRetry')}
+              </Button>
+            ) : null}
+            <Button
+              className="min-h-11 flex-1"
+              disabled={exporting}
+              onClick={() => void handleGenerate(false)}
+            >
+              {t('timeline.toolbarGenerate')}
+            </Button>
+            <Button
+              variant="secondary"
+              className="min-h-11 flex-1"
+              disabled={exporting}
+              onClick={() => setExportDialogOpen(true)}
+            >
+              {t('timeline.toolbarExportFinal')}
+            </Button>
+          </>
+        )}
       </div>
 
       <ExportFinalDialog

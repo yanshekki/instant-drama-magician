@@ -27,8 +27,10 @@ Full browser UI needs built SPA: `npm run build:web` (included in packaged build
 ### Mobile / phone browser
 
 - **Navigation:** below `md` (768px) the left rail becomes a **hamburger drawer** — tap ☰ to open, tap the dimmer or a nav link to close.
+- **List pages:** one vertical scroll (header fixed; browse + cards scroll). Cards are full-width on narrow screens.
+- **Add / Edit:** full-screen sheet; **gallery is collapsed by default** (tap to expand) so the form is always scrollable; **Save / Cancel stay sticky** at the bottom.
 - **Upload:** reference images use the browser file picker + `POST /api/upload` (not a native OS dialog).
-- **Timeline:** single-column stack on small screens; Konva width follows the container (horizontal scroll if needed). Prefer landscape for dense clip editing.
+- **Timeline:** single-column stack + sticky **Generate / Export** bottom bar; Konva width follows the container.
 - **Export folder open** is desktop-only; web exports download in the browser when the API returns a download URL.
 
 ## Mode B — standalone CLI process

@@ -61,6 +61,7 @@ import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
 import { PageHeader } from '../components/PageHeader'
+import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import { EntityGalleryPanel } from '../components/EntityGalleryPanel'
 import {
@@ -602,14 +603,14 @@ export function CostumesPage(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
+    <div className={pageRootClass}>
       <PageHeader
         title={t('costumes.title')}
         subtitle={t('costumes.subtitleGlobal')}
         actions={<Button onClick={openCreate}>{t('costumes.new')}</Button>}
       />
       {!editorOpen && (
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <div className={pageScrollClass}>
         <LibraryPageBody
           footer={
             !loading && browse.totalCount > 0 ? (

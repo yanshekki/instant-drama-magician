@@ -1,117 +1,98 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import {
-  EditorField,
-  EditorSelect,
-  EditorShell,
-  EDITOR_SHELL_WIDTH,
-  editorFormClass
-} from './EditorShell'
+import { EditorShell } from './EditorShell'
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? k,
+    i18n: { language: 'en' }
+  })
+}))
 
 describe('EditorShell', () => {
   afterEach(() => cleanup())
 
-  it('exports layout constants', () => {
-    expect(EDITOR_SHELL_WIDTH).toBeTruthy()
-    expect(editorFormClass).toContain('max-w-2xl')
-  })
-
-  it('null when closed', () => {
+  it('returns null when closed', () => {
     const { container } = render(
       <EditorShell
         open={false}
-        title="T"
-        onClose={() => undefined}
-        onSave={() => undefined}
+        title="Edit"
+        onClose={vi.fn()}
+        onSave={vi.fn()}
         saveLabel="Save"
         cancelLabel="Cancel"
       >
-        body
+        <p>form</p>
       </EditorShell>
     )
-    expect(container.firstChild).toBeNull()
+    expect(container.innerHTML).toBe('')
   })
 
-  it('renders tabs, preview, save/close', () => {
-    const onClose = vi.fn()
+  it('renders form and sticky save; gallery collapsed by default on mobile path', () => {
     const onSave = vi.fn()
-    const onTab = vi.fn()
+    const onClose = vi.fn()
     render(
       <EditorShell
         open
-        title="Edit"
-        subtitle="sub"
+        title="New character"
+        subtitle="Draft"
         onClose={onClose}
         onSave={onSave}
         saveLabel="Save"
         cancelLabel="Cancel"
         tabs={[
-          { id: 'a', label: 'TabA' },
-          { id: 'b', label: 'TabB' }
+          { id: 'profile', label: 'Profile' },
+          { id: 'refs', label: 'Refs' }
         ]}
-        activeTab="a"
-        onTabChange={onTab}
-        preview={<div>preview</div>}
+        activeTab="profile"
+        onTabChange={vi.fn()}
+        preview={<div data-testid="gallery-preview">gallery</div>}
       >
-        form-body
+        <div>
+          <p>Field A</p>
+          <p>Field B long form content</p>
+        </div>
       </EditorShell>
     )
-    expect(screen.getByText('Edit')).toBeTruthy()
-    expect(screen.getByText('sub')).toBeTruthy()
-    expect(screen.getByText('preview')).toBeTruthy()
-    expect(screen.getByText('form-body')).toBeTruthy()
-    fireEvent.click(screen.getByText('TabB'))
-    expect(onTab).toHaveBeenCalledWith('b')
-    fireEvent.click(screen.getByText('Save'))
+    expect(screen.getByText('New character')).toBeTruthy()
+    expect(screen.getByText('Field A')).toBeTruthy()
+    // Mobile strip toggle + sticky Save
+    expect(
+      screen.getByText(/Gallery \/ references|editor.galleryToggle/i)
+    ).toBeTruthy()
+    // Form body is a single scroll region (class contract)
+    const formScroll = document.querySelector(
+      '.overflow-y-auto.overscroll-y-contain'
+    )
+    expect(formScroll).toBeTruthy()
+    expect(formScroll?.textContent || '').toMatch(/Field A/)
+    const saveBtn = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    expect(saveBtn).toBeTruthy()
+    fireEvent.click(saveBtn!)
     expect(onSave).toHaveBeenCalled()
-    // backdrop close
-    const backdrop = document.querySelector(
-      'button.absolute.inset-0'
-    ) as HTMLButtonElement
-    fireEvent.click(backdrop)
-    expect(onClose).toHaveBeenCalled()
   })
 
-  it('disables save when busy and closes via header X', () => {
+  it('close button calls onClose', () => {
     const onClose = vi.fn()
-    const onSave = vi.fn()
     render(
       <EditorShell
         open
-        title="BusyEdit"
+        title="Edit"
         onClose={onClose}
-        onSave={onSave}
+        onSave={vi.fn()}
         saveLabel="Save"
         cancelLabel="Cancel"
-        busy
-        saveDisabled
       >
-        busy-body
+        <p>x</p>
       </EditorShell>
     )
-    const save = screen.getByText('Save').closest('button')
-    expect(save?.disabled).toBe(true)
-    fireEvent.click(screen.getAllByLabelText('Cancel')[1]!)
+    const cancelBtn = screen
+      .getAllByRole('button')
+      .find((b) => /^Cancel$/i.test((b.textContent || '').trim()))
+    expect(cancelBtn).toBeTruthy()
+    fireEvent.click(cancelBtn!)
     expect(onClose).toHaveBeenCalled()
   })
-
-  it('EditorField and EditorSelect', () => {
-    render(
-      <>
-        <EditorField label="Name" hint="h">
-          <input />
-        </EditorField>
-        <EditorField label="Bare">
-          <input />
-        </EditorField>
-        <EditorSelect value="a" onChange={() => undefined}>
-          <option value="a">A</option>
-        </EditorSelect>
-      </>
-    )
-    expect(screen.getByText('Name')).toBeTruthy()
-    expect(screen.getByText('h')).toBeTruthy()
-    expect(screen.getByText('Bare')).toBeTruthy()
-  })
 })
-

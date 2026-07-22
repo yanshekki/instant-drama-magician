@@ -192,7 +192,7 @@ export function VideoPrepModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-ink-950/90 p-3 backdrop-blur-md sm:p-4"
+      className="fixed inset-0 z-[110] flex items-stretch justify-center bg-ink-950/90 p-0 backdrop-blur-md sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-busy={locked}
@@ -201,7 +201,7 @@ export function VideoPrepModal({
       onClick={(e) => e.stopPropagation()}
       onKeyDown={onLockedEscape}
     >
-      <div className="flex max-h-[min(94vh,58rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-ink-600 bg-ink-950 shadow-2xl ring-1 ring-white/5">
+      <div className="flex h-[100dvh] max-h-[100dvh] w-full max-w-4xl flex-col overflow-hidden border-0 border-ink-600 bg-ink-950 shadow-2xl ring-1 ring-white/5 sm:h-auto sm:max-h-[min(94vh,58rem)] sm:rounded-2xl sm:border pb-[env(safe-area-inset-bottom,0px)]">
         <header className="shrink-0 border-b border-ink-800 px-5 py-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

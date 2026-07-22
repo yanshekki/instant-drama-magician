@@ -3,13 +3,16 @@
  * Caps card width so large app windows do not produce huge tiles.
  */
 
-/** Grid: equal-width columns, max ~20rem per card, auto-fill more columns when wide. */
+/**
+ * Grid: phone = 1 full-width column; sm+ auto-fill capped cards.
+ * Avoid minmax(16rem) which overflows ~320px viewports.
+ */
 export const libraryGridClass =
-  'grid w-full justify-start gap-5 [grid-template-columns:repeat(auto-fill,minmax(16rem,20rem))]'
+  'grid w-full grid-cols-1 justify-start gap-3 sm:gap-5 sm:grid-cols-[repeat(auto-fill,minmax(14rem,20rem))] sm:justify-start'
 
-/** Outer article shell — same on every library page. */
+/** Outer article shell — full width on phone, capped on larger screens. */
 export const libraryCardClass =
-  'group flex w-full max-w-[20rem] flex-col overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 shadow-theme-sm transition hover:border-brand-500/45 hover:shadow-theme-md'
+  'group flex w-full max-w-none flex-col overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 shadow-theme-sm transition hover:border-brand-500/45 hover:shadow-theme-md sm:max-w-[20rem]'
 
 /** Cover / media region — fixed aspect so all pages match. */
 export const libraryMediaClass =

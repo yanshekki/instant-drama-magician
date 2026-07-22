@@ -132,6 +132,11 @@
     "openMenu": "Open menu",
     "main": "Main navigation"
   },
+  "editor": {
+    "galleryToggle": "Gallery / references",
+    "galleryExpand": "Show",
+    "galleryCollapse": "Hide"
+  },
   "audit": {
     "title": "गतिविधि लॉग",
     "subtitle": "निर्यात, जनरेशन, त्रुटियाँ और सिस्टम ईवेंट — सहायता व डिबग के लिए",

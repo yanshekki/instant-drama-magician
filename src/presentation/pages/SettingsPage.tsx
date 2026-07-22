@@ -63,6 +63,7 @@ import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { PageHeader } from '../components/PageHeader'
+import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, Card, Input, Label, Select } from '../components/ui'
 
 type SettingsTab = 'llm' | 'image' | 'video' | 'app'
@@ -419,7 +420,7 @@ export function SettingsPage(): JSX.Element {
     : 'grok-gateway'
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
+    <div className={pageRootClass}>
       <PageHeader
         title={t('settings.title')}
         subtitle={t('settings.subtitle')}
@@ -445,15 +446,15 @@ export function SettingsPage(): JSX.Element {
       />
 
       {/* Same tab chrome as Characters / other multi-tab pages */}
-      <div className="border-b border-ink-800/80 px-8">
-        <div className="flex gap-1">
+      <div className="shrink-0 border-b border-ink-800/80 px-3 sm:px-6 md:px-8">
+        <div className="flex gap-0.5 overflow-x-auto [-webkit-overflow-scrolling:touch]">
           {tabs.map(({ id, label }) => (
             <button
               key={id}
               type="button"
               onClick={() => setTab(id)}
               className={[
-                'relative px-4 py-3 text-sm font-medium transition',
+                'relative shrink-0 px-3 py-2.5 text-sm font-medium transition min-h-11 touch-manipulation sm:px-4 sm:py-3',
                 tab === id
                   ? 'text-brand-200'
                   : 'text-ink-400 hover:text-ink-200'
@@ -469,7 +470,7 @@ export function SettingsPage(): JSX.Element {
       </div>
 
       {/* Full-width content shell — identical for every settings tab */}
-      <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <div className={pageScrollClass}>
         {error && (
           <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
             {formatUserError(error, t)}

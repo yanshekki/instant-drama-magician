@@ -77,6 +77,7 @@ import {
   editorFormClass
 } from '../components/EditorShell'
 import { PageHeader } from '../components/PageHeader'
+import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
 import { translatePropGalleryLabel } from '../../domain/galleryLabelI18n'
 
@@ -567,14 +568,14 @@ export function PropsPage(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
+    <div className={pageRootClass}>
       <PageHeader
         title={t('props.title')}
         subtitle={t('props.subtitle')}
         actions={<Button onClick={openCreate}>{t('props.new')}</Button>}
       />
       {!editorOpen && (
-      <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <div className={pageScrollClass}>
         <LibraryPageBody
           footer={
             !loading && items.length > 0 ? (

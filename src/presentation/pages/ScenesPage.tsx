@@ -106,6 +106,7 @@ import {
   editorFormClass
 } from '../components/EditorShell'
 import { PageHeader } from '../components/PageHeader'
+import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
 import { translateSceneGalleryLabel } from '../../domain/galleryLabelI18n'
 import { tSceneLocationType } from '../lib/statusLabels'
@@ -850,7 +851,7 @@ export function ScenesPage(): JSX.Element {
   })
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
+    <div className={pageRootClass}>
       <PageHeader
         title={t('scenes.title')}
         subtitle={t('scenes.subtitle')}
@@ -865,7 +866,7 @@ export function ScenesPage(): JSX.Element {
       />
 
       {!editorOpen && (
-      <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <div className={pageScrollClass}>
         <LibraryPageBody
           footer={
             !loading && items.length > 0 ? (

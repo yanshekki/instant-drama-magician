@@ -1,4 +1,12 @@
-import type { ReactNode, SelectHTMLAttributes } from 'react'
+import { useState, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+  mobileSheetOuterClass,
+  mobileSheetPanelClass,
+  sheetBodyScrollClass,
+  stickyFooterClass,
+  galleryStripClass
+} from '../lib/mobileLayout'
 import { Button } from './ui'
 
 export type EditorShellTab = {
@@ -11,19 +19,21 @@ export type EditorShellTab = {
  * Do not override per-page width/height.
  */
 export const EDITOR_SHELL_WIDTH =
-  'w-full max-w-[min(72rem,100vw)]' /* ≈ max-w-6xl, fixed */
-export const EDITOR_SHELL_HEIGHT = 'h-full' /* full viewport stretch */
+  'w-full max-w-[min(72rem,100vw)]' /* desktop max */
+export const EDITOR_SHELL_HEIGHT = 'h-[100dvh] max-h-[100dvh] min-h-0'
 /** Form column inside the shell (all tabs / all pages). */
 export const editorFormClass = 'mx-auto w-full max-w-2xl space-y-5'
 /** Slightly wider for cast browsers / dense lists still inside same shell. */
 export const editorFormWideClass = 'mx-auto w-full max-w-3xl space-y-4'
-/** Preview column (left of form when split). */
+/** Preview column — desktop only side rail. */
 export const EDITOR_PREVIEW_ASIDE =
-  'flex max-h-[42vh] shrink-0 flex-col border-b border-ink-800 bg-ink-950/80 lg:max-h-none lg:w-[28rem] lg:shrink-0 lg:border-b-0 lg:border-r'
+  'hidden min-h-0 w-[28rem] shrink-0 flex-col border-r border-ink-800 bg-ink-950/80 lg:flex'
 
 /**
- * Wide side-panel editor shell: sticky header/footer, optional tabs,
- * optional split layout (preview | form). Fixed size site-wide.
+ * Wide side-panel editor shell.
+ * Mobile: full-screen sheet, collapsible gallery strip, ONE form scroll axis,
+ * sticky Save/Cancel footer — never dual-pane height fight.
+ * Desktop (lg+): optional preview | form side-by-side.
  */
 export function EditorShell({
   open,
@@ -53,43 +63,47 @@ export function EditorShell({
   tabs?: EditorShellTab[]
   activeTab?: string
   onTabChange?: (id: string) => void
-  /** Left column (gallery preview). When set, body becomes two-column. */
+  /** Gallery / media column. On mobile becomes collapsible strip. */
   preview?: ReactNode
   children: ReactNode
   /**
-   * @deprecated Ignored — shell width is global. Kept optional so old call sites typecheck until cleaned.
+   * @deprecated Ignored — shell width is global.
    */
   maxWidthClass?: string
 }): JSX.Element | null {
+  const { t } = useTranslation()
+  /** Mobile gallery: collapsed by default so form is always reachable. */
+  const [galleryOpen, setGalleryOpen] = useState(false)
+
   if (!open) return null
+
+  const hasPreview = Boolean(preview)
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-stretch justify-end bg-overlay/70 backdrop-blur-sm"
+      className={mobileSheetOuterClass}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
+      {/* Backdrop close — desktop only (mobile is full-screen) */}
       <button
         type="button"
-        className="absolute inset-0 cursor-default max-md:hidden"
+        className="absolute inset-0 cursor-default max-lg:hidden"
         aria-label={cancelLabel}
         onClick={onClose}
       />
       <div
         className={[
-          'relative flex flex-col bg-ink-950 shadow-2xl',
-          'border-l border-ink-800 max-md:border-l-0',
-          'max-md:w-full max-md:max-w-none',
-          'pb-[env(safe-area-inset-bottom,0px)]',
-          EDITOR_SHELL_HEIGHT,
-          EDITOR_SHELL_WIDTH
+          mobileSheetPanelClass,
+          EDITOR_SHELL_WIDTH,
+          EDITOR_SHELL_HEIGHT
         ].join(' ')}
       >
         {/* Sticky header */}
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-ink-800 px-5 py-3.5 sm:px-6">
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold tracking-tight text-ink-50">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-ink-800 px-3 py-3 sm:gap-4 sm:px-6 sm:py-3.5">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-base font-semibold tracking-tight text-ink-50 sm:text-lg">
               {title}
             </h2>
             {subtitle ? (
@@ -98,7 +112,7 @@ export function EditorShell({
           </div>
           <button
             type="button"
-            className="shrink-0 rounded-lg px-2.5 py-1.5 text-sm text-ink-400 transition hover:bg-ink-800 hover:text-ink-100"
+            className="inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-lg text-lg text-ink-400 transition hover:bg-ink-800 hover:text-ink-100 touch-manipulation"
             onClick={onClose}
             aria-label={cancelLabel}
           >
@@ -108,7 +122,7 @@ export function EditorShell({
 
         {/* Tabs */}
         {tabs && tabs.length > 0 && onTabChange && activeTab ? (
-          <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-ink-800/80 px-3 sm:px-5">
+          <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-ink-800/80 px-2 sm:px-5 [-webkit-overflow-scrolling:touch]">
             {tabs.map((tab) => {
               const active = tab.id === activeTab
               return (
@@ -116,7 +130,7 @@ export function EditorShell({
                   key={tab.id}
                   type="button"
                   className={[
-                    'relative shrink-0 px-3.5 py-2.5 text-sm font-medium transition',
+                    'relative shrink-0 px-3 py-2.5 text-sm font-medium transition touch-manipulation min-h-11',
                     active
                       ? 'text-brand-200'
                       : 'text-ink-400 hover:text-ink-200'
@@ -135,25 +149,54 @@ export function EditorShell({
 
         {/* Body */}
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          {preview ? (
+          {/* Desktop: side preview */}
+          {hasPreview ? (
             <aside className={EDITOR_PREVIEW_ASIDE}>
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
                 {preview}
               </div>
             </aside>
           ) : null}
-          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-            {children}
-          </div>
+
+          {/* Mobile: collapsible gallery strip (not a second competing flex-1 pane) */}
+          {hasPreview ? (
+            <div className={`${galleryStripClass} lg:hidden`}>
+              <button
+                type="button"
+                className="flex w-full min-h-11 items-center justify-between gap-2 px-3 py-2.5 text-left text-sm touch-manipulation"
+                onClick={() => setGalleryOpen((v) => !v)}
+                aria-expanded={galleryOpen}
+              >
+                <span className="font-medium text-ink-200">
+                  {t('editor.galleryToggle', {
+                    defaultValue: 'Gallery / references'
+                  })}
+                </span>
+                <span className="text-xs text-ink-500">
+                  {galleryOpen
+                    ? t('editor.galleryCollapse', { defaultValue: 'Hide' })
+                    : t('editor.galleryExpand', { defaultValue: 'Show' })}
+                </span>
+              </button>
+              {galleryOpen ? (
+                <div className="max-h-[min(36vh,16rem)] overflow-y-auto overscroll-contain border-t border-ink-800/80 px-3 py-3">
+                  {preview}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Single form scroll axis — always the primary flex-1 region */}
+          <div className={sheetBodyScrollClass}>{children}</div>
         </div>
 
-        {/* Sticky footer — full-width actions on phone */}
-        <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-ink-800 bg-ink-950/95 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-6 sm:py-3.5">
+        {/* Sticky footer — always visible */}
+        <footer className={stickyFooterClass}>
           <Button
             variant="ghost"
             onClick={onClose}
             disabled={busy}
-            className="w-full sm:w-auto"
+            className="w-full min-h-11 sm:w-auto"
           >
             {cancelLabel}
           </Button>
@@ -161,7 +204,7 @@ export function EditorShell({
             loading={busy}
             disabled={saveDisabled || busy}
             onClick={onSave}
-            className="w-full min-w-[7rem] sm:w-auto"
+            className="w-full min-h-11 min-w-[7rem] sm:w-auto"
           >
             {saveLabel}
           </Button>
@@ -205,7 +248,7 @@ export function EditorSelect({
   return (
     <select
       className={[
-        'w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-100 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500',
+        'w-full min-h-11 rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-100 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500',
         className
       ].join(' ')}
       {...props}

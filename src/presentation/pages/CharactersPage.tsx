@@ -121,6 +121,7 @@ import {
 } from '../components/EditorShell'
 import { PlotContextPicker } from '../components/PlotContextPicker'
 import { PageHeader } from '../components/PageHeader'
+import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
 import { translateCharacterGalleryLabel } from '../../domain/galleryLabelI18n'
 
@@ -1411,7 +1412,7 @@ export function CharactersPage(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900">
+    <div className={pageRootClass}>
       <PageHeader
         title={t('characters.title')}
         subtitle={t('characters.subtitle')}
@@ -1420,7 +1421,7 @@ export function CharactersPage(): JSX.Element {
         }
       />
 
-      <div className="relative min-h-0 flex-1 overflow-y-auto px-8 py-6">
+      <div className={pageScrollClass}>
         {(error || actionError) && (
           <div className="mb-4 rounded-xl border border-rose-900/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">
             {formatUserError(error?.message ?? actionError, t)}

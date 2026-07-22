@@ -132,6 +132,11 @@
     "openMenu": "開啟選單",
     "main": "主選單"
   },
+  "editor": {
+    "galleryToggle": "圖庫／參考",
+    "galleryExpand": "顯示",
+    "galleryCollapse": "收起"
+  },
   "audit": {
     "title": "活動紀錄",
     "subtitle": "查看匯出、生成、錯誤與系統操作 — 除錯同支援都用得着",
