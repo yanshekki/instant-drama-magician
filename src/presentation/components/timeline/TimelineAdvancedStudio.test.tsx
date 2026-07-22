@@ -222,13 +222,16 @@ describe('TimelineAdvancedStudio', () => {
     await act(async () => {
       fireEvent.click(refineStillBtn!)
     })
-    expect(startMediaGen).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'timeline-still',
-        storyId: 's1',
-        entryId: 'e1',
-        preferIdentityEdit: true
-      })
+    // refineEntry resolves aspect ratio async before startMediaGen
+    await waitFor(() =>
+      expect(startMediaGen).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'timeline-still',
+          storyId: 's1',
+          entryId: 'e1',
+          preferIdentityEdit: true
+        })
+      )
     )
 
     startMediaGen.mockClear()
@@ -239,13 +242,15 @@ describe('TimelineAdvancedStudio', () => {
     await act(async () => {
       fireEvent.click(refineClipBtn!)
     })
-    expect(startMediaGen).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'timeline-clip',
-        storyId: 's1',
-        entryId: 'e2',
-        preferIdentityEdit: true
-      })
+    await waitFor(() =>
+      expect(startMediaGen).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'timeline-clip',
+          storyId: 's1',
+          entryId: 'e2',
+          preferIdentityEdit: true
+        })
+      )
     )
   })
 

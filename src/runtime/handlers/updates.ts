@@ -42,12 +42,14 @@ export function nonDesktopUpdateState(
   host: { isPackaged: boolean; appVersion: string; mode?: 'electron' | 'headless' }
 ) {
   const isElectron = isElectronDesktopRuntime(host.mode)
+  // Headless web → isWeb true → channel "web". Electron uses packaged/dev mapping.
+  // (Do not force isWeb via !isElectron after channel detect — tests may mock channel.)
   const channel = detectInstallChannel({
     isElectron,
     isPackaged: host.isPackaged,
     isWeb: !isElectron
   })
-  const isWeb = channel === 'web' || status === 'web-skipped' || !isElectron
+  const isWeb = channel === 'web' || status === 'web-skipped'
   return {
     channel: isWeb
       ? ('web' as const)
