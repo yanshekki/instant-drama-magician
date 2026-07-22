@@ -128,7 +128,9 @@
     "timeline": "時間軸",
     "audit": "活動紀錄",
     "settings": "設定",
-    "actions": "動作"
+    "actions": "動作",
+    "openMenu": "開啟選單",
+    "main": "主選單"
   },
   "audit": {
     "title": "活動紀錄",

@@ -128,7 +128,9 @@
     "timeline": "समय",
     "audit": "गतिविधि",
     "settings": "सेटिंग्स",
-    "actions": "कार्रवाई"
+    "actions": "कार्रवाई",
+    "openMenu": "Open menu",
+    "main": "Main navigation"
   },
   "audit": {
     "title": "गतिविधि लॉग",

@@ -8,6 +8,7 @@ import {
   type ExportFinalOptions,
   type ExportProfile
 } from '../../domain/exportOptions'
+import { canUse } from '../lib/webCapability'
 import { Button, Input, Label, Select } from './ui'
 
 export function ExportFinalDialog({
@@ -93,15 +94,17 @@ export function ExportFinalDialog({
             />
             {t('settings.includeSilentAudio')}
           </label>
-          <label className="flex items-center gap-2 text-sm text-ink-200">
-            <input
-              type="checkbox"
-              disabled={busy}
-              checked={opts.openExportFolder}
-              onChange={(e) => patch('openExportFolder', e.target.checked)}
-            />
-            {t('settings.openExportFolder')}
-          </label>
+          {canUse('openExportFolder') ? (
+            <label className="flex items-center gap-2 text-sm text-ink-200">
+              <input
+                type="checkbox"
+                disabled={busy}
+                checked={opts.openExportFolder}
+                onChange={(e) => patch('openExportFolder', e.target.checked)}
+              />
+              {t('settings.openExportFolder')}
+            </label>
+          ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>

@@ -128,7 +128,9 @@
     "timeline": "الجدول الزمني",
     "audit": "النشاط",
     "settings": "إعدادات",
-    "actions": "الإجراءات"
+    "actions": "الإجراءات",
+    "openMenu": "Open menu",
+    "main": "Main navigation"
   },
   "audit": {
     "title": "سجل النشاط",

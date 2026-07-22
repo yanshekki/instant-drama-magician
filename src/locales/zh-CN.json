@@ -128,7 +128,9 @@
     "timeline": "时间轴",
     "audit": "活动纪录",
     "settings": "设定",
-    "actions": "动作"
+    "actions": "动作",
+    "openMenu": "开启选单",
+    "main": "主选单"
   },
   "audit": {
     "title": "活动纪录",

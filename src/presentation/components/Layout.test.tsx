@@ -119,12 +119,38 @@ describe('Layout', () => {
       </MemoryRouter>
     )
     await waitFor(() => expect(screen.getByText('v1.2.0')).toBeTruthy())
-    expect(screen.getByText('Web')).toBeTruthy()
+    // Web badge may appear in sidebar + mobile top bar
+    expect(screen.getAllByText('Web').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByTestId('hud')).toBeTruthy()
     expect(screen.getByTestId('vph')).toBeTruthy()
     // YSK logo click
     fireEvent.click(screen.getByLabelText('YSK Limited'))
     await waitFor(() => expect(api.shell.openExternal).toHaveBeenCalled())
+  })
+
+  it('opens and closes mobile nav drawer', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<div>home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+    await waitFor(() => expect(screen.getByText('home')).toBeTruthy())
+    const menu = screen.getByLabelText(/openMenu|Open menu/i)
+    expect(menu.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(menu)
+    expect(menu.getAttribute('aria-expanded')).toBe('true')
+    // backdrop closes drawer
+    const backdrop = document.querySelector(
+      'button.fixed.inset-0.z-40'
+    ) as HTMLButtonElement | null
+    if (backdrop) {
+      fireEvent.click(backdrop)
+      expect(menu.getAttribute('aria-expanded')).toBe('false')
+    }
   })
 
   it('settings/get failure still renders', async () => {

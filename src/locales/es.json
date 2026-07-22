@@ -128,7 +128,9 @@
     "timeline": "Línea de tiempo",
     "audit": "Actividad",
     "settings": "Ajustes",
-    "actions": "Comportamiento"
+    "actions": "Comportamiento",
+    "openMenu": "Open menu",
+    "main": "Main navigation"
   },
   "audit": {
     "title": "Registro de actividad",

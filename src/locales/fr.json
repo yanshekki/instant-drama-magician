@@ -128,7 +128,9 @@
     "timeline": "Chronologie",
     "audit": "Activité",
     "settings": "Paramètres",
-    "actions": "Actes"
+    "actions": "Actes",
+    "openMenu": "Open menu",
+    "main": "Main navigation"
   },
   "audit": {
     "title": "Journal d’activité",

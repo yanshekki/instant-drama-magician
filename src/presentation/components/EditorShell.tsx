@@ -72,13 +72,16 @@ export function EditorShell({
     >
       <button
         type="button"
-        className="absolute inset-0 cursor-default"
+        className="absolute inset-0 cursor-default max-md:hidden"
         aria-label={cancelLabel}
         onClick={onClose}
       />
       <div
         className={[
-          'relative flex flex-col border-l border-ink-800 bg-ink-950 shadow-2xl',
+          'relative flex flex-col bg-ink-950 shadow-2xl',
+          'border-l border-ink-800 max-md:border-l-0',
+          'max-md:w-full max-md:max-w-none',
+          'pb-[env(safe-area-inset-bottom,0px)]',
           EDITOR_SHELL_HEIGHT,
           EDITOR_SHELL_WIDTH
         ].join(' ')}
@@ -144,16 +147,21 @@ export function EditorShell({
           </div>
         </div>
 
-        {/* Sticky footer */}
-        <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-ink-800 bg-ink-950/95 px-5 py-3.5 sm:px-6">
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
+        {/* Sticky footer — full-width actions on phone */}
+        <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-ink-800 bg-ink-950/95 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-6 sm:py-3.5">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            disabled={busy}
+            className="w-full sm:w-auto"
+          >
             {cancelLabel}
           </Button>
           <Button
             loading={busy}
             disabled={saveDisabled || busy}
             onClick={onSave}
-            className="min-w-[7rem]"
+            className="w-full min-w-[7rem] sm:w-auto"
           >
             {saveLabel}
           </Button>

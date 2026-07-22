@@ -135,6 +135,21 @@ export function TimelinePage(): JSX.Element {
   const [actionError, setActionError] = useState<string | null>(null)
   const [playhead, setPlayhead] = useState(0)
   const [pxPerSec, setPxPerSec] = useState(40)
+  /** Konva stage width tracks container (mobile-safe; was hard-coded 900). */
+  const konvaHostRef = useRef<HTMLDivElement | null>(null)
+  const [konvaWidth, setKonvaWidth] = useState(360)
+  useEffect(() => {
+    const el = konvaHostRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const apply = (): void => {
+      const w = Math.floor(el.clientWidth)
+      if (w > 0) setKonvaWidth(w)
+    }
+    apply()
+    const ro = new ResizeObserver(() => apply())
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [activeStoryId])
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [snapGridSec, setSnapGridSec] = useState(0.5)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -986,10 +1001,10 @@ export function TimelinePage(): JSX.Element {
         actions={timelineToolbar}
       />
 
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r border-ink-800/80">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-ink-800/80 lg:border-r">
           {/* Status chips */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-ink-800/80 px-6 py-3">
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-ink-800/80 px-3 py-2 sm:gap-2 sm:px-6 sm:py-3">
             <span className="rounded-full border border-ink-700/80 bg-ink-900/60 px-2.5 py-1 text-[11px] text-ink-300">
               {t('timeline.duration', { seconds: totalDuration.toFixed(1) })}
             </span>
@@ -1038,9 +1053,12 @@ export function TimelinePage(): JSX.Element {
             </div>
           )}
 
-          {/* Timeline track — compact, always on top */}
-          <div className="shrink-0 border-b border-ink-800/80 px-6 py-3">
-            <div className="rounded-2xl border border-ink-800/80 bg-ink-900/40 p-3 shadow-xl shadow-black/20">
+          {/* Timeline track — compact, always on top; horizontal scroll on phone */}
+          <div className="shrink-0 border-b border-ink-800/80 px-2 py-2 sm:px-6 sm:py-3">
+            <div
+              ref={konvaHostRef}
+              className="overflow-x-auto rounded-2xl border border-ink-800/80 bg-ink-900/40 p-2 shadow-xl shadow-black/20 sm:p-3"
+            >
               <KonvaTimeline
                 entries={entries}
                 labels={labels}
@@ -1070,15 +1088,15 @@ export function TimelinePage(): JSX.Element {
                 onSnapGridSecChange={(v) =>
                   void persistSnapSettings({ snapGridSec: v })
                 }
-                width={900}
+                width={Math.max(konvaWidth - 8, 280)}
               />
             </div>
           </div>
 
           {/* Workbench: preview | editor + clip list (always reachable) */}
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-6 py-3 lg:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden px-3 py-2 sm:px-6 sm:py-3 lg:overflow-hidden lg:flex-row">
             {/* Preview fills remaining left space */}
-            <div className="flex min-h-[200px] min-w-0 flex-1 flex-col lg:min-h-0">
+            <div className="flex min-h-[180px] min-w-0 flex-shrink-0 flex-col sm:min-h-[220px] lg:min-h-0 lg:flex-1 lg:flex-shrink">
               {timelineErrorBannerElement(
                 error,
                 actionError,

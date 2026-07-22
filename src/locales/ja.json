@@ -128,7 +128,9 @@
     "timeline": "タイムライン",
     "audit": "アクティビティ",
     "settings": "設定",
-    "actions": "アクション"
+    "actions": "アクション",
+    "openMenu": "Open menu",
+    "main": "Main navigation"
   },
   "audit": {
     "title": "アクティビティログ",

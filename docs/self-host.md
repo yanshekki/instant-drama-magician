@@ -24,6 +24,13 @@ The Electron desktop app remains available; Web and desktop share the same busin
 
 Full browser UI needs built SPA: `npm run build:web` (included in packaged builds).
 
+### Mobile / phone browser
+
+- **Navigation:** below `md` (768px) the left rail becomes a **hamburger drawer** — tap ☰ to open, tap the dimmer or a nav link to close.
+- **Upload:** reference images use the browser file picker + `POST /api/upload` (not a native OS dialog).
+- **Timeline:** single-column stack on small screens; Konva width follows the container (horizontal scroll if needed). Prefer landscape for dense clip editing.
+- **Export folder open** is desktop-only; web exports download in the browser when the API returns a download URL.
+
 ## Mode B — standalone CLI process
 
 ```bash

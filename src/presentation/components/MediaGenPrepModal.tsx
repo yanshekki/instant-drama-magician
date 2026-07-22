@@ -551,14 +551,14 @@ export function MediaGenPrepModal({
 
   const node = (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-ink-950/90 p-3 backdrop-blur-md sm:p-4"
+      className="fixed inset-0 z-[200] flex items-stretch justify-center bg-ink-950/90 p-0 backdrop-blur-md sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-busy={locked}
       aria-label={shellTitle}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-ink-600 bg-ink-950 shadow-2xl">
+      <div className="flex h-[100dvh] max-h-[100dvh] w-full max-w-4xl flex-col overflow-hidden border-0 border-ink-600 bg-ink-950 shadow-2xl sm:h-auto sm:max-h-[94vh] sm:rounded-2xl sm:border pb-[env(safe-area-inset-bottom,0px)]">
         <header className="shrink-0 border-b border-ink-800 px-4 py-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">

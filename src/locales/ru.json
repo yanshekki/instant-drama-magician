@@ -128,7 +128,9 @@
     "timeline": "Хронология",
     "audit": "Активность",
     "settings": "Настройки",
-    "actions": "Действия"
+    "actions": "Действия",
+    "openMenu": "Open menu",
+    "main": "Main navigation"
   },
   "audit": {
     "title": "Журнал активности",

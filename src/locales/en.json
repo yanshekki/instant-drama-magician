@@ -128,7 +128,9 @@
     "timeline": "Timeline",
     "audit": "Activity",
     "settings": "Settings",
-    "actions": "Actions"
+    "actions": "Actions",
+    "openMenu": "Open menu",
+    "main": "Main navigation"
   },
   "audit": {
     "title": "Activity log",
