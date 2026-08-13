@@ -5,6 +5,7 @@ export type AppErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'CANCELLED'
+  | 'AI_TIMEOUT'
   | 'AI_UNAVAILABLE'
   | 'AI_FAILED'
   | 'AI_UNAUTHORIZED'
@@ -47,8 +48,24 @@ export class AppError extends Error {
   }
 }
 
+/** Fetch AbortSignal.timeout / DOMException TimeoutError. */
+export function isTimeoutAbort(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const name = 'name' in error ? String((error as { name?: string }).name) : ''
+  const msg = error instanceof Error ? error.message : String(error)
+  if (name === 'TimeoutError') return true
+  return /timeout|timed out/i.test(msg) && /abort/i.test(msg)
+}
+
 export function toAppError(error: unknown): AppErrorBody {
   if (error instanceof AppError) return error.toJSON()
+  if (isTimeoutAbort(error)) {
+    return {
+      code: 'AI_TIMEOUT',
+      message: 'errors.imageTimedOut',
+      details: 'errors.imageTimeoutHint'
+    }
+  }
   if (error instanceof Error) {
     return (
       mapVideoHttpMessage(error.message) ??
@@ -179,7 +196,14 @@ export function mapChatMessage(message: string): AppErrorBody | null {
       details: 'errors.imageApiDisabledHint'
     }
   }
-  if (/timed out|timeout|aborted/.test(m)) {
+  if (/timeout|timed out/i.test(m) && /abort/i.test(m)) {
+    return {
+      code: 'AI_TIMEOUT',
+      message: 'errors.imageTimedOut',
+      details: 'errors.imageTimeoutHint'
+    }
+  }
+  if (/timed out|timeout/.test(m)) {
     return {
       code: 'AI_FAILED',
       message: 'errors.chatTimedOut',
@@ -199,7 +223,14 @@ export function mapChatMessage(message: string): AppErrorBody | null {
 /** Map gateway / provider error strings to structured codes. */
 export function mapVideoHttpMessage(message: string): AppErrorBody | null {
   const m = message.toLowerCase()
-  if (/^cancell?ed$|aborted|user cancelled/.test(m)) {
+  if (/timeout|timed out/.test(m) && /abort/.test(m)) {
+    return {
+      code: 'AI_TIMEOUT',
+      message: 'errors.imageTimedOut',
+      details: 'errors.imageTimeoutHint'
+    }
+  }
+  if (/^cancell?ed$|^aborted$|user cancelled/.test(m)) {
     return { code: 'CANCELLED', message: 'errors.cancelled' }
   }
   if (/videoapi|video api is disabled|featuredisabled|feature.?disabled/.test(m)) {

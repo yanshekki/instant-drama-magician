@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "圖像 API 未回傳圖像資料。",
     "imageNoSandbox": "圖像生成未回傳圖像檔。",
     "imageNoSandboxHint": "請在閘道管理啟用 imagesApi，並使用 agent/admin 金鑰。裸體底板常被過濾—可先試底衫褲或戲服包。",
+    "imageTimedOut": "出圖逾時，閘道尚未交圖。",
+    "imageTimeoutHint": "圖片 API 在 imageTimeoutMs 內未回傳。閘道可能仍在生成。",
     "imageNotFound": "找不到圖片。",
     "importZipPathRequired": "匯入需要 zip 路徑。",
     "invalidSceneStatus": "場景狀態無效。",

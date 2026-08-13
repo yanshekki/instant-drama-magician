@@ -22,7 +22,12 @@ import type {
 import { chatContentText } from '../../types/domain'
 import type { AppSettings } from '../../types/settings'
 import { DEFAULT_SETTINGS } from '../../types/settings'
-import { AppError, mapChatHttpStatus, mapChatMessage } from '../../types/errors'
+import {
+  AppError,
+  isTimeoutAbort,
+  mapChatHttpStatus,
+  mapChatMessage
+} from '../../types/errors'
 import {
   buildChatCompletionBody,
   shouldOmitSamplingForProvider
@@ -503,15 +508,18 @@ export class GrokCliClient implements AIProvider {
       aspect_ratio: aspectRatio
     }
 
-    const res = await fetch(`${this.imageBaseUrl}/images/generations`, {
-      method: 'POST',
-      headers: {
-        ...this.imageHeaders(),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(this.imageTimeoutMs)
-    })
+    const res = await this.imageFetch(
+      `${this.imageBaseUrl}/images/generations`,
+      {
+        method: 'POST',
+        headers: {
+          ...this.imageHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(this.imageTimeoutMs)
+      }
+    )
     return this.parseImageResponse(res, size, aspectRatio)
   }
 
@@ -563,7 +571,7 @@ export class GrokCliClient implements AIProvider {
       uploadName
     )
 
-    const res = await fetch(`${this.imageBaseUrl}/images/edits`, {
+    const res = await this.imageFetch(`${this.imageBaseUrl}/images/edits`, {
       method: 'POST',
       headers: this.imageHeaders(),
       body: form,
@@ -601,6 +609,25 @@ export class GrokCliClient implements AIProvider {
           ? '1:1'
           : '16:9')
     return { size, aspectRatio }
+  }
+
+  private async imageFetch(
+    url: string,
+    init: RequestInit
+  ): Promise<Response> {
+    try {
+      return await fetch(url, init)
+    } catch (error) {
+      if (error instanceof AppError) throw error
+      if (isTimeoutAbort(error)) {
+        throw new AppError(
+          'AI_TIMEOUT',
+          'errors.imageTimedOut',
+          'errors.imageTimeoutHint'
+        )
+      }
+      throw error
+    }
   }
 
   private async parseImageResponse(

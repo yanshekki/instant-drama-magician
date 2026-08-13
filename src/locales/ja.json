@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "画像 API が画像データを返しませんでした。",
     "imageNoSandbox": "画像生成が画像ファイルを返しませんでした。",
     "imageNoSandboxHint": "Gateway 管理で imagesApi を有効にし、agent/admin キーを使用。身体プレートはフィルタされやすいので下着・衣装パッケージから試してください。",
+    "imageTimedOut": "画像生成がタイムアウトしました。",
+    "imageTimeoutHint": "imageTimeoutMs までに画像 API が返りませんでした。ゲートウェイ側ではまだ生成中の場合があります。",
     "imageNotFound": "画像が見つかりません。",
     "importZipPathRequired": "取り込みには zip パスが必要です（CLI：第1引数にパス）。",
     "invalidSceneStatus": "無効なシーン状態です。",

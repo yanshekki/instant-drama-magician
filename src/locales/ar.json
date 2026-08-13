@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "واجهة الصورة لم تُرجع بيانات صورة.",
     "imageNoSandbox": "توليد الصورة لم يُرجع ملف صورة.",
     "imageNoSandboxHint": "فعّل imagesApi في الإدارة؛ استخدم مفتاح agent/admin. لوحات الجسم تُفلتر غالبًا.",
+    "imageTimedOut": "انتهت مهلة توليد الصورة.",
+    "imageTimeoutHint": "لم تُرجع واجهة الصورة قبل imageTimeoutMs. قد يكون البوابة ما زالت تولّد.",
     "imageNotFound": "الصورة غير موجودة.",
     "importZipPathRequired": "الاستيراد يتطلب مسار zip (CLI: أول وسيط).",
     "invalidSceneStatus": "غير صالح scene status.",

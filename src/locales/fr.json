@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "L’API image n’a renvoyé aucune donnée image.",
     "imageNoSandbox": "La génération d’image n’a renvoyé aucun fichier.",
     "imageNoSandboxHint": "Activez imagesApi dans Admin ; utilisez une clé agent/admin. Les plaques corps sont souvent filtrées.",
+    "imageTimedOut": "La génération d’image a expiré.",
+    "imageTimeoutHint": "L’API image n’a pas répondu avant imageTimeoutMs. La passerelle est peut-être encore en train de générer.",
     "imageNotFound": "Image introuvable.",
     "importZipPathRequired": "L’import nécessite un chemin zip (CLI : 1er argument).",
     "invalidSceneStatus": "Statut de scène invalide.",

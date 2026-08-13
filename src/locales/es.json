@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "La API de imagen no devolvió datos de imagen.",
     "imageNoSandbox": "La generación de imagen no devolvió un archivo.",
     "imageNoSandboxHint": "Activa imagesApi en Admin; usa clave agent/admin. Las placas de cuerpo suelen filtrarse.",
+    "imageTimedOut": "La generación de imagen agotó el tiempo de espera.",
+    "imageTimeoutHint": "La API de imagen no respondió antes de imageTimeoutMs. La pasarela puede seguir generando.",
     "imageNotFound": "Imagen no encontrada.",
     "importZipPathRequired": "La importación requiere una ruta zip (CLI: primer argumento).",
     "invalidSceneStatus": "Estado de escena no válido.",

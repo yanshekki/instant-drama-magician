@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "Image API не вернул данные изображения.",
     "imageNoSandbox": "Генерация изображения не вернула файл.",
     "imageNoSandboxHint": "Включите imagesApi в Admin; ключ agent/admin. Телесные пластины часто фильтруются.",
+    "imageTimedOut": "Генерация изображения превысила время ожидания.",
+    "imageTimeoutHint": "API изображений не ответил за imageTimeoutMs. Шлюз, возможно, ещё генерирует.",
     "imageNotFound": "Изображение не найдено.",
     "importZipPathRequired": "Для импорта нужен путь к zip (CLI: первый аргумент).",
     "invalidSceneStatus": "Неверный статус сцены.",

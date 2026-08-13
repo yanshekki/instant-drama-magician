@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "इमेज API ने छवि डेटा नहीं दिया।",
     "imageNoSandbox": "छवि जनरेशन ने कोई फ़ाइल नहीं दी।",
     "imageNoSandboxHint": "Admin में imagesApi चालू करें; agent/admin कुंजी उपयोग करें। बॉडी प्लेट अक्सर फ़िल्टर होती हैं।",
+    "imageTimedOut": "छवि जनरेशन समय समाप्त हो गया।",
+    "imageTimeoutHint": "imageTimeoutMs से पहले छवि API नहीं लौटा। गेटवे अभी भी जनरेट कर रहा हो सकता है।",
     "imageNotFound": "Image नहीं मिला।",
     "importZipPathRequired": "आयात के लिए zip पथ चाहिए (CLI: पहला तर्क)।",
     "invalidSceneStatus": "अमान्य scene status.",

@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "图像 API 未回传图像资料。",
     "imageNoSandbox": "图像生成未回传图像档。",
     "imageNoSandboxHint": "请在闸道管理启用 imagesApi，并使用 agent/admin 金钥。裸体底板常被过滤—可先试底衫裤或戏服包。",
+    "imageTimedOut": "出图逾时，网关尚未交图。",
+    "imageTimeoutHint": "图片 API 在 imageTimeoutMs 内未回传。网关可能仍在生成。",
     "imageNotFound": "找不到图片。",
     "importZipPathRequired": "汇入需要 zip 路径。",
     "invalidSceneStatus": "场景状态无效。",

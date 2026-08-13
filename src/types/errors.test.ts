@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AppError,
   isAppErrorBody,
+  isTimeoutAbort,
   mapChatHttpStatus,
   mapChatMessage,
   mapHttpStatusToVideoError,
@@ -29,6 +30,13 @@ describe('AppError', () => {
       message: 'plain boom'
     })
     expect(toAppError(123)).toEqual({ code: 'INTERNAL', message: '123' })
+    const timeout = new Error('The operation was aborted due to timeout')
+    timeout.name = 'TimeoutError'
+    expect(isTimeoutAbort(timeout)).toBe(true)
+    expect(toAppError(timeout)).toMatchObject({
+      code: 'AI_TIMEOUT',
+      message: 'errors.imageTimedOut'
+    })
   })
 
   it('isAppErrorBody type guard', () => {
@@ -56,6 +64,12 @@ describe('video error mapping', () => {
     expect(mapVideoHttpMessage('cancelled')?.code).toBe('CANCELLED')
     expect(mapVideoHttpMessage('user cancelled')?.code).toBe('CANCELLED')
     expect(mapVideoHttpMessage('aborted')?.code).toBe('CANCELLED')
+    expect(
+      mapVideoHttpMessage('The operation was aborted due to timeout')?.code
+    ).toBe('AI_TIMEOUT')
+    expect(
+      mapVideoHttpMessage('The operation was aborted due to timeout')?.message
+    ).toBe('errors.imageTimedOut')
   })
 
   it('maps rate limit, timeout, job failed, gateway', () => {
@@ -146,6 +160,12 @@ describe('chat error mapping (Grok Gateway)', () => {
     expect(mapChatMessage('request timed out')?.message).toBe(
       'errors.chatTimedOut'
     )
+    expect(
+      mapChatMessage('The operation was aborted due to timeout')?.message
+    ).toBe('errors.imageTimedOut')
+    expect(
+      mapChatMessage('The operation was aborted due to timeout')?.code
+    ).toBe('AI_TIMEOUT')
     expect(mapChatMessage('Chat HTTP 500 validation_error')?.message).toBe(
       'errors.aiRequestFailed'
     )

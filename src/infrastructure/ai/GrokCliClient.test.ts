@@ -472,6 +472,19 @@ describe('GrokCliClient', () => {
     ).rejects.toBeTruthy()
   })
 
+  it('generateImage timeout abort is AI_TIMEOUT not CANCELLED', async () => {
+    const c = client()
+    const err = new Error('The operation was aborted due to timeout')
+    err.name = 'TimeoutError'
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw err
+    }))
+    await expect(c.generateImage({ prompt: 'p' })).rejects.toMatchObject({
+      code: 'AI_TIMEOUT',
+      message: 'errors.imageTimedOut'
+    })
+  })
+
   it('probeImage seedream and non-Error catch + probeChat AppError map', async () => {
     const client = new GrokCliClient({
       apiKey: 'k',

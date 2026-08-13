@@ -1519,6 +1519,8 @@
     "imageApiNoB64": "Image API returned no image data.",
     "imageNoSandbox": "Image generation returned no image file.",
     "imageNoSandboxHint": "Enable imagesApi in Gateway Admin; use an agent/admin key. Body plates are often filtered — try undergarment or costume packages first.",
+    "imageTimedOut": "Image generation timed out.",
+    "imageTimeoutHint": "The image API did not return before imageTimeoutMs. The gateway may still be generating.",
     "imageNotFound": "Image not found.",
     "importZipPathRequired": "Import requires a zip path (CLI: pass the path as the first argument).",
     "invalidSceneStatus": "Invalid scene status.",
