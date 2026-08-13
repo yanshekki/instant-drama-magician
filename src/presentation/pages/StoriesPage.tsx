@@ -360,7 +360,7 @@ export function StoriesPage(): JSX.Element {
         if (!cid) continue
         const arr = map.get(cid) ?? []
         arr.push(c)
-        map.set(cid, arr)
+        map.set(cid, storiesDedupeCostumeOptions(arr))
       }
     }
     return map
@@ -1641,7 +1641,8 @@ export function StoriesPage(): JSX.Element {
                                   <option key={c.id} value={c.id}>
                                     {storiesCostumeOptionLabel(
                                       c.name,
-                                      c.description
+                                      c.description,
+                                      t('characters.costumeLibDefault')
                                     )}
                                   </option>
                                 ))}
@@ -3077,11 +3078,45 @@ export function storiesCastPageNextClick(
   return () => setPage((p) => storiesCastPageNext(p, totalPages))
 }
 
+export function storiesIsDefaultCostumeName(
+  name: string | null | undefined
+): boolean {
+  const n = name?.trim() || ''
+  return !n || /^default$/i.test(n)
+}
+
 export function storiesCostumeOptionLabel(
   name: string | null | undefined,
-  description: string | null | undefined
+  description: string | null | undefined,
+  defaultLabel?: string
 ): string {
-  return name?.trim() || storiesDescSlice(description, 40)
+  const desc = storiesDescSlice(description, 40)
+  if (storiesIsDefaultCostumeName(name)) {
+    const base = defaultLabel?.trim() || desc
+    if (defaultLabel?.trim() && desc && desc.toLowerCase() !== defaultLabel.trim().toLowerCase()) {
+      return `${defaultLabel.trim()} — ${storiesDescSlice(description, 28)}`
+    }
+    return base
+  }
+  return name!.trim() || desc
+}
+
+/** Drop duplicate costume rows (same id, or same name+description). */
+export function storiesDedupeCostumeOptions<
+  T extends { id: string; name?: string | null; description?: string | null }
+>(rows: T[]): T[] {
+  const seenId = new Set<string>()
+  const seenKey = new Set<string>()
+  const out: T[] = []
+  for (const c of rows) {
+    if (seenId.has(c.id)) continue
+    seenId.add(c.id)
+    const key = `${(c.name ?? '').trim().toLowerCase()}|${(c.description ?? '').trim().toLowerCase()}`
+    if (seenKey.has(key)) continue
+    seenKey.add(key)
+    out.push(c)
+  }
+  return out
 }
 
 export async function storiesCoverJobFinishOrCancel<T>(ops: {

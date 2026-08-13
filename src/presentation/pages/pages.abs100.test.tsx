@@ -566,6 +566,7 @@ import {
   storiesCancelImageGenBind,
   storiesCastPageNextClick,
   storiesCostumeOptionLabel,
+  storiesDedupeCostumeOptions,
   storiesCoverJobFinishOrCancel,
   storiesRunAiMetaIfReady
 } from './StoriesPage'
@@ -13820,6 +13821,20 @@ describe('abs100 Stories pure residual helpers', () => {
     expect(page).toBe(2)
     expect(storiesCostumeOptionLabel('', 'desc-here')).toBe('desc-here')
     expect(storiesCostumeOptionLabel('Name', 'd')).toBe('Name')
+    expect(storiesCostumeOptionLabel('Default', 'robe', '預設造型')).toMatch(
+      /預設造型/
+    )
+    expect(storiesCostumeOptionLabel('Default', 'robe', '預設造型')).not.toBe(
+      'Default'
+    )
+    expect(
+      storiesDedupeCostumeOptions([
+        { id: 'a', name: 'Default', description: 'x' },
+        { id: 'a', name: 'Default', description: 'x' },
+        { id: 'b', name: 'Default', description: 'x' },
+        { id: 'c', name: 'Rain', description: 'y' }
+      ]).map((c) => c.id)
+    ).toEqual(['a', 'c'])
 
 
   })
