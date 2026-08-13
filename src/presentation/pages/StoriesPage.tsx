@@ -269,6 +269,40 @@ export function StoriesPage(): JSX.Element {
   /** Global wardrobe library for story cast costume picks */
   const [costumeLib, setCostumeLib] = useState<CostumeLibRow[]>([])
 
+  const applyCatalog = useCallback(
+    (
+      chars: Character[],
+      scenes: Scene[],
+      props: Prop[],
+      actions: Action[],
+      costumes: CostumeLibRow[]
+    ): void => {
+      setAllChars(sortByUpdatedAtDesc(chars))
+      setAllScenes(sortByUpdatedAtDesc(scenes))
+      setAllProps(sortByUpdatedAtDesc(props))
+      setAllActions(sortByUpdatedAtDesc(actions))
+      setCostumeLib(
+        Array.isArray(costumes) ? sortByUpdatedAtDesc(costumes) : []
+      )
+    },
+    []
+  )
+
+  const loadCatalog = useCallback(async (): Promise<void> => {
+    try {
+      const [chars, scenes, props, actions, costumes] = await Promise.all([
+        getApi().characters.list() as Promise<Character[]>,
+        getApi().scenes.list() as Promise<Scene[]>,
+        getApi().props.list() as Promise<Prop[]>,
+        getApi().actions.list() as Promise<Action[]>,
+        getApi().costumes.list() as Promise<CostumeLibRow[]>
+      ])
+      applyCatalog(chars, scenes, props, actions, costumes)
+    } catch (e) {
+      storiesApplyIpc(e, setActionError)
+    }
+  }, [applyCatalog])
+
   const loadDetail = useCallback(async (id: string): Promise<void> => {
     setBusy(true)
     setActionError(null)
@@ -282,6 +316,7 @@ export function StoriesPage(): JSX.Element {
         getApi().timeline.list(id) as Promise<TimelineEntry[]>,
         getApi().costumes.list() as Promise<CostumeLibRow[]>
       ])
+      applyCatalog(chars, scenes, props, actions, costumes)
       setDetail(d)
       setEditTitle(d.title)
       setEditStatus(
@@ -307,20 +342,13 @@ export function StoriesPage(): JSX.Element {
       )
       setCoverGallery(cg)
       setSelectedCoverId(cg.find((x) => x.path === d.coverPath)?.id ?? cg[0]?.id ?? null)
-      setAllChars(sortByUpdatedAtDesc(chars))
-      setAllScenes(sortByUpdatedAtDesc(scenes))
-      setAllProps(sortByUpdatedAtDesc(props))
-      setAllActions(sortByUpdatedAtDesc(actions))
       setBeats(timeline)
-      setCostumeLib(
-        Array.isArray(costumes) ? sortByUpdatedAtDesc(costumes) : []
-      )
     } catch (e) {
       storiesApplyIpc(e, setActionError)
     } finally {
       setBusy(false)
     }
-  }, [])
+  }, [applyCatalog])
 
   /** characterId → costumes linked to that character */
   const costumesByCharacter = useMemo(() => {
@@ -378,10 +406,6 @@ export function StoriesPage(): JSX.Element {
     setCoverGallery([])
     setSelectedCoverId(null)
     setBeats([])
-    setAllChars([])
-    setAllScenes([])
-    setAllProps([])
-    setAllActions([])
     setDetail(null)
     setAiIdea('')
     setUseIdentityRef(false)
@@ -393,6 +417,7 @@ export function StoriesPage(): JSX.Element {
     resetEditorForm()
     setEditorTab('meta')
     setEditorOpen(true)
+    void loadCatalog()
   }
 
   const openEditor = (id: string): void => {
@@ -746,12 +771,60 @@ export function StoriesPage(): JSX.Element {
     [detail?.actions]
   )
 
+  const ensureStoryId = useCallback(async (): Promise<string | null> => {
+    if (editingId) return editingId
+    const title = editTitle.trim() || t('stories.new')
+    try {
+      const created = await storiesCreateId(() =>
+        storiesCreateStoryId(title, (tt) =>
+          getApi().stories.create({ title: tt })
+        )
+      )
+      const id = created.id
+      setEditingId(id)
+      setActiveStoryId(id)
+      if (!editTitle.trim()) setEditTitle(title)
+      await getApi().stories.update(id, {
+        title,
+        status: editStatus,
+        styleNote: styleNote.trim() || null,
+        hardRules: hardRules.trim() || null,
+        artStyle: storyArtStyle,
+        coverPath,
+        refGalleryJson: serializeCharacterGallery(coverGallery)
+      })
+      await loadDetail(id)
+      await refreshStories()
+      return id
+    } catch (e) {
+      storiesApplyIpc(e, setActionError, toast.error)
+      return null
+    }
+  }, [
+    editingId,
+    editTitle,
+    editStatus,
+    styleNote,
+    hardRules,
+    storyArtStyle,
+    coverPath,
+    coverGallery,
+    loadDetail,
+    refreshStories,
+    setActiveStoryId,
+    t,
+    toast
+  ])
+
   const toggleCharacter = storiesMakeLinkToggle({
     getEditingId: () => editingId,
-    link: async (id) => getApi().stories.linkCharacter({ storyId: editingId!, characterId: id }),
-    unlink: async (id) => getApi().stories.unlinkCharacter({ storyId: editingId!, characterId: id }),
-    reload: async () => {
-      await loadDetail(editingId!)
+    ensureId: ensureStoryId,
+    link: async (id, storyId) =>
+      getApi().stories.linkCharacter({ storyId, characterId: id }),
+    unlink: async (id, storyId) =>
+      getApi().stories.unlinkCharacter({ storyId, characterId: id }),
+    reload: async (storyId) => {
+      await loadDetail(storyId)
       await refreshStories()
     },
     toastSuccess: (wasLinked) =>
@@ -762,10 +835,13 @@ export function StoriesPage(): JSX.Element {
 
   const toggleScene = storiesMakeLinkToggle({
     getEditingId: () => editingId,
-    link: async (id) => getApi().stories.linkScene({ storyId: editingId!, sceneId: id }),
-    unlink: async (id) => getApi().stories.unlinkScene({ storyId: editingId!, sceneId: id }),
-    reload: async () => {
-      await loadDetail(editingId!)
+    ensureId: ensureStoryId,
+    link: async (id, storyId) =>
+      getApi().stories.linkScene({ storyId, sceneId: id }),
+    unlink: async (id, storyId) =>
+      getApi().stories.unlinkScene({ storyId, sceneId: id }),
+    reload: async (storyId) => {
+      await loadDetail(storyId)
       await refreshStories()
     },
     toastSuccess: (wasLinked) =>
@@ -776,6 +852,7 @@ export function StoriesPage(): JSX.Element {
 
   const toggleProp = storiesMakePropToggle({
     getEditingId: () => editingId,
+    ensureId: ensureStoryId,
     storiesApi: getApi().stories,
     loadDetail,
     refreshStories,
@@ -788,10 +865,13 @@ export function StoriesPage(): JSX.Element {
 
   const toggleAction = storiesMakeLinkToggle({
     getEditingId: () => editingId,
-    link: async (id) => getApi().stories.linkAction({ storyId: editingId!, actionId: id }),
-    unlink: async (id) => getApi().stories.unlinkAction({ storyId: editingId!, actionId: id }),
-    reload: async () => {
-      await loadDetail(editingId!)
+    ensureId: ensureStoryId,
+    link: async (id, storyId) =>
+      getApi().stories.linkAction({ storyId, actionId: id }),
+    unlink: async (id, storyId) =>
+      getApi().stories.unlinkAction({ storyId, actionId: id }),
+    reload: async (storyId) => {
+      await loadDetail(storyId)
       await refreshStories()
     },
     toastSuccess: (wasLinked) =>
@@ -2440,20 +2520,24 @@ export function storiesCoverPromptParts(ops: {
 
 export function storiesMakeLinkToggle(ops: {
   getEditingId: () => string | null
-  link: (id: string) => Promise<unknown>
-  unlink: (id: string) => Promise<unknown>
-  reload: () => Promise<void> | void
+  ensureId?: () => Promise<string | null>
+  link: (id: string, storyId: string) => Promise<unknown>
+  unlink: (id: string, storyId: string) => Promise<unknown>
+  reload: (storyId: string) => Promise<void> | void
   toastSuccess: (linked: boolean) => void
   setError: (m: string) => void
   toastError: (m: string) => void
 }): (id: string, linked: boolean) => Promise<void> {
   return async (id, linked) => {
+    const storyId = ops.ensureId
+      ? await ops.ensureId()
+      : ops.getEditingId()
     await storiesRunLinkToggle({
-      editingId: ops.getEditingId(),
+      editingId: storyId,
       linked,
-      link: () => ops.link(id),
-      unlink: () => ops.unlink(id),
-      reload: ops.reload,
+      link: () => ops.link(id, storyId!),
+      unlink: () => ops.unlink(id, storyId!),
+      reload: () => ops.reload(storyId!),
       toastSuccess: ops.toastSuccess,
       setError: ops.setError,
       toastError: ops.toastError
@@ -2747,6 +2831,7 @@ export async function storiesCoverJobAfterGen(ops: {
 
 export function storiesPropLinkToggleOps(ops: {
   getEditingId: () => string | null
+  ensureId?: () => Promise<string | null>
   linkProp: (storyId: string, propId: string) => Promise<unknown>
   unlinkProp: (storyId: string, propId: string) => Promise<unknown>
   loadDetail: (id: string) => Promise<void> | void
@@ -2756,21 +2841,23 @@ export function storiesPropLinkToggleOps(ops: {
   toastError: (m: string) => void
 }): {
   getEditingId: () => string | null
-  link: (id: string) => Promise<unknown>
-  unlink: (id: string) => Promise<unknown>
-  reload: () => Promise<void>
+  ensureId?: () => Promise<string | null>
+  link: (id: string, storyId: string) => Promise<unknown>
+  unlink: (id: string, storyId: string) => Promise<unknown>
+  reload: (storyId: string) => Promise<void>
   toastSuccess: (wasLinked: boolean) => void
   setError: (m: string) => void
   toastError: (m: string) => void
 } {
   return {
     getEditingId: ops.getEditingId,
-    link: async (id) =>
-      ops.linkProp(ops.getEditingId()!, id),
-    unlink: async (id) =>
-      ops.unlinkProp(ops.getEditingId()!, id),
-    reload: async () => {
-      await ops.loadDetail(ops.getEditingId()!)
+    ensureId: ops.ensureId,
+    link: async (id, storyId) =>
+      ops.linkProp(storyId || ops.getEditingId()!, id),
+    unlink: async (id, storyId) =>
+      ops.unlinkProp(storyId || ops.getEditingId()!, id),
+    reload: async (storyId) => {
+      await ops.loadDetail(storyId || ops.getEditingId()!)
       await ops.refreshStories()
     },
     toastSuccess: ops.toastSuccess,
@@ -2936,6 +3023,7 @@ export function storiesAiMetaShouldSkip(
 
 export function storiesMakePropToggle(ops: {
   getEditingId: () => string | null
+  ensureId?: () => Promise<string | null>
   storiesApi: {
     linkProp: (p: { storyId: string; propId: string }) => Promise<unknown>
     unlinkProp: (p: { storyId: string; propId: string }) => Promise<unknown>
@@ -2951,6 +3039,7 @@ export function storiesMakePropToggle(ops: {
   return storiesMakeLinkToggle(
     storiesPropLinkToggleOps({
       getEditingId: ops.getEditingId,
+      ensureId: ops.ensureId,
       linkProp: (storyId, propId) =>
         ops.storiesApi.linkProp({ storyId, propId }),
       unlinkProp: (storyId, propId) =>
