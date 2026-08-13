@@ -623,14 +623,66 @@ export function buildMediaGenPolishSystemPrompt(
   ].join('\n')
 }
 
-/** Loose extract: strip fences; accept body ≥ 40 chars. */
+const PREAMBLE_SENTENCE =
+  /^(?:i(?:'ll| will| am going to|'m going to| can| need to| should| have|'ve)|let'?s(?:\s+me)?|let me|found|checking|looking|searching|opening|scanning|我先|我會|讓我先?|我去|我嚟|我來|檢查|搵吓|搵下|尋找)\b/i
+
+const PREAMBLE_TOPIC =
+  /\b(workspace|wikipedia|media-run(?:\s+folder)?|attached reference stills)\b/i
+
+const VISUAL_PROMPT_START =
+  /^(?:single\s+\d+:\d+|a\s+(?:single|seamless|photoreal|cinematic|live-action)|photoreal|cinematic|live-action|\d+:\d+|character bible|一張|單一|寫實)/i
+
+/** Mid-sentence cut when chatter is glued to the real director prompt. */
+const VISUAL_PROMPT_INLINE =
+  /\b(?:Single\s+\d+:\d+|Photoreal(?:istic)?\s|Cinematic\s+live-action|live-action\s+photoreal|character bible of|一張|單一合成)/i
+
+function isPreambleSentence(s: string): boolean {
+  const t = s.trim()
+  if (!t) return true
+  if (VISUAL_PROMPT_START.test(t)) return false
+  if (PREAMBLE_SENTENCE.test(t)) return true
+  if (PREAMBLE_TOPIC.test(t) && /still|reference|folder|attached|lock/i.test(t)) {
+    return true
+  }
+  return false
+}
+
+function splitPromptSentences(text: string): string[] {
+  const spaced = text.replace(/([.!?。！？])(?=\S)/g, '$1 ')
+  return spaced
+    .split(/(?<=[.!?。！？])\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+}
+
+/**
+ * Drop leading assistant planning / search chatter leaked into a polish body.
+ * Keeps hard-rules and director text that follows.
+ */
+export function stripMediaGenPreamble(text: string): string {
+  const src = text.trim()
+  if (!src) return ''
+  const sentences = splitPromptSentences(src)
+  let i = 0
+  while (i < sentences.length && isPreambleSentence(sentences[i])) {
+    const inline = VISUAL_PROMPT_INLINE.exec(sentences[i])
+    if (inline && inline.index > 0) {
+      sentences[i] = sentences[i].slice(inline.index).trim()
+      break
+    }
+    i += 1
+  }
+  return sentences.slice(i).join(' ').trim()
+}
+
+/** Loose extract: strip fences, headings, leaked assistant preamble. */
 export function extractPolishedMediaPrompt(raw: string): string {
   let t = (raw ?? '').trim()
   if (!t) return ''
   const fence = /^```(?:\w+)?\s*([\s\S]*?)```$/m.exec(t)
   if (fence) t = fence[1].trim()
   t = t.replace(/^#+\s*.+$/m, '').trim()
-  return t
+  return stripMediaGenPreamble(t)
 }
 
 export function actionPlateTaskHint(

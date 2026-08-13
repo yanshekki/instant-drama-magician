@@ -8,6 +8,7 @@ import {
   buildMediaGenPolishUserText,
   buildTimelineBeatMaterialSections,
   extractPolishedMediaPrompt,
+  stripMediaGenPreamble,
   includedMaterialImagePaths,
   mediaGenMode,
   pickDefaultEditBaseSectionId,
@@ -127,6 +128,22 @@ describe('mediaGenPrep', () => {
       extractPolishedMediaPrompt('```\nLONG ENOUGH POLISHED PROMPT BODY HERE XX\n```')
     ).toMatch(/LONG ENOUGH/)
     expect(extractPolishedMediaPrompt('')).toBe('')
+  })
+
+  it('extractPolishedMediaPrompt strips leaked assistant preamble', () => {
+    const leak =
+      "I'll check the workspace for any attached reference stills so the prompt can lock identity to those images.Found Wikipedia stills in the media-run folder. I'll open them so the prompt can lock face, hair, and wardrobe to those references.Single 16:9 live-action photoreal film-still character bible of Vladimir Putin, one adult male age 70–73."
+    const out = extractPolishedMediaPrompt(leak)
+    expect(out).toMatch(/^Single 16:9 live-action photoreal/)
+    expect(out).not.toMatch(/I'll check|Wikipedia|workspace|media-run/i)
+    expect(out).toMatch(/Vladimir Putin/)
+  })
+
+  it('extractPolishedMediaPrompt keeps a clean director prompt', () => {
+    const clean =
+      'Single 16:9 live-action photoreal film-still character bible of Maya, one adult woman. HARD RULES: two hands.'
+    expect(extractPolishedMediaPrompt(clean)).toBe(clean)
+    expect(stripMediaGenPreamble(clean)).toBe(clean)
   })
 
   it('shell steps differ for image vs video tracks', () => {
