@@ -112,19 +112,19 @@ export type BuildTimelineGraphInput = {
 
 export const TIMELINE_GRAPH_PAD = 20
 export const TIMELINE_GRAPH_GAP_Y = 16
-export const TIMELINE_GRAPH_COL_X = [20, 292, 604] as const
+export const TIMELINE_GRAPH_COL_X = [20, 292, 616] as const
 
 const SIZE: Record<TimelineGraphNodeKind, { w: number; h: number }> = {
-  character: { w: 232, h: 136 },
-  scene: { w: 232, h: 136 },
-  prop: { w: 232, h: 120 },
-  action: { w: 232, h: 120 },
-  cinematic: { w: 232, h: 128 },
-  'ghost-character': { w: 232, h: 96 },
-  'ghost-scene': { w: 232, h: 96 },
-  prompt: { w: 268, h: 188 },
-  still: { w: 268, h: 200 },
-  video: { w: 360, h: 292 }
+  character: { w: 248, h: 188 },
+  scene: { w: 248, h: 188 },
+  prop: { w: 248, h: 156 },
+  action: { w: 248, h: 156 },
+  cinematic: { w: 248, h: 228 },
+  'ghost-character': { w: 248, h: 128 },
+  'ghost-scene': { w: 248, h: 128 },
+  prompt: { w: 300, h: 320 },
+  still: { w: 300, h: 236 },
+  video: { w: 368, h: 308 }
 }
 
 export function timelineGraphBindIds(
@@ -294,15 +294,15 @@ export function buildTimelineGraph(
     })
   }
 
-  const styleNote = timelineGraphSnippet(input.story?.styleNote, 80)
+  const styleNote = (input.story?.styleNote || '').replace(/\s+/g, ' ').trim()
   const artStyle = (input.story?.artStyle || '').trim()
   const prevStill = input.prevStillPath?.trim() || null
   nodes.push({
     id: 'cinematic',
     kind: 'cinematic',
     column: 0,
-    title: '',
-    subtitle: [artStyle, styleNote].filter(Boolean).join(' · '),
+    title: artStyle,
+    subtitle: styleNote,
     imagePath: prevStill,
     status: prevStill ? 'locked' : styleNote || artStyle ? 'ready' : 'missing',
     missing: !prevStill && !styleNote && !artStyle,

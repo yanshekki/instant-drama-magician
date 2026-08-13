@@ -103,6 +103,9 @@ describe('buildTimelineGraph', () => {
     expect(kinds).toContain('video')
     expect(g.nodes.filter((n) => n.kind === 'character')).toHaveLength(2)
     expect(g.nodes.find((n) => n.id === 'video')?.subtitle).toContain('grok')
+    const cine = g.nodes.find((n) => n.id === 'cinematic')
+    expect(cine?.title).toBe('anime')
+    expect(cine?.subtitle).toBe('noir rain forever and more words')
     expect(g.nodes.find((n) => n.id === 'still')?.missing).toBe(false)
     expect(g.edges.some((e) => e.from.startsWith('character:') && e.to === 'still')).toBe(
       true

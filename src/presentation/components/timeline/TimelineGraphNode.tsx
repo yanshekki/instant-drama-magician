@@ -122,7 +122,7 @@ function nodeBody(
           value={handlers.promptValue}
           onChange={(e) => handlers.onPromptChange(e.target.value)}
           placeholder={t('stories.beatScriptPh')}
-          className="mt-1.5 min-h-0 flex-1 font-mono text-[12px] leading-relaxed"
+          className="mt-1.5 min-h-0 !min-h-0 flex-1 resize-none overflow-y-auto font-mono text-[12px] leading-relaxed"
         />
         <div className="mt-2 shrink-0">
           <Label>{t('timeline.revisionPrompt')}</Label>
@@ -131,7 +131,7 @@ function nodeBody(
             value={handlers.revisionValue}
             onChange={(e) => handlers.onRevisionChange(e.target.value)}
             placeholder={t('timeline.revisionPlaceholder')}
-            className="mt-1 min-h-[2.5rem]"
+            className="mt-1 min-h-[4.5rem] !min-h-[4.5rem] resize-none overflow-y-auto text-[12px] leading-relaxed"
           />
         </div>
         <div className="mt-2">
@@ -162,7 +162,7 @@ function nodeBody(
               filePath={node.imagePath}
               alt={t('timeline.graph.still')}
               variant="fill"
-              objectFit="cover"
+              objectFit="contain"
               showActions={false}
               className="h-full w-full"
             />
@@ -228,6 +228,36 @@ function nodeBody(
     )
   }
 
+  if (node.kind === 'cinematic') {
+    return (
+      <div className="flex h-full min-h-0 flex-col p-3">
+        <p className={EYEBROW}>{t('timeline.graph.cinematic')}</p>
+        {node.title ? (
+          <p className="mt-1 truncate text-[11px] font-medium text-brand-200">
+            {node.title}
+          </p>
+        ) : null}
+        {node.imagePath ? (
+          <div className="relative mt-2 h-16 shrink-0 overflow-hidden rounded-lg bg-ink-950/50">
+            <LocalMediaImage
+              filePath={node.imagePath}
+              alt={t('timeline.graph.cinematic')}
+              variant="fill"
+              objectFit="contain"
+              showActions={false}
+              className="h-full w-full"
+            />
+          </div>
+        ) : null}
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto rounded-lg bg-ink-950/40 px-2 py-1.5">
+          <p className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-ink-200">
+            {node.subtitle || t('timeline.graph.noStyle')}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
@@ -244,22 +274,19 @@ function nodeBody(
             filePath={node.imagePath}
             alt={node.title}
             variant="fill"
-            objectFit="cover"
+            objectFit="contain"
             showActions={false}
             className="h-full w-full"
           />
         ) : (
-          <div className="flex h-full items-center justify-center px-2 text-center text-[11px] text-ink-500">
-            {node.kind === 'cinematic'
-              ? node.subtitle || t('timeline.graph.noStyle')
-              : t('timeline.advanced.noImage')}
+          <div className="flex h-full items-center justify-center px-2 text-center text-[11px] leading-relaxed text-ink-500">
+            {t('timeline.advanced.noImage')}
           </div>
         )}
       </div>
-      <div className="flex items-center justify-between gap-2 px-3 py-2">
-        <p className="min-w-0 truncate text-xs font-semibold text-ink-100">
-          {node.title ||
-            (node.kind === 'cinematic' ? t('timeline.graph.cinematic') : '')}
+      <div className="flex items-start justify-between gap-2 px-3 py-2">
+        <p className="min-w-0 line-clamp-2 text-xs font-semibold leading-snug text-ink-100">
+          {node.title}
         </p>
         {node.entityId &&
         (node.kind === 'character' ||
