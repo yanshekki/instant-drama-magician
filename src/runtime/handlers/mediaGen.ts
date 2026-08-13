@@ -4,6 +4,7 @@
 import { existsSync, writeFileSync } from 'fs'
 import { imageSizeForClass } from '../../domain/residualLabels'
 import { ensureHardRules } from '../../domain/promptHardRules'
+import { mergeSexIntoHardRules, sexPromptLock } from '../../domain/sexLock'
 import { AppError } from '../../types/errors'
 import type { HandlerContext } from './context'
 import {
@@ -270,6 +271,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       }
       const profileText = [
         `Name: ${row.name}`,
+        sexPromptLock(row.gender, payload.locale)
+          ? `SEX LOCK: ${sexPromptLock(row.gender, payload.locale)}`
+          : '',
         row.ageRange ? `Age: ${row.ageRange}` : '',
         row.gender ? `Gender: ${row.gender}` : '',
         row.appearance ? `Appearance: ${row.appearance}` : '',
@@ -601,6 +605,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
               .filter((p): p is string => Boolean(p))
       const profileText = [
         `Character: ${row.name}`,
+        sexPromptLock(row.gender, payload.locale)
+          ? `SEX LOCK: ${sexPromptLock(row.gender, payload.locale)}`
+          : '',
         row.ageRange ? `Age: ${row.ageRange}` : '',
         row.gender ? `Gender: ${row.gender}` : '',
         row.appearance ? `Appearance: ${row.appearance}` : '',
@@ -1210,6 +1217,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         )
         profileText = [
           `Character intro video: ${row.name}`,
+          sexPromptLock(row.gender, payload.locale)
+            ? `SEX LOCK: ${sexPromptLock(row.gender, payload.locale)}`
+            : '',
           row.ageRange ? `Age: ${row.ageRange}` : '',
           row.gender ? `Gender: ${row.gender}` : '',
           row.appearance ? `Appearance: ${row.appearance}` : '',
@@ -1505,6 +1515,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       let aspectRatio = '1:1'
       let artStyle = getArtStyle(payload.artStyle ?? undefined).id
       let hardRules = payload.hardRules ?? null
+      let sexGender: string | null = null
+      let sexName: string | null = null
       let entityKey = ''
       let panelLayoutId: string | undefined
       let sheetVariantId: string | undefined
@@ -1576,6 +1588,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         }
         const row = await characters().get(payload.characterId)
         entityKey = row.id
+        sexGender = row.gender ?? null
+        sexName = row.name ?? null
         artStyle = getArtStyle(
           payload.artStyle ?? row.artStyle ?? undefined
         ).id
@@ -1730,6 +1744,12 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         payload.editBasePath,
         payload.galleryIdentityPaths
       ).filter((p) => existsSync(p))
+      hardRules = mergeSexIntoHardRules(
+        hardRules,
+        sexGender,
+        sexName,
+        ctx.settings.uiLanguage
+      )
       let prompt = ensureHardRules(promptIn, hardRules)
       if (refList.length > 1) {
         prompt = appendMultiRefNote(prompt, refList, 'en')

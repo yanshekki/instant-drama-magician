@@ -16,6 +16,14 @@ export const zhHkPromptPack: PromptPack = {
   imagePolishDirective: `產出可執行的單圖技術／導演提示詞，全文使用繁體中文。若有生成鐵則置於文末，標籤只用 ${must}／${mustNot}。`,
   noRefPolishDirective:
     '沒有附上參考靜圖。只根據文字材料撰寫。不要提及工作區、維基百科、上網搜尋，或把身份鎖定到附圖。不要虛構 Ref# 鎖定。',
+  sexLockMale:
+    '此主體是成年男性。男性骨骼、肩寬與男性臉身；不是女人、不是中性網紅臉、不是女扮男裝。低髻、鵝蛋臉、白皙或偏窄身材都不得改成女性。',
+  sexLockFemale:
+    '此主體是成年女性。女性骨骼與身形；不是男人、不是男性臉安在女身上。',
+  sexForbidMale:
+    '女性臉或身材、豐胸、雌性比例、把男性畫成女人、女裝美男預設',
+  sexForbidFemale:
+    '男性臉或身材、無故鬍鬚、把女性畫成男人',
   videoPolishDirective: `只回傳一條改進後的導演提示詞，全文使用繁體中文。套用改進；保留 IDENTITY／SPACE／OBJECT 鎖定與鐵則（${must}／${mustNot}）。`,
   hardRulesInstruction: [
     'hardRules：必填非空字串（不可缺鍵、不可 null／陣列）。',

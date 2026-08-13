@@ -16,6 +16,14 @@ export const jaPromptPack: PromptPack = {
   imagePolishDirective: `実行可能な一枚絵の演出／技術プロンプトを、全文日本語で書く。HARD RULES があれば末尾に置き、タグは ${must}／${mustNot} のみ。`,
   noRefPolishDirective:
     '参照スチールは添付されていません。テキスト資料だけから書いてください。ワークスペース、Wikipedia、ウェブ検索、添付画像への身元固定に言及しないでください。Ref# ロックを捏造しないでください。',
+  sexLockMale:
+    'この主体は成年男性。男性の骨格・肩幅・顔と体。女性でも中性的な美人顔でも女装でもない。低い髷・卵型の顔・色白・細い体型でも女性に変えない。',
+  sexLockFemale:
+    'この主体は成年女性。女性の骨格と体。男性でも男性顔を女性体に載せたものでもない。',
+  sexForbidMale:
+    '女性の顔や体、胸、女性美の既定、性別の入替、男性を女性として描くこと',
+  sexForbidFemale:
+    '男性の顔や体、指定のない髭、女性を男性として描くこと',
   videoPolishDirective: `改善後の演出プロンプトを一条だけ返す。全文日本語。IDENTITY／SPACE／OBJECT ロックと鉄則（${must}／${mustNot}）を残す。`,
   hardRulesInstruction: [
     'hardRules：必須の非空文字列（キー欠落・null／配列は不可）。',

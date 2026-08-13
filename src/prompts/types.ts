@@ -23,6 +23,11 @@ export type PromptPack = {
   imagePolishDirective: string
   /** When polish has zero attached stills — forbid invented refs / web search. */
   noRefPolishDirective: string
+  /** Front-load when profile sex is male — Imagine otherwise defaults to female. */
+  sexLockMale: string
+  sexLockFemale: string
+  sexForbidMale: string
+  sexForbidFemale: string
   videoPolishDirective: string
   hardRulesInstruction: string
   hardRulesFallback: Record<HardRuleKind, string>

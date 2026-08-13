@@ -16,6 +16,14 @@ export const enPromptPack: PromptPack = {
   imagePolishDirective: `Produce an executable single-image director/technical prompt entirely in English. Put HARD RULES at the end if present, using only ${must} / ${mustNot}.`,
   noRefPolishDirective:
     'No reference stills are attached. Write from the text materials only. Do not mention a workspace, Wikipedia, searching the web, or locking identity to attached images. Do not invent Ref# locks.',
+  sexLockMale:
+    'This subject is an adult man (male). Male bone structure, broader shoulders, male face and body; not a woman, not a feminine-beauty default, not a woman dressed as a man.',
+  sexLockFemale:
+    'This subject is an adult woman (female). Female bone structure and body; not a man, not a male face on a female body.',
+  sexForbidMale:
+    'female face or body, breasts, feminine-beauty default, gender-swap, drawing the man as a woman',
+  sexForbidFemale:
+    'male face or body, beard unless specified, drawing the woman as a man',
   videoPolishDirective: `Return ONE improved director prompt only, written entirely in English. Apply the improvement; keep IDENTITY/SPACE/OBJECT locks and HARD RULES (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules: REQUIRED non-empty string (never omit the key, never use null/array).',

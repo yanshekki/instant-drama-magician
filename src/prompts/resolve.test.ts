@@ -31,6 +31,8 @@ describe('resolvePromptContext', () => {
       expect(ctx.imagePolishDirective).toBe(ctx.pack.imagePolishDirective)
       expect(ctx.noRefPolishDirective.length).toBeGreaterThan(20)
       expect(ctx.noRefPolishDirective).toBe(ctx.pack.noRefPolishDirective)
+      expect(ctx.pack.sexLockMale.length).toBeGreaterThan(20)
+      expect(ctx.pack.sexForbidMale.length).toBeGreaterThan(8)
     }
   })
 

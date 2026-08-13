@@ -16,6 +16,14 @@ export const ptBrPromptPack: PromptPack = {
   imagePolishDirective: `Produza um prompt técnico/de direção para UMA imagem, inteiro em português brasileiro. Se houver HARD RULES, no fim, só ${must} / ${mustNot}.`,
   noRefPolishDirective:
     'Não há stills de referência anexados. Escreva só a partir dos materiais de texto. Não mencione a área de trabalho, a Wikipédia, busca na web nem travar identidade em imagens anexadas. Não invente travas Ref#.',
+  sexLockMale:
+    'O sujeito é um homem adulto. Estrutura óssea masculina, ombros mais largos, rosto e corpo de homem; não uma mulher nem o padrão de beleza feminina.',
+  sexLockFemale:
+    'O sujeito é uma mulher adulta. Estrutura óssea e corpo femininos; não um homem.',
+  sexForbidMale:
+    'rosto ou corpo femininos, seios, padrão de beleza feminina, troca de sexo, desenhar o homem como mulher',
+  sexForbidFemale:
+    'rosto ou corpo masculinos, barba não pedida, desenhar a mulher como homem',
   videoPolishDirective: `Devolva UM único prompt de direção melhorado, inteiro em português brasileiro. Mantenha os bloqueios IDENTITY/SPACE/OBJECT e as regras (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules: string NÃO vazia obrigatória (nunca omita a chave, nunca null/array).',

@@ -16,6 +16,14 @@ export const frPromptPack: PromptPack = {
   imagePolishDirective: `Produis un prompt technique/de mise en scène pour UNE image, entièrement en français. Si HARD RULES : à la fin, uniquement ${must} / ${mustNot}.`,
   noRefPolishDirective:
     "Aucune image de référence n'est jointe. Rédige uniquement à partir des matériaux textuels. Ne mentionne pas l'espace de travail, Wikipédia, une recherche web, ni un verrouillage d'identité sur des images jointes. N'invente pas de verrous Ref#.",
+  sexLockMale:
+    "Le sujet est un homme adulte. Ossature masculine, épaules plus larges, visage et corps d'homme ; pas une femme, pas un défaut de beauté féminine.",
+  sexLockFemale:
+    'Le sujet est une femme adulte. Ossature et corps féminins ; pas un homme.',
+  sexForbidMale:
+    'visage ou corps féminins, poitrine, défaut de beauté féminine, inversion de sexe, dessiner l’homme en femme',
+  sexForbidFemale:
+    'visage ou corps masculins, barbe non demandée, dessiner la femme en homme',
   videoPolishDirective: `Renvoie UN seul prompt de mise en scène amélioré, entièrement en français. Conserve les verrous IDENTITY/SPACE/OBJECT et les règles (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules : chaîne NON vide obligatoire (jamais omettre la clé, jamais null/tableau).',

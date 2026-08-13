@@ -3,6 +3,7 @@
  * Includes wardrobe layers (nude body / base undergarments / full costume)
  * for future costume-swap pipelines.
  */
+import { sexPromptLock } from './sexLock'
 
 export type SheetSizeClass = 'wide' | 'square' | 'tall'
 
@@ -677,8 +678,12 @@ export function buildSheetIdentityLock(
     qualityBlock ??
     'Quality: tack-sharp focus on primary face/head features, high micro-detail appropriate to the medium, professional studio lighting, no motion blur, no watermark or text.'
 
+  const sexLock = sexPromptLock(profile.gender)
   const identity = [
     `Create a character reference still for AI video continuity.`,
+    sexLock
+      ? `SEX LOCK (highest priority — bun, oval face, pale skin, slim build, or robes must NOT flip sex): ${sexLock}`
+      : '',
     `CRITICAL IDENTITY LOCK: exactly ONE character subject in every panel (may be human, animal, creature, spirit, robot, or other designed entity — but never swap species or design mid-sheet).`,
     `Do not invent a second character; keep the same body plan, markings, colors, and head design across all panels.`,
     `Head/face (or equivalent) must stay consistent: same eyes or sensors, same silhouette of head, same surface colors and key identifiers.`,
