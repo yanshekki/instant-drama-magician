@@ -1194,7 +1194,7 @@
     "imageEnhanceMaxEdge": "Melhorar se a borda mais longa estiver abaixo de (px)",
     "imageEnhanceScale": "Fator de luxo",
     "imageTimeoutMs": "Tempo limite da API de imagem (ms)",
-    "imageTimeoutHint": "Padrão 180000 (3 minutos)",
+    "imageTimeoutHint": "Padrão 300000 (5 minutos)",
     "baseUrl": "URL base do bate-papo",
     "videoPath": "URL da API de vídeo",
     "apiKey": "Chave de API",

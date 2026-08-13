@@ -1194,7 +1194,7 @@
     "imageEnhanceMaxEdge": "Улучшить, если самый длинный край меньше (пикселей)",
     "imageEnhanceScale": "Высококлассный фактор",
     "imageTimeoutMs": "Тайм-аут API изображений (мс)",
-    "imageTimeoutHint": "По умолчанию 180000 (3 минуты)",
+    "imageTimeoutHint": "По умолчанию 300000 (5 минут)",
     "baseUrl": "Базовый URL чата",
     "videoPath": "URL-адрес видео API",
     "apiKey": "API-ключ",

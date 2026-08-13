@@ -202,7 +202,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   imageEnhance: true,
   imageEnhanceMaxEdge: 1600,
   imageEnhanceScale: 2,
-  imageTimeoutMs: 180_000,
+  imageTimeoutMs: 300_000,
   webServerEnabled: false,
   webServerPort: 8787,
   webServerHost: '0.0.0.0',
@@ -351,6 +351,9 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
     merged.imageEnhanceScale = DEFAULT_SETTINGS.imageEnhanceScale
   }
   if (!merged.imageTimeoutMs || merged.imageTimeoutMs < 10_000) {
+    merged.imageTimeoutMs = DEFAULT_SETTINGS.imageTimeoutMs
+  } else if (merged.imageTimeoutMs === 180_000) {
+    // Previous factory default — bump so existing installs match Gateway headroom.
     merged.imageTimeoutMs = DEFAULT_SETTINGS.imageTimeoutMs
   }
   if (typeof merged.webServerEnabled !== 'boolean') {

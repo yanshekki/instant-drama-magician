@@ -33,7 +33,7 @@ describe('settings defaults', () => {
     expect(m.imageSizeSquare).toBe('1024x1024')
     expect(m.imageSizeTall).toBe('1024x1792')
     expect(m.imageEnhance).toBe(true)
-    expect(m.imageTimeoutMs).toBe(180_000)
+    expect(m.imageTimeoutMs).toBe(300_000)
     expect(m.videoPollMs).toBe(2000)
     expect(m.videoTimeoutSec).toBe(300)
   })
@@ -88,6 +88,13 @@ describe('settings defaults', () => {
     expect(m.imageEnhanceMaxEdge).toBe(DEFAULT_SETTINGS.imageEnhanceMaxEdge)
     expect(m.imageEnhanceScale).toBe(DEFAULT_SETTINGS.imageEnhanceScale)
     expect(m.imageTimeoutMs).toBe(DEFAULT_SETTINGS.imageTimeoutMs)
+    expect(DEFAULT_SETTINGS.imageTimeoutMs).toBe(300_000)
+    expect(mergeSettings({ imageTimeoutMs: 180_000 }).imageTimeoutMs).toBe(
+      300_000
+    )
+    expect(mergeSettings({ imageTimeoutMs: 240_000 }).imageTimeoutMs).toBe(
+      240_000
+    )
     expect(m.webServerEnabled).toBe(DEFAULT_SETTINGS.webServerEnabled)
     expect(m.webServerPort).toBe(DEFAULT_SETTINGS.webServerPort)
     expect(m.webServerHost).toBe(DEFAULT_SETTINGS.webServerHost)

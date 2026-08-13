@@ -1194,7 +1194,7 @@
     "imageEnhanceMaxEdge": "最長のエッジが (px) 未満の場合に強調します",
     "imageEnhanceScale": "高級感",
     "imageTimeoutMs": "画像 API タイムアウト (ミリ秒)",
-    "imageTimeoutHint": "デフォルト 180000 (3 分)",
+    "imageTimeoutHint": "デフォルト 300000 (5 分)",
     "baseUrl": "チャットベースURL",
     "videoPath": "ビデオAPIのURL",
     "apiKey": "APIキー",

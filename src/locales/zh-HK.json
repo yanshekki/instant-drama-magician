@@ -1194,7 +1194,7 @@
     "imageEnhanceMaxEdge": "放大門檻（最長邊，像素）",
     "imageEnhanceScale": "放大倍數",
     "imageTimeoutMs": "圖片應用程式介面逾時（毫秒）",
-    "imageTimeoutHint": "預設 180000（3 分鐘）",
+    "imageTimeoutHint": "預設 300000（5 分鐘）",
     "baseUrl": "對話基底網址",
     "videoPath": "影片應用程式介面網址",
     "apiKey": "應用程式介面金鑰",

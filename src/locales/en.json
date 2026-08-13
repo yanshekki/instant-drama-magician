@@ -1194,7 +1194,7 @@
     "imageEnhanceMaxEdge": "Enhance if longest edge is under (px)",
     "imageEnhanceScale": "Upscale factor",
     "imageTimeoutMs": "Image API timeout (ms)",
-    "imageTimeoutHint": "Default 180000 (3 minutes)",
+    "imageTimeoutHint": "Default 300000 (5 minutes)",
     "baseUrl": "Chat base URL",
     "videoPath": "Video API URL",
     "apiKey": "API key",

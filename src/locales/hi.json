@@ -1194,7 +1194,7 @@
     "imageEnhanceMaxEdge": "यदि सबसे लंबा किनारा नीचे है तो बढ़ाएँ (px)",
     "imageEnhanceScale": "अपस्केल फैक्टर",
     "imageTimeoutMs": "छवि एपीआई टाइमआउट (एमएस)",
-    "imageTimeoutHint": "डिफ़ॉल्ट 180000 (3 मिनट)",
+    "imageTimeoutHint": "डिफ़ॉल्ट 300000 (5 मिनट)",
     "baseUrl": "चैट बेस यूआरएल",
     "videoPath": "वीडियो एपीआई यूआरएल",
     "apiKey": "एपीआई कुंजी",

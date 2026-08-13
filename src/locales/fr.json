@@ -1194,7 +1194,7 @@
     "imageEnhanceMaxEdge": "Améliorer si le bord le plus long est inférieur à (px)",
     "imageEnhanceScale": "Facteur haut de gamme",
     "imageTimeoutMs": "Délai d'expiration de l'API d'image (ms)",
-    "imageTimeoutHint": "Par défaut 180 000 (3 minutes)",
+    "imageTimeoutHint": "Par défaut 300 000 (5 minutes)",
     "baseUrl": "URL de la base de discussion",
     "videoPath": "URL de l'API vidéo",
     "apiKey": "Clé API",

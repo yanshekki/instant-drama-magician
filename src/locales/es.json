@@ -1194,7 +1194,7 @@
     "imageEnhanceMaxEdge": "Mejorar si el borde más largo está por debajo de (px)",
     "imageEnhanceScale": "factor de lujo",
     "imageTimeoutMs": "Tiempo de espera de la API de imágenes (ms)",
-    "imageTimeoutHint": "Predeterminado 180000 (3 minutos)",
+    "imageTimeoutHint": "Predeterminado 300000 (5 minutos)",
     "baseUrl": "URL base del chat",
     "videoPath": "URL de la API de vídeo",
     "apiKey": "clave API",
