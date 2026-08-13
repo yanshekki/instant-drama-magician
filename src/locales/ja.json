@@ -126,6 +126,7 @@
     "scenes": "シーン",
     "props": "小道具",
     "timeline": "タイムライン",
+    "timelineV2": "Timeline v2",
     "audit": "アクティビティ",
     "settings": "設定",
     "actions": "アクション",
@@ -365,6 +366,7 @@
     "step3": "タイムライン上で生成またはエクスポート (カラー プレースホルダーはゲートウェイなしで使用されます)",
     "prototypeNote": "MVP の足場は準備ができています。商用グレードのフィルム品質はまだ開発中です。",
     "styleNote": "スタイルバイブル",
+    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
     "styleNotePlaceholder": "例: 午後の金光、手持ちカメラ、暖色トーン…",
     "editorTitle": "ストーリーを編集する",
     "editorHint": "題名のない物語",
@@ -1005,7 +1007,24 @@
     },
     "action": "アクション",
     "castEmptyActions": "このストーリーに関連するアクションはありません。ストーリーエディター→キャスト→アクションを開きます。",
-    "mergedHardRulesHint": "このストーリー + リンクされたキャラクター / シーン / 小道具 / アクションを統合しました。クリップ生成時に最優先で適用されます（リビジョンではこれらをキャンセルできません）。"
+    "mergedHardRulesHint": "このストーリー + リンクされたキャラクター / シーン / 小道具 / アクションを統合しました。クリップ生成時に最優先で適用されます（リビジョンではこれらをキャンセルできません）。",
+    "graph": {
+      "title": "Timeline v2",
+      "subtitle": "Pipeline board — references, still, and video for the selected clip.",
+      "useClassic": "Classic timeline",
+      "useV2": "Pipeline timeline",
+      "cinematic": "Style / continuity",
+      "still": "Storyboard still",
+      "video": "Clip video",
+      "ghostCharacter": "No character bound",
+      "ghostScene": "No scene bound",
+      "ghostHint": "Bind cast in the story editor or on the classic timeline.",
+      "setup": "Generation setup",
+      "setupHint": "Clip length and image / video channels for this studio.",
+      "emptyClip": "Select a clip on the track below.",
+      "zoomReset": "Reset view",
+      "noStyle": "No style bible yet"
+    }
   },
   "pipeline": {
     "script": "スクリプトの作成",

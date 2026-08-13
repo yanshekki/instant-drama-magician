@@ -13,6 +13,7 @@ import {
   type ActionPanelLayoutId
 } from './actionPlateVariants'
 import { getArtStyle } from './characterArtStyles'
+import { resolvePromptContext } from '../prompts'
 
 export type MediaGenKind =
   // images
@@ -508,13 +509,15 @@ export function buildActionPlateMaterialSections(
  */
 export function buildMediaGenPolishUserText(opts: {
   kind: MediaGenKind
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   includedSections: MediaGenMaterialSection[]
   taskHint?: string
 }): string {
   const locale = opts.locale ?? 'zh-HK'
+  const ctx = resolvePromptContext(locale)
+  const en = ctx.template === 'en'
   const lines: string[] = []
-  if (locale === 'en') {
+  if (en) {
     lines.push(
       'Write ONE final image-generation prompt for a short-drama production still.',
       'Return ONLY the prompt text — no markdown fences, no title, no explanation.',
@@ -556,19 +559,20 @@ export function buildMediaGenPolishUserText(opts: {
   lines.push(
     '',
     '--- END MATERIALS ---',
-    locale === 'en'
-      ? 'Produce a detailed English technical prompt that a single-image model can execute. Keep HARD RULES at the end if present.'
-      : '產出可執行的英文技術向 prompt（單圖模型）。若有 HARD RULES 置於文末。'
+    ctx.imagePolishDirective,
+    ctx.outputLock
   )
   return lines.join('\n')
 }
 
 export function buildMediaGenPolishSystemPrompt(
-  locale: 'zh-HK' | 'en' = 'zh-HK',
+  locale: string = 'zh-HK',
   opts?: { mode?: 'image' | 'video' }
 ): string {
+  const ctx = resolvePromptContext(locale)
+  const lock = ctx.outputLock
   if (opts?.mode === 'video') {
-    if (locale === 'en') {
+    if (ctx.template === 'en') {
       return [
         'You are a short-drama video director prompt writer (image-to-video).',
         'Merge materials into ONE professional video prompt for a short clip.',
@@ -576,7 +580,8 @@ export function buildMediaGenPolishSystemPrompt(
         'Include: subject identity locks from stills, camera move, performance/dialogue, pacing, lighting continuity.',
         'Use only facts present in materials and seed; do not import a fixed sample world or Demo story.',
         'Do not invent a different actor, location, or prop when refs are attached.',
-        'Hard rules at end if supplied.'
+        'Hard rules at end if supplied.',
+        lock
       ].join('\n')
     }
     return [
@@ -586,10 +591,11 @@ export function buildMediaGenPolishSystemPrompt(
       '須含：身份鎖定、鏡頭運動、表演／對白、節奏、光影連續。',
       '只用材料與 seed 中的事實；勿引入固定樣本世界或 Demo 故事。',
       '有附圖時禁止換成另一演員、場景或道具。',
-      '有 HARD RULES 則置於文末。'
+      '有 HARD RULES 則置於文末。',
+      lock
     ].join('\n')
   }
-  if (locale === 'en') {
+  if (ctx.template === 'en') {
     return [
       'You are a short-drama image prompt director.',
       'Merge the selected materials and attached reference stills into ONE image prompt.',
@@ -599,7 +605,8 @@ export function buildMediaGenPolishSystemPrompt(
       'Never substitute a different celebrity, salon clerk, or unrelated set when cast stills are provided.',
       'If multi-panel geometry is required, keep exact panel count and gutters.',
       'If a LAYOUT / package section is present, the final prompt MUST implement that exact layout (panel count, poses, crop).',
-      'Hard rules at end if supplied.'
+      'Hard rules at end if supplied.',
+      lock
     ].join('\n')
   }
   return [
@@ -611,7 +618,8 @@ export function buildMediaGenPolishSystemPrompt(
     '有角色／場景靜圖時，禁止換成無關沙龍店員或另一間店。',
     '若要求多格板，保留精確格數與分隔。',
     '若有 LAYOUT／出圖方案區塊，最終 prompt 必須嚴格執行該 layout（格數、姿勢、構圖）。',
-    '有 HARD RULES 則置於文末。'
+    '有 HARD RULES 則置於文末。',
+    lock
   ].join('\n')
 }
 

@@ -35,6 +35,9 @@ vi.mock('./presentation/pages/ActionsPage', () => ({
 vi.mock('./presentation/pages/TimelinePage', () => ({
   TimelinePage: () => <div data-testid="page-timeline">TimelinePage</div>
 }))
+vi.mock('./presentation/pages/TimelineV2Page', () => ({
+  TimelineV2Page: () => <div data-testid="page-timeline-v2">TimelineV2Page</div>
+}))
 vi.mock('./presentation/pages/SettingsPage', () => ({
   SettingsPage: () => <div data-testid="page-settings">SettingsPage</div>
 }))

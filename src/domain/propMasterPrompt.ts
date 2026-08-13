@@ -9,11 +9,11 @@ import {
   synthesizeVisualTagsFromText,
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
+import { resolvePromptContext } from '../prompts'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
 import {
   appendHardRules,
   defaultHardRulesFallback,
-  hardRulesAiInstruction,
   normalizeHardRules
 } from './promptHardRules'
 
@@ -28,10 +28,9 @@ export const PROP_PROFILE_JSON_KEYS = [
   'hardRules'
 ] as const
 
-export function buildPropMasterSystemPrompt(
-  locale: 'zh-HK' | 'en' = 'zh-HK'
-): string {
-  if (locale === 'en') {
+export function buildPropMasterSystemPrompt(locale: string = 'zh-HK'): string {
+  const ctx = resolvePromptContext(locale)
+  if (ctx.template === 'en') {
     return [
       'You are a short-drama prop designer for AI video continuity.',
       'Return ONLY one JSON object with keys:',
@@ -43,7 +42,8 @@ export function buildPropMasterSystemPrompt(
       ...inventFromProvidedSourcesRules('en').map((r) => `- ${r}`),
       '- description: detailed look for image models; material/sizeNotes/condition concrete.',
       '- artStyle: optional known style id string, or "".',
-      hardRulesAiInstruction('en')
+      ctx.pack.hardRulesInstruction,
+      ctx.outputLock
     ].join('\n')
   }
   return [
@@ -57,7 +57,8 @@ export function buildPropMasterSystemPrompt(
     ...inventFromProvidedSourcesRules('zh-HK').map((r) => `- ${r}`),
     '- description：可畫細節；material／sizeNotes／condition 具體。',
     '- artStyle：可選已知風格 id 字串，或 ""。',
-    hardRulesAiInstruction('zh-HK')
+    ctx.pack.hardRulesInstruction,
+    ctx.outputLock
   ].join('\n')
 }
 

@@ -5,7 +5,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'en' } })
 }))
 
-import { PageHeader, pageHeaderActionsClass } from './PageHeader'
+import { PageHeader, pageHeaderActionsClass, pageHeaderClass } from './PageHeader'
 
 describe('PageHeader', () => {
   it('renders title only', () => {
@@ -28,5 +28,14 @@ describe('PageHeader', () => {
 
   it('exports pageHeaderActionsClass', () => {
     expect(pageHeaderActionsClass).toContain('ml-auto')
+  })
+
+  it('sits title and actions on one row from sm', () => {
+    expect(pageHeaderClass).toContain('sm:flex-row')
+    expect(pageHeaderClass).toContain('sm:justify-between')
+    const { container } = render(
+      <PageHeader title="Characters" actions={<button type="button">New</button>} />
+    )
+    expect(container.querySelector('header')?.className).toContain('sm:flex-row')
   })
 })

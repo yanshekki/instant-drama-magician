@@ -59,6 +59,11 @@ describe('characterMasterPrompt', () => {
     expect(en).toMatch(/Sources of truth|user idea/i)
     expect(en).toMatch(/invent freely/i)
     expect(en).not.toMatch(/HARD BAN|rainy night/i)
+    expect(en).toContain('[MUST]')
+    expect(en).not.toContain('【必須】')
+    expect(en).toMatch(/Write EVERY user-visible string/)
+    expect(zh).toContain('【必須】')
+    expect(zh).toMatch(/繁體中文/)
   })
 
   it('user prompt includes story context only when passed in', () => {

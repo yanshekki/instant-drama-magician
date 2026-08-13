@@ -333,10 +333,7 @@ export class GenerationService {
         pathExists: (p) => existsSync(p)
       })
       const refPath = timelineRefs.editBase
-      const locale: 'zh-HK' | 'en' =
-        String(this.settings.uiLanguage || '').startsWith('en')
-          ? 'en'
-          : 'zh-HK'
+      const locale = String(this.settings.uiLanguage || 'zh-HK')
       onProgress?.({
         storyId,
         step: 'video',

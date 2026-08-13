@@ -126,6 +126,7 @@
     "scenes": "Сцены",
     "props": "Реквизит",
     "timeline": "Хронология",
+    "timelineV2": "Timeline v2",
     "audit": "Активность",
     "settings": "Настройки",
     "actions": "Действия",
@@ -365,6 +366,7 @@
     "step3": "Создание или экспорт на временной шкале (цветные заполнители используются без шлюза)",
     "prototypeNote": "Каркас MVP готов; качество фильмов коммерческого уровня все еще находится в стадии разработки.",
     "styleNote": "Библия стиля",
+    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
     "styleNotePlaceholder": "например, золотой свет дня, ручная камера, тёплый тон…",
     "editorTitle": "Редактировать историю",
     "editorHint": "Безымянная история",
@@ -1005,7 +1007,24 @@
     },
     "action": "Действие",
     "castEmptyActions": "Никаких действий, связанных с этой историей. Откройте редактор историй → Актеры → Действия.",
-    "mergedHardRulesHint": "Слит из этой истории + связанные персонажи/сцены/реквизит/действия. Применяется с наивысшим приоритетом при создании клипа (пересмотр не может отменить это)."
+    "mergedHardRulesHint": "Слит из этой истории + связанные персонажи/сцены/реквизит/действия. Применяется с наивысшим приоритетом при создании клипа (пересмотр не может отменить это).",
+    "graph": {
+      "title": "Timeline v2",
+      "subtitle": "Pipeline board — references, still, and video for the selected clip.",
+      "useClassic": "Classic timeline",
+      "useV2": "Pipeline timeline",
+      "cinematic": "Style / continuity",
+      "still": "Storyboard still",
+      "video": "Clip video",
+      "ghostCharacter": "No character bound",
+      "ghostScene": "No scene bound",
+      "ghostHint": "Bind cast in the story editor or on the classic timeline.",
+      "setup": "Generation setup",
+      "setupHint": "Clip length and image / video channels for this studio.",
+      "emptyClip": "Select a clip on the track below.",
+      "zoomReset": "Reset view",
+      "noStyle": "No style bible yet"
+    }
   },
   "pipeline": {
     "script": "Написание сценария",

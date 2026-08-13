@@ -2,6 +2,7 @@
  * AI prompts for story style bible + short-drama script beats (timeline).
  */
 
+import { resolvePromptContext } from '../prompts'
 import { buildImproveUserPrompt } from './aiImprovePrompt'
 import type { BeatContent, BeatUnit } from './beatContent'
 import { AppError } from '../types/errors'
@@ -14,30 +15,30 @@ import {
 } from './beatContent'
 import {
   defaultHardRulesFallback,
-  hardRulesAiInstruction,
   normalizeHardRules
 } from './promptHardRules'
 
-export function buildStoryMetaSystemPrompt(
-  locale: 'zh-HK' | 'en' = 'zh-HK'
-): string {
-  if (locale === 'en') {
+export function buildStoryMetaSystemPrompt(locale: string = 'zh-HK'): string {
+  const ctx = resolvePromptContext(locale)
+  if (ctx.template === 'en') {
     return [
       'You are a short-drama showrunner.',
       'Given a story title and optional idea, write a concise visual style bible AND hard rules for cover + clip generation.',
       'Return ONLY JSON (no fences): {"styleNote":"2-5 sentences: tone, lighting, camera, color, pacing","hardRules":"3-8 MUST/MUST-NOT lines for image & video"}',
-      hardRulesAiInstruction('en'),
+      ctx.pack.hardRulesInstruction,
       'Concrete, filmable language for AI video continuity.',
-      'Use title, idea, existing style note / hard rules, and any context snippets; if thin, invent freely a coherent style bible + rules.'
+      'Use title, idea, existing style note / hard rules, and any context snippets; if thin, invent freely a coherent style bible + rules.',
+      ctx.outputLock
     ].join(' ')
   }
   return [
     '你是短劇主創／視覺總監。',
     '根據故事標題與構想，寫簡潔可拍的風格備註（Style bible）以及出圖／出片「生成鐵則」。',
     '只回傳 JSON（不要代碼塊）：{"styleNote":"2–5 句：氣氛、光線、鏡頭、色調、節奏","hardRules":"3–8 句必須／禁止"}',
-    hardRulesAiInstruction('zh-HK'),
+    ctx.pack.hardRulesInstruction,
     '要具體、適合 AI 影片／出圖延續。',
-    '用提供的標題、構想、現有風格／鐵則與上下文；不足就自由補齊一套連貫風格與鐵則。'
+    '用提供的標題、構想、現有風格／鐵則與上下文；不足就自由補齊一套連貫風格與鐵則。',
+    ctx.outputLock
   ].join(' ')
 }
 

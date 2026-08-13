@@ -14,6 +14,7 @@ import { ScenesPage } from './presentation/pages/ScenesPage'
 import { PropsPage } from './presentation/pages/PropsPage'
 import { ActionsPage } from './presentation/pages/ActionsPage'
 import { TimelinePage } from './presentation/pages/TimelinePage'
+import { TimelineV2Page } from './presentation/pages/TimelineV2Page'
 import { SettingsPage } from './presentation/pages/SettingsPage'
 import { AuditLogPage } from './presentation/pages/AuditLogPage'
 import { FirstRunModal } from './presentation/components/FirstRunModal'
@@ -42,6 +43,7 @@ export default function App(): JSX.Element {
                     <Route path="props" element={<PropsPage />} />
                     <Route path="actions" element={<ActionsPage />} />
                     <Route path="timeline" element={<TimelinePage />} />
+                    <Route path="timeline-v2" element={<TimelineV2Page />} />
                     <Route path="audit" element={<AuditLogPage />} />
                     <Route path="settings" element={<SettingsPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />

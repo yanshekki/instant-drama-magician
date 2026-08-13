@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import { useTranslation } from 'react-i18next'
-import { getAiLocale } from '../../lib/aiLocale'
+
 import { nextSceneNumber } from '../../domain/scene'
 import {
   appendSceneGalleryItem,
@@ -582,7 +582,7 @@ export function ScenesPage(): JSX.Element {
               idea: suggest ? undefined : idea || undefined,
               storyId: storyIdForJob,
               segmentKey: suggest ? opts?.segmentKey ?? 'all' : undefined,
-              locale: getAiLocale(i18n.language),
+              locale: i18n.language,
               suggestFromStory: suggest,
               sceneNumber: form.sceneNumber,
               existingDraft: suggest || !hasDraft ? undefined : snapshot,

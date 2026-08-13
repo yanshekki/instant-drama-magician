@@ -51,7 +51,7 @@ import {
   pickBestBaseImage,
   type CostumeSwapPose
 } from '../../domain/costumeSwap'
-import { getAiLocale } from '../../lib/aiLocale'
+
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
@@ -394,7 +394,7 @@ export function CostumesPage(): JSX.Element {
             setProgress(20, hasImage ? 'image' : 'llm')
             const r = await getApi().costumes.aiFill({
               idea: idea || undefined,
-              locale: getAiLocale(i18n.language),
+              locale: i18n.language,
               existingDraft: {
                 name: snapshot.name,
                 description: snapshot.description,

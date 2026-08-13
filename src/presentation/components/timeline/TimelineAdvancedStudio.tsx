@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { getApi } from '../../../lib/api'
 import { parseIpcError } from '../../../lib/ipc'
-import { getAiLocale } from '../../../lib/aiLocale'
+
 import { formatUserError } from '../../lib/formatUserError'
 import {
   applyCostumeSelection,
@@ -284,7 +284,7 @@ export function TimelineAdvancedStudio({
             kind: 'timeline-clip',
             storyId,
             entryId,
-            locale: getAiLocale(i18n.language),
+            locale: i18n.language,
             stillOnly: true,
             skipStillIfExists: false
           })
@@ -457,7 +457,7 @@ export function TimelineAdvancedStudio({
               kind: 'timeline-clip',
               storyId,
               entryId: cell.entryId,
-              locale: getAiLocale(i18n.language),
+              locale: i18n.language,
               stillOnly: true,
               skipStillIfExists: mode === 'missing'
             })

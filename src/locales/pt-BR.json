@@ -126,6 +126,7 @@
     "scenes": "Cenas",
     "props": "Adereços",
     "timeline": "Linha do tempo",
+    "timelineV2": "Timeline v2",
     "audit": "Atividade",
     "settings": "Configurações",
     "actions": "Ações",
@@ -365,6 +366,7 @@
     "step3": "Gere ou exporte na linha do tempo (espaços reservados coloridos são usados ​​sem gateway)",
     "prototypeNote": "A estrutura do MVP está pronta; a qualidade do filme de nível comercial ainda está em desenvolvimento.",
     "styleNote": "Bíblia de estilo",
+    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
     "styleNotePlaceholder": "por exemplo, luz dourada da tarde, câmera na mão, tom quente…",
     "editorTitle": "Editar história",
     "editorHint": "História sem título",
@@ -1005,7 +1007,24 @@
     },
     "action": "Ação",
     "castEmptyActions": "Nenhuma ação vinculada a esta história. Abra o editor de história → Elenco → Ações.",
-    "mergedHardRulesHint": "Mesclado desta história + personagens/cenas/adereços/ações vinculados. Aplicado com prioridade mais alta na geração do clipe (a revisão não pode cancelá-los)."
+    "mergedHardRulesHint": "Mesclado desta história + personagens/cenas/adereços/ações vinculados. Aplicado com prioridade mais alta na geração do clipe (a revisão não pode cancelá-los).",
+    "graph": {
+      "title": "Timeline v2",
+      "subtitle": "Pipeline board — references, still, and video for the selected clip.",
+      "useClassic": "Classic timeline",
+      "useV2": "Pipeline timeline",
+      "cinematic": "Style / continuity",
+      "still": "Storyboard still",
+      "video": "Clip video",
+      "ghostCharacter": "No character bound",
+      "ghostScene": "No scene bound",
+      "ghostHint": "Bind cast in the story editor or on the classic timeline.",
+      "setup": "Generation setup",
+      "setupHint": "Clip length and image / video channels for this studio.",
+      "emptyClip": "Select a clip on the track below.",
+      "zoomReset": "Reset view",
+      "noStyle": "No style bible yet"
+    }
   },
   "pipeline": {
     "script": "Escrevendo roteiro",

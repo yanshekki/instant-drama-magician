@@ -13,18 +13,24 @@ describe('getAiLocale', () => {
     expect(getAiLocale('th')).toBe('zh-HK')
   })
 
-  it('maps other UI languages to English prompts', () => {
+  it('uses English skeleton for non-Chinese UI (output language is separate)', () => {
     expect(getAiLocale('en')).toBe('en')
     expect(getAiLocale('en-US')).toBe('en')
     expect(getAiLocale('es')).toBe('en')
-    expect(getAiLocale('hi')).toBe('en')
-    expect(getAiLocale('ar')).toBe('en')
-    expect(getAiLocale('pt-BR')).toBe('en')
-    expect(getAiLocale('fr')).toBe('en')
     expect(getAiLocale('ja')).toBe('en')
     expect(getAiLocale('ja-JP')).toBe('en')
     expect(getAiLocale('ru')).toBe('en')
-    expect(getAiLocale('de')).toBe('en')
-    expect(getAiLocale('ko')).toBe('en')
   })
 })
+
+import { getGenerationLanguage } from './aiLocale'
+
+describe('getGenerationLanguage', () => {
+  it('keeps Japanese (and other UI langs) as output language', () => {
+    expect(getGenerationLanguage('ja')).toBe('ja')
+    expect(getGenerationLanguage('es')).toBe('es')
+    expect(getGenerationLanguage('en')).toBe('en')
+    expect(getGenerationLanguage('zh-CN')).toBe('zh-CN')
+  })
+})
+

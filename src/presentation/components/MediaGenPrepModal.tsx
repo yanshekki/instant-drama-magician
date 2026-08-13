@@ -19,7 +19,7 @@ import {
 import { translateMediaGenSectionTitle } from '../../domain/mediaGenSectionTitleI18n'
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
-import { getAiLocale } from '../../lib/aiLocale'
+
 import { formatUserError } from '../lib/formatUserError'
 import { Button, Label, Textarea } from './ui'
 import { LocalMediaImage } from './LocalMediaImage'
@@ -298,7 +298,7 @@ export function MediaGenPrepModal({
         durationSeconds: request.durationSeconds,
         skipStillIfExists:
           request.skipStillIfExists || Boolean(request.resumeDraft?.stillPath),
-        locale: getAiLocale(i18n.language)
+        locale: i18n.language
       } as never)
       setSections(r.sections as MediaGenMaterialSection[])
       setEditBaseSectionId(r.editBaseSectionId ?? null)
@@ -439,7 +439,7 @@ export function MediaGenPrepModal({
         fallbackPrompt,
         taskHint,
         hardRules,
-        locale: getAiLocale(i18n.language),
+        locale: i18n.language,
         mode: 'image'
       } as never)
       setPolishedPrompt(r.polishedPrompt)
@@ -483,7 +483,7 @@ export function MediaGenPrepModal({
               genOptions.aspectRatio === '16:9'
             ? genOptions.aspectRatio
             : '16:9'
-      const locale = getAiLocale(i18n.language)
+      const locale = i18n.language
       const videoFallback = [
         stillPrompt,
         'IMAGE-TO-VIDEO: animate this keyframe as a short-drama clip.',
@@ -676,7 +676,7 @@ export function MediaGenPrepModal({
         ...entityIds,
         durationSeconds: durationSeconds || request.durationSeconds || 10,
         aspectRatio,
-        locale: getAiLocale(i18n.language)
+        locale: i18n.language
       })
       setVideoPath(r.path)
       setPhase('video-done')

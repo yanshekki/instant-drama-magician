@@ -614,7 +614,7 @@ export function StoriesPage(): JSX.Element {
           idea: aiIdea,
           existingStyleNote: styleNote,
           existingHardRules: hardRules,
-          locale: getAiLocale(i18n.language)
+          locale: i18n.language
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
@@ -663,7 +663,7 @@ export function StoriesPage(): JSX.Element {
         const r = await getApi().stories.aiFillScript({
           storyId: sid,
           idea: aiIdea,
-          locale: getAiLocale(i18n.language),
+          locale: i18n.language,
           replace: true
         })
         if (signal.cancelled) return
@@ -1361,7 +1361,7 @@ export function StoriesPage(): JSX.Element {
             </EditorField>
             <EditorField
               label={t('stories.styleNote')}
-              hint={t('stories.styleNotePlaceholder')}
+              hint={t('stories.styleNoteHint')}
             >
               <Textarea
                 size="fill"

@@ -13,11 +13,11 @@ import {
   synthesizeVisualTagsFromText,
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
+import { resolvePromptContext } from '../prompts'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
 import {
   appendHardRules,
   defaultHardRulesFallback,
-  hardRulesAiInstruction,
   normalizeHardRules
 } from './promptHardRules'
 
@@ -39,10 +39,9 @@ export const SCENE_PROFILE_JSON_KEYS = [
   'hardRules'
 ] as const
 
-export function buildSceneMasterSystemPrompt(
-  locale: 'zh-HK' | 'en' = 'zh-HK'
-): string {
-  if (locale === 'en') {
+export function buildSceneMasterSystemPrompt(locale: string = 'zh-HK'): string {
+  const ctx = resolvePromptContext(locale)
+  if (ctx.template === 'en') {
     return [
       'You are a short-drama location & scene designer for AI video.',
       'Produce a filmable location bible + playable scene script fragment.',
@@ -53,7 +52,7 @@ export function buildSceneMasterSystemPrompt(
         (r) => `- ${r}`
       ),
       ...inventFromProvidedSourcesRules('en').map((r) => `- ${r}`),
-      hardRulesAiInstruction('en'),
+      ctx.pack.hardRulesInstruction,
       '- title: short location name',
       '- description: what the place looks like (architecture, materials, landmarks)',
       '- script: dialogue + action + camera cues for THIS scene (concise)',
@@ -61,7 +60,8 @@ export function buildSceneMasterSystemPrompt(
       '- timeOfDay, weather, mood, lighting, colorPalette, setDressing: concrete; invent freely if the idea is thin',
       '- cameraNotes: blocking / lens language',
       '- artStyle: optional id like photo_cinematic or anime_modern, or ""',
-      '- Focus on space + this beat; only cast people who appear in provided cast lists when those lists are given.'
+      '- Focus on space + this beat; only cast people who appear in provided cast lists when those lists are given.',
+      ctx.outputLock
     ].join('\n')
   }
   return [
@@ -74,7 +74,7 @@ export function buildSceneMasterSystemPrompt(
       (r) => `- ${r}`
     ),
     ...inventFromProvidedSourcesRules('zh-HK').map((r) => `- ${r}`),
-    hardRulesAiInstruction('zh-HK'),
+    ctx.pack.hardRulesInstruction,
     '- title：短地名',
     '- description：空間外觀（建築、物料、地標）',
     '- script：本場對白／動作／鏡頭（精煉）',
@@ -82,7 +82,8 @@ export function buildSceneMasterSystemPrompt(
     '- timeOfDay、weather、mood、lighting、colorPalette、setDressing：具體可畫；idea 不足時可自由補齊',
     '- cameraNotes：走位／鏡頭語言',
     '- artStyle：可選如 photo_cinematic、anime_modern，或 ""',
-    '- 聚焦空間與本場戲；若有提供角色列表，只在需要時使用列表中的人。'
+    '- 聚焦空間與本場戲；若有提供角色列表，只在需要時使用列表中的人。',
+    ctx.outputLock
   ].join('\n')
 }
 

@@ -7,7 +7,7 @@ import {
   type SetStateAction
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getAiLocale } from '../../lib/aiLocale'
+
 import { formatUserError } from '../lib/formatUserError'
 import {
   appendActionGalleryItem,
@@ -371,7 +371,7 @@ export function ActionsPage(): JSX.Element {
             const r = await getApi().actions.aiFill({
               idea: idea || undefined,
               storyId: activeStoryId ?? undefined,
-              locale: getAiLocale(i18n.language),
+              locale: i18n.language,
               existingDraft: hasDraft ? snapshot : undefined,
               referenceImagePath: hasImage ? refPath : null
             })

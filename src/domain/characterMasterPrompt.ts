@@ -23,12 +23,12 @@ import {
   synthesizeVisualTagsFromText,
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
+import { resolvePromptContext } from '../prompts'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
 import { normalizeLanguageCodes } from './worldLanguages'
 import {
   appendHardRules,
   defaultHardRulesFallback,
-  hardRulesAiInstruction,
   normalizeHardRules
 } from './promptHardRules'
 
@@ -49,8 +49,9 @@ export const CHARACTER_PROFILE_JSON_KEYS = [
   'hardRules'
 ] as const
 
-export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK'): string {
-  if (locale === 'en') {
+export function buildCharacterMasterSystemPrompt(locale: string = 'zh-HK'): string {
+  const ctx = resolvePromptContext(locale)
+  if (ctx.template === 'en') {
     return [
       'You are a professional short-drama character designer for AI video production.',
       'Given a short idea from the user, invent a complete, filmable character bible.',
@@ -71,9 +72,10 @@ export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK
       '- voiceDesc: pitch, pace, accent, speech or vocalization habits',
       '- spokenLanguages: JSON array of BCP-47/ISO codes this character SPEAKS (multi OK), e.g. ["yue","en"] or ["ja"]. Prefer: yue=Cantonese, cmn/zh-Hant=Mandarin/Trad. Chinese, en, ja, ko, etc. Empty array if non-verbal.',
       '- mannerisms: small habits, micro-gestures, posture ticks (very specific)',
-      hardRulesAiInstruction('en'),
+      ctx.pack.hardRulesInstruction,
       '- Keep identity consistent for multi-angle reference sheets and video gen.',
-      '- Prefer vivid, concrete sensory detail over vague adjectives.'
+      '- Prefer vivid, concrete sensory detail over vague adjectives.',
+      ctx.outputLock
     ].join('\n')
   }
   return [
@@ -96,9 +98,10 @@ export function buildCharacterMasterSystemPrompt(locale: 'zh-HK' | 'en' = 'zh-HK
     '- voiceDesc：聲線高低、語速、口音、說話或發聲習慣（為配音／表演用）',
     '- spokenLanguages：角色使用的語言，JSON 字串陣列（可多選），BCP-47／ISO 代碼，例如 ["yue","en"]。常用：yue=粵語、cmn 或 zh-Hant=普通話／國語、en、ja、ko。非語言角色用 []。',
     '- mannerisms：小習慣、小動作、站姿／手勢癖好（越具體越好）',
-    hardRulesAiInstruction('zh-HK'),
+    ctx.pack.hardRulesInstruction,
     '- 同一角色必須視覺一致，方便之後多角度參考圖與影片生成。',
-    '- 避免空泛形容；用可拍攝的細節。'
+    '- 避免空泛形容；用可拍攝的細節。',
+    ctx.outputLock
   ].join('\n')
 }
 

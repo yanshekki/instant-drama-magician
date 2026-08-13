@@ -31,6 +31,7 @@ import {
   CREATOR_LINKTREE,
   YSK_HOME_URL
 } from '../../domain/creatorSupport'
+import { writeTimelinePagePref } from '../lib/timelinePagePref'
 
 const YSK_HOME = YSK_HOME_URL
 
@@ -42,6 +43,7 @@ const navItems: { to: string; key: string; end?: boolean }[] = [
   { to: '/props', key: 'props' },
   { to: '/actions', key: 'actions' },
   { to: '/timeline', key: 'timeline' },
+  { to: '/timeline-v2', key: 'timelineV2' },
   { to: '/audit', key: 'audit' },
   { to: '/settings', key: 'settings' }
 ]
@@ -118,10 +120,10 @@ export function Layout(): JSX.Element {
       .settings.get()
       .then((s: AppSettings) => {
         setDegraded(s.lastGenerationDegraded)
-        // Web login language (localStorage) wins over default settings until user
-        // changes language in Settings (which also writes storage).
+        // Saved Settings language wins (desktop + after first settings load).
+        // localStorage is only the fallback before settings exist.
         const lang = coerceUiLanguage(
-          readStoredUiLanguage() || s.uiLanguage
+          s.uiLanguage || readStoredUiLanguage()
         )
         if (lang !== i18n.language) {
           void changeUiLanguage(lang)
@@ -309,6 +311,10 @@ export function Layout(): JSX.Element {
             key={item.to}
             to={item.to}
             end={item.end}
+            onClick={() => {
+              if (item.to === '/timeline') writeTimelinePagePref('classic')
+              if (item.to === '/timeline-v2') writeTimelinePagePref('v2')
+            }}
             className={({ isActive }) =>
               [
                 'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',

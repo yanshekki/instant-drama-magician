@@ -126,4 +126,13 @@ describe('defaultHardRulesFallback', () => {
       expect(defaultHardRulesFallback(k, 'zh-HK').length).toBeGreaterThan(10)
     }
   })
+
+  it('uses Latin MUST tags for English, not Chinese brackets', () => {
+    const en = defaultHardRulesFallback('character', 'en')
+    expect(en).toContain('[MUST]')
+    expect(en).not.toContain('【必須】')
+    const zh = hardRulesAiInstruction('en')
+    expect(zh).toContain('[MUST]')
+    expect(zh).not.toContain('【必須】')
+  })
 })

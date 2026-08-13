@@ -126,6 +126,7 @@
     "scenes": "Scènes",
     "props": "Accessoires",
     "timeline": "Chronologie",
+    "timelineV2": "Timeline v2",
     "audit": "Activité",
     "settings": "Paramètres",
     "actions": "Actes",
@@ -365,6 +366,7 @@
     "step3": "Générer ou exporter sur la timeline (les espaces réservés de couleur sont utilisés sans passerelle)",
     "prototypeNote": "L'échafaudage MVP est prêt ; la qualité des films de qualité commerciale est encore en cours de développement.",
     "styleNote": "Bible des styles",
+    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
     "styleNotePlaceholder": "par exemple, lumière dorée de l’après-midi, caméra à l’épaule, tons chauds…",
     "editorTitle": "Modifier l'histoire",
     "editorHint": "Histoire sans titre",
@@ -1005,7 +1007,24 @@
     },
     "action": "Action",
     "castEmptyActions": "Aucune action liée à cette histoire. Ouvrez l'éditeur d'histoire → Cast → Actions.",
-    "mergedHardRulesHint": "Fusionné à partir de cette histoire + personnages/scènes/accessoires/actions liés. Appliqué avec la priorité la plus élevée lors de la génération du clip (la révision ne peut pas les annuler)."
+    "mergedHardRulesHint": "Fusionné à partir de cette histoire + personnages/scènes/accessoires/actions liés. Appliqué avec la priorité la plus élevée lors de la génération du clip (la révision ne peut pas les annuler).",
+    "graph": {
+      "title": "Timeline v2",
+      "subtitle": "Pipeline board — references, still, and video for the selected clip.",
+      "useClassic": "Classic timeline",
+      "useV2": "Pipeline timeline",
+      "cinematic": "Style / continuity",
+      "still": "Storyboard still",
+      "video": "Clip video",
+      "ghostCharacter": "No character bound",
+      "ghostScene": "No scene bound",
+      "ghostHint": "Bind cast in the story editor or on the classic timeline.",
+      "setup": "Generation setup",
+      "setupHint": "Clip length and image / video channels for this studio.",
+      "emptyClip": "Select a clip on the track below.",
+      "zoomReset": "Reset view",
+      "noStyle": "No style bible yet"
+    }
   },
   "pipeline": {
     "script": "Écriture du scénario",

@@ -19,8 +19,16 @@ export const pageHeaderActionsClass = [
   '[&_a]:!h-10 [&_a]:!min-h-10 [&_a]:inline-flex [&_a]:items-center'
 ].join(' ')
 
+/** Shared header chrome: one row from sm up (title left, tools right). */
+export const pageHeaderClass = [
+  'flex shrink-0 flex-col gap-2 border-b border-ink-800',
+  'px-3 py-3 sm:px-6 sm:py-3.5 md:px-8',
+  'sm:flex-row sm:items-center sm:justify-between sm:gap-4'
+].join(' ')
+
 /**
- * Title + subtitle; actions wrap below on phone so they never crush content height.
+ * Title + subtitle on the left; actions sit on the same row from `sm`.
+ * Phone still stacks so a long toolbar cannot crush the title.
  */
 export function PageHeader({
   title,
@@ -28,13 +36,13 @@ export function PageHeader({
   actions
 }: PageHeaderProps): JSX.Element {
   return (
-    <header className="flex shrink-0 flex-col gap-2.5 border-b border-ink-800 px-3 py-3 sm:gap-3 sm:px-6 sm:py-4 md:px-8 md:py-5">
-      <div className="min-w-0 max-w-full">
+    <header className={pageHeaderClass}>
+      <div className="min-w-0 flex-1">
         <h1 className="text-lg font-semibold tracking-tight text-ink-50 sm:text-xl md:text-2xl">
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-ink-400 sm:mt-1 sm:line-clamp-none sm:text-sm">
+          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-ink-400 sm:line-clamp-none sm:text-sm">
             {subtitle}
           </p>
         ) : null}

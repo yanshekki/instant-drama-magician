@@ -11,6 +11,7 @@ import {
   getActionPanelLayout,
   type ActionPanelLayoutId
 } from './actionPlateVariants'
+import { resolvePromptContext } from '../prompts'
 import { getArtStyle } from './characterArtStyles'
 import {
   coerceProfileString,
@@ -23,7 +24,6 @@ import {
 import {
   appendHardRules,
   defaultHardRulesFallback,
-  hardRulesAiInstruction,
   normalizeHardRules
 } from './promptHardRules'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
@@ -51,17 +51,17 @@ export const ACTION_PROFILE_JSON_KEYS = [
   'hardRules'
 ] as const
 
-export function buildActionMasterSystemPrompt(
-  locale: 'zh-HK' | 'en' = 'zh-HK'
-): string {
-  if (locale === 'en') {
+export function buildActionMasterSystemPrompt(locale: string = 'zh-HK'): string {
+  const ctx = resolvePromptContext(locale)
+  if (ctx.template === 'en') {
     return [
       'You are a short-drama motion director. Output ONLY valid JSON for an action/motion guide asset.',
       `Fields: ${ACTION_PROFILE_JSON_KEYS.join(', ')}.`,
       ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, 'en'),
       ...inventFromProvidedSourcesRules('en'),
-      hardRulesAiInstruction('en'),
-      'Be concrete: body parts, tempo, weight, prop paths, staging. No markdown.'
+      ctx.pack.hardRulesInstruction,
+      'Be concrete: body parts, tempo, weight, prop paths, staging. No markdown.',
+      ctx.outputLock
     ].join('\n')
   }
   return [
@@ -69,8 +69,9 @@ export function buildActionMasterSystemPrompt(
     `欄位：${ACTION_PROFILE_JSON_KEYS.join(', ')}。`,
     ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, 'zh-HK'),
     ...inventFromProvidedSourcesRules('zh-HK'),
-    hardRulesAiInstruction('zh-HK'),
-    '要具體：身體部位、節奏、力度、道具路徑、走位。不要 markdown。'
+    ctx.pack.hardRulesInstruction,
+    '要具體：身體部位、節奏、力度、道具路徑、走位。不要 markdown。',
+    ctx.outputLock
   ].join('\n')
 }
 

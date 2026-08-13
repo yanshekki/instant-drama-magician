@@ -3,6 +3,7 @@
  * Flow: extract materials → LLM professional prompt → still → user review → video.
  */
 
+import { videoPolishDirective } from '../prompts'
 import { appendHardRules } from './promptHardRules'
 
 export type VideoPrepKind =
@@ -382,9 +383,7 @@ export function buildStillRegenPolishUserPrompt(options: {
             rules
           ].join('\n')
       : null,
-    en
-      ? 'Return ONE improved director prompt only (English-first). Apply the improvement; keep IDENTITY/SPACE/OBJECT locks and HARD RULES.'
-      : '只回傳一條改進後的導演提示詞（英文為主）。套用改進；保留 IDENTITY／SPACE／OBJECT 鎖定與 HARD RULES。'
+    videoPolishDirective(options.locale)
   ]
     .filter(Boolean)
     .join('\n')

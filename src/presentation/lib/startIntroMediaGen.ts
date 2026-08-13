@@ -4,7 +4,6 @@
  */
 import { getApi } from '../../lib/api'
 import type { MediaGenPrepOpenRequest } from '../components/MediaGenPrepModal'
-import { getAiLocale } from '../../lib/aiLocale'
 
 export type IntroMediaGenKind =
   | 'character-intro'
@@ -73,6 +72,6 @@ export async function buildIntroMediaGenRequest(opts: {
   }
 }
 
-export function introLocaleFromI18n(lang: string): 'zh-HK' | 'en' {
-  return getAiLocale(lang)
+export function introLocaleFromI18n(lang: string): string {
+  return lang || 'zh-HK'
 }

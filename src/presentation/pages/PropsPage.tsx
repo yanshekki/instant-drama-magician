@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import { useTranslation } from 'react-i18next'
-import { getAiLocale } from '../../lib/aiLocale'
+
 import {
   appendSceneGalleryItem,
   isSceneGalleryCoverPath,
@@ -423,7 +423,7 @@ export function PropsPage(): JSX.Element {
             const r = await getApi().props.aiFill({
               idea: idea || undefined,
               storyId: activeStoryId ?? undefined,
-              locale: getAiLocale(i18n.language),
+              locale: i18n.language,
               existingDraft: hasDraft ? snapshot : undefined,
               referenceImagePath: hasImage ? refPath : null
             })
@@ -1174,7 +1174,7 @@ export function PropsPage(): JSX.Element {
                         const r = await getApi().props.aiFill({
                           idea,
                           storyId: plotStoryId,
-                          locale: getAiLocale(i18n.language),
+                          locale: i18n.language,
                           existingDraft: hasDraft ? snapshot : undefined,
                           suggestFromStory: true
                         })

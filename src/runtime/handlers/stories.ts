@@ -1,3 +1,4 @@
+import { resolvePromptContext } from '../../prompts'
 import { defaultStoryTitle, defaultDuration, maybeAppendMultiRef } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
@@ -89,10 +90,9 @@ reg(
       )
       const size = ctx.settings.imageSizeWide || '1792x1024'
       const aspectRatio = aspectFromImageSize(size)
-      // Image models follow English technical instructions best; story text
-      // (title / style / idea) is kept in the user's UI language.
+      const coverLang = resolvePromptContext(String(locale || 'zh-HK'))
       const basePrompt =
-        locale === 'en'
+        coverLang.template === 'en'
           ? [
               'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
               'Not a UI mockup. No text, no logo, no watermark, no title caption.',
@@ -101,7 +101,8 @@ reg(
               styleNote ? `Style bible: ${styleNote}` : '',
               idea ? `Extra direction: ${idea}` : '',
               'Evocative establishing mood frame suitable as a library card cover.',
-              'Match the art medium; strong silhouette and readable mood.'
+              'Match the art medium; strong silhouette and readable mood.',
+              coverLang.outputLock
             ]
               .filter(Boolean)
               .join(' ')
@@ -113,7 +114,8 @@ reg(
               styleNote ? `風格備註：${styleNote}` : '',
               idea ? `額外方向：${idea}` : '',
               '適合用作片庫封面的情緒建立鏡頭；強烈剪影、可讀氣氛。',
-              '依藝術風格 medium 出圖；構圖清晰。'
+              '依藝術風格 medium 出圖；構圖清晰。',
+              coverLang.outputLock
             ]
               .filter(Boolean)
               .join(' ')

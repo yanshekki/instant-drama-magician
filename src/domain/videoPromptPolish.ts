@@ -1,3 +1,5 @@
+import { resolvePromptContext } from '../prompts'
+
 /**
  * LLM polish step before any generateVideo call.
  * Raw materials → chat → single director-style image-to-video prompt.
@@ -44,19 +46,19 @@ export function hardRulesMaterialsBlock(
 
 /**
  * System prompt for the video-prompt editor LLM.
- * Output should be English-first (gateway image-to-video works best),
- * with spoken-language constraints explicit when needed.
+ * Prompt body follows the user UI language (see output lock).
  */
 export function buildVideoPromptPolishSystemPrompt(
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): string {
-  const en = locale === 'en'
+  const { template, outputLock } = resolvePromptContext(locale)
+  const en = template === 'en'
   if (en) {
     return [
       'You write ONE final image-to-video prompt for a short-drama AI video model.',
       'Return ONLY the prompt text — no markdown fences, no title, no explanation.',
       'Rules:',
-      '- English director language preferred; keep character names and required dialogue language codes clear.',
+      '- Write the director prompt in the user interface language; keep character names and required dialogue language codes clear.',
       '- Person still: IDENTITY LOCK (face, hair, body, wardrobe, colors). Location plate: SPACE LOCK (architecture, materials, layout, signage, palette) — empty set preferred; no new cast faces.',
       '- Use ALL provided profile / soul / beat / location facts that affect look, motion, speech, or atmosphere; ignore empty fields.',
       '- Invent only what is needed to complete a filmable clip from the materials and seed — do not import a fixed sample world, Demo story, or facts not present in materials/seed.',
@@ -65,14 +67,15 @@ export function buildVideoPromptPolishSystemPrompt(
       '- Anatomically correct humans unless the script requires otherwise (two hands, two arms, two legs).',
       '- If multi-character, keep each listed subject consistent; primary focus first.',
       '- If HARD RULES appear in materials, keep them and place them at the end of your output (highest priority).',
-      '- Director revision may refine style/action but must NOT violate HARD RULES.'
+      '- Director revision may refine style/action but must NOT violate HARD RULES.',
+      outputLock
     ].join('\n')
   }
   return [
     '你為短劇 AI 圖生影片模型撰寫「一條」最終 image-to-video 導演提示詞。',
     '只回傳提示詞正文——不要 markdown 代碼塊、標題或解釋。',
     '規則：',
-    '- 以英文導演用語為主；角色姓名與口白語言要求須清楚標示。',
+    '- 提示詞全文用用戶介面語言書寫；角色姓名與口白語言要求須清楚標示。',
     '- 人物靜圖：IDENTITY LOCK（臉、髮、體型、服裝、顏色）。場景靜幀：SPACE LOCK（建築、材質、格局、招牌、色盤）——空鏡為主，勿新增角色臉。',
     '- 凡已提供且影響外形、動作、口白、氣氛或場地的人設／soul／段落／地點資料均須用上；空白欄位可略。',
     '- 只按材料與 seed 補齊可拍細節；勿引入固定樣本世界、Demo 故事、或材料／seed 未出現的事實。',
@@ -81,7 +84,8 @@ export function buildVideoPromptPolishSystemPrompt(
     '- 除非劇情要求，否則解剖結構正常（雙手雙腳）。',
     '- 多角色時保持每位主體一致；主焦點優先。',
     '- 若材料含 HARD RULES（生成鐵則），必須保留並放在輸出最尾（最高優先）。',
-    '- 導演修訂可調整氣氛／動作，但不得違反 HARD RULES。'
+    '- 導演修訂可調整氣氛／動作，但不得違反 HARD RULES。',
+    outputLock
   ].join('\n')
 }
 

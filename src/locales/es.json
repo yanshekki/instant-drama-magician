@@ -126,6 +126,7 @@
     "scenes": "Escenas",
     "props": "Accesorios",
     "timeline": "Línea de tiempo",
+    "timelineV2": "Timeline v2",
     "audit": "Actividad",
     "settings": "Ajustes",
     "actions": "Comportamiento",
@@ -365,6 +366,7 @@
     "step3": "Generar o exportar en la línea de tiempo (los marcadores de posición de color se utilizan sin puerta de enlace)",
     "prototypeNote": "El andamio del MVP está listo; La calidad de la película de calidad comercial aún está en desarrollo.",
     "styleNote": "Biblia de estilo",
+    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
     "styleNotePlaceholder": "por ejemplo, luz dorada de tarde, cámara en mano, tono cálido…",
     "editorTitle": "Editar historia",
     "editorHint": "Historia sin título",
@@ -1005,7 +1007,24 @@
     },
     "action": "Acción",
     "castEmptyActions": "No hay acciones vinculadas a esta historia. Abra el editor de historias → Transmitir → Acciones.",
-    "mergedHardRulesHint": "Fusionado de esta historia + personajes/escenas/accesorios/acciones vinculados. Se aplica con la máxima prioridad al generar clips (la revisión no puede cancelarlos)."
+    "mergedHardRulesHint": "Fusionado de esta historia + personajes/escenas/accesorios/acciones vinculados. Se aplica con la máxima prioridad al generar clips (la revisión no puede cancelarlos).",
+    "graph": {
+      "title": "Timeline v2",
+      "subtitle": "Pipeline board — references, still, and video for the selected clip.",
+      "useClassic": "Classic timeline",
+      "useV2": "Pipeline timeline",
+      "cinematic": "Style / continuity",
+      "still": "Storyboard still",
+      "video": "Clip video",
+      "ghostCharacter": "No character bound",
+      "ghostScene": "No scene bound",
+      "ghostHint": "Bind cast in the story editor or on the classic timeline.",
+      "setup": "Generation setup",
+      "setupHint": "Clip length and image / video channels for this studio.",
+      "emptyClip": "Select a clip on the track below.",
+      "zoomReset": "Reset view",
+      "noStyle": "No style bible yet"
+    }
   },
   "pipeline": {
     "script": "Escribir guion",

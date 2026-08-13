@@ -1,0 +1,149 @@
+import { describe, expect, it } from 'vitest'
+import {
+  buildTimelineGraph,
+  findTimelineGraphPrepCell,
+  layoutTimelineGraph,
+  previousStillPath,
+  timelineGraphBezier,
+  timelineGraphBindIds,
+  timelineGraphCharImage,
+  timelineGraphEdgePath,
+  timelineGraphSnippet
+} from './timelineGraph'
+
+const entry = {
+  id: 'e1',
+  characterId: 'c1',
+  characterIds: ['c1', 'c2'],
+  sceneId: 's1',
+  sceneIds: ['s1'],
+  propId: 'p1',
+  propIds: ['p1'],
+  actionId: 'a1',
+  actionIds: ['a1'],
+  mediaStatus: 'READY',
+  mediaPath: '/v.mp4'
+}
+
+describe('timelineGraphBindIds', () => {
+  it('prefers multi list and dedupes', () => {
+    expect(timelineGraphBindIds(['a', 'a', 'b'], 'z')).toEqual(['a', 'b'])
+  })
+  it('falls back to primary', () => {
+    expect(timelineGraphBindIds([], 'solo')).toEqual(['solo'])
+    expect(timelineGraphBindIds(undefined, 'solo')).toEqual(['solo'])
+  })
+  it('returns empty when nothing bound', () => {
+    expect(timelineGraphBindIds([], null)).toEqual([])
+    expect(timelineGraphBindIds(undefined, '  ')).toEqual([])
+  })
+})
+
+describe('timelineGraph helpers', () => {
+  it('resolves character image from cast card then character', () => {
+    expect(
+      timelineGraphCharImage('c1', { id: 'c1', refImagePath: '/char.png' }, [
+        { characterId: 'c1', selectedRefImagePath: '/cast.png' }
+      ])
+    ).toBe('/cast.png')
+    expect(
+      timelineGraphCharImage('c1', { id: 'c1', refImagePath: '/char.png' }, [])
+    ).toBe('/char.png')
+    expect(timelineGraphCharImage('c1', undefined, undefined)).toBe(null)
+  })
+
+  it('snippets long text', () => {
+    expect(timelineGraphSnippet('  hi  ')).toBe('hi')
+    expect(timelineGraphSnippet('x'.repeat(80), 10)).toMatch(/…$/)
+    expect(timelineGraphSnippet('')).toBe('')
+  })
+
+  it('finds prep cell and previous still', () => {
+    const cells = [
+      { entryId: 'e0', stillPath: '/prev.png', stillStatus: 'ready' as const },
+      { entryId: 'e1', stillPath: '/now.png', stillStatus: 'ready' as const }
+    ]
+    expect(findTimelineGraphPrepCell(cells, 'e1')?.stillPath).toBe('/now.png')
+    expect(findTimelineGraphPrepCell(cells, 'nope')).toBe(null)
+    expect(previousStillPath(cells, 'e1')).toBe('/prev.png')
+    expect(previousStillPath(cells, 'e0')).toBe(null)
+    expect(previousStillPath([], 'e1')).toBe(null)
+  })
+})
+
+describe('buildTimelineGraph', () => {
+  it('returns empty without an entry', () => {
+    expect(buildTimelineGraph({ entry: null })).toEqual({ nodes: [], edges: [] })
+  })
+
+  it('builds refs, prompt, still, video and wires into still', () => {
+    const g = buildTimelineGraph({
+      entry,
+      story: { styleNote: 'noir rain forever and more words', artStyle: 'anime' },
+      characters: [
+        { id: 'c1', name: 'Aria', refImagePath: '/a.png' },
+        { id: 'c2', name: 'Ben' }
+      ],
+      scenes: [{ id: 's1', title: 'Roof', refImagePath: '/s.png' }],
+      props: [{ id: 'p1', name: 'Watch' }],
+      actions: [{ id: 'a1', name: 'Turn' }],
+      cell: { entryId: 'e1', stillPath: '/still.png', stillStatus: 'ready' },
+      prevStillPath: '/prev.png',
+      videoProvider: 'same-as-llm',
+      videoModel: 'grok'
+    })
+    const kinds = g.nodes.map((n) => n.kind)
+    expect(kinds).toContain('character')
+    expect(kinds).toContain('scene')
+    expect(kinds).toContain('prop')
+    expect(kinds).toContain('action')
+    expect(kinds).toContain('cinematic')
+    expect(kinds).toContain('prompt')
+    expect(kinds).toContain('still')
+    expect(kinds).toContain('video')
+    expect(g.nodes.filter((n) => n.kind === 'character')).toHaveLength(2)
+    expect(g.nodes.find((n) => n.id === 'video')?.subtitle).toContain('grok')
+    expect(g.nodes.find((n) => n.id === 'still')?.missing).toBe(false)
+    expect(g.edges.some((e) => e.from.startsWith('character:') && e.to === 'still')).toBe(
+      true
+    )
+    expect(g.edges).toContainEqual({ id: 'still->video', from: 'still', to: 'video' })
+  })
+
+  it('inserts ghost cards when nothing is bound', () => {
+    const g = buildTimelineGraph({
+      entry: { id: 'e9', mediaStatus: 'EMPTY' }
+    })
+    expect(g.nodes.some((n) => n.kind === 'ghost-character')).toBe(true)
+    expect(g.nodes.some((n) => n.kind === 'ghost-scene')).toBe(true)
+    expect(g.nodes.some((n) => n.kind === 'character')).toBe(false)
+  })
+})
+
+describe('layoutTimelineGraph', () => {
+  it('places columns and builds bezier paths', () => {
+    const g = buildTimelineGraph({
+      entry,
+      characters: [{ id: 'c1', name: 'A' }, { id: 'c2', name: 'B' }],
+      scenes: [{ id: 's1', title: 'S' }]
+    })
+    const layout = layoutTimelineGraph(g)
+    expect(layout.width).toBeGreaterThan(600)
+    expect(layout.height).toBeGreaterThan(100)
+    const video = layout.nodes.find((n) => n.kind === 'video')
+    const still = layout.nodes.find((n) => n.kind === 'still')
+    expect(video && still && video.x > still.x).toBe(true)
+    const path = timelineGraphEdgePath(layout, layout.edges[0])
+    expect(path).toMatch(/^M /)
+    expect(path).toContain(' C ')
+    expect(timelineGraphEdgePath(layout, { id: 'x', from: 'no', to: 'no' })).toBe(
+      null
+    )
+  })
+
+  it('bezier is stable', () => {
+    expect(timelineGraphBezier({ x: 0, y: 10 }, { x: 100, y: 10 })).toBe(
+      'M 0 10 C 50 10, 50 10, 100 10'
+    )
+  })
+})

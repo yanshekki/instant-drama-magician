@@ -19,7 +19,7 @@ import type {
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
-import { getAiLocale } from '../../lib/aiLocale'
+
 import { useAiJobs } from '../context/AiJobsContext'
 import { useDialog } from '../context/DialogContext'
 import { useToast } from '../context/ToastContext'
@@ -148,7 +148,7 @@ export function VideoPrepHost(): JSX.Element | null {
               r = await getApi().videoPrep.openFromStill({
                 storyId: req.entityIds.storyId,
                 entryId: req.entityIds.entryId,
-                locale: req.locale ?? getAiLocale(i18n.language)
+                locale: req.locale ?? i18n.language
               })
             }
           } catch {
@@ -168,7 +168,7 @@ export function VideoPrepHost(): JSX.Element | null {
             entryId: req.entityIds.entryId,
             sourceImagePath: req.sourceImagePath,
             durationSeconds: req.durationSeconds,
-            locale: req.locale ?? getAiLocale(i18n.language),
+            locale: req.locale ?? i18n.language,
             skipStillIfExists: req.skipStillIfExists,
             stillOnly: req.stillOnly
           })
@@ -273,7 +273,7 @@ export function VideoPrepHost(): JSX.Element | null {
         entryId: draft.entityIds.entryId,
         durationSeconds: draft.durationSeconds,
         aspectRatio: draft.aspectRatio,
-        locale: getAiLocale(i18n.language)
+        locale: i18n.language
       })
       if (abortFlagRef.current.cancelled) return
       removeSavedVideoPrepDraft(draftKeyFor(draft))
@@ -407,7 +407,7 @@ export function VideoPrepHost(): JSX.Element | null {
         entryId: nextId
       },
       durationSeconds: session.request.durationSeconds,
-      locale: session.request.locale ?? getAiLocale(i18n.language),
+      locale: session.request.locale ?? i18n.language,
       queueIndex: nextIndex,
       queueTotal: total,
       queueRemaining: remaining,

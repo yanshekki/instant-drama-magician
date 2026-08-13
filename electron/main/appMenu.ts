@@ -58,6 +58,7 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
     navProps: '道具',
     navActions: '動作',
     navTimeline: '時間軸',
+    navTimelineV2: '時間軸 v2',
     navAudit: '活動紀錄',
     navSettings: '設定',
     reload: '重新載入',
@@ -113,6 +114,7 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
     navProps: 'Props',
     navActions: 'Actions',
     navTimeline: 'Timeline',
+    navTimelineV2: 'Timeline v2',
     navAudit: 'Activity Log',
     navSettings: 'Settings',
     reload: 'Reload',
@@ -280,6 +282,10 @@ export function buildAppMenuTemplate(
       label: t.navTimeline,
       accelerator: accel('Cmd+7', 'Ctrl+7'),
       click: () => handlers.sendAction({ type: 'navigate', path: '/timeline' })
+    },
+    {
+      label: t.navTimelineV2,
+      click: () => handlers.sendAction({ type: 'navigate', path: '/timeline-v2' })
     },
     {
       label: t.navAudit,

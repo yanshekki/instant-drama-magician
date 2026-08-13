@@ -15,7 +15,7 @@ import {
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
 import { formatUserError } from '../lib/formatUserError'
-import { getAiLocale } from '../../lib/aiLocale'
+
 import { continuityBadgeKey } from '../../domain/residualLabels'
 import { canSubmitRegenNotes, handleRegenNotesGate, handleRegenCatch, onLockedEscape } from './uiResidualPure'
 import { useToast } from '../context/ToastContext'
@@ -120,7 +120,7 @@ export function VideoPrepModal({
         entryId: d.entityIds.entryId,
         durationSeconds: d.durationSeconds,
         aspectRatio: d.aspectRatio,
-        locale: getAiLocale(i18n.language)
+        locale: i18n.language
       })
       const next = {
         ...d,

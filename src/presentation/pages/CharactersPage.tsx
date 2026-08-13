@@ -9,7 +9,7 @@ import {
   type SetStateAction
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getAiLocale } from '../../lib/aiLocale'
+
 import {
   formatSpokenLanguagesDisplay,
   languageLabel,
@@ -808,7 +808,7 @@ export function CharactersPage(): JSX.Element {
       setEditorPanel,
       startJob: (idea, hasDraft, _hasSoul, hasImage, ref, snap, isImprove) => {
         const characterId = editingId
-        const locale = getAiLocale(i18n.language)
+        const locale = i18n.language
         startJob({
           kind: 'character-ai-fill',
           label: charactersAiCreateLabel(
@@ -952,7 +952,7 @@ export function CharactersPage(): JSX.Element {
           characterId: editingId ?? undefined,
           storyId,
           segmentKey: storyId ? plotSegmentKey : undefined,
-          locale: getAiLocale(i18n.language),
+          locale: i18n.language,
           name: form.name,
           appearance: form.appearance,
           costume: form.costume,
@@ -1372,7 +1372,7 @@ export function CharactersPage(): JSX.Element {
         if (signal.cancelled) return
         const r = await getApi().characters.generateSoul({
           storyId: activeStoryId ?? undefined,
-          locale: getAiLocale(i18n.language),
+          locale: i18n.language,
           existingSoul: existingSoul || undefined,
           userRequest: aiIdea.trim() || undefined,
           profile: {

@@ -1,3 +1,8 @@
+import {
+  packHardRulesFallback,
+  packHardRulesInstruction
+} from '../prompts'
+
 /**
  * High-priority user hard rules (必須 / 禁止) for image & video generation.
  * Inlined into the single prompt string — image/video APIs have no separate
@@ -98,64 +103,16 @@ export function mergeHardRules(
 /**
  * Instruction block for AI profile / meta fill: hardRules MUST be non-empty.
  */
-export function hardRulesAiInstruction(locale: 'zh-HK' | 'en' = 'zh-HK'): string {
-  if (locale === 'en') {
-    return [
-      'hardRules: REQUIRED non-empty string (never omit the key, never use null/array).',
-      'Write 3–8 short lines mixing MUST and MUST-NOT for image & video gen of THIS asset only.',
-      'Name the subject in each line when useful (e.g. "Character Maya: exactly two hands") so timeline merge can attribute rules to the correct object.',
-      'Focus on common AI failures: extra limbs, wrong anatomy counts, unrelated objects (wires, logos), watermarks, third faces, wrong species.',
-      'Format example: "【必須】Character: exactly two hands, five fingers\\n【禁止】extra limbs; watermarks; third face".',
-      'Do NOT pad with vague quality words (no "high quality", "masterpiece", "4k" alone).'
-    ].join(' ')
-  }
-  return [
-    'hardRules：必填非空字串（不可缺鍵、不可 null／陣列）。',
-    '用 3–8 短句寫【必須】與【禁止】，只針對本資產出圖／出片常見幻覺。',
-    '句中宜點名主體（例：「角色小雨：恰好兩隻手」），方便時間軸合併時對應到正確物件。',
-    '重點：多餘肢體、解剖數量錯誤、無關雜物（電線、Logo）、水印、第三人臉、物種錯誤。',
-    '格式例：「【必須】角色：恰好兩隻手、五指完整\\n【禁止】第三肢體；水印；第三人臉」。',
-    '禁止用空泛畫質詞充數（不可只寫 high quality／傑作／4k）。'
-  ].join(' ')
+export function hardRulesAiInstruction(locale: string = 'zh-HK'): string {
+  return packHardRulesInstruction(locale)
 }
 
 /** Fallback when model forgets hardRules (still better than empty). */
 export function defaultHardRulesFallback(
   kind: 'story' | 'character' | 'scene' | 'prop' | 'action' | 'costume',
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): string {
-  if (locale === 'en') {
-    const map: Record<typeof kind, string> = {
-      story:
-        '【必須】readable silhouette; coherent lighting\n【禁止】watermarks; UI chrome; unreadable text captions; extra limbs on humans',
-      character:
-        '【必須】exactly two hands, two arms, two legs (unless non-human design)\n【禁止】extra limbs; third face; watermarks; brand logos',
-      scene:
-        '【必須】empty-set location identity; consistent architecture\n【禁止】new hero faces; watermarks; random props that break the location',
-      prop:
-        '【必須】single clear prop identity; clean silhouette\n【禁止】unrelated wires/cables; extra objects; watermarks; celebrity faces',
-      action:
-        '【必須】same identity across all panels; readable motion beats\n【禁止】extra limbs; panel count wrong; watermarks; title replacing a panel',
-      costume:
-        '【必須】full readable outer costume; correct silhouette on body\n【禁止】ghost old outfit; fused limbs; watermarks; brand logos'
-    }
-    return map[kind]
-  }
-  const map: Record<typeof kind, string> = {
-    story:
-      '【必須】剪影可讀；光線連貫\n【禁止】水印；UI 邊框；難讀字幕；人類多餘肢體',
-    character:
-      '【必須】恰好兩隻手、兩臂、兩腿（非人設定除外）\n【禁止】多餘肢體；第三人臉；水印；品牌 Logo',
-    scene:
-      '【必須】空鏡場地身份；建築一致\n【禁止】新增主角臉；水印；破壞場地的亂入道具',
-    prop:
-      '【必須】單一清晰道具身份；輪廓乾淨\n【禁止】無關電線／纜線；多餘雜物；水印；名人臉',
-    action:
-      '【必須】各格身份一致；動作節拍可讀\n【禁止】多餘肢體；格數錯誤；水印；標題取代分鏡格',
-    costume:
-      '【必須】外層戲服完整可讀；輪廓正確\n【禁止】舊裝殘影；肢體融合；水印；品牌 Logo'
-  }
-  return map[kind]
+  return packHardRulesFallback(kind, locale)
 }
 
 export type TimelineHardRulesSources = {

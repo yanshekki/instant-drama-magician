@@ -1,0 +1,295 @@
+import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TimelineGraphLaidOutNode } from '../../../domain/timelineGraph'
+import { LocalMediaImage } from '../LocalMediaImage'
+import { Button, Label, Textarea } from '../ui'
+
+export interface TimelineGraphNodeHandlers {
+  promptValue: string
+  revisionValue: string
+  onPromptChange: (v: string) => void
+  onRevisionChange: (v: string) => void
+  onSavePrompt: () => void
+  onGenStill: () => void
+  onRegenStill: () => void
+  onRefineStill: () => void
+  onOpenSetup: () => void
+  onOpenStoryEditor: () => void
+  onOpenEntity: (kind: 'character' | 'scene' | 'prop' | 'action', id: string) => void
+  stillBusy?: boolean
+  videoSlot?: ReactNode
+  generateVideoSlot?: ReactNode
+}
+
+const CARD =
+  'flex h-full flex-col overflow-hidden rounded-2xl border border-ink-800/80 bg-ink-900/40 shadow-lg shadow-black/10'
+const CARD_ACTIVE = 'border-brand-500 bg-brand-950/30 shadow-md shadow-brand-950/20'
+const CARD_GHOST = 'border-dashed border-ink-700/80 bg-ink-900/20'
+const EYEBROW = 'text-[10px] font-medium uppercase tracking-wide text-ink-500'
+
+interface TimelineGraphNodeProps {
+  node: TimelineGraphLaidOutNode
+  active?: boolean
+  handlers: TimelineGraphNodeHandlers
+  onSelect: () => void
+  positioned?: boolean
+}
+
+export function TimelineGraphNode({
+  node,
+  active,
+  handlers,
+  onSelect,
+  positioned = true
+}: TimelineGraphNodeProps): JSX.Element {
+  const { t } = useTranslation()
+  const style = positioned
+    ? {
+        left: node.x,
+        top: node.y,
+        width: node.w,
+        height: node.h
+      }
+    : undefined
+
+  const shell = [
+    positioned ? 'absolute' : 'relative w-full',
+    CARD,
+    active ? CARD_ACTIVE : '',
+    node.kind.startsWith('ghost-') ? CARD_GHOST : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return (
+    <article
+      data-testid={`graph-node-${node.id}`}
+      className={shell}
+      style={style}
+      onClick={onSelect}
+    >
+      {nodeBody(node, handlers, t)}
+    </article>
+  )
+}
+
+function nodeBody(
+  node: TimelineGraphLaidOutNode,
+  handlers: TimelineGraphNodeHandlers,
+  t: (k: string, opts?: Record<string, string>) => string
+): ReactNode {
+  if (node.kind === 'ghost-character' || node.kind === 'ghost-scene') {
+    return (
+      <div className="flex h-full flex-col justify-between p-3">
+        <div>
+          <p className={EYEBROW}>
+            {node.kind === 'ghost-character'
+              ? t('timeline.character')
+              : t('timeline.scene')}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-ink-200">
+            {node.kind === 'ghost-character'
+              ? t('timeline.graph.ghostCharacter')
+              : t('timeline.graph.ghostScene')}
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
+            {t('timeline.graph.ghostHint')}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          className="!px-2 !py-1 !text-[11px]"
+          onClick={(e) => {
+            e.stopPropagation()
+            handlers.onOpenStoryEditor()
+          }}
+        >
+          {t('timeline.openStoryEditor')}
+        </Button>
+      </div>
+    )
+  }
+
+  if (node.kind === 'prompt') {
+    return (
+      <div
+        className="flex h-full min-h-0 flex-col p-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className={EYEBROW}>{t('stories.beatScript')}</p>
+        <Textarea
+          size="sm"
+          value={handlers.promptValue}
+          onChange={(e) => handlers.onPromptChange(e.target.value)}
+          placeholder={t('stories.beatScriptPh')}
+          className="mt-1.5 min-h-0 flex-1 font-mono text-[12px] leading-relaxed"
+        />
+        <div className="mt-2 shrink-0">
+          <Label>{t('timeline.revisionPrompt')}</Label>
+          <Textarea
+            size="sm"
+            value={handlers.revisionValue}
+            onChange={(e) => handlers.onRevisionChange(e.target.value)}
+            placeholder={t('timeline.revisionPlaceholder')}
+            className="mt-1 min-h-[2.5rem]"
+          />
+        </div>
+        <div className="mt-2">
+          <Button className="!px-2.5 !py-1 !text-[11px]" onClick={handlers.onSavePrompt}>
+            {t('common.save')}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (node.kind === 'still') {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
+          <p className={EYEBROW}>{t('timeline.graph.still')}</p>
+          <span className="rounded-full bg-ink-800/80 px-2 py-0.5 text-[10px] text-ink-300">
+            {node.missing
+              ? t('timeline.advanced.stillMissing')
+              : node.status === 'stale'
+                ? t('timeline.advanced.stillStale')
+                : t('timeline.advanced.stillReady')}
+          </span>
+        </div>
+        <div className="relative mx-3 mt-2 min-h-0 flex-1 overflow-hidden rounded-xl bg-ink-950/50">
+          {node.imagePath ? (
+            <LocalMediaImage
+              filePath={node.imagePath}
+              alt={t('timeline.graph.still')}
+              variant="fill"
+              objectFit="cover"
+              showActions={false}
+              className="h-full w-full"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center px-3 text-center text-[11px] text-ink-500">
+              {t('timeline.advanced.stillMissingHint')}
+            </div>
+          )}
+        </div>
+        <div
+          className="flex flex-wrap gap-1.5 p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="secondary"
+            className="!px-2 !py-1 !text-[11px]"
+            disabled={handlers.stillBusy}
+            onClick={node.missing ? handlers.onGenStill : handlers.onRegenStill}
+          >
+            {node.missing
+              ? t('timeline.advanced.genStill')
+              : t('timeline.advanced.regenStill')}
+          </Button>
+          <Button
+            variant="ghost"
+            className="!px-2 !py-1 !text-[11px]"
+            disabled={handlers.stillBusy}
+            onClick={handlers.onRefineStill}
+          >
+            {t('timeline.advanced.refineStill')}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (node.kind === 'video') {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
+          <p className={EYEBROW}>{t('timeline.graph.video')}</p>
+          <button
+            type="button"
+            className="truncate text-[10px] text-brand-300 hover:text-brand-200"
+            onClick={(e) => {
+              e.stopPropagation()
+              handlers.onOpenSetup()
+            }}
+          >
+            {node.subtitle || t('timeline.graph.setup')}
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 px-3 pt-2">
+          {handlers.videoSlot}
+        </div>
+        <div
+          className="flex flex-wrap gap-1.5 p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {handlers.generateVideoSlot}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
+        <p className={EYEBROW}>{kindLabel(node.kind, t)}</p>
+        {node.missing ? (
+          <span className="rounded-full bg-amber-950/40 px-2 py-0.5 text-[10px] text-amber-100">
+            {t('timeline.advanced.missingRef')}
+          </span>
+        ) : null}
+      </div>
+      <div className="relative mx-3 mt-2 min-h-0 flex-1 overflow-hidden rounded-xl bg-ink-950/50">
+        {node.imagePath ? (
+          <LocalMediaImage
+            filePath={node.imagePath}
+            alt={node.title}
+            variant="fill"
+            objectFit="cover"
+            showActions={false}
+            className="h-full w-full"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center px-2 text-center text-[11px] text-ink-500">
+            {node.kind === 'cinematic'
+              ? node.subtitle || t('timeline.graph.noStyle')
+              : t('timeline.advanced.noImage')}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-2 px-3 py-2">
+        <p className="min-w-0 truncate text-xs font-semibold text-ink-100">
+          {node.title ||
+            (node.kind === 'cinematic' ? t('timeline.graph.cinematic') : '')}
+        </p>
+        {node.entityId &&
+        (node.kind === 'character' ||
+          node.kind === 'scene' ||
+          node.kind === 'prop' ||
+          node.kind === 'action') ? (
+          <Button
+            variant="ghost"
+            className="!shrink-0 !px-1.5 !py-0.5 !text-[10px]"
+            onClick={(e) => {
+              e.stopPropagation()
+              handlers.onOpenEntity(node.kind, node.entityId!)
+            }}
+          >
+            {t('stories.open')}
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function kindLabel(
+  kind: TimelineGraphLaidOutNode['kind'],
+  t: (k: string) => string
+): string {
+  if (kind === 'character') return t('timeline.character')
+  if (kind === 'scene') return t('timeline.scene')
+  if (kind === 'prop') return t('timeline.prop')
+  if (kind === 'action') return t('timeline.action')
+  if (kind === 'cinematic') return t('timeline.graph.cinematic')
+  return kind
+}
