@@ -9,6 +9,7 @@ export {
   generationLanguageName,
   hardRuleTags,
   imagePolishDirective,
+  noRefPolishDirective,
   outputLanguageLock,
   packHardRulesFallback,
   packHardRulesInstruction,

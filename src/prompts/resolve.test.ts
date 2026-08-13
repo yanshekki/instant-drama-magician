@@ -29,6 +29,8 @@ describe('resolvePromptContext', () => {
       expect(ctx.pack.hardRulesFallback.character.length).toBeGreaterThan(10)
       expect(ctx.pack.outputLock.length).toBeGreaterThan(20)
       expect(ctx.imagePolishDirective).toBe(ctx.pack.imagePolishDirective)
+      expect(ctx.noRefPolishDirective.length).toBeGreaterThan(20)
+      expect(ctx.noRefPolishDirective).toBe(ctx.pack.noRefPolishDirective)
     }
   })
 

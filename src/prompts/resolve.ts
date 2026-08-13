@@ -34,6 +34,10 @@ export function imagePolishDirective(lang: string | null | undefined): string {
   return selectPromptPack(lang).imagePolishDirective
 }
 
+export function noRefPolishDirective(lang: string | null | undefined): string {
+  return selectPromptPack(lang).noRefPolishDirective
+}
+
 export function videoPolishDirective(lang: string | null | undefined): string {
   return selectPromptPack(lang).videoPolishDirective
 }
@@ -51,6 +55,7 @@ export function resolvePromptContext(
     tags: pack.tags,
     outputLock: pack.outputLock,
     imagePolishDirective: pack.imagePolishDirective,
+    noRefPolishDirective: pack.noRefPolishDirective,
     videoPolishDirective: pack.videoPolishDirective
   }
 }

@@ -14,6 +14,8 @@ export const hiPromptPack: PromptPack = {
     'JSON कुंजियाँ अंग्रेज़ी ही रहें।'
   ].join(' '),
   imagePolishDirective: `एक फ़्रेम के लिए निष्पादन योग्य निर्देशक/तकनीकी प्रॉम्प्ट पूरी तरह हिन्दी में लिखो। HARD RULES हों तो अंत में, केवल ${must} / ${mustNot}।`,
+  noRefPolishDirective:
+    'कोई संदर्भ स्टिल संलग्न नहीं है। केवल पाठ सामग्री से लिखें। वर्कस्पेस, विकिपीडिया, वेब खोज, या संलग्न छवियों से पहचान लॉक का उल्लेख न करें। Ref# लॉक न गढ़ें।',
   videoPolishDirective: `सुधारा हुआ एक ही निर्देशक प्रॉम्प्ट पूरी तरह हिन्दी में लौटाओ। IDENTITY/SPACE/OBJECT लॉक और नियम (${must} / ${mustNot}) रखो।`,
   hardRulesInstruction: [
     'hardRules: अनिवार्य अरिक्त स्ट्रिंग (कुंजी न छोड़ो, null/ऐरे नहीं)।',

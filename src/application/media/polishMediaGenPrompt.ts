@@ -82,7 +82,10 @@ export async function polishMediaGenPrompt(options: {
       messages: [
         {
           role: 'system',
-          content: buildMediaGenPolishSystemPrompt(locale, { mode })
+          content: buildMediaGenPolishSystemPrompt(locale, {
+            mode,
+            hasImages: imagePaths.length > 0
+          })
         },
         { role: 'user', content: userContent }
       ],

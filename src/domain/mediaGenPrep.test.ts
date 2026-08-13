@@ -121,6 +121,54 @@ describe('mediaGenPrep', () => {
     expect(text).toMatch(/Ref#1/)
     expect(text).toMatch(/Ref#2/)
     expect(text).toMatch(/Slash|strip-3|EXACTLY 3/i)
+    expect(text).toMatch(/ground-truth|Lock identity/i)
+    expect(text).not.toMatch(/No reference stills are attached/)
+  })
+
+  it('polish user and system text forbid invented refs when no images', () => {
+    const text = buildMediaGenPolishUserText({
+      kind: 'character-sheet',
+      locale: 'en',
+      includedSections: [
+        {
+          id: 'profile',
+          kind: 'text-profile',
+          title: 'Vladimir Putin',
+          entityType: 'character',
+          text: 'Name: Vladimir Putin',
+          include: true
+        }
+      ]
+    })
+    expect(text).toMatch(/No reference stills are attached/)
+    expect(text).toMatch(/Do not mention a workspace, Wikipedia/)
+    expect(text).not.toMatch(/Attached images are ground-truth/)
+    expect(text).not.toMatch(/Ref#1/)
+
+    const sys0 = buildMediaGenPolishSystemPrompt('en', { hasImages: false })
+    expect(sys0).toMatch(/No reference stills are attached/)
+    expect(sys0).not.toMatch(/attached reference stills/)
+
+    const sys1 = buildMediaGenPolishSystemPrompt('en', { hasImages: true })
+    expect(sys1).toMatch(/attached reference stills/)
+    expect(sys1).not.toMatch(/No reference stills are attached/)
+
+    const zh0 = buildMediaGenPolishUserText({
+      kind: 'character-sheet',
+      locale: 'zh-HK',
+      includedSections: [
+        {
+          id: 'profile',
+          kind: 'text-profile',
+          title: '普京',
+          entityType: 'character',
+          text: '姓名：普京',
+          include: true
+        }
+      ]
+    })
+    expect(zh0).toMatch(/沒有附上參考靜圖/)
+    expect(zh0).not.toMatch(/附圖圖序/)
   })
 
   it('extractPolishedMediaPrompt strips fences', () => {

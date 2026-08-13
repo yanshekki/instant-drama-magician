@@ -14,6 +14,8 @@ export const arPromptPack: PromptPack = {
     'مفاتيح JSON تبقى بالإنجليزية.'
   ].join(' '),
   imagePolishDirective: `أنتج موجّهاً إخراجياً/تقنياً لصورة واحدة بالكامل بالعربية. إن وُجدت HARD RULES فضعها في النهاية بالوسوم ${must} / ${mustNot} فقط.`,
+  noRefPolishDirective:
+    'لا توجد لقطات مرجعية مرفقة. اكتب من المواد النصية فقط. لا تذكر مساحة العمل أو ويكيبيديا أو البحث على الويب أو قفل الهوية على صور مرفقة. لا تخترع أقفال Ref#.',
   videoPolishDirective: `أرجع موجّهاً إخراجياً محسّناً واحداً بالكامل بالعربية. أبقِ أقفال IDENTITY/SPACE/OBJECT والقواعد (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules: سلسلة غير فارغة إلزامية (لا تحذف المفتاح، لا null/مصفوفة).',

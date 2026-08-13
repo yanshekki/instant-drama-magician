@@ -15,6 +15,8 @@ export const zhCnPromptPack: PromptPack = {
     'JSON 对象键名维持英文。'
   ].join(''),
   imagePolishDirective: `产出可执行的单图技术／导演提示词，全文使用简体中文。若有生成铁则置于文末，标签只用 ${must}／${mustNot}。`,
+  noRefPolishDirective:
+    '没有附上参考静图。只根据文字材料撰写。不要提及工作区、维基百科、上网搜索，或把身份锁定到附图。不要虚构 Ref# 锁定。',
   videoPolishDirective: `只回传一条改进后的导演提示词，全文使用简体中文。套用改进；保留 IDENTITY／SPACE／OBJECT 锁定与铁则（${must}／${mustNot}）。`,
   hardRulesInstruction: [
     'hardRules：必填非空字符串（不可缺键、不可 null／数组）。',

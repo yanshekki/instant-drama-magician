@@ -14,6 +14,8 @@ export const esPromptPack: PromptPack = {
     'Las claves JSON siguen en inglés.'
   ].join(' '),
   imagePolishDirective: `Redacta un prompt técnico/de dirección para UNA imagen, entero en español. Si hay HARD RULES, al final, solo con ${must} / ${mustNot}.`,
+  noRefPolishDirective:
+    'No hay stills de referencia adjuntos. Escribe solo a partir de los materiales de texto. No menciones el espacio de trabajo, Wikipedia, búsquedas en la web ni bloquear la identidad a imágenes adjuntas. No inventes bloqueos Ref#.',
   videoPolishDirective: `Devuelve UN solo prompt de dirección mejorado, entero en español. Conserva bloqueos IDENTITY/SPACE/OBJECT y las reglas (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules: cadena NO vacía obligatoria (nunca omitas la clave, nunca null/array).',

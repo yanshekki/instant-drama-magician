@@ -14,6 +14,8 @@ export const frPromptPack: PromptPack = {
     'Les clés JSON restent en anglais.'
   ].join(' '),
   imagePolishDirective: `Produis un prompt technique/de mise en scène pour UNE image, entièrement en français. Si HARD RULES : à la fin, uniquement ${must} / ${mustNot}.`,
+  noRefPolishDirective:
+    "Aucune image de référence n'est jointe. Rédige uniquement à partir des matériaux textuels. Ne mentionne pas l'espace de travail, Wikipédia, une recherche web, ni un verrouillage d'identité sur des images jointes. N'invente pas de verrous Ref#.",
   videoPolishDirective: `Renvoie UN seul prompt de mise en scène amélioré, entièrement en français. Conserve les verrous IDENTITY/SPACE/OBJECT et les règles (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules : chaîne NON vide obligatoire (jamais omettre la clé, jamais null/tableau).',

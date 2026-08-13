@@ -14,6 +14,8 @@ export const zhHkPromptPack: PromptPack = {
     'JSON 物件鍵名維持英文。'
   ].join(''),
   imagePolishDirective: `產出可執行的單圖技術／導演提示詞，全文使用繁體中文。若有生成鐵則置於文末，標籤只用 ${must}／${mustNot}。`,
+  noRefPolishDirective:
+    '沒有附上參考靜圖。只根據文字材料撰寫。不要提及工作區、維基百科、上網搜尋，或把身份鎖定到附圖。不要虛構 Ref# 鎖定。',
   videoPolishDirective: `只回傳一條改進後的導演提示詞，全文使用繁體中文。套用改進；保留 IDENTITY／SPACE／OBJECT 鎖定與鐵則（${must}／${mustNot}）。`,
   hardRulesInstruction: [
     'hardRules：必填非空字串（不可缺鍵、不可 null／陣列）。',

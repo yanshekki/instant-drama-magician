@@ -14,6 +14,8 @@ export const enPromptPack: PromptPack = {
     'JSON object keys stay in English.'
   ].join(' '),
   imagePolishDirective: `Produce an executable single-image director/technical prompt entirely in English. Put HARD RULES at the end if present, using only ${must} / ${mustNot}.`,
+  noRefPolishDirective:
+    'No reference stills are attached. Write from the text materials only. Do not mention a workspace, Wikipedia, searching the web, or locking identity to attached images. Do not invent Ref# locks.',
   videoPolishDirective: `Return ONE improved director prompt only, written entirely in English. Apply the improvement; keep IDENTITY/SPACE/OBJECT locks and HARD RULES (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules: REQUIRED non-empty string (never omit the key, never use null/array).',

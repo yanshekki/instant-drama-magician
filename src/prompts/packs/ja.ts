@@ -14,6 +14,8 @@ export const jaPromptPack: PromptPack = {
     'JSON のキー名は英語のまま。'
   ].join(''),
   imagePolishDirective: `実行可能な一枚絵の演出／技術プロンプトを、全文日本語で書く。HARD RULES があれば末尾に置き、タグは ${must}／${mustNot} のみ。`,
+  noRefPolishDirective:
+    '参照スチールは添付されていません。テキスト資料だけから書いてください。ワークスペース、Wikipedia、ウェブ検索、添付画像への身元固定に言及しないでください。Ref# ロックを捏造しないでください。',
   videoPolishDirective: `改善後の演出プロンプトを一条だけ返す。全文日本語。IDENTITY／SPACE／OBJECT ロックと鉄則（${must}／${mustNot}）を残す。`,
   hardRulesInstruction: [
     'hardRules：必須の非空文字列（キー欠落・null／配列は不可）。',

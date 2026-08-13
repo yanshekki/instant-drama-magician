@@ -21,6 +21,8 @@ export type PromptPack = {
   tags: HardRuleTags
   outputLock: string
   imagePolishDirective: string
+  /** When polish has zero attached stills — forbid invented refs / web search. */
+  noRefPolishDirective: string
   videoPolishDirective: string
   hardRulesInstruction: string
   hardRulesFallback: Record<HardRuleKind, string>
@@ -36,5 +38,6 @@ export type PromptContext = {
   tags: HardRuleTags
   outputLock: string
   imagePolishDirective: string
+  noRefPolishDirective: string
   videoPolishDirective: string
 }
