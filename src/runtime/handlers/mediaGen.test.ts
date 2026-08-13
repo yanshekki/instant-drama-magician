@@ -1935,6 +1935,34 @@ describe('registerMediagenHandlers', () => {
     expect(face.size).toBe('1024x1024')
     expect(charUpdate).toHaveBeenCalled()
   })
+
+  it('generateImage strips leaked polish preamble before calling the image API', async () => {
+    const { h, generateImage } = baseCtx({
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Vladimir Putin',
+            hardRules: null,
+            artStyle: 'photo_cinematic'
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
+          }))
+        }) as never
+    })
+    await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'character-sheet',
+      characterId: 'c1',
+      polishedPrompt:
+        "I'll check the workspace for attached reference stills so the prompt locks identity to those images.Single 16:9 live-action photoreal film-still character bible of Vladimir Putin, one adult male."
+    })
+    expect(generateImage).toHaveBeenCalled()
+    const sent = generateImage.mock.calls[0][0].prompt as string
+    expect(sent).toMatch(/^Single 16:9 live-action photoreal/)
+    expect(sent).not.toMatch(/I'll check|workspace/i)
+  })
 })
 
 

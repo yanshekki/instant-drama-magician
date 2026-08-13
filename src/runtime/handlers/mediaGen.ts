@@ -6,9 +6,10 @@ import { imageSizeForClass } from '../../domain/residualLabels'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import { AppError } from '../../types/errors'
 import type { HandlerContext } from './context'
-import type {
-  MediaGenKind,
-  MediaGenMaterialSection
+import {
+  extractPolishedMediaPrompt,
+  type MediaGenKind,
+  type MediaGenMaterialSection
 } from '../../domain/mediaGenPrep'
 
 type ExtractPayload = {
@@ -1477,7 +1478,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       hardRules?: string | null
       persist?: boolean
     }) => {
-      const promptIn = payload.polishedPrompt?.trim()
+      const promptIn = extractPolishedMediaPrompt(
+        payload.polishedPrompt ?? ''
+      )
       if (!promptIn) {
         throw new AppError('VALIDATION', 'errors.promptRequired')
       }
