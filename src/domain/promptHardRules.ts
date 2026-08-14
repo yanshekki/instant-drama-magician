@@ -152,7 +152,9 @@ export function collectTimelineHardRules(
 ): string | null {
   const labelObjects = opts?.labelObjects !== false
   const speechLock = buildSpeechLanguageLockText({
-    characters: sources.characters ?? [],
+    characters: (sources.characters ?? []).filter(
+      (c): c is NonNullable<typeof c> => c != null
+    ),
     uiLocale: opts?.uiLocale ?? 'zh-HK',
     locale: opts?.uiLocale ?? 'zh-HK'
   })

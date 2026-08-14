@@ -34,7 +34,8 @@
     "src/runtime/**/*",
     "src/cli/**/*",
     "src/lib/**/*",
-    "src/contract/**/*"
+    "src/contract/**/*",
+    "src/prompts/**/*"
   ],
   "exclude": [
     "**/*.test.ts",

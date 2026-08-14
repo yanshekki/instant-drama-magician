@@ -423,7 +423,8 @@ function nodeBody(
             className="!shrink-0 !px-1.5 !py-0.5 !text-[10px]"
             onClick={(e) => {
               e.stopPropagation()
-              handlers.onOpenEntity(node.kind, node.entityId!)
+              const kind = node.kind as 'character' | 'scene' | 'prop' | 'action'
+              handlers.onOpenEntity(kind, node.entityId!)
             }}
           >
             {t('stories.open')}

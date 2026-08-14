@@ -41,19 +41,19 @@ const api: ElectronApi & {
       ipcRenderer.invoke('stories:generateCover', payload),
     commitCover: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('stories:commitCover', payload),
-    seedDemo: (locale?: 'zh-HK' | 'en') =>
+    seedDemo: (locale?: string) =>
       ipcRenderer.invoke('stories:seedDemo', locale),
     aiFillMeta: (payload: {
       storyId?: string
       title?: string
       idea?: string
       existingStyleNote?: string | null
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => ipcRenderer.invoke('stories:aiFillMeta', payload),
     aiFillScript: (payload: {
       storyId: string
       idea?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       replace?: boolean
     }) => ipcRenderer.invoke('stories:aiFillScript', payload),
     linkCharacter: (payload: {
@@ -112,7 +112,7 @@ const api: ElectronApi & {
     aiFill: (payload: {
       idea?: string
       storyId?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       existingDraft?: Record<string, unknown>
       soulContent?: string | null
       referenceImagePath?: string | null
@@ -120,7 +120,7 @@ const api: ElectronApi & {
     }) => ipcRenderer.invoke('characters:aiFill', payload),
     generateSoul: (payload: {
       storyId?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       profile: Record<string, unknown>
       existingSoul?: string | null
       userRequest?: string | null
@@ -137,7 +137,7 @@ const api: ElectronApi & {
       characterId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => ipcRenderer.invoke('characters:generateIntroVideo', payload),
     commitSheet: (payload: {
       characterId: string
@@ -160,7 +160,7 @@ const api: ElectronApi & {
       characterId?: string
       storyId?: string
       segmentKey?: string | null
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       name?: string
       appearance?: string | null
       costume?: string | null
@@ -199,7 +199,7 @@ const api: ElectronApi & {
       sceneId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => ipcRenderer.invoke('scenes:generateIntroVideo', payload),
     commitPlate: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('scenes:commitPlate', payload),
@@ -225,7 +225,7 @@ const api: ElectronApi & {
       propId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => ipcRenderer.invoke('props:generateIntroVideo', payload),
     commitPlate: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('props:commitPlate', payload)
@@ -254,7 +254,7 @@ const api: ElectronApi & {
       actionId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => ipcRenderer.invoke('actions:generateIntroVideo', payload),
     commitPlate: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('actions:commitPlate', payload)
@@ -281,7 +281,7 @@ const api: ElectronApi & {
       ipcRenderer.invoke('costumes:listForCharacter', characterId),
     aiFill: (payload: {
       idea?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       existingDraft?: {
         name?: string | null
         description?: string | null
@@ -306,7 +306,7 @@ const api: ElectronApi & {
       costumeId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => ipcRenderer.invoke('costumes:generateIntroVideo', payload)
   },
   videoPrep: {
