@@ -1,10 +1,13 @@
 import { getArtStyle, isArtStyleId } from '../../../domain/characterArtStyles'
 import { getLlmPresetDef, isLlmProviderPreset } from '../../../domain/openaiCompatible'
-import {
-  imageProviderOptions,
-  videoProviderOptions
-} from '../../../domain/providerEndpoints'
 import type { Scene } from '../../../types/domain'
+
+const CHANNEL_PRESET_KEYS: Record<string, string> = {
+  'same-as-llm': 'sameAsLlm',
+  stub: 'stub',
+  seedance: 'seedance',
+  seedream: 'seedream'
+}
 
 export type StoryCastScene = Scene & { sceneNumber?: number }
 
@@ -63,15 +66,11 @@ export function timelineProviderLabel(
 ): string {
   const raw = id.trim()
   if (!raw) return raw
-  const opt =
-    videoProviderOptions().find((o) => o.id === raw) ||
-    imageProviderOptions().find((o) => o.id === raw)
-  if (opt) {
-    const ns = opt.channelLabel ? 'settings.channelPreset' : 'settings.llmPreset'
-    return t(`${ns}.${opt.labelKey}`)
-  }
+  const channelKey = CHANNEL_PRESET_KEYS[raw]
+  if (channelKey) return t(`settings.channelPreset.${channelKey}`)
   if (isLlmProviderPreset(raw)) {
-    return t(`settings.llmPreset.${getLlmPresetDef(raw).labelKey}`)
+    const def = getLlmPresetDef(raw)
+    if (def) return t(`settings.llmPreset.${def.labelKey}`)
   }
   return raw
 }
