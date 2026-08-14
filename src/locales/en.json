@@ -1611,7 +1611,7 @@
     "videoPollHttpFailed": "Video job poll failed.",
     "videoRateLimit": "Video API rate limited.",
     "videoRateLimitHint": "Wait and retry; lower videoConcurrency if needed.",
-    "videoTimeoutHint": "Increase videoTimeoutSec or check the Gateway job queue.",
+    "videoTimeoutHint": "Raise Video timeout in Settings, or check the Gateway job queue.",
     "videoUnauthorized": "Video API unauthorized.",
     "videoUnauthorizedHint": "Check the API key in Settings.",
     "videoUnavailable": "Video generation is unavailable. Enable Gateway videoApi and use an agent/admin key.",

@@ -888,6 +888,25 @@ export function buildGenericEntityMaterialSections(opts: {
  * Materials for one timeline beat still / clip refine (MediaGen shell).
  * Prefers previous continuity as edit base (same rule as resolveTimelineStillRefs).
  */
+export function timelineBeatTaskHint(opts: {
+  locale?: string | null
+  storyTitle: string
+  beatN: number
+  forVideo?: boolean
+}): string {
+  const zh = (opts.locale || '').toLowerCase().startsWith('zh')
+  const title = opts.storyTitle.trim() || (zh ? '故事' : 'Story')
+  const n = opts.beatN
+  if (opts.forVideo) {
+    return zh
+      ? `故事「${title}」第 ${n} 段：由關鍵幀做短劇圖生影片。有上一段畫面時須連續鎖定。含鏡頭運動與對白表演。`
+      : `Keyframe still then short-drama video for story "${title}" beat #${n}. Continuity-lock previous frame when attached. Include camera motion and dialogue performance.`
+  }
+  return zh
+    ? `故事「${title}」第 ${n} 段短劇關鍵幀靜圖（單一電影感畫面）。有上一段畫面時須連續鎖定。無浮水印。`
+    : `One cinematic short-drama KEYFRAME still for story "${title}" beat #${n}. Continuity-lock previous frame when attached. No watermark.`
+}
+
 export type TimelineBoundEntityRef = {
   id?: string
   name: string
@@ -922,6 +941,7 @@ export function buildTimelineBeatMaterialSections(opts: {
   styleNote?: string | null
   /** Optional video-oriented fallback when kind is timeline-clip. */
   fallbackPrompt?: string | null
+  locale?: string | null
 }): {
   sections: MediaGenMaterialSection[]
   editBaseSectionId: string | null
@@ -1146,9 +1166,13 @@ export function buildTimelineBeatMaterialSections(opts: {
   // Timeline keyframe: library stills are vision refs only. Pixel edit
   // base is the previous beat still (continuity), else generate from scratch.
   const editBaseSectionId = pickDefaultEditBaseSectionId(sections)
-  const taskHint = isVideo
-    ? `Keyframe still then short-drama video for story "${opts.storyTitle}" beat #${beatN}. Continuity-lock previous frame when attached. Include camera motion and dialogue performance.`
-    : `One cinematic short-drama KEYFRAME still for story "${opts.storyTitle}" beat #${beatN}. Continuity-lock previous frame when attached. No watermark.`
+  // First polish is always the keyframe still, even when kind is timeline-clip.
+  const taskHint = timelineBeatTaskHint({
+    locale: opts.locale,
+    storyTitle: opts.storyTitle,
+    beatN,
+    forVideo: false
+  })
 
   const fallbackPrompt =
     (opts.fallbackPrompt && opts.fallbackPrompt.trim()) ||

@@ -1611,7 +1611,7 @@
     "videoPollHttpFailed": "影片工作轮询失败。",
     "videoRateLimit": "影片 API 请求过于频繁。",
     "videoRateLimitHint": "请稍候再试；必要时降低 videoConcurrency。",
-    "videoTimeoutHint": "请提高 videoTimeoutSec，或检查闸道工作伫列。",
+    "videoTimeoutHint": "请到设定提高「影片逾时」，或检查闸道工作伫列。",
     "videoUnauthorized": "影片 API 未授权。",
     "videoUnauthorizedHint": "请在设定检查 API 金钥。",
     "videoUnavailable": "影片生成不可用。请启用 Gateway videoApi，并使用 agent／admin 金钥。",

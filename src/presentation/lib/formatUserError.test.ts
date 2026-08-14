@@ -68,6 +68,18 @@ describe('formatUserError', () => {
     )
   })
 
+  it('does not leak raw timeout seconds as the only detail', () => {
+    expect(formatUserError('errors.videoJobTimedOut — 300', t)).toMatch(
+      /videoJobTimedOut/
+    )
+    expect(formatUserError('errors.videoJobTimedOut — 300', t)).not.toMatch(
+      /— 300/
+    )
+    expect(
+      formatUserError('errors.videoJobTimedOut — errors.videoTimeoutHint', t)
+    ).toBe('T:errors.videoJobTimedOut — T:errors.videoTimeoutHint')
+  })
+
   it('translates both message and details when combined errors.* keys', () => {
     expect(
       formatUserError('errors.networkFailed — errors.aiUnavailable', t)

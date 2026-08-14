@@ -270,7 +270,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
     throw new AppError(
       'VIDEO_TIMEOUT',
       'errors.videoJobTimedOut',
-      String(this.timeoutSec)
+      'errors.videoTimeoutHint'
     )
   }
 

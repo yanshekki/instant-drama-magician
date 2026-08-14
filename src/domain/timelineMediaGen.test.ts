@@ -25,7 +25,7 @@ describe('buildTimelineBeatMaterialSections', () => {
     expect(r.sections.some((s) => s.id === 'beat_profile')).toBe(true)
     expect(r.sections.some((s) => s.id === 'hard_rules')).toBe(true)
     expect(r.fallbackPrompt).toMatch(/Rooftop/)
-    expect(r.taskHint).toMatch(/KEYFRAME|beat #2/i)
+    expect(r.taskHint).toMatch(/KEYFRAME|beat #2|關鍵幀|第 2 段/)
   })
 
   it('does not use character still as pixel base when there is no prev clip', () => {
@@ -43,6 +43,18 @@ describe('buildTimelineBeatMaterialSections', () => {
     expect(r.sections.find((s) => s.id === 'cast_ref')?.canBeEditBase).toBe(
       false
     )
-    expect(r.taskHint).toMatch(/video/i)
+    expect(r.taskHint).toMatch(/KEYFRAME|關鍵幀|第 1 段/)
+  })
+
+  it('writes Chinese task hint when locale is zh-HK', () => {
+    const r = buildTimelineBeatMaterialSections({
+      kind: 'timeline-clip',
+      storyTitle: '受戒下山',
+      displayIndex: 1,
+      locale: 'zh-HK'
+    })
+    expect(r.taskHint).toMatch(/受戒下山/)
+    expect(r.taskHint).toMatch(/關鍵幀|第 1 段/)
+    expect(r.taskHint).not.toMatch(/Keyframe still then/)
   })
 })

@@ -348,6 +348,12 @@ export function formatUserError(
   // details may also be an errors.* key (must translate both sides)
   const split = raw.match(/^(errors\.[a-zA-Z0-9_.]+)\s*[—\-]\s*(.+)$/)
   if (split) {
+    const det = split[2].trim()
+    if (split[1] === 'errors.videoJobTimedOut' && /^\d+$/.test(det)) {
+      const msg = t('errors.videoJobTimedOut', { seconds: Number(det) })
+      const hint = t('errors.videoTimeoutHint')
+      return hint && hint !== 'errors.videoTimeoutHint' ? `${msg} ${hint}` : msg
+    }
     const trMsg = translateErrorToken(split[1], t)
     const trDet = translateErrorToken(split[2], t)
     if (trMsg !== split[1] || trDet !== split[2]) {

@@ -463,13 +463,16 @@ export function MediaGenPrepModal({
     setErrorMessage(null)
     try {
       const included = sections.filter((s) => s.include)
+      const locale = i18n.language
       const keyframeSection: MediaGenMaterialSection = {
         id: 'keyframe_still',
         kind: 'ref-image',
         title: 'Keyframe',
         entityType: 'gallery',
         imagePath: resultPath,
-        text: 'Generated keyframe still — IMAGE-TO-VIDEO must lock identity, wardrobe, set, and framing to this frame. Animate from this exact visual.',
+        text: locale.toLowerCase().startsWith('zh')
+          ? '已生成關鍵幀——圖生影片必須鎖定此畫面的身份、戲服、場景與構圖，由此畫面開始動。'
+          : 'Generated keyframe still — IMAGE-TO-VIDEO must lock identity, wardrobe, set, and framing to this frame. Animate from this exact visual.',
         include: true,
         canBeEditBase: false,
         group: 'refs'
@@ -483,12 +486,18 @@ export function MediaGenPrepModal({
               genOptions.aspectRatio === '16:9'
             ? genOptions.aspectRatio
             : '16:9'
-      const locale = i18n.language
+      const zh = locale.toLowerCase().startsWith('zh')
       const videoFallback = [
         stillPrompt,
-        'IMAGE-TO-VIDEO: animate this keyframe as a short-drama clip.',
-        'Camera motion and performance clear; keep identity and set locked to the keyframe still.',
-        `Duration target: ${seconds}s. Aspect: ${aspect}.`
+        zh
+          ? '圖生影片：以呢張關鍵幀做短劇片段，身份、戲服、場景、構圖須鎖定關鍵幀。'
+          : 'IMAGE-TO-VIDEO: animate this keyframe as a short-drama clip.',
+        zh
+          ? '鏡頭運動與表演清楚；身份與場景鎖定關鍵幀靜圖。'
+          : 'Camera motion and performance clear; keep identity and set locked to the keyframe still.',
+        zh
+          ? `目標時長：${seconds} 秒。畫面比例：${aspect}。`
+          : `Duration target: ${seconds}s. Aspect: ${aspect}.`
       ]
         .filter(Boolean)
         .join('\n')
@@ -510,7 +519,9 @@ export function MediaGenPrepModal({
         kind: request.kind,
         includedSections: [...included, keyframeSection] as never,
         fallbackPrompt: videoFallback,
-        taskHint: `Professional image-to-video prompt from keyframe for ${request.kind}. Camera, performance, pacing; lock to keyframe still.`,
+        taskHint: zh
+          ? `由關鍵幀寫專業圖生影片導演詞（${request.kind}）。含鏡頭、表演、節奏；鎖定關鍵幀靜圖。`
+          : `Professional image-to-video prompt from keyframe for ${request.kind}. Camera, performance, pacing; lock to keyframe still.`,
         hardRules,
         locale,
         mode: 'video',

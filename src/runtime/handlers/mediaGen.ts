@@ -1078,7 +1078,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
             undefined
         ).id,
         durationSeconds: payload.durationSeconds ?? seconds,
-        styleNote: (story as { styleNote?: string | null }).styleNote
+        styleNote: (story as { styleNote?: string | null }).styleNote,
+        locale: payload.locale === 'en' ? 'en' : 'zh-HK'
       })
 
       // This entry's continuity still (for skipStillIfExists keyframe reuse)
