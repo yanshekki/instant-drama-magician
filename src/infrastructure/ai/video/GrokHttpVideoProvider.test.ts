@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   GrokHttpVideoProvider,
-  isUsableVideoBytes
+  extractRemoteVideoUrl,
+  isUsableVideoBytes,
+  sniffImageUpload
 } from './GrokHttpVideoProvider'
 import { writeFileSync, mkdtempSync, readFileSync } from 'fs'
 import { join } from 'path'
@@ -27,6 +29,19 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
       )
     ).toBe(false)
     expect(isUsableVideoBytes(Buffer.alloc(128, 7))).toBe(true)
+  })
+
+  it('sniffs jpeg stills even when the file is named .png', () => {
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46])
+    expect(sniffImageUpload(jpeg, '/media/still.png')).toEqual({
+      mime: 'image/jpeg',
+      filename: 'still.jpg'
+    })
+    expect(
+      extractRemoteVideoUrl(
+        '<a href="https://filebin.net/gctoac-abc/output.mp4">dl</a>'
+      )
+    ).toBe('https://filebin.net/gctoac-abc/output.mp4')
   })
 
   it('create → poll completed → download content', async () => {
@@ -134,6 +149,58 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
       code: 'VALIDATION',
       message: 'errors.videoContentEmpty'
     })
+  })
+
+  it('follows filebin URL when /content is an HTML interstitial', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-fb-'))
+    const out = join(dir, 'clip.mp4')
+    const html = Buffer.from(
+      '<!doctype html><a href="https://filebin.net/bin/output.mp4">Please read</a>'
+    )
+    const real = Buffer.alloc(128, 7)
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.endsWith('/videos')) {
+        return new Response(
+          JSON.stringify({ id: 'job-fb', status: 'queued' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-fb') && !url.includes('/content')) {
+        return new Response(
+          JSON.stringify({ id: 'job-fb', status: 'completed' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-fb/content')) {
+        return new Response(html, {
+          status: 200,
+          headers: { 'content-type': 'text/html' }
+        })
+      }
+      if (url === 'https://filebin.net/bin/output.mp4') {
+        return new Response(real, {
+          status: 200,
+          headers: { 'content-type': 'video/mp4' }
+        })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      pollMs: 1,
+      fetchImpl
+    })
+    const r = await p.generate({
+      prompt: 'x',
+      durationSeconds: 10,
+      outputPath: out
+    })
+    expect(r.outputPath).toBe(out)
+    expect(readFileSync(out).length).toBe(128)
   })
 
   it('snaps long duration to 10 seconds in body', async () => {

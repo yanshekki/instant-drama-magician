@@ -50,6 +50,47 @@ export function isHtmlOrTextContentType(contentType: string | null): boolean {
   )
 }
 
+/** Gateway rejects JPEG bytes uploaded as image/png. Sniff magic instead. */
+export function sniffImageUpload(
+  buf: Buffer,
+  filePath: string
+): { mime: string; filename: string } {
+  const raw = basename(filePath) || 'frame'
+  const stem = raw.replace(/\.[^.]+$/, '') || 'frame'
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return { mime: 'image/jpeg', filename: `${stem}.jpg` }
+  }
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47
+  ) {
+    return { mime: 'image/png', filename: `${stem}.png` }
+  }
+  if (
+    buf.length >= 12 &&
+    buf.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buf.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return { mime: 'image/webp', filename: `${stem}.webp` }
+  }
+  return { mime: 'application/octet-stream', filename: raw }
+}
+
+/** File-share interstitial (filebin etc.) often embeds the real mp4 URL. */
+export function extractRemoteVideoUrl(html: string): string | null {
+  const text = html || ''
+  const hosted =
+    /https?:\/\/[^\s"'<>]+(?:filebin\.net|transfer\.sh|0x0\.st|catbox\.moe|litterbox\.catbox\.moe)[^\s"'<>]*\.(?:mp4|webm)(?:\?[^\s"'<>]*)?/i.exec(
+      text
+    )
+  if (hosted?.[0]) return hosted[0]
+  const any = /https?:\/\/[^\s"'<>]+\.mp4(?:\?[^\s"'<>]*)?/i.exec(text)
+  return any?.[0] ?? null
+}
+
 export interface GrokHttpVideoOptions {
   /** e.g. http://127.0.0.1:3847/v1 */
   baseUrl: string
@@ -266,9 +307,10 @@ export class GrokHttpVideoProvider implements VideoProvider {
   async uploadDocument(filePath: string): Promise<string | null> {
     if (!existsSync(filePath)) return null
     const buf = readFileSync(filePath)
+    const sniffed = sniffImageUpload(buf, filePath)
     const form = new FormData()
-    const blob = new Blob([buf])
-    form.append('file', blob, basename(filePath))
+    const blob = new Blob([new Uint8Array(buf)], { type: sniffed.mime })
+    form.append('file', blob, sniffed.filename)
 
     const res = await this.fetchFn(`${this.baseUrl}/documents`, {
       method: 'POST',
@@ -329,22 +371,21 @@ export class GrokHttpVideoProvider implements VideoProvider {
     if (!res.ok) {
       throw new AppError('AI_FAILED', 'errors.videoContentHttpFailed', String(res.status))
     }
-    if (isHtmlOrTextContentType(res.headers.get('content-type'))) {
-      throw new AppError(
-        'VALIDATION',
-        'errors.videoContentEmpty',
-        'errors.videoContentEmptyHint'
-      )
-    }
     const buf = Buffer.from(await res.arrayBuffer())
-    if (!isUsableVideoBytes(buf)) {
-      throw new AppError(
-        'VALIDATION',
-        'errors.videoContentEmpty',
-        'errors.videoContentEmptyHint'
-      )
+    if (isUsableVideoBytes(buf)) {
+      writeFileSync(dest, buf)
+      return
     }
-    writeFileSync(dest, buf)
+    const remote = extractRemoteVideoUrl(buf.toString('utf8'))
+    if (remote) {
+      await this.downloadTo(remote, dest, { sendAuth: false })
+      if (existsSync(dest) && isUsableVideoBytes(readFileSync(dest))) return
+    }
+    throw new AppError(
+      'VALIDATION',
+      'errors.videoContentEmpty',
+      'errors.videoContentEmptyHint'
+    )
   }
 
   private async legacyGenerate(
@@ -386,9 +427,15 @@ export class GrokHttpVideoProvider implements VideoProvider {
     return { outputPath: request.outputPath }
   }
 
-  private async downloadTo(url: string, dest: string): Promise<void> {
+  private async downloadTo(
+    url: string,
+    dest: string,
+    opts?: { sendAuth?: boolean }
+  ): Promise<void> {
+    const sendAuth = opts?.sendAuth !== false
     const res = await this.fetchFn(url, {
-      headers: this.headers(),
+      headers: sendAuth ? this.headers() : {},
+      redirect: 'follow',
       signal: AbortSignal.timeout(180_000)
     })
     if (!res.ok || !res.body) {
