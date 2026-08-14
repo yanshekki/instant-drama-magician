@@ -24,6 +24,25 @@ function firstProfileName(sections: MediaGenMaterialSection[]): string {
   return sections.find((s) => s.kind === 'text-profile')?.title || 'Subject'
 }
 
+/** Rewrite leftover English beat labels when the UI is Chinese. */
+export function localizeBeatDirectorText(text: string, locale: string): string {
+  const raw = (text || '').trim()
+  if (!raw) return ''
+  if (!(locale || '').toLowerCase().startsWith('zh')) return raw
+  return raw
+    .replace(/^Story:\s*/gim, '故事：')
+    .replace(/^Beat #(\d+)\s*·\s*(\d+)s clip/gim, '第 $1 段 · $2 秒片段')
+    .replace(/^Beat #(\d+)\s*·\s*/gim, '第 $1 段 · ')
+    .replace(/^Style:\s*/gim, '風格：')
+    .replace(/^Cast:\s*/gim, '角色：')
+    .replace(/^Location:\s*/gim, '場景：')
+    .replace(/^Dialogue:\s*/gim, '對白：')
+    .replace(/^Primary character:\s*/gim, '主角色：')
+    .replace(/^Prop:\s*/gim, '道具：')
+    .replace(/^Camera:\s*/gim, '鏡頭：')
+    .replace(/^Mood:\s*/gim, '情緒：')
+}
+
 /** English still/video taskHint leaked into the director box. */
 export function looksLikeEnglishKeyframeTaskHint(text: string): boolean {
   const raw = (text || '').trim()
@@ -48,7 +67,7 @@ export function buildMediaGenVideoDirectorFallback(opts: {
 }): string {
   const zh = (opts.locale || '').toLowerCase().startsWith('zh')
   const still = (opts.stillPrompt || '').trim()
-  const beat = (opts.beatText || '').trim()
+  const beat = localizeBeatDirectorText((opts.beatText || '').trim(), opts.locale)
   const stillOk = still && !looksLikeEnglishKeyframeTaskHint(still) ? still : ''
   if (zh) {
     return [

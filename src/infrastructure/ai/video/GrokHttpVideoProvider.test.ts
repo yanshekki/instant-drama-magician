@@ -1,10 +1,27 @@
 import { describe, expect, it, vi } from 'vitest'
-import { GrokHttpVideoProvider } from './GrokHttpVideoProvider'
+import {
+  GrokHttpVideoProvider,
+  isUsableVideoBytes
+} from './GrokHttpVideoProvider'
 import { writeFileSync, mkdtempSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
 describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
+  it('rejects smoke stubs and stills stored as video', () => {
+    expect(isUsableVideoBytes(Buffer.from('smoke'))).toBe(false)
+    expect(isUsableVideoBytes(Buffer.alloc(8, 0))).toBe(false)
+    expect(
+      isUsableVideoBytes(
+        Buffer.concat([
+          Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+          Buffer.alloc(40, 0x78)
+        ])
+      )
+    ).toBe(false)
+    expect(isUsableVideoBytes(Buffer.alloc(128, 7))).toBe(true)
+  })
+
   it('create → poll completed → download content', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'idm-v1-'))
     const out = join(dir, 'clip.mp4')
@@ -69,6 +86,47 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
     expect(result.jobId).toBe('job-1')
     expect(readFileSync(out).length).toBe(128)
     expect(polls).toBeGreaterThanOrEqual(2)
+  })
+
+  it('rejects smoke stub from /content as empty video', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-smoke-'))
+    const out = join(dir, 'clip.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.endsWith('/videos')) {
+        return new Response(
+          JSON.stringify({ id: 'job-smoke', status: 'queued' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-smoke') && !url.endsWith('/content')) {
+        return new Response(
+          JSON.stringify({ id: 'job-smoke', status: 'completed' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-smoke/content')) {
+        return new Response(Buffer.from('smoke'), {
+          status: 200,
+          headers: { 'content-type': 'video/mp4' }
+        })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      maxRetries: 0,
+      pollMs: 1,
+      fetchImpl
+    })
+    await expect(
+      p.generate({ prompt: 'x', durationSeconds: 10, outputPath: out })
+    ).rejects.toMatchObject({
+      code: 'VALIDATION',
+      message: 'errors.videoContentEmpty'
+    })
   })
 
   it('snaps long duration to 10 seconds in body', async () => {

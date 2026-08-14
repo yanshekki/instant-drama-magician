@@ -88,6 +88,12 @@ describe('formatUserError', () => {
     expect(
       formatUserError('errors.videoJobTimedOut — errors.videoTimeoutHint', t)
     ).toBe('T:errors.videoJobTimedOut — T:errors.videoTimeoutHint')
+    expect(
+      formatUserError(
+        'errors.videoContentEmpty — errors.videoContentEmptyHint',
+        t
+      )
+    ).toBe('T:errors.videoContentEmpty — T:errors.videoContentEmptyHint')
   })
 
   it('translates both message and details when combined errors.* keys', () => {

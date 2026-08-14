@@ -17,6 +17,25 @@ import { AppError, mapHttpStatusToVideoError } from '../../../types/errors'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { isRetryableError, sleep, withRetries } from './httpUtils'
 
+/** Reject empty / smoke stubs / stills that the gateway stored as "video". */
+export function isUsableVideoBytes(buf: Buffer): boolean {
+  if (!buf || buf.length < 32) return false
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return false
+  }
+  if (buf[0] === 0xff && buf[1] === 0xd8) return false
+  const head = buf.subarray(0, Math.min(16, buf.length)).toString('utf8')
+  if (/^\s*[{[]/.test(head)) return false
+  const asText = buf.toString('utf8').trim()
+  if (/^smoke$/i.test(asText)) return false
+  const sample = buf.subarray(0, Math.min(buf.length, 64))
+  const asciiOnly = sample.every(
+    (b) => b === 9 || b === 10 || b === 13 || (b >= 32 && b < 127)
+  )
+  if (asciiOnly && buf.length < 256) return false
+  return true
+}
+
 export interface GrokHttpVideoOptions {
   /** e.g. http://127.0.0.1:3847/v1 */
   baseUrl: string
@@ -284,7 +303,13 @@ export class GrokHttpVideoProvider implements VideoProvider {
       throw new AppError('AI_FAILED', 'errors.videoContentHttpFailed', String(res.status))
     }
     const buf = Buffer.from(await res.arrayBuffer())
-    if (buf.length < 32) throw new AppError('VALIDATION', 'errors.videoContentEmpty')
+    if (!isUsableVideoBytes(buf)) {
+      throw new AppError(
+        'VALIDATION',
+        'errors.videoContentEmpty',
+        'errors.videoContentEmptyHint'
+      )
+    }
     writeFileSync(dest, buf)
   }
 

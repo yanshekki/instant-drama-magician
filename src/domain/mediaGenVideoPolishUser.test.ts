@@ -243,7 +243,11 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
     })
     expect(fb).toMatch(/圖生影片|關鍵幀/)
     expect(fb).toMatch(/受戒下山/)
+    expect(fb).toMatch(/故事：/)
+    expect(fb).toMatch(/第 1 段/)
     expect(fb).not.toMatch(/Keyframe still then/)
+    expect(fb).not.toMatch(/^Story:/m)
+    expect(fb).not.toMatch(/^Beat #1/m)
     expect(fb).toMatch(/10 秒/)
   })
 

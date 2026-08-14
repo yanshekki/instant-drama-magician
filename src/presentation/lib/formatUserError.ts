@@ -152,6 +152,7 @@ const ERROR_KEYS = new Set([
   'errors.videoApiEmptyBody',
   'errors.videoApiMissingJobId',
   'errors.videoContentEmpty',
+  'errors.videoContentEmptyHint',
   'errors.videoContentHttpFailed',
   'errors.videoDownloadFailed',
   'errors.videoFeatureOff',

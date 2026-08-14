@@ -1096,9 +1096,14 @@ export function buildTimelineBeatMaterialSections(opts: {
   const primaryProp = propList[0]?.name || opts.propName || null
   const castNames = charList.map((c) => c.name).filter(Boolean)
 
+  const zh = (opts.locale || '').toLowerCase().startsWith('zh')
   const beatText = [
     opts.beatBlock?.trim() || null,
-    opts.dialogue?.trim() ? `Dialogue: ${opts.dialogue.trim()}` : null
+    opts.dialogue?.trim()
+      ? zh
+        ? `對白：${opts.dialogue.trim()}`
+        : `Dialogue: ${opts.dialogue.trim()}`
+      : null
   ]
     .filter(Boolean)
     .join('\n')
@@ -1106,22 +1111,41 @@ export function buildTimelineBeatMaterialSections(opts: {
   sections.push({
     id: 'beat_profile',
     kind: 'text-profile',
-    title: `Beat #${beatN}`,
+    title: zh ? `第 ${beatN} 段` : `Beat #${beatN}`,
     entityType: 'story',
     text: [
-      `Story: ${opts.storyTitle}`,
-      `Beat #${beatN}${isVideo ? ` · ${opts.durationSeconds || 10}s clip` : ' · keyframe still'}`,
+      zh ? `故事：${opts.storyTitle}` : `Story: ${opts.storyTitle}`,
+      zh
+        ? `第 ${beatN} 段${isVideo ? ` · ${opts.durationSeconds || 10} 秒片段` : ' · 關鍵幀靜圖'}`
+        : `Beat #${beatN}${isVideo ? ` · ${opts.durationSeconds || 10}s clip` : ' · keyframe still'}`,
       opts.styleNote?.trim()
-        ? `Style: ${opts.styleNote.trim().slice(0, 300)}`
+        ? zh
+          ? `風格：${opts.styleNote.trim().slice(0, 300)}`
+          : `Style: ${opts.styleNote.trim().slice(0, 300)}`
         : null,
-      beatText || 'No dialogue — play the visual action of this beat.',
+      beatText ||
+        (zh
+          ? '無對白——演出此段視覺動作。'
+          : 'No dialogue — play the visual action of this beat.'),
       castNames.length > 0
-        ? `Cast: ${castNames.join(', ')}.`
+        ? zh
+          ? `角色：${castNames.join('、')}。`
+          : `Cast: ${castNames.join(', ')}.`
         : primaryChar
-          ? `Primary character: ${primaryChar}`
+          ? zh
+            ? `主角色：${primaryChar}`
+            : `Primary character: ${primaryChar}`
           : null,
-      primaryScene ? `Location: ${primaryScene}` : null,
-      primaryProp ? `Prop: ${primaryProp}` : null
+      primaryScene
+        ? zh
+          ? `場景：${primaryScene}`
+          : `Location: ${primaryScene}`
+        : null,
+      primaryProp
+        ? zh
+          ? `道具：${primaryProp}`
+          : `Prop: ${primaryProp}`
+        : null
     ]
       .filter(Boolean)
       .join('\n'),
@@ -1181,14 +1205,24 @@ export function buildTimelineBeatMaterialSections(opts: {
       opts.continuityLockText?.trim() || null,
       beatText || null,
       castNames.length > 0
-        ? `Character focus: ${castNames.join(', ')}.`
+        ? zh
+          ? `角色焦點：${castNames.join('、')}。`
+          : `Character focus: ${castNames.join(', ')}.`
         : primaryChar
-          ? `Character focus: ${primaryChar}.`
+          ? zh
+            ? `角色焦點：${primaryChar}。`
+            : `Character focus: ${primaryChar}.`
           : null,
-      `Art: ${art.promptBlock || art.id}`,
+      zh
+        ? `美術：${art.promptBlock || art.id}`
+        : `Art: ${art.promptBlock || art.id}`,
       isVideo
-        ? 'Motion: natural performance, clear camera intent, short-drama pacing; no text overlay.'
-        : 'Cinematic short drama; anatomically correct; no text overlay.'
+        ? zh
+          ? '運動：自然表演、鏡頭意圖清楚、短劇節奏；無字幕疊加。'
+          : 'Motion: natural performance, clear camera intent, short-drama pacing; no text overlay.'
+        : zh
+          ? '電影感短劇；解剖正確；無字幕疊加。'
+          : 'Cinematic short drama; anatomically correct; no text overlay.'
     ]
       .filter(Boolean)
       .join('\n')
