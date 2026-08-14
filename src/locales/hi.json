@@ -369,7 +369,7 @@
     "step3": "टाइमलाइन पर उत्पन्न या निर्यात करें (रंग प्लेसहोल्डर का उपयोग गेटवे के बिना किया जाता है)",
     "prototypeNote": "एमवीपी मचान तैयार है; व्यावसायिक स्तर की फ़िल्म गुणवत्ता अभी भी विकासाधीन है।",
     "styleNote": "शैली बाइबिल",
-    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
+    "styleNoteHint": "हर स्थिर चित्र और क्लिप का दृश्य स्वर — रोशनी, कैमरा, ग्रेड, युग।",
     "styleNotePlaceholder": "उदाहरण के लिए, बरसाती नीयन रात, हैंडहेल्ड कैमरा, ठंडा/गर्म कंट्रास्ट...",
     "editorTitle": "कहानी संपादित करें",
     "editorHint": "शीर्षकहीन कहानी",
@@ -970,24 +970,24 @@
       "missingRef": "गायब रेफरी",
       "goCharacter": "खुला चरित्र",
       "storyboardHint": "प्रत्येक कोशिका एक धड़कन है। बैच जेन निरंतरता लॉक के क्रम में चलता है। जब चित्र तैयार हो जाए तो आप सीधे वीडियो पर जा सकते हैं।",
-      "stillReady": "अभी भी तैयार है",
+      "stillReady": "स्थिर चित्र तैयार",
       "stillFromVideo": "वीडियो फ्रेम से",
       "stillStale": "बासी",
-      "stillMissing": "अभी भी नहीं",
-      "stillStaleHint": "संवाद, कलाकार, या दृश्य बदल गया - अभी भी चेकसम बासी है; निरंतरता के लिए पुन: उत्पन्न करें।",
-      "stillMissingHint": "अभी तक कोई स्टोरीबोर्ड नहीं; वीडियो से पहले निरंतरता लॉक करने के लिए उत्पन्न करें।",
-      "stillNeedPrevHint": "पिछली बीट में कोई स्टिल (केवल पाठ) नहीं है। बैच पहले पिछली बीट्स भरेगा।",
-      "stillReadyHint": "अभी भी तैयार है - वीडियो पर जा सकते हैं या अगली बीट लॉक कर सकते हैं।",
+      "stillMissing": "स्थिर चित्र नहीं",
+      "stillStaleHint": "संवाद, कलाकार या दृश्य बदल गया — स्थिर चित्र पुराना है; निरंतरता के लिए फिर से बनाएँ।",
+      "stillMissingHint": "अभी स्टोरीबोर्ड स्थिर चित्र नहीं है; वीडियो से पहले निरंतरता लॉक करने के लिए बनाएँ।",
+      "stillNeedPrevHint": "पिछली बीट में स्थिर चित्र नहीं है (केवल पाठ)। बैच पहले पिछली बीटें भरेगा।",
+      "stillReadyHint": "स्थिर चित्र तैयार — वीडियो पर जाएँ या अगली बीट लॉक करें।",
       "videoNoStillHint": "वीडियो मौजूद है लेकिन अभी भी नहीं है (ऑटो-एक्सट्रैक्ट के लिए उन्नत को पुनः खोलें)",
       "contLocked": "निरंतरता: पिछले पर लॉक किया गया",
       "contText": "निरंतरता: केवल पाठ",
       "contFirst": "निरंतरता: पहली मार",
-      "genStill": "जनरल अभी भी",
-      "regenStill": "अभी भी फिर से जनरेट करें",
-      "refineStill": "अभी भी परिष्कृत करें",
-      "refineStillHint": "सामग्री की तैयारी खोलें: पिछली बीट, कलाकार और दृश्य का चयन करें; प्रॉम्प्ट को पॉलिश करें; फिर एक मुख्य-फ़्रेम तैयार करें.",
-      "refineClip": "वीडियो को परिष्कृत करें",
-      "refineClipHint": "वीडियो तैयारी खोलें: सामग्री → मुख्यफ़्रेम → पुष्टि करें (यह केवल बीट है)।",
+      "genStill": "स्थिर चित्र बनाएँ",
+      "regenStill": "स्थिर चित्र फिर बनाएँ",
+      "refineStill": "स्थिर चित्र निखारें",
+      "refineStillHint": "सामग्री तैयारी खोलें: पिछली बीट, कलाकार और दृश्य चुनें; प्रॉम्प्ट निखारें; फिर कीफ़्रेम बनाएँ।",
+      "refineClip": "वीडियो के लिए निखारें",
+      "refineClipHint": "वीडियो तैयारी खोलें: सामग्री → कीफ़्रेम → पुष्टि (केवल यह बीट)।",
       "removeStill": "निकालना",
       "removeStillHint": "इसे अभी भी हटाएं ताकि आप इसे पुनः उत्पन्न कर सकें",
       "stillRemoved": "फिर भी हटा दिया गया",
@@ -1019,17 +1019,17 @@
       "subtitle": "वही टाइमलाइन, स्टोरीबोर्ड फ़्लो के रूप में (रेफ़, स्टिल, क्लिप)।",
       "useClassic": "ट्रैक दृश्य",
       "useV2": "फ़्लो दृश्य",
-      "cinematic": "Style / continuity",
-      "still": "Storyboard still",
-      "video": "Clip video",
-      "ghostCharacter": "No character bound",
-      "ghostScene": "No scene bound",
+      "cinematic": "शैली / निरंतरता",
+      "still": "स्टोरीबोर्ड स्थिर चित्र",
+      "video": "क्लिप वीडियो",
+      "ghostCharacter": "कोई पात्र नहीं जोड़ा",
+      "ghostScene": "कोई दृश्य नहीं जोड़ा",
       "ghostHint": "स्टोरी संपादक या टाइमलाइन पर कास्ट बाँधें।",
-      "setup": "Generation setup",
-      "setupHint": "Clip length and image / video channels for this studio.",
-      "emptyClip": "Select a clip on the track below.",
-      "zoomReset": "Reset view",
-      "noStyle": "No style bible yet",
+      "setup": "जनरेशन सेटअप",
+      "setupHint": "इस स्टूडियो के लिए क्लिप लंबाई और छवि / वीडियो चैनल।",
+      "emptyClip": "नीचे ट्रैक से एक क्लिप चुनें।",
+      "zoomReset": "दृश्य रीसेट करें",
+      "noStyle": "अभी शैली बाइबल नहीं है",
       "clipN": "क्लिप {{n}}",
       "clipFirst": "पहली क्लिप",
       "clipLinked": "पिछली से जारी",
@@ -1950,7 +1950,7 @@
     },
     "steps": {
       "materials": "सामग्री",
-      "polish": "पोलिश",
+      "polish": "निखारें",
       "generate": "उत्पन्न",
       "result": "परिणाम",
       "keyframe": "मुख्य-फ़्रेम",
@@ -2046,49 +2046,49 @@
     "keyframePromptHint": "कीफ्रेम स्थिर-छवि प्रॉम्प्ट। कीफ्रेम तैयार होने पर वीडियो पॉलिश।"
   },
   "promptTpl": {
-    "title": "Choose how AI should work",
-    "subtitle": "This choice controls inventing a world, locking speech, and identity locks. Nothing hidden is applied unless you pick it.",
-    "remember": "Always use this for this kind of action (change anytime from the arrow)",
-    "confirm": "Use this recipe",
+    "title": "चुनें कि AI कैसे काम करे",
+    "subtitle": "यह चुनाव तय करता है कि संसार गढ़ा जाए या नहीं, संवाद लॉक हो और पहचान लॉक हो। जब तक आप चुनते नहीं, कोई छिपा डिफ़ॉल्ट लागू नहीं होता।",
+    "remember": "इस तरह की क्रिया के लिए आगे भी यही रेसिपी इस्तेमाल करें (तीर से कभी भी बदल सकते हैं)",
+    "confirm": "यह रेसिपी इस्तेमाल करें",
     "polish-only": {
-      "name": "Polish only",
-      "blurb": "Keep identity and world. Improve wording. Do not invent era, weather, job, or speech language. Do not write default hard rules into the file."
+      "name": "केवल परिष्कार",
+      "blurb": "पहचान और संसार बनाए रखें। केवल शब्दावली सुधारें। युग, मौसम, पेशा या संवाद की भाषा न गढ़ें। डिफ़ॉल्ट कड़ी नियम फ़ाइल में न लिखें।"
     },
     "fill-blanks": {
-      "name": "Fill blanks only",
-      "blurb": "Fill empty fields only. Leave filled fields untouched."
+      "name": "केवल खाली भरें",
+      "blurb": "केवल खाली फ़ील्ड भरें। भरी हुई फ़ील्ड न छुएँ।"
     },
     "invent": {
-      "name": "Create freely",
-      "blurb": "You allow the model to invent filmable detail from the idea. Still no Demo world."
+      "name": "स्वतंत्र रचना",
+      "blurb": "मॉडल को विचार से फिल्माए जा सकने वाले विवरण जोड़ने की अनुमति है। डेमो संसार फिर भी न लाएँ।"
     },
     "from-story": {
-      "name": "Suggest from story",
-      "blurb": "Use this story’s title, style, cast, and scenes for continuity. Your idea still wins on conflict."
+      "name": "कहानी से सुझाव",
+      "blurb": "निरंतरता के लिए इस कहानी का शीर्षक, शैली, कलाकार और दृश्य इस्तेमाल करें। टकराव होने पर आपका विचार मान्य रहेगा।"
     },
     "follow-asset": {
-      "name": "Follow asset / story",
-      "blurb": "Use existing style and hard rules. Do not force cinematic look, empty set, or 6–10 seconds."
+      "name": "सामग्री / कहानी का पालन",
+      "blurb": "मौजूदा शैली और कड़े नियम इस्तेमाल करें। सिनेमाई लुक, खाली सेट या 6–10 सेकंड ज़बरदस्ती न लगाएँ।"
     },
     "cinematic-lock": {
-      "name": "Cinematic + anti-glitch",
-      "blurb": "Cinematic short-drama look, empty set, no watermarks or extra faces, two hands/arms/legs."
+      "name": "सिनेमाई + गड़बड़ी रोक",
+      "blurb": "सिनेमाई लघु-नाटक लुक, खाली सेट, वॉटरमार्क या अतिरिक्त चेहरे नहीं, दो हाथ/बाँह/टाँग।"
     },
     "identity-lock": {
-      "name": "Lock identity",
-      "blurb": "Lock face, body, wardrobe, location, and prop to the attached stills."
+      "name": "पहचान लॉक",
+      "blurb": "चेहरा, शरीर, पोशाक, स्थान और प्रॉप संलग्न स्थिर चित्रों पर लॉक करें।"
     },
     "restyle": {
-      "name": "Restyle allowed",
-      "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+      "name": "शैली बदलने की अनुमति",
+      "blurb": "वही व्यक्ति। पोशाक, सेट और युग आपकी माँग पर बदल सकते हैं। कोई और व्यक्ति नहीं।"
     },
     "axis": {
-      "keepWorld": "संसार बचाएँ",
-      "fillGaps": "खाली भरें",
-      "followStory": "कहानी पर",
-      "followAsset": "संपत्ति पर",
-      "lockId": "पहचान ताला",
-      "cinematic": "सिनेमा"
+      "keepWorld": "संसार बनाए रखें",
+      "fillGaps": "खाली जगह भरें",
+      "followStory": "कहानी का पालन",
+      "followAsset": "मौजूदा सामग्री",
+      "lockId": "पहचान लॉक",
+      "cinematic": "सिनेमाई"
     }
   }
 }

@@ -292,10 +292,10 @@
     "hardRulesHint": "قيود \"يجب/لا يجب\" على كل صورة وفيديو من هذا الأصل. أولوية أعلى من المطالبات الأخرى.",
     "hardRulesPh": "[必須] بالضبط يدان وقدمان\n[禁止]أطراف إضافية؛ الأسلاك؛ العلامات المائية. كائنات غير ذات صلة",
     "hardRulesMissingInPrompt": "لا توجد قواعد صارمة في هذه المطالبة. املأ \"生成鐵則」\" في علامة تبويب ملف التعريف واحفظه، ثم أنشئه مرة أخرى.",
-    "galleryPreviewTitle": "Preview: {{label}}",
-    "galleryCheckForGen": "Check for generation",
-    "galleryUncheckForGen": "Uncheck for generation",
-    "galleryViewing": "Preview",
+    "galleryPreviewTitle": "معاينة: {{label}}",
+    "galleryCheckForGen": "تحديد للتوليد",
+    "galleryUncheckForGen": "إلغاء التحديد للتوليد",
+    "galleryViewing": "معاينة",
     "retry": "إعادة المحاولة",
     "copy": "نسخ",
     "nameRequired": "الاسم مطلوب"
@@ -369,7 +369,7 @@
     "step3": "إنشاء أو تصدير على المخطط الزمني (يتم استخدام العناصر النائبة الملونة بدون بوابة)",
     "prototypeNote": "سقالة MVP جاهزة؛ لا تزال جودة الفيلم من الدرجة التجارية قيد التطوير.",
     "styleNote": "نمط الكتاب المقدس",
-    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
+    "styleNoteHint": "النبرة البصرية لكل لقطة ومقطع — الإضاءة والكاميرا والدرجة والعصر.",
     "styleNotePlaceholder": "على سبيل المثال، ليلة نيون ممطرة، كاميرا محمولة، تباين بارد/دافئ...",
     "editorTitle": "تحرير القصة",
     "editorHint": "قصة بلا عنوان",
@@ -427,7 +427,7 @@
     "aiReplaceBeatsConfirm": "سيؤدي هذا إلى استبدال إيقاعات البرنامج النصي الموجودة. يكمل؟",
     "castEmptyActions": "لا توجد إجراءات في المكتبة حتى الآن.",
     "beatActions": "الإجراءات (الحركة)",
-    "saveFirst": "Save the story first."
+    "saveFirst": "احفظ القصة أولًا."
   },
   "characters": {
     "title": "الشخصيات",
@@ -974,20 +974,20 @@
       "stillFromVideo": "من إطار الفيديو",
       "stillStale": "قديمة",
       "stillMissing": "لا يزال",
-      "stillStaleHint": "Dialogue, cast, or scene changed — still checksum is stale; regenerate for continuity.",
-      "stillMissingHint": "No storyboard still yet; generate to lock continuity before video.",
-      "stillNeedPrevHint": "Previous beat has no still (text-only). Batch will fill earlier beats first.",
-      "stillReadyHint": "Still ready — can go to video or lock the next beat.",
+      "stillStaleHint": "تغيّر الحوار أو الطاقم أو المشهد — اللقطة الثابتة قديمة؛ أعد التوليد للحفاظ على الاستمرارية.",
+      "stillMissingHint": "لا توجد لقطة ستوري بورد بعد؛ ولّدها لقفل الاستمرارية قبل الفيديو.",
+      "stillNeedPrevHint": "الإيقاع السابق بلا لقطة ثابتة (نص فقط). الدفعة ستملأ الإيقاعات السابقة أولًا.",
+      "stillReadyHint": "اللقطة جاهزة — يمكن الانتقال إلى الفيديو أو قفل الإيقاع التالي.",
       "videoNoStillHint": "الفيديو موجود ولكن ليس بعد (أعد فتح \"الخيارات المتقدمة\" للاستخراج التلقائي)",
       "contLocked": "الاستمرارية: مقفلة على السابقة",
       "contText": "الاستمرارية: النص فقط",
       "contFirst": "الاستمرارية: الضربة الأولى",
       "genStill": "الجنرال لا يزال",
       "regenStill": "إعادة توليد لا يزال",
-      "refineStill": "Refine still",
-      "refineStillHint": "Open materials prep: select previous beat, cast, and scene; polish the prompt; then generate a keyframe.",
-      "refineClip": "Refine to video",
-      "refineClipHint": "Open video prep: materials → keyframe → confirm (this beat only).",
+      "refineStill": "صقل اللقطة",
+      "refineStillHint": "افتح تجهيز المواد: اختر الإيقاع السابق والطاقم والمشهد؛ اصقل الموجّه؛ ثم ولّد إطارًا مفتاحيًا.",
+      "refineClip": "صقل إلى فيديو",
+      "refineClipHint": "افتح تجهيز الفيديو: مواد → إطار مفتاحي → تأكيد (هذا الإيقاع فقط).",
       "removeStill": "يزيل",
       "removeStillHint": "احذف هذا أيضًا حتى تتمكن من إعادة إنشائه",
       "stillRemoved": "لا تزال إزالتها",
@@ -1026,7 +1026,7 @@
       "ghostScene": "لا مشهد مربوط",
       "ghostHint": "اربط طاقم العمل في محرر القصة أو على الخط الزمني.",
       "setup": "إعداد التوليد",
-      "setupHint": "Clip length and image / video channels for this studio.",
+      "setupHint": "مدة المقطع وقنوات الصورة / الفيديو لهذا الاستوديو.",
       "emptyClip": "اختر مقطعًا من الخط الزمني أدناه.",
       "zoomReset": "إعادة ضبط العرض",
       "noStyle": "لا إنجيل أسلوب بعد",
@@ -1632,7 +1632,7 @@
     "visionImageUnreadableDetail": "لا يزال المظهر الخارجي أو المعرض مفقودًا أو غير قابل للقراءة. أعد استيراد الصورة، ثم حاول تعبئة AI مرة أخرى.",
     "wardrobeCostumeMissing": "الزي مفقود في اقتراح الخزانة.",
     "unsupportedMediaGenKind": "Unsupported media generation kind.",
-    "promptRequired": "A prompt is required."
+    "promptRequired": "يلزم إدخال موجّه."
   },
   "onboarding": {
     "welcome": "مرحبا بكم في InstantDrama الساحر",
@@ -1927,17 +1927,17 @@
   },
   "mediaGen": {
     "title": "توليد الوسائط",
-    "subtitle": "Pick what the AI should read, polish the prompt, then export one image.",
+    "subtitle": "اختر ما يقرأه الذكاء الاصطناعي، واصقل الموجّه، ثم صدّر صورة واحدة.",
     "materialsHint": "Check items to include. Multiple images go to the LLM together as vision references.",
     "useAsEditBase": "Use as edit base (optional)",
     "clearEditBase": "Clear edit base — pure generate",
     "pureGenerateHint": "No edit base: generate a new image after polish (recommended with cast stills).",
     "selectedSummary": "{{sections}} items · {{images}} images for the LLM",
-    "continuePolish": "Next: polish",
+    "continuePolish": "التالي: صقل",
     "backMaterials": "Back to materials",
-    "repolish": "Polish again",
+    "repolish": "صقل مرة أخرى",
     "generate": "توليد",
-    "polishedPrompt": "Polished prompt",
+    "polishedPrompt": "الموجّه المصقول",
     "polishedPromptHint": "English technical prompt for the image model. Edit if needed, then generate one frame.",
     "polishOk": "Polished with {{count}} reference image(s).",
     "polishFallback": "LLM polish failed — using the template. You can still edit before generate.",
@@ -1949,9 +1949,9 @@
       "loadingVideo": "Generating video…"
     },
     "steps": {
-      "materials": "Materials",
-      "polish": "Polish",
-      "generate": "Generate",
+      "materials": "المواد",
+      "polish": "صقل",
+      "generate": "توليد",
       "result": "Result",
       "keyframe": "Keyframe",
       "confirmVideo": "Confirm video",
@@ -1959,7 +1959,7 @@
     },
     "modeTitle": "How should the final image be made?",
     "modeExplain": "Checked images are always sent together to the LLM for polish (multi-image vision). Edit base is a separate optional step for the final export API (one pixel base only).",
-    "modePure": "New generate (recommended)",
+    "modePure": "توليد جديد (مستحسن)",
     "modePureHint": "After polish, create a fresh image. Best when you have character / scene / prop stills.",
     "modeEdit": "Edit from one base still",
     "modeEditHint": "اختياري. تحرير الصورة يقبل صورة أساسية واحدة فقط. اللقطات المحددة الأخرى تُرسل إلى النموذج أثناء التحسين.",
@@ -2046,49 +2046,49 @@
     "keyframePromptHint": "موجه الإطار الرئيسي. يُحسَّن الفيديو بعد جاهزية الإطار."
   },
   "promptTpl": {
-    "title": "Choose how AI should work",
-    "subtitle": "This choice controls inventing a world, locking speech, and identity locks. Nothing hidden is applied unless you pick it.",
-    "remember": "Always use this for this kind of action (change anytime from the arrow)",
-    "confirm": "Use this recipe",
+    "title": "اختر كيف يعمل الذكاء الاصطناعي",
+    "subtitle": "يحدد هذا الاختيار إن كان سيُبتكر عالم، ويُقفل الحوار، وتُقفل الهوية. لا يُطبَّق أي إعداد مخفي ما لم تختره.",
+    "remember": "استخدم هذه الوصفة دائمًا لهذا النوع من الإجراءات (يمكن تغييرها في أي وقت من السهم)",
+    "confirm": "استخدم هذه الوصفة",
     "polish-only": {
-      "name": "Polish only",
-      "blurb": "Keep identity and world. Improve wording. Do not invent era, weather, job, or speech language. Do not write default hard rules into the file."
+      "name": "صقل فقط",
+      "blurb": "حافظ على الهوية والعالم. حسّن الصياغة فقط. لا تخترع الحقبة أو الطقس أو المهنة أو لغة الحوار. لا تكتب القواعد الصارمة الافتراضية في الملف."
     },
     "fill-blanks": {
-      "name": "Fill blanks only",
-      "blurb": "Fill empty fields only. Leave filled fields untouched."
+      "name": "املأ الفراغ فقط",
+      "blurb": "املأ الحقول الفارغة فقط. لا تغيّر ما هو مملوء."
     },
     "invent": {
-      "name": "Create freely",
-      "blurb": "You allow the model to invent filmable detail from the idea. Still no Demo world."
+      "name": "إنشاء بحرية",
+      "blurb": "تسمح للنموذج بإكمال تفاصيل قابلة للتصوير من الفكرة. لا تستورد عالم العرض التجريبي."
     },
     "from-story": {
-      "name": "Suggest from story",
-      "blurb": "Use this story’s title, style, cast, and scenes for continuity. Your idea still wins on conflict."
+      "name": "اقترح من القصة",
+      "blurb": "استخدم عنوان هذه القصة وأسلوبها وطاقمها ومشاهدها للاستمرارية. عند التعارض تبقى فكرتك هي المرجع."
     },
     "follow-asset": {
-      "name": "Follow asset / story",
-      "blurb": "Use existing style and hard rules. Do not force cinematic look, empty set, or 6–10 seconds."
+      "name": "اتبع الأصل / القصة",
+      "blurb": "استخدم الأسلوب والقواعد الحالية. لا تفرض مظهرًا سينمائيًا أو ديكورًا فارغًا أو 6–10 ثوانٍ."
     },
     "cinematic-lock": {
-      "name": "Cinematic + anti-glitch",
-      "blurb": "Cinematic short-drama look, empty set, no watermarks or extra faces, two hands/arms/legs."
+      "name": "سينمائي + منع الأخطاء",
+      "blurb": "مظهر دراما قصيرة سينمائي، ديكور فارغ، بلا علامات مائية أو وجوه زائدة، يدان/ذراعان/ساقان."
     },
     "identity-lock": {
-      "name": "Lock identity",
-      "blurb": "Lock face, body, wardrobe, location, and prop to the attached stills."
+      "name": "قفل الهوية",
+      "blurb": "اقفل الوجه والجسد والملابس والمكان والأداة على الصور المرفقة."
     },
     "restyle": {
-      "name": "Restyle allowed",
-      "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+      "name": "يُسمح بإعادة التصميم",
+      "blurb": "الشخص نفسه. يجوز تغيير الملابس والمكان والحقبة إن طلبت ذلك. ليس شخصًا آخر."
     },
     "axis": {
-      "keepWorld": "احفظ العالم",
-      "fillGaps": "املأ الفراغ",
-      "followStory": "اتبع القصة",
-      "followAsset": "اتبع الأصل",
+      "keepWorld": "الحفاظ على العالم",
+      "fillGaps": "سد الفراغات",
+      "followStory": "اتباع القصة",
+      "followAsset": "اتباع الأصل",
       "lockId": "قفل الهوية",
-      "cinematic": "سينما"
+      "cinematic": "سينمائي"
     }
   }
 }

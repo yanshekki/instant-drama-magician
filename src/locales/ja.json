@@ -292,10 +292,10 @@
     "hardRulesHint": "このアセットのすべての画像とビデオに対する必須/禁止の制約。他のプロンプトよりも優先度が高くなります。",
     "hardRulesPh": "【必須】両手二本足\n【禁止】余分な手足。ワイヤー;透かし;無関係なオブジェクト",
     "hardRulesMissingInPrompt": "このプロンプトには厳密なルールはありません。プロフィールタブに「生成鐵則」を記入して保存し、再度生成します。",
-    "galleryPreviewTitle": "Preview: {{label}}",
-    "galleryCheckForGen": "Check for generation",
-    "galleryUncheckForGen": "Uncheck for generation",
-    "galleryViewing": "Preview",
+    "galleryPreviewTitle": "プレビュー：{{label}}",
+    "galleryCheckForGen": "生成用にチェック",
+    "galleryUncheckForGen": "生成用チェックを外す",
+    "galleryViewing": "プレビュー",
     "retry": "再試行",
     "copy": "コピー",
     "nameRequired": "名前が必要です"
@@ -369,7 +369,7 @@
     "step3": "タイムライン上で生成またはエクスポート (カラー プレースホルダーはゲートウェイなしで使用されます)",
     "prototypeNote": "MVP の足場は準備ができています。商用グレードのフィルム品質はまだ開発中です。",
     "styleNote": "スタイルバイブル",
-    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
+    "styleNoteHint": "各スチルとクリップの視覚トーン — 照明、カメラ、グレーディング、時代。",
     "styleNotePlaceholder": "例: 午後の金光、手持ちカメラ、暖色トーン…",
     "editorTitle": "ストーリーを編集する",
     "editorHint": "題名のない物語",
@@ -427,7 +427,7 @@
     "aiReplaceBeatsConfirm": "これにより、既存のスクリプト ビートが置き換えられます。続く？",
     "castEmptyActions": "ライブラリにはまだアクションがありません。",
     "beatActions": "アクション（動作）",
-    "saveFirst": "Save the story first."
+    "saveFirst": "先に物語を保存してください。"
   },
   "characters": {
     "title": "キャラクター",
@@ -974,10 +974,10 @@
       "stillFromVideo": "ビデオフレームから",
       "stillStale": "古い",
       "stillMissing": "いや、まだ",
-      "stillStaleHint": "Dialogue, cast, or scene changed — still checksum is stale; regenerate for continuity.",
-      "stillMissingHint": "No storyboard still yet; generate to lock continuity before video.",
-      "stillNeedPrevHint": "Previous beat has no still (text-only). Batch will fill earlier beats first.",
-      "stillReadyHint": "Still ready — can go to video or lock the next beat.",
+      "stillStaleHint": "台詞・キャスト・場面が変わったため、静止画のチェックサムが古いです。連続性のため再生成してください。",
+      "stillMissingHint": "絵コンテ静止画がまだありません。動画の前に連続性をロックするため生成してください。",
+      "stillNeedPrevHint": "前のビートに静止画がありません（テキストのみ）。バッチは先に前のビートを埋めます。",
+      "stillReadyHint": "静止画の準備完了 — 動画へ進むか、次のビートをロックできます。",
       "videoNoStillHint": "ビデオは存在しますが、静止画はまだありません ([詳細設定] を再度開いて自動抽出します)",
       "contLocked": "継続性: 以前にロックされています",
       "contText": "継続性: テキストのみ",
@@ -985,9 +985,9 @@
       "genStill": "まだゲン",
       "regenStill": "リジェネまだ",
       "refineStill": "静止画を精修",
-      "refineStillHint": "Open materials prep: select previous beat, cast, and scene; polish the prompt; then generate a keyframe.",
+      "refineStillHint": "素材準備を開く：前のビート・キャスト・場面を選び、プロンプトを磨き、キーフレームを生成します。",
       "refineClip": "クリップを精修",
-      "refineClipHint": "Open video prep: materials → keyframe → confirm (this beat only).",
+      "refineClipHint": "動画準備を開く：素材 → キーフレーム → 確認（このビートのみ）。",
       "removeStill": "取り除く",
       "removeStillHint": "再生成できるようにこれを削除してください",
       "stillRemoved": "まだ削除されています",
@@ -1632,7 +1632,7 @@
     "visionImageUnreadableDetail": "外部またはギャラリーがまだ見つからないか、読み取ることができません。画像を再インポートしてから、AI 塗りつぶしを再試行します。",
     "wardrobeCostumeMissing": "ワードローブ提案に衣装がありません。",
     "unsupportedMediaGenKind": "Unsupported media generation kind.",
-    "promptRequired": "A prompt is required."
+    "promptRequired": "プロンプトが必要です。"
   },
   "onboarding": {
     "welcome": "インスタントドラママジシャンへようこそ",
@@ -1927,15 +1927,15 @@
   },
   "mediaGen": {
     "title": "メディア生成",
-    "subtitle": "資料を選び、プロンプトを磨き、生成する。",
+    "subtitle": "AI に読ませる材料を選び、プロンプトを磨き、画像を1枚書き出します。",
     "materialsHint": "Check items to include. Multiple images go to the LLM together as vision references.",
     "useAsEditBase": "Use as edit base (optional)",
     "clearEditBase": "Clear edit base — pure generate",
     "pureGenerateHint": "No edit base: generate a new image after polish (recommended with cast stills).",
     "selectedSummary": "{{sections}} items · {{images}} images for the LLM",
-    "continuePolish": "Next: polish",
+    "continuePolish": "次へ：磨く",
     "backMaterials": "Back to materials",
-    "repolish": "Polish again",
+    "repolish": "もう一度磨く",
     "generate": "生成",
     "polishedPrompt": "磨いたプロンプト",
     "polishedPromptHint": "English technical prompt for the image model. Edit if needed, then generate one frame.",
@@ -1949,9 +1949,9 @@
       "loadingVideo": "Generating video…"
     },
     "steps": {
-      "materials": "Materials",
-      "polish": "Polish",
-      "generate": "Generate",
+      "materials": "素材",
+      "polish": "磨く",
+      "generate": "生成",
       "result": "Result",
       "keyframe": "Keyframe",
       "confirmVideo": "Confirm video",
@@ -1959,7 +1959,7 @@
     },
     "modeTitle": "How should the final image be made?",
     "modeExplain": "Checked images are always sent together to the LLM for polish (multi-image vision). Edit base is a separate optional step for the final export API (one pixel base only).",
-    "modePure": "New generate (recommended)",
+    "modePure": "新規生成（推奨）",
     "modePureHint": "After polish, create a fresh image. Best when you have character / scene / prop stills.",
     "modeEdit": "Edit from one base still",
     "modeEditHint": "任意。画像編集の画素ベースは1枚だけです。他のチェック済み静止画は最適化時にLLMへ渡されます。",
@@ -2060,7 +2060,7 @@
     },
     "invent": {
       "name": "自由に作る",
-      "blurb": "構想から撮れる细节を補ってよい。Demo世界は持ち込むな。"
+      "blurb": "構想から撮れるディテールを補ってよい。Demo世界は持ち込むな。"
     },
     "from-story": {
       "name": "物語から提案",

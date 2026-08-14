@@ -292,10 +292,10 @@
     "hardRulesHint": "Restrições obrigatórias/não obrigatórias para cada imagem e vídeo deste ativo. Prioridade mais alta do que outros prompts.",
     "hardRulesPh": "【必須】 exatamente duas mãos, dois pés\n【禁止】membros extras; fios; marcas d'água; objetos não relacionados",
     "hardRulesMissingInPrompt": "Não há regras rígidas neste prompt. Preencha「生成鐵則」na guia do perfil, salve e gere novamente.",
-    "galleryPreviewTitle": "Preview: {{label}}",
-    "galleryCheckForGen": "Check for generation",
-    "galleryUncheckForGen": "Uncheck for generation",
-    "galleryViewing": "Preview",
+    "galleryPreviewTitle": "Pré-visualização: {{label}}",
+    "galleryCheckForGen": "Marcar para gerar",
+    "galleryUncheckForGen": "Desmarcar para gerar",
+    "galleryViewing": "Pré-visualização",
     "retry": "Tentar de novo",
     "copy": "Copiar",
     "nameRequired": "O nome é obrigatório"
@@ -369,7 +369,7 @@
     "step3": "Gere ou exporte na linha do tempo (espaços reservados coloridos são usados ​​sem gateway)",
     "prototypeNote": "A estrutura do MVP está pronta; a qualidade do filme de nível comercial ainda está em desenvolvimento.",
     "styleNote": "Bíblia de estilo",
-    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
+    "styleNoteHint": "Tom visual de cada still e clipe — luz, câmera, correção de cor, época.",
     "styleNotePlaceholder": "por exemplo, luz dourada da tarde, câmera na mão, tom quente…",
     "editorTitle": "Editar história",
     "editorHint": "História sem título",
@@ -427,7 +427,7 @@
     "aiReplaceBeatsConfirm": "Isso substituirá as batidas de script existentes. Continuar?",
     "castEmptyActions": "Nenhuma ação na biblioteca ainda.",
     "beatActions": "Ações (movimento)",
-    "saveFirst": "Save the story first."
+    "saveFirst": "Salve a história primeiro."
   },
   "characters": {
     "title": "Personagens",
@@ -974,20 +974,20 @@
       "stillFromVideo": "Do quadro de vídeo",
       "stillStale": "Obsoleto",
       "stillMissing": "Ainda não",
-      "stillStaleHint": "Dialogue, cast, or scene changed — still checksum is stale; regenerate for continuity.",
-      "stillMissingHint": "No storyboard still yet; generate to lock continuity before video.",
-      "stillNeedPrevHint": "Previous beat has no still (text-only). Batch will fill earlier beats first.",
-      "stillReadyHint": "Still ready — can go to video or lock the next beat.",
+      "stillStaleHint": "Diálogo, elenco ou cena mudou — o still está desatualizado; gere de novo para continuidade.",
+      "stillMissingHint": "Ainda sem still do storyboard; gere para travar a continuidade antes do vídeo.",
+      "stillNeedPrevHint": "O beat anterior não tem still (só texto). O lote preenche os beats anteriores primeiro.",
+      "stillReadyHint": "Still pronto — pode ir ao vídeo ou travar o próximo beat.",
       "videoNoStillHint": "O vídeo existe, mas ainda não (reabra Avançado para extrair automaticamente)",
       "contLocked": "Continuidade: bloqueado para anterior",
       "contText": "Continuidade: somente texto",
       "contFirst": "Continuidade: primeira batida",
       "genStill": "Gen ainda",
       "regenStill": "Regenerar ainda",
-      "refineStill": "Refine still",
-      "refineStillHint": "Open materials prep: select previous beat, cast, and scene; polish the prompt; then generate a keyframe.",
-      "refineClip": "Refine to video",
-      "refineClipHint": "Open video prep: materials → keyframe → confirm (this beat only).",
+      "refineStill": "Refinar still",
+      "refineStillHint": "Abra a preparação de materiais: escolha o beat anterior, o elenco e a cena; polir o prompt; depois gere um keyframe.",
+      "refineClip": "Refinar para vídeo",
+      "refineClipHint": "Abra a preparação de vídeo: materiais → keyframe → confirmar (só este beat).",
       "removeStill": "Remover",
       "removeStillHint": "Exclua isso ainda para que você possa gerá-lo novamente",
       "stillRemoved": "Ainda removido",
@@ -1015,7 +1015,7 @@
     "castEmptyActions": "Nenhuma ação vinculada a esta história. Abra o editor de história → Elenco → Ações.",
     "mergedHardRulesHint": "Mesclado desta história + personagens/cenas/adereços/ações vinculados. Aplicado com prioridade mais alta na geração do clipe (a revisão não pode cancelá-los).",
     "graph": {
-      "title": "Timeline",
+      "title": "Linha do tempo",
       "subtitle": "A mesma timeline, em fluxo de storyboard (refs, stills e clips).",
       "useClassic": "Visão trilha",
       "useV2": "Visão fluxo",
@@ -1026,7 +1026,7 @@
       "ghostScene": "Nenhuma cena ligada",
       "ghostHint": "Vincule o elenco no editor da história ou na timeline.",
       "setup": "Configuração de geração",
-      "setupHint": "Clip length and image / video channels for this studio.",
+      "setupHint": "Duração do clipe e canais de imagem / vídeo deste estúdio.",
       "emptyClip": "Selecione um clipe na trilha abaixo.",
       "zoomReset": "Redefinir visão",
       "noStyle": "Ainda sem bíblia de estilo",
@@ -1632,7 +1632,7 @@
     "visionImageUnreadableDetail": "A galeria externa ou ainda está faltando ou ilegível. Importe novamente a imagem e tente o preenchimento AI novamente.",
     "wardrobeCostumeMissing": "Falta el traje en la sugerencia de vestuario.",
     "unsupportedMediaGenKind": "Unsupported media generation kind.",
-    "promptRequired": "A prompt is required."
+    "promptRequired": "É necessário um prompt."
   },
   "onboarding": {
     "welcome": "Bem-vindo ao InstantDrama Magician",
@@ -1927,17 +1927,17 @@
   },
   "mediaGen": {
     "title": "Geração de mídia",
-    "subtitle": "Pick what the AI should read, polish the prompt, then export one image.",
+    "subtitle": "Escolha o que a IA deve ler, polir o prompt e exportar uma imagem.",
     "materialsHint": "Check items to include. Multiple images go to the LLM together as vision references.",
     "useAsEditBase": "Use as edit base (optional)",
     "clearEditBase": "Clear edit base — pure generate",
     "pureGenerateHint": "No edit base: generate a new image after polish (recommended with cast stills).",
     "selectedSummary": "{{sections}} items · {{images}} images for the LLM",
-    "continuePolish": "Next: polish",
+    "continuePolish": "Próximo: polir",
     "backMaterials": "Back to materials",
-    "repolish": "Polish again",
+    "repolish": "Polir de novo",
     "generate": "Gerar",
-    "polishedPrompt": "Polished prompt",
+    "polishedPrompt": "Prompt polido",
     "polishedPromptHint": "English technical prompt for the image model. Edit if needed, then generate one frame.",
     "polishOk": "Polished with {{count}} reference image(s).",
     "polishFallback": "LLM polish failed — using the template. You can still edit before generate.",
@@ -1949,9 +1949,9 @@
       "loadingVideo": "Generating video…"
     },
     "steps": {
-      "materials": "Materials",
-      "polish": "Polish",
-      "generate": "Generate",
+      "materials": "Materiais",
+      "polish": "Polir",
+      "generate": "Gerar",
       "result": "Result",
       "keyframe": "Keyframe",
       "confirmVideo": "Confirm video",
@@ -1959,7 +1959,7 @@
     },
     "modeTitle": "How should the final image be made?",
     "modeExplain": "Checked images are always sent together to the LLM for polish (multi-image vision). Edit base is a separate optional step for the final export API (one pixel base only).",
-    "modePure": "New generate (recommended)",
+    "modePure": "Gerar novo (recomendado)",
     "modePureHint": "After polish, create a fresh image. Best when you have character / scene / prop stills.",
     "modeEdit": "Edit from one base still",
     "modeEditHint": "Opcional. A edição de imagem aceita só um still de base. Os outros stills marcados ainda vão ao LLM na etapa de polimento.",
@@ -2046,49 +2046,49 @@
     "keyframePromptHint": "Prompt do frame-chave (direção de imagem). O polish de vídeo roda após o frame-chave."
   },
   "promptTpl": {
-    "title": "Choose how AI should work",
-    "subtitle": "This choice controls inventing a world, locking speech, and identity locks. Nothing hidden is applied unless you pick it.",
-    "remember": "Always use this for this kind of action (change anytime from the arrow)",
-    "confirm": "Use this recipe",
+    "title": "Escolha como a IA deve trabalhar",
+    "subtitle": "Esta escolha controla inventar um mundo, travar a fala e travar a identidade. Nada oculto é aplicado se você não escolher.",
+    "remember": "Sempre usar esta receita neste tipo de ação (mude quando quiser pela seta)",
+    "confirm": "Usar esta receita",
     "polish-only": {
-      "name": "Polish only",
-      "blurb": "Keep identity and world. Improve wording. Do not invent era, weather, job, or speech language. Do not write default hard rules into the file."
+      "name": "Só polir",
+      "blurb": "Mantenha identidade e mundo. Melhore a redação. Não invente época, clima, profissão nem idioma da fala. Não grave regras rígidas padrão no arquivo."
     },
     "fill-blanks": {
-      "name": "Fill blanks only",
-      "blurb": "Fill empty fields only. Leave filled fields untouched."
+      "name": "Só preencher vazios",
+      "blurb": "Preencha só os campos vazios. Não altere o que já está preenchido."
     },
     "invent": {
-      "name": "Create freely",
-      "blurb": "You allow the model to invent filmable detail from the idea. Still no Demo world."
+      "name": "Criar livremente",
+      "blurb": "Você autoriza o modelo a completar detalhes filmáveis a partir da ideia. Continua sem trazer o mundo Demo."
     },
     "from-story": {
-      "name": "Suggest from story",
-      "blurb": "Use this story’s title, style, cast, and scenes for continuity. Your idea still wins on conflict."
+      "name": "Sugerir a partir da história",
+      "blurb": "Use o título, o estilo, o elenco e as cenas desta história para continuidade. Em conflito, vale a sua ideia."
     },
     "follow-asset": {
-      "name": "Follow asset / story",
-      "blurb": "Use existing style and hard rules. Do not force cinematic look, empty set, or 6–10 seconds."
+      "name": "Seguir recurso / história",
+      "blurb": "Use o estilo e as regras já existentes. Não imponha visual cinematográfico, cenário vazio nem 6–10 segundos."
     },
     "cinematic-lock": {
-      "name": "Cinematic + anti-glitch",
-      "blurb": "Cinematic short-drama look, empty set, no watermarks or extra faces, two hands/arms/legs."
+      "name": "Cinema + anti-falha",
+      "blurb": "Visual de curta cinematográfica, cenário vazio, sem marcas d’água nem rostos extras, duas mãos/braços/pernas."
     },
     "identity-lock": {
-      "name": "Lock identity",
-      "blurb": "Lock face, body, wardrobe, location, and prop to the attached stills."
+      "name": "Travar identidade",
+      "blurb": "Trave rosto, corpo, figurino, local e objeto nas imagens anexas."
     },
     "restyle": {
-      "name": "Restyle allowed",
-      "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+      "name": "Restilizar permitido",
+      "blurb": "A mesma pessoa. Figurino, cenário e época podem mudar se você pediu. Não é outra pessoa."
     },
     "axis": {
-      "keepWorld": "Guardar mundo",
-      "fillGaps": "Preencher",
-      "followStory": "Seguir história",
-      "followAsset": "Seguir ativo",
-      "lockId": "Travar ID",
-      "cinematic": "Cinema"
+      "keepWorld": "Manter o mundo",
+      "fillGaps": "Preencher lacunas",
+      "followStory": "Seguir a história",
+      "followAsset": "Seguir o recurso",
+      "lockId": "Travar identidade",
+      "cinematic": "Cinematográfico"
     }
   }
 }

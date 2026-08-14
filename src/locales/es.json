@@ -295,7 +295,7 @@
     "galleryPreviewTitle": "Vista previa: {{label}}",
     "galleryCheckForGen": "Verificar generación",
     "galleryUncheckForGen": "Desmarcar para generación",
-    "galleryViewing": "Avance",
+    "galleryViewing": "Vista previa",
     "retry": "Rever",
     "copy": "Copiar",
     "nameRequired": "El nombre es obligatorio."
@@ -369,7 +369,7 @@
     "step3": "Generar o exportar en la línea de tiempo (los marcadores de posición de color se utilizan sin puerta de enlace)",
     "prototypeNote": "El andamio del MVP está listo; La calidad de la película de calidad comercial aún está en desarrollo.",
     "styleNote": "Biblia de estilo",
-    "styleNoteHint": "Visual tone for every still and clip — lighting, camera, grade, era.",
+    "styleNoteHint": "Tono visual de cada fotograma y clip: luz, cámara, etalonaje, época.",
     "styleNotePlaceholder": "por ejemplo, luz dorada de tarde, cámara en mano, tono cálido…",
     "editorTitle": "Editar historia",
     "editorHint": "Historia sin título",
@@ -970,24 +970,24 @@
       "missingRef": "árbitro faltante",
       "goCharacter": "Carácter abierto",
       "storyboardHint": "Cada celda es un latido. La generación por lotes se ejecuta en orden con bloqueo de continuidad. Cuando una imagen esté lista, puedes ir directamente al vídeo.",
-      "stillReady": "Todavía listo",
+      "stillReady": "Fotograma listo",
       "stillFromVideo": "Desde fotograma de vídeo",
       "stillStale": "Duro",
-      "stillMissing": "No todavía",
-      "stillStaleHint": "El diálogo, el reparto o la escena cambiaron; la suma de verificación aún está obsoleta; regenerarse para la continuidad.",
-      "stillMissingHint": "Aún no hay guión gráfico; generar para bloquear la continuidad antes del video.",
-      "stillNeedPrevHint": "El ritmo anterior no tiene imagen fija (solo texto). El lote llenará primero los tiempos anteriores.",
-      "stillReadyHint": "Aún está listo: puede ir al video o bloquear el siguiente ritmo.",
+      "stillMissing": "Sin fotograma",
+      "stillStaleHint": "Cambió el diálogo, el elenco o la escena: el fotograma está desfasado; regenera para mantener la continuidad.",
+      "stillMissingHint": "Aún no hay fotograma de storyboard; genéralo para bloquear la continuidad antes del vídeo.",
+      "stillNeedPrevHint": "El beat anterior no tiene fotograma (solo texto). El lote rellenará primero los beats previos.",
+      "stillReadyHint": "Fotograma listo: puedes pasar a vídeo o bloquear el siguiente beat.",
       "videoNoStillHint": "El video existe pero todavía no (vuelve a abrir Avanzado para extraerlo automáticamente)",
       "contLocked": "Continuidad: bloqueado al anterior",
       "contText": "Continuidad: solo texto",
       "contFirst": "Continuidad: primer tiempo",
-      "genStill": "generación todavía",
-      "regenStill": "Regeneración todavía",
-      "refineStill": "refinar todavía",
-      "refineStillHint": "Preparación de materiales abiertos: seleccione el ritmo, el reparto y la escena anteriores; pulir el mensaje; luego genere un fotograma clave.",
+      "genStill": "Generar fotograma",
+      "regenStill": "Regenerar fotograma",
+      "refineStill": "Refinar fotograma",
+      "refineStillHint": "Abre la preparación de materiales: elige el beat anterior, el elenco y la escena; pule el prompt; luego genera un fotograma clave.",
       "refineClip": "Refinar a vídeo",
-      "refineClipHint": "Abra la preparación del video: materiales → fotograma clave → confirmar (solo este ritmo).",
+      "refineClipHint": "Abre la preparación de vídeo: materiales → fotograma clave → confirmar (solo este beat).",
       "removeStill": "Eliminar",
       "removeStillHint": "Elimina esto todavía para poder volver a generarlo.",
       "stillRemoved": "Aún eliminado",
@@ -1019,17 +1019,17 @@
       "subtitle": "La misma línea de tiempo, como flujo de storyboard (refs, stills y clips).",
       "useClassic": "Vista pista",
       "useV2": "Vista flujo",
-      "cinematic": "Style / continuity",
-      "still": "Storyboard still",
-      "video": "Clip video",
-      "ghostCharacter": "No character bound",
-      "ghostScene": "No scene bound",
+      "cinematic": "Estilo / continuidad",
+      "still": "Fotograma del storyboard",
+      "video": "Vídeo del clip",
+      "ghostCharacter": "Sin personaje vinculado",
+      "ghostScene": "Sin escena vinculada",
       "ghostHint": "Vincula el elenco en el editor o en la línea de tiempo.",
-      "setup": "Generation setup",
-      "setupHint": "Clip length and image / video channels for this studio.",
-      "emptyClip": "Select a clip on the track below.",
-      "zoomReset": "Reset view",
-      "noStyle": "No style bible yet",
+      "setup": "Ajustes de generación",
+      "setupHint": "Duración del clip y canales de imagen / vídeo de este estudio.",
+      "emptyClip": "Selecciona un clip en la pista de abajo.",
+      "zoomReset": "Restablecer vista",
+      "noStyle": "Aún no hay biblia de estilo",
       "clipN": "Clip {{n}}",
       "clipFirst": "Primer clip",
       "clipLinked": "Continúa el anterior",
@@ -1933,9 +1933,9 @@
     "clearEditBase": "Borrar base de edición: generación pura",
     "pureGenerateHint": "Sin base de edición: genere una nueva imagen después del pulido (recomendado con imágenes fijas).",
     "selectedSummary": "{{sections}} elementos · {{images}} imágenes para el LLM",
-    "continuePolish": "Siguiente: polaco",
+    "continuePolish": "Siguiente: pulir",
     "backMaterials": "Volver a materiales",
-    "repolish": "polaco de nuevo",
+    "repolish": "Pulir de nuevo",
     "generate": "Generar imagen",
     "polishedPrompt": "Mensaje pulido",
     "polishedPromptHint": "Aviso técnico en inglés para el modelo de imagen. Edite si es necesario y luego genere un cuadro.",
@@ -1950,7 +1950,7 @@
     },
     "steps": {
       "materials": "Materiales",
-      "polish": "Polaco",
+      "polish": "Pulir",
       "generate": "Generar",
       "result": "Resultado",
       "keyframe": "Fotograma clave",
@@ -2046,49 +2046,49 @@
     "keyframePromptHint": "Prompt de fotograma clave (dirección de imagen). El polish de vídeo sigue cuando el fotograma esté listo."
   },
   "promptTpl": {
-    "title": "Choose how AI should work",
-    "subtitle": "This choice controls inventing a world, locking speech, and identity locks. Nothing hidden is applied unless you pick it.",
-    "remember": "Always use this for this kind of action (change anytime from the arrow)",
-    "confirm": "Use this recipe",
+    "title": "Elige cómo debe trabajar la IA",
+    "subtitle": "Esta elección controla si se inventa un mundo, se bloquea el diálogo y se bloquea la identidad. No se aplica nada oculto si no lo eliges.",
+    "remember": "Usar siempre esta receta para este tipo de acción (cámbiala cuando quieras con la flecha)",
+    "confirm": "Usar esta receta",
     "polish-only": {
-      "name": "Polish only",
-      "blurb": "Keep identity and world. Improve wording. Do not invent era, weather, job, or speech language. Do not write default hard rules into the file."
+      "name": "Solo pulir",
+      "blurb": "Conserva identidad y mundo. Mejora el redactado. No inventes época, clima, oficio ni idioma del diálogo. No escribas reglas fijas por defecto en el archivo."
     },
     "fill-blanks": {
-      "name": "Fill blanks only",
-      "blurb": "Fill empty fields only. Leave filled fields untouched."
+      "name": "Solo rellenar vacíos",
+      "blurb": "Rellena solo los campos vacíos. No toques lo que ya está escrito."
     },
     "invent": {
-      "name": "Create freely",
-      "blurb": "You allow the model to invent filmable detail from the idea. Still no Demo world."
+      "name": "Crear con libertad",
+      "blurb": "Autorizas al modelo a completar detalles filmables a partir de la idea. Sigue sin introducir el mundo Demo."
     },
     "from-story": {
-      "name": "Suggest from story",
-      "blurb": "Use this story’s title, style, cast, and scenes for continuity. Your idea still wins on conflict."
+      "name": "Sugerir desde la historia",
+      "blurb": "Usa el título, el estilo, el elenco y las escenas de esta historia para la continuidad. Si hay conflicto, manda tu idea."
     },
     "follow-asset": {
-      "name": "Follow asset / story",
-      "blurb": "Use existing style and hard rules. Do not force cinematic look, empty set, or 6–10 seconds."
+      "name": "Seguir recurso / historia",
+      "blurb": "Usa el estilo y las reglas ya existentes. No impongas look cinematográfico, decorado vacío ni 6–10 segundos."
     },
     "cinematic-lock": {
-      "name": "Cinematic + anti-glitch",
-      "blurb": "Cinematic short-drama look, empty set, no watermarks or extra faces, two hands/arms/legs."
+      "name": "Cine + anti-fallo",
+      "blurb": "Look de corto cinematográfico, decorado vacío, sin marcas de agua ni caras de más, dos manos/brazos/piernas."
     },
     "identity-lock": {
-      "name": "Lock identity",
-      "blurb": "Lock face, body, wardrobe, location, and prop to the attached stills."
+      "name": "Bloquear identidad",
+      "blurb": "Bloquea cara, cuerpo, vestuario, lugar y atrezo según las imágenes adjuntas."
     },
     "restyle": {
-      "name": "Restyle allowed",
-      "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+      "name": "Se permite restilizar",
+      "blurb": "La misma persona. Vestuario, escenario y época pueden cambiar si lo pediste. No es otra persona."
     },
     "axis": {
-      "keepWorld": "Guardar mundo",
-      "fillGaps": "Rellenar",
-      "followStory": "Seguir historia",
-      "followAsset": "Seguir activo",
-      "lockId": "Bloquear ID",
-      "cinematic": "Cine"
+      "keepWorld": "Conservar el mundo",
+      "fillGaps": "Rellenar huecos",
+      "followStory": "Seguir la historia",
+      "followAsset": "Seguir el recurso",
+      "lockId": "Bloquear identidad",
+      "cinematic": "Cinematográfico"
     }
   }
 }
