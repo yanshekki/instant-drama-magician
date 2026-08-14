@@ -1604,7 +1604,7 @@
     "videoHttpFailed": "影片請求失敗。",
     "videoJobFailed": "影片工作失敗。",
     "videoJobFailedHint": "請查看閘道日誌並重試此片段。",
-    "videoJobTimedOut": "影片工作逾時。",
+    "videoJobTimedOut": "影片工作逾時（{{seconds}} 秒）。",
     "videoKeyMode": "影片 API 金鑰模式不允許。",
     "videoKeyModeHint": "影片功能需使用 agent 或 admin API 金鑰。",
     "videoNotFound": "找不到影片。",

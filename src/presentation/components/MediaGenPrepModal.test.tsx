@@ -509,6 +509,55 @@ describe('MediaGenPrepModal', () => {
     )
   })
 
+  it('video polish failure does not dump English keyframe taskHint', async () => {
+    api.mediaGen.polish = vi
+      .fn()
+      .mockResolvedValueOnce({
+        polishedPrompt:
+          'Keyframe still then short-drama video for story "受戒下山" beat #1. Continuity-lock previous frame when attached.',
+        polished: true,
+        imageCount: 1
+      })
+      .mockRejectedValueOnce(new Error('polish down'))
+    render(
+      <MediaGenPrepModal
+        open
+        request={{
+          kind: 'timeline-clip',
+          storyId: 's1',
+          entryId: 'e1',
+          durationSeconds: 10
+        }}
+        onClose={vi.fn()}
+        onGenerated={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.continuePolish')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.continuePolish'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.generateKeyframe')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.generateKeyframe'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.nextConfirmVideo')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.nextConfirmVideo'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
+    )
+    const body = document.body.textContent || ''
+    expect(body).toMatch(/IMAGE-TO-VIDEO|圖生影片/)
+    expect(body).not.toMatch(/Keyframe still then short-drama video/)
+  })
+
   it('cancel from materials closes', async () => {
     const onClose = vi.fn()
     render(

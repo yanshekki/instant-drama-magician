@@ -1604,7 +1604,7 @@
     "videoHttpFailed": "La solicitud de vídeo falló.",
     "videoJobFailed": "El trabajo de vídeo falló.",
     "videoJobFailedHint": "Abre los logs del gateway y reintenta este clip.",
-    "videoJobTimedOut": "El trabajo de vídeo agotó el tiempo de espera.",
+    "videoJobTimedOut": "El trabajo de vídeo agotó el tiempo de espera ({{seconds}} s).",
     "videoKeyMode": "Modo de clave de API de vídeo no permitido.",
     "videoKeyModeHint": "Usa una clave agent o admin para vídeo.",
     "videoNotFound": "Vídeo no encontrado.",

@@ -350,7 +350,11 @@ export function formatUserError(
   if (split) {
     const det = split[2].trim()
     if (split[1] === 'errors.videoJobTimedOut' && /^\d+$/.test(det)) {
-      const msg = t('errors.videoJobTimedOut', { seconds: Number(det) })
+      const secs = Number(det)
+      let msg = t('errors.videoJobTimedOut', { seconds: secs })
+      if (!msg.includes(String(secs))) {
+        msg = `${msg.replace(/[。.\s]+$/, '')} (${secs}s)`
+      }
       const hint = t('errors.videoTimeoutHint')
       return hint && hint !== 'errors.videoTimeoutHint' ? `${msg} ${hint}` : msg
     }

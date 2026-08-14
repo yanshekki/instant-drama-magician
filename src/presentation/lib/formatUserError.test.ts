@@ -69,11 +69,21 @@ describe('formatUserError', () => {
   })
 
   it('does not leak raw timeout seconds as the only detail', () => {
+    const tSecs = (key: string, opts?: Record<string, unknown>) => {
+      if (key === 'errors.videoJobTimedOut' && opts?.seconds != null) {
+        return `影片工作逾時（${opts.seconds} 秒）。`
+      }
+      return `T:${key}`
+    }
     expect(formatUserError('errors.videoJobTimedOut — 300', t)).toMatch(
       /videoJobTimedOut/
     )
+    expect(formatUserError('errors.videoJobTimedOut — 300', t)).toMatch(/300/)
     expect(formatUserError('errors.videoJobTimedOut — 300', t)).not.toMatch(
       /— 300/
+    )
+    expect(formatUserError('errors.videoJobTimedOut — 300', tSecs)).toBe(
+      '影片工作逾時（300 秒）。 T:errors.videoTimeoutHint'
     )
     expect(
       formatUserError('errors.videoJobTimedOut — errors.videoTimeoutHint', t)

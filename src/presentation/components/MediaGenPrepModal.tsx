@@ -17,6 +17,12 @@ import {
   type MediaGenShellPhase
 } from '../../domain/mediaGenPrep'
 import { translateMediaGenSectionTitle } from '../../domain/mediaGenSectionTitleI18n'
+import {
+  buildMediaGenVideoDirectorFallback,
+  buildMediaGenVideoPolishUserOverride,
+  looksLikeEnglishKeyframeTaskHint,
+  pickVideoDirectorPrompt
+} from '../../domain/mediaGenVideoPolishUser'
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
 
@@ -272,6 +278,52 @@ export function MediaGenPrepModal({
   )
 
   const locked = isMediaGenPrepPhaseLocked(phase) || busy
+  const localeTag = (i18n.language || 'zh-HK').toLowerCase().startsWith('zh')
+    ? 'zh-HK'
+    : 'en'
+  const videoAspect =
+    request?.aspectRatio === '9:16' || request?.aspectRatio === '16:9'
+      ? request.aspectRatio
+      : genOptions.aspectRatio === '9:16' || genOptions.aspectRatio === '16:9'
+        ? genOptions.aspectRatio
+        : '16:9'
+  const videoDirectorFallback = useMemo(
+    () =>
+      buildMediaGenVideoDirectorFallback({
+        locale: localeTag,
+        seconds: durationSeconds || request?.durationSeconds || 10,
+        aspectRatio: videoAspect,
+        stillPrompt: polishedPrompt,
+        beatText:
+          sections.find((s) => s.id === 'beat_profile')?.text ?? null
+      }),
+    [
+      localeTag,
+      durationSeconds,
+      request?.durationSeconds,
+      videoAspect,
+      polishedPrompt,
+      sections
+    ]
+  )
+
+  useEffect(() => {
+    if (phase !== 'confirm-video') return
+    const current = videoPrompt.trim() || polishedPrompt.trim()
+    if (
+      localeTag === 'zh-HK' &&
+      looksLikeEnglishKeyframeTaskHint(current) &&
+      videoDirectorFallback
+    ) {
+      setVideoPrompt(videoDirectorFallback)
+    }
+  }, [
+    phase,
+    videoPrompt,
+    polishedPrompt,
+    localeTag,
+    videoDirectorFallback
+  ])
 
   const loadExtract = useCallback(async (): Promise<void> => {
     if (!request) return
@@ -333,8 +385,28 @@ export function MediaGenPrepModal({
       if (resume?.stillPath?.trim() && resume.polishedPrompt?.trim()) {
         // Resume draft: land on keyframe / confirm-video with prompts ready
         setPolishedPrompt(resume.polishedPrompt)
+        const resumeSeconds =
+          resume.durationSeconds ?? request.durationSeconds ?? 10
+        const resumeAspect =
+          resume.aspectRatio ||
+          request.aspectRatio ||
+          (r.genOptions as { aspectRatio?: string }).aspectRatio ||
+          '16:9'
         setVideoPrompt(
-          resume.videoPrompt?.trim() || resume.polishedPrompt
+          pickVideoDirectorPrompt(
+            resume.videoPrompt?.trim() || resume.polishedPrompt,
+            buildMediaGenVideoDirectorFallback({
+              locale: i18n.language,
+              seconds: resumeSeconds,
+              aspectRatio: resumeAspect,
+              stillPrompt: resume.polishedPrompt,
+              beatText:
+                (r.sections as MediaGenMaterialSection[]).find(
+                  (s) => s.id === 'beat_profile'
+                )?.text ?? null
+            }),
+            i18n.language
+          )
         )
         setResultPath(resume.stillPath.trim())
         setResultMeta({
@@ -458,55 +530,37 @@ export function MediaGenPrepModal({
   /** Second polish: motion director prompt for image-to-video (uses keyframe as ref). */
   const prepareVideoConfirm = async (): Promise<void> => {
     if (!request || !resultPath) return
+    const included = sections.filter((s) => s.include)
+    const seconds = durationSeconds || request.durationSeconds || 10
+    const aspect = videoAspect
+    const zh = localeTag === 'zh-HK'
+    const videoFallback = buildMediaGenVideoDirectorFallback({
+      locale: localeTag,
+      seconds,
+      aspectRatio: aspect,
+      stillPrompt: polishedPrompt.trim(),
+      beatText: included.find((s) => s.id === 'beat_profile')?.text ?? null
+    })
     setBusy(true)
     setPhase('loading-polish')
     setErrorMessage(null)
     try {
-      const included = sections.filter((s) => s.include)
-      const locale = i18n.language
       const keyframeSection: MediaGenMaterialSection = {
         id: 'keyframe_still',
         kind: 'ref-image',
         title: 'Keyframe',
         entityType: 'gallery',
         imagePath: resultPath,
-        text: locale.toLowerCase().startsWith('zh')
+        text: zh
           ? '已生成關鍵幀——圖生影片必須鎖定此畫面的身份、戲服、場景與構圖，由此畫面開始動。'
           : 'Generated keyframe still — IMAGE-TO-VIDEO must lock identity, wardrobe, set, and framing to this frame. Animate from this exact visual.',
         include: true,
         canBeEditBase: false,
         group: 'refs'
       }
-      const stillPrompt = polishedPrompt.trim()
-      const seconds = durationSeconds || request.durationSeconds || 10
-      const aspect =
-        request.aspectRatio === '9:16' || request.aspectRatio === '16:9'
-          ? request.aspectRatio
-          : genOptions.aspectRatio === '9:16' ||
-              genOptions.aspectRatio === '16:9'
-            ? genOptions.aspectRatio
-            : '16:9'
-      const zh = locale.toLowerCase().startsWith('zh')
-      const videoFallback = [
-        stillPrompt,
-        zh
-          ? '圖生影片：以呢張關鍵幀做短劇片段，身份、戲服、場景、構圖須鎖定關鍵幀。'
-          : 'IMAGE-TO-VIDEO: animate this keyframe as a short-drama clip.',
-        zh
-          ? '鏡頭運動與表演清楚；身份與場景鎖定關鍵幀靜圖。'
-          : 'Camera motion and performance clear; keep identity and set locked to the keyframe still.',
-        zh
-          ? `目標時長：${seconds} 秒。畫面比例：${aspect}。`
-          : `Duration target: ${seconds}s. Aspect: ${aspect}.`
-      ]
-        .filter(Boolean)
-        .join('\n')
-      const { buildMediaGenVideoPolishUserOverride } = await import(
-        '../../domain/mediaGenVideoPolishUser'
-      )
       const userTextOverride = buildMediaGenVideoPolishUserOverride({
         kind: request.kind,
-        locale,
+        locale: localeTag,
         seconds,
         aspectRatio: aspect,
         hasRefImage: true,
@@ -523,17 +577,18 @@ export function MediaGenPrepModal({
           ? `由關鍵幀寫專業圖生影片導演詞（${request.kind}）。含鏡頭、表演、節奏；鎖定關鍵幀靜圖。`
           : `Professional image-to-video prompt from keyframe for ${request.kind}. Camera, performance, pacing; lock to keyframe still.`,
         hardRules,
-        locale,
+        locale: localeTag,
         mode: 'video',
         userTextOverride: userTextOverride || undefined
       } as never)
-      setVideoPrompt(r.polishedPrompt)
+      setVideoPrompt(
+        pickVideoDirectorPrompt(r.polishedPrompt, videoFallback, localeTag)
+      )
       setPolishedFlag(r.polished)
       setPhase('confirm-video')
     } catch (e) {
       setErrorMessage(formatUserError(formatIpcError(e), t))
-      // Still allow confirm with still prompt as fallback
-      setVideoPrompt(polishedPrompt.trim())
+      setVideoPrompt(videoFallback)
       setPhase('confirm-video')
     } finally {
       setBusy(false)
@@ -645,8 +700,11 @@ export function MediaGenPrepModal({
   }
 
   const handleConfirmVideo = async (): Promise<void> => {
-    const pro =
-      videoPrompt.trim() || polishedPrompt.trim()
+    const pro = pickVideoDirectorPrompt(
+      videoPrompt.trim() || polishedPrompt.trim(),
+      videoDirectorFallback,
+      localeTag
+    )
     if (!request || !resultPath || !pro) return
     setBusy(true)
     setPhase('loading-video')
@@ -726,7 +784,11 @@ export function MediaGenPrepModal({
 
   const handleSaveDraft = (): void => {
     if (!request || !resultPath || !onSaveDraft) return
-    const pro = videoPrompt.trim() || polishedPrompt.trim()
+    const pro = pickVideoDirectorPrompt(
+      videoPrompt.trim() || polishedPrompt.trim(),
+      videoDirectorFallback,
+      localeTag
+    )
     if (!pro) return
     const ar =
       request.aspectRatio === '9:16' || request.aspectRatio === '16:9'
@@ -1245,7 +1307,14 @@ export function MediaGenPrepModal({
                   <Textarea
                     size="lg"
                     className="mt-1 min-h-[8rem] font-mono text-[12px]"
-                    value={videoPrompt || polishedPrompt}
+                    value={
+                      videoPrompt.trim() ||
+                      pickVideoDirectorPrompt(
+                        polishedPrompt,
+                        videoDirectorFallback,
+                        localeTag
+                      )
+                    }
                     onChange={(e) => setVideoPrompt(e.target.value)}
                     dir="auto"
                     spellCheck={false}

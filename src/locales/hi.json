@@ -1604,7 +1604,7 @@
     "videoHttpFailed": "Video request विफल।",
     "videoJobFailed": "वीडियो जॉब विफल।",
     "videoJobFailedHint": "गेटवे लॉग खोलें और यह क्लिप फिर चलाएँ।",
-    "videoJobTimedOut": "वीडियो जॉब समय समाप्त।",
+    "videoJobTimedOut": "वीडियो जॉब समय समाप्त ({{seconds}} सेकंड)।",
     "videoKeyMode": "वीडियो API कुंजी मोड अनुमत नहीं।",
     "videoKeyModeHint": "वीडियो के लिए agent या admin कुंजी उपयोग करें।",
     "videoNotFound": "Video नहीं मिला।",

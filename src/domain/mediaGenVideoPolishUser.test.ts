@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildMediaGenVideoPolishUserOverride } from './mediaGenVideoPolishUser'
+import {
+  buildMediaGenVideoDirectorFallback,
+  buildMediaGenVideoPolishUserOverride,
+  looksLikeEnglishKeyframeTaskHint,
+  pickVideoDirectorPrompt
+} from './mediaGenVideoPolishUser'
 import type { MediaGenMaterialSection } from './mediaGenPrep'
 
 const profile: MediaGenMaterialSection = {
@@ -214,6 +219,50 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
     })
     expect(u).toBeTruthy()
     expect(u!).toMatch(/Mystery Guest|No name key/i)
+  })
+
+  it('detects English keyframe taskHint boilerplate', () => {
+    expect(
+      looksLikeEnglishKeyframeTaskHint(
+        'Keyframe still then short-drama video for story "受戒下山" beat #1. Continuity-lock previous frame when attached.'
+      )
+    ).toBe(true)
+    expect(looksLikeEnglishKeyframeTaskHint('圖生影片：以呢張關鍵幀做短劇片段。')).toBe(
+      false
+    )
+  })
+
+  it('zh director fallback never includes English keyframe taskHint', () => {
+    const fb = buildMediaGenVideoDirectorFallback({
+      locale: 'zh-HK',
+      seconds: 10,
+      aspectRatio: '16:9',
+      stillPrompt:
+        'Keyframe still then short-drama video for story "受戒下山" beat #1. Continuity-lock previous frame when attached.',
+      beatText: 'Story: 受戒下山\nBeat #1 · 10s clip\nDialogue: 走！'
+    })
+    expect(fb).toMatch(/圖生影片|關鍵幀/)
+    expect(fb).toMatch(/受戒下山/)
+    expect(fb).not.toMatch(/Keyframe still then/)
+    expect(fb).toMatch(/10 秒/)
+  })
+
+  it('pickVideoDirectorPrompt replaces English keyframe hint on zh UI', () => {
+    const fb = buildMediaGenVideoDirectorFallback({
+      locale: 'zh-HK',
+      seconds: 8,
+      aspectRatio: '16:9'
+    })
+    expect(
+      pickVideoDirectorPrompt(
+        'Keyframe still then short-drama video for story "受戒下山" beat #1.',
+        fb,
+        'zh-HK'
+      )
+    ).toBe(fb)
+    expect(
+      pickVideoDirectorPrompt('鏡頭推進，青年拔劍衝出巷口。', fb, 'zh-HK')
+    ).toBe('鏡頭推進，青年拔劍衝出巷口。')
   })
 
   it('returns null for non-video image kinds', () => {

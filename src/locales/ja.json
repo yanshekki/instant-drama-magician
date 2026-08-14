@@ -1604,7 +1604,7 @@
     "videoHttpFailed": "動画リクエストに失敗しました。",
     "videoJobFailed": "動画ジョブが失敗しました。",
     "videoJobFailedHint": "Gateway のログを確認し、このクリップを再試行してください。",
-    "videoJobTimedOut": "動画ジョブがタイムアウトしました。",
+    "videoJobTimedOut": "動画ジョブがタイムアウトしました（{{seconds}}秒）。",
     "videoKeyMode": "動画 API キーモードが許可されていません。",
     "videoKeyModeHint": "動画には agent または admin API キーが必要です。",
     "videoNotFound": "動画が見つかりません。",

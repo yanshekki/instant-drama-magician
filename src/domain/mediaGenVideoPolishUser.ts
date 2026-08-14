@@ -24,6 +24,68 @@ function firstProfileName(sections: MediaGenMaterialSection[]): string {
   return sections.find((s) => s.kind === 'text-profile')?.title || 'Subject'
 }
 
+/** English still/video taskHint leaked into the director box. */
+export function looksLikeEnglishKeyframeTaskHint(text: string): boolean {
+  const raw = (text || '').trim()
+  if (!raw) return false
+  return (
+    /Keyframe still then short-drama video/i.test(raw) ||
+    /Continuity-lock previous frame when attached/i.test(raw) ||
+    /^IMAGE-TO-VIDEO:\s*animate this keyframe/i.test(raw)
+  )
+}
+
+/**
+ * Usable image-to-video director fallback when polish fails or echoes
+ * the English keyframe taskHint. Never starts with that boilerplate.
+ */
+export function buildMediaGenVideoDirectorFallback(opts: {
+  locale: string
+  seconds: number
+  aspectRatio: string
+  stillPrompt?: string | null
+  beatText?: string | null
+}): string {
+  const zh = (opts.locale || '').toLowerCase().startsWith('zh')
+  const still = (opts.stillPrompt || '').trim()
+  const beat = (opts.beatText || '').trim()
+  const stillOk = still && !looksLikeEnglishKeyframeTaskHint(still) ? still : ''
+  if (zh) {
+    return [
+      '圖生影片：以呢張關鍵幀做短劇片段。身份、戲服、場景、構圖須鎖定關鍵幀，由此畫面開始動。',
+      '鏡頭運動與表演清楚；對白口型跟住腳本；無字幕、無浮水印。',
+      beat || null,
+      stillOk || null,
+      `目標時長：${opts.seconds} 秒。畫面比例：${opts.aspectRatio}。`
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+  return [
+    'IMAGE-TO-VIDEO: animate this keyframe as a short-drama clip. Lock identity, wardrobe, set, and framing to the keyframe.',
+    'Camera motion and performance clear; no captions or watermark.',
+    beat || null,
+    stillOk || null,
+    `Duration target: ${opts.seconds}s. Aspect: ${opts.aspectRatio}.`
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** Prefer a polished director line; drop English keyframe boilerplate on zh UI. */
+export function pickVideoDirectorPrompt(
+  candidate: string | null | undefined,
+  fallback: string,
+  locale: string
+): string {
+  const polished = (candidate || '').trim()
+  const fb = fallback.trim()
+  if (!polished) return fb
+  const zh = (locale || '').toLowerCase().startsWith('zh')
+  if (zh && looksLikeEnglishKeyframeTaskHint(polished)) return fb || polished
+  return polished
+}
+
 /**
  * Build specialized video polish user content for MediaGen mode=video.
  * Falls back to null when no specialized builder applies (caller uses generic).

@@ -1604,7 +1604,7 @@
     "videoHttpFailed": "Video request failed.",
     "videoJobFailed": "Video job failed.",
     "videoJobFailedHint": "Open Gateway logs and retry this clip.",
-    "videoJobTimedOut": "Video job timed out.",
+    "videoJobTimedOut": "Video job timed out ({{seconds}}s).",
     "videoKeyMode": "Video API key mode not allowed.",
     "videoKeyModeHint": "Use an agent-mode or admin API key for video.",
     "videoNotFound": "Video not found.",

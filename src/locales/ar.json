@@ -1604,7 +1604,7 @@
     "videoHttpFailed": "Video request فشل.",
     "videoJobFailed": "فشلت مهمة الفيديو.",
     "videoJobFailedHint": "افتح سجلات البوابة وأعد محاولة هذا المقطع.",
-    "videoJobTimedOut": "انتهت مهلة مهمة الفيديو.",
+    "videoJobTimedOut": "انتهت مهلة مهمة الفيديو ({{seconds}} ث).",
     "videoKeyMode": "وضع مفتاح واجهة الفيديو غير مسموح.",
     "videoKeyModeHint": "استخدم مفتاح agent أو admin للفيديو.",
     "videoNotFound": "Video غير موجود.",

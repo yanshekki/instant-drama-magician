@@ -1604,7 +1604,7 @@
     "videoHttpFailed": "Видеозапрос не выполнен.",
     "videoJobFailed": "Задача видео не выполнена.",
     "videoJobFailedHint": "Откройте логи шлюза и повторите этот клип.",
-    "videoJobTimedOut": "Тайм-аут видеозадачи.",
+    "videoJobTimedOut": "Тайм-аут видеозадачи ({{seconds}} с).",
     "videoKeyMode": "Режим ключа Video API не разрешён.",
     "videoKeyModeHint": "Для видео нужен ключ agent или admin.",
     "videoNotFound": "Видео не найдено.",

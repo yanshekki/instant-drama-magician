@@ -1604,7 +1604,7 @@
     "videoHttpFailed": "Échec de la requête vidéo.",
     "videoJobFailed": "La tâche vidéo a échoué.",
     "videoJobFailedHint": "Ouvrez les logs de la passerelle et réessayez ce clip.",
-    "videoJobTimedOut": "Tâche vidéo expirée.",
+    "videoJobTimedOut": "Tâche vidéo expirée ({{seconds}} s).",
     "videoKeyMode": "Mode de clé API vidéo non autorisé.",
     "videoKeyModeHint": "Utilisez une clé agent ou admin pour la vidéo.",
     "videoNotFound": "Vidéo introuvable.",
