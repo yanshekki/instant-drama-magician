@@ -281,5 +281,6 @@ export const ruPromptCopy: PromptCopyTable = {
   "segment.noStory": "История не выбрана (только карточка персонажа)",
   "vision.inventFromImage": "Опиши и дополни полный профиль {{kind}} по приложенному фото.",
   "vision.polishAll": "Отшлифуй и объедини все поля",
-  "story.untitled": "Безымянная короткая драма"
+  "story.untitled": "Безымянная короткая драма",
+  "action.castIdentityNote": "Кадры личности ({{count}}): лицо/тело должны совпадать с референсами каста в каждой клетке."
 }

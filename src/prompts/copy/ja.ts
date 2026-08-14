@@ -281,5 +281,6 @@ export const jaPromptCopy: PromptCopyTable = {
   "segment.noStory": "物語未選択（キャラ資料のみ）",
   "vision.inventFromImage": "添付の参照画像からこの{{kind}}のプロフィールを完全に埋めよ。",
   "vision.polishAll": "全欄を磨いて統合せよ",
-  "story.untitled": "無題の短編ドラマ"
+  "story.untitled": "無題の短編ドラマ",
+  "action.castIdentityNote": "参照素材 {{count}} 枚：各パネルで顔／体を添付キャストと一致させよ。"
 }

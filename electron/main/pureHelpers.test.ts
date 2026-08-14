@@ -276,6 +276,8 @@ describe('pureHelpers', () => {
     expect(fullBackupImportMessage('en', false)).toMatch(/this computer/)
     expect(fullBackupImportMessage('zh-HK', true)).toMatch(/重新啟動/)
     expect(fullBackupImportMessage('zh-HK', false)).toMatch(/應用程式/)
+    expect(fullBackupImportMessage('ja', false)).toMatch(/再起動/)
+    expect(fullBackupImportMessage('ja', false)).not.toMatch(/This will replace/)
 
     expect(
       createNativeIconIfPresent(undefined, () => true, () => 'i')

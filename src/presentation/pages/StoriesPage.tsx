@@ -6,6 +6,7 @@ import {
   useState
 } from 'react'
 import { useTranslation } from 'react-i18next'
+import { PromptCatalog } from '../../prompts'
 import { getAiLocale } from '../../lib/aiLocale'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
@@ -512,10 +513,10 @@ export function StoriesPage(): JSX.Element {
   }, [selectedCoverIds, selectedCoverId, coverGallery])
 
   const buildStoryCoverPrompt = (
-    locale: 'zh-HK' | 'en',
+    locale: string,
     opts?: { idea?: string | null; useEdit?: boolean }
   ): string => {
-    const title = editTitle.trim() || (locale === 'en' ? 'Story' : '故事')
+    const title = editTitle.trim() || PromptCatalog.t(locale, 'residual.story')
     const note = styleNote.trim()
     const idea = (opts?.idea !== undefined ? opts.idea : aiIdea)?.trim() || ''
     const art = getArtStyle(storyArtStyle)
@@ -2488,33 +2489,23 @@ export async function storiesRunGenerateCoverSetup(ops: {
 }
 
 export function storiesCoverPromptParts(ops: {
-  locale: 'zh-HK' | 'en'
+  locale?: string
   title: string
   note: string
   idea: string
   artBlock: string
 }): string[] {
-  if (ops.locale === 'en') {
-    return [
-      'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
-      'Not a UI mockup. No text, no logo, no watermark, no title caption.',
-      `Story title (mood only, do not letter it): ${ops.title}.`,
-      ops.artBlock,
-      ops.note ? `Style bible: ${ops.note}` : '',
-      ops.idea ? `Extra direction: ${ops.idea}` : '',
-      'Evocative establishing mood frame suitable as a library card cover.',
-      'Match the art medium; strong silhouette and readable mood.'
-    ].filter(Boolean)
-  }
+  const loc = ops.locale || 'zh-HK'
   return [
-    'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
-    'Not a UI mockup. No text, no logo, no watermark, no title caption.',
-    `故事標題（只取氣氛，畫面勿寫出文字）：${ops.title}。`,
+    PromptCatalog.t(loc, 'cover.posterLead'),
+    PromptCatalog.t(loc, 'cover.titleMood', { title: ops.title }),
     ops.artBlock,
-    ops.note ? `風格備註：${ops.note}` : '',
-    ops.idea ? `額外方向：${ops.idea}` : '',
-    '適合用作片庫封面的情緒建立鏡頭；強烈剪影、可讀氣氛。',
-    '依藝術風格 medium 出圖；構圖清晰。'
+    ops.note
+      ? PromptCatalog.t(loc, 'cover.styleBible', { style: ops.note })
+      : '',
+    ops.idea ? PromptCatalog.t(loc, 'cover.extraDir', { idea: ops.idea }) : '',
+    PromptCatalog.t(loc, 'cover.establishing'),
+    PromptCatalog.t(loc, 'cover.medium')
   ].filter(Boolean)
 }
 
@@ -2608,12 +2599,8 @@ export function storiesCreateId(
   return create()
 }
 
-export function storiesEditPrefix(
-  locale: 'zh-HK' | 'en'
-): string {
-  return locale === 'en'
-    ? 'IMAGE EDIT: create a new short-drama poster composition. Keep identity/mood of subjects if present. '
-    : 'IMAGE EDIT：以新構圖創作短劇海報。保留主體身份／氣氛（如有）。'
+export function storiesEditPrefix(locale?: string): string {
+  return PromptCatalog.t(locale, 'cover.editPrefix')
 }
 
 export function storiesPrimaryCover(

@@ -10,6 +10,7 @@ import {
 } from 'fs'
 import { join, resolve as pathResolve } from 'path'
 import { execFileSync } from 'child_process'
+import { nativeT } from './nativeCopy'
 
 export function ensureDirsNonFatal(dirs: string[]): void {
   for (const dir of dirs) {
@@ -216,17 +217,10 @@ export async function stopEmbeddedServerSafe(
 
 /** Import-overwrite confirm copy (windowed vs bare dialog). */
 export function fullBackupImportMessage(
-  lang: 'en' | string,
+  lang: string,
   bare: boolean
 ): string {
-  if (lang === 'en') {
-    return bare
-      ? 'This will replace the database, media library, and settings, then restart.'
-      : 'This will replace the database, media library, and settings on this computer, then restart the app.'
-  }
-  return bare
-    ? '此操作會覆寫本機資料庫、媒體庫與設定，然後重新啟動。'
-    : '此操作會覆寫本機資料庫、媒體庫與設定，然後重新啟動應用程式。'
+  return nativeT(lang, bare ? 'importMsgBare' : 'importMsgWindowed')
 }
 
 /** Create nativeImage only when path exists; else undefined. */

@@ -281,5 +281,6 @@ export const hiPromptCopy: PromptCopyTable = {
   "segment.noStory": "कहानी नहीं चुनी (केवल पात्र विवरण)",
   "vision.inventFromImage": "संलग्न फ़ोटो से इस {{kind}} की पूरी प्रोफ़ाइल भरें।",
   "vision.polishAll": "सभी फ़ील्ड निखारकर मिलाएँ",
-  "story.untitled": "बिना शीर्षक का शॉर्ट ड्रामा"
+  "story.untitled": "बिना शीर्षक का शॉर्ट ड्रामा",
+  "action.castIdentityNote": "पहचान स्टिल ({{count}}): हर पैनल में चेहरा/शरीर संलग्न कास्ट से मेल खाए।"
 }

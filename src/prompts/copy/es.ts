@@ -281,5 +281,6 @@ export const esPromptCopy: PromptCopyTable = {
   "segment.noStory": "Sin historia (solo ficha de personaje)",
   "vision.inventFromImage": "Describe e inventa un perfil completo de {{kind}} a partir de la foto adjunta.",
   "vision.polishAll": "Pule y fusiona todos los campos",
-  "story.untitled": "Drama corto sin título"
+  "story.untitled": "Drama corto sin título",
+  "action.castIdentityNote": "Stills de identidad ({{count}}): el rostro/cuerpo debe coincidir con las referencias de elenco en cada viñeta."
 }

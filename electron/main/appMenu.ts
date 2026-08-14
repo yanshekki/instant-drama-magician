@@ -8,6 +8,11 @@ import {
   shell,
   type MenuItemConstructorOptions
 } from 'electron'
+import {
+  coerceNativeLang,
+  nativeLabels,
+  type NativeLang
+} from './nativeCopy'
 
 export type MenuAction =
   | { type: 'navigate'; path: string }
@@ -26,154 +31,13 @@ export type MenuAction =
   | { type: 'screenshot-saved'; filePath: string }
   | { type: 'open-legal'; kind: 'disclaimer' | 'terms' }
 
-export type MenuLang =
-  | 'zh-HK'
-  | 'zh-CN'
-  | 'en'
-  | 'ja'
-  | 'es'
-  | 'fr'
-  | 'pt-BR'
-  | 'ru'
-  | 'hi'
-  | 'ar'
+export type MenuLang = NativeLang
 
 const YSK_HOME = 'https://ysk.hk/'
 const CREATOR_LINKTREE = 'https://linktr.ee/yanshekki'
 
-const LABELS: Record<'zh-HK' | 'en', Record<string, string>> = {
-  'zh-HK': {
-    file: '檔案',
-    newStory: '新增故事',
-    importStory: '匯入故事備份…',
-    exportStory: '匯出目前故事備份…',
-    exportFull: '匯出全部應用資料…',
-    importFull: '從全部資料還原…',
-    openUserData: '開啟資料資料夾',
-    openMedia: '開啟媒體資料夾',
-    preferences: '偏好設定…',
-    quit: '結束',
-    edit: '編輯',
-    undo: '還原',
-    redo: '重做',
-    cut: '剪下',
-    copy: '複製',
-    paste: '貼上',
-    selectAll: '全選',
-    view: '檢視',
-    navStories: '故事',
-    navCharacters: '角色',
-    navCostumes: '戲服',
-    navScenes: '場景',
-    navProps: '道具',
-    navActions: '動作',
-    navTimeline: '時間軸',
-    navTimelineTrack: '軌道顯示',
-    navTimelineBoard: '流程顯示',
-    navTimelineV2: '時間軸 · 流程',
-    navAudit: '活動紀錄',
-    navSettings: '設定',
-    reload: '重新載入',
-    forceReload: '強制重新載入',
-    actualSize: '實際大小',
-    zoomIn: '放大',
-    zoomOut: '縮小',
-    toggleFullscreen: '切換全螢幕',
-    toggleDevTools: '開發者工具',
-    captureScreenshot: '截取視窗畫面…',
-    window: '視窗',
-    minimize: '最小化',
-    zoom: '縮放',
-    close: '關閉',
-    help: '說明',
-    about: '關於瞬劇魔法師',
-    disclaimer: '免責聲明…',
-    terms: '使用守則…',
-    exportSupport: '匯出支援報告…',
-    checkUpdates: '檢查更新…',
-    yskWebsite: 'YSK 網站',
-    supportDonate: 'Support / Donate…',
-    appMenu: '瞬劇魔法師',
-    services: '服務',
-    hide: '隱藏瞬劇魔法師',
-    hideOthers: '隱藏其他',
-    unhide: '顯示全部',
-    quitMac: '結束瞬劇魔法師'
-  },
-  en: {
-    file: 'File',
-    newStory: 'New Story',
-    importStory: 'Import Story Backup…',
-    exportStory: 'Export Current Story Backup…',
-    exportFull: 'Export All App Data…',
-    importFull: 'Restore from Full Backup…',
-    openUserData: 'Open Data Folder',
-    openMedia: 'Open Media Folder',
-    preferences: 'Preferences…',
-    quit: 'Quit',
-    edit: 'Edit',
-    undo: 'Undo',
-    redo: 'Redo',
-    cut: 'Cut',
-    copy: 'Copy',
-    paste: 'Paste',
-    selectAll: 'Select All',
-    view: 'View',
-    navStories: 'Stories',
-    navCharacters: 'Characters',
-    navCostumes: 'Costumes',
-    navScenes: 'Scenes',
-    navProps: 'Props',
-    navActions: 'Actions',
-    navTimeline: 'Timeline',
-    navTimelineTrack: 'Track view',
-    navTimelineBoard: 'Board view',
-    navTimelineV2: 'Timeline · Board',
-    navAudit: 'Activity Log',
-    navSettings: 'Settings',
-    reload: 'Reload',
-    forceReload: 'Force Reload',
-    actualSize: 'Actual Size',
-    zoomIn: 'Zoom In',
-    zoomOut: 'Zoom Out',
-    toggleFullscreen: 'Toggle Full Screen',
-    toggleDevTools: 'Toggle Developer Tools',
-    captureScreenshot: 'Capture Window Screenshot…',
-    window: 'Window',
-    minimize: 'Minimize',
-    zoom: 'Zoom',
-    close: 'Close',
-    help: 'Help',
-    about: 'About InstantDrama Magician',
-    disclaimer: 'Disclaimer…',
-    terms: 'Acceptable Use…',
-    exportSupport: 'Export Support Report…',
-    checkUpdates: 'Check for Updates…',
-    yskWebsite: 'YSK Website',
-    supportDonate: 'Support / Donate…',
-    appMenu: 'InstantDrama Magician',
-    services: 'Services',
-    hide: 'Hide InstantDrama Magician',
-    hideOthers: 'Hide Others',
-    unhide: 'Show All',
-    quitMac: 'Quit InstantDrama Magician'
-  }
-}
-
 export function coerceMenuLang(raw: string | undefined | null): MenuLang {
-  if (!raw) return 'zh-HK'
-  const s = raw.toLowerCase().replace(/_/g, '-')
-  if (s === 'zh-cn' || s.startsWith('zh-hans') || s === 'zh-sg') return 'zh-CN'
-  if (s.startsWith('zh')) return 'zh-HK'
-  if (s.startsWith('ja')) return 'ja'
-  if (s.startsWith('es')) return 'es'
-  if (s.startsWith('fr')) return 'fr'
-  if (s.startsWith('pt')) return 'pt-BR'
-  if (s.startsWith('ru')) return 'ru'
-  if (s.startsWith('hi')) return 'hi'
-  if (s.startsWith('ar')) return 'ar'
-  if (s.startsWith('en')) return 'en'
-  return 'en'
+  return coerceNativeLang(raw)
 }
 
 export interface AppMenuHandlers {
@@ -198,8 +62,7 @@ function accel(mac: string, other: string): string {
 }
 
 function menuT(lang: MenuLang): Record<string, string> {
-  if (lang === 'zh-HK' || lang === 'zh-CN') return LABELS['zh-HK']
-  return LABELS.en
+  return nativeLabels(lang)
 }
 
 export function buildAppMenuTemplate(

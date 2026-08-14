@@ -42,6 +42,7 @@ import {
   type AppMenuHandlers,
   type MenuLang
 } from './appMenu'
+import { nativeT } from './nativeCopy'
 import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
 import {
   AppDataBackupService,
@@ -319,8 +320,7 @@ function fullBackupService(): AppDataBackupService {
 async function runExportFullBackup(): Promise<void> {
   const win = mainWindow
   const lang = loadMenuLang()
-  const title =
-    lang === 'en' ? 'Export all app data' : '匯出全部應用資料'
+  const title = nativeT(lang, 'exportAllAppData')
   const result = win
     ? await dialog.showSaveDialog(win, {
         title,
@@ -342,16 +342,13 @@ async function runExportFullBackup(): Promise<void> {
     })
     // Recreate prisma for continued use
     getPrisma()
-    const msg =
-      lang === 'en'
-        ? `Full backup saved:\n${filePath}`
-        : `已匯出全部應用資料：\n${filePath}`
+    const msg = nativeT(lang, 'exportSaved', { path: filePath })
     if (win && !win.isDestroyed()) {
       await dialog.showMessageBox(win, {
         type: 'info',
-        title: lang === 'en' ? 'Export complete' : '匯出完成',
+        title: nativeT(lang, 'exportComplete'),
         message: msg,
-        buttons: [lang === 'en' ? 'Show in folder' : '在資料夾中顯示', lang === 'en' ? 'OK' : '確定'],
+        buttons: [nativeT(lang, 'showInFolder'), nativeT(lang, 'ok')],
         defaultId: 0
       }).then((r) => {
         if (r.response === 0) shell.showItemInFolder(filePath)
@@ -368,7 +365,7 @@ async function runExportFullBackup(): Promise<void> {
     if (win && !win.isDestroyed()) {
       await dialog.showMessageBox(win, {
         type: 'error',
-        title: lang === 'en' ? 'Export failed' : '匯出失敗',
+        title: nativeT(lang, 'exportFailed'),
         message
       })
     }
@@ -379,8 +376,7 @@ async function runExportFullBackup(): Promise<void> {
 async function runImportFullBackup(): Promise<void> {
   const win = mainWindow
   const lang = loadMenuLang()
-  const openTitle =
-    lang === 'en' ? 'Restore from full backup' : '從全部資料還原'
+  const openTitle = nativeT(lang, 'restoreFromFullBackup')
   const open = win
     ? await dialog.showOpenDialog(win, {
         title: openTitle,
@@ -397,26 +393,23 @@ async function runImportFullBackup(): Promise<void> {
   const confirm = win
     ? await dialog.showMessageBox(win, {
         type: 'warning',
-        title: lang === 'en' ? 'Overwrite all local data?' : '覆寫本機全部資料？',
+        title: nativeT(lang, 'overwriteAllLocalData'),
         message: fullBackupImportMessage(lang, false),
-        detail:
-          lang === 'en'
-            ? 'Export a full backup first if you need to keep the current data.'
-            : '如需保留現有資料，請先「匯出全部應用資料」。',
+        detail: nativeT(lang, 'exportFirstHint'),
         buttons: [
-          lang === 'en' ? 'Cancel' : '取消',
-          lang === 'en' ? 'Restore and Restart' : '還原並重新啟動'
+          nativeT(lang, 'cancel'),
+          nativeT(lang, 'restoreAndRestart')
         ],
         defaultId: 0,
         cancelId: 0
       })
     : await dialog.showMessageBox({
         type: 'warning',
-        title: lang === 'en' ? 'Overwrite all local data?' : '覆寫本機全部資料？',
+        title: nativeT(lang, 'overwriteAllLocalData'),
         message: fullBackupImportMessage(lang, true),
         buttons: [
-          lang === 'en' ? 'Cancel' : '取消',
-          lang === 'en' ? 'Restore and Restart' : '還原並重新啟動'
+          nativeT(lang, 'cancel'),
+          nativeT(lang, 'restoreAndRestart')
         ],
         defaultId: 0,
         cancelId: 0
@@ -434,7 +427,7 @@ async function runImportFullBackup(): Promise<void> {
     if (win && !win.isDestroyed()) {
       await dialog.showMessageBox(win, {
         type: 'error',
-        title: lang === 'en' ? 'Restore failed' : '還原失敗',
+        title: nativeT(lang, 'restoreFailed'),
         message
       })
     }
@@ -455,12 +448,12 @@ async function runExportSupportFromMenu(): Promise<void> {
     const defaultPath = supportReportPath(app.getPath('userData'))
     const result = win
       ? await dialog.showSaveDialog(win, {
-          title: lang === 'en' ? 'Export support report' : '匯出支援報告',
+          title: nativeT(lang, 'exportSupportReport'),
           defaultPath,
           filters: [{ name: 'JSON', extensions: ['json'] }]
         })
       : await dialog.showSaveDialog({
-          title: lang === 'en' ? 'Export support report' : '匯出支援報告',
+          title: nativeT(lang, 'exportSupportReport'),
           defaultPath,
           filters: [{ name: 'JSON', extensions: ['json'] }]
         })
@@ -494,7 +487,7 @@ async function runExportSupportFromMenu(): Promise<void> {
     if (win && !win.isDestroyed()) {
       await dialog.showMessageBox(win, {
         type: 'error',
-        title: lang === 'en' ? 'Export failed' : '匯出失敗',
+        title: nativeT(lang, 'exportFailed'),
         message
       })
     }
@@ -505,7 +498,7 @@ function showAboutDialog(): void {
   const lang = loadMenuLang()
   const version = app.getVersion()
   const userData = app.getPath('userData')
-  const en = lang === 'en'
+  const appName = nativeT(lang, 'appName')
   const detail = [
     `Version ${version}`,
     `Electron ${process.versions.electron ?? '?'}`,
@@ -513,14 +506,10 @@ function showAboutDialog(): void {
     `Node ${process.versions.node ?? '?'}`,
     `Platform ${process.platform}`,
     '',
-    en
-      ? 'Creator: Ki (yanshekki) · YSK Limited'
-      : '創作者：Ki (yanshekki) · YSK Limited',
+    nativeT(lang, 'creatorLine'),
     'linktr.ee/yanshekki · ysk.hk',
     '',
-    en
-      ? 'Support / Donate — if InstantDrama Magician helps your short-drama workflow, consider buying me a coffee!'
-      : 'Support / Donate — 如果「瞬劇魔法師」幫到你的短劇創作，歡迎請我喝杯咖啡！',
+    nativeT(lang, 'supportDonateBlurb'),
     'EVM: yanshekki.eth',
     'NEAR: yanshekki.near',
     'ADA: $yanshekki',
@@ -530,15 +519,13 @@ function showAboutDialog(): void {
   const win = mainWindow
   const opts = {
     type: 'info' as const,
-    title: en
-      ? `About ${APP_DISPLAY_NAME_EN}`
-      : `關於${APP_DISPLAY_NAME_ZH}`,
-    message: en ? APP_DISPLAY_NAME_EN : APP_DISPLAY_NAME,
+    title: nativeT(lang, 'aboutTitle', { name: appName }),
+    message: appName,
     detail,
     buttons: [
-      en ? 'Support / Donate' : 'Support / Donate',
-      en ? 'Open data folder' : '開啟資料資料夾',
-      en ? 'OK' : '確定'
+      nativeT(lang, 'supportDonate'),
+      nativeT(lang, 'openDataFolder'),
+      nativeT(lang, 'ok')
     ],
     defaultId: 2,
     cancelId: 2
@@ -566,11 +553,8 @@ async function runCaptureScreenshot(): Promise<void> {
     if (!png.length) {
       await dialog.showMessageBox(win, {
         type: 'error',
-        title: lang === 'en' ? 'Screenshot failed' : '截圖失敗',
-        message:
-          lang === 'en'
-            ? 'Could not capture the window.'
-            : '無法擷取視窗畫面。'
+        title: nativeT(lang, 'screenshotFailed'),
+        message: nativeT(lang, 'couldNotCapture')
       })
       return
     }
@@ -583,7 +567,7 @@ async function runCaptureScreenshot(): Promise<void> {
     })
     const defaultPath = join(defaultDir, `idm-screenshot-${stamp}.png`)
     const result = await dialog.showSaveDialog(win, {
-      title: lang === 'en' ? 'Save screenshot' : '儲存截圖',
+      title: nativeT(lang, 'saveScreenshot'),
       defaultPath,
       filters: [{ name: 'PNG', extensions: ['png'] }]
     })
@@ -601,7 +585,7 @@ async function runCaptureScreenshot(): Promise<void> {
     if (!win.isDestroyed()) {
       await dialog.showMessageBox(win, {
         type: 'error',
-        title: lang === 'en' ? 'Screenshot failed' : '截圖失敗',
+        title: nativeT(lang, 'screenshotFailed'),
         message
       })
     }
@@ -637,11 +621,11 @@ function setupApplicationMenu(): void {
         const channel = state.channel || 'desktop-dev'
         void dialog.showMessageBox(win, {
           type: state.status === 'error' ? 'error' : 'info',
-          title: lang === 'en' ? 'Updates' : '更新',
-          message:
-            lang === 'en'
-              ? `Status: ${state.status} (${channel})`
-              : `狀態：${state.status}（${channel}）`,
+          title: nativeT(lang, 'updates'),
+          message: nativeT(lang, 'updateStatus', {
+            status: state.status,
+            channel
+          }),
           detail: [
             state.latestVersion != null
               ? `Latest: ${state.latestVersion}`

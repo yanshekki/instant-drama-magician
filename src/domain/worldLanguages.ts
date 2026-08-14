@@ -3,6 +3,7 @@
  * Codes are BCP-47 / ISO 639-1 (+ a few regional Sinitic extras for short drama).
  * Display names use Intl.DisplayNames when available (follows UI locale).
  */
+import { coerceUiLanguage } from './uiLanguages'
 
 /** Complete ISO 639-1 set + common regional variants used in HK/TW/CN drama. */
 export const WORLD_LANGUAGE_CODES: readonly string[] = [
@@ -283,9 +284,10 @@ export interface WorldLanguageOption {
 }
 
 function displayLocale(uiLang?: string | null): string {
-  const l = (uiLang ?? '').toLowerCase()
-  if (l === 'en' || l.startsWith('en-') || l.startsWith('en_')) return 'en'
-  return 'zh-Hant'
+  const id = coerceUiLanguage(uiLang, 'zh-HK')
+  if (id === 'zh-HK') return 'zh-Hant'
+  if (id === 'zh-CN') return 'zh-Hans'
+  return id
 }
 
 /** Human label for a language code in the UI locale. */
@@ -294,13 +296,13 @@ export function languageLabel(
   uiLang?: string | null
 ): string {
   const loc = displayLocale(uiLang)
-  const fallback =
-    loc === 'en'
-      ? FALLBACK_LABELS_EN[code] ?? code
-      : FALLBACK_LABELS_ZH[code] ?? FALLBACK_LABELS_EN[code] ?? code
+  const zh = loc.startsWith('zh')
+  const fallback = zh
+    ? FALLBACK_LABELS_ZH[code] ?? FALLBACK_LABELS_EN[code] ?? code
+    : FALLBACK_LABELS_EN[code] ?? code
   try {
     // Intl understands most ISO 639-1; regional extras fall back.
-    const dn = new Intl.DisplayNames([loc === 'en' ? 'en' : 'zh-Hant'], {
+    const dn = new Intl.DisplayNames([loc], {
       type: 'language'
     })
     const name = dn.of(code)

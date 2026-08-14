@@ -281,5 +281,6 @@ export const arPromptCopy: PromptCopyTable = {
   "segment.noStory": "لم تُختر قصة (بيانات الشخصية فقط)",
   "vision.inventFromImage": "صف وابتكر ملف {{kind}} كاملًا من الصورة المرفقة.",
   "vision.polishAll": "لمّع وادمج كل الحقول",
-  "story.untitled": "دراما قصيرة بلا عنوان"
+  "story.untitled": "دراما قصيرة بلا عنوان",
+  "action.castIdentityNote": "لقطات الهوية ({{count}}): طابق الوجه/الجسد مع مراجع الطاقم في كل لوحة."
 }

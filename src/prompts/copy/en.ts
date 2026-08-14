@@ -281,5 +281,6 @@ export const enPromptCopy: PromptCopyTable = {
   "segment.noStory": "No story selected",
   "vision.inventFromImage": "Describe and invent a full {{kind}} profile from the attached reference photo.",
   "vision.polishAll": "Polish and merge all fields",
-  "story.untitled": "Untitled short drama"
+  "story.untitled": "Untitled short drama",
+  "action.castIdentityNote": "Cast identity stills ({{count}}): match face/body of attached cast references in every panel."
 }

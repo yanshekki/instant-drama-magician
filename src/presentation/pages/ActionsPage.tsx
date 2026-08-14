@@ -7,6 +7,7 @@ import {
   type SetStateAction
 } from 'react'
 import { useTranslation } from 'react-i18next'
+import { PromptCatalog } from '../../prompts'
 
 import { formatUserError } from '../lib/formatUserError'
 import {
@@ -1569,9 +1570,9 @@ export function actionsGalleryPathsFromOpts(
 }
 
 export function actionsCastIdentityNote(count: number, locale: string): string {
-  return locale === 'en'
-    ? `Cast identity stills (${count}): match face/body of attached cast references in every panel.`
-    : `已附 ${count} 張參考素材（角色／道具等）：每格人物身份須與參考素材一致。`
+  return PromptCatalog.t(locale, 'action.castIdentityNote', {
+    count: String(count)
+  })
 }
 
 export function actionsPlateReferencePaths(

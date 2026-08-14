@@ -105,6 +105,7 @@ export const PROMPT_COPY_KEYS = [
   'action.userIdea',
   'action.closing',
   'action.fieldsLead',
+  'action.castIdentityNote',
   'profile.mustEveryKey',
   'profile.valuesAreStrings',
   'profile.visualTagsRule',

@@ -281,5 +281,6 @@ export const zhHkPromptCopy: PromptCopyTable = {
   "segment.noStory": "未選故事（僅角色資料）",
   "vision.inventFromImage": "請根據附上的參考圖，完整填寫{{kind}}資料。",
   "vision.polishAll": "全面潤飾並合併所有欄位",
-  "story.untitled": "未命名短劇"
+  "story.untitled": "未命名短劇",
+  "action.castIdentityNote": "已附 {{count}} 張參考素材（角色／道具等）：每格人物身份須與參考素材一致。"
 }

@@ -76,6 +76,12 @@ describe('appMenu', () => {
     expect(coerceMenuLang('ja')).toBe('ja')
   })
 
+  it('japanese menu is not the English skeleton', () => {
+    const ja = buildAppMenuTemplate('ja', handlers())
+    expect(JSON.stringify(ja)).toMatch(/ファイル|物語/)
+    expect(JSON.stringify(ja)).not.toMatch(/"File"/)
+  })
+
   it('builds templates and fires clicks (en + zh, dev)', () => {
     const h = handlers()
     const en = buildAppMenuTemplate('en', h)
