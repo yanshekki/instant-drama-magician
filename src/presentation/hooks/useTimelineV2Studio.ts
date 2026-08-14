@@ -47,7 +47,7 @@ import {
   findTimelineGraphPrepCell,
   layoutTimelineGraph,
   previousStillPath,
-  TIMELINE_GRAPH_COL_MAX_H
+  timelineGraphWrapLimit
 } from '../../domain/timelineGraph'
 import {
   timelineApplySettingsSnap,
@@ -184,9 +184,17 @@ export function useTimelineV2Studio() {
   const [stillBusy, setStillBusy] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
   const [graphNodeId, setGraphNodeId] = useState<string | null>('video')
-  const [graphViewportH, setGraphViewportH] = useState(TIMELINE_GRAPH_COL_MAX_H)
-  const setGraphViewportFromCanvas = useCallback((h: number) => {
-    const next = Math.max(240, h - 16)
+  const [graphViewportH, setGraphViewportH] = useState(() =>
+    timelineGraphWrapLimit({
+      windowH: typeof window !== 'undefined' ? window.innerHeight : 0
+    })
+  )
+  const setGraphViewportFromCanvas = useCallback((h: number, top?: number) => {
+    const next = timelineGraphWrapLimit({
+      canvasH: h,
+      windowH: typeof window !== 'undefined' ? window.innerHeight : 0,
+      canvasTop: top
+    })
     setGraphViewportH((prev) => (Math.abs(next - prev) < 8 ? prev : next))
   }, [])
 

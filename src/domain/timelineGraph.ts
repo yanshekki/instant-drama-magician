@@ -151,11 +151,42 @@ export const TIMELINE_GRAPH_PAD = 20
 export const TIMELINE_GRAPH_GAP_Y = 28
 export const TIMELINE_GRAPH_GAP_X = 28
 export const TIMELINE_GRAPH_COL_X = [20, 316, 668] as const
-/** Default column height for a 16:9 pane (header + track already reserved). */
+/** Last-resort wrap height when the window / canvas has not been measured. */
 export const TIMELINE_GRAPH_COL_MAX_H = 720
+/** Header + badges + track, used when only `window.innerHeight` is known. */
+export const TIMELINE_GRAPH_FULL_WINDOW_CHROME = 420
+/** Konva track + padding under the graph, used with a measured canvas top. */
+export const TIMELINE_GRAPH_BELOW_CANVAS_CHROME = 200
+
+export type TimelineGraphWrapLimitOpts = {
+  canvasH?: number
+  windowH?: number
+  canvasTop?: number
+}
 
 export type LayoutTimelineGraphOpts = {
   maxColumnHeight?: number
+}
+
+/**
+ * Column wrap uses the live pane, not the 720 fallback.
+ * Prefer the measured canvas; if that is still the empty min-height,
+ * take the remaining window so a tall screen keeps stacking downward.
+ */
+export function timelineGraphWrapLimit(opts?: TimelineGraphWrapLimitOpts): number {
+  const canvasH = Math.floor(Number(opts?.canvasH) || 0)
+  const windowH = Math.floor(Number(opts?.windowH) || 0)
+  const top = opts?.canvasTop
+  const fromCanvas = canvasH >= 80 ? canvasH : 0
+  let fromWindow = 0
+  if (windowH >= 200) {
+    fromWindow =
+      top != null && Number.isFinite(top)
+        ? windowH - Math.floor(top) - TIMELINE_GRAPH_BELOW_CANVAS_CHROME
+        : windowH - TIMELINE_GRAPH_FULL_WINDOW_CHROME
+  }
+  const live = Math.max(fromCanvas, fromWindow)
+  return Math.max(TIMELINE_GRAPH_PAD + 80, live || TIMELINE_GRAPH_COL_MAX_H)
 }
 
 const SIZE: Record<TimelineGraphNodeKind, { w: number; h: number }> = {

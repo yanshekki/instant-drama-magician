@@ -27,7 +27,7 @@ interface TimelineGraphCanvasProps {
   layout: TimelineGraphLayout
   selectedNodeId?: string | null
   onSelectNode?: (id: string) => void
-  onViewportHeight?: (h: number) => void
+  onViewportHeight?: (h: number, top?: number) => void
   handlers: TimelineGraphNodeHandlers
 }
 
@@ -42,25 +42,38 @@ export function TimelineGraphCanvas({
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [scale, setScale] = useState(1)
   const hostRef = useRef<HTMLDivElement | null>(null)
-  const lastH = useRef(0)
+  const lastReport = useRef({ h: 0, top: 0 })
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(
     null
   )
 
   useEffect(() => {
     const el = hostRef.current
-    if (!el || !onViewportHeight || typeof ResizeObserver === 'undefined') return
+    if (!el || !onViewportHeight) return
     const apply = (): void => {
-      const h = Math.floor(el.clientHeight)
-      if (h < 80) return
-      if (Math.abs(h - lastH.current) < 8) return
-      lastH.current = h
-      onViewportHeight(h)
+      const rect = el.getBoundingClientRect()
+      const h = Math.floor(rect.height || el.clientHeight || 0)
+      const top = rect.top
+      if (h < 80 && !(top > 0)) return
+      const reportH = h >= 80 ? h : 0
+      const prev = lastReport.current
+      if (Math.abs(reportH - prev.h) < 8 && Math.abs(top - prev.top) < 8) return
+      lastReport.current = { h: reportH, top }
+      onViewportHeight(reportH, top)
     }
     apply()
-    const ro = new ResizeObserver(() => apply())
-    ro.observe(el)
-    return () => ro.disconnect()
+    const ro =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => apply())
+    ro?.observe(el)
+    window.addEventListener('resize', apply)
+    const raf = window.requestAnimationFrame(apply)
+    const late = window.setTimeout(apply, 120)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', apply)
+      window.cancelAnimationFrame(raf)
+      window.clearTimeout(late)
+    }
   }, [onViewportHeight])
 
   const empty = layout.nodes.length === 0
@@ -139,7 +152,7 @@ export function TimelineGraphCanvas({
       <div
         ref={hostRef}
         data-testid="timeline-graph-canvas"
-        className="relative hidden min-h-[22rem] flex-1 overflow-auto rounded-2xl border border-ink-800/80 bg-ink-900/20 lg:block"
+        className="relative hidden min-h-[22rem] flex-1 overflow-auto rounded-2xl border border-ink-800/80 bg-ink-900/20 lg:block lg:min-h-0"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

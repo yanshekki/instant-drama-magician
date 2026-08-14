@@ -4,13 +4,16 @@ import {
   findTimelineGraphPrepCell,
   layoutTimelineGraph,
   previousStillPath,
+  TIMELINE_GRAPH_COL_MAX_H,
+  TIMELINE_GRAPH_FULL_WINDOW_CHROME,
   timelineGraphBezier,
   timelineGraphBindIds,
   timelineGraphCharImage,
   timelineGraphEdgePath,
   timelineGraphEstimateTextHeight,
   timelineGraphNodeSize,
-  timelineGraphSnippet
+  timelineGraphSnippet,
+  timelineGraphWrapLimit
 } from './timelineGraph'
 
 const entry = {
@@ -193,6 +196,20 @@ describe('layoutTimelineGraph', () => {
     expect(timelineGraphEdgePath(layout, { id: 'x', from: 'no', to: 'no' })).toBe(
       null
     )
+  })
+
+  it('wraps to the live pane, not the 720 fallback, when the window is tall', () => {
+    expect(timelineGraphWrapLimit()).toBe(TIMELINE_GRAPH_COL_MAX_H)
+    expect(timelineGraphWrapLimit({ canvasH: 1400 })).toBe(1400)
+    expect(timelineGraphWrapLimit({ windowH: 1638 })).toBe(
+      1638 - TIMELINE_GRAPH_FULL_WINDOW_CHROME
+    )
+    expect(
+      timelineGraphWrapLimit({ canvasH: 352, windowH: 1638, canvasTop: 180 })
+    ).toBeGreaterThan(1000)
+    expect(
+      timelineGraphWrapLimit({ canvasH: 1300, windowH: 1638, canvasTop: 180 })
+    ).toBe(1300)
   })
 
   it('stacks down a column then wraps to the next', () => {
