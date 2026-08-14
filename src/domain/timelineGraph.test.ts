@@ -112,9 +112,12 @@ describe('buildTimelineGraph', () => {
       'Lead detective'
     )
     expect(g.nodes.find((n) => n.id === 'still')?.missing).toBe(false)
-    expect(g.edges.some((e) => e.from.startsWith('character:') && e.to === 'still')).toBe(
-      true
-    )
+    expect(g.edges).toContainEqual({
+      id: 'character:c1->character:c2',
+      from: 'character:c1',
+      to: 'character:c2'
+    })
+    expect(g.edges).toContainEqual({ id: 'prompt->still', from: 'prompt', to: 'still' })
     expect(g.edges).toContainEqual({ id: 'still->video', from: 'still', to: 'video' })
   })
 
@@ -174,7 +177,7 @@ describe('layoutTimelineGraph', () => {
     expect(layout.height).toBeGreaterThan(100)
     const video = layout.nodes.find((n) => n.kind === 'video')
     const still = layout.nodes.find((n) => n.kind === 'still')
-    expect(video && still && video.x > still.x).toBe(true)
+    expect(video && still && video.column > still.column).toBe(true)
     const path = timelineGraphEdgePath(layout, layout.edges[0])
     expect(path).toMatch(/^M /)
     expect(path).toContain(' C ')

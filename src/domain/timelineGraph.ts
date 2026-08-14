@@ -1,6 +1,7 @@
 /**
  * Timeline v2 pipeline graph — derived nodes/edges + layout.
- * Topology is fixed (refs + prompt → still → video). Nothing is persisted.
+ * One sequential chain (refs → style → prompt → still → clip 1…N).
+ * Nothing is persisted.
  */
 
 export type TimelineGraphNodeKind =
@@ -136,9 +137,11 @@ export function timelineGraphSortEntries(
 }
 
 export const TIMELINE_GRAPH_PAD = 20
-export const TIMELINE_GRAPH_GAP_Y = 16
-export const TIMELINE_GRAPH_GAP_X = 24
+export const TIMELINE_GRAPH_GAP_Y = 28
+export const TIMELINE_GRAPH_GAP_X = 28
 export const TIMELINE_GRAPH_COL_X = [20, 316, 668] as const
+/** Wrap the sequential row so every node stays on the board. */
+export const TIMELINE_GRAPH_ROW_MAX = 1320
 
 const SIZE: Record<TimelineGraphNodeKind, { w: number; h: number }> = {
   character: { w: 280, h: 248 },
@@ -427,21 +430,12 @@ export function buildTimelineGraph(
     })
   }
 
-  const stillId = 'still'
-  const videoId = 'video'
-  for (const n of nodes) {
-    if (n.column >= 2) continue
-    if (n.id === stillId) continue
-    edges.push({
-      id: `${n.id}->${stillId}`,
-      from: n.id,
-      to: stillId
-    })
-  }
-  edges.push({ id: `${stillId}->${videoId}`, from: stillId, to: videoId })
-  for (let i = 0; i < seq.length - 1; i++) {
-    const from = seqId(seq[i])
-    const to = seqId(seq[i + 1])
+  nodes.forEach((n, i) => {
+    n.column = i
+  })
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const from = nodes[i].id
+    const to = nodes[i + 1].id
     edges.push({ id: `${from}->${to}`, from, to })
   }
 
@@ -484,45 +478,19 @@ export function timelineGraphNodeSize(
 }
 
 export function layoutTimelineGraph(model: TimelineGraphModel): TimelineGraphLayout {
-  const leftCols: TimelineGraphNode[][] = [[], []]
-  const sequence: TimelineGraphNode[] = []
-  for (const n of model.nodes) {
-    if (n.column < 2) leftCols[n.column]?.push(n)
-    else sequence.push(n)
-  }
-  sequence.sort((a, b) => a.column - b.column || (a.seq ?? 0) - (b.seq ?? 0))
-
+  const ordered = [...model.nodes].sort((a, b) => a.column - b.column)
   const laid: TimelineGraphLaidOutNode[] = []
-  const colHeights = [0, 0]
+  let x = TIMELINE_GRAPH_PAD
+  let y = TIMELINE_GRAPH_PAD
+  let rowH = 0
 
-  for (let col = 0; col < 2; col++) {
-    let y = TIMELINE_GRAPH_PAD
-    const x = TIMELINE_GRAPH_COL_X[col]
-    for (const n of leftCols[col]) {
-      const { w, h } = timelineGraphNodeSize(n.kind, n)
-      laid.push({
-        ...n,
-        x,
-        y,
-        w,
-        h,
-        inPort: { x, y: y + h / 2 },
-        outPort: { x: x + w, y: y + h / 2 }
-      })
-      y += h + TIMELINE_GRAPH_GAP_Y
+  for (const n of ordered) {
+    const { w, h } = timelineGraphNodeSize(n.kind, n)
+    if (x > TIMELINE_GRAPH_PAD && x + w > TIMELINE_GRAPH_ROW_MAX) {
+      x = TIMELINE_GRAPH_PAD
+      y += rowH + TIMELINE_GRAPH_GAP_Y
+      rowH = 0
     }
-    colHeights[col] = y
-  }
-
-  const seqSizes = sequence.map((n) => timelineGraphNodeSize(n.kind, n))
-  const seqMaxH = seqSizes.reduce((m, s) => Math.max(m, s.h), 0)
-  const leftH = Math.max(...colHeights, TIMELINE_GRAPH_PAD + 120)
-  const rowY = Math.max(TIMELINE_GRAPH_PAD, Math.round((leftH - seqMaxH) / 2))
-
-  let x = TIMELINE_GRAPH_COL_X[2]
-  sequence.forEach((n, i) => {
-    const { w, h } = seqSizes[i]
-    const y = rowY + Math.round((seqMaxH - h) / 2)
     laid.push({
       ...n,
       x,
@@ -533,7 +501,8 @@ export function layoutTimelineGraph(model: TimelineGraphModel): TimelineGraphLay
       outPort: { x: x + w, y: y + h / 2 }
     })
     x += w + TIMELINE_GRAPH_GAP_X
-  })
+    rowH = Math.max(rowH, h)
+  }
 
   const maxRight = laid.reduce((m, n) => Math.max(m, n.x + n.w), 0)
   const maxBottom = laid.reduce((m, n) => Math.max(m, n.y + n.h), 0)

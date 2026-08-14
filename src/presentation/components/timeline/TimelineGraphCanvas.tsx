@@ -65,14 +65,10 @@ export function TimelineGraphCanvas({
     setScale(next)
   }
 
-  const stackOrder = useMemo(() => {
-    const col0 = layout.nodes.filter((n) => n.column === 0)
-    const mid = layout.nodes.filter((n) => n.column === 1)
-    const seq = layout.nodes
-      .filter((n) => n.kind === 'video' || n.kind === 'clip')
-      .sort((a, b) => (a.seq ?? a.column) - (b.seq ?? b.column))
-    return [...col0, ...mid, ...seq]
-  }, [layout.nodes])
+  const stackOrder = useMemo(
+    () => [...layout.nodes].sort((a, b) => a.column - b.column),
+    [layout.nodes]
+  )
 
   if (empty) {
     return (
@@ -117,7 +113,7 @@ export function TimelineGraphCanvas({
         data-testid="timeline-graph-canvas"
         className="relative hidden overflow-auto rounded-2xl border border-ink-800/80 bg-ink-900/20 lg:block"
         style={{
-          height: Math.min(Math.max(layout.height + 12, 360), 880)
+          height: Math.min(Math.max(layout.height + 12, 360), 1200)
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
