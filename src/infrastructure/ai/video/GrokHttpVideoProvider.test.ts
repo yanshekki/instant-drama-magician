@@ -10,6 +10,13 @@ import { tmpdir } from 'os'
 describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
   it('rejects smoke stubs and stills stored as video', () => {
     expect(isUsableVideoBytes(Buffer.from('smoke'))).toBe(false)
+    expect(
+      isUsableVideoBytes(
+        Buffer.from(
+          '<!doctype html>\n<html lang="en"><head><title>Please read</title></head>'
+        )
+      )
+    ).toBe(false)
     expect(isUsableVideoBytes(Buffer.alloc(8, 0))).toBe(false)
     expect(
       isUsableVideoBytes(
@@ -258,7 +265,7 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
     const out = join(dir, 'c.mp4')
     const fetchImpl = vi.fn(async (_u: string | URL, init?: RequestInit) => {
       if (init?.method === 'POST') {
-        return new Response(Buffer.alloc(64, 9), {
+        return new Response(Buffer.alloc(64, 7), {
           status: 200,
           headers: { 'content-type': 'video/mp4' }
         })
@@ -710,7 +717,7 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
       if (url.includes('/documents')) throw new Error('upload boom')
       if (url.endsWith('/videos') && init?.method === 'POST') {
         // sync-style binary (must be >= 32 bytes)
-        return new Response(new Uint8Array(48).fill(9), {
+        return new Response(new Uint8Array(48).fill(7), {
           status: 200,
           headers: { 'content-type': 'video/mp4' }
         })

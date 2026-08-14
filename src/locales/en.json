@@ -876,6 +876,7 @@
     "openClip": "Open clip",
     "previewEmpty": "Select a clip to preview",
     "previewNoMedia": "No playable media on this clip",
+    "previewUnplayable": "This file is not a playable video (empty stub or a web page saved as mp4). Regenerate the clip.",
     "play": "Play",
     "pause": "Pause",
     "undoDone": "Undone and saved to the database",

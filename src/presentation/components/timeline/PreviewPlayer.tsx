@@ -30,6 +30,8 @@ interface PreviewPlayerProps {
   onMediaClock?: (globalTime: number) => void
   /** Fired when this clip’s media reaches its end (or last frame). */
   onClipEnded?: () => void
+  /** Click the preview to play / pause (timeline v2 card has no transport). */
+  onTogglePlay?: () => void
 }
 
 /**
@@ -46,7 +48,8 @@ export function PreviewPlayer({
   generateLabel,
   className = '',
   onMediaClock,
-  onClipEnded
+  onClipEnded,
+  onTogglePlay
 }: PreviewPlayerProps): JSX.Element {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -243,16 +246,47 @@ export function PreviewPlayer({
   const displaySrc = src ?? lastSrcRef.current
 
   return (
-    <div className={[shell, 'bg-black'].join(' ')}>
-      {error && <p className="shrink-0 p-2 text-xs text-rose-300">{error}</p>}
-      {displaySrc ? (
-        <video
-          ref={videoRef}
-          src={src ?? undefined}
-          className="h-full min-h-0 w-full flex-1 object-contain"
-          playsInline
-          preload="auto"
-        />
+    <div className={[shell, 'relative bg-black'].join(' ')}>
+      {error ? (
+        <div className="flex h-full min-h-[8rem] flex-col items-center justify-center gap-2 px-3 text-center">
+          <p className="text-xs text-rose-300">{error}</p>
+          {onGenerate ? (
+            <Button
+              variant="secondary"
+              className="!text-xs"
+              disabled={generateDisabled}
+              onClick={onGenerate}
+            >
+              {generateLabel ?? t('timeline.regenClip')}
+            </Button>
+          ) : null}
+        </div>
+      ) : displaySrc ? (
+        <>
+          <video
+            ref={videoRef}
+            src={src ?? undefined}
+            className="h-full min-h-0 w-full flex-1 object-contain"
+            playsInline
+            preload="auto"
+            onClick={onTogglePlay}
+            onError={() => setError(t('timeline.previewUnplayable'))}
+          />
+          {onTogglePlay && !isPlaying ? (
+            <button
+              type="button"
+              className="absolute inset-0 flex items-center justify-center bg-black/25 text-sm font-medium text-white"
+              onClick={(e) => {
+                e.stopPropagation()
+                onTogglePlay()
+              }}
+            >
+              <span className="rounded-full bg-black/60 px-3 py-1.5">
+                ▶ {t('timeline.play')}
+              </span>
+            </button>
+          ) : null}
+        </>
       ) : (
         <div className="flex flex-1 items-center justify-center text-xs text-ink-500">
           {t('common.loading')}

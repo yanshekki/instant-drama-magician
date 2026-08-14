@@ -876,6 +876,7 @@
     "openClip": "开启片段",
     "previewEmpty": "请选取片段以预览",
     "previewNoMedia": "此片段尚无可播放媒体",
+    "previewUnplayable": "此段不是有效影片（空文件或网页被存成 mp4）。请重新生成。",
     "play": "播放",
     "pause": "暂停",
     "undoDone": "已撤销并写回资料库",

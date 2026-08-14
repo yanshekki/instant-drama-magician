@@ -278,8 +278,9 @@ export function TimelineV2Page(): JSX.Element {
                   isPlaying={s.isPlaying}
                   onMediaClock={s.handleMediaClock}
                   onClipEnded={s.handleClipEnded}
+                  onTogglePlay={s.handleTogglePlay}
                   onGenerate={
-                    selected && selected.mediaStatus !== 'READY'
+                    selected
                       ? () => void s.handleRunClip(selected.id)
                       : undefined
                   }

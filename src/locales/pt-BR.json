@@ -876,6 +876,7 @@
     "openClip": "Abrir clipe",
     "previewEmpty": "Selecione um clipe para visualizar",
     "previewNoMedia": "Nenhuma mídia reproduzível neste clipe",
+    "previewUnplayable": "Este ficheiro não é um vídeo reproduzível (ficheiro vazio ou uma página web gravada como mp4). Regenere o clipe.",
     "play": "Jogar",
     "pause": "Pausar",
     "undoDone": "Desfeito e salvo no banco de dados",

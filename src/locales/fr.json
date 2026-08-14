@@ -876,6 +876,7 @@
     "openClip": "Ouvrir le clip",
     "previewEmpty": "Sélectionnez un clip à prévisualiser",
     "previewNoMedia": "Aucun média lisible sur ce clip",
+    "previewUnplayable": "Ce fichier n’est pas une vidéo lisible (stub vide ou page web enregistrée en mp4). Régénérez le clip.",
     "play": "Jouer",
     "pause": "Pause",
     "undoDone": "Annulé et enregistré dans la base de données",

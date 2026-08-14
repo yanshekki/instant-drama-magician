@@ -143,6 +143,43 @@ describe('PreviewPlayer', () => {
     )
   })
 
+  it('decode error shows unplayable and regenerate', async () => {
+    const onGen = vi.fn()
+    render(
+      <PreviewPlayer
+        entry={baseEntry}
+        playhead={0}
+        isPlaying={false}
+        onGenerate={onGen}
+        generateLabel="Regen"
+      />
+    )
+    await waitFor(() => expect(api.media.toPreviewUrl).toHaveBeenCalled())
+    const video = document.querySelector('video')
+    expect(video).toBeTruthy()
+    fireEvent.error(video!)
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/previewUnplayable/)
+    )
+    fireEvent.click(screen.getByText('Regen'))
+    expect(onGen).toHaveBeenCalled()
+  })
+
+  it('play overlay calls onTogglePlay', async () => {
+    const onToggle = vi.fn()
+    render(
+      <PreviewPlayer
+        entry={baseEntry}
+        playhead={0}
+        isPlaying={false}
+        onTogglePlay={onToggle}
+      />
+    )
+    await waitFor(() => expect(api.media.toPreviewUrl).toHaveBeenCalled())
+    fireEvent.click(screen.getByText(/timeline\.play|play/i))
+    expect(onToggle).toHaveBeenCalled()
+  })
+
   it('toPreviewUrl failure shows error', async () => {
     api.media.toPreviewUrl = vi.fn().mockRejectedValue(new Error('no url'))
     render(

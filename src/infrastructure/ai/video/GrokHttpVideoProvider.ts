@@ -17,23 +17,37 @@ import { AppError, mapHttpStatusToVideoError } from '../../../types/errors'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { isRetryableError, sleep, withRetries } from './httpUtils'
 
-/** Reject empty / smoke stubs / stills that the gateway stored as "video". */
+/** Reject empty / smoke stubs / HTML interstitials / stills stored as "video". */
 export function isUsableVideoBytes(buf: Buffer): boolean {
   if (!buf || buf.length < 32) return false
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
     return false
   }
   if (buf[0] === 0xff && buf[1] === 0xd8) return false
-  const head = buf.subarray(0, Math.min(16, buf.length)).toString('utf8')
-  if (/^\s*[{[]/.test(head)) return false
-  const asText = buf.toString('utf8').trim()
-  if (/^smoke$/i.test(asText)) return false
+  const head = buf
+    .subarray(0, Math.min(64, buf.length))
+    .toString('utf8')
+    .replace(/^\uFEFF/, '')
+    .trimStart()
+  if (/^(<!doctype|<html|<head|<body|<\?xml|\{|\[)/i.test(head)) return false
+  if (head.startsWith('<')) return false
+  if (/^smoke$/i.test(buf.toString('utf8').trim())) return false
   const sample = buf.subarray(0, Math.min(buf.length, 64))
   const asciiOnly = sample.every(
     (b) => b === 9 || b === 10 || b === 13 || (b >= 32 && b < 127)
   )
-  if (asciiOnly && buf.length < 256) return false
+  if (asciiOnly) return false
   return true
+}
+
+export function isHtmlOrTextContentType(contentType: string | null): boolean {
+  const ct = (contentType || '').toLowerCase()
+  return (
+    ct.includes('text/html') ||
+    ct.includes('text/plain') ||
+    ct.includes('application/json') ||
+    ct.includes('application/xml')
+  )
 }
 
 export interface GrokHttpVideoOptions {
@@ -196,8 +210,21 @@ export class GrokHttpVideoProvider implements VideoProvider {
 
         const contentType = res.headers.get('content-type') ?? ''
         if (!contentType.includes('application/json')) {
+          if (isHtmlOrTextContentType(contentType)) {
+            throw new AppError(
+              'VALIDATION',
+              'errors.videoContentEmpty',
+              'errors.videoContentEmptyHint'
+            )
+          }
           const buf = Buffer.from(await res.arrayBuffer())
-          if (buf.length < 32) throw new AppError('VALIDATION', 'errors.videoApiEmptyBody')
+          if (!isUsableVideoBytes(buf)) {
+            throw new AppError(
+              'VALIDATION',
+              'errors.videoContentEmpty',
+              'errors.videoContentEmptyHint'
+            )
+          }
           writeFileSync(request.outputPath, buf)
           return { outputPath: request.outputPath }
         }
@@ -301,6 +328,13 @@ export class GrokHttpVideoProvider implements VideoProvider {
     })
     if (!res.ok) {
       throw new AppError('AI_FAILED', 'errors.videoContentHttpFailed', String(res.status))
+    }
+    if (isHtmlOrTextContentType(res.headers.get('content-type'))) {
+      throw new AppError(
+        'VALIDATION',
+        'errors.videoContentEmpty',
+        'errors.videoContentEmptyHint'
+      )
     }
     const buf = Buffer.from(await res.arrayBuffer())
     if (!isUsableVideoBytes(buf)) {
