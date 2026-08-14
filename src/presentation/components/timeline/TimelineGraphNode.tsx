@@ -79,7 +79,7 @@ export function TimelineGraphNode({
 function nodeBody(
   node: TimelineGraphLaidOutNode,
   handlers: TimelineGraphNodeHandlers,
-  t: (k: string, opts?: Record<string, string>) => string
+  t: (k: string, opts?: Record<string, string | number>) => string
 ): ReactNode {
   if (node.kind === 'ghost-character' || node.kind === 'ghost-scene') {
     return (
@@ -203,11 +203,55 @@ function nodeBody(
     )
   }
 
+  if (node.kind === 'clip') {
+    const link =
+      node.subtitle === 'locked'
+        ? t('timeline.graph.clipLinked')
+        : node.subtitle === 'first'
+          ? t('timeline.graph.clipFirst')
+          : t('timeline.graph.clipUnlinked')
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
+          <p className={EYEBROW}>
+            {t('timeline.graph.clipN', { n: node.seq ?? '' })}
+          </p>
+          <span className="rounded-full bg-ink-800/80 px-2 py-0.5 text-[10px] text-ink-300">
+            {link}
+          </span>
+        </div>
+        <div className={`${MEDIA_BOX} mx-3 mt-2 min-h-0 flex-1`}>
+          {node.imagePath ? (
+            <LocalMediaImage
+              filePath={node.imagePath}
+              alt={node.title || t('timeline.graph.still')}
+              variant="fill"
+              objectFit="contain"
+              showActions={false}
+              className="h-full w-full"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center px-2 text-center text-[11px] text-ink-500">
+              {t('timeline.graph.clipEmpty')}
+            </div>
+          )}
+        </div>
+        <p className="min-h-[2.5rem] px-3 py-2 text-[11px] leading-snug text-ink-200">
+          {node.title || t('timeline.graph.clipEmpty')}
+        </p>
+      </div>
+    )
+  }
+
   if (node.kind === 'video') {
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
-          <p className={EYEBROW}>{t('timeline.graph.video')}</p>
+          <p className={EYEBROW}>
+            {node.seq
+              ? t('timeline.graph.clipN', { n: node.seq })
+              : t('timeline.graph.video')}
+          </p>
           <button
             type="button"
             className="truncate text-[10px] text-brand-300 hover:text-brand-200"
@@ -337,5 +381,6 @@ function kindLabel(
   if (kind === 'prop') return t('timeline.prop')
   if (kind === 'action') return t('timeline.action')
   if (kind === 'cinematic') return t('timeline.graph.cinematic')
+  if (kind === 'clip') return t('timeline.graph.video')
   return kind
 }

@@ -12,10 +12,11 @@ export type TimelineGraphNodeKind =
   | 'prompt'
   | 'still'
   | 'video'
+  | 'clip'
   | 'ghost-character'
   | 'ghost-scene'
 
-export type TimelineGraphColumn = 0 | 1 | 2
+export type TimelineGraphColumn = number
 
 export type TimelineGraphPrepCell = {
   entryId: string
@@ -40,6 +41,8 @@ export type TimelineGraphNode = {
   missing: boolean
   entityId: string | null
   entryId: string
+  /** 1-based clip index when this node is part of the story sequence. */
+  seq?: number
 }
 
 export type TimelineGraphEdge = {
@@ -108,10 +111,33 @@ export type BuildTimelineGraphInput = {
   videoProvider?: string | null
   imageModel?: string | null
   videoModel?: string | null
+  entries?: TimelineGraphSeqEntry[]
+  cells?: TimelineGraphPrepCell[] | null
+}
+
+export type TimelineGraphSeqEntry = {
+  id: string
+  order?: number
+  startTime?: number
+  dialogue?: string | null
+  mediaStatus?: string | null
+  mediaPath?: string | null
+}
+
+export function timelineGraphSortEntries(
+  list: TimelineGraphSeqEntry[]
+): TimelineGraphSeqEntry[] {
+  return [...list].sort((a, b) => {
+    const as = Number.isFinite(a.startTime) ? Number(a.startTime) : (a.order ?? 0)
+    const bs = Number.isFinite(b.startTime) ? Number(b.startTime) : (b.order ?? 0)
+    if (as !== bs) return as - bs
+    return a.id.localeCompare(b.id)
+  })
 }
 
 export const TIMELINE_GRAPH_PAD = 20
 export const TIMELINE_GRAPH_GAP_Y = 16
+export const TIMELINE_GRAPH_GAP_X = 24
 export const TIMELINE_GRAPH_COL_X = [20, 316, 668] as const
 
 const SIZE: Record<TimelineGraphNodeKind, { w: number; h: number }> = {
@@ -124,7 +150,8 @@ const SIZE: Record<TimelineGraphNodeKind, { w: number; h: number }> = {
   'ghost-scene': { w: 280, h: 136 },
   prompt: { w: 328, h: 400 },
   still: { w: 328, h: 280 },
-  video: { w: 400, h: 340 }
+  video: { w: 400, h: 340 },
+  clip: { w: 228, h: 208 }
 }
 
 const ENTITY_IMAGE_H = 144
@@ -356,23 +383,55 @@ export function buildTimelineGraph(
     entryId: entry.id
   })
 
-  nodes.push({
-    id: 'video',
-    kind: 'video',
-    column: 2,
-    title: '',
-    subtitle: channelSubtitle(input.videoProvider, input.videoModel),
-    imagePath: null,
-    status: entry.mediaStatus || 'EMPTY',
-    missing: entry.mediaStatus !== 'READY' || !entry.mediaPath,
-    entityId: null,
-    entryId: entry.id
-  })
+  const seq = timelineGraphSortEntries(
+    input.entries?.length
+      ? input.entries
+      : [
+          {
+            id: entry.id,
+            mediaStatus: entry.mediaStatus,
+            mediaPath: entry.mediaPath
+          }
+        ]
+  )
+  const seqId = (item: TimelineGraphSeqEntry): string =>
+    item.id === entry.id ? 'video' : `clip:${item.id}`
+
+  for (let i = 0; i < seq.length; i++) {
+    const item = seq[i]
+    const selected = item.id === entry.id
+    const cell = findTimelineGraphPrepCell(input.cells, item.id)
+    const prev = i > 0 ? seq[i - 1] : null
+    const prevCell = prev ? findTimelineGraphPrepCell(input.cells, prev.id) : null
+    const continuity =
+      i === 0
+        ? 'first'
+        : prevCell?.stillPath || prev?.mediaPath
+          ? 'locked'
+          : 'text-only'
+    const stillThumb = cell?.stillPath?.trim() || null
+    nodes.push({
+      id: seqId(item),
+      kind: selected ? 'video' : 'clip',
+      column: 2 + i,
+      title: timelineGraphSnippet(item.dialogue, 48),
+      subtitle: selected
+        ? channelSubtitle(input.videoProvider, input.videoModel)
+        : continuity,
+      imagePath: stillThumb,
+      status: item.mediaStatus || 'EMPTY',
+      missing: item.mediaStatus !== 'READY' || !item.mediaPath,
+      entityId: item.id,
+      entryId: item.id,
+      seq: i + 1
+    })
+  }
 
   const stillId = 'still'
   const videoId = 'video'
   for (const n of nodes) {
-    if (n.id === stillId || n.id === videoId) continue
+    if (n.column >= 2) continue
+    if (n.id === stillId) continue
     edges.push({
       id: `${n.id}->${stillId}`,
       from: n.id,
@@ -380,6 +439,11 @@ export function buildTimelineGraph(
     })
   }
   edges.push({ id: `${stillId}->${videoId}`, from: stillId, to: videoId })
+  for (let i = 0; i < seq.length - 1; i++) {
+    const from = seqId(seq[i])
+    const to = seqId(seq[i + 1])
+    edges.push({ id: `${from}->${to}`, from, to })
+  }
 
   return { nodes, edges }
 }
@@ -420,18 +484,21 @@ export function timelineGraphNodeSize(
 }
 
 export function layoutTimelineGraph(model: TimelineGraphModel): TimelineGraphLayout {
-  const byCol: TimelineGraphNode[][] = [[], [], []]
+  const leftCols: TimelineGraphNode[][] = [[], []]
+  const sequence: TimelineGraphNode[] = []
   for (const n of model.nodes) {
-    byCol[n.column].push(n)
+    if (n.column < 2) leftCols[n.column]?.push(n)
+    else sequence.push(n)
   }
+  sequence.sort((a, b) => a.column - b.column || (a.seq ?? 0) - (b.seq ?? 0))
 
   const laid: TimelineGraphLaidOutNode[] = []
-  const colHeights = [0, 0, 0]
+  const colHeights = [0, 0]
 
-  for (let col = 0; col < 3; col++) {
+  for (let col = 0; col < 2; col++) {
     let y = TIMELINE_GRAPH_PAD
     const x = TIMELINE_GRAPH_COL_X[col]
-    for (const n of byCol[col]) {
+    for (const n of leftCols[col]) {
       const { w, h } = timelineGraphNodeSize(n.kind, n)
       laid.push({
         ...n,
@@ -447,20 +514,26 @@ export function layoutTimelineGraph(model: TimelineGraphModel): TimelineGraphLay
     colHeights[col] = y
   }
 
-  const video = laid.find((n) => n.kind === 'video')
-  const contentH = Math.max(...colHeights, TIMELINE_GRAPH_PAD + 120)
-  if (video) {
-    const targetY = Math.max(
-      TIMELINE_GRAPH_PAD,
-      Math.round((contentH - video.h) / 2)
-    )
-    const dy = targetY - video.y
-    if (dy !== 0) {
-      video.y += dy
-      video.inPort = { x: video.x, y: video.y + video.h / 2 }
-      video.outPort = { x: video.x + video.w, y: video.y + video.h / 2 }
-    }
-  }
+  const seqSizes = sequence.map((n) => timelineGraphNodeSize(n.kind, n))
+  const seqMaxH = seqSizes.reduce((m, s) => Math.max(m, s.h), 0)
+  const leftH = Math.max(...colHeights, TIMELINE_GRAPH_PAD + 120)
+  const rowY = Math.max(TIMELINE_GRAPH_PAD, Math.round((leftH - seqMaxH) / 2))
+
+  let x = TIMELINE_GRAPH_COL_X[2]
+  sequence.forEach((n, i) => {
+    const { w, h } = seqSizes[i]
+    const y = rowY + Math.round((seqMaxH - h) / 2)
+    laid.push({
+      ...n,
+      x,
+      y,
+      w,
+      h,
+      inPort: { x, y: y + h / 2 },
+      outPort: { x: x + w, y: y + h / 2 }
+    })
+    x += w + TIMELINE_GRAPH_GAP_X
+  })
 
   const maxRight = laid.reduce((m, n) => Math.max(m, n.x + n.w), 0)
   const maxBottom = laid.reduce((m, n) => Math.max(m, n.y + n.h), 0)

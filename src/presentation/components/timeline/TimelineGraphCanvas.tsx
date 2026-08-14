@@ -67,8 +67,11 @@ export function TimelineGraphCanvas({
 
   const stackOrder = useMemo(() => {
     const col0 = layout.nodes.filter((n) => n.column === 0)
-    const rest = layout.nodes.filter((n) => n.column !== 0)
-    return [...col0, ...rest]
+    const mid = layout.nodes.filter((n) => n.column === 1)
+    const seq = layout.nodes
+      .filter((n) => n.kind === 'video' || n.kind === 'clip')
+      .sort((a, b) => (a.seq ?? a.column) - (b.seq ?? b.column))
+    return [...col0, ...mid, ...seq]
   }, [layout.nodes])
 
   if (empty) {

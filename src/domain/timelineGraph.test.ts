@@ -118,6 +118,40 @@ describe('buildTimelineGraph', () => {
     expect(g.edges).toContainEqual({ id: 'still->video', from: 'still', to: 'video' })
   })
 
+  it('chains later clips after the selected video', () => {
+    const g = buildTimelineGraph({
+      entry: { id: 'e1', mediaStatus: 'READY', mediaPath: '/1.mp4' },
+      entries: [
+        { id: 'e1', startTime: 0, dialogue: '第一段', mediaStatus: 'READY', mediaPath: '/1.mp4' },
+        { id: 'e2', startTime: 10, dialogue: '第二段', mediaStatus: 'EMPTY' },
+        { id: 'e3', startTime: 20, dialogue: '第三段', mediaStatus: 'EMPTY' }
+      ],
+      cells: [
+        { entryId: 'e1', stillPath: '/s1.png', stillStatus: 'ready' },
+        { entryId: 'e2', stillPath: '/s2.png', stillStatus: 'ready' }
+      ]
+    })
+    const clips = g.nodes.filter((n) => n.kind === 'clip')
+    expect(clips).toHaveLength(2)
+    expect(g.nodes.find((n) => n.id === 'video')?.seq).toBe(1)
+    expect(clips[0].id).toBe('clip:e2')
+    expect(clips[0].subtitle).toBe('locked')
+    expect(g.edges).toContainEqual({
+      id: 'video->clip:e2',
+      from: 'video',
+      to: 'clip:e2'
+    })
+    expect(g.edges).toContainEqual({
+      id: 'clip:e2->clip:e3',
+      from: 'clip:e2',
+      to: 'clip:e3'
+    })
+    const layout = layoutTimelineGraph(g)
+    const v = layout.nodes.find((n) => n.id === 'video')
+    const c2 = layout.nodes.find((n) => n.id === 'clip:e2')
+    expect(v && c2 && c2.x > v.x).toBe(true)
+  })
+
   it('inserts ghost cards when nothing is bound', () => {
     const g = buildTimelineGraph({
       entry: { id: 'e9', mediaStatus: 'EMPTY' }

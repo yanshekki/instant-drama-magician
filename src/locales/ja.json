@@ -1023,7 +1023,12 @@
       "setupHint": "Clip length and image / video channels for this studio.",
       "emptyClip": "Select a clip on the track below.",
       "zoomReset": "Reset view",
-      "noStyle": "No style bible yet"
+      "noStyle": "No style bible yet",
+      "clipN": "クリップ {{n}}",
+      "clipFirst": "最初のクリップ",
+      "clipLinked": "前のクリップから続く",
+      "clipUnlinked": "連続ロックなし",
+      "clipEmpty": "動画はまだありません"
     }
   },
   "pipeline": {

@@ -246,7 +246,17 @@ export function TimelineV2Page(): JSX.Element {
           <TimelineGraphCanvas
             layout={s.graphLayout}
             selectedNodeId={s.graphNodeId}
-            onSelectNode={s.setGraphNodeId}
+            onSelectNode={(id) => {
+              s.setGraphNodeId(id)
+              const node = s.graphLayout.nodes.find((n) => n.id === id)
+              if (
+                node?.entityId &&
+                (node.kind === 'clip' || node.kind === 'video') &&
+                node.entityId !== s.selectedId
+              ) {
+                s.selectClip(node.entityId)
+              }
+            }}
             handlers={{
               promptValue: s.dialogue,
               revisionValue: selected ? s.revisionByEntry[selected.id] ?? '' : '',

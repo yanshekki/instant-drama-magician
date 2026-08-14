@@ -1010,7 +1010,7 @@
     "mergedHardRulesHint": "已合併本故事與本段連結的角色／場景／道具／動作鐵則。出片時最高優先（導演修訂不能取消鐵則）。",
     "graph": {
       "title": "時間軸 v2",
-      "subtitle": "產線工作台——為選中片段顯示參考、分鏡靜圖與影片。",
+      "subtitle": "產線工作台——選中片段的參考與靜圖，右側按順序接續各段影片。",
       "useClassic": "經典時間軸",
       "useV2": "產線時間軸",
       "cinematic": "風格／連貫",
@@ -1023,7 +1023,12 @@
       "setupHint": "此時長與影像／影片通道。",
       "emptyClip": "請在下方時間軸選取片段。",
       "zoomReset": "重設檢視",
-      "noStyle": "尚未設定風格聖經"
+      "noStyle": "尚未設定風格聖經",
+      "clipN": "第 {{n}} 段",
+      "clipFirst": "首段",
+      "clipLinked": "接上一段",
+      "clipUnlinked": "未鎖連續",
+      "clipEmpty": "尚未出片"
     }
   },
   "pipeline": {

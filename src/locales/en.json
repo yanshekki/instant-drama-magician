@@ -1010,7 +1010,7 @@
     "mergedHardRulesHint": "Merged from this story + linked characters / scenes / props / actions. Applied at highest priority on clip generate (revision cannot cancel these).",
     "graph": {
       "title": "Timeline v2",
-      "subtitle": "Pipeline board — references, still, and video for the selected clip.",
+      "subtitle": "Pipeline board — references and still for the selected clip, then each following clip in order.",
       "useClassic": "Classic timeline",
       "useV2": "Pipeline timeline",
       "cinematic": "Style / continuity",
@@ -1023,7 +1023,12 @@
       "setupHint": "Clip length and image / video channels for this studio.",
       "emptyClip": "Select a clip on the track below.",
       "zoomReset": "Reset view",
-      "noStyle": "No style bible yet"
+      "noStyle": "No style bible yet",
+      "clipN": "Clip {{n}}",
+      "clipFirst": "First clip",
+      "clipLinked": "Continues previous",
+      "clipUnlinked": "No previous lock",
+      "clipEmpty": "No video yet"
     }
   },
   "pipeline": {

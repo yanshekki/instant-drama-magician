@@ -431,7 +431,16 @@ export function useTimelineV2Studio() {
       imageProvider: settings?.imageProvider,
       videoProvider: settings?.videoProvider,
       imageModel: settings?.imageModel,
-      videoModel: settings?.videoModel
+      videoModel: settings?.videoModel,
+      entries: entries.map((e) => ({
+        id: e.id,
+        order: e.order,
+        startTime: e.startTime,
+        dialogue: e.dialogue,
+        mediaStatus: e.mediaStatus,
+        mediaPath: e.mediaPath
+      })),
+      cells: prep?.cells
     })
     return layoutTimelineGraph(model)
   }, [
@@ -442,7 +451,8 @@ export function useTimelineV2Studio() {
     castProps,
     castActions,
     prep,
-    settings
+    settings,
+    entries
   ])
 
   const openStoryEditor = timelineBindNavigate(navigate, '/')
