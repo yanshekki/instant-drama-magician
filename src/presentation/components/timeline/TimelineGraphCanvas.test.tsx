@@ -7,7 +7,10 @@ import {
   buildTimelineGraph,
   layoutTimelineGraph
 } from '../../../domain/timelineGraph'
-import { TimelineGraphCanvas } from './TimelineGraphCanvas'
+import {
+  TimelineGraphCanvas,
+  timelineGraphShouldZoomWheel
+} from './TimelineGraphCanvas'
 import type { TimelineGraphNodeHandlers } from './TimelineGraphNode'
 
 vi.mock('../LocalMediaImage', () => ({
@@ -75,5 +78,22 @@ describe('TimelineGraphCanvas', () => {
     )
     fireEvent.click(screen.getAllByRole('button', { name: /^Save$/i })[0]!)
     expect(handlers.onSavePrompt).toHaveBeenCalled()
+  })
+
+  it('does not treat field scroll as canvas zoom', () => {
+    const field = document.createElement('textarea')
+    expect(
+      timelineGraphShouldZoomWheel({ target: field, ctrlKey: false, metaKey: false })
+    ).toBe(false)
+    expect(
+      timelineGraphShouldZoomWheel({ target: field, ctrlKey: true, metaKey: false })
+    ).toBe(false)
+    const board = document.createElement('div')
+    expect(
+      timelineGraphShouldZoomWheel({ target: board, ctrlKey: false, metaKey: false })
+    ).toBe(false)
+    expect(
+      timelineGraphShouldZoomWheel({ target: board, ctrlKey: true, metaKey: false })
+    ).toBe(true)
   })
 })

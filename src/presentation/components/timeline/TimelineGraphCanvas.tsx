@@ -5,6 +5,17 @@ import { Button } from '../ui'
 import { TimelineGraphNode, type TimelineGraphNodeHandlers } from './TimelineGraphNode'
 import { TimelineGraphWires } from './TimelineGraphWires'
 
+/** Zoom only via ctrl/meta+wheel, and never while scrolling a field. */
+export function timelineGraphShouldZoomWheel(e: {
+  ctrlKey?: boolean
+  metaKey?: boolean
+  target: EventTarget | null
+}): boolean {
+  if (!e.ctrlKey && !e.metaKey) return false
+  if (!(e.target instanceof Element)) return true
+  return !e.target.closest('textarea, input, select, [contenteditable="true"]')
+}
+
 interface TimelineGraphCanvasProps {
   layout: TimelineGraphLayout
   selectedNodeId?: string | null
@@ -48,9 +59,7 @@ export function TimelineGraphCanvas({
   }
 
   const onWheel = (e: WheelEvent<HTMLDivElement>): void => {
-    if (!e.ctrlKey && Math.abs(e.deltaY) < 40) {
-      return
-    }
+    if (!timelineGraphShouldZoomWheel(e)) return
     e.preventDefault()
     const next = Math.min(1.4, Math.max(0.6, scale + (e.deltaY > 0 ? -0.08 : 0.08)))
     setScale(next)

@@ -117,6 +117,7 @@ function nodeBody(
       <div
         className="flex h-full min-h-0 flex-col p-3"
         onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
       >
         <p className={EYEBROW}>{t('stories.beatScript')}</p>
         <Textarea
