@@ -183,9 +183,29 @@ describe('layoutTimelineGraph', () => {
     )
   })
 
+  it('stacks down a column then wraps to the next', () => {
+    const g = buildTimelineGraph({
+      entry,
+      characters: [{ id: 'c1', name: 'A' }],
+      scenes: [{ id: 's1', title: 'S' }]
+    })
+    const tall = layoutTimelineGraph(g, { maxColumnHeight: 4000 })
+    const a = tall.nodes.find((n) => n.id === 'character:c1')
+    const b = tall.nodes.find((n) => n.id.startsWith('scene:'))
+    expect(a && b && a.x === b.x && b.y > a.y).toBe(true)
+
+    const wrapped = layoutTimelineGraph(g, { maxColumnHeight: 280 })
+    const wa = wrapped.nodes[0]
+    const later = wrapped.nodes.find((n) => n.x > wa.x)
+    expect(later).toBeTruthy()
+  })
+
   it('bezier is stable', () => {
     expect(timelineGraphBezier({ x: 0, y: 10 }, { x: 100, y: 10 })).toBe(
       'M 0 10 C 50 10, 50 10, 100 10'
+    )
+    expect(timelineGraphBezier({ x: 10, y: 0 }, { x: 10, y: 100 })).toBe(
+      'M 10 0 C 10 50, 10 50, 10 100'
     )
   })
 

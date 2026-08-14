@@ -1,4 +1,11 @@
-import { useMemo, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent,
+  type WheelEvent
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TimelineGraphLayout } from '../../../domain/timelineGraph'
 import { Button } from '../ui'
@@ -20,6 +27,7 @@ interface TimelineGraphCanvasProps {
   layout: TimelineGraphLayout
   selectedNodeId?: string | null
   onSelectNode?: (id: string) => void
+  onViewportHeight?: (h: number) => void
   handlers: TimelineGraphNodeHandlers
 }
 
@@ -27,14 +35,33 @@ export function TimelineGraphCanvas({
   layout,
   selectedNodeId,
   onSelectNode,
+  onViewportHeight,
   handlers
 }: TimelineGraphCanvasProps): JSX.Element {
   const { t } = useTranslation()
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [scale, setScale] = useState(1)
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  const lastH = useRef(0)
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(
     null
   )
+
+  useEffect(() => {
+    const el = hostRef.current
+    if (!el || !onViewportHeight || typeof ResizeObserver === 'undefined') return
+    const apply = (): void => {
+      const h = Math.floor(el.clientHeight)
+      if (h < 80) return
+      if (Math.abs(h - lastH.current) < 8) return
+      lastH.current = h
+      onViewportHeight(h)
+    }
+    apply()
+    const ro = new ResizeObserver(() => apply())
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [onViewportHeight])
 
   const empty = layout.nodes.length === 0
 
@@ -82,7 +109,7 @@ export function TimelineGraphCanvas({
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-2 hidden justify-end lg:flex">
         <Button
           variant="ghost"
@@ -110,11 +137,9 @@ export function TimelineGraphCanvas({
       </div>
 
       <div
+        ref={hostRef}
         data-testid="timeline-graph-canvas"
-        className="relative hidden overflow-auto rounded-2xl border border-ink-800/80 bg-ink-900/20 lg:block"
-        style={{
-          height: Math.min(Math.max(layout.height + 12, 360), 1200)
-        }}
+        className="relative hidden min-h-[22rem] flex-1 overflow-auto rounded-2xl border border-ink-800/80 bg-ink-900/20 lg:block"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

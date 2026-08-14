@@ -44,7 +44,8 @@ import {
   buildTimelineGraph,
   findTimelineGraphPrepCell,
   layoutTimelineGraph,
-  previousStillPath
+  previousStillPath,
+  TIMELINE_GRAPH_COL_MAX_H
 } from '../../domain/timelineGraph'
 import {
   timelineApplySettingsSnap,
@@ -179,6 +180,11 @@ export function useTimelineV2Studio() {
   const [stillBusy, setStillBusy] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
   const [graphNodeId, setGraphNodeId] = useState<string | null>('video')
+  const [graphViewportH, setGraphViewportH] = useState(TIMELINE_GRAPH_COL_MAX_H)
+  const setGraphViewportFromCanvas = useCallback((h: number) => {
+    const next = Math.max(240, h - 16)
+    setGraphViewportH((prev) => (Math.abs(next - prev) < 8 ? prev : next))
+  }, [])
 
   const activeStory = useMemo(
     () => stories.find((s) => s.id === activeStoryId) ?? null,
@@ -450,7 +456,7 @@ export function useTimelineV2Studio() {
       })),
       cells: prep?.cells
     })
-    return layoutTimelineGraph(model)
+    return layoutTimelineGraph(model, { maxColumnHeight: graphViewportH })
   }, [
     selected,
     activeStory,
@@ -460,7 +466,8 @@ export function useTimelineV2Studio() {
     castActions,
     prep,
     settings,
-    entries
+    entries,
+    graphViewportH
   ])
 
   const openStoryEditor = timelineBindNavigate(navigate, '/')
@@ -1045,6 +1052,7 @@ export function useTimelineV2Studio() {
     graphLayout,
     graphNodeId,
     setGraphNodeId,
+    setGraphViewportFromCanvas,
     setupOpen,
     setSetupOpen,
     stillBusy,

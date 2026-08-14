@@ -148,8 +148,12 @@ export const TIMELINE_GRAPH_PAD = 20
 export const TIMELINE_GRAPH_GAP_Y = 28
 export const TIMELINE_GRAPH_GAP_X = 28
 export const TIMELINE_GRAPH_COL_X = [20, 316, 668] as const
-/** Wrap the sequential row so every node stays on the board. */
-export const TIMELINE_GRAPH_ROW_MAX = 1320
+/** Default column height for a 16:9 pane (header + track already reserved). */
+export const TIMELINE_GRAPH_COL_MAX_H = 720
+
+export type LayoutTimelineGraphOpts = {
+  maxColumnHeight?: number
+}
 
 const SIZE: Record<TimelineGraphNodeKind, { w: number; h: number }> = {
   character: { w: 280, h: 248 },
@@ -505,31 +509,52 @@ export function timelineGraphNodeSize(
   return base
 }
 
-export function layoutTimelineGraph(model: TimelineGraphModel): TimelineGraphLayout {
+export function layoutTimelineGraph(
+  model: TimelineGraphModel,
+  opts?: LayoutTimelineGraphOpts
+): TimelineGraphLayout {
   const ordered = [...model.nodes].sort((a, b) => a.column - b.column)
+  const limit = Math.max(
+    TIMELINE_GRAPH_PAD + 80,
+    opts?.maxColumnHeight ?? TIMELINE_GRAPH_COL_MAX_H
+  )
   const laid: TimelineGraphLaidOutNode[] = []
-  let x = TIMELINE_GRAPH_PAD
+  let colX = TIMELINE_GRAPH_PAD
   let y = TIMELINE_GRAPH_PAD
-  let rowH = 0
+  let colW = 0
 
   for (const n of ordered) {
     const { w, h } = timelineGraphNodeSize(n.kind, n)
-    if (x > TIMELINE_GRAPH_PAD && x + w > TIMELINE_GRAPH_ROW_MAX) {
-      x = TIMELINE_GRAPH_PAD
-      y += rowH + TIMELINE_GRAPH_GAP_Y
-      rowH = 0
+    if (y > TIMELINE_GRAPH_PAD && y + h > limit) {
+      colX += colW + TIMELINE_GRAPH_GAP_X
+      y = TIMELINE_GRAPH_PAD
+      colW = 0
     }
     laid.push({
       ...n,
-      x,
+      x: colX,
       y,
       w,
       h,
-      inPort: { x, y: y + h / 2 },
-      outPort: { x: x + w, y: y + h / 2 }
+      inPort: { x: colX, y: y + h / 2 },
+      outPort: { x: colX + w, y: y + h / 2 }
     })
-    x += w + TIMELINE_GRAPH_GAP_X
-    rowH = Math.max(rowH, h)
+    y += h + TIMELINE_GRAPH_GAP_Y
+    colW = Math.max(colW, w)
+  }
+
+  for (let i = 0; i < laid.length; i++) {
+    const n = laid[i]
+    const prev = i > 0 ? laid[i - 1] : null
+    const next = i + 1 < laid.length ? laid[i + 1] : null
+    const fromAbove = Boolean(prev && Math.abs(prev.x - n.x) < 8)
+    const toBelow = Boolean(next && Math.abs(next.x - n.x) < 8)
+    n.inPort = fromAbove
+      ? { x: n.x + n.w / 2, y: n.y }
+      : { x: n.x, y: n.y + n.h / 2 }
+    n.outPort = toBelow
+      ? { x: n.x + n.w / 2, y: n.y + n.h }
+      : { x: n.x + n.w, y: n.y + n.h / 2 }
   }
 
   const maxRight = laid.reduce((m, n) => Math.max(m, n.x + n.w), 0)
@@ -547,10 +572,15 @@ export function timelineGraphBezier(
   from: TimelineGraphPoint,
   to: TimelineGraphPoint
 ): string {
-  const dx = Math.max(48, Math.abs(to.x - from.x) / 2)
-  const c1x = from.x + dx
-  const c2x = to.x - dx
-  return `M ${from.x} ${from.y} C ${c1x} ${from.y}, ${c2x} ${to.y}, ${to.x} ${to.y}`
+  const dx = Math.abs(to.x - from.x)
+  const dy = Math.abs(to.y - from.y)
+  if (dy >= dx) {
+    const c = Math.max(48, dy / 2)
+    const s = to.y >= from.y ? 1 : -1
+    return `M ${from.x} ${from.y} C ${from.x} ${from.y + s * c}, ${to.x} ${to.y - s * c}, ${to.x} ${to.y}`
+  }
+  const hx = Math.max(48, dx / 2)
+  return `M ${from.x} ${from.y} C ${from.x + hx} ${from.y}, ${to.x - hx} ${to.y}, ${to.x} ${to.y}`
 }
 
 export function timelineGraphEdgePath(
