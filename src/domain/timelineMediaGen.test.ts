@@ -28,7 +28,7 @@ describe('buildTimelineBeatMaterialSections', () => {
     expect(r.taskHint).toMatch(/KEYFRAME|beat #2/i)
   })
 
-  it('falls back to cast when no prev still', () => {
+  it('does not use character still as pixel base when there is no prev clip', () => {
     const r = buildTimelineBeatMaterialSections({
       kind: 'timeline-clip',
       storyTitle: 'S',
@@ -37,9 +37,12 @@ describe('buildTimelineBeatMaterialSections', () => {
       castRefName: 'A',
       durationSeconds: 8
     })
-    expect(r.editBaseSectionId).toBe('cast_ref')
+    expect(r.editBaseSectionId).toBeNull()
     expect(r.genOptions.durationSeconds).toBe(8)
-    expect(r.genOptions.useIdentityEdit).toBe(true)
+    expect(r.genOptions.useIdentityEdit).toBe(false)
+    expect(r.sections.find((s) => s.id === 'cast_ref')?.canBeEditBase).toBe(
+      false
+    )
     expect(r.taskHint).toMatch(/video/i)
   })
 })

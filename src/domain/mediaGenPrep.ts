@@ -978,7 +978,7 @@ export function buildTimelineBeatMaterialSections(opts: {
       imagePath: cast,
       text: 'Advanced cast look / costume still. IDENTITY LOCK face and body proportions.',
       include: true,
-      canBeEditBase: true,
+      canBeEditBase: false,
       editBasePriority: 150,
       group: 'refs'
     })
@@ -1007,7 +1007,7 @@ export function buildTimelineBeatMaterialSections(opts: {
       imagePath: img,
       text: `Character library still for "${c.name || 'cast'}". Match face/hair/body.`,
       include: !cast || i === 0,
-      canBeEditBase: true,
+      canBeEditBase: false,
       editBasePriority: 120 - i,
       group: 'refs'
     })
@@ -1143,6 +1143,8 @@ export function buildTimelineBeatMaterialSections(opts: {
     })
   }
 
+  // Timeline keyframe: library stills are vision refs only. Pixel edit
+  // base is the previous beat still (continuity), else generate from scratch.
   const editBaseSectionId = pickDefaultEditBaseSectionId(sections)
   const taskHint = isVideo
     ? `Keyframe still then short-drama video for story "${opts.storyTitle}" beat #${beatN}. Continuity-lock previous frame when attached. Include camera motion and dialogue performance.`

@@ -256,6 +256,8 @@ describe('mediaGenPrep', () => {
     })
     const charSecs = built.sections.filter((s) => s.entityType === 'character')
     expect(charSecs.length).toBe(2)
+    expect(charSecs.every((s) => s.canBeEditBase === false)).toBe(true)
+    expect(built.editBaseSectionId).toBeNull()
     expect(built.sections.some((s) => s.entityType === 'scene')).toBe(true)
     expect(built.fallbackPrompt).toMatch(/A, B|Cast/)
   })
