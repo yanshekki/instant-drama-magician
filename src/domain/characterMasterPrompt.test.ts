@@ -183,7 +183,8 @@ describe('characterMasterPrompt', () => {
     })
     expect(block).toContain('Ming')
     expect(block).toContain('short hair')
-    expect(block).toContain('yue')
+    expect(block).toMatch(/yue|粵語|Cantonese/i)
+    expect(block).toMatch(/SPEECH LOCK/)
 
     const zh = buildCharacterIntroVideoPrompt(
       {

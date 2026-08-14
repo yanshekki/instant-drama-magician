@@ -118,6 +118,13 @@ describe('storyMasterPrompt', () => {
       locale: 'en'
     })
     expect(enUser).toMatch(/Rain|styleNote|hardRules/i)
+
+    const jaSys = buildStoryMetaSystemPrompt('ja')
+    expect(jaSys).toMatch(/ショーランナー|短編/)
+    expect(jaSys).not.toBe(enSys)
+    const jaUser = buildStoryMetaUserPrompt({ title: '雨', locale: 'ja' })
+    expect(jaUser).toMatch(/物語|構想|タイトル/)
+    expect(jaUser).not.toMatch(/IMPROVE MODE/)
   })
 
   it('extracts meta from fenced json and rejects empty styleNote', () => {
@@ -135,8 +142,10 @@ describe('storyMasterPrompt', () => {
   it('builds beats system/user prompts', () => {
     const zh = buildStoryBeatsSystemPrompt('zh-HK')
     expect(zh).toMatch(/劇情段落|units/)
+    expect(zh).toMatch(/口白|SPEECH/)
     const en = buildStoryBeatsSystemPrompt('en')
     expect(en).toMatch(/TIMELINE BEATS|dialogue/)
+    expect(en).toMatch(/SPEECH|spoken language/)
 
     const userZh = buildStoryBeatsUserPrompt({
       title: '雨夜',

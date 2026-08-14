@@ -26,12 +26,22 @@ export type MenuAction =
   | { type: 'screenshot-saved'; filePath: string }
   | { type: 'open-legal'; kind: 'disclaimer' | 'terms' }
 
-export type MenuLang = 'zh-HK' | 'en'
+export type MenuLang =
+  | 'zh-HK'
+  | 'zh-CN'
+  | 'en'
+  | 'ja'
+  | 'es'
+  | 'fr'
+  | 'pt-BR'
+  | 'ru'
+  | 'hi'
+  | 'ar'
 
 const YSK_HOME = 'https://ysk.hk/'
 const CREATOR_LINKTREE = 'https://linktr.ee/yanshekki'
 
-const LABELS: Record<MenuLang, Record<string, string>> = {
+const LABELS: Record<'zh-HK' | 'en', Record<string, string>> = {
   'zh-HK': {
     file: '檔案',
     newStory: '新增故事',
@@ -58,7 +68,9 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
     navProps: '道具',
     navActions: '動作',
     navTimeline: '時間軸',
-    navTimelineV2: '時間軸 v2',
+    navTimelineTrack: '軌道顯示',
+    navTimelineBoard: '流程顯示',
+    navTimelineV2: '時間軸 · 流程',
     navAudit: '活動紀錄',
     navSettings: '設定',
     reload: '重新載入',
@@ -114,7 +126,9 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
     navProps: 'Props',
     navActions: 'Actions',
     navTimeline: 'Timeline',
-    navTimelineV2: 'Timeline v2',
+    navTimelineTrack: 'Track view',
+    navTimelineBoard: 'Board view',
+    navTimelineV2: 'Timeline · Board',
     navAudit: 'Activity Log',
     navSettings: 'Settings',
     reload: 'Reload',
@@ -148,9 +162,17 @@ const LABELS: Record<MenuLang, Record<string, string>> = {
 
 export function coerceMenuLang(raw: string | undefined | null): MenuLang {
   if (!raw) return 'zh-HK'
-  const s = raw.toLowerCase()
-  if (s.startsWith('en')) return 'en'
+  const s = raw.toLowerCase().replace(/_/g, '-')
+  if (s === 'zh-cn' || s.startsWith('zh-hans') || s === 'zh-sg') return 'zh-CN'
   if (s.startsWith('zh')) return 'zh-HK'
+  if (s.startsWith('ja')) return 'ja'
+  if (s.startsWith('es')) return 'es'
+  if (s.startsWith('fr')) return 'fr'
+  if (s.startsWith('pt')) return 'pt-BR'
+  if (s.startsWith('ru')) return 'ru'
+  if (s.startsWith('hi')) return 'hi'
+  if (s.startsWith('ar')) return 'ar'
+  if (s.startsWith('en')) return 'en'
   return 'en'
 }
 
@@ -175,11 +197,16 @@ function accel(mac: string, other: string): string {
   return process.platform === 'darwin' ? mac : other
 }
 
+function menuT(lang: MenuLang): Record<string, string> {
+  if (lang === 'zh-HK' || lang === 'zh-CN') return LABELS['zh-HK']
+  return LABELS.en
+}
+
 export function buildAppMenuTemplate(
   lang: MenuLang,
   handlers: AppMenuHandlers
 ): MenuItemConstructorOptions[] {
-  const t = LABELS[lang]
+  const t = menuT(lang)
   const isMac = process.platform === 'darwin'
 
   const fileMenu: MenuItemConstructorOptions = {
@@ -280,12 +307,18 @@ export function buildAppMenuTemplate(
     },
     {
       label: t.navTimeline,
-      accelerator: accel('Cmd+7', 'Ctrl+7'),
-      click: () => handlers.sendAction({ type: 'navigate', path: '/timeline' })
-    },
-    {
-      label: t.navTimelineV2,
-      click: () => handlers.sendAction({ type: 'navigate', path: '/timeline-v2' })
+      submenu: [
+        {
+          label: t.navTimelineTrack,
+          accelerator: accel('Cmd+7', 'Ctrl+7'),
+          click: () => handlers.sendAction({ type: 'navigate', path: '/timeline' })
+        },
+        {
+          label: t.navTimelineBoard,
+          click: () =>
+            handlers.sendAction({ type: 'navigate', path: '/timeline-v2' })
+        }
+      ]
     },
     {
       label: t.navAudit,

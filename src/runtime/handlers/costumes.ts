@@ -1,3 +1,4 @@
+import { PromptCatalog } from '../../prompts'
 import { imageSizeForClass, draftHasNameOrDescription, mergeCostumeRaw } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
@@ -117,7 +118,7 @@ reg(
     async (
       payload: {
         idea?: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         existingDraft?: {
           name?: string | null
           description?: string | null
@@ -156,39 +157,21 @@ reg(
           'errors.ideaOrImageRequired'
         )
       }
-      const system =
-        locale === 'en'
-          ? [
-              'You are a film wardrobe designer. Reply with ONLY compact JSON:',
-              '{"name":"short label","description":"full wardrobe description for image gen (layers, fabric, colors, accessories; no brand logos)","artStyle":"optional style id or empty string","hardRules":"3-8 MUST/MUST-NOT lines"}',
-              'Every key present as a JSON string (not null/array). No markdown.',
-              hardRulesAiInstruction('en'),
-              'If an image is provided, describe THAT outfit faithfully for short-drama generation.'
-            ].join(' ')
-          : [
-              '你是影視造型指導。只回覆緊湊 JSON：',
-              '{"name":"短名稱","description":"完整戲服描述（分層、布料、顏色、配飾；無品牌 Logo）","artStyle":"可選風格 id 或空字串","hardRules":"3–8 句必須／禁止"}',
-              '每個鍵必須是 JSON 字串（不可 null／陣列）。不要 markdown。',
-              hardRulesAiInstruction('zh-HK'),
-              '若有參考圖，請按圖如實描述該造型，供短劇出圖使用。'
-            ].join(' ')
+      const system = [
+        PromptCatalog.t(locale, 'costumeFill.system'),
+        hardRulesAiInstruction(locale)
+      ].join(' ')
       const userParts = [
         hasImage ? visionFillUserPreamble(locale, 'costume') : null,
         idea
-          ? locale === 'en'
-            ? `Idea: ${idea}`
-            : `構思：${idea}`
+          ? PromptCatalog.t(locale, 'costumeFill.idea', { idea })
           : !hasImage
-            ? locale === 'en'
-              ? 'Polish the draft wardrobe.'
-              : '潤飾以下戲服草稿。'
+            ? PromptCatalog.t(locale, 'costumeFill.polish')
             : null,
         hasDraft
           ? `Draft:\nname: ${draft?.name ?? ''}\ndescription: ${draft?.description ?? ''}\nartStyle: ${draft?.artStyle ?? ''}\nhardRules: ${draft?.hardRules ?? ''}`
           : null,
-        locale === 'en'
-          ? 'Required keys: name, description, artStyle, hardRules. Missing keys = invalid.'
-          : '必填鍵：name, description, artStyle, hardRules。缺鍵無效。'
+        PromptCatalog.t(locale, 'costumeFill.required')
       ].filter(Boolean)
       const textPrompt = userParts.join('\n\n')
       const completion = await ctx.aiClient.chat({
@@ -222,7 +205,9 @@ reg(
         description = text.trim().slice(0, 2000)
       }
       if (!name) {
-        name = description.slice(0, 32) || (locale === 'en' ? 'Look' : '造型')
+        name =
+          description.slice(0, 32) ||
+          PromptCatalog.t(locale, 'costumeFill.fallbackName')
       }
       const { fillMissingProfileFields } = await import(
         '../../domain/profileFillMissing'
@@ -539,7 +524,7 @@ reg(
         costumeId: string
         sourceImagePath: string
         durationSeconds?: number
-        locale?: 'zh-HK' | 'en'
+        locale?: string
       }
     ) => {
       const row = await costumes().get(payload.costumeId)
@@ -564,7 +549,7 @@ reg(
         description: row.description || row.name,
         artStyle: row.artStyle ?? undefined
       }
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       const fallbackPrompt = buildCostumeIntroVideoPrompt(profile, locale)
       const store = generation().getMediaStore()
       store.ensureLibraryDirs()

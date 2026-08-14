@@ -188,13 +188,25 @@ export class VideoStep implements PipelineStep {
         const { collectTimelineHardRules, ensureHardRules } = await import(
           '../../domain/promptHardRules'
         )
-        const clipHardRules = collectTimelineHardRules({
-          story: story as { hardRules?: string | null; title?: string | null },
-          characters: charsBound,
-          scenes: scenesBound,
-          props: propsBound,
-          actions: actionsBound
+        const { resolveGenerationLocale } = await import(
+          '../../domain/generationLocale'
+        )
+        const genLocale = resolveGenerationLocale({
+          spokenLanguages: character
+            ? (character as { spokenLanguages?: string | null }).spokenLanguages
+            : null,
+          uiLanguage: 'zh-HK'
         })
+        const clipHardRules = collectTimelineHardRules(
+          {
+            story: story as { hardRules?: string | null; title?: string | null },
+            characters: charsBound,
+            scenes: scenesBound,
+            props: propsBound,
+            actions: actionsBound
+          },
+          { uiLocale: genLocale }
+        )
         const fallbackPrompt = ensureHardRules(
           [
             buildClipPrompt({
@@ -207,7 +219,8 @@ export class VideoStep implements PipelineStep {
               beatContentJson: (entry as { beatContentJson?: string | null })
                 .beatContentJson,
               seconds,
-              previousContext: prevWithLock || prev
+              previousContext: prevWithLock || prev,
+              locale: genLocale
             }),
             charBlock
           ]
@@ -240,7 +253,7 @@ export class VideoStep implements PipelineStep {
             pathExists: (p) => existsSync(p)
           })
           const refPath = timelineRefs.editBase
-          const locale = 'zh-HK' as const
+          const locale = genLocale
           const result = await polishThenGenerateVideo({
             ai,
             locale,

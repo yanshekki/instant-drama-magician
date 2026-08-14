@@ -72,8 +72,8 @@ describe('appMenu', () => {
   it('coerceMenuLang', () => {
     expect(coerceMenuLang(null)).toBe('zh-HK')
     expect(coerceMenuLang('en-US')).toBe('en')
-    expect(coerceMenuLang('zh-CN')).toBe('zh-HK')
-    expect(coerceMenuLang('ja')).toBe('en')
+    expect(coerceMenuLang('zh-CN')).toBe('zh-CN')
+    expect(coerceMenuLang('ja')).toBe('ja')
   })
 
   it('builds templates and fires clicks (en + zh, dev)', () => {

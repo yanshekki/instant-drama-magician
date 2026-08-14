@@ -48,6 +48,8 @@ import type { AssetDropPayload } from '../components/timeline/TimelineCanvas'
 import { KonvaTimeline } from '../components/timeline/KonvaTimeline'
 import { TimelineAdvancedStudio } from '../components/timeline/TimelineAdvancedStudio'
 import { PreviewPlayer } from '../components/timeline/PreviewPlayer'
+import { TimelineViewSwitch } from '../components/timeline/TimelineViewNav'
+import { writeTimelinePagePref } from '../lib/timelinePagePref'
 import { useTimelineHistory } from '../hooks/useTimelineHistory'
 import { Button, EmptyState, Label, Select, Textarea } from '../components/ui'
 import { ExportFinalDialog } from '../components/ExportFinalDialog'
@@ -94,6 +96,9 @@ export function TimelinePage(): JSX.Element {
   const navigate = useNavigate()
   const toast = useToast()
   const dialog = useDialog()
+  useEffect(() => {
+    writeTimelinePagePref('classic')
+  }, [])
   const {
     activeStoryId,
     setActiveStoryId,
@@ -356,6 +361,8 @@ export function TimelinePage(): JSX.Element {
   selectedIdRef.current = selectedId
   const isPlayingRef = useRef(isPlaying)
   isPlayingRef.current = isPlaying
+  const playheadRef = useRef(playhead)
+  playheadRef.current = playhead
 
   /**
    * Advance playhead to the next timeline entry after `fromTime`.
@@ -877,10 +884,10 @@ export function TimelinePage(): JSX.Element {
       isPlaying: () => isPlayingRef.current,
       getEntries: () => entriesRef.current,
       getSelected: () => selectedIdRef.current,
-      getPlayhead: () => playhead,
+      getPlayhead: () => playheadRef.current,
       advance: advanceToNextClip
     }),
-    [advanceToNextClip, playhead]
+    [advanceToNextClip]
   )
 
   /** Select a clip and keep playhead inside it so the preview shows that media. */
@@ -1033,7 +1040,12 @@ export function TimelinePage(): JSX.Element {
         <PageHeader
           title={t('timeline.title')}
           subtitle={timelineSubtitleOrFallback(Boolean(activeStory), activeStory?.title, t('timeline.subtitle'))}
-          actions={storyPicker}
+          actions={
+            <>
+              <TimelineViewSwitch />
+              {storyPicker}
+            </>
+          }
         />
         <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-6 sm:p-8">
           <EmptyState message={t('timeline.pickStoryHint')} />
@@ -1062,6 +1074,7 @@ export function TimelinePage(): JSX.Element {
           <>
             <div className="w-full md:hidden">{storyPicker}</div>
             <div className="hidden w-full flex-wrap items-center justify-end gap-2 md:flex">
+              <TimelineViewSwitch />
               {timelineToolbar}
             </div>
           </>
@@ -1477,6 +1490,7 @@ export function TimelinePage(): JSX.Element {
 
       {/* Mobile primary actions — always reachable */}
       <div className={timelineBottomBarClass}>
+        <TimelineViewSwitch />
         {busy ? (
           <Button
             variant="danger"
@@ -2637,6 +2651,9 @@ export function timelineTogglePlayState(ops: {
   playhead: number
   totalDuration: number
   entries: Array<{ id: string; startTime: number; endTime: number }>
+  /** Timeline v2: replay the selected clip instead of jumping the story. */
+  selectedId?: string | null
+  clipScoped?: boolean
 }): {
   stop?: boolean
   playhead?: number
@@ -2646,8 +2663,24 @@ export function timelineTogglePlayState(ops: {
   if (ops.isPlaying) {
     return { stop: true, start: false }
   }
+  if (ops.clipScoped) {
+    const cur = ops.selectedId
+      ? ops.entries.find((e) => e.id === ops.selectedId)
+      : undefined
+    if (cur && ops.playhead >= cur.endTime - 0.08) {
+      return { playhead: cur.startTime, selectId: cur.id, start: true }
+    }
+  }
   const end = Math.max(ops.totalDuration, 0.1)
   if (ops.playhead >= end - 0.05) {
+    if (ops.clipScoped) {
+      const cur = ops.selectedId
+        ? ops.entries.find((e) => e.id === ops.selectedId)
+        : undefined
+      if (cur) {
+        return { playhead: cur.startTime, selectId: cur.id, start: true }
+      }
+    }
     const first = [...ops.entries].sort((a, b) => a.startTime - b.startTime)[0]
     return {
       playhead: 0,
@@ -3053,14 +3086,28 @@ export function timelineMediaClockTick(
   setPlayhead(globalTime)
 }
 
+export function timelineClipEndedStay(
+  playing: boolean,
+  stop: () => void
+): void {
+  if (!playing) return
+  stop()
+}
+
 export function timelineClipEndedTick(
   playing: boolean,
   entries: Array<{ id: string; endTime: number }>,
   selectedId: string | null,
   playhead: number,
-  advance: (from: number) => void
+  advance: (from: number) => void,
+  mode: 'advance' | 'stay' = 'advance',
+  stop?: () => void
 ): void {
   if (!playing) return
+  if (mode === 'stay') {
+    timelineClipEndedStay(true, stop ?? (() => undefined))
+    return
+  }
   const cur = entries.find((e) => e.id === selectedId)
   const from = cur ? cur.endTime : playhead
   advance(from)
@@ -3327,6 +3374,8 @@ export function timelineMakeClipEnded(ops: {
   getSelected: () => string | null
   getPlayhead: () => number
   advance: (from: number) => void
+  mode?: 'advance' | 'stay'
+  stop?: () => void
 }): () => void {
   return () =>
     timelineClipEndedTick(
@@ -3334,7 +3383,9 @@ export function timelineMakeClipEnded(ops: {
       ops.getEntries(),
       ops.getSelected(),
       ops.getPlayhead(),
-      ops.advance
+      ops.advance,
+      ops.mode ?? 'advance',
+      ops.stop
     )
 }
 

@@ -69,7 +69,7 @@ reg(
       payload: {
         storyId: string
         entryId: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         forcePolish?: boolean
       }
     ) => {

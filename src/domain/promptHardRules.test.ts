@@ -94,6 +94,7 @@ describe('collectTimelineHardRules', () => {
     expect(m).toContain('[Action · Draw sword]')
     expect(m).toContain('two hands')
     expect(m).toContain('no wires')
+    expect(m).toMatch(/SPEECH LOCK/)
   })
 
   it('can merge without labels (legacy dedupe)', () => {

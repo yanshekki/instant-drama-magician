@@ -1,6 +1,7 @@
 /**
  * registerScenesIntroVideo
  */
+import { PromptCatalog } from '../../../prompts'
 import { existsSync } from 'fs'
 import type { HandlerContext } from '../context'
 import { AppError } from '../../../types/errors'
@@ -22,7 +23,7 @@ reg(
         sceneId: string
         sourceImagePath: string
         durationSeconds?: number
-        locale?: 'zh-HK' | 'en'
+        locale?: string
       }
     ) => {
       const row = await scenes().get(payload.sceneId)
@@ -58,7 +59,7 @@ reg(
         visualTags: row.visualTags ?? undefined,
         artStyle: (row as { artStyle?: string | null }).artStyle ?? undefined
       }
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       const fallbackPrompt = buildSceneIntroVideoPrompt(profile, locale)
       const store = generation().getMediaStore()
       store.ensureLibraryDirs()

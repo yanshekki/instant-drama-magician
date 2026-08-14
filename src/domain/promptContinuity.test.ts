@@ -52,6 +52,7 @@ describe('promptContinuity', () => {
     expect(p).toContain('reference image')
     expect(p).toMatch(/SPEECH|Hello/)
     expect(p).toContain('Duration: 6s')
+    expect(p).toMatch(/SPEECH LOCK/)
   })
 
   it('summarises previous clip', () => {

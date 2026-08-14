@@ -124,7 +124,9 @@ export function PreviewPlayer({
 
     if (!isPlaying) {
       v.pause()
-      seekToPlayhead(v, true)
+      // After natural end, leave the last frame. Seeking past duration
+      // (or calling load) resets Chromium to t=0 and looks like a reload.
+      if (!endedGuard.current) seekToPlayhead(v, true)
       return
     }
 

@@ -5,6 +5,7 @@ export type {
   PromptPack,
   PromptTemplateId
 } from './types'
+export { PromptCatalog } from './PromptCatalog'
 export {
   generationLanguageName,
   hardRuleTags,

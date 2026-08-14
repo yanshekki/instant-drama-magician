@@ -19,7 +19,7 @@ export interface PolishThenGenerateOptions {
   fallbackPrompt: string
   /** Full user message for the polish chat (materials + task). */
   polishUserContent: string
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   videoRequest: Omit<VideoGenRequest, 'prompt'>
   signal?: AbortSignal
   /** Optional progress: 'llm' | 'generate' */

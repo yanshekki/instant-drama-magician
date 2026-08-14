@@ -1,4 +1,5 @@
 import { AppError } from '../types/errors'
+import { PromptCatalog } from '../prompts'
 /**
  * Shared helpers for LLM profile JSON: extract object + coerce string fields.
  * Models often return visualTags as string[] — must not drop those as "empty".
@@ -157,21 +158,13 @@ export function synthesizeVisualTagsFromText(
  */
 export function profileCompletenessRules(
   keys: readonly string[],
-  locale: 'zh-HK' | 'en'
+  locale: string = 'zh-HK'
 ): string[] {
   const list = keys.join(', ')
-  if (locale === 'en') {
-    return [
-      `You MUST output EVERY key in this list: ${list}.`,
-      'Every value MUST be a JSON string (not null, not a JSON array). Empty string only if truly unknown.',
-      'visualTags: single comma-separated string in the user interface language, e.g. "gold, necklace, jewelry" — NEVER ["gold","necklace"].',
-      'Prefer filling all keys with concrete detail for short-drama continuity.'
-    ]
-  }
   return [
-    `必須輸出列表中的每一個鍵：${list}。`,
-    '每個值必須是 JSON 字串（不可 null、不可用 JSON 陣列）。真的不知道才可空字串。',
-    'visualTags：用用戶介面語言的單一逗號分隔字串，例如 "gold, necklace, jewelry"——禁止 ["gold","necklace"] 陣列。',
-    '各鍵請盡量填具體細節，利於短劇 continuity。'
+    PromptCatalog.t(locale, 'profile.mustEveryKey', { keys: list }),
+    PromptCatalog.t(locale, 'profile.valuesAreStrings'),
+    PromptCatalog.t(locale, 'profile.visualTagsRule'),
+    PromptCatalog.t(locale, 'profile.fillConcrete')
   ]
 }

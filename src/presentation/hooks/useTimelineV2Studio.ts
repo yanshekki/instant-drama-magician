@@ -366,6 +366,8 @@ export function useTimelineV2Studio() {
   selectedIdRef.current = selectedId
   const isPlayingRef = useRef(isPlaying)
   isPlayingRef.current = isPlaying
+  const playheadRef = useRef(playhead)
+  playheadRef.current = playhead
   const revisionByEntryRef = useRef(revisionByEntry)
   revisionByEntryRef.current = revisionByEntry
 
@@ -558,9 +560,12 @@ export function useTimelineV2Studio() {
     })
   }
 
-  const handleClipDuration = async (seconds: GrokVideoSeconds): Promise<void> => {
+  const handleClipDuration = async (
+    seconds: GrokVideoSeconds,
+    entry = selected
+  ): Promise<void> => {
     await timelineRunClipDuration({
-      selected,
+      selected: entry,
       seconds,
       snapCurrent: (s, e) => snapVideoSeconds(e - s),
       snapRange: (s, e) => snapClipRange(s, e),
@@ -572,16 +577,18 @@ export function useTimelineV2Studio() {
     })
   }
 
-  const handleDeleteClip = async (): Promise<void> => {
+  const handleDeleteClip = async (entry = selected): Promise<void> => {
     await timelineRunDeleteClip({
-      selected,
+      selected: entry,
       confirm: () =>
         dialog.confirm({
           message: t('common.confirmDelete'),
           variant: 'danger'
         }),
       remove,
-      clearSelected: () => setSelectedId(null),
+      clearSelected: () => {
+        if (entry && selectedIdRef.current === entry.id) setSelectedId(null)
+      },
       toastSuccess: () => toast.success(t('common.deleted')),
       toastError: (m) => toast.error(formatUserError(m, t))
     })
@@ -858,7 +865,9 @@ export function useTimelineV2Studio() {
       isPlaying,
       playhead,
       totalDuration,
-      entries
+      entries,
+      selectedId,
+      clipScoped: true
     })
     if (r.stop) {
       setIsPlaying(false)
@@ -879,10 +888,12 @@ export function useTimelineV2Studio() {
       isPlaying: () => isPlayingRef.current,
       getEntries: () => entriesRef.current,
       getSelected: () => selectedIdRef.current,
-      getPlayhead: () => playhead,
-      advance: advanceToNextClip
+      getPlayhead: () => playheadRef.current,
+      advance: advanceToNextClip,
+      mode: 'stay',
+      stop: () => setIsPlaying(false)
     }),
-    [advanceToNextClip, playhead]
+    [advanceToNextClip]
   )
 
   const selectClip = (id: string | null): void => {
@@ -892,10 +903,10 @@ export function useTimelineV2Studio() {
     if (r.playhead != null) setPlayhead(r.playhead)
   }
 
-  const handleImportClip = async (): Promise<void> => {
-    if (!activeStoryId || !selectedId) return
+  const handleImportClip = async (entryId = selectedId): Promise<void> => {
+    if (!activeStoryId || !entryId) return
     try {
-      await getApi().media.importClip(activeStoryId, selectedId)
+      await getApi().media.importClip(activeStoryId, entryId)
       await reload()
       toast.success(t('timeline.importClip'))
     } catch (e) {
@@ -903,33 +914,56 @@ export function useTimelineV2Studio() {
     }
   }
 
-  const handleOpenClip = timelineBindOpenClip({
-    getPath: () => selected?.mediaPath,
-    open: (p) => getApi().media.openClip(p)
-  })
+  const handleOpenClip = async (entryId?: string): Promise<void> => {
+    const ent = entryId
+      ? entriesRef.current.find((e) => e.id === entryId)
+      : selected
+    await timelineBindOpenClip({
+      getPath: () => ent?.mediaPath,
+      open: (p) => getApi().media.openClip(p)
+    })()
+  }
 
-  const handleExportClip = timelineBindExportClip({
-    getPath: () => selected?.mediaPath,
-    suggestedName: () =>
-      suggestedClipExportName({
-        storyTitle: activeStory?.title,
-        clipIndex: (selected?.order ?? 0) + 1
-      }),
-    saveAs: (path, dest, name) => getApi().media.saveAs(path, dest, name),
-    toastSuccess: (path) => toast.success(t('timeline.exportClipOk', { path })),
-    toastError: (m) => toast.error(m),
-    formatError: (e) =>
-      formatUserError(e instanceof Error ? e.message : String(e), t)
-  })
+  const handleExportClip = async (entryId?: string): Promise<void> => {
+    const ent = entryId
+      ? entriesRef.current.find((e) => e.id === entryId)
+      : selected
+    await timelineBindExportClip({
+      getPath: () => ent?.mediaPath,
+      suggestedName: () =>
+        suggestedClipExportName({
+          storyTitle: activeStory?.title,
+          clipIndex: (ent?.order ?? 0) + 1
+        }),
+      saveAs: (path, dest, name) => getApi().media.saveAs(path, dest, name),
+      toastSuccess: (path) => toast.success(t('timeline.exportClipOk', { path })),
+      toastError: (m) => toast.error(m),
+      formatError: (e) =>
+        formatUserError(e instanceof Error ? e.message : String(e), t)
+    })()
+  }
 
-  const genStill = (_force: boolean): void => {
-    if (!activeStoryId || !selected || stillBusy) return
-    const entryId = selected.id
+  const playOrSelectClip = (entryId: string): void => {
+    if (selectedId === entryId) {
+      handleTogglePlay()
+      return
+    }
+    const r = timelineSelectClipState(entryId, entries, playhead)
+    setSelectedId(r.selectedId)
+    if (r.playhead != null) setPlayhead(r.playhead)
+    setIsPlaying(true)
+  }
+
+  const genStill = (_force: boolean, entryId = selected?.id): void => {
+    const entry = entryId
+      ? entries.find((e) => e.id === entryId) ?? selected
+      : selected
+    if (!activeStoryId || !entry || stillBusy) return
     setStillBusy(true)
     startJob({
       kind: 'storyboard-still',
-      label: t('timeline.advanced.jobStillLabel', { n: selected.order + 1 }),
-      scope: { storyId: activeStoryId, entryId },
+      label: t('timeline.advanced.jobStillLabel', { n: entry.order + 1 }),
+      scope: { storyId: activeStoryId, entryId: entry.id },
       run: async ({ setProgress, signal }) => {
         try {
           setProgress(20, 'start')
@@ -940,7 +974,7 @@ export function useTimelineV2Studio() {
           await getApi().videoPrep.create({
             kind: 'timeline-clip',
             storyId: activeStoryId,
-            entryId,
+            entryId: entry.id,
             locale: i18n.language,
             stillOnly: true,
             skipStillIfExists: false
@@ -957,9 +991,12 @@ export function useTimelineV2Studio() {
     })
   }
 
-  const refineStill = (): void => {
-    if (!activeStoryId || !selected) return
-    const cell = findTimelineGraphPrepCell(prep?.cells, selected.id)
+  const refineStill = (entryId = selected?.id): void => {
+    const entry = entryId
+      ? entries.find((e) => e.id === entryId) ?? selected
+      : selected
+    if (!activeStoryId || !entry) return
+    const cell = findTimelineGraphPrepCell(prep?.cells, entry.id)
     void (async () => {
       let aspectRatio: '16:9' | '9:16' = '16:9'
       try {
@@ -971,8 +1008,8 @@ export function useTimelineV2Studio() {
       startMediaGen({
         kind: 'timeline-still',
         storyId: activeStoryId,
-        entryId: selected.id,
-        durationSeconds: snapVideoSeconds(selected.endTime - selected.startTime),
+        entryId: entry.id,
+        durationSeconds: snapVideoSeconds(entry.endTime - entry.startTime),
         preferIdentityEdit: true,
         aspectRatio,
         sourceImagePath: cell?.stillPath || undefined
@@ -1095,6 +1132,7 @@ export function useTimelineV2Studio() {
     handleRunClip,
     clipGenerateLabel,
     handleTogglePlay,
+    playOrSelectClip,
     handleMediaClock,
     handleClipEnded,
     handleImportClip,

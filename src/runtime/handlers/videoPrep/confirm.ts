@@ -45,7 +45,7 @@ reg(
         entryId?: string
         durationSeconds?: number
         aspectRatio?: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
       }
     ) => {
       if (!ctx.aiClient.generateVideo) {
@@ -147,13 +147,16 @@ reg(
               ? prisma.action.findMany({ where: { id: { in: actionIds } } })
               : Promise.resolve([])
           ])
-          videoHardRules = collectTimelineHardRules({
-            story,
-            characters: chars,
-            scenes: scns,
-            props: prps,
-            actions: acts
-          })
+          videoHardRules = collectTimelineHardRules(
+            {
+              story,
+              characters: chars,
+              scenes: scns,
+              props: prps,
+              actions: acts
+            },
+            { uiLocale: payload.locale ?? 'zh-HK' }
+          )
         }
       } catch {
         /* v8 ignore next */

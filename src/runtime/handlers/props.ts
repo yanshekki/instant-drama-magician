@@ -1,3 +1,4 @@
+import { PromptCatalog } from '../../prompts'
 import { aspectOrDefault, maybeAppendMultiRef } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
@@ -65,7 +66,7 @@ reg(
       payload: {
         idea?: string
         storyId?: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         existingDraft?: Record<string, string | undefined | null>
         /** Explicit “suggest from story” — only then inject story title/style */
         suggestFromStory?: boolean
@@ -119,12 +120,10 @@ reg(
       const ideaForPrompt =
         idea ||
         (hasImage
-          ? locale === 'en'
-            ? 'Describe and invent a full prop profile from the attached reference photo.'
-            : '請根據附上的參考圖，完整填寫道具資料。'
-          : locale === 'en'
-            ? 'Polish'
-            : '全面潤飾')
+          ? PromptCatalog.t(locale, 'vision.inventFromImage', {
+              kind: PromptCatalog.t(locale, 'vision.prop')
+            })
+          : PromptCatalog.t(locale, 'scene.polishIdea'))
       const textPrompt = [
         hasImage ? visionFillUserPreamble(locale, 'prop') : null,
         buildPropMasterUserPrompt({
@@ -398,7 +397,7 @@ reg(
         propId: string
         sourceImagePath: string
         durationSeconds?: number
-        locale?: 'zh-HK' | 'en'
+        locale?: string
       }
     ) => {
       const row = await props().get(payload.propId)
@@ -427,7 +426,7 @@ reg(
         visualTags: row.visualTags ?? undefined,
         artStyle: (row as { artStyle?: string | null }).artStyle ?? undefined
       }
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       const fallbackPrompt = buildPropIntroVideoPrompt(profile, locale)
       const store = generation().getMediaStore()
       store.ensureLibraryDirs()

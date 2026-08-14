@@ -1,6 +1,7 @@
 /**
  * Pure locale/label helpers extracted for residual 100% line coverage.
  */
+import { PromptCatalog } from '../prompts'
 
 export function sceneLinkLabel(
   locale: string,
@@ -9,9 +10,10 @@ export function sceneLinkLabel(
   description: string
 ): string {
   const short = title || description.slice(0, 40)
-  return locale === 'en'
-    ? `Scene ${sceneNumber}: ${short}`
-    : `第 ${sceneNumber} 場：${short}`
+  return PromptCatalog.t(locale, 'residual.sceneLink', {
+    n: String(sceneNumber),
+    short
+  })
 }
 
 export function beatSegmentLabel(
@@ -21,17 +23,19 @@ export function beatSegmentLabel(
   where: string
 ): string {
   const tail = where ? ` @ ${where}` : ''
-  return locale === 'en'
-    ? `Beat ${order + 1} · ${who}${tail}`
-    : `段落 ${order + 1} · ${who}${tail}`
+  return PromptCatalog.t(locale, 'residual.beatSegment', {
+    n: String(order + 1),
+    who,
+    tail
+  })
 }
 
 export function unknownCharacterName(locale: string): string {
-  return locale === 'en' ? 'Unknown' : '未指定'
+  return PromptCatalog.t(locale, 'residual.unknown')
 }
 
 export function defaultStoryTitle(locale: string): string {
-  return locale === 'en' ? 'Story' : '故事'
+  return PromptCatalog.t(locale, 'residual.story')
 }
 
 export function whereFromScene(scene: {

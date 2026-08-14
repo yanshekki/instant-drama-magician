@@ -2,6 +2,10 @@ import {
   packHardRulesFallback,
   packHardRulesInstruction
 } from '../prompts'
+import {
+  buildSpeechLanguageLockText,
+  mergeSpeechLockIntoHardRules
+} from './speechLanguageLock'
 
 /**
  * High-priority user hard rules (必須 / 禁止) for image & video generation.
@@ -120,6 +124,7 @@ export type TimelineHardRulesSources = {
   characters?: Array<{
     hardRules?: string | null
     name?: string | null
+    spokenLanguages?: string | string[] | null
   } | null> | null
   scenes?: Array<{
     hardRules?: string | null
@@ -143,9 +148,14 @@ export type TimelineHardRulesSources = {
  */
 export function collectTimelineHardRules(
   sources: TimelineHardRulesSources,
-  opts?: { labelObjects?: boolean }
+  opts?: { labelObjects?: boolean; uiLocale?: string | null }
 ): string | null {
   const labelObjects = opts?.labelObjects !== false
+  const speechLock = buildSpeechLanguageLockText({
+    characters: sources.characters ?? [],
+    uiLocale: opts?.uiLocale ?? 'zh-HK',
+    locale: opts?.uiLocale ?? 'zh-HK'
+  })
   if (!labelObjects) {
     const parts: Array<string | null | undefined> = []
     if (sources.story?.hardRules) parts.push(sources.story.hardRules)
@@ -160,7 +170,7 @@ export function collectTimelineHardRules(
         if (item?.hardRules) parts.push(item.hardRules)
       }
     }
-    return mergeHardRules(...parts)
+    return mergeSpeechLockIntoHardRules(mergeHardRules(...parts), speechLock)
   }
 
   const sections: string[] = []
@@ -198,7 +208,8 @@ export function collectTimelineHardRules(
     pushSection(`Action · ${name}`, a.hardRules)
   }
 
-  if (sections.length === 0) return null
-  // Cap total size (normalizeHardRules max is per-chunk; whole block ~4k)
-  return normalizeHardRules(sections.join('\n\n'), 4000)
+  const merged = sections.length
+    ? normalizeHardRules(sections.join('\n\n'), 4000)
+    : null
+  return mergeSpeechLockIntoHardRules(merged, speechLock)
 }

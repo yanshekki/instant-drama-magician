@@ -18,7 +18,7 @@ import { AppError } from '../../types/errors'
 
 export async function polishProfessionalVideoPrompt(options: {
   ai: AIProvider
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   fallbackPrompt: string
   polishUserContent: string
   /** Entity / merged timeline hard rules — forced onto the returned prompt. */

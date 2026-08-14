@@ -3,7 +3,7 @@
  * Flow: extract materials → LLM professional prompt → still → user review → video.
  */
 
-import { videoPolishDirective } from '../prompts'
+import { PromptCatalog, videoPolishDirective } from '../prompts'
 import { appendHardRules } from './promptHardRules'
 
 export type VideoPrepKind =
@@ -115,7 +115,7 @@ export interface StartVideoPrepInput {
   entityIds: VideoPrepEntityIds
   sourceImagePath?: string | null
   durationSeconds?: number
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   /** Seed for user extra (e.g. timeline revision notes). */
   userExtraPrompt?: string
   queueIndex?: number
@@ -327,61 +327,42 @@ export function mergeFinalVideoPrompt(
  */
 export function buildStillKeyframePrompt(
   professionalVideoPrompt: string,
-  options?: { improvementNotes?: string | null; locale?: 'zh-HK' | 'en' }
+  options?: { improvementNotes?: string | null; locale?: string }
 ): string {
-  const en = options?.locale === 'en'
+  const loc = options?.locale || 'zh-HK'
   const base = (professionalVideoPrompt ?? '').trim()
   const notes = (options?.improvementNotes ?? '').trim()
-  const header = en
-    ? [
-        'SINGLE KEYFRAME STILL for short-drama video continuity (not a multi-panel sheet).',
-        'Produce one cinematic hero frame that matches the planned shot below.',
-        'No text, logos, watermarks, UI chrome. Sharp, production-ready.'
-      ].join(' ')
-    : [
-        'SINGLE KEYFRAME STILL for short-drama video continuity (not a multi-panel sheet).',
-        'Produce one cinematic hero frame that matches the planned shot below.',
-        'No text, logos, watermarks, UI chrome. Sharp, production-ready.'
-      ].join(' ')
+  const header = PromptCatalog.t(loc, 'still.header')
   const revision = notes
-    ? en
-      ? `USER IMPROVEMENT FOR THIS STILL (must apply): ${notes}`
-      : `用戶改進要求（必須套用）：${notes}`
+    ? PromptCatalog.t(loc, 'still.revision', { notes })
     : ''
   return [header, revision, base].filter(Boolean).join('\n')
 }
 
 /** LLM user message: revise professional video prompt with user still feedback. */
 export function buildStillRegenPolishUserPrompt(options: {
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   professionalPrompt: string
   improvementNotes: string
   seconds: number
   aspectRatio?: string
   hardRules?: string | null
 }): string {
-  const en = options.locale === 'en'
+  const loc = options.locale || 'zh-HK'
   const rules = (options.hardRules ?? '').trim()
   return [
-    en
-      ? 'TASK: Revise the image-to-video director prompt AND keep it usable as a still keyframe brief.'
-      : '任務：修訂 image-to-video 導演提示詞，並保持可作靜幀 keyframe 簡報。',
-    `Duration target: ${options.seconds}s. Aspect: ${options.aspectRatio || '16:9'}.`,
-    en
-      ? `USER IMPROVEMENT REQUEST:\n${options.improvementNotes.trim()}`
-      : `用戶改進要求：\n${options.improvementNotes.trim()}`,
-    en ? 'Current professional prompt:' : '目前專業提示詞：',
+    PromptCatalog.t(loc, 'still.regenTask'),
+    PromptCatalog.t(loc, 'common.durationAspect', {
+      seconds: options.seconds,
+      aspect: options.aspectRatio || '16:9'
+    }),
+    PromptCatalog.t(loc, 'still.userImprove', {
+      notes: options.improvementNotes.trim()
+    }),
+    PromptCatalog.t(loc, 'still.currentPrompt'),
     options.professionalPrompt.trim(),
     rules
-      ? en
-        ? [
-            'HARD RULES (must keep at end of output; do not drop or weaken):',
-            rules
-          ].join('\n')
-        : [
-            'HARD RULES／生成鐵則（必須保留於輸出最尾；不得刪除或削弱）：',
-            rules
-          ].join('\n')
+      ? [PromptCatalog.t(loc, 'still.hardRules'), rules].join('\n')
       : null,
     videoPolishDirective(options.locale)
   ]

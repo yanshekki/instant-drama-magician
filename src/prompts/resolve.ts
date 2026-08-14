@@ -20,7 +20,10 @@ export function hardRuleTags(lang: string | null | undefined): HardRuleTags {
   return selectPromptPack(lang).tags
 }
 
-/** Long master-prompt skeleton: Chinese family vs everyone else. */
+/**
+ * @deprecated Prefer PromptCatalog.t(locale, key).
+ * Legacy binary skeleton: Chinese family vs everyone else.
+ */
 export function promptTemplateId(lang: string | null | undefined): PromptTemplateId {
   const id = coerceUiLanguage(lang, 'zh-HK')
   return id === 'zh-HK' || id === 'zh-CN' ? 'zh-HK' : 'en'

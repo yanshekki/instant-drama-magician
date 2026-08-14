@@ -1,6 +1,7 @@
 /**
  * registerCharactersAiFill
  */
+import { PromptCatalog } from '../../../prompts'
 import type { HandlerContext } from '../context'
 import { chatContentText } from '../../../types/domain'
 import { AppError } from '../../../types/errors'
@@ -19,7 +20,7 @@ reg(
       payload: {
         idea?: string
         storyId?: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         /** Current form fields — enables create + edit refine */
         existingDraft?: Record<string, unknown>
         /** Full soul.md / hub markdown for identity merge */
@@ -93,12 +94,10 @@ reg(
       const ideaForPrompt =
         idea ||
         (hasImage
-          ? locale === 'en'
-            ? 'Describe and invent a full character profile from the attached reference photo.'
-            : '請根據附上的參考圖，完整填寫角色資料。'
-          : locale === 'en'
-            ? 'Polish and merge all fields'
-            : '全面潤飾並合併所有欄位')
+          ? PromptCatalog.t(locale, 'vision.inventFromImage', {
+              kind: PromptCatalog.t(locale, 'vision.character')
+            })
+          : PromptCatalog.t(locale, 'vision.polishAll'))
       const textPrompt = [
         hasImage ? visionFillUserPreamble(locale, 'character') : null,
         buildCharacterMasterUserPrompt({

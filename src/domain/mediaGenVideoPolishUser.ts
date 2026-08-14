@@ -1,7 +1,9 @@
 /**
  * Domain *VideoPolishUserPrompt bodies for MediaGen video stage (second polish).
  */
+import { PromptCatalog } from '../prompts'
 import type { MediaGenKind, MediaGenMaterialSection } from './mediaGenPrep'
+import { buildSpeechLanguageLockText } from './speechLanguageLock'
 import {
   buildClipVideoPolishUserPrompt,
   buildCostumeIntroVideoPolishUserPrompt,
@@ -65,27 +67,20 @@ export function buildMediaGenVideoDirectorFallback(opts: {
   stillPrompt?: string | null
   beatText?: string | null
 }): string {
-  const zh = (opts.locale || '').toLowerCase().startsWith('zh')
+  const loc = opts.locale || 'zh-HK'
   const still = (opts.stillPrompt || '').trim()
-  const beat = localizeBeatDirectorText((opts.beatText || '').trim(), opts.locale)
+  const beat = localizeBeatDirectorText((opts.beatText || '').trim(), loc)
   const stillOk = still && !looksLikeEnglishKeyframeTaskHint(still) ? still : ''
-  if (zh) {
-    return [
-      '圖生影片：以呢張關鍵幀做短劇片段。身份、戲服、場景、構圖須鎖定關鍵幀，由此畫面開始動。',
-      '鏡頭運動與表演清楚；對白口型跟住腳本；無字幕、無浮水印。',
-      beat || null,
-      stillOk || null,
-      `目標時長：${opts.seconds} 秒。畫面比例：${opts.aspectRatio}。`
-    ]
-      .filter(Boolean)
-      .join('\n')
-  }
   return [
-    'IMAGE-TO-VIDEO: animate this keyframe as a short-drama clip. Lock identity, wardrobe, set, and framing to the keyframe.',
-    'Camera motion and performance clear; no captions or watermark.',
+    PromptCatalog.t(loc, 'mediaGen.directorFallback'),
+    PromptCatalog.t(loc, 'mediaGen.directorFallbackCam'),
+    buildSpeechLanguageLockText({ locale: loc, uiLocale: loc }),
     beat || null,
     stillOk || null,
-    `Duration target: ${opts.seconds}s. Aspect: ${opts.aspectRatio}.`
+    PromptCatalog.t(loc, 'common.durationAspect', {
+      seconds: opts.seconds,
+      aspect: opts.aspectRatio
+    })
   ]
     .filter(Boolean)
     .join('\n')
@@ -111,7 +106,7 @@ export function pickVideoDirectorPrompt(
  */
 export function buildMediaGenVideoPolishUserOverride(opts: {
   kind: MediaGenKind | string
-  locale: 'zh-HK' | 'en'
+  locale: string
   seconds: number
   aspectRatio?: string
   hasRefImage: boolean
@@ -187,18 +182,17 @@ export function buildMediaGenVideoPolishUserOverride(opts: {
   }
   if (kind === 'action-intro') {
     return [
-      locale === 'en'
-        ? 'TASK: Action / motion-guide intro clip (image-to-video).'
-        : '任務：動作指導介紹短片（圖生影片）。',
+      PromptCatalog.t(locale, 'actionIntroPolish.task'),
       hasRefImage
-        ? locale === 'en'
-          ? 'Reference still attached — lock performance identity to that frame.'
-          : '參考靜圖已附——表演身份鎖定該幀。'
+        ? PromptCatalog.t(locale, 'actionIntroPolish.hasRef')
         : null,
-      `Duration: ${seconds}s. Aspect: ${aspectRatio}.`,
+      PromptCatalog.t(locale, 'common.durationAspect', {
+        seconds,
+        aspect: aspectRatio
+      }),
       profile || `Action: ${name}`,
       hardRules ? `HARD RULES:\n${hardRules}` : null,
-      locale === 'en' ? 'Template draft:' : '模板草稿：',
+      PromptCatalog.t(locale, 'common.templateDraft'),
       fallbackPrompt
     ]
       .filter(Boolean)

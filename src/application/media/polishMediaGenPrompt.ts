@@ -18,7 +18,7 @@ import { AppError } from '../../types/errors'
 
 export async function polishMediaGenPrompt(options: {
   ai: AIProvider
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   kind: MediaGenKind
   includedSections: MediaGenMaterialSection[]
   taskHint?: string

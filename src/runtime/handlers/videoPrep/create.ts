@@ -1,3 +1,4 @@
+import { PromptCatalog } from '../../../prompts'
 import { imageSizeForAspect, multiSubjectClipNote, appearanceOrDescription } from '../../../domain/residualLabels'
 /**
  * Video prep — registerVideoPrepCreate
@@ -40,14 +41,14 @@ reg(
         storyId?: string
         entryId?: string
         durationSeconds?: number
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         /** If continuity still exists, reuse it (skip image gen). */
         skipStillIfExists?: boolean
         /** Still-only: polish+still without requiring video capability. */
         stillOnly?: boolean
       }
     ) => {
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       let seconds =
         typeof payload.durationSeconds === 'number'
           ? payload.durationSeconds
@@ -308,13 +309,9 @@ reg(
           prepHardRules
         )
         polishUserContent = [
-          locale === 'en'
-            ? 'TASK: Action / motion-guide intro clip (image-to-video).'
-            : '任務：動作指導介紹短片（圖生影片）。',
+          PromptCatalog.t(locale, 'actionIntroPolish.task'),
           hardRulesMaterialsBlock(prepHardRules, locale),
-          locale === 'en'
-            ? 'Template draft (improve; keep HARD RULES at end):'
-            : '模板草稿（請改進；HARD RULES 置於最尾）：',
+          PromptCatalog.t(locale, 'actionIntroPolish.templateKeepRules'),
           fallbackPrompt
         ]
           .filter(Boolean)
@@ -594,7 +591,8 @@ reg(
         const { collectTimelineHardRules, ensureHardRules } = await import(
           '../../../domain/promptHardRules'
         )
-        const clipHardRules = collectTimelineHardRules({
+        const clipHardRules = collectTimelineHardRules(
+          {
           story: story as {
             hardRules?: string | null
             title?: string | null
@@ -602,6 +600,7 @@ reg(
           characters: chars as Array<{
             hardRules?: string | null
             name?: string | null
+            spokenLanguages?: string | null
           }>,
           scenes: scenesBound as Array<{
             hardRules?: string | null
@@ -616,7 +615,9 @@ reg(
             hardRules?: string | null
             name?: string | null
           }>
-        })
+          },
+          { uiLocale: locale }
+        )
         prepHardRules = clipHardRules
 
         fallbackPrompt = ensureHardRules(
@@ -630,7 +631,8 @@ reg(
               dialogue,
               beatContentJson,
               seconds: clipSeconds,
-              previousContext: prevWithLock || prev
+              previousContext: prevWithLock || prev,
+              locale
             }),
             multiCastNote,
             ...charBlocks

@@ -15,6 +15,7 @@ import {
   buildSheetIdentityLock,
   getSheetVariant
 } from './characterSheetVariants'
+import { speechLanguageLockLine } from './speechLanguageLock'
 import {
   coerceProfileString,
   coerceProfileStringFrom,
@@ -23,7 +24,7 @@ import {
   synthesizeVisualTagsFromText,
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
-import { resolvePromptContext } from '../prompts'
+import { PromptCatalog, resolvePromptContext } from '../prompts'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
 import { normalizeLanguageCodes } from './worldLanguages'
 import {
@@ -51,56 +52,19 @@ export const CHARACTER_PROFILE_JSON_KEYS = [
 
 export function buildCharacterMasterSystemPrompt(locale: string = 'zh-HK'): string {
   const ctx = resolvePromptContext(locale)
-  if (ctx.template === 'en') {
-    return [
-      'You are a professional short-drama character designer for AI video production.',
-      'Given a short idea from the user, invent a complete, filmable character bible.',
-      'A character may be human, animal, spirit, monster, robot, virtual avatar, or other designed entity — follow the idea; do not force a human if the idea is non-human.',
-      'Return ONLY a single JSON object (no markdown fences, no commentary) with keys:',
-      CHARACTER_PROFILE_JSON_KEYS.join(', '),
-      'Rules:',
-      ...profileCompletenessRules(
-        CHARACTER_PROFILE_JSON_KEYS.filter((k) => k !== 'spokenLanguages'),
-        'en'
-      ).map((r) => `- ${r}`),
-      ...inventFromProvidedSourcesRules('en').map((r) => `- ${r}`),
-      '- description: 1–3 sentence public summary (role, vibe, personality)',
-      '- appearance: head/face (or equivalent), body plan, colors, distinctive marks (detailed)',
-      '- costume: clothing, exterior design, gear, accessories (or natural covering for creatures)',
-      '- personality: traits and emotional core',
-      '- backstory: concise origin relevant to drama',
-      '- voiceDesc: pitch, pace, accent, speech or vocalization habits',
-      '- spokenLanguages: JSON array of BCP-47/ISO codes this character SPEAKS (multi OK), e.g. ["yue","en"] or ["ja"]. Prefer: yue=Cantonese, cmn/zh-Hant=Mandarin/Trad. Chinese, en, ja, ko, etc. Empty array if non-verbal.',
-      '- mannerisms: small habits, micro-gestures, posture ticks (very specific)',
-      ctx.pack.hardRulesInstruction,
-      '- Keep identity consistent for multi-angle reference sheets and video gen.',
-      '- Prefer vivid, concrete sensory detail over vague adjectives.',
-      ctx.outputLock
-    ].join('\n')
-  }
+  const keys = CHARACTER_PROFILE_JSON_KEYS.join(', ')
   return [
-    '你是專業短劇角色設定師，專門為 AI 影片／短劇生成「可拍、可認、可一致」的角色聖經。',
-    '用戶會給一段角色 idea（可很短）。請補齊完整角色設定。',
-    '角色可以是人類、動物、鬼靈、魔物、機械、虛擬形象或其他設計體——依 idea 而定，勿強行寫成人類。',
-    '只輸出一個 JSON 物件（不要 markdown 代碼塊、不要解說），鍵名必須是：',
-    CHARACTER_PROFILE_JSON_KEYS.join(', '),
-    '規則：',
+    PromptCatalog.t(locale, 'character.system'),
+    PromptCatalog.t(locale, 'character.keysLead', { keys }),
+    PromptCatalog.t(locale, 'common.rules'),
     ...profileCompletenessRules(
       CHARACTER_PROFILE_JSON_KEYS.filter((k) => k !== 'spokenLanguages'),
-      'zh-HK'
+      locale
     ).map((r) => `- ${r}`),
-    ...inventFromProvidedSourcesRules('zh-HK').map((r) => `- ${r}`),
-    '- description：1–3 句對外摘要（繁體中文）',
-    '- appearance：頭部／五官（或對應部位）、體型結構、顏色、辨識特徵（具體、可畫）',
-    '- costume：服裝、外觀設計、裝備、配飾（生物可寫皮毛／外殼等）',
-    '- personality：性格與情緒底色',
-    '- backstory：與劇情相關的簡潔背景',
-    '- voiceDesc：聲線高低、語速、口音、說話或發聲習慣（為配音／表演用）',
-    '- spokenLanguages：角色使用的語言，JSON 字串陣列（可多選），BCP-47／ISO 代碼，例如 ["yue","en"]。常用：yue=粵語、cmn 或 zh-Hant=普通話／國語、en、ja、ko。非語言角色用 []。',
-    '- mannerisms：小習慣、小動作、站姿／手勢癖好（越具體越好）',
+    ...inventFromProvidedSourcesRules(locale).map((r) => `- ${r}`),
+    `- ${PromptCatalog.t(locale, 'character.ruleSpoken')}`,
+    `- ${PromptCatalog.t(locale, 'character.ruleIdentity')}`,
     ctx.pack.hardRulesInstruction,
-    '- 同一角色必須視覺一致，方便之後多角度參考圖與影片生成。',
-    '- 避免空泛形容；用可拍攝的細節。',
     ctx.outputLock
   ].join('\n')
 }
@@ -109,7 +73,7 @@ export function buildCharacterMasterUserPrompt(options: {
   idea: string
   storyTitle?: string
   styleNote?: string | null
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   /** When set, model should refine/improve this draft rather than invent from scratch */
   existingDraft?: Partial<CharacterProfileFields> | null
   /**
@@ -125,31 +89,17 @@ export function buildCharacterMasterUserPrompt(options: {
     draft: (options.existingDraft ?? undefined) as
       | Record<string, unknown>
       | undefined,
-    draftLabel: {
-      en: 'Current Profile form fields (all filled inputs):',
-      zh: '目前 Profile 表單欄位（已填內容）：'
-    },
+    draftLabelKey: 'character.draftLabel',
     extraBlocks: soul
-      ? [
-          {
-            labelEn:
-              'Linked soul.md / character bible (primary identity & personality source):',
-            labelZh: '已連結 soul.md／角色聖經（主要身份與性格依據）：',
-            body: soul
-          }
-        ]
+      ? [{ labelKey: 'character.soulLabel', body: soul }]
       : [],
     storyTitle: options.storyTitle,
     styleNote: options.styleNote,
-    createLabel: { en: 'Character idea:', zh: '角色 idea：' },
-    emptyIdeaPolish: {
-      en: '(polish all fields; integrate soul into profile)',
-      zh: '（全面潤飾：將 soul 與表單合併進完整 Profile）'
-    },
-    closing: {
-      en: `Output complete JSON now. Required keys: ${CHARACTER_PROFILE_JSON_KEYS.join(', ')}. visualTags = comma-separated string (not array). spokenLanguages may be a code array.`,
-      zh: `請立即輸出完整 JSON。必填鍵：${CHARACTER_PROFILE_JSON_KEYS.join(', ')}。visualTags 為逗號分隔字串（禁止標籤陣列）；spokenLanguages 可以是代碼陣列。`
-    }
+    createLabelKey: 'character.createLabel',
+    emptyIdeaPolishKey: 'character.emptyPolish',
+    closing: PromptCatalog.t(options.locale || 'zh-HK', 'character.closing', {
+      keys: CHARACTER_PROFILE_JSON_KEYS.join(', ')
+    })
   })
 }
 
@@ -296,6 +246,11 @@ export function characterVideoPromptBlock(
     Array.isArray(c.spokenLanguages) && c.spokenLanguages.length > 0
       ? c.spokenLanguages.join(', ')
       : null
+  const speech = speechLanguageLockLine({
+    name: c.name,
+    codes: c.spokenLanguages,
+    locale: 'zh-HK'
+  })
   return [
     `Character: ${c.name}`,
     c.ageRange ? `Age: ${c.ageRange}` : null,
@@ -309,7 +264,8 @@ export function characterVideoPromptBlock(
     c.voiceDesc ? `Voice: ${c.voiceDesc}` : null,
     c.visualTags ? `Visual tags: ${c.visualTags}` : null,
     c.artStyle ? `Art style: ${c.artStyle}` : null,
-    langs ? `Spoken languages: ${langs}` : null
+    langs ? `Spoken languages: ${langs}` : null,
+    speech
   ]
     .filter(Boolean)
     .join('. ')
@@ -325,65 +281,47 @@ export function buildCharacterIntroVideoPrompt(
     gender?: string
     artStyle?: string
   },
-  locale: 'zh-HK' | 'en' = 'zh-HK',
+  locale: string = 'zh-HK',
   options?: { soulExcerpt?: string | null }
 ): string {
   const identity = characterVideoPromptBlock(profile)
-  const langs =
-    Array.isArray(profile.spokenLanguages) && profile.spokenLanguages.length > 0
-      ? profile.spokenLanguages.join(', ')
-      : locale === 'en'
-        ? 'match the character bible'
-        : '跟從角色人設語言'
   const personality =
     profile.personality?.trim() ||
     profile.description?.trim() ||
-    (locale === 'en' ? 'warm, clear presence' : '溫暖清晰、有個性')
+    PromptCatalog.t(locale, 'character.fallbackPersonality')
   const manner =
     profile.mannerisms?.trim() ||
-    (locale === 'en' ? 'natural micro-gestures' : '自然微動作')
+    PromptCatalog.t(locale, 'character.fallbackManner')
   const voice =
     profile.voiceDesc?.trim() ||
-    (locale === 'en' ? 'clear speaking voice' : '清晰聲線')
+    PromptCatalog.t(locale, 'character.fallbackVoice')
   const soul = (options?.soulExcerpt ?? '').trim().slice(0, 1200)
   const backstory = profile.backstory?.trim().slice(0, 240)
   const relationships = profile.relationships?.trim().slice(0, 160)
 
-  if (locale === 'en') {
-    return appendHardRules(
-      [
-        'IMAGE-TO-VIDEO: animate the exact person in the reference image as a short self-introduction clip for short-drama casting.',
-        'IDENTITY LOCK: same face, hair, body, age, wardrobe, and colors as the reference still — do not invent a different person.',
-        identity,
-        `Personality / vibe: ${personality}.`,
-        backstory ? `Backstory cue: ${backstory}.` : null,
-        relationships ? `Relationships cue: ${relationships}.` : null,
-        soul ? `Soul bible excerpt (performance source): ${soul}` : null,
-        `Performance: gentle camera push-in or subtle handheld; character looks toward camera or slightly off-camera; ${manner}.`,
-        `Speech: mouth moves as if introducing themselves briefly; voice tone: ${voice}; languages: ${langs}.`,
-        'Action beat: natural idle → small smile or nod → short spoken intro gesture (hand optional) → hold.',
-        'Cinematic lighting consistent with the still; no text overlays, no logos, no extra people.',
-        'Duration fits a 6–10s vertical-or-horizontal casting self-intro clip.'
-      ]
-        .filter(Boolean)
-        .join(' '),
-      profile.hardRules
-    )
-  }
   return appendHardRules(
     [
-      '圖生影片：以參考圖中的同一人物，拍一段短劇選角用「自我介紹」短片。',
-      '身份鎖定：臉、髮型、體型、年齡感、服裝與顏色必須與參考靜幀一致，不可換成另一個人。',
+      PromptCatalog.t(locale, 'charIntro.task'),
+      PromptCatalog.t(locale, 'charIntro.identityLock'),
       identity,
-      `性格／氣場：${personality}。`,
-      backstory ? `背景要點：${backstory}。` : null,
-      relationships ? `關係要點：${relationships}。` : null,
-      soul ? `Soul 摘要（表演來源）：${soul}` : null,
-      `表演：輕微推近或手持晃動；角色望向鏡頭或略偏鏡頭；${manner}。`,
-      `口白：嘴唇自然開合像在簡短自我介紹；聲線：${voice}；語言：${langs}。`,
-      '動作節奏：自然站定 → 微笑或輕點頭 → 簡短介紹手勢（可空手）→ 定格。',
-      '光線與靜幀一致；無字幕、無 logo、無其他人入鏡。',
-      '適合 6–10 秒自我介紹短片。'
+      PromptCatalog.t(locale, 'charIntro.personality', { personality }),
+      backstory
+        ? PromptCatalog.t(locale, 'charIntro.backstory', { backstory })
+        : null,
+      relationships
+        ? PromptCatalog.t(locale, 'charIntro.relationships', { relationships })
+        : null,
+      soul ? PromptCatalog.t(locale, 'charIntro.soul', { soul }) : null,
+      PromptCatalog.t(locale, 'charIntro.performance', { manner }),
+      PromptCatalog.t(locale, 'charIntro.speech', { voice }),
+      speechLanguageLockLine({
+        name: profile.name,
+        codes: profile.spokenLanguages,
+        locale
+      }),
+      PromptCatalog.t(locale, 'charIntro.beat'),
+      PromptCatalog.t(locale, 'charIntro.lighting'),
+      PromptCatalog.t(locale, 'charIntro.duration')
     ]
       .filter(Boolean)
       .join(' '),

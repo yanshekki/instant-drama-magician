@@ -5,6 +5,10 @@ import {
   parseBeatContent
 } from './beatContent'
 import { ensureHardRules } from './promptHardRules'
+import {
+  parseSpokenLanguageInput,
+  speechLanguageLockLine
+} from './speechLanguageLock'
 
 export type ClipRefSource =
   | 'prev-clip'
@@ -240,6 +244,8 @@ export function buildClipPrompt(options: {
   beatContentJson?: string | null
   seconds: number
   previousContext?: string | null
+  locale?: string | null
+  speechLock?: string | null
 }): string {
   const beatBlock =
     beatContentToClipPromptBlock(
@@ -296,6 +302,12 @@ export function buildClipPrompt(options: {
       : null,
     beatBlock,
     options.previousContext,
+    options.speechLock?.trim() ||
+      speechLanguageLockLine({
+        name: options.character?.name,
+        codes: parseSpokenLanguageInput(options.character?.spokenLanguages),
+        locale: options.locale || 'zh-HK'
+      }),
     `Duration: ${options.seconds}s. Cinematic, continuous action.`
   ]
     .filter(Boolean)

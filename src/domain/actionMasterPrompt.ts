@@ -11,7 +11,7 @@ import {
   getActionPanelLayout,
   type ActionPanelLayoutId
 } from './actionPlateVariants'
-import { resolvePromptContext } from '../prompts'
+import { PromptCatalog, resolvePromptContext } from '../prompts'
 import { getArtStyle } from './characterArtStyles'
 import {
   coerceProfileString,
@@ -53,31 +53,20 @@ export const ACTION_PROFILE_JSON_KEYS = [
 
 export function buildActionMasterSystemPrompt(locale: string = 'zh-HK'): string {
   const ctx = resolvePromptContext(locale)
-  if (ctx.template === 'en') {
-    return [
-      'You are a short-drama motion director. Output ONLY valid JSON for an action/motion guide asset.',
-      `Fields: ${ACTION_PROFILE_JSON_KEYS.join(', ')}.`,
-      ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, 'en'),
-      ...inventFromProvidedSourcesRules('en'),
-      ctx.pack.hardRulesInstruction,
-      'Be concrete: body parts, tempo, weight, prop paths, staging. No markdown.',
-      ctx.outputLock
-    ].join('\n')
-  }
+  const keys = ACTION_PROFILE_JSON_KEYS.join(', ')
   return [
-    '你是短劇動作指導。只輸出有效 JSON，描述一項可拍攝的動作指導。',
-    `欄位：${ACTION_PROFILE_JSON_KEYS.join(', ')}。`,
-    ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, 'zh-HK'),
-    ...inventFromProvidedSourcesRules('zh-HK'),
+    PromptCatalog.t(locale, 'action.system'),
+    PromptCatalog.t(locale, 'action.fieldsLead', { keys }),
+    ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, locale),
+    ...inventFromProvidedSourcesRules(locale),
     ctx.pack.hardRulesInstruction,
-    '要具體：身體部位、節奏、力度、道具路徑、走位。不要 markdown。',
     ctx.outputLock
   ].join('\n')
 }
 
 export function buildActionMasterUserPrompt(opts: {
   idea: string
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   existingDraft?: Partial<ActionProfileFields> | null
   storyTitle?: string
   styleNote?: string | null
@@ -86,34 +75,26 @@ export function buildActionMasterUserPrompt(opts: {
   const parts: string[] = []
   if (opts.storyTitle) {
     parts.push(
-      locale === 'en'
-        ? `Story context (optional): ${opts.storyTitle}`
-        : `故事脈絡（可選）：${opts.storyTitle}`
+      PromptCatalog.t(locale, 'action.storyContext', { title: opts.storyTitle })
     )
   }
   if (opts.styleNote?.trim()) {
     parts.push(
-      locale === 'en'
-        ? `Style note: ${opts.styleNote.trim()}`
-        : `風格備註：${opts.styleNote.trim()}`
+      PromptCatalog.t(locale, 'action.styleNote', {
+        style: opts.styleNote.trim()
+      })
     )
   }
   if (opts.existingDraft) {
     parts.push(
-      locale === 'en'
-        ? `Existing draft JSON to polish:\n${JSON.stringify(opts.existingDraft)}`
-        : `現有草稿（請潤飾補全）：\n${JSON.stringify(opts.existingDraft)}`
+      `${PromptCatalog.t(locale, 'action.existingDraft')}\n${JSON.stringify(opts.existingDraft)}`
     )
   }
+  parts.push(PromptCatalog.t(locale, 'action.userIdea', { idea: opts.idea }))
   parts.push(
-    locale === 'en'
-      ? `User idea: ${opts.idea}`
-      : `用戶構想：${opts.idea}`
-  )
-  parts.push(
-    locale === 'en'
-      ? `Return JSON only. Required keys: ${ACTION_PROFILE_JSON_KEYS.join(', ')}. visualTags = comma-separated string, not array.`
-      : `只回傳 JSON。必填鍵：${ACTION_PROFILE_JSON_KEYS.join(', ')}。visualTags 為逗號分隔字串，禁止陣列。`
+    PromptCatalog.t(locale, 'action.closing', {
+      keys: ACTION_PROFILE_JSON_KEYS.join(', ')
+    })
   )
   return parts.join('\n\n')
 }
@@ -374,31 +355,30 @@ export function buildActionPlateEditPrompt(
 /** Fallback prompt for action demo video (before LLM polish). */
 export function buildActionIntroVideoPrompt(
   profile: ActionProfileFields,
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): string {
-  if (locale === 'en') {
-    return appendHardRules(
-      [
-        `Short-drama motion demo video of action "${profile.name || 'Action'}".`,
-        profile.description || '',
-        profile.intention ? `Intention: ${profile.intention}` : '',
-        profile.motionNotes ? `Body/tempo: ${profile.motionNotes}` : '',
-        profile.cameraNotes ? `Camera: ${profile.cameraNotes}` : '',
-        'Smooth continuous motion, cinematic, no text overlays, follow the keyframe still.'
-      ]
-        .filter(Boolean)
-        .join(' '),
-      profile.hardRules
-    )
-  }
   return appendHardRules(
     [
-      `短劇動作示範片：「${profile.name || '動作'}」。`,
+      PromptCatalog.t(locale, 'actionIntro.lead', {
+        name: profile.name || 'Action'
+      }),
       profile.description || '',
-      profile.intention ? `意圖：${profile.intention}` : '',
-      profile.motionNotes ? `肢體節奏：${profile.motionNotes}` : '',
-      profile.cameraNotes ? `鏡頭：${profile.cameraNotes}` : '',
-      '動作連貫流暢，電影感，無字幕水印，緊跟關鍵幀靜圖。'
+      profile.intention
+        ? PromptCatalog.t(locale, 'actionIntro.intention', {
+            intention: profile.intention
+          })
+        : '',
+      profile.motionNotes
+        ? PromptCatalog.t(locale, 'actionIntro.body', {
+            body: profile.motionNotes
+          })
+        : '',
+      profile.cameraNotes
+        ? PromptCatalog.t(locale, 'actionIntro.camera', {
+            camera: profile.cameraNotes
+          })
+        : '',
+      PromptCatalog.t(locale, 'actionIntro.closing')
     ]
       .filter(Boolean)
       .join(' '),

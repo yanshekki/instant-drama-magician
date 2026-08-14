@@ -127,7 +127,7 @@ describe('TimelineV2Page', () => {
         screen.getByText(/Choose a story above to edit its timeline/i)
       ).toBeTruthy()
     )
-    expect(screen.getByText(/Classic timeline/i)).toBeTruthy()
+    expect(screen.getByText(/Track view|Track/i)).toBeTruthy()
   })
 
   it('renders pipeline graph and can save the prompt', async () => {
@@ -136,8 +136,9 @@ describe('TimelineV2Page', () => {
     await waitFor(() =>
       expect(screen.getAllByTestId('timeline-graph-canvas').length).toBeGreaterThan(0)
     )
-    expect(screen.getAllByText(/Timeline v2/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Classic timeline/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/^Timeline$/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Track view|Track/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Board view|Board/i).length).toBeGreaterThan(0)
 
     const areas = Array.from(document.querySelectorAll('textarea'))
     expect(areas.length).toBeGreaterThan(0)

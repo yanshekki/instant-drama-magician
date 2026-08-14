@@ -640,6 +640,7 @@ import {
   timelineBindExportClip,
   timelineMediaClockTick,
   timelineClipEndedTick,
+  timelineClipEndedStay,
   timelineOnPipelineDone,
   timelineMaybeCloseExport,
   timelineScrubTo,
@@ -4809,6 +4810,32 @@ describe('abs100 Timeline pure + residual', () => {
         entries: []
       }).start
     ).toBe(true)
+    expect(
+      timelineTogglePlayState({
+        isPlaying: false,
+        playhead: 7.99,
+        totalDuration: 16,
+        entries: [
+          { id: 'a', startTime: 0, endTime: 8 },
+          { id: 'b', startTime: 8, endTime: 16 }
+        ],
+        selectedId: 'a',
+        clipScoped: true
+      })
+    ).toEqual({ playhead: 0, selectId: 'a', start: true })
+    expect(
+      timelineTogglePlayState({
+        isPlaying: false,
+        playhead: 16,
+        totalDuration: 16,
+        entries: [
+          { id: 'a', startTime: 0, endTime: 8 },
+          { id: 'b', startTime: 8, endTime: 16 }
+        ],
+        selectedId: 'b',
+        clipScoped: true
+      })
+    ).toEqual({ playhead: 8, selectId: 'b', start: true })
 
     expect(timelineSelectClipState(null, [], 0).selectedId).toBeNull()
     expect(
@@ -5095,6 +5122,36 @@ describe('abs100 Timeline pure + residual', () => {
       () => undefined
     )
     timelineClipEndedTick(true, [], null, 2, () => undefined)
+    let stayed = false
+    timelineClipEndedStay(false, () => {
+      stayed = true
+    })
+    expect(stayed).toBe(false)
+    timelineClipEndedStay(true, () => {
+      stayed = true
+    })
+    expect(stayed).toBe(true)
+    let stayTick = false
+    timelineClipEndedTick(
+      true,
+      [{ id: 'a', endTime: 4 }],
+      'a',
+      0,
+      () => undefined,
+      'stay',
+      () => {
+        stayTick = true
+      }
+    )
+    expect(stayTick).toBe(true)
+    timelineClipEndedTick(
+      true,
+      [{ id: 'a', endTime: 4 }],
+      'a',
+      0,
+      () => undefined,
+      'stay'
+    )
     timelineOnPipelineDone(
       () => undefined,
       () => undefined,
@@ -5253,6 +5310,19 @@ describe('abs100 Timeline pure + residual', () => {
       getPlayhead: () => 0,
       advance: () => undefined
     })()
+    let makeStay = false
+    timelineMakeClipEnded({
+      isPlaying: () => true,
+      getEntries: () => [{ id: 'a', endTime: 4 }],
+      getSelected: () => 'a',
+      getPlayhead: () => 0,
+      advance: () => undefined,
+      mode: 'stay',
+      stop: () => {
+        makeStay = true
+      }
+    })()
+    expect(makeStay).toBe(true)
     timelineMakeScrub(
       [{ id: 'a', startTime: 0, endTime: 4 }],
       null,

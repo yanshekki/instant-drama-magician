@@ -1,3 +1,4 @@
+import { PromptCatalog } from '../../../prompts'
 import { beatSegmentLabel, locationSnippet, sceneLinkLabel, unknownCharacterName, whereFromScene } from '../../../domain/residualLabels'
 /**
  * registerCharactersWardrobe
@@ -23,7 +24,7 @@ reg(
         storyId?: string
         /** all | scene:<id> | beat:<timelineEntryId> */
         segmentKey?: string | null
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         name?: string
         appearance?: string | null
         costume?: string | null
@@ -105,7 +106,7 @@ reg(
 
         if (seg === 'all') {
           segmentLabel =
-            locale === 'en' ? 'Entire story (all scenes)' : '全劇（所有場次）'
+            PromptCatalog.t(locale, 'segment.entireStory')
           sceneSnippets = story.storyScenes.map((link) => {
             const s = link.scene
             const script = link.scriptOverride ?? s.script
@@ -188,7 +189,7 @@ reg(
         }
       } else {
         segmentLabel =
-          locale === 'en' ? 'No story selected' : '未選故事（僅角色資料）'
+          PromptCatalog.t(locale, 'segment.noStory')
       }
 
       const {

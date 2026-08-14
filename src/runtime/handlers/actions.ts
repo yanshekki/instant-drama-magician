@@ -1,3 +1,4 @@
+import { PromptCatalog } from '../../prompts'
 import { imageSizeForClass } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
@@ -76,7 +77,7 @@ reg(
       payload: {
         idea?: string
         storyId?: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         existingDraft?: Record<string, string | undefined | null>
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
@@ -112,12 +113,10 @@ reg(
       const ideaForPrompt =
         idea ||
         (hasImage
-          ? locale === 'en'
-            ? 'Describe and invent a full action profile from the attached instruction / reference still.'
-            : '請根據附上的參考／指示圖，完整填寫動作資料。'
-          : locale === 'en'
-            ? 'Polish'
-            : '全面潤飾')
+          ? PromptCatalog.t(locale, 'vision.inventFromImage', {
+              kind: PromptCatalog.t(locale, 'vision.action')
+            })
+          : PromptCatalog.t(locale, 'scene.polishIdea'))
       const textPrompt = [
         hasImage ? visionFillUserPreamble(locale, 'action') : null,
         buildActionMasterUserPrompt({
@@ -451,7 +450,7 @@ reg(
         actionId: string
         sourceImagePath: string
         durationSeconds?: number
-        locale?: 'zh-HK' | 'en'
+        locale?: string
       }
     ) => {
       const row = await actions().get(payload.actionId)
@@ -479,7 +478,7 @@ reg(
         visualTags: row.visualTags ?? undefined,
         artStyle: row.artStyle ?? undefined
       }
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       const { buildActionIntroVideoPrompt } = await import(
         '../../domain/actionMasterPrompt'
       )

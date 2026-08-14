@@ -25,9 +25,7 @@ describe('aiImprovePrompt', () => {
       locale: 'zh-HK',
       idea: '加強夜雨氣氛',
       draft: { name: '阿明', appearance: '短髮' },
-      extraBlocks: [
-        { labelEn: 'soul', labelZh: 'soul', body: '固執外賣仔' }
-      ]
+      extraBlocks: [{ label: 'soul', body: '固執外賣仔' }]
     })
     expect(p).toMatch(/改進模式|IMPROVE/)
     expect(p).toContain('阿明')
@@ -39,7 +37,7 @@ describe('aiImprovePrompt', () => {
     const p = buildImproveUserPrompt({
       locale: 'en',
       idea: 'a black cat',
-      createLabel: { en: 'Idea:', zh: '構想：' }
+      createLabel: 'Idea:'
     })
     expect(p).toContain('Idea:')
     expect(p).toContain('a black cat')
@@ -80,8 +78,8 @@ describe('aiImprovePrompt', () => {
       locale: 'en',
       idea: '',
       draft: { name: 'A' },
-      emptyIdeaPolish: { en: '(polish me)', zh: '（潤飾）' },
-      closing: { en: 'Return JSON only.', zh: '只回 JSON' }
+      emptyIdeaPolish: '(polish me)',
+      closing: 'Return JSON only.'
     })
     expect(p).toContain('(polish me)')
     expect(p).toContain('Return JSON only.')
@@ -91,8 +89,8 @@ describe('aiImprovePrompt', () => {
     const p = buildImproveUserPrompt({
       locale: 'en',
       idea: 'cat spirit',
-      createLabel: { en: 'Idea:', zh: '構想：' },
-      closing: { en: 'Return JSON only.', zh: '只回 JSON' }
+      createLabel: 'Idea:',
+      closing: 'Return JSON only.'
     })
     expect(p).toContain('Idea:')
     expect(p).toContain('cat spirit')
@@ -105,8 +103,8 @@ describe('aiImprovePrompt', () => {
       idea: 'x',
       draft: { name: 'A' },
       extraBlocks: [
-        { labelEn: 'soul', labelZh: 'soul', body: '  ' },
-        { labelEn: 'ok', labelZh: 'ok', body: 'keep' }
+        { label: 'soul', body: '  ' },
+        { label: 'ok', body: 'keep' }
       ]
     })
     expect(p).toContain('keep')

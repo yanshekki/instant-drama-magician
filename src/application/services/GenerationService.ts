@@ -279,13 +279,16 @@ export class GenerationService {
       const { collectTimelineHardRules } = await import(
         '../../domain/promptHardRules'
       )
-      const clipHardRules = collectTimelineHardRules({
-        story,
-        characters: chars,
-        scenes: scenesBound,
-        props: propsBound,
-        actions: actionsBound
-      })
+      const clipHardRules = collectTimelineHardRules(
+        {
+          story,
+          characters: chars,
+          scenes: scenesBound,
+          props: propsBound,
+          actions: actionsBound
+        },
+        { uiLocale: String(this.settings.uiLanguage || 'zh-HK') }
+      )
       const fallbackPrompt = appendRevisionToClipPrompt(
         [
           buildClipPrompt({
@@ -298,7 +301,8 @@ export class GenerationService {
             beatContentJson:
               (entry as { beatContentJson?: string | null }).beatContentJson,
             seconds,
-            previousContext: prevWithLock || prev
+            previousContext: prevWithLock || prev,
+            locale: String(this.settings.uiLanguage || 'zh-HK')
           }),
           multiCastNote,
           ...charBlocks

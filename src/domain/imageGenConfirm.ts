@@ -1,3 +1,5 @@
+import { PromptCatalog } from '../prompts'
+
 /**
  * Shared helpers for reference-image generation confirm flow.
  * Multi-select paths: first path is identity edit base (API limit 1).
@@ -28,10 +30,9 @@ export function appendMultiRefNote(
   locale: string = 'zh-HK'
 ): string {
   if (paths.length <= 1) return prompt
-  const note =
-    locale === 'en'
-      ? `Additional identity stills selected (${paths.length - 1} more): keep object/subject identity consistent with all selected references; primary edit base is the first still.`
-      : `另有 ${paths.length - 1} 張已選參考圖：主編輯底圖為第一張，其餘作身份一致輔助，勿換成另一物件／主體。`
+  const note = PromptCatalog.t(locale, 'imageGen.multiRef', {
+    n: String(paths.length - 1)
+  })
   return `${prompt}\n\n${note}`
 }
 

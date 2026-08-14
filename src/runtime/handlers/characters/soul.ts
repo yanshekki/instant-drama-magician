@@ -26,7 +26,7 @@ reg(
     async (
       payload: {
         storyId?: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         profile: Record<string, unknown>
         existingSoul?: string | null
         userRequest?: string | null

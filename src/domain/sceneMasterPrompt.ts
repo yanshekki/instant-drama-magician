@@ -13,7 +13,7 @@ import {
   synthesizeVisualTagsFromText,
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
-import { resolvePromptContext } from '../prompts'
+import { PromptCatalog, resolvePromptContext } from '../prompts'
 import { inventFromProvidedSourcesRules } from './storyContextPolicy'
 import {
   appendHardRules,
@@ -41,48 +41,16 @@ export const SCENE_PROFILE_JSON_KEYS = [
 
 export function buildSceneMasterSystemPrompt(locale: string = 'zh-HK'): string {
   const ctx = resolvePromptContext(locale)
-  if (ctx.template === 'en') {
-    return [
-      'You are a short-drama location & scene designer for AI video.',
-      'Produce a filmable location bible + playable scene script fragment.',
-      'Return ONLY one JSON object (no markdown) with keys:',
-      SCENE_PROFILE_JSON_KEYS.join(', '),
-      'Rules:',
-      ...profileCompletenessRules(SCENE_PROFILE_JSON_KEYS, 'en').map(
-        (r) => `- ${r}`
-      ),
-      ...inventFromProvidedSourcesRules('en').map((r) => `- ${r}`),
-      ctx.pack.hardRulesInstruction,
-      '- title: short location name',
-      '- description: what the place looks like (architecture, materials, landmarks)',
-      '- script: dialogue + action + camera cues for THIS scene (concise)',
-      '- locationType: interior|exterior|mixed|vehicle|virtual',
-      '- timeOfDay, weather, mood, lighting, colorPalette, setDressing: concrete; invent freely if the idea is thin',
-      '- cameraNotes: blocking / lens language',
-      '- artStyle: optional id like photo_cinematic or anime_modern, or ""',
-      '- Focus on space + this beat; only cast people who appear in provided cast lists when those lists are given.',
-      ctx.outputLock
-    ].join('\n')
-  }
+  const keys = SCENE_PROFILE_JSON_KEYS.join(', ')
   return [
-    '你是短劇場景／場景空間設計師，服務 AI 影片 continuity。',
-    '請輸出可拍的地點聖經 + 本場可演劇本片段。',
-    '只回傳一個 JSON 物件（不要 markdown），鍵名：',
-    SCENE_PROFILE_JSON_KEYS.join(', '),
-    '規則：',
-    ...profileCompletenessRules(SCENE_PROFILE_JSON_KEYS, 'zh-HK').map(
+    PromptCatalog.t(locale, 'scene.system'),
+    PromptCatalog.t(locale, 'scene.keysLead', { keys }),
+    PromptCatalog.t(locale, 'common.rules'),
+    ...profileCompletenessRules(SCENE_PROFILE_JSON_KEYS, locale).map(
       (r) => `- ${r}`
     ),
-    ...inventFromProvidedSourcesRules('zh-HK').map((r) => `- ${r}`),
+    ...inventFromProvidedSourcesRules(locale).map((r) => `- ${r}`),
     ctx.pack.hardRulesInstruction,
-    '- title：短地名',
-    '- description：空間外觀（建築、物料、地標）',
-    '- script：本場對白／動作／鏡頭（精煉）',
-    '- locationType：interior|exterior|mixed|vehicle|virtual',
-    '- timeOfDay、weather、mood、lighting、colorPalette、setDressing：具體可畫；idea 不足時可自由補齊',
-    '- cameraNotes：走位／鏡頭語言',
-    '- artStyle：可選如 photo_cinematic、anime_modern，或 ""',
-    '- 聚焦空間與本場戲；若有提供角色列表，只在需要時使用列表中的人。',
     ctx.outputLock
   ].join('\n')
 }
@@ -91,31 +59,31 @@ export function buildSceneMasterUserPrompt(options: {
   idea: string
   storyTitle?: string
   styleNote?: string | null
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   existingDraft?: Partial<SceneProfileFields> | null
   characterSnippets?: string[]
   propSnippets?: string[]
   priorSceneSnippets?: string[]
 }): string {
-  const extras: Array<{ labelEn: string; labelZh: string; body: string }> = []
+  const extras: Array<{
+    labelKey: 'scene.charsLabel' | 'scene.propsLabel' | 'scene.priorLabel'
+    body: string
+  }> = []
   if (options.characterSnippets?.length) {
     extras.push({
-      labelEn: 'Characters in story:',
-      labelZh: '故事角色：',
+      labelKey: 'scene.charsLabel',
       body: options.characterSnippets.slice(0, 12).join('\n')
     })
   }
   if (options.propSnippets?.length) {
     extras.push({
-      labelEn: 'Props in story:',
-      labelZh: '故事道具：',
+      labelKey: 'scene.propsLabel',
       body: options.propSnippets.slice(0, 12).join('\n')
     })
   }
   if (options.priorSceneSnippets?.length) {
     extras.push({
-      labelEn: 'Prior scenes (continuity):',
-      labelZh: '既有場景（continuity）：',
+      labelKey: 'scene.priorLabel',
       body: options.priorSceneSnippets.slice(0, 20).join('\n')
     })
   }
@@ -125,22 +93,15 @@ export function buildSceneMasterUserPrompt(options: {
     draft: (options.existingDraft ?? undefined) as
       | Record<string, unknown>
       | undefined,
-    draftLabel: {
-      en: 'Current scene form fields (all filled inputs):',
-      zh: '目前場景表單欄位（已填內容）：'
-    },
+    draftLabelKey: 'scene.draftLabel',
     extraBlocks: extras,
     storyTitle: options.storyTitle,
     styleNote: options.styleNote,
-    createLabel: { en: 'Scene idea:', zh: '場景 idea：' },
-    emptyIdeaPolish: {
-      en: '(polish place + script for video continuity)',
-      zh: '（全面潤飾地點與本場劇本，利於出片 continuity）'
-    },
-    closing: {
-      en: `Output complete JSON now. Required keys: ${SCENE_PROFILE_JSON_KEYS.join(', ')}. Missing keys = invalid. visualTags must be a comma-separated string, not an array.`,
-      zh: `請立即輸出完整 JSON。必填鍵：${SCENE_PROFILE_JSON_KEYS.join(', ')}。缺鍵無效。visualTags 必須是逗號分隔字串，禁止陣列。`
-    }
+    createLabelKey: 'scene.createLabel',
+    emptyIdeaPolishKey: 'scene.emptyPolish',
+    closing: PromptCatalog.t(options.locale || 'zh-HK', 'scene.closing', {
+      keys: SCENE_PROFILE_JSON_KEYS.join(', ')
+    })
   })
 }
 
@@ -189,7 +150,7 @@ export function extractSceneProfileJson(text: string): SceneProfileFields & {
 export function buildSceneSuggestFromStoryUserPrompt(options: {
   storyTitle: string
   styleNote?: string | null
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   sceneNumber: number
   existingSceneTitles?: string[]
   characterSnippets: string[]
@@ -200,44 +161,40 @@ export function buildSceneSuggestFromStoryUserPrompt(options: {
   /** Detailed text for the chosen segment */
   focusSnippets?: string[]
 }): string {
-  const en = options.locale === 'en'
+  const loc = options.locale || 'zh-HK'
+  const none = PromptCatalog.t(loc, 'common.none')
   return [
-    en
-      ? `Propose a production-ready LOCATION plate as scene #${options.sceneNumber} for story "${options.storyTitle}".`
-      : `為故事「${options.storyTitle}」建議第 ${options.sceneNumber} 個可用場景（場地／環境設定）。`,
+    PromptCatalog.t(loc, 'scene.suggestLead', {
+      n: String(options.sceneNumber),
+      title: options.storyTitle
+    }),
     options.segmentLabel
-      ? en
-        ? `Plot focus: ${options.segmentLabel}`
-        : `劇情焦點：${options.segmentLabel}`
+      ? PromptCatalog.t(loc, 'scene.suggestPlotFocus', {
+          label: options.segmentLabel
+        })
       : '',
     options.styleNote
-      ? en
-        ? `Style: ${options.styleNote}`
-        : `風格：${options.styleNote}`
+      ? PromptCatalog.t(loc, 'scene.suggestStyle', {
+          style: options.styleNote
+        })
       : '',
     options.existingSceneTitles?.length
-      ? en
-        ? `Already have locations: ${options.existingSceneTitles.join('; ')}`
-        : `庫內／故事已有場地：${options.existingSceneTitles.join('；')}`
+      ? PromptCatalog.t(loc, 'scene.suggestExisting', {
+          titles: options.existingSceneTitles.join('; ')
+        })
       : '',
-    en ? 'Characters (context):' : '角色（上下文）：',
-    options.characterSnippets.join('\n') || '(none)',
-    en ? 'Props (context):' : '道具（上下文）：',
-    options.propSnippets.join('\n') || '(none)',
+    PromptCatalog.t(loc, 'scene.suggestChars'),
+    options.characterSnippets.join('\n') || none,
+    PromptCatalog.t(loc, 'scene.suggestProps'),
+    options.propSnippets.join('\n') || none,
     options.focusSnippets?.length
-      ? en
-        ? 'Selected plot segment detail:'
-        : '選定劇情段落詳情：'
-      : en
-        ? 'Story scenes / beats:'
-        : '故事場次／段落：',
+      ? PromptCatalog.t(loc, 'scene.suggestSegment')
+      : PromptCatalog.t(loc, 'scene.suggestBeats'),
     (options.focusSnippets?.length
       ? options.focusSnippets
       : options.priorSceneSnippets
-    ).join('\n---\n') || '(none)',
-    en
-      ? 'Return full scene JSON. Design a DISTINCT reusable location that fits this plot focus (global library asset — not only for one story).'
-      : '回傳完整場景 JSON。請設計一個可重複使用的獨立場地（全域場景庫資產），須貼合選定劇情焦點，並與已有場地有所區別。'
+    ).join('\n---\n') || none,
+    PromptCatalog.t(loc, 'scene.suggestClosing')
   ]
     .filter(Boolean)
     .join('\n')
@@ -253,24 +210,21 @@ export function buildSceneIntroVideoPrompt(
     description: string
     artStyle?: string
   },
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): string {
   const name =
     profile.title?.trim() ||
     profile.description.trim().slice(0, 48) ||
-    (locale === 'en' ? 'Location' : '場景')
+    PromptCatalog.t(locale, 'scene.fallbackName')
   const place = profile.description.trim() || name
   const mood =
-    profile.mood?.trim() ||
-    (locale === 'en' ? 'cinematic atmosphere' : '電影氣氛')
+    profile.mood?.trim() || PromptCatalog.t(locale, 'scene.fallbackMood')
   const lighting =
     profile.lighting?.trim() ||
-    (locale === 'en' ? 'match the still' : '與靜幀一致')
+    PromptCatalog.t(locale, 'scene.fallbackLighting')
   const camera =
     profile.cameraNotes?.trim().slice(0, 200) ||
-    (locale === 'en'
-      ? 'gentle establishing push-in or slow pan'
-      : '輕微建立鏡頭推近或慢搖')
+    PromptCatalog.t(locale, 'scene.fallbackCamera')
   const time = profile.timeOfDay?.trim()
   const weather = profile.weather?.trim()
   const locationType = profile.locationType?.trim()
@@ -281,55 +235,37 @@ export function buildSceneIntroVideoPrompt(
   const art = profile.artStyle?.trim()
   const scriptCue = profile.script?.trim().slice(0, 200)
 
-  if (locale === 'en') {
-    return appendHardRules(
-      [
-        'IMAGE-TO-VIDEO: animate the exact location in the reference still as a short location-intro / establishing clip for short-drama production.',
-        'SPACE LOCK: same architecture, materials, signage, layout, and color language as the reference plate — do not invent a different place.',
-        `Location name: ${name}.`,
-        `Place description: ${place}.`,
-        locationType ? `Space type: ${locationType}.` : null,
-        time ? `Time of day: ${time}.` : null,
-        weather ? `Weather: ${weather}.` : null,
-        `Mood: ${mood}. Lighting: ${lighting}.`,
-        palette ? `Color palette: ${palette}.` : null,
-        setDressing ? `Set dressing: ${setDressing}.` : null,
-        tags ? `Visual tags: ${tags}.` : null,
-        art ? `Art style: ${art}.` : null,
-        soundscape ? `Ambient feel (no UI text): ${soundscape}.` : null,
-        scriptCue
-          ? `Beat cue (atmosphere only, no hero faces unless already in still): ${scriptCue}.`
-          : null,
-        `Camera: ${camera}; continuous gentle motion; empty-set preferred — no new cast faces, no logos, no text overlays.`,
-        'Action beat: hold establishing → subtle environmental life (light shift, weather particles, fabric/tree if already present) → settle.',
-        'Duration fits a 6–10s establishing intro clip.'
-      ]
-        .filter(Boolean)
-        .join(' '),
-      profile.hardRules
-    )
-  }
   return appendHardRules(
     [
-      '圖生影片：以參考靜幀中的同一場地，拍一段短劇用「場景介紹／建立鏡頭」短片。',
-      '空間鎖定：建築、材質、招牌、格局與色彩語言必須與參考靜幀一致，不可換成另一個地方。',
-      `地點名稱：${name}。`,
-      `場地描述：${place}。`,
-      locationType ? `空間類型：${locationType}。` : null,
-      time ? `時段：${time}。` : null,
-      weather ? `天氣：${weather}。` : null,
-      `氣氛：${mood}。燈光：${lighting}。`,
-      palette ? `色盤：${palette}。` : null,
-      setDressing ? `陳設：${setDressing}。` : null,
-      tags ? `視覺標籤：${tags}。` : null,
-      art ? `藝術風格：${art}。` : null,
-      soundscape ? `環境氛圍（無 UI 字幕）：${soundscape}。` : null,
-      scriptCue
-        ? `本場提示（只作氣氛，勿新增角色臉，除非靜幀已有）：${scriptCue}。`
+      PromptCatalog.t(locale, 'sceneIntro.task'),
+      PromptCatalog.t(locale, 'sceneIntro.spaceLock'),
+      PromptCatalog.t(locale, 'sceneIntro.name', { name }),
+      PromptCatalog.t(locale, 'sceneIntro.place', { place }),
+      locationType
+        ? PromptCatalog.t(locale, 'sceneIntro.spaceType', { type: locationType })
         : null,
-      `運鏡：${camera}；連續輕微動態；空鏡為主——勿新增路人臉、logo、字幕。`,
-      '動作節奏：建立鏡頭定場 → 環境微動（光影、天氣粒子、已有的布料／樹影）→ 定格。',
-      '適合 6–10 秒場景介紹短片。'
+      time ? PromptCatalog.t(locale, 'sceneIntro.time', { time }) : null,
+      weather
+        ? PromptCatalog.t(locale, 'sceneIntro.weather', { weather })
+        : null,
+      PromptCatalog.t(locale, 'sceneIntro.moodLight', { mood, lighting }),
+      palette
+        ? PromptCatalog.t(locale, 'sceneIntro.palette', { palette })
+        : null,
+      setDressing
+        ? PromptCatalog.t(locale, 'sceneIntro.setDressing', { set: setDressing })
+        : null,
+      tags ? PromptCatalog.t(locale, 'sceneIntro.tags', { tags }) : null,
+      art ? PromptCatalog.t(locale, 'sceneIntro.art', { art }) : null,
+      soundscape
+        ? PromptCatalog.t(locale, 'sceneIntro.ambient', { sound: soundscape })
+        : null,
+      scriptCue
+        ? PromptCatalog.t(locale, 'sceneIntro.scriptCue', { cue: scriptCue })
+        : null,
+      PromptCatalog.t(locale, 'sceneIntro.camera', { camera }),
+      PromptCatalog.t(locale, 'sceneIntro.beat'),
+      PromptCatalog.t(locale, 'sceneIntro.duration')
     ]
       .filter(Boolean)
       .join(' '),

@@ -90,7 +90,7 @@ export interface ElectronApi {
       referenceImagePaths?: string[] | null
       useIdentityEdit?: boolean
       idea?: string | null
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       promptOverride?: string | null
     }) => Promise<{
       path: string
@@ -107,19 +107,19 @@ export interface ElectronApi {
       path: string
       gallery?: unknown
     }>
-    seedDemo: (locale?: 'zh-HK' | 'en') => Promise<{ storyId: string; title: string }>
+    seedDemo: (locale?: string) => Promise<{ storyId: string; title: string }>
     aiFillMeta: (payload: {
       storyId?: string
       title?: string
       idea?: string
       existingStyleNote?: string | null
       existingHardRules?: string | null
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{ styleNote: string; hardRules: string; raw: string }>
     aiFillScript: (payload: {
       storyId: string
       idea?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       replace?: boolean
     }) => Promise<{
       beats: Array<{
@@ -215,7 +215,7 @@ export interface ElectronApi {
     aiFill: (payload: {
       idea?: string
       storyId?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       /** All profile form fields currently filled */
       existingDraft?: Record<string, unknown>
       /** Full soul.md / hub markdown for identity merge */
@@ -229,7 +229,7 @@ export interface ElectronApi {
     }>
     generateSoul: (payload: {
       storyId?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       profile: Record<string, unknown>
       existingSoul?: string | null
       userRequest?: string | null
@@ -291,7 +291,7 @@ export interface ElectronApi {
       characterId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{
       character: unknown
       path: string
@@ -363,7 +363,7 @@ export interface ElectronApi {
       storyId?: string
       /** all | scene:<id> | beat:<timelineEntryId> */
       segmentKey?: string | null
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       name?: string
       appearance?: string | null
       costume?: string | null
@@ -458,7 +458,7 @@ export interface ElectronApi {
       storyId?: string
       /** all | scene:<id> | beat:<timelineEntryId> — with suggestFromStory */
       segmentKey?: string | null
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       existingDraft?: Record<string, string | undefined | null>
       suggestFromStory?: boolean
       sceneNumber?: number
@@ -495,7 +495,7 @@ export interface ElectronApi {
       sceneId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{
       scene: unknown
       path: string
@@ -560,7 +560,7 @@ export interface ElectronApi {
     aiFill: (payload: {
       idea?: string
       storyId?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       existingDraft?: Record<string, string | undefined | null>
       /** Explicit suggest-from-story — only then inject story title/style */
       suggestFromStory?: boolean
@@ -599,7 +599,7 @@ export interface ElectronApi {
       propId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{
       prop: unknown
       path: string
@@ -637,7 +637,7 @@ export interface ElectronApi {
     aiFill: (payload: {
       idea?: string
       storyId?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       existingDraft?: Record<string, string | undefined | null>
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
@@ -669,7 +669,7 @@ export interface ElectronApi {
       actionId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{
       action: unknown
       path: string
@@ -758,7 +758,7 @@ export interface ElectronApi {
     >
     aiFill: (payload: {
       idea?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       existingDraft?: {
         name?: string | null
         description?: string | null
@@ -816,7 +816,7 @@ export interface ElectronApi {
       costumeId: string
       sourceImagePath: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{
       costume: unknown
       path: string
@@ -855,7 +855,7 @@ export interface ElectronApi {
       costumeDescription?: string
       atmosphereDescription?: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{
       kind: string
       entityIds: Record<string, string | undefined>
@@ -893,7 +893,7 @@ export interface ElectronApi {
       fallbackPrompt: string
       taskHint?: string
       hardRules?: string | null
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       mode?: 'image' | 'video'
       userTextOverride?: string | null
     }) => Promise<{
@@ -957,7 +957,7 @@ export interface ElectronApi {
       storyId?: string
       entryId?: string
       durationSeconds?: number
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       skipStillIfExists?: boolean
       stillOnly?: boolean
     }) => Promise<{
@@ -977,7 +977,7 @@ export interface ElectronApi {
     openFromStill: (payload: {
       storyId: string
       entryId: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       forcePolish?: boolean
     }) => Promise<{
       kind: string
@@ -1004,7 +1004,7 @@ export interface ElectronApi {
       entryId?: string
       durationSeconds?: number
       aspectRatio?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{
       professionalPrompt: string
       stillPath: string
@@ -1032,7 +1032,7 @@ export interface ElectronApi {
       entryId?: string
       durationSeconds?: number
       aspectRatio?: string
-      locale?: 'zh-HK' | 'en'
+      locale?: string
     }) => Promise<{
       path: string
       gallery?: unknown

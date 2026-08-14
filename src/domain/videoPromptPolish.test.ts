@@ -64,9 +64,11 @@ describe('hardRulesMaterialsBlock + system polish prompt', () => {
     const zh = buildVideoPromptPolishSystemPrompt('zh-HK')
     expect(zh.length).toBeGreaterThan(40)
     expect(zh).toMatch(/固定樣本|Demo|材料/)
+    expect(zh).toMatch(/SPEECH LOCK/)
     const en = buildVideoPromptPolishSystemPrompt('en')
     expect(en).toMatch(/image-to-video|director|prompt/i)
     expect(en).toMatch(/materials and seed|Demo story|fixed sample/i)
+    expect(en).toMatch(/SPEECH LOCK/)
   })
 })
 
@@ -91,7 +93,8 @@ describe('buildIntroVideoPolishUserPrompt', () => {
     expect(u).toContain('與阿明有過往')
     expect(u).toContain('soul.md')
     expect(u).toContain('TEMPLATE FALLBACK')
-    expect(u).toContain('yue')
+    expect(u).toMatch(/yue|粵語|Cantonese/i)
+    expect(u).toMatch(/SPEECH LOCK/)
   })
 })
 
@@ -285,7 +288,7 @@ describe('other polish prompts en without ref', () => {
       seedPrompt: 'seed',
       soulExcerpt: '## Id\nCourier'
     })
-    expect(u).toMatch(/Ming|courier|soul|match character bible/i)
+    expect(u).toMatch(/Ming|courier|soul|SPEECH LOCK|English/i)
   })
 
   it('scene polish title fallback and hasRefImage true en', () => {

@@ -59,7 +59,8 @@ export function attachPlayStart(opts: {
     opts.start()
   }
   opts.addEventListener('canplay', onCanPlay)
-  opts.load()
+  // HAVE_METADATA (1) after ended: wait for canplay. load() rewinds to 0.
+  if (opts.readyState < 1) opts.load()
   return () => opts.removeEventListener('canplay', onCanPlay)
 }
 

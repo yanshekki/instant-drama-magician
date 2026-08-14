@@ -14,12 +14,17 @@ export interface TimelineGraphNodeHandlers {
   onGenStill: () => void
   onRegenStill: () => void
   onRefineStill: () => void
+  onGenStillFor?: (entryId: string) => void
+  onRegenStillFor?: (entryId: string) => void
+  onRefineStillFor?: (entryId: string) => void
   onOpenSetup: () => void
   onOpenStoryEditor: () => void
   onOpenEntity: (kind: 'character' | 'scene' | 'prop' | 'action', id: string) => void
   stillBusy?: boolean
   videoSlot?: ReactNode
   generateVideoSlot?: ReactNode
+  videoSlotFor?: (entryId: string) => ReactNode
+  generateVideoSlotFor?: (entryId: string) => ReactNode
 }
 
 const CARD =
@@ -73,6 +78,33 @@ export function TimelineGraphNode({
     >
       {nodeBody(node, handlers, t)}
     </article>
+  )
+}
+
+function posterFallback(
+  node: TimelineGraphLaidOutNode,
+  t: (k: string) => string
+): ReactNode {
+  if (node.imagePath) {
+    return (
+      <div className={`${MEDIA_BOX} h-full min-h-[10rem]`}>
+        <LocalMediaImage
+          filePath={node.imagePath}
+          alt={node.title || t('timeline.graph.still')}
+          variant="fill"
+          objectFit="contain"
+          showActions={false}
+          enableZoom={false}
+          hoverZoom={false}
+          className="h-full w-full"
+        />
+      </div>
+    )
+  }
+  return (
+    <div className="flex h-full min-h-[10rem] items-center justify-center px-2 text-center text-[11px] text-ink-500">
+      {t('timeline.graph.clipEmpty')}
+    </div>
   )
 }
 
@@ -185,6 +217,8 @@ function nodeBody(
               variant="fill"
               objectFit="contain"
               showActions={false}
+              enableZoom={false}
+              hoverZoom={false}
               className="h-full w-full"
             />
           ) : (
@@ -193,33 +227,41 @@ function nodeBody(
             </div>
           )}
         </div>
-        {node.id === 'still' ? (
-          <div
-            className="flex flex-wrap gap-1.5 p-3"
-            onClick={(e) => e.stopPropagation()}
+        <div
+          className="flex flex-wrap gap-1.5 p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="secondary"
+            className="!px-2 !py-1 !text-[11px]"
+            disabled={handlers.stillBusy}
+            onClick={() => {
+              if (node.missing) {
+                if (handlers.onGenStillFor) handlers.onGenStillFor(node.entryId)
+                else handlers.onGenStill()
+              } else if (handlers.onRegenStillFor) {
+                handlers.onRegenStillFor(node.entryId)
+              } else {
+                handlers.onRegenStill()
+              }
+            }}
           >
-            <Button
-              variant="secondary"
-              className="!px-2 !py-1 !text-[11px]"
-              disabled={handlers.stillBusy}
-              onClick={node.missing ? handlers.onGenStill : handlers.onRegenStill}
-            >
-              {node.missing
-                ? t('timeline.advanced.genStill')
-                : t('timeline.advanced.regenStill')}
-            </Button>
-            <Button
-              variant="ghost"
-              className="!px-2 !py-1 !text-[11px]"
-              disabled={handlers.stillBusy}
-              onClick={handlers.onRefineStill}
-            >
-              {t('timeline.advanced.refineStill')}
-            </Button>
-          </div>
-        ) : (
-          <div className="h-2 shrink-0" />
-        )}
+            {node.missing
+              ? t('timeline.advanced.genStill')
+              : t('timeline.advanced.regenStill')}
+          </Button>
+          <Button
+            variant="ghost"
+            className="!px-2 !py-1 !text-[11px]"
+            disabled={handlers.stillBusy}
+            onClick={() => {
+              if (handlers.onRefineStillFor) handlers.onRefineStillFor(node.entryId)
+              else handlers.onRefineStill()
+            }}
+          >
+            {t('timeline.advanced.refineStill')}
+          </Button>
+        </div>
       </div>
     )
   }
@@ -249,6 +291,8 @@ function nodeBody(
               variant="fill"
               objectFit="contain"
               showActions={false}
+              enableZoom={false}
+              hoverZoom={false}
               className="h-full w-full"
             />
           ) : (
@@ -287,13 +331,15 @@ function nodeBody(
           </button>
         </div>
         <div className="min-h-0 flex-1 px-3 pt-2">
-          {handlers.videoSlot}
+          {handlers.videoSlotFor?.(node.entryId) ??
+            (node.id === 'video' ? handlers.videoSlot : posterFallback(node, t))}
         </div>
         <div
           className="flex shrink-0 flex-col gap-1 px-3 pb-2 pt-1.5"
           onClick={(e) => e.stopPropagation()}
         >
-          {handlers.generateVideoSlot}
+          {handlers.generateVideoSlotFor?.(node.entryId) ??
+            (node.id === 'video' ? handlers.generateVideoSlot : null)}
         </div>
       </div>
     )
@@ -309,13 +355,15 @@ function nodeBody(
           </p>
         ) : null}
         {node.imagePath ? (
-          <div className={`${MEDIA_BOX} mt-2 h-[4.5rem] shrink-0`}>
+          <div className={`${MEDIA_BOX} mt-2 aspect-video h-[9.25rem] shrink-0`}>
             <LocalMediaImage
               filePath={node.imagePath}
               alt={t('timeline.graph.cinematic')}
               variant="fill"
               objectFit="contain"
               showActions={false}
+              enableZoom={false}
+              hoverZoom={false}
               className="h-full w-full"
             />
           </div>
@@ -351,6 +399,8 @@ function nodeBody(
             variant="fill"
             objectFit="contain"
             showActions={false}
+            enableZoom={false}
+            hoverZoom={false}
             className="h-full w-full"
           />
         ) : (

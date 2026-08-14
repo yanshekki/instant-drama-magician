@@ -1,6 +1,7 @@
 /**
  * Media gen prep IPC: extract materials → multi-vision polish → generate one image.
  */
+import { PromptCatalog } from '../../prompts'
 import { existsSync, writeFileSync } from 'fs'
 import { imageSizeForClass } from '../../domain/residualLabels'
 import { ensureHardRules } from '../../domain/promptHardRules'
@@ -34,7 +35,7 @@ type ExtractPayload = {
   costumeDescription?: string
   atmosphereDescription?: string
   durationSeconds?: number
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   /** When true, surface existing continuity/keyframe path if on disk */
   skipStillIfExists?: boolean
 }
@@ -1037,13 +1038,16 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           })
         : null
 
-      const hardRules = collectTimelineHardRules({
-        story: story as { hardRules?: string | null; title?: string | null },
-        characters: chars,
-        scenes: scenesBound,
-        props: propsBound,
-        actions: actionsBound
-      })
+      const hardRules = collectTimelineHardRules(
+        {
+          story: story as { hardRules?: string | null; title?: string | null },
+          characters: chars,
+          scenes: scenesBound,
+          props: propsBound,
+          actions: actionsBound
+        },
+        { uiLocale: PromptCatalog.locale(payload.locale) }
+      )
 
       const characterName = charRefs[0]?.name ?? null
       const beatBlockWithActions = [
@@ -1079,7 +1083,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         ).id,
         durationSeconds: payload.durationSeconds ?? seconds,
         styleNote: (story as { styleNote?: string | null }).styleNote,
-        locale: payload.locale === 'en' ? 'en' : 'zh-HK'
+        locale: PromptCatalog.locale(payload.locale)
       })
 
       // This entry's continuity still (for skipStillIfExists keyframe reuse)
@@ -1119,7 +1123,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       kind === 'action-intro' ||
       kind === 'costume-intro'
     ) {
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       const galleryPaths = (payload.galleryIdentityPaths ?? [])
         .map((p) => p?.trim())
         .filter((p): p is string => Boolean(p))
@@ -1415,7 +1419,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       fallbackPrompt: string
       taskHint?: string
       hardRules?: string | null
-      locale?: 'zh-HK' | 'en'
+      locale?: string
       /** image = keyframe/still director; video = motion director */
       mode?: 'image' | 'video'
       /** Domain *VideoPolishUserPrompt body (video stage) */
@@ -1434,7 +1438,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       )
       const result = await polishMediaGenPrompt({
         ai: ctx.aiClient,
-        locale: payload.locale === 'en' ? 'en' : 'zh-HK',
+        locale: PromptCatalog.locale(payload.locale),
         kind: payload.kind || 'action-plate',
         includedSections: included,
         taskHint: payload.taskHint,

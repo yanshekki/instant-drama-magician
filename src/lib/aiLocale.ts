@@ -1,19 +1,15 @@
 /**
  * Resolve generation language from the app UI language.
- * Output language is the UI language; template skeleton is zh-HK or en.
+ * Uses the full 10-language PromptCatalog locale — no en/zh collapse.
  */
-import {
-  promptTemplateId,
-  resolvePromptContext,
-  type PromptContext
-} from '../prompts'
-import type { UiLanguage } from '../domain/uiLanguages'
+import { coerceUiLanguage, type UiLanguage } from '../domain/uiLanguages'
+import { resolvePromptContext, type PromptContext } from '../prompts'
 
-/** Skeleton language for handwritten system prompts. */
-export type AiLocale = 'zh-HK' | 'en'
+/** Generation locale — same 10 codes as the UI. */
+export type AiLocale = UiLanguage
 
 export function getAiLocale(lang?: string | null): AiLocale {
-  return promptTemplateId(lang)
+  return coerceUiLanguage(lang, 'zh-HK')
 }
 
 export function getPromptContext(lang?: string | null): PromptContext {
@@ -21,5 +17,5 @@ export function getPromptContext(lang?: string | null): PromptContext {
 }
 
 export function getGenerationLanguage(lang?: string | null): UiLanguage {
-  return resolvePromptContext(lang).output
+  return coerceUiLanguage(lang, 'zh-HK')
 }

@@ -10,7 +10,7 @@ import type { PrismaClient } from '../../types/prisma'
 export class DemoSeedService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async seed(locale: 'zh-HK' | 'en' = 'zh-HK'): Promise<{ storyId: string; title: string }> {
+  async seed(locale: string = 'zh-HK'): Promise<{ storyId: string; title: string }> {
     const zh = locale === 'zh-HK'
     const title = zh ? 'Demo：咖啡店再遇' : 'Demo: Café Reunion'
 

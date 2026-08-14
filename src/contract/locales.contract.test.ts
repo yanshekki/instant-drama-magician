@@ -52,4 +52,27 @@ describe('locales contract', () => {
       expect(keys.length).toBe(enKeys.length)
     }
   })
+
+  it('non-English packs are not a full copy of English user strings', () => {
+    const en = flatten(
+      JSON.parse(readFileSync(join(dir, 'en.json'), 'utf8')) as Record<
+        string,
+        unknown
+      >
+    )
+    for (const f of files) {
+      if (f === 'en.json') continue
+      const flat = flatten(
+        JSON.parse(readFileSync(join(dir, f), 'utf8')) as Record<
+          string,
+          unknown
+        >
+      )
+      let same = 0
+      for (const k of Object.keys(en)) {
+        if (flat[k] === en[k] && /[A-Za-z]{4,}/.test(en[k])) same++
+      }
+      expect(same, `${f} leftover English ${same}`).toBeLessThan(220)
+    }
+  })
 })

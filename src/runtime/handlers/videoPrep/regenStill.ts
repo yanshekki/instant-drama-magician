@@ -1,3 +1,4 @@
+import { PromptCatalog } from '../../../prompts'
 import { squareOrDefault } from '../../../domain/residualLabels'
 /**
  * Video prep — registerVideoPrepRegenStill
@@ -36,10 +37,10 @@ reg(
         entryId?: string
         durationSeconds?: number
         aspectRatio?: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
       }
     ) => {
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       const notes = payload.improvementNotes?.trim()
       if (!notes) {
         throw new AppError('VALIDATION', 'errors.ideaOrDraftRequired')
@@ -145,13 +146,16 @@ reg(
               ? prisma.action.findMany({ where: { id: { in: actionIds } } })
               : Promise.resolve([])
           ])
-          regenHardRules = collectTimelineHardRules({
-            story,
-            characters: chars,
-            scenes: scns,
-            props: prps,
-            actions: acts
-          })
+          regenHardRules = collectTimelineHardRules(
+            {
+              story,
+              characters: chars,
+              scenes: scns,
+              props: prps,
+              actions: acts
+            },
+            { uiLocale: locale }
+          )
         }
       } catch {
         /* non-fatal */

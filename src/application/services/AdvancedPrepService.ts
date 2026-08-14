@@ -334,7 +334,7 @@ export class AdvancedPrepService {
   async openFromStill(options: {
     storyId: string
     entryId: string
-    locale?: 'zh-HK' | 'en'
+    locale?: string
     forcePolish?: boolean
   }): Promise<{
     kind: 'timeline-clip'

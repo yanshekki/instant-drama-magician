@@ -2,6 +2,7 @@
  * Beat = one short-clip screenplay unit (not a single spoken line).
  * Holds multi-line dialogue, action, expression, mood, atmosphere, camera, sfx.
  */
+import { PromptCatalog } from '../prompts'
 
 export type BeatUnitType = 'action' | 'expression' | 'dialogue' | 'note'
 
@@ -306,64 +307,58 @@ function parseBeatContentText(text: string): BeatContent | null {
   }
 }
 
-/** Human-readable script for editor (zh tags). */
+/** Parser only understands zh-HK / English markup tags. */
+function beatTagLocale(locale?: string): 'en' | 'zh-HK' {
+  const id = PromptCatalog.locale(locale)
+  return id === 'zh-HK' || id === 'zh-CN' ? 'zh-HK' : 'en'
+}
+
+/** Human-readable script for editor. */
 export function serializeBeatContent(
   content: BeatContent,
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): string {
-  const en = locale === 'en'
+  const tagLoc = beatTagLocale(locale)
   const lines: string[] = []
   if (content.mood?.trim())
-    lines.push(en ? `[MOOD] ${content.mood.trim()}` : `【心情】${content.mood.trim()}`)
+    lines.push(
+      PromptCatalog.t(tagLoc, 'beat.mood', { text: content.mood.trim() })
+    )
   if (content.atmosphere?.trim())
     lines.push(
-      en
-        ? `[ATMO] ${content.atmosphere.trim()}`
-        : `【氣氛】${content.atmosphere.trim()}`
+      PromptCatalog.t(tagLoc, 'beat.atmo', { text: content.atmosphere.trim() })
     )
   if (content.camera?.trim())
     lines.push(
-      en ? `[CAMERA] ${content.camera.trim()}` : `【鏡頭】${content.camera.trim()}`
+      PromptCatalog.t(tagLoc, 'beat.camera', { text: content.camera.trim() })
     )
   if (content.sfx?.trim())
-    lines.push(en ? `[SFX] ${content.sfx.trim()}` : `【聲效】${content.sfx.trim()}`)
+    lines.push(PromptCatalog.t(tagLoc, 'beat.sfx', { text: content.sfx.trim() }))
   for (const u of content.units) {
     if (u.type === 'action') {
       const who = u.who?.trim()
       lines.push(
-        en
-          ? who
-            ? `[ACTION|${who}] ${u.text}`
-            : `[ACTION] ${u.text}`
-          : who
-            ? `【動作｜${who}】${u.text}`
-            : `【動作】${u.text}`
+        who
+          ? PromptCatalog.t(tagLoc, 'beat.actionWho', { who, text: u.text })
+          : PromptCatalog.t(tagLoc, 'beat.action', { text: u.text })
       )
     } else if (u.type === 'expression') {
       const who = u.who?.trim()
       lines.push(
-        en
-          ? who
-            ? `[EXPR|${who}] ${u.text}`
-            : `[EXPR] ${u.text}`
-          : who
-            ? `【表情｜${who}】${u.text}`
-            : `【表情】${u.text}`
+        who
+          ? PromptCatalog.t(tagLoc, 'beat.exprWho', { who, text: u.text })
+          : PromptCatalog.t(tagLoc, 'beat.expr', { text: u.text })
       )
     } else if (u.type === 'dialogue') {
-      const who = u.who?.trim() || (en ? '?' : '？')
+      const who = u.who?.trim() || PromptCatalog.t(tagLoc, 'beat.whoUnknown')
       const tone = u.tone?.trim()
       const body = u.parenthetical
         ? `（${u.parenthetical}）${u.line}`
         : u.line
       lines.push(
-        en
-          ? tone
-            ? `[DIALOGUE|${who}|${tone}] ${body}`
-            : `[DIALOGUE|${who}] ${body}`
-          : tone
-            ? `【對白｜${who}｜${tone}】${body}`
-            : `【對白｜${who}】${body}`
+        tone
+          ? PromptCatalog.t(tagLoc, 'beat.dialogueTone', { who, tone, body })
+          : PromptCatalog.t(tagLoc, 'beat.dialogue', { who, body })
       )
     } else if (u.type === 'note' && u.text.trim()) {
       lines.push(u.text.trim())
@@ -402,7 +397,7 @@ export function spokenSummaryFromBeatContent(
 export function beatContentForEditor(
   dialogue: string | null | undefined,
   beatContentJson?: string | null,
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): string {
   const parsed = parseBeatContent(dialogue, beatContentJson)
   if (!parsed) return dialogue?.trim() ?? ''
@@ -485,29 +480,8 @@ export function estimateBeatDurationSeconds(
 }
 
 /** Template inserted into empty editor. */
-export function beatScriptTemplate(locale: 'zh-HK' | 'en' = 'zh-HK'): string {
-  if (locale === 'en') {
-    return [
-      '[MOOD] tense, hesitant',
-      '[ATMO] door-gap warm light; rain on ground',
-      '[CAMERA] medium shot, push to hands',
-      '[SFX] rain, fabric rustle',
-      '[ACTION|Name] removes helmet; stares at the door light; hand into jacket pocket',
-      '[EXPR|Name] furrowed brow, breath catches',
-      '[DIALOGUE|Name|low, hoarse] Raining again…',
-      '[DIALOGUE|Name|aside] (beat) Are you… still there?'
-    ].join('\n')
-  }
-  return [
-    '【心情】緊繃、猶豫',
-    '【氣氛】門縫暖光；雨砸地',
-    '【鏡頭】中景，跟手推近',
-    '【聲效】雨、布料摩擦',
-    '【動作｜角色名】摘下安全帽；盯門縫暖光；手伸進外套內袋',
-    '【表情｜角色名】眉心緊鎖，呼吸一滯',
-    '【對白｜角色名｜低聲沙啞】又係落雨……',
-    '【對白｜角色名｜自語】（停半拍）你……仲喺度？'
-  ].join('\n')
+export function beatScriptTemplate(locale: string = 'zh-HK'): string {
+  return PromptCatalog.t(locale, 'beat.template')
 }
 
 /**
@@ -515,7 +489,7 @@ export function beatScriptTemplate(locale: 'zh-HK' | 'en' = 'zh-HK'): string {
  */
 export function commitBeatScriptEdit(
   scriptText: string,
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): {
   beatContentJson: string | null
   dialogue: string | null

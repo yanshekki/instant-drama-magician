@@ -13,7 +13,7 @@ import {
   type ActionPanelLayoutId
 } from './actionPlateVariants'
 import { getArtStyle } from './characterArtStyles'
-import { resolvePromptContext } from '../prompts'
+import { PromptCatalog, resolvePromptContext } from '../prompts'
 
 export type MediaGenKind =
   // images
@@ -515,37 +515,17 @@ export function buildMediaGenPolishUserText(opts: {
 }): string {
   const locale = opts.locale ?? 'zh-HK'
   const ctx = resolvePromptContext(locale)
-  const en = ctx.template === 'en'
   const hasImages = includedMaterialImagePaths(opts.includedSections).length > 0
   const lines: string[] = []
-  if (en) {
-    lines.push(
-      'Write ONE final image-generation prompt for a short-drama production still.',
-      'Return ONLY the prompt text — no markdown fences, no title, no explanation.',
-      'Output must describe a SINGLE composite image (one export frame).'
-    )
-    if (hasImages) {
-      lines.push(
-        'Attached images are ground-truth references in the same order as Ref# below.',
-        'Lock identity/wardrobe/location/prop to those stills. Do NOT invent a different person, shop, or prop.'
-      )
-    } else {
-      lines.push(ctx.noRefPolishDirective)
-    }
+  lines.push(
+    PromptCatalog.t(locale, 'mediaGen.writeOne'),
+    PromptCatalog.t(locale, 'mediaGen.returnOnly'),
+    PromptCatalog.t(locale, 'mediaGen.singleComposite')
+  )
+  if (hasImages) {
+    lines.push(PromptCatalog.t(locale, 'mediaGen.lockRefs'))
   } else {
-    lines.push(
-      '請撰寫「一條」最終短劇靜圖／多格指示圖生成 prompt。',
-      '只回傳 prompt 正文——不要 markdown 代碼塊、標題或解釋。',
-      '輸出描述「單一合成圖」（只 export 一張）。'
-    )
-    if (hasImages) {
-      lines.push(
-        '附圖圖序與下方 Ref# 一致，須作視覺 ground truth。',
-        '身份／戲服／場景／道具必須鎖定附圖，禁止換成另一人、另一店或另一物。'
-      )
-    } else {
-      lines.push(ctx.noRefPolishDirective)
-    }
+    lines.push(ctx.noRefPolishDirective)
   }
   if (opts.taskHint?.trim()) {
     lines.push('', `Task: ${opts.taskHint.trim()}`)
@@ -587,71 +567,33 @@ export function buildMediaGenPolishSystemPrompt(
   const hasImages = opts?.hasImages === true
   const noRef = hasImages ? [] : [ctx.noRefPolishDirective]
   if (opts?.mode === 'video') {
-    if (ctx.template === 'en') {
-      return [
-        'You are a short-drama video director prompt writer (image-to-video).',
-        'Merge materials into ONE professional video prompt for a short clip.',
-        'Return ONLY the prompt — no markdown fences.',
-        hasImages
-          ? 'Include: subject identity locks from stills, camera move, performance/dialogue, pacing, lighting continuity.'
-          : 'Include: subject identity from text materials, camera move, performance/dialogue, pacing, lighting continuity.',
-        'Use only facts present in materials and seed; do not import a fixed sample world or Demo story.',
-        ...(hasImages
-          ? ['Do not invent a different actor, location, or prop when refs are attached.']
-          : noRef),
-        'Hard rules at end if supplied.',
-        lock
-      ].join('\n')
-    }
     return [
-      '你是短劇 image-to-video 導演 prompt 撰寫者。',
-      '將材料合併為「一條」專業短片 video prompt。',
-      '只回傳 prompt 正文——不要 markdown 代碼塊。',
-      '須含：身份鎖定、鏡頭運動、表演／對白、節奏、光影連續。',
-      '只用材料與 seed 中的事實；勿引入固定樣本世界或 Demo 故事。',
-      ...(hasImages
-        ? ['有附圖時禁止換成另一演員、場景或道具。']
-        : noRef),
-      '有 HARD RULES 則置於文末。',
-      lock
-    ].join('\n')
-  }
-  if (ctx.template === 'en') {
-    return [
-      'You are a short-drama image prompt director.',
-      hasImages
-        ? 'Merge the selected materials and attached reference stills into ONE image prompt.'
-        : 'Merge the selected text materials into ONE image prompt.',
-      'Return ONLY the prompt — no markdown fences.',
-      ...(hasImages
-        ? [
-            'Highest priority: match faces/wardrobe/locations/props from attached images.',
-            'Never substitute a different celebrity, salon clerk, or unrelated set when cast stills are provided.'
-          ]
-        : noRef),
-      'Use only facts present in materials and seed; do not import a fixed sample world or Demo story.',
-      'If multi-panel geometry is required, keep exact panel count and gutters.',
-      'If a LAYOUT / package section is present, the final prompt MUST implement that exact layout (panel count, poses, crop).',
-      'Hard rules at end if supplied.',
+      PromptCatalog.t(locale, 'mediaGen.videoSystem'),
+      PromptCatalog.t(locale, 'mediaGen.videoMerge'),
+      PromptCatalog.t(locale, 'mediaGen.returnOnly'),
+      PromptCatalog.t(locale, 'mediaGen.videoInclude'),
+      PromptCatalog.t(locale, 'mediaGen.videoFacts'),
+      ...(hasImages ? [PromptCatalog.t(locale, 'mediaGen.videoNoSwap')] : noRef),
+      PromptCatalog.t(locale, 'mediaGen.videoHardRules'),
       lock
     ].join('\n')
   }
   return [
-    '你是短劇靜圖／指示圖 prompt 導演。',
+    PromptCatalog.t(locale, 'mediaGen.imageSystem'),
     hasImages
-      ? '將用戶勾選材料與附圖合併為「一條」出圖 prompt。'
-      : '將用戶勾選文字材料合併為「一條」出圖 prompt。',
-    '只回傳 prompt 正文——不要 markdown 代碼塊。',
+      ? PromptCatalog.t(locale, 'mediaGen.imageMergeStills')
+      : PromptCatalog.t(locale, 'mediaGen.imageMergeText'),
+    PromptCatalog.t(locale, 'mediaGen.returnOnly'),
     ...(hasImages
       ? [
-          '最高優先：附圖中的臉／服裝／場景／道具必須一致。',
-          '有角色／場景靜圖時，禁止換成無關沙龍店員或另一間店。'
+          PromptCatalog.t(locale, 'mediaGen.imagePriority'),
+          PromptCatalog.t(locale, 'mediaGen.imageNoSwap')
         ]
       : noRef),
-    '只用材料與 seed 中的事實；勿引入固定樣本世界或 Demo 故事。',
-    '若要求多格板，保留精確格數與分隔。',
-    '若有 LAYOUT／出圖方案區塊，最終 prompt 必須嚴格執行該 layout（格數、姿勢、構圖）。',
-    '有 HARD RULES 則置於文末。',
+    PromptCatalog.t(locale, 'mediaGen.imageFacts'),
+    PromptCatalog.t(locale, 'mediaGen.imageLayout'),
+    PromptCatalog.t(locale, 'mediaGen.imagePackage'),
+    PromptCatalog.t(locale, 'mediaGen.imageHardRules'),
     lock
   ].join('\n')
 }

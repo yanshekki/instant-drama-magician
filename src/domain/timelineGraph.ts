@@ -159,20 +159,20 @@ export type LayoutTimelineGraphOpts = {
 }
 
 const SIZE: Record<TimelineGraphNodeKind, { w: number; h: number }> = {
-  character: { w: 280, h: 248 },
-  scene: { w: 280, h: 248 },
-  prop: { w: 280, h: 200 },
-  action: { w: 280, h: 200 },
-  cinematic: { w: 280, h: 200 },
-  'ghost-character': { w: 280, h: 136 },
-  'ghost-scene': { w: 280, h: 136 },
+  character: { w: 300, h: 320 },
+  scene: { w: 300, h: 320 },
+  prop: { w: 300, h: 240 },
+  action: { w: 300, h: 240 },
+  cinematic: { w: 300, h: 260 },
+  'ghost-character': { w: 300, h: 136 },
+  'ghost-scene': { w: 300, h: 136 },
   prompt: { w: 328, h: 400 },
-  still: { w: 328, h: 280 },
-  video: { w: 400, h: 340 },
-  clip: { w: 228, h: 208 }
+  still: { w: 360, h: 304 },
+  video: { w: 400, h: 388 },
+  clip: { w: 400, h: 388 }
 }
 
-const ENTITY_IMAGE_H = 144
+const ENTITY_IMAGE_H = 196
 const ENTITY_EMPTY_H = 52
 
 /** Wrapped-text block height for a ~280px card (CJK ~16 glyphs / line). */
@@ -446,8 +446,8 @@ export function buildTimelineGraph(
     })
 
     nodes.push({
-      id: selected ? 'video' : `clip:${item.id}`,
-      kind: selected ? 'video' : 'clip',
+      id: selected ? 'video' : `${ns}video`,
+      kind: 'video',
       column: 0,
       title: timelineGraphSnippet(item.dialogue, 48),
       subtitle: selected
@@ -483,15 +483,9 @@ export function timelineGraphNodeSize(
 } {
   const base = SIZE[kind]
   if (!node) return base
-  if (kind === 'prompt' && node?.status === 'readonly') {
-    return { w: 280, h: 188 }
-  }
-  if (kind === 'still' && node?.id !== 'still') {
-    return { w: 248, h: 188 }
-  }
   if (kind === 'cinematic') {
     const titleH = node.title.trim() ? 20 : 0
-    const imgH = node.imagePath ? 72 : 0
+    const imgH = node.imagePath ? 148 : 0
     const textH = timelineGraphEstimateTextHeight(node.subtitle, {
       min: 64,
       max: 280

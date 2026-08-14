@@ -79,6 +79,17 @@ describe('uiResidualPure', () => {
     expect(rem).toHaveBeenCalled()
     cleanup?.()
 
+    load.mockClear()
+    start.mockClear()
+    attachPlayStart({
+      readyState: 1,
+      start,
+      addEventListener: add,
+      removeEventListener: rem,
+      load
+    })
+    expect(load).not.toHaveBeenCalled()
+
     expect(emptyStringBranch(false)).toBe('')
     expect(emptyStringBranch(true)).toBe('yes')
     expect(noIntroVideoToast()).toBe('noIntro')

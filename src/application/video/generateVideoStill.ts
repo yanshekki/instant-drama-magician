@@ -27,7 +27,7 @@ export async function generateVideoStillKeyframe(options: {
   professionalPrompt: string
   sourceImagePath?: string | null
   improvementNotes?: string | null
-  locale?: 'zh-HK' | 'en'
+  locale?: string
   aspectRatio?: string
   size?: string
   /** Entity / timeline merged hard rules — forced onto still prompt. */

@@ -1,4 +1,4 @@
-import { resolvePromptContext } from '../../prompts'
+import { PromptCatalog, resolvePromptContext } from '../../prompts'
 import { defaultStoryTitle, defaultDuration, maybeAppendMultiRef } from '../../domain/residualLabels'
 /**
  * Domain IPC handlers (split for maintainability).
@@ -62,11 +62,11 @@ reg(
         referenceImagePaths?: string[] | null
         useIdentityEdit?: boolean
         idea?: string | null
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         promptOverride?: string | null
       }
     ) => {
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       const row = await stories().get(payload.storyId)
       const title = String(
         (row as { title?: string }).title ??
@@ -91,34 +91,20 @@ reg(
       const size = ctx.settings.imageSizeWide || '1792x1024'
       const aspectRatio = aspectFromImageSize(size)
       const coverLang = resolvePromptContext(String(locale || 'zh-HK'))
-      const basePrompt =
-        coverLang.template === 'en'
-          ? [
-              'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
-              'Not a UI mockup. No text, no logo, no watermark, no title caption.',
-              `Story title (mood only, do not letter it): ${title}.`,
-              artStyle.promptBlock,
-              styleNote ? `Style bible: ${styleNote}` : '',
-              idea ? `Extra direction: ${idea}` : '',
-              'Evocative establishing mood frame suitable as a library card cover.',
-              'Match the art medium; strong silhouette and readable mood.',
-              coverLang.outputLock
-            ]
-              .filter(Boolean)
-              .join(' ')
-          : [
-              'PROFESSIONAL SHORT-DRAMA POSTER / KEY ART (16:9 cinematic still).',
-              'Not a UI mockup. No text, no logo, no watermark, no title caption.',
-              `故事標題（只取氣氛，畫面勿寫出文字）：${title}。`,
-              artStyle.promptBlock,
-              styleNote ? `風格備註：${styleNote}` : '',
-              idea ? `額外方向：${idea}` : '',
-              '適合用作片庫封面的情緒建立鏡頭；強烈剪影、可讀氣氛。',
-              '依藝術風格 medium 出圖；構圖清晰。',
-              coverLang.outputLock
-            ]
-              .filter(Boolean)
-              .join(' ')
+      const basePrompt = [
+        PromptCatalog.t(locale, 'cover.posterLead'),
+        PromptCatalog.t(locale, 'cover.titleMood', { title }),
+        artStyle.promptBlock,
+        styleNote
+          ? PromptCatalog.t(locale, 'cover.styleBible', { style: styleNote })
+          : '',
+        idea ? PromptCatalog.t(locale, 'cover.extraDir', { idea }) : '',
+        PromptCatalog.t(locale, 'cover.establishing'),
+        PromptCatalog.t(locale, 'cover.medium'),
+        coverLang.outputLock
+      ]
+        .filter(Boolean)
+        .join(' ')
       const refList = allRefPaths(
         payload.referenceImagePath,
         payload.referenceImagePaths
@@ -137,10 +123,7 @@ reg(
         payload.promptOverride.trim()
           ? payload.promptOverride.trim()
           : null
-      const editPrefix =
-        locale === 'en'
-          ? 'IMAGE EDIT: create a new short-drama poster composition. Keep identity/mood of subjects if present. '
-          : 'IMAGE EDIT：以新構圖創作短劇海報。保留主體身份／氣氛（如有）。'
+      const editPrefix = PromptCatalog.t(locale, 'cover.editPrefix')
       let prompt = override ?? (usedEdit ? editPrefix + basePrompt : basePrompt)
       if (!override) {
         prompt = maybeAppendMultiRef(prompt, refList, locale, appendMultiRefNote)
@@ -161,7 +144,7 @@ reg(
         path: outPath,
         draft: true,
         usedEdit,
-        label: locale === 'en' ? 'Story cover' : '故事封面'
+        label: PromptCatalog.t(locale, 'cover.label')
       }
     }
   )
@@ -217,7 +200,7 @@ reg(
 )
 reg(
   'stories:seedDemo',
-  (async ( locale?: 'zh-HK' | 'en') => {
+  (async ( locale?: string) => {
     const result = await new DemoSeedService(host.getPrisma()).seed(locale ?? 'zh-HK')
     settingsStore.save({ firstRunSeen: true })
     return result
@@ -235,7 +218,7 @@ reg(
         idea?: string
         existingStyleNote?: string | null
         existingHardRules?: string | null
-        locale?: 'zh-HK' | 'en'
+        locale?: string
       }
     ) => {
       const locale = payload.locale ?? 'zh-HK'
@@ -305,7 +288,7 @@ reg(
           {
             role: 'user',
             content: buildStoryMetaUserPrompt({
-              title: title || (locale === 'en' ? 'Untitled short drama' : '未命名短劇'),
+              title: title || PromptCatalog.t(locale, 'story.untitled'),
               idea: payload.idea,
               existingStyleNote,
               existingHardRules,
@@ -347,7 +330,7 @@ reg(
       payload: {
         storyId: string
         idea?: string
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         /** When true, delete existing timeline then create new beats */
         replace?: boolean
       }
@@ -385,7 +368,10 @@ reg(
                 ]
                   .filter(Boolean)
                   .join(' · ')
-                  .slice(0, 200)
+                  .slice(0, 200),
+                spokenLanguages: (
+                  c as { spokenLanguages?: string | null }
+                ).spokenLanguages
               })),
               scenes: story.scenes.map((s) => ({
                 sceneNumber: s.sceneNumber,

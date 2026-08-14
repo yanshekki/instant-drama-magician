@@ -1,3 +1,4 @@
+import { PromptCatalog } from '../../../prompts'
 import { beatSegmentLabel, locationSnippet, sceneLinkLabel, unknownCharacterName, whereFromScene } from '../../../domain/residualLabels'
 /**
  * registerScenesAiFill
@@ -23,7 +24,7 @@ reg(
         storyId?: string
         /** all | scene:<id> | beat:<timelineEntryId> */
         segmentKey?: string | null
-        locale?: 'zh-HK' | 'en'
+        locale?: string
         existingDraft?: Record<string, string | undefined | null>
         suggestFromStory?: boolean
         sceneNumber?: number
@@ -132,7 +133,7 @@ reg(
           const seg = (payload.segmentKey ?? 'all').trim() || 'all'
           if (seg === 'all') {
             segmentLabel =
-              locale === 'en' ? 'Entire story (all scenes)' : '全劇（所有場次）'
+              PromptCatalog.t(locale, 'segment.entireStory')
             focusSnippets = story.storyScenes.map((link) => {
               const s = link.scene
               const script = link.scriptOverride ?? s.script
@@ -221,12 +222,8 @@ reg(
       const ideaForPrompt =
         idea ||
         (hasImage
-          ? locale === 'en'
-            ? 'Describe and invent a full location profile from the attached reference photo.'
-            : '請根據附上的參考圖，完整填寫場景資料。'
-          : locale === 'en'
-            ? 'Polish'
-            : '全面潤飾')
+          ? PromptCatalog.t(locale, 'scene.ideaFromImage')
+          : PromptCatalog.t(locale, 'scene.polishIdea'))
       const textPrompt = payload.suggestFromStory
         ? buildSceneSuggestFromStoryUserPrompt({
             storyTitle: storyTitle || 'Untitled',

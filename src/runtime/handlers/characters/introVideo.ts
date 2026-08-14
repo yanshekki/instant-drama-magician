@@ -4,6 +4,7 @@
  * @deprecated UI: mediaGen character-intro + videoPrep:confirm.
  * One-shot generateIntroVideo kept for CLI / tests.
  */
+import { PromptCatalog } from '../../../prompts'
 import { existsSync, readFileSync } from 'fs'
 import type { HandlerContext } from '../context'
 import { AppError } from '../../../types/errors'
@@ -28,7 +29,7 @@ reg(
         characterId: string
         sourceImagePath: string
         durationSeconds?: number
-        locale?: 'zh-HK' | 'en'
+        locale?: string
       }
     ) => {
       const row = await characters().get(payload.characterId)
@@ -118,7 +119,7 @@ reg(
         artStyle: (row as { artStyle?: string | null }).artStyle ?? undefined,
         spokenLanguages
       }
-      const locale = payload.locale === 'en' ? 'en' : 'zh-HK'
+      const locale = PromptCatalog.locale(payload.locale)
       const fallbackPrompt = buildCharacterIntroVideoPrompt(profile, locale, {
         soulExcerpt
       })

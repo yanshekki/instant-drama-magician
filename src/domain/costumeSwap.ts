@@ -9,6 +9,7 @@ import {
   isLikelyMinorAge,
   type WardrobeLayer
 } from './characterSheetVariants'
+import { PromptCatalog } from '../prompts'
 import { appendHardRules } from './promptHardRules'
 
 export type CostumeSwapPose =
@@ -287,46 +288,27 @@ export function buildCostumeIntroVideoPrompt(
     artStyle?: string | null
     hardRules?: string | null
   },
-  locale: 'zh-HK' | 'en' = 'zh-HK'
+  locale: string = 'zh-HK'
 ): string {
   const name =
     profile.name.trim() ||
     profile.description.trim().slice(0, 32) ||
-    (locale === 'en' ? 'Look' : '造型')
+    PromptCatalog.t(locale, 'costumeIntro.fallbackName')
   const look = profile.description.trim() || name
   const art = profile.artStyle?.trim()
 
-  if (locale === 'en') {
-    return appendHardRules(
-      [
-        'IMAGE-TO-VIDEO: animate the exact wardrobe look in the reference still as a short costume intro clip for short-drama wardrobe library.',
-        'WARDROBE LOCK: same silhouette, fabrics, colors, layers, accessories, and wear as the reference — do not invent a different outfit.',
-        'If a person is in the still: IDENTITY LOCK on face/body while fabric may gently move; if mannequin or flat-lay: keep product framing.',
-        `Look name: ${name}.`,
-        `Costume description: ${look}.`,
-        art ? `Art style: ${art}.` : null,
-        'Camera: gentle push-in or subtle orbit; fashion-look lighting consistent with the still.',
-        'Action beat: hold pose/still → fabric drape / sleeve hem micro-motion / light glint on hardware → settle.',
-        'No new cast faces; no text overlays, logos, or erotic posing.',
-        'Duration fits a 6–10s wardrobe intro clip.'
-      ]
-        .filter(Boolean)
-        .join(' '),
-      profile.hardRules
-    )
-  }
   return appendHardRules(
     [
-      '圖生影片：以參考靜幀中的同一戲服造型，拍一段短劇戲服庫用「造型介紹」短片。',
-      '服裝鎖定：輪廓、布料、顏色、層次、配件與舊損必須與參考圖一致，不可換成另一套。',
-      '若靜幀有人：鎖定臉與體型，布料可輕微擺動；若為人台／平鋪：保持產品構圖。',
-      `造型名稱：${name}。`,
-      `戲服描述：${look}。`,
-      art ? `藝術風格：${art}。` : null,
-      '運鏡：輕微推近或慢環繞；光線與靜幀一致。',
-      '動作節奏：定格 → 布料垂墜／袖口微動／五金反光 → 定格。',
-      '勿新增角色臉、字幕、logo 或色情姿勢。',
-      '適合 6–10 秒造型介紹短片。'
+      PromptCatalog.t(locale, 'costumeIntro.task'),
+      PromptCatalog.t(locale, 'costumeIntro.wardrobeLock'),
+      PromptCatalog.t(locale, 'costumeIntro.identityOrProduct'),
+      PromptCatalog.t(locale, 'costumeIntro.name', { name }),
+      PromptCatalog.t(locale, 'costumeIntro.desc', { look }),
+      art ? PromptCatalog.t(locale, 'costumeIntro.art', { art }) : null,
+      PromptCatalog.t(locale, 'costumeIntro.camera'),
+      PromptCatalog.t(locale, 'costumeIntro.beat'),
+      PromptCatalog.t(locale, 'costumeIntro.forbid'),
+      PromptCatalog.t(locale, 'costumeIntro.duration')
     ]
       .filter(Boolean)
       .join(' '),

@@ -31,21 +31,24 @@ import {
   CREATOR_LINKTREE,
   YSK_HOME_URL
 } from '../../domain/creatorSupport'
-import { writeTimelinePagePref } from '../lib/timelinePagePref'
+import { TimelineViewNav } from './timeline/TimelineViewNav'
 
 const YSK_HOME = YSK_HOME_URL
 
-const navItems: { to: string; key: string; end?: boolean }[] = [
-  { to: '/', key: 'stories', end: true },
-  { to: '/characters', key: 'characters' },
-  { to: '/costumes', key: 'costumes' },
-  { to: '/scenes', key: 'scenes' },
-  { to: '/props', key: 'props' },
-  { to: '/actions', key: 'actions' },
-  { to: '/timeline', key: 'timeline' },
-  { to: '/timeline-v2', key: 'timelineV2' },
-  { to: '/audit', key: 'audit' },
-  { to: '/settings', key: 'settings' }
+type NavItem =
+  | { kind: 'link'; to: string; key: string; end?: boolean }
+  | { kind: 'timeline' }
+
+const navItems: NavItem[] = [
+  { kind: 'link', to: '/', key: 'stories', end: true },
+  { kind: 'link', to: '/characters', key: 'characters' },
+  { kind: 'link', to: '/costumes', key: 'costumes' },
+  { kind: 'link', to: '/scenes', key: 'scenes' },
+  { kind: 'link', to: '/props', key: 'props' },
+  { kind: 'link', to: '/actions', key: 'actions' },
+  { kind: 'timeline' },
+  { kind: 'link', to: '/audit', key: 'audit' },
+  { kind: 'link', to: '/settings', key: 'settings' }
 ]
 
 function ChannelLine({
@@ -306,28 +309,28 @@ export function Layout(): JSX.Element {
         className="flex flex-1 flex-col gap-1 overflow-y-auto p-3"
         aria-label={t('nav.main')}
       >
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            onClick={() => {
-              if (item.to === '/timeline') writeTimelinePagePref('classic')
-              if (item.to === '/timeline-v2') writeTimelinePagePref('v2')
-            }}
-            className={({ isActive }) =>
-              [
-                'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                'min-h-11 touch-manipulation',
-                isActive
-                  ? 'bg-brand-950 text-brand-100 ring-1 ring-brand-500/40'
-                  : 'text-ink-300 hover:bg-ink-800 hover:text-ink-50'
-              ].join(' ')
-            }
-          >
-            {t(`nav.${item.key}`)}
-          </NavLink>
-        ))}
+        {navItems.map((item) =>
+          item.kind === 'timeline' ? (
+            <TimelineViewNav key="timeline" />
+          ) : (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                [
+                  'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  'min-h-11 touch-manipulation',
+                  isActive
+                    ? 'bg-brand-950 text-brand-100 ring-1 ring-brand-500/40'
+                    : 'text-ink-300 hover:bg-ink-800 hover:text-ink-50'
+                ].join(' ')
+              }
+            >
+              {t(`nav.${item.key}`)}
+            </NavLink>
+          )
+        )}
       </nav>
 
       <div className="space-y-3 border-t border-ink-800 p-4 text-xs">
