@@ -14,6 +14,7 @@ import {
 import { anchorsFromEntries, snapTime } from '../../../domain/timelineSnap'
 import { snapClipRange } from '../../../domain/videoDuration'
 import type { AssetDropPayload } from './TimelineCanvas'
+import { timelineTrackLabel } from './timelineLabels'
 
 const TRACK_H = 56
 const RULER_H = 24
@@ -291,14 +292,18 @@ export function KonvaTimeline({
                     shadowBlur={selected ? 8 : 0}
                   />
                   <Text
-                    text={(labels[entry.id] || `#${entry.order + 1}`).slice(0, 28)}
+                    text={timelineTrackLabel(
+                      labels[entry.id] || `#${entry.order + 1}`
+                    )}
                     x={6}
-                    y={12}
-                    width={w - 12}
+                    y={5}
+                    width={Math.max(16, w - 16)}
+                    height={TRACK_H - 18}
                     fontSize={11}
+                    lineHeight={1.25}
                     fill="#fff"
                     ellipsis
-                    wrap="none"
+                    wrap="char"
                   />
                   {/* resize handle */}
                   <Rect

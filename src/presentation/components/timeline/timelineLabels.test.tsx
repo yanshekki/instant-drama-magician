@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sceneCastLabel } from './timelineLabels'
+import { sceneCastLabel, timelineTrackLabel } from './timelineLabels'
 
 describe('sceneCastLabel', () => {
   it('uses sceneNumber and title', () => {
@@ -43,6 +43,21 @@ describe('sceneCastLabel', () => {
         description: null
       } as never)
     ).toBe('abcdefgh')
+  })
+
+  it('dedupes repeated speaker prefixes on the track', () => {
+    expect(
+      timelineTrackLabel(
+        '沈執一：先淨手，再立壇。\n沈執一：見邪不退，退則破戒。'
+      )
+    ).toBe('沈執一：先淨手，再立壇。  見邪不退，退則破戒。')
+  })
+
+  it('truncates very long track labels', () => {
+    const long = `A：${'字'.repeat(80)}\nA：${'詞'.repeat(80)}`
+    const out = timelineTrackLabel(long, 40)
+    expect(out.endsWith('…')).toBe(true)
+    expect(out.length).toBeLessThanOrEqual(40)
   })
 
   it('ignores non-finite sceneNumber', () => {

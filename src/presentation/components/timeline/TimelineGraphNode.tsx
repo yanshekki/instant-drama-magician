@@ -22,10 +22,12 @@ export interface TimelineGraphNodeHandlers {
 }
 
 const CARD =
-  'flex h-full flex-col overflow-hidden rounded-2xl border border-ink-800/80 bg-ink-900/40 shadow-lg shadow-black/10'
+  'flex flex-col overflow-hidden rounded-2xl border border-ink-800/80 bg-ink-900/40 shadow-lg shadow-black/10'
 const CARD_ACTIVE = 'border-brand-500 bg-brand-950/30 shadow-md shadow-brand-950/20'
 const CARD_GHOST = 'border-dashed border-ink-700/80 bg-ink-900/20'
 const EYEBROW = 'text-[10px] font-medium uppercase tracking-wide text-ink-500'
+const MEDIA_BOX =
+  'relative overflow-hidden rounded-xl bg-ink-950/50 [&_img]:!h-full [&_img]:!w-full [&_img]:!object-contain'
 
 interface TimelineGraphNodeProps {
   node: TimelineGraphLaidOutNode
@@ -53,7 +55,7 @@ export function TimelineGraphNode({
     : undefined
 
   const shell = [
-    positioned ? 'absolute' : 'relative w-full',
+    positioned ? 'absolute h-full' : 'relative w-full',
     CARD,
     active ? CARD_ACTIVE : '',
     node.kind.startsWith('ghost-') ? CARD_GHOST : ''
@@ -122,7 +124,7 @@ function nodeBody(
           value={handlers.promptValue}
           onChange={(e) => handlers.onPromptChange(e.target.value)}
           placeholder={t('stories.beatScriptPh')}
-          className="mt-1.5 min-h-0 !min-h-0 flex-1 resize-none overflow-y-auto font-mono text-[12px] leading-relaxed"
+          className="mt-1.5 min-h-0 !min-h-[8rem] flex-1 resize-none overflow-y-auto font-mono text-[12px] leading-relaxed"
         />
         <div className="mt-2 shrink-0">
           <Label>{t('timeline.revisionPrompt')}</Label>
@@ -156,7 +158,7 @@ function nodeBody(
                 : t('timeline.advanced.stillReady')}
           </span>
         </div>
-        <div className="relative mx-3 mt-2 min-h-0 flex-1 overflow-hidden rounded-xl bg-ink-950/50">
+        <div className={`${MEDIA_BOX} mx-3 mt-2 min-h-0 flex-1`}>
           {node.imagePath ? (
             <LocalMediaImage
               filePath={node.imagePath}
@@ -233,12 +235,12 @@ function nodeBody(
       <div className="flex h-full min-h-0 flex-col p-3">
         <p className={EYEBROW}>{t('timeline.graph.cinematic')}</p>
         {node.title ? (
-          <p className="mt-1 truncate text-[11px] font-medium text-brand-200">
+          <p className="mt-1 break-words text-[11px] font-medium leading-snug text-brand-200">
             {node.title}
           </p>
         ) : null}
         {node.imagePath ? (
-          <div className="relative mt-2 h-16 shrink-0 overflow-hidden rounded-lg bg-ink-950/50">
+          <div className={`${MEDIA_BOX} mt-2 h-[4.5rem] shrink-0`}>
             <LocalMediaImage
               filePath={node.imagePath}
               alt={t('timeline.graph.cinematic')}
@@ -268,7 +270,11 @@ function nodeBody(
           </span>
         ) : null}
       </div>
-      <div className="relative mx-3 mt-2 min-h-0 flex-1 overflow-hidden rounded-xl bg-ink-950/50">
+      <div
+        className={`${MEDIA_BOX} mx-3 mt-2 shrink-0 ${
+          node.imagePath ? 'aspect-video' : 'min-h-[3.25rem]'
+        }`}
+      >
         {node.imagePath ? (
           <LocalMediaImage
             filePath={node.imagePath}
@@ -284,8 +290,8 @@ function nodeBody(
           </div>
         )}
       </div>
-      <div className="flex items-start justify-between gap-2 px-3 py-2">
-        <p className="min-w-0 line-clamp-2 text-xs font-semibold leading-snug text-ink-100">
+      <div className="flex items-start justify-between gap-2 px-3 pt-2">
+        <p className="min-w-0 break-words text-xs font-semibold leading-snug text-ink-100">
           {node.title}
         </p>
         {node.entityId &&
@@ -305,6 +311,15 @@ function nodeBody(
           </Button>
         ) : null}
       </div>
+      {node.subtitle ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-1">
+          <p className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-ink-400">
+            {node.subtitle}
+          </p>
+        </div>
+      ) : (
+        <div className="h-2 shrink-0" />
+      )}
     </div>
   )
 }

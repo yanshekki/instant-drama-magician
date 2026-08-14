@@ -238,7 +238,7 @@ export function TimelineV2Page(): JSX.Element {
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-2 sm:px-6 sm:py-3 lg:overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-2 sm:px-6 sm:py-3">
           {s.timelineErrorBannerElement(s.error, s.actionError, (m) =>
             s.formatUserError(m, t)
           )}

@@ -8,6 +8,8 @@ import {
   timelineGraphBindIds,
   timelineGraphCharImage,
   timelineGraphEdgePath,
+  timelineGraphEstimateTextHeight,
+  timelineGraphNodeSize,
   timelineGraphSnippet
 } from './timelineGraph'
 
@@ -81,7 +83,7 @@ describe('buildTimelineGraph', () => {
       entry,
       story: { styleNote: 'noir rain forever and more words', artStyle: 'anime' },
       characters: [
-        { id: 'c1', name: 'Aria', refImagePath: '/a.png' },
+        { id: 'c1', name: 'Aria', description: 'Lead detective', refImagePath: '/a.png' },
         { id: 'c2', name: 'Ben' }
       ],
       scenes: [{ id: 's1', title: 'Roof', refImagePath: '/s.png' }],
@@ -106,6 +108,9 @@ describe('buildTimelineGraph', () => {
     const cine = g.nodes.find((n) => n.id === 'cinematic')
     expect(cine?.title).toBe('anime')
     expect(cine?.subtitle).toBe('noir rain forever and more words')
+    expect(g.nodes.find((n) => n.id === 'character:c1')?.subtitle).toBe(
+      'Lead detective'
+    )
     expect(g.nodes.find((n) => n.id === 'still')?.missing).toBe(false)
     expect(g.edges.some((e) => e.from.startsWith('character:') && e.to === 'still')).toBe(
       true
@@ -148,5 +153,32 @@ describe('layoutTimelineGraph', () => {
     expect(timelineGraphBezier({ x: 0, y: 10 }, { x: 100, y: 10 })).toBe(
       'M 0 10 C 50 10, 50 10, 100 10'
     )
+  })
+
+  it('grows cinematic and character cards to fit copy', () => {
+    expect(timelineGraphEstimateTextHeight('')).toBe(0)
+    expect(timelineGraphEstimateTextHeight('短')).toBeGreaterThan(0)
+    const short = timelineGraphNodeSize('cinematic', {
+      title: 'anime',
+      subtitle: 'noir rain',
+      imagePath: null
+    })
+    const long = timelineGraphNodeSize('cinematic', {
+      title: 'anime',
+      subtitle: '亞青，濕石反光、香煙薄霧，蛛紗符懸在夜風裡輕顫。'.repeat(6),
+      imagePath: null
+    })
+    expect(long.h).toBeGreaterThan(short.h)
+    const withDesc = timelineGraphNodeSize('character', {
+      title: '沈執一',
+      subtitle: '剛受戒下山的廣府年輕法師，第一次接差捉鬼。',
+      imagePath: '/a.png'
+    })
+    const noDesc = timelineGraphNodeSize('character', {
+      title: '沈執一',
+      subtitle: '',
+      imagePath: '/a.png'
+    })
+    expect(withDesc.h).toBeGreaterThan(noDesc.h)
   })
 })

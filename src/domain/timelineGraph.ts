@@ -112,19 +112,37 @@ export type BuildTimelineGraphInput = {
 
 export const TIMELINE_GRAPH_PAD = 20
 export const TIMELINE_GRAPH_GAP_Y = 16
-export const TIMELINE_GRAPH_COL_X = [20, 292, 616] as const
+export const TIMELINE_GRAPH_COL_X = [20, 316, 668] as const
 
 const SIZE: Record<TimelineGraphNodeKind, { w: number; h: number }> = {
-  character: { w: 248, h: 188 },
-  scene: { w: 248, h: 188 },
-  prop: { w: 248, h: 156 },
-  action: { w: 248, h: 156 },
-  cinematic: { w: 248, h: 228 },
-  'ghost-character': { w: 248, h: 128 },
-  'ghost-scene': { w: 248, h: 128 },
-  prompt: { w: 300, h: 320 },
-  still: { w: 300, h: 236 },
-  video: { w: 368, h: 308 }
+  character: { w: 280, h: 248 },
+  scene: { w: 280, h: 248 },
+  prop: { w: 280, h: 200 },
+  action: { w: 280, h: 200 },
+  cinematic: { w: 280, h: 200 },
+  'ghost-character': { w: 280, h: 136 },
+  'ghost-scene': { w: 280, h: 136 },
+  prompt: { w: 328, h: 400 },
+  still: { w: 328, h: 280 },
+  video: { w: 400, h: 340 }
+}
+
+const ENTITY_IMAGE_H = 144
+const ENTITY_EMPTY_H = 52
+
+/** Wrapped-text block height for a ~280px card (CJK ~16 glyphs / line). */
+export function timelineGraphEstimateTextHeight(
+  text: string | null | undefined,
+  opts?: { charsPerLine?: number; linePx?: number; min?: number; max?: number }
+): number {
+  const s = (text || '').replace(/\s+/g, ' ').trim()
+  const min = opts?.min ?? 0
+  if (!s) return min
+  const cpl = opts?.charsPerLine ?? 16
+  const linePx = opts?.linePx ?? 18
+  const lines = Math.max(1, Math.ceil(s.length / cpl))
+  const h = lines * linePx + 10
+  return Math.min(opts?.max ?? 240, Math.max(min, h))
 }
 
 export function timelineGraphBindIds(
@@ -220,7 +238,7 @@ export function buildTimelineGraph(
         kind: 'character',
         column: 0,
         title: displayName(row, id),
-        subtitle: '',
+        subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
         imagePath,
         status: imagePath ? 'ready' : 'missing',
         missing: !imagePath,
@@ -252,7 +270,7 @@ export function buildTimelineGraph(
         kind: 'scene',
         column: 0,
         title: displayName(row, id),
-        subtitle: '',
+        subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
         imagePath,
         status: imagePath ? 'ready' : 'missing',
         missing: !imagePath,
@@ -269,7 +287,7 @@ export function buildTimelineGraph(
       kind: 'prop',
       column: 0,
       title: displayName(row, id),
-      subtitle: '',
+      subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
       imagePath: row?.refImagePath?.trim() || null,
       status: null,
       missing: false,
@@ -285,7 +303,7 @@ export function buildTimelineGraph(
       kind: 'action',
       column: 0,
       title: displayName(row, id),
-      subtitle: '',
+      subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
       imagePath: row?.refImagePath?.trim() || null,
       status: null,
       missing: false,
@@ -366,11 +384,39 @@ export function buildTimelineGraph(
   return { nodes, edges }
 }
 
-export function timelineGraphNodeSize(kind: TimelineGraphNodeKind): {
+export function timelineGraphNodeSize(
+  kind: TimelineGraphNodeKind,
+  node?: Pick<TimelineGraphNode, 'title' | 'subtitle' | 'imagePath'>
+): {
   w: number
   h: number
 } {
-  return SIZE[kind]
+  const base = SIZE[kind]
+  if (!node) return base
+  if (kind === 'cinematic') {
+    const titleH = node.title.trim() ? 20 : 0
+    const imgH = node.imagePath ? 72 : 0
+    const textH = timelineGraphEstimateTextHeight(node.subtitle, {
+      min: 64,
+      max: 280
+    })
+    return { w: base.w, h: 44 + titleH + imgH + textH + 12 }
+  }
+  if (
+    kind === 'character' ||
+    kind === 'scene' ||
+    kind === 'prop' ||
+    kind === 'action'
+  ) {
+    const imgH = node.imagePath ? ENTITY_IMAGE_H : ENTITY_EMPTY_H
+    const textH = timelineGraphEstimateTextHeight(node.subtitle, {
+      linePx: 17,
+      min: 0,
+      max: 88
+    })
+    return { w: base.w, h: 40 + imgH + 44 + textH }
+  }
+  return base
 }
 
 export function layoutTimelineGraph(model: TimelineGraphModel): TimelineGraphLayout {
@@ -386,7 +432,7 @@ export function layoutTimelineGraph(model: TimelineGraphModel): TimelineGraphLay
     let y = TIMELINE_GRAPH_PAD
     const x = TIMELINE_GRAPH_COL_X[col]
     for (const n of byCol[col]) {
-      const { w, h } = timelineGraphNodeSize(n.kind)
+      const { w, h } = timelineGraphNodeSize(n.kind, n)
       laid.push({
         ...n,
         x,

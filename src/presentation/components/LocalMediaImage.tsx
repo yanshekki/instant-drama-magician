@@ -588,11 +588,12 @@ export function LocalMediaImage({
     )
   }
 
+  const containFill = fillParent && objectFit !== 'cover'
   const imageBody = (
     <div
       className={[
         'group/img relative overflow-hidden',
-        objectFit === 'cover' ? 'h-full w-full' : 'w-full'
+        objectFit === 'cover' || containFill ? 'h-full w-full' : 'w-full'
       ].join(' ')}
     >
       <img
@@ -601,7 +602,11 @@ export function LocalMediaImage({
         style={{ imageRendering: 'auto' }}
         className={[
           'w-full transition-transform duration-300 ease-out',
-          objectFit === 'cover' ? 'h-full object-cover' : 'object-contain',
+          objectFit === 'cover'
+            ? 'h-full object-cover'
+            : containFill
+              ? 'h-full w-full object-contain'
+              : 'object-contain',
           maxHeightClass,
           useHoverZoom ? 'group-hover/img:scale-105' : '',
           enableZoom || onImageClick ? 'cursor-zoom-in' : ''

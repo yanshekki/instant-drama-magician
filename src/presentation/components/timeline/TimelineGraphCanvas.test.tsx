@@ -52,7 +52,14 @@ describe('TimelineGraphCanvas', () => {
           characterIds: ['c1'],
           mediaStatus: 'EMPTY'
         },
-        characters: [{ id: 'c1', name: 'Aria', refImagePath: '/a.png' }]
+        characters: [
+          {
+            id: 'c1',
+            name: 'Aria',
+            description: 'Lead detective in the rain',
+            refImagePath: '/a.png'
+          }
+        ]
       })
     )
     render(
@@ -63,6 +70,9 @@ describe('TimelineGraphCanvas', () => {
     expect(screen.getAllByTestId('graph-node-prompt').length).toBeGreaterThan(0)
     expect(screen.getAllByTestId('graph-node-still').length).toBeGreaterThan(0)
     expect(screen.getAllByTestId('graph-node-video').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Lead detective in the rain/i).length).toBeGreaterThan(
+      0
+    )
     fireEvent.click(screen.getAllByRole('button', { name: /^Save$/i })[0]!)
     expect(handlers.onSavePrompt).toHaveBeenCalled()
   })

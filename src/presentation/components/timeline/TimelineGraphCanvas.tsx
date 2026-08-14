@@ -74,7 +74,7 @@ export function TimelineGraphCanvas({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex flex-col">
       <div className="mb-2 hidden justify-end lg:flex">
         <Button
           variant="ghost"
@@ -103,7 +103,10 @@ export function TimelineGraphCanvas({
 
       <div
         data-testid="timeline-graph-canvas"
-        className="relative hidden min-h-[22rem] flex-1 overflow-hidden rounded-2xl border border-ink-800/80 bg-ink-900/20 lg:block lg:min-h-0"
+        className="relative hidden overflow-auto rounded-2xl border border-ink-800/80 bg-ink-900/20 lg:block"
+        style={{
+          height: Math.min(Math.max(layout.height + 12, 360), 880)
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
