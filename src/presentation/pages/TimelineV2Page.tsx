@@ -249,12 +249,8 @@ export function TimelineV2Page(): JSX.Element {
             onSelectNode={(id) => {
               s.setGraphNodeId(id)
               const node = s.graphLayout.nodes.find((n) => n.id === id)
-              if (
-                node?.entityId &&
-                (node.kind === 'clip' || node.kind === 'video') &&
-                node.entityId !== s.selectedId
-              ) {
-                s.selectClip(node.entityId)
+              if (node?.entryId && node.entryId !== s.selectedId) {
+                s.selectClip(node.entryId)
               }
             }}
             handlers={{

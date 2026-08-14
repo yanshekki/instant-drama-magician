@@ -438,7 +438,15 @@ export function useTimelineV2Studio() {
         startTime: e.startTime,
         dialogue: e.dialogue,
         mediaStatus: e.mediaStatus,
-        mediaPath: e.mediaPath
+        mediaPath: e.mediaPath,
+        characterId: e.characterId,
+        sceneId: e.sceneId,
+        propId: e.propId,
+        actionId: e.actionId,
+        characterIds: e.characterIds,
+        sceneIds: e.sceneIds,
+        propIds: e.propIds,
+        actionIds: e.actionIds
       })),
       cells: prep?.cells
     })

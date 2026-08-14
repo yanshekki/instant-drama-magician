@@ -114,6 +114,22 @@ function nodeBody(
   }
 
   if (node.kind === 'prompt') {
+    if (node.id !== 'prompt') {
+      return (
+        <div className="flex h-full min-h-0 flex-col p-3">
+          <p className={EYEBROW}>
+            {node.seq
+              ? t('timeline.graph.clipN', { n: node.seq })
+              : t('stories.beatScript')}
+          </p>
+          <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-lg bg-ink-950/40 px-2 py-1.5">
+            <p className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-ink-200">
+              {node.title || t('stories.beatScriptPh')}
+            </p>
+          </div>
+        </div>
+      )
+    }
     return (
       <div
         className="flex h-full min-h-0 flex-col p-3"
@@ -176,29 +192,33 @@ function nodeBody(
             </div>
           )}
         </div>
-        <div
-          className="flex flex-wrap gap-1.5 p-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Button
-            variant="secondary"
-            className="!px-2 !py-1 !text-[11px]"
-            disabled={handlers.stillBusy}
-            onClick={node.missing ? handlers.onGenStill : handlers.onRegenStill}
+        {node.id === 'still' ? (
+          <div
+            className="flex flex-wrap gap-1.5 p-3"
+            onClick={(e) => e.stopPropagation()}
           >
-            {node.missing
-              ? t('timeline.advanced.genStill')
-              : t('timeline.advanced.regenStill')}
-          </Button>
-          <Button
-            variant="ghost"
-            className="!px-2 !py-1 !text-[11px]"
-            disabled={handlers.stillBusy}
-            onClick={handlers.onRefineStill}
-          >
-            {t('timeline.advanced.refineStill')}
-          </Button>
-        </div>
+            <Button
+              variant="secondary"
+              className="!px-2 !py-1 !text-[11px]"
+              disabled={handlers.stillBusy}
+              onClick={node.missing ? handlers.onGenStill : handlers.onRegenStill}
+            >
+              {node.missing
+                ? t('timeline.advanced.genStill')
+                : t('timeline.advanced.regenStill')}
+            </Button>
+            <Button
+              variant="ghost"
+              className="!px-2 !py-1 !text-[11px]"
+              disabled={handlers.stillBusy}
+              onClick={handlers.onRefineStill}
+            >
+              {t('timeline.advanced.refineStill')}
+            </Button>
+          </div>
+        ) : (
+          <div className="h-2 shrink-0" />
+        )}
       </div>
     )
   }

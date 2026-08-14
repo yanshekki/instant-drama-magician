@@ -123,6 +123,14 @@ export type TimelineGraphSeqEntry = {
   dialogue?: string | null
   mediaStatus?: string | null
   mediaPath?: string | null
+  characterId?: string | null
+  sceneId?: string | null
+  propId?: string | null
+  actionId?: string | null
+  characterIds?: string[]
+  sceneIds?: string[]
+  propIds?: string[]
+  actionIds?: string[]
 }
 
 export function timelineGraphSortEntries(
@@ -241,187 +249,201 @@ export function buildTimelineGraph(
 
   const nodes: TimelineGraphNode[] = []
   const edges: TimelineGraphEdge[] = []
-  const charIds = timelineGraphBindIds(entry.characterIds, entry.characterId)
-  const sceneIds = timelineGraphBindIds(entry.sceneIds, entry.sceneId)
-  const propIds = timelineGraphBindIds(entry.propIds, entry.propId)
-  const actionIds = timelineGraphBindIds(entry.actionIds, entry.actionId)
-
-  if (charIds.length === 0) {
-    nodes.push({
-      id: 'ghost-character',
-      kind: 'ghost-character',
-      column: 0,
-      title: '',
-      subtitle: '',
-      imagePath: null,
-      status: null,
-      missing: true,
-      entityId: null,
-      entryId: entry.id
-    })
-  } else {
-    for (const id of charIds) {
-      const row = lookup(input.characters, id)
-      const imagePath = timelineGraphCharImage(id, row, input.castCards)
-      nodes.push({
-        id: `character:${id}`,
-        kind: 'character',
-        column: 0,
-        title: displayName(row, id),
-        subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
-        imagePath,
-        status: imagePath ? 'ready' : 'missing',
-        missing: !imagePath,
-        entityId: id,
-        entryId: entry.id
-      })
-    }
+  const fallback: TimelineGraphSeqEntry = {
+    id: entry.id,
+    mediaStatus: entry.mediaStatus,
+    mediaPath: entry.mediaPath,
+    characterId: entry.characterId,
+    sceneId: entry.sceneId,
+    propId: entry.propId,
+    actionId: entry.actionId,
+    characterIds: entry.characterIds,
+    sceneIds: entry.sceneIds,
+    propIds: entry.propIds,
+    actionIds: entry.actionIds
   }
-
-  if (sceneIds.length === 0) {
-    nodes.push({
-      id: 'ghost-scene',
-      kind: 'ghost-scene',
-      column: 0,
-      title: '',
-      subtitle: '',
-      imagePath: null,
-      status: null,
-      missing: true,
-      entityId: null,
-      entryId: entry.id
-    })
-  } else {
-    for (const id of sceneIds) {
-      const row = lookup(input.scenes, id)
-      const imagePath = row?.refImagePath?.trim() || null
-      nodes.push({
-        id: `scene:${id}`,
-        kind: 'scene',
-        column: 0,
-        title: displayName(row, id),
-        subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
-        imagePath,
-        status: imagePath ? 'ready' : 'missing',
-        missing: !imagePath,
-        entityId: id,
-        entryId: entry.id
-      })
-    }
-  }
-
-  for (const id of propIds) {
-    const row = lookup(input.props, id)
-    nodes.push({
-      id: `prop:${id}`,
-      kind: 'prop',
-      column: 0,
-      title: displayName(row, id),
-      subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
-      imagePath: row?.refImagePath?.trim() || null,
-      status: null,
-      missing: false,
-      entityId: id,
-      entryId: entry.id
-    })
-  }
-
-  for (const id of actionIds) {
-    const row = lookup(input.actions, id)
-    nodes.push({
-      id: `action:${id}`,
-      kind: 'action',
-      column: 0,
-      title: displayName(row, id),
-      subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
-      imagePath: row?.refImagePath?.trim() || null,
-      status: null,
-      missing: false,
-      entityId: id,
-      entryId: entry.id
-    })
-  }
-
-  const styleNote = (input.story?.styleNote || '').replace(/\s+/g, ' ').trim()
-  const artStyle = (input.story?.artStyle || '').trim()
-  const prevStill = input.prevStillPath?.trim() || null
-  nodes.push({
-    id: 'cinematic',
-    kind: 'cinematic',
-    column: 0,
-    title: artStyle,
-    subtitle: styleNote,
-    imagePath: prevStill,
-    status: prevStill ? 'locked' : styleNote || artStyle ? 'ready' : 'missing',
-    missing: !prevStill && !styleNote && !artStyle,
-    entityId: null,
-    entryId: entry.id
-  })
-
-  nodes.push({
-    id: 'prompt',
-    kind: 'prompt',
-    column: 1,
-    title: '',
-    subtitle: '',
-    imagePath: null,
-    status: null,
-    missing: false,
-    entityId: null,
-    entryId: entry.id
-  })
-
-  const stillPath = input.cell?.stillPath?.trim() || null
-  const stillStatus = (input.cell?.stillStatus || 'missing').toString()
-  nodes.push({
-    id: 'still',
-    kind: 'still',
-    column: 1,
-    title: '',
-    subtitle: input.cell?.continuityKind || '',
-    imagePath: stillPath,
-    status: stillStatus,
-    missing: stillStatus === 'missing' || !stillPath,
-    entityId: null,
-    entryId: entry.id
-  })
-
   const seq = timelineGraphSortEntries(
-    input.entries?.length
-      ? input.entries
-      : [
-          {
-            id: entry.id,
-            mediaStatus: entry.mediaStatus,
-            mediaPath: entry.mediaPath
-          }
-        ]
+    input.entries?.length ? input.entries : [fallback]
   )
-  const seqId = (item: TimelineGraphSeqEntry): string =>
-    item.id === entry.id ? 'video' : `clip:${item.id}`
 
   for (let i = 0; i < seq.length; i++) {
     const item = seq[i]
     const selected = item.id === entry.id
-    const cell = findTimelineGraphPrepCell(input.cells, item.id)
+    const ns = selected ? '' : `${item.id}:`
     const prev = i > 0 ? seq[i - 1] : null
     const prevCell = prev ? findTimelineGraphPrepCell(input.cells, prev.id) : null
+    const cell = findTimelineGraphPrepCell(input.cells, item.id)
+    const prevStill =
+      (i === 0 ? input.prevStillPath : prevCell?.stillPath)?.trim() || null
     const continuity =
       i === 0
         ? 'first'
-        : prevCell?.stillPath || prev?.mediaPath
+        : prevStill || prev?.mediaPath
           ? 'locked'
           : 'text-only'
-    const stillThumb = cell?.stillPath?.trim() || null
+
+    const charIds = timelineGraphBindIds(item.characterIds, item.characterId)
+    if (charIds.length === 0) {
+      nodes.push({
+        id: `${ns}ghost-character`,
+        kind: 'ghost-character',
+        column: 0,
+        title: '',
+        subtitle: '',
+        imagePath: null,
+        status: null,
+        missing: true,
+        entityId: null,
+        entryId: item.id,
+        seq: i + 1
+      })
+    } else {
+      for (const id of charIds) {
+        const row = lookup(input.characters, id)
+        const imagePath = timelineGraphCharImage(id, row, input.castCards)
+        nodes.push({
+          id: `${ns}character:${id}`,
+          kind: 'character',
+          column: 0,
+          title: displayName(row, id),
+          subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
+          imagePath,
+          status: imagePath ? 'ready' : 'missing',
+          missing: !imagePath,
+          entityId: id,
+          entryId: item.id,
+          seq: i + 1
+        })
+      }
+    }
+
+    const sceneIds = timelineGraphBindIds(item.sceneIds, item.sceneId)
+    if (sceneIds.length === 0) {
+      nodes.push({
+        id: `${ns}ghost-scene`,
+        kind: 'ghost-scene',
+        column: 0,
+        title: '',
+        subtitle: '',
+        imagePath: null,
+        status: null,
+        missing: true,
+        entityId: null,
+        entryId: item.id,
+        seq: i + 1
+      })
+    } else {
+      for (const id of sceneIds) {
+        const row = lookup(input.scenes, id)
+        const imagePath = row?.refImagePath?.trim() || null
+        nodes.push({
+          id: `${ns}scene:${id}`,
+          kind: 'scene',
+          column: 0,
+          title: displayName(row, id),
+          subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
+          imagePath,
+          status: imagePath ? 'ready' : 'missing',
+          missing: !imagePath,
+          entityId: id,
+          entryId: item.id,
+          seq: i + 1
+        })
+      }
+    }
+
+    for (const id of timelineGraphBindIds(item.propIds, item.propId)) {
+      const row = lookup(input.props, id)
+      nodes.push({
+        id: `${ns}prop:${id}`,
+        kind: 'prop',
+        column: 0,
+        title: displayName(row, id),
+        subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
+        imagePath: row?.refImagePath?.trim() || null,
+        status: null,
+        missing: false,
+        entityId: id,
+        entryId: item.id,
+        seq: i + 1
+      })
+    }
+
+    for (const id of timelineGraphBindIds(item.actionIds, item.actionId)) {
+      const row = lookup(input.actions, id)
+      nodes.push({
+        id: `${ns}action:${id}`,
+        kind: 'action',
+        column: 0,
+        title: displayName(row, id),
+        subtitle: (row?.description || '').replace(/\s+/g, ' ').trim(),
+        imagePath: row?.refImagePath?.trim() || null,
+        status: null,
+        missing: false,
+        entityId: id,
+        entryId: item.id,
+        seq: i + 1
+      })
+    }
+
+    const styleNote = (input.story?.styleNote || '').replace(/\s+/g, ' ').trim()
+    const artStyle = (input.story?.artStyle || '').trim()
     nodes.push({
-      id: seqId(item),
+      id: selected ? 'cinematic' : `${ns}cinematic`,
+      kind: 'cinematic',
+      column: 0,
+      title: artStyle,
+      subtitle: styleNote,
+      imagePath: prevStill,
+      status: prevStill ? 'locked' : styleNote || artStyle ? 'ready' : 'missing',
+      missing: !prevStill && !styleNote && !artStyle,
+      entityId: null,
+      entryId: item.id,
+      seq: i + 1
+    })
+
+    nodes.push({
+      id: selected ? 'prompt' : `${ns}prompt`,
+      kind: 'prompt',
+      column: 0,
+      title: timelineGraphSnippet(item.dialogue, 240),
+      subtitle: '',
+      imagePath: null,
+      status: selected ? 'edit' : 'readonly',
+      missing: false,
+      entityId: null,
+      entryId: item.id,
+      seq: i + 1
+    })
+
+    const stillPath =
+      cell?.stillPath?.trim() ||
+      (selected ? input.cell?.stillPath?.trim() || null : null) ||
+      null
+    const stillStatus = (cell?.stillStatus || input.cell?.stillStatus || 'missing').toString()
+    nodes.push({
+      id: selected ? 'still' : `${ns}still`,
+      kind: 'still',
+      column: 0,
+      title: '',
+      subtitle: cell?.continuityKind || continuity,
+      imagePath: stillPath,
+      status: stillStatus,
+      missing: stillStatus === 'missing' || !stillPath,
+      entityId: null,
+      entryId: item.id,
+      seq: i + 1
+    })
+
+    nodes.push({
+      id: selected ? 'video' : `clip:${item.id}`,
       kind: selected ? 'video' : 'clip',
-      column: 2 + i,
+      column: 0,
       title: timelineGraphSnippet(item.dialogue, 48),
       subtitle: selected
         ? channelSubtitle(input.videoProvider, input.videoModel)
         : continuity,
-      imagePath: stillThumb,
+      imagePath: stillPath,
       status: item.mediaStatus || 'EMPTY',
       missing: item.mediaStatus !== 'READY' || !item.mediaPath,
       entityId: item.id,
@@ -451,6 +473,12 @@ export function timelineGraphNodeSize(
 } {
   const base = SIZE[kind]
   if (!node) return base
+  if (kind === 'prompt' && node?.status === 'readonly') {
+    return { w: 280, h: 188 }
+  }
+  if (kind === 'still' && node?.id !== 'still') {
+    return { w: 248, h: 188 }
+  }
   if (kind === 'cinematic') {
     const titleH = node.title.trim() ? 20 : 0
     const imgH = node.imagePath ? 72 : 0
