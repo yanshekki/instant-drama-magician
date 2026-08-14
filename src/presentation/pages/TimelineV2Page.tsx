@@ -294,64 +294,76 @@ export function TimelineV2Page(): JSX.Element {
               ),
               generateVideoSlot: selected ? (
                 <>
-                  <Button
-                    variant="secondary"
-                    className="!px-2 !py-1 !text-[11px]"
-                    disabled={s.busy}
-                    onClick={() => void s.handleRunClip(selected.id)}
-                  >
-                    {s.timelineGeneratingLabel(
-                      s.clipBusyId === selected.id,
-                      t('common.generating'),
-                      s.clipGenerateLabel(selected.id, selected.mediaStatus)
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="!px-2 !py-1 !text-[11px]"
-                    onClick={() => void s.handleImportClip()}
-                  >
-                    {t('timeline.importClip')}
-                  </Button>
-                  {selected.mediaPath ? (
-                    <>
-                      <Button
-                        variant="ghost"
-                        className="!px-2 !py-1 !text-[11px]"
-                        onClick={() => void s.handleOpenClip()}
-                      >
-                        {t('timeline.openClip')}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        className="!px-2 !py-1 !text-[11px]"
-                        onClick={() => void s.handleExportClip()}
-                      >
-                        {t('timeline.exportClip')}
-                      </Button>
-                    </>
-                  ) : null}
-                  <Button
-                    variant="ghost"
-                    className="!px-2 !py-1 !text-[11px]"
-                    onClick={() => void s.handleClipDuration(6)}
-                  >
-                    6s
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="!px-2 !py-1 !text-[11px]"
-                    onClick={() => void s.handleClipDuration(10)}
-                  >
-                    10s
-                  </Button>
-                  <Button
-                    variant="danger"
-                    className="!px-2 !py-1 !text-[11px]"
-                    onClick={() => void s.handleDeleteClip()}
-                  >
-                    {t('common.delete')}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                      variant="secondary"
+                      className="!h-7 !px-2 !py-0 !text-[10px]"
+                      disabled={s.busy}
+                      onClick={() => void s.handleRunClip(selected.id)}
+                    >
+                      {s.timelineGeneratingLabel(
+                        s.clipBusyId === selected.id,
+                        t('common.generating'),
+                        s.clipGenerateLabel(selected.id, selected.mediaStatus)
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="!h-7 !px-2 !py-0 !text-[10px]"
+                      onClick={() => void s.handleImportClip()}
+                    >
+                      {t('timeline.importClip')}
+                    </Button>
+                    {selected.mediaPath ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          className="!h-7 !px-2 !py-0 !text-[10px]"
+                          onClick={() => void s.handleOpenClip()}
+                        >
+                          {t('timeline.openClip')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="!h-7 !px-2 !py-0 !text-[10px]"
+                          onClick={() => void s.handleExportClip()}
+                        >
+                          {t('timeline.exportClip')}
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="inline-flex overflow-hidden rounded-md border border-ink-700">
+                      {([6, 10] as const).map((sec) => {
+                        const active =
+                          snapVideoSeconds(
+                            selected.endTime - selected.startTime
+                          ) === sec
+                        return (
+                          <button
+                            key={sec}
+                            type="button"
+                            className={`h-7 px-2 text-[10px] ${
+                              active
+                                ? 'bg-ink-700 text-ink-50'
+                                : 'text-ink-400 hover:bg-ink-800 hover:text-ink-200'
+                            }`}
+                            onClick={() => void s.handleClipDuration(sec)}
+                          >
+                            {sec}s
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <Button
+                      variant="danger"
+                      className="!h-7 !px-2 !py-0 !text-[10px]"
+                      onClick={() => void s.handleDeleteClip()}
+                    >
+                      {t('common.delete')}
+                    </Button>
+                  </div>
                 </>
               ) : null
             }}

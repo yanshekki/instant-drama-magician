@@ -289,7 +289,7 @@ function nodeBody(
           {handlers.videoSlot}
         </div>
         <div
-          className="flex flex-wrap gap-1.5 p-3"
+          className="flex shrink-0 flex-col gap-1 px-3 pb-2 pt-1.5"
           onClick={(e) => e.stopPropagation()}
         >
           {handlers.generateVideoSlot}
