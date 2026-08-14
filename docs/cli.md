@@ -131,12 +131,13 @@ instant-drama media check-ffmpeg --json
 
 Namespaces include: `activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
 
-## Recent API surface (1.3.3)
+## Recent API surface (1.4.0)
 
 Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 
 | Channel | Purpose | Example |
 |---------|---------|---------|
+| generate / AI fill | Optional `promptTemplateId` (desktop recipe picker; no silent system defaults) | Desktop: pick a recipe before generate. CLI: pass `promptTemplateId` on generate / fill / MediaGen payloads |
 | `mediaGen:extract` | Build material sections (library + `timeline-still` / `timeline-clip`) | `instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"S","entryId":"E"}]' --json` |
 | `mediaGen:polish` | Multi-vision prompt polish | `instant-drama mediaGen polish --args '[{...}]' --json` |
 | `mediaGen:generateImage` | One still; timeline kinds write continuity path | `instant-drama mediaGen generate-image --args '[{...}]' --json` |

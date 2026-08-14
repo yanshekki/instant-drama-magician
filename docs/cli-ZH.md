@@ -131,12 +131,13 @@ instant-drama media check-ffmpeg --json
 
 Namespaces 包括：`activity` `ai` `app` `characters` `costumes` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
 
-## 近期 API 表面（1.3.3）
+## 近期 API 表面（1.4.0）
 
 桌面、Web、CLI 共用同一 registry。優先用 **domain sugar** 或 `invoke`。
 
 | Channel | 用途 | 示例 |
 |---------|------|------|
+| generate／AI fill | 可選 `promptTemplateId`（桌面配方選擇器；不再暗中套系統預設） | 桌面：生成前選擇配方。CLI：在 generate／fill／MediaGen payload 傳 `promptTemplateId` |
 | `mediaGen:extract` | 建立材料 sections（庫頁 + `timeline-still`／`timeline-clip`） | `instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"S","entryId":"E"}]' --json` |
 | `mediaGen:polish` | 多圖 vision 潤飾 prompt | `instant-drama mediaGen polish --args '[{...}]' --json` |
 | `mediaGen:generateImage` | 單張靜圖；timeline 會寫入 continuity 路徑 | `instant-drama mediaGen generate-image --args '[{...}]' --json` |

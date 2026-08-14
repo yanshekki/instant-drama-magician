@@ -11,10 +11,13 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.3.3)
+## Recent focus areas (1.4.0)
 
 | Area | Tests (examples) |
 |------|------------------|
+| Recipe picker | `promptTemplates.test.ts`, `PromptTemplateContext` / `RecipeCompareStars` |
+| Timeline v2 wrap | `timelineGraph.test.ts`, `useTimelineV2Studio.test.tsx` |
+| Clip export name | `clipExportName.test.ts` |
 | Timeline continuity | `writeClipContinuityStill.test.ts`, `promptContinuity` (`resolveTimelineStillRefs`), `AdvancedPrepService` end-frame heal |
 | MediaGen timeline | `mediaGen.test.ts` (extract / generate continuity path), `timelineMediaGen.test.ts` |
 | MediaGen UI host | `MediaGenHost.test.tsx` (`idm:timeline-still-done`) |

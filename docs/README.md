@@ -2,7 +2,7 @@
 
 > **Language:** [English](./README.md) · [中文](./README-ZH.md)
 
-Product version **1.3.3** · Vendor **YSK Limited** · Contact **[email@ysk.hk](mailto:email@ysk.hk)**
+Product version **1.4.0** · Vendor **YSK Limited** · Contact **[email@ysk.hk](mailto:email@ysk.hk)**
 
 **Convention:** files **without** `-ZH` are English; files **with** `-ZH` are Chinese. Each pair must cover the same topics and facts.
 
@@ -24,6 +24,7 @@ Product version **1.3.3** · Vendor **YSK Limited** · Contact **[email@ysk.hk](
 | [release.md](./release.md) | [release-ZH.md](./release-ZH.md) | Release checklist |
 | [legal.md](./legal.md) | [legal-ZH.md](./legal-ZH.md) | Legal versioning |
 | [testing.md](./testing.md) | [testing-ZH.md](./testing-ZH.md) | Testing |
+| [media-gen-deprecations.md](./media-gen-deprecations.md) | [media-gen-deprecations-ZH.md](./media-gen-deprecations-ZH.md) | MediaGen path deprecations |
 | [beta.md](./beta.md) | [beta-ZH.md](./beta-ZH.md) | Historical beta |
 | [production-ux.md](./production-ux.md) | [production-ux-ZH.md](./production-ux-ZH.md) | Historical production UX |
 | [rc.md](./rc.md) | [rc-ZH.md](./rc-ZH.md) | Historical RC |
@@ -35,7 +36,7 @@ Product version **1.3.3** · Vendor **YSK Limited** · Contact **[email@ysk.hk](
 
 | Fact | Value |
 |------|--------|
-| App version | `1.3.3` (`package.json`) |
+| App version | `1.4.0` (`package.json`) |
 | IPC / CLI channels | **157** (shared `registerAllHandlers`) |
 | Legal copy version | `LEGAL_VERSION` **1.0.0** (`src/domain/legal.ts`) |
 | Default LLM | Grok Gateway `http://127.0.0.1:3847/v1` |

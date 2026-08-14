@@ -1,5 +1,7 @@
 # Media generation path deprecations
 
+> **Language:** [English](./media-gen-deprecations.md) · [中文](./media-gen-deprecations-ZH.md)
+
 **Production UI** uses a single shell:
 
 1. `mediaGen:extract` → materials  

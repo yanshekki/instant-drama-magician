@@ -2,7 +2,7 @@
 
 > **語言：** [English](./README.md) · [中文](./README-ZH.md)
 
-產品版本 **1.3.3** · 廠商 **YSK Limited** · 聯絡 **[email@ysk.hk](mailto:email@ysk.hk)**
+產品版本 **1.4.0** · 廠商 **YSK Limited** · 聯絡 **[email@ysk.hk](mailto:email@ysk.hk)**
 
 **命名規則：** 檔名**無** `-ZH` 為英文版；**有** `-ZH` 為中文版。每一對必須涵蓋相同主題與事實。
 
@@ -24,6 +24,7 @@
 | [release.md](./release.md) | [release-ZH.md](./release-ZH.md) | Release checklist |
 | [legal.md](./legal.md) | [legal-ZH.md](./legal-ZH.md) | Legal versioning |
 | [testing.md](./testing.md) | [testing-ZH.md](./testing-ZH.md) | Testing |
+| [media-gen-deprecations.md](./media-gen-deprecations.md) | [media-gen-deprecations-ZH.md](./media-gen-deprecations-ZH.md) | MediaGen path deprecations |
 | [beta.md](./beta.md) | [beta-ZH.md](./beta-ZH.md) | Historical beta |
 | [production-ux.md](./production-ux.md) | [production-ux-ZH.md](./production-ux-ZH.md) | Historical production UX |
 | [rc.md](./rc.md) | [rc-ZH.md](./rc-ZH.md) | Historical RC |
@@ -35,7 +36,7 @@
 
 | 項目 | 值 |
 |------|-----|
-| App 版本 | `1.3.3`（`package.json`） |
+| App 版本 | `1.4.0`（`package.json`） |
 | IPC／CLI channel | **157**（共用 `registerAllHandlers`） |
 | 法律文檔版本 | `LEGAL_VERSION` **1.0.0**（`src/domain/legal.ts`） |
 | 預設 LLM | Grok Gateway `http://127.0.0.1:3847/v1` |

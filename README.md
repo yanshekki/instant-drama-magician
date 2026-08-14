@@ -9,7 +9,7 @@ Cross-platform desktop (Electron) + optional browser remote control + full CLI `
 
 | | |
 |---|---|
-| **Version** | 1.3.3 |
+| **Version** | 1.4.0 |
 | **Vendor** | YSK Limited |
 | **Contact** | [email@ysk.hk](mailto:email@ysk.hk) |
 | **License** | MIT |
@@ -90,14 +90,14 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 | **Actions** | Global **motion-direction** library: multi-panel instruction boards (2–6 panels), art styles, external refs, cast refs, **vision AI fill**, multi-gallery |
 | **MediaGen shell** | Unified materials → multi-vision polish → still / video (`mediaGen:extract` · `polish` · `generateImage`); used by library pages and timeline refine |
 | **Gallery UI** | Shared **EntityGalleryPanel**: large preview, zoom/save/cover/remove/intro, multi-thumb strip (preview vs identity-lock multi-select) |
-| **Timeline** | Linear layout, snap/pack, per-clip generate, bind character / scene / prop / **action**, 6s/10s duration, dialogue & camera tags |
+| **Timeline** | Linear layout, snap/pack, per-clip generate, bind character / scene / prop / **action**, 6s/10s duration, dialogue & camera tags; **pipeline board** stacks to the live window height |
 | **Advanced prep** | Cast lock → storyboard stills (**end-frame continuity**, prev keyframe edit base, multi-ref polish) → video; per-cell **Refine still / Refine to video** (MediaGen) |
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
 | **Settings** | LLM / image / video providers, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
 | **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**157** IPC channels) |
 | **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
-| **i18n** | 10 UI languages (incl. zh-HK, zh-CN, Arabic RTL); gallery labels, network errors, and user-facing errors localized |
+| **i18n** | 10 UI languages (incl. zh-HK written Chinese, zh-CN Mainland written Chinese, Arabic RTL); **recipe picker** before LLM improve/generate; MediaGen chrome localized |
 | **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
 
 ---
@@ -252,7 +252,7 @@ Local builds land in `release/`; or download from GitHub Releases.
 
 ```bash
 # Linux example
-sudo dpkg -i release/instant-drama-magician_1.3.3_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.4.0_amd64.deb
 # or
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -318,7 +318,7 @@ instant-drama version
 ```bash
 instant-drama update              # check npm registry for a newer version
 instant-drama update install --yes   # global install latest (with post-verify)
-instant-drama update install 1.3.3 --yes   # pin a version
+instant-drama update install 1.4.0 --yes   # pin a version
 ```
 
 `instant-drama doctor` also reports npm update status (skip with `IDM_SKIP_UPDATE=1`).

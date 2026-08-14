@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| **版本** | 1.3.3 |
+| **版本** | 1.4.0 |
 | **作者** | YSK Limited |
 | **聯絡** | [email@ysk.hk](mailto:email@ysk.hk) |
 | **授權** | MIT |
@@ -90,14 +90,14 @@
 | **動作 Actions** | 全域**動作指導**庫：多格指示圖（2–6 格）、藝術風格、外部參考、cast 參考、**vision AI 填充**、多圖累積 |
 | **MediaGen 生成殼** | 統一材料 → 多圖 vision 潤飾 → 出圖／出片（`mediaGen:extract` · `polish` · `generateImage`）；庫頁與時間軸精修共用 |
 | **圖庫 UI** | 共用 **EntityGalleryPanel**：大圖預覽、放大／另存／封面／移除／介紹片、縮圖列（預覽 vs 身份鎖定多選） |
-| **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、綁定角色／場景／道具／**動作**、6s／10s 時長、對白與鏡頭標記 |
+| **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、綁定角色／場景／道具／**動作**、6s／10s 時長、對白與鏡頭標記；**流程圖**按視窗高度向下換欄 |
 | **進階預備** | Cast 鎖定 → 分鏡 stills（**片尾連續**、強制上一段 keyframe、多 ref 潤飾）→ 出片；單格**精修靜圖／精修出片**（MediaGen） |
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
 | **設定** | LLM／影像／影片供應商、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
 | **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**157** 個 IPC channel） |
 | **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
-| **多語系** | 10 種介面語言（含繁中、簡中、阿語 RTL）；圖庫標籤、網絡錯誤與使用者錯誤訊息已本地化 |
+| **多語系** | 10 種介面語言（香港書面語、中國大陸書面語、阿語 RTL 等）；LLM 改善／生成前的**配方選擇器**；MediaGen 介面已本地化 |
 | **自動更新** | 打包版經 GitHub Releases（electron-updater） |
 
 ---
@@ -252,7 +252,7 @@ instant-drama doctor --json
 
 ```bash
 # Linux 範例
-sudo dpkg -i release/instant-drama-magician_1.3.3_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.4.0_amd64.deb
 # 或
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -318,7 +318,7 @@ instant-drama version
 ```bash
 instant-drama update              # 檢查 npm registry 是否有新版
 instant-drama update install --yes   # 全域安裝 latest（會驗證版本）
-instant-drama update install 1.3.3 --yes   # 釘選版本
+instant-drama update install 1.4.0 --yes   # 釘選版本
 ```
 
 `instant-drama doctor` 亦會報告 npm 更新狀態（可用 `IDM_SKIP_UPDATE=1` 略過）。
