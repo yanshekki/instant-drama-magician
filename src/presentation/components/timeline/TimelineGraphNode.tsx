@@ -179,6 +179,7 @@ function nodeBody(
         <div className={`${MEDIA_BOX} mx-3 mt-2 min-h-0 flex-1`}>
           {node.imagePath ? (
             <LocalMediaImage
+              key={`${node.imagePath}:${node.imageRev || 0}`}
               filePath={node.imagePath}
               alt={t('timeline.graph.still')}
               variant="fill"

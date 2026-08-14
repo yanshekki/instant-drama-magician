@@ -922,7 +922,7 @@ export function useTimelineV2Studio() {
       formatUserError(e instanceof Error ? e.message : String(e), t)
   })
 
-  const genStill = (force: boolean): void => {
+  const genStill = (_force: boolean): void => {
     if (!activeStoryId || !selected || stillBusy) return
     const entryId = selected.id
     setStillBusy(true)
@@ -933,11 +933,10 @@ export function useTimelineV2Studio() {
       run: async ({ setProgress, signal }) => {
         try {
           setProgress(20, 'start')
-          if (force) {
-            await getApi().timeline.clearEntryStill(activeStoryId, entryId)
-          }
           if (signal.cancelled) return
           setProgress(50, 'image')
+          // Overwrite the continuity still in place. Do not delete first —
+          // a failed regen would otherwise leave a "ready" card with no file.
           await getApi().videoPrep.create({
             kind: 'timeline-clip',
             storyId: activeStoryId,

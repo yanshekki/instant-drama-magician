@@ -156,6 +156,21 @@ export function LocalMediaImage({
     }
   }, [filePath])
 
+  useEffect(() => {
+    if (!missingFile || !filePath) return
+    const timer = window.setTimeout(() => {
+      void getApi()
+        .media.toPreviewUrl(filePath)
+        .then((r) => {
+          setUrl(r.url)
+          setMissingFile(false)
+          setError(null)
+        })
+        .catch(() => undefined)
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [missingFile, filePath])
+
   // Close player when the still changes (not merely when intro path is first attached)
   useEffect(() => {
     setIntroPlayOpen(false)

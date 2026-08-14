@@ -66,6 +66,7 @@ export interface AdvancedPrepSnapshot {
     dialogue: string | null
     beatSnippet: string
     stillPath: string
+    stillRev?: number
     stillStatus: 'missing' | 'ready' | 'stale'
     mediaStatus: string
     continuityKind: 'first' | 'locked' | 'text-only'

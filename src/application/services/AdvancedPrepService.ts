@@ -1,7 +1,7 @@
 /**
  * Timeline Advanced Prep — cast looks + storyboard stills orchestration.
  */
-import { existsSync, unlinkSync } from 'fs'
+import { existsSync, statSync, unlinkSync } from 'fs'
 import type { PrismaClient } from '../../types/prisma'
 import type { Character, TimelineEntry } from '../../types/domain'
 import type { MediaStore } from '../../infrastructure/media/MediaStore'
@@ -236,6 +236,14 @@ export class AdvancedPrepService {
       const stillPath = this.store.clipContinuityStillPath(storyId, e.id)
       const cache = this.loadStillCache(storyId, e.id)
       const stillFileExists = existsSync(stillPath)
+      let stillRev = 0
+      if (stillFileExists) {
+        try {
+          stillRev = statSync(stillPath).mtimeMs
+        } catch {
+          stillRev = Date.now()
+        }
+      }
       const stillStatus = clipStillStatus({
         stillFileExists,
         cache,
@@ -261,6 +269,7 @@ export class AdvancedPrepService {
         dialogue: e.dialogue,
         beatSnippet,
         stillPath,
+        stillRev,
         stillStatus,
         mediaStatus: e.mediaStatus,
         continuityKind,

@@ -22,6 +22,7 @@ export type TimelineGraphColumn = number
 export type TimelineGraphPrepCell = {
   entryId: string
   stillPath?: string | null
+  stillRev?: number
   stillStatus?: 'missing' | 'ready' | 'stale' | string
   continuityKind?: 'first' | 'locked' | 'text-only' | string
 }
@@ -38,6 +39,8 @@ export type TimelineGraphNode = {
   title: string
   subtitle: string
   imagePath: string | null
+  /** File mtime so still thumbs remount after overwrite at the same path. */
+  imageRev?: number
   status: string | null
   missing: boolean
   entityId: string | null
@@ -424,6 +427,8 @@ export function buildTimelineGraph(
       cell?.stillPath?.trim() ||
       (selected ? input.cell?.stillPath?.trim() || null : null) ||
       null
+    const stillRev =
+      cell?.stillRev ?? (selected ? input.cell?.stillRev : undefined) ?? 0
     const stillStatus = (cell?.stillStatus || input.cell?.stillStatus || 'missing').toString()
     nodes.push({
       id: selected ? 'still' : `${ns}still`,
@@ -432,6 +437,7 @@ export function buildTimelineGraph(
       title: '',
       subtitle: cell?.continuityKind || continuity,
       imagePath: stillPath,
+      imageRev: stillRev,
       status: stillStatus,
       missing: stillStatus === 'missing' || !stillPath,
       entityId: null,
