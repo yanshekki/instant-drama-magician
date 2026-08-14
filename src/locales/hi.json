@@ -1379,7 +1379,13 @@
       "disk": "डिस्क पूर्ण है या लिखने में त्रुटि",
       "permission": "अनुमति नहीं मिली",
       "unknown": "अनपेक्षित अद्यतन त्रुटि"
-    }
+    },
+    "promptRecipe": "AI रेसिपी स्मृति",
+    "promptRecipeHint": "यदि “हमेशा यही रेसिपी” चुना है तो चयन छूट जाता है। रीसेट कर फिर पूछें।",
+    "promptRecipePinned": "पाठ और/या मीडिया रेसिपी पिन है।",
+    "promptRecipeAsk": "अगले सुधार／जनरेट पर चयन दिखेगा।",
+    "promptRecipeReset": "पिन रेसिपी भूलें",
+    "promptRecipeResetOk": "स्मृति साफ़। फिर पूछा जाएगा।"
   },
   "ai": {
     "status": "एआई स्थिति",
@@ -2038,5 +2044,43 @@
     "videoDoneGalleryHint": "परिचय वीडियो अभी भी गैलरी में स्रोत से जुड़ा हुआ है - किसी भी समय वहां चलाएं का उपयोग करें।",
     "useStillAsKeyframe": "मौजूदा स्थिर छवि को कीफ्रेम बनाएँ",
     "keyframePromptHint": "कीफ्रेम स्थिर-छवि प्रॉम्प्ट। कीफ्रेम तैयार होने पर वीडियो पॉलिश।"
+  },
+  "promptTpl": {
+    "title": "Choose how AI should work",
+    "subtitle": "This choice controls inventing a world, locking speech, and identity locks. Nothing hidden is applied unless you pick it.",
+    "remember": "Always use this for this kind of action (change anytime from the arrow)",
+    "confirm": "Use this recipe",
+    "polish-only": {
+      "name": "Polish only",
+      "blurb": "Keep identity and world. Improve wording. Do not invent era, weather, job, or speech language. Do not write default hard rules into the file."
+    },
+    "fill-blanks": {
+      "name": "Fill blanks only",
+      "blurb": "Fill empty fields only. Leave filled fields untouched."
+    },
+    "invent": {
+      "name": "Create freely",
+      "blurb": "You allow the model to invent filmable detail from the idea. Still no Demo world."
+    },
+    "from-story": {
+      "name": "Suggest from story",
+      "blurb": "Use this story’s title, style, cast, and scenes for continuity. Your idea still wins on conflict."
+    },
+    "follow-asset": {
+      "name": "Follow asset / story",
+      "blurb": "Use existing style and hard rules. Do not force cinematic look, empty set, or 6–10 seconds."
+    },
+    "cinematic-lock": {
+      "name": "Cinematic + anti-glitch",
+      "blurb": "Cinematic short-drama look, empty set, no watermarks or extra faces, two hands/arms/legs."
+    },
+    "identity-lock": {
+      "name": "Lock identity",
+      "blurb": "Lock face, body, wardrobe, location, and prop to the attached stills."
+    },
+    "restyle": {
+      "name": "Restyle allowed",
+      "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+    }
   }
 }

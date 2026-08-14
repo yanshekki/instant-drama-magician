@@ -92,6 +92,7 @@ import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
+import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { useScenes } from '../hooks/useScenes'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import {
@@ -200,6 +201,7 @@ export function ScenesPage(): JSX.Element {
     hasVideoPrepDraft,
     continueVideoPrepDraft
   } = useAiJobs()
+  const { pick } = useOptionalPromptTemplate()
   const {
     items,
     loading,
@@ -522,11 +524,13 @@ export function ScenesPage(): JSX.Element {
     setPlotSuggestOpen(true)
   }
 
-  const handleAiFill = (opts?: {
+  const handleAiFill = async (opts?: {
     suggestFromStory?: boolean
     storyId?: string | null
     segmentKey?: string | null
-  }): void => {
+  }): Promise<void> => {
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     setActionError(null)
     const snapshot = {
       title: form.title.trim() || undefined,
@@ -586,7 +590,8 @@ export function ScenesPage(): JSX.Element {
               suggestFromStory: suggest,
               sceneNumber: form.sceneNumber,
               existingDraft: suggest || !hasDraft ? undefined : snapshot,
-              referenceImagePath: hasImage ? ref : null
+              referenceImagePath: hasImage ? ref : null,
+              promptTemplateId
             })
             if (signal.cancelled) return
             setProgress(100, 'done')

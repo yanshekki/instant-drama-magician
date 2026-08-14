@@ -115,6 +115,7 @@ export function buildMediaGenVideoPolishUserOverride(opts: {
   includedSections: MediaGenMaterialSection[]
   /** Timeline director revision / user extra */
   revisionPrompt?: string | null
+  promptTemplateId?: string | null
 }): string | null {
   const {
     kind,
@@ -125,7 +126,8 @@ export function buildMediaGenVideoPolishUserOverride(opts: {
     fallbackPrompt,
     hardRules,
     includedSections,
-    revisionPrompt
+    revisionPrompt,
+    promptTemplateId
   } = opts
   const name = firstProfileName(includedSections)
   const profile = sectionText(includedSections, 'profile')
@@ -165,7 +167,8 @@ export function buildMediaGenVideoPolishUserOverride(opts: {
       fallbackPrompt,
       title: name,
       description: profile.slice(0, 800) || name,
-      hardRules
+      hardRules,
+      promptTemplateId
     })
   }
   if (kind === 'prop-intro') {

@@ -42,6 +42,7 @@ import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
+import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { LocalMediaImage } from '../components/LocalMediaImage'
@@ -170,6 +171,7 @@ export function StoriesPage(): JSX.Element {
   const dialog = useDialog()
   const { startJob, isBlocked, onStoryCoverCommitted, startMediaGen } =
     useAiJobs()
+  const { pick } = useOptionalPromptTemplate()
   const [storyStatus, setStoryStatus] = useState('')
   const [storyCover, setStoryCover] = useState('') // '' | has | none
   const [storySort, setStorySort] = useState('updated') // updated | title
@@ -607,7 +609,9 @@ export function StoriesPage(): JSX.Element {
     setSelectedCoverId(st.selectedCoverId)
   }
 
-  const handleAiMeta = (): void => {
+  const handleAiMeta = async (): Promise<void> => {
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     storiesRunAiMetaIfReady({
       skip: storiesAiMetaShouldSkip(
         editTitle,
@@ -640,7 +644,8 @@ export function StoriesPage(): JSX.Element {
           idea: aiIdea,
           existingStyleNote: styleNote,
           existingHardRules: hardRules,
-          locale: i18n.language
+          locale: i18n.language,
+          promptTemplateId
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
@@ -664,6 +669,8 @@ export function StoriesPage(): JSX.Element {
       t('stories.aiNeedCast')
     )
     if (g !== 'ok') return
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     if (beats.length > 0) {
       const ok = await dialog.confirm({
         message: t('stories.aiReplaceBeatsConfirm'),
@@ -690,7 +697,8 @@ export function StoriesPage(): JSX.Element {
           storyId: sid,
           idea: aiIdea,
           locale: i18n.language,
-          replace: true
+          replace: true,
+          promptTemplateId
         })
         if (signal.cancelled) return
         setProgress(100, 'done')

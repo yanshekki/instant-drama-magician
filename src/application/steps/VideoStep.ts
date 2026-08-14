@@ -195,7 +195,7 @@ export class VideoStep implements PipelineStep {
           spokenLanguages: character
             ? (character as { spokenLanguages?: string | null }).spokenLanguages
             : null,
-          uiLanguage: 'zh-HK'
+          uiLanguage: context.locale || 'zh-HK'
         })
         const clipHardRules = collectTimelineHardRules(
           {
@@ -259,6 +259,7 @@ export class VideoStep implements PipelineStep {
             locale,
             fallbackPrompt,
             hardRules: clipHardRules,
+            promptTemplateId: context.promptTemplateId,
             polishUserContent: buildClipVideoPolishUserPrompt({
               locale,
               seconds,

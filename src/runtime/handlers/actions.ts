@@ -81,6 +81,7 @@ reg(
         existingDraft?: Record<string, string | undefined | null>
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
+        promptTemplateId?: string | null
       }
     ) => {
       const {
@@ -141,7 +142,10 @@ reg(
         messages: [
           {
             role: 'system',
-            content: buildActionMasterSystemPrompt(locale)
+            content: buildActionMasterSystemPrompt(
+              locale,
+              payload.promptTemplateId
+            )
           },
           {
             role: 'user',
@@ -161,18 +165,27 @@ reg(
       const actionRequired = ACTION_PROFILE_JSON_KEYS.filter(
         (k) => k !== 'artStyle' && k !== 'hardRules'
       )
-      const actionPatch = await fillMissingProfileFields({
-        profile: profile as unknown as Record<string, unknown>,
-        requiredKeys: actionRequired,
-        locale,
-        chat: (req) => ctx.aiClient.chat(req),
-        referenceImagePath: refPath,
-        maxTokens: 900
-      })
-      profile = actionPatch.profile as unknown as typeof profile
-      const actionRaw = actionPatch.raw
-        ? `${text}\n---missing-fill---\n${actionPatch.raw}`
-        : text
+      const { shouldFillMissingKeys } = await import(
+        '../../domain/promptTemplates'
+      )
+      let actionRaw = text
+      let patchedKeys: string[] = []
+      if (shouldFillMissingKeys(payload.promptTemplateId)) {
+        const actionPatch = await fillMissingProfileFields({
+          profile: profile as unknown as Record<string, unknown>,
+          requiredKeys: actionRequired,
+          locale,
+          chat: (req) => ctx.aiClient.chat(req),
+          referenceImagePath: refPath,
+          maxTokens: 900,
+          promptTemplateId: payload.promptTemplateId
+        })
+        profile = actionPatch.profile as unknown as typeof profile
+        patchedKeys = actionPatch.patchedKeys
+        actionRaw = actionPatch.raw
+          ? `${text}\n---missing-fill---\n${actionPatch.raw}`
+          : text
+      }
       activity.append({
         kind: 'action',
         message: hasImage
@@ -184,7 +197,7 @@ reg(
         meta: {
           name: profile.name,
           usedImage: hasImage,
-          patchedKeys: actionPatch.patchedKeys
+          patchedKeys
         }
       })
       return {

@@ -307,8 +307,7 @@ export function buildCostumeIntroVideoPrompt(
       art ? PromptCatalog.t(locale, 'costumeIntro.art', { art }) : null,
       PromptCatalog.t(locale, 'costumeIntro.camera'),
       PromptCatalog.t(locale, 'costumeIntro.beat'),
-      PromptCatalog.t(locale, 'costumeIntro.forbid'),
-      PromptCatalog.t(locale, 'costumeIntro.duration')
+      PromptCatalog.t(locale, 'costumeIntro.forbid')
     ]
       .filter(Boolean)
       .join(' '),

@@ -46,6 +46,7 @@ reg(
         skipStillIfExists?: boolean
         /** Still-only: polish+still without requiring video capability. */
         stillOnly?: boolean
+        promptTemplateId?: string | null
       }
     ) => {
       const locale = PromptCatalog.locale(payload.locale)
@@ -771,7 +772,8 @@ reg(
               locale,
               fallbackPrompt,
               polishUserContent,
-              hardRules: prepHardRules
+              hardRules: prepHardRules,
+              promptTemplateId: payload.promptTemplateId
             })
             promptOut = polishedOnly.prompt
             polishedFlag = polishedOnly.polished
@@ -874,7 +876,8 @@ reg(
         fallbackPrompt,
         polishUserContent,
         hardRules: prepHardRules,
-        referenceImagePaths: polishRefPaths
+        referenceImagePaths: polishRefPaths,
+        promptTemplateId: payload.promptTemplateId
       })
 
       // aspectRatio already coerced to 9:16 | 16:9 above

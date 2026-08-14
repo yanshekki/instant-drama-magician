@@ -65,6 +65,7 @@ import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
+import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { useActions } from '../hooks/useActions'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import { EntityGalleryPanel } from '../components/EntityGalleryPanel'
@@ -148,6 +149,7 @@ export function ActionsPage(): JSX.Element {
     onActionProfileApply,
     onActionPlateCommitted
   } = useAiJobs()
+  const { pick } = useOptionalPromptTemplate()
   const { items, loading, error, update, remove, reload } =
     useActions(activeStoryId)
 
@@ -333,7 +335,9 @@ export function ActionsPage(): JSX.Element {
     })
   }
 
-  const handleAiFill = (): void => {
+  const handleAiFill = async (): Promise<void> => {
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     actionsRunAiFill({
       busy: actionBusy(editingId),
       toastInfo: toast.info,
@@ -374,7 +378,8 @@ export function ActionsPage(): JSX.Element {
               storyId: activeStoryId ?? undefined,
               locale: i18n.language,
               existingDraft: hasDraft ? snapshot : undefined,
-              referenceImagePath: hasImage ? refPath : null
+              referenceImagePath: hasImage ? refPath : null,
+              promptTemplateId
             })
             if (signal.cancelled) return
             setProgress(100, 'done')

@@ -37,6 +37,7 @@ export async function polishMediaGenPrompt(options: {
   userTextOverride?: string | null
   maxTokens?: number
   signal?: AbortSignal
+  promptTemplateId?: string | null
 }): Promise<{ prompt: string; polished: boolean; imageCount: number }> {
   const locale = options.locale ?? 'zh-HK'
   const fallback = options.fallbackPrompt.trim()
@@ -84,7 +85,8 @@ export async function polishMediaGenPrompt(options: {
           role: 'system',
           content: buildMediaGenPolishSystemPrompt(locale, {
             mode,
-            hasImages: imagePaths.length > 0
+            hasImages: imagePaths.length > 0,
+            templateId: options.promptTemplateId
           })
         },
         { role: 'user', content: userContent }

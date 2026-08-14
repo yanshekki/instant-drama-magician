@@ -29,7 +29,7 @@ describe('storyMasterPrompt', () => {
   it('falls back hardRules when omitted', () => {
     const m = extractStoryMetaJson('{"styleNote":"mood only"}', 'en')
     expect(m.styleNote).toBe('mood only')
-    expect(m.hardRules.length).toBeGreaterThan(5)
+    expect(m.hardRules).toBe('')
   })
 
   it('extracts beats array (legacy dialogue)', () => {

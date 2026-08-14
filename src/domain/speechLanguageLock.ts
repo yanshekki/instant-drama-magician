@@ -118,22 +118,20 @@ export function speechLanguageLockLines(opts: {
 }): string[] {
   const loc = opts.locale || opts.uiLocale || 'zh-HK'
   const list = (opts.characters ?? []).filter(Boolean)
-  if (list.length === 0) {
-    return [
+  const lines: string[] = []
+  for (const c of list) {
+    const codes = parseSpokenLanguageInput(c.spokenLanguages)
+    if (!codes.length) continue
+    lines.push(
       speechLanguageLockLine({
+        name: c.name,
+        codes,
         uiLocale: opts.uiLocale || loc,
         locale: loc
       })
-    ]
+    )
   }
-  return list.map((c) =>
-    speechLanguageLockLine({
-      name: c.name,
-      codes: parseSpokenLanguageInput(c.spokenLanguages),
-      uiLocale: opts.uiLocale || loc,
-      locale: loc
-    })
-  )
+  return lines
 }
 
 export function buildSpeechLanguageLockText(opts: {

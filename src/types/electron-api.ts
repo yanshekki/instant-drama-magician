@@ -92,6 +92,7 @@ export interface ElectronApi {
       idea?: string | null
       locale?: string
       promptOverride?: string | null
+      promptTemplateId?: string | null
     }) => Promise<{
       path: string
       draft?: boolean
@@ -115,12 +116,14 @@ export interface ElectronApi {
       existingStyleNote?: string | null
       existingHardRules?: string | null
       locale?: string
+      promptTemplateId?: string | null
     }) => Promise<{ styleNote: string; hardRules: string; raw: string }>
     aiFillScript: (payload: {
       storyId: string
       idea?: string
       locale?: string
       replace?: boolean
+      promptTemplateId?: string | null
     }) => Promise<{
       beats: Array<{
         id: string
@@ -222,6 +225,7 @@ export interface ElectronApi {
       soulContent?: string | null
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
+      promptTemplateId?: string | null
     }) => Promise<{
       profile: CharacterProfileFields
       profileJson: string
@@ -233,6 +237,7 @@ export interface ElectronApi {
       profile: Record<string, unknown>
       existingSoul?: string | null
       userRequest?: string | null
+      promptTemplateId?: string | null
     }) => Promise<{
       content: string
       filePath: string
@@ -376,6 +381,7 @@ export interface ElectronApi {
       soulExcerpt?: string | null
       userRequest?: string | null
       existingCostumeNames?: string[]
+      promptTemplateId?: string | null
     }) => Promise<{
       suggestion: {
         name: string
@@ -464,6 +470,7 @@ export interface ElectronApi {
       sceneNumber?: number
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
+      promptTemplateId?: string | null
     }) => Promise<{
       profile: SceneProfileFields & { artStyle?: string }
       profileJson: string
@@ -566,6 +573,7 @@ export interface ElectronApi {
       suggestFromStory?: boolean
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
+      promptTemplateId?: string | null
     }) => Promise<{
       profile: PropProfileFields & { artStyle?: string }
       profileJson: string
@@ -641,6 +649,7 @@ export interface ElectronApi {
       existingDraft?: Record<string, string | undefined | null>
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
+      promptTemplateId?: string | null
     }) => Promise<{
       profile: Record<string, string | undefined>
       profileJson: string
@@ -767,6 +776,7 @@ export interface ElectronApi {
       }
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
+      promptTemplateId?: string | null
     }) => Promise<{
       name: string
       description: string
@@ -896,6 +906,7 @@ export interface ElectronApi {
       locale?: string
       mode?: 'image' | 'video'
       userTextOverride?: string | null
+      promptTemplateId?: string | null
     }) => Promise<{
       polishedPrompt: string
       polished: boolean
@@ -960,6 +971,7 @@ export interface ElectronApi {
       locale?: string
       skipStillIfExists?: boolean
       stillOnly?: boolean
+      promptTemplateId?: string | null
     }) => Promise<{
       kind: string
       entityIds: Record<string, string | undefined>
@@ -1075,7 +1087,12 @@ export interface ElectronApi {
   generation: {
     run: (
       storyId: string,
-      opts?: { onlyFailedVideos?: boolean; interactiveVideo?: boolean }
+      opts?: {
+        onlyFailedVideos?: boolean
+        interactiveVideo?: boolean
+        locale?: string
+        promptTemplateId?: string | null
+      }
     ) => Promise<unknown>
     runClip: (
       storyId: string,

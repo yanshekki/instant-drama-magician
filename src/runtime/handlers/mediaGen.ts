@@ -1424,6 +1424,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       mode?: 'image' | 'video'
       /** Domain *VideoPolishUserPrompt body (video stage) */
       userTextOverride?: string | null
+      promptTemplateId?: string | null
     }) => {
       if (!payload.fallbackPrompt?.trim()) {
         throw new AppError('VALIDATION', 'errors.fallbackPromptRequired')
@@ -1445,7 +1446,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         fallbackPrompt: payload.fallbackPrompt,
         hardRules: payload.hardRules,
         mode: payload.mode,
-        userTextOverride: payload.userTextOverride
+        userTextOverride: payload.userTextOverride,
+        promptTemplateId: payload.promptTemplateId
       })
 
       activity.append({

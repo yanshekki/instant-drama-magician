@@ -1,5 +1,7 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
 import { chatContentText } from '../../types/domain'
+import { PromptCatalog } from '../../prompts'
+import { assembleSystemPrompt } from '../../domain/promptTemplates'
 
 export class ScriptStep implements PipelineStep {
   readonly name = 'script' as const
@@ -37,8 +39,15 @@ export class ScriptStep implements PipelineStep {
         messages: [
           {
             role: 'system',
-            content:
-              'You are a professional short-drama screenwriter. For each scene, write a compact screenplay block suitable for AI video clips under 10 seconds. Format every scene as:\n### SCENE <number> | id=<id>\n<script body>'
+            content: assembleSystemPrompt({
+              locale: context.locale || 'zh-HK',
+              templateId: context.promptTemplateId,
+              family: 'copy',
+              base: PromptCatalog.t(
+                context.locale || 'zh-HK',
+                'pipeline.script.system'
+              )
+            })
           },
           {
             role: 'user',
@@ -47,7 +56,13 @@ export class ScriptStep implements PipelineStep {
               '(none)'
             }\n\nProps: ${
               story.props.map((p) => p.name).join(', ') || '(none)'
-            }\n\nScenes:\n${sceneHints || '(none — invent 2 short scenes)'}`
+            }\n\nScenes:\n${
+              sceneHints ||
+              PromptCatalog.t(
+                context.locale || 'zh-HK',
+                'pipeline.script.noScenes'
+              )
+            }`
           }
         ],
         temperature: 0.7,

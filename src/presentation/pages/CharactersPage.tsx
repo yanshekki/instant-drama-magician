@@ -65,6 +65,7 @@ import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
+import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { useCharacters } from '../hooks/useCharacters'
 import {
   artStylesByGroup,
@@ -214,6 +215,7 @@ export function CharactersPage(): JSX.Element {
     hasVideoPrepDraft,
     continueVideoPrepDraft
   } = useAiJobs()
+  const { pick } = useOptionalPromptTemplate()
   const {
     items,
     loading,
@@ -764,7 +766,9 @@ export function CharactersPage(): JSX.Element {
     })
   }
 
-  const handleAiFill = (fromEditor = false): void => {
+  const handleAiFill = async (fromEditor = false): Promise<void> => {
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     const snapshot = {
       name: form.name.trim() || undefined,
       description: form.description.trim() || undefined,
@@ -842,7 +846,8 @@ export function CharactersPage(): JSX.Element {
               locale,
               existingDraft: hasDraft ? (snap as never) : undefined,
               soulContent: soul || undefined,
-              referenceImagePath: hasImage ? ref : null
+              referenceImagePath: hasImage ? ref : null,
+              promptTemplateId
             })
             if (signal.cancelled) return
             setProgress(100, 'done')
@@ -915,7 +920,7 @@ export function CharactersPage(): JSX.Element {
     if (activeStoryId && !plotStoryId) setPlotStoryId(activeStoryId)
   }, [activeStoryId, plotStoryId])
 
-  const handleSuggestWardrobe = (): void => {
+  const handleSuggestWardrobe = async (): Promise<void> => {
     setActionError(null)
     const g = charactersGuardSuggest(
       form.name,
@@ -924,6 +929,8 @@ export function CharactersPage(): JSX.Element {
       t('characters.suggestNeedName')
     )
     if (g !== 'ok') return
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     const storyId = plotStoryId || activeStoryId || undefined
     setPageBanner(t('aiJobs.startedBackground')); toast.info(t('aiJobs.startedBackground'))
     startJob({
@@ -954,6 +961,7 @@ export function CharactersPage(): JSX.Element {
           segmentKey: storyId ? plotSegmentKey : undefined,
           locale: i18n.language,
           name: form.name,
+          promptTemplateId,
           appearance: form.appearance,
           costume: form.costume,
           ageRange: form.ageRange,
@@ -1323,7 +1331,7 @@ export function CharactersPage(): JSX.Element {
       setCatalogPickBody
     })
 
-  const handleGenerateSoul = (): void => {
+  const handleGenerateSoul = async (): Promise<void> => {
     setActionError(null)
     if (
       charactersGuardSoulSource(
@@ -1343,6 +1351,8 @@ export function CharactersPage(): JSX.Element {
     ) {
       return
     }
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     const soulStart = (): void => {
     setPageBanner(t('aiJobs.startedBackground'))
     toast.info(t('aiJobs.startedBackground'))
@@ -1375,6 +1385,7 @@ export function CharactersPage(): JSX.Element {
           locale: i18n.language,
           existingSoul: existingSoul || undefined,
           userRequest: aiIdea.trim() || undefined,
+          promptTemplateId,
           profile: {
             name: form.name,
             description: form.description,

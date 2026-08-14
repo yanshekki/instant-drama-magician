@@ -11,6 +11,7 @@ import en from '../locales/en.json'
 import { AppProvider } from '../presentation/context/AppContext'
 import { ToastProvider, ToastHost } from '../presentation/context/ToastContext'
 import { DialogProvider } from '../presentation/context/DialogContext'
+import { PromptTemplateProvider } from '../presentation/context/PromptTemplateContext'
 import { AiJobsProvider } from '../presentation/context/AiJobsContext'
 import { AiJobHud } from '../presentation/components/AiJobHud'
 import { AiDraftModal } from '../presentation/components/AiDraftModal'
@@ -78,7 +79,11 @@ export function TestProviders({
     tree = <AiJobsProvider>{tree}</AiJobsProvider>
   }
   if (withDialog) {
-    tree = <DialogProvider>{tree}</DialogProvider>
+    tree = (
+      <DialogProvider>
+        <PromptTemplateProvider>{tree}</PromptTemplateProvider>
+      </DialogProvider>
+    )
   }
   if (withToast) {
     tree = (

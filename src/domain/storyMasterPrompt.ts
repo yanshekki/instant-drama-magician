@@ -3,6 +3,7 @@
  */
 
 import { PromptCatalog, resolvePromptContext } from '../prompts'
+import { assembleSystemPrompt } from './promptTemplates'
 import { buildImproveUserPrompt } from './aiImprovePrompt'
 import type { BeatContent, BeatUnit } from './beatContent'
 import { AppError } from '../types/errors'
@@ -13,22 +14,27 @@ import {
   serializeBeatContent,
   spokenSummaryFromBeatContent
 } from './beatContent'
-import {
-  defaultHardRulesFallback,
-  normalizeHardRules
-} from './promptHardRules'
+import { normalizeHardRules } from './promptHardRules'
 import {
   parseSpokenLanguageInput,
   speechLanguageLockLine
 } from './speechLanguageLock'
 
-export function buildStoryMetaSystemPrompt(locale: string = 'zh-HK'): string {
+export function buildStoryMetaSystemPrompt(
+  locale: string = 'zh-HK',
+  templateId?: string | null
+): string {
   const ctx = resolvePromptContext(locale)
-  return [
-    PromptCatalog.t(locale, 'storyMeta.system'),
-    ctx.pack.hardRulesInstruction,
-    ctx.outputLock
-  ].join(' ')
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: [
+      PromptCatalog.t(locale, 'storyMeta.system'),
+      ctx.pack.hardRulesInstruction,
+      ctx.outputLock
+    ].join(' ')
+  })
 }
 
 export function buildStoryMetaUserPrompt(options: {
@@ -72,7 +78,7 @@ export type StoryMetaExtract = {
 
 export function extractStoryMetaJson(
   text: string,
-  locale: string = 'zh-HK'
+  _locale: string = 'zh-HK'
 ): StoryMetaExtract {
   let s = text.trim()
   const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
@@ -89,7 +95,7 @@ export function extractStoryMetaJson(
   const rules =
     normalizeHardRules(
       typeof parsed.hardRules === 'string' ? parsed.hardRules : null
-    ) || defaultHardRulesFallback('story', locale)
+    ) || ''
   return { styleNote: note, hardRules: rules }
 }
 
@@ -116,12 +122,18 @@ export interface StoryBeatDraft {
 }
 
 export function buildStoryBeatsSystemPrompt(
-  locale: string = 'zh-HK'
+  locale: string = 'zh-HK',
+  templateId?: string | null
 ): string {
-  return [
-    PromptCatalog.t(locale, 'storyBeats.system'),
-    PromptCatalog.context(locale).outputLock
-  ].join('\n')
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: [
+      PromptCatalog.t(locale, 'storyBeats.system'),
+      PromptCatalog.context(locale).outputLock
+    ].join('\n')
+  })
 }
 
 export function buildStoryBeatsUserPrompt(options: {

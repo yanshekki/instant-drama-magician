@@ -6,6 +6,7 @@ import {
   ToastHost
 } from './presentation/context/ToastContext'
 import { DialogProvider } from './presentation/context/DialogContext'
+import { PromptTemplateProvider } from './presentation/context/PromptTemplateContext'
 import { Layout } from './presentation/components/Layout'
 import { StoriesPage } from './presentation/pages/StoriesPage'
 import { CharactersPage } from './presentation/pages/CharactersPage'
@@ -28,6 +29,7 @@ export default function App(): JSX.Element {
       <AppProvider>
         <ToastProvider>
           <DialogProvider>
+            <PromptTemplateProvider>
             <AiJobsProvider>
               <HashRouter>
                 <LegalAcceptModal />
@@ -51,6 +53,7 @@ export default function App(): JSX.Element {
                 </Routes>
               </HashRouter>
             </AiJobsProvider>
+            </PromptTemplateProvider>
           </DialogProvider>
         </ToastProvider>
       </AppProvider>

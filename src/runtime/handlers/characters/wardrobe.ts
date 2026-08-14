@@ -37,6 +37,7 @@ reg(
         soulExcerpt?: string | null
         userRequest?: string | null
         existingCostumeNames?: string[]
+        promptTemplateId?: string | null
       }
     ) => {
       const locale = payload.locale ?? 'zh-HK'
@@ -201,7 +202,10 @@ reg(
         messages: [
           {
             role: 'system',
-            content: buildWardrobeSuggestSystemPrompt(locale)
+            content: buildWardrobeSuggestSystemPrompt(
+              locale,
+              payload.promptTemplateId
+            )
           },
           {
             role: 'user',

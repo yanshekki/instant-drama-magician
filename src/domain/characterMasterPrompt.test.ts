@@ -51,8 +51,8 @@ describe('characterMasterPrompt', () => {
   })
 
   it('system prompt uses provided sources and invents when thin', () => {
-    const zh = buildCharacterMasterSystemPrompt('zh-HK')
-    const en = buildCharacterMasterSystemPrompt('en')
+    const zh = buildCharacterMasterSystemPrompt('zh-HK', 'invent')
+    const en = buildCharacterMasterSystemPrompt('en', 'invent')
     expect(zh).toMatch(/依據來源|用戶 idea/)
     expect(zh).toMatch(/自由補齊|空白/)
     expect(zh).not.toMatch(/硬性禁止|雨夜/)
@@ -214,7 +214,8 @@ describe('characterMasterPrompt', () => {
       { name: '阿明' },
       'zh-HK'
     )
-    expect(zhDefaults).toMatch(/跟從角色人設|溫暖清晰|自然微動作|清晰聲線/)
+    expect(zhDefaults).toContain('阿明')
+    expect(zhDefaults).not.toMatch(/溫暖清晰|自然微動作|清晰聲線/)
   })
 
   it('extractCharacterProfileJson rejects empty / invalid', () => {

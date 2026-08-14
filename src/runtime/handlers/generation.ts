@@ -18,7 +18,12 @@ reg(
   (
     async (
       storyId: string,
-      opts?: { onlyFailedVideos?: boolean; interactiveVideo?: boolean }
+      opts?: {
+        onlyFailedVideos?: boolean
+        interactiveVideo?: boolean
+        locale?: string
+        promptTemplateId?: string | null
+      }
     ) => {
       activity.append({
         kind: 'generation',

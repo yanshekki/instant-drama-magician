@@ -64,6 +64,7 @@ import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
+import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { useProps } from '../hooks/useProps'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import {
@@ -129,6 +130,7 @@ export function PropsPage(): JSX.Element {
     hasVideoPrepDraft,
     continueVideoPrepDraft
   } = useAiJobs()
+  const { pick } = useOptionalPromptTemplate()
   const {
     items,
     loading,
@@ -386,7 +388,9 @@ export function PropsPage(): JSX.Element {
     )
   }
 
-  const handleAiFill = (): void => {
+  const handleAiFill = async (): Promise<void> => {
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     propsRunAiFill({
       busy: editorBusy,
       idea: aiIdea,
@@ -425,7 +429,8 @@ export function PropsPage(): JSX.Element {
               storyId: activeStoryId ?? undefined,
               locale: i18n.language,
               existingDraft: hasDraft ? snapshot : undefined,
-              referenceImagePath: hasImage ? refPath : null
+              referenceImagePath: hasImage ? refPath : null,
+              promptTemplateId
             })
             if (signal.cancelled) return
             setProgress(100, 'done')
@@ -1134,6 +1139,9 @@ export function PropsPage(): JSX.Element {
               <Button
                 disabled={!plotStoryId || editorBusy}
                 onClick={() => {
+                  void (async () => {
+                  const promptTemplateId = await pick('copy')
+                  if (!promptTemplateId) return
                   setPlotSuggestOpen(false)
                   const ideaBase = propsSuggestIdeaLabel(
                     !(plotSegmentKey && plotSegmentKey !== 'all'),
@@ -1176,7 +1184,8 @@ export function PropsPage(): JSX.Element {
                           storyId: plotStoryId,
                           locale: i18n.language,
                           existingDraft: hasDraft ? snapshot : undefined,
-                          suggestFromStory: true
+                          suggestFromStory: true,
+                          promptTemplateId
                         })
                         if (signal.cancelled) return
                         setProgress(100, 'done')
@@ -1191,6 +1200,7 @@ export function PropsPage(): JSX.Element {
                       }
                     })
                   }, 0)
+                  })()
                 }}
               >
                 {t('common.aiFill')}

@@ -1379,7 +1379,13 @@
       "disk": "Disco lleno o error de escritura",
       "permission": "Permiso denegado",
       "unknown": "Error de actualización inesperado"
-    }
+    },
+    "promptRecipe": "Memoria de receta IA",
+    "promptRecipeHint": "Si marcaste “usar siempre esta receta”, se omite el selector. Restablece para que pregunte de nuevo.",
+    "promptRecipePinned": "Hay una receta fija para texto y/o media.",
+    "promptRecipeAsk": "El selector aparecerá en la próxima mejora/generación.",
+    "promptRecipeReset": "Olvidar recetas fijas",
+    "promptRecipeResetOk": "Memoria de receta borrada. Se preguntará de nuevo."
   },
   "ai": {
     "status": "estado de la IA",
@@ -2038,5 +2044,43 @@
     "videoDoneGalleryHint": "El video de introducción se adjunta a la fuente que aún está en la galería; use Reproducir allí en cualquier momento.",
     "useStillAsKeyframe": "Usar la imagen fija como fotograma clave",
     "keyframePromptHint": "Prompt de fotograma clave (dirección de imagen). El polish de vídeo sigue cuando el fotograma esté listo."
+  },
+  "promptTpl": {
+    "title": "Choose how AI should work",
+    "subtitle": "This choice controls inventing a world, locking speech, and identity locks. Nothing hidden is applied unless you pick it.",
+    "remember": "Always use this for this kind of action (change anytime from the arrow)",
+    "confirm": "Use this recipe",
+    "polish-only": {
+      "name": "Polish only",
+      "blurb": "Keep identity and world. Improve wording. Do not invent era, weather, job, or speech language. Do not write default hard rules into the file."
+    },
+    "fill-blanks": {
+      "name": "Fill blanks only",
+      "blurb": "Fill empty fields only. Leave filled fields untouched."
+    },
+    "invent": {
+      "name": "Create freely",
+      "blurb": "You allow the model to invent filmable detail from the idea. Still no Demo world."
+    },
+    "from-story": {
+      "name": "Suggest from story",
+      "blurb": "Use this story’s title, style, cast, and scenes for continuity. Your idea still wins on conflict."
+    },
+    "follow-asset": {
+      "name": "Follow asset / story",
+      "blurb": "Use existing style and hard rules. Do not force cinematic look, empty set, or 6–10 seconds."
+    },
+    "cinematic-lock": {
+      "name": "Cinematic + anti-glitch",
+      "blurb": "Cinematic short-drama look, empty set, no watermarks or extra faces, two hands/arms/legs."
+    },
+    "identity-lock": {
+      "name": "Lock identity",
+      "blurb": "Lock face, body, wardrobe, location, and prop to the attached stills."
+    },
+    "restyle": {
+      "name": "Restyle allowed",
+      "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+    }
   }
 }

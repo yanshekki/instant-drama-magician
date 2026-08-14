@@ -1379,7 +1379,13 @@
       "disk": "ディスクがいっぱいか書き込みエラー",
       "permission": "許可が拒否されました",
       "unknown": "予期しない更新エラー"
-    }
+    },
+    "promptRecipe": "AIレシピ記憶",
+    "promptRecipeHint": "「いつもこのレシピ」をオンにすると選択を飛ばします。リセットで再確認。",
+    "promptRecipePinned": "テキスト／メディアのレシピが固定されています。",
+    "promptRecipeAsk": "次の改善／生成で選択ダイアログが出ます。",
+    "promptRecipeReset": "固定レシピを忘れる",
+    "promptRecipeResetOk": "レシピ記憶を消しました。次回また尋ねます。"
   },
   "ai": {
     "status": "AIのステータス",
@@ -2038,5 +2044,43 @@
     "videoDoneGalleryHint": "Intro video is attached to the source still in the gallery — use Play there anytime.",
     "useStillAsKeyframe": "既存の静止画をキーフレームに使う",
     "keyframePromptHint": "キーフレーム用の静止画プロンプト（画像監督）。キーフレーム後に動画モーションを磨きます。"
+  },
+  "promptTpl": {
+    "title": "AI のやり方を選ぶ",
+    "subtitle": "世界の発明、台詞ロック、身元ロックの有無をここで決める。選ばない限り隠れた既定は使わない。",
+    "remember": "この種の操作では今後もこれを使う（矢印でいつでも変更）",
+    "confirm": "このレシピを使う",
+    "polish-only": {
+      "name": "磨くだけ",
+      "blurb": "身元と世界を保つ。文言だけ。時代・天候・職業・台詞言語を発明しない。既定鉄則をファイルに書かない。"
+    },
+    "fill-blanks": {
+      "name": "空欄だけ",
+      "blurb": "空欄だけ埋める。記入済みは触らない。"
+    },
+    "invent": {
+      "name": "自由に作る",
+      "blurb": "構想から撮れる细节を補ってよい。Demo世界は持ち込むな。"
+    },
+    "from-story": {
+      "name": "物語から提案",
+      "blurb": "この物語の題・作風・キャスト・場面をcontinuityに。衝突時はあなたの構想が勝つ。"
+    },
+    "follow-asset": {
+      "name": "資産／物語に従う",
+      "blurb": "既存の作風と鉄則。映画的ルック・空セット・6–10秒を強いない。"
+    },
+    "cinematic-lock": {
+      "name": "映画的＋幻覚防止",
+      "blurb": "映画的短編、空セット、透かしや余分な顔なし、両手両腕両脚。"
+    },
+    "identity-lock": {
+      "name": "身元ロック",
+      "blurb": "顔・体・衣装・場所・小道具を添付スチールにロック。"
+    },
+    "restyle": {
+      "name": "衣装／場所の変更可",
+      "blurb": "同一人物。衣装・場所・時代は指示があれば変えてよい。別人にするな。"
+    }
   }
 }

@@ -14,6 +14,7 @@ import {
 } from './actionPlateVariants'
 import { getArtStyle } from './characterArtStyles'
 import { PromptCatalog, resolvePromptContext } from '../prompts'
+import { assembleSystemPrompt } from './promptTemplates'
 
 export type MediaGenKind =
   // images
@@ -560,42 +561,54 @@ export function buildMediaGenPolishUserText(opts: {
 
 export function buildMediaGenPolishSystemPrompt(
   locale: string = 'zh-HK',
-  opts?: { mode?: 'image' | 'video'; hasImages?: boolean }
+  opts?: {
+    mode?: 'image' | 'video'
+    hasImages?: boolean
+    templateId?: string | null
+  }
 ): string {
   const ctx = resolvePromptContext(locale)
   const lock = ctx.outputLock
   const hasImages = opts?.hasImages === true
   const noRef = hasImages ? [] : [ctx.noRefPolishDirective]
-  if (opts?.mode === 'video') {
-    return [
-      PromptCatalog.t(locale, 'mediaGen.videoSystem'),
-      PromptCatalog.t(locale, 'mediaGen.videoMerge'),
-      PromptCatalog.t(locale, 'mediaGen.returnOnly'),
-      PromptCatalog.t(locale, 'mediaGen.videoInclude'),
-      PromptCatalog.t(locale, 'mediaGen.videoFacts'),
-      ...(hasImages ? [PromptCatalog.t(locale, 'mediaGen.videoNoSwap')] : noRef),
-      PromptCatalog.t(locale, 'mediaGen.videoHardRules'),
-      lock
-    ].join('\n')
-  }
-  return [
-    PromptCatalog.t(locale, 'mediaGen.imageSystem'),
-    hasImages
-      ? PromptCatalog.t(locale, 'mediaGen.imageMergeStills')
-      : PromptCatalog.t(locale, 'mediaGen.imageMergeText'),
-    PromptCatalog.t(locale, 'mediaGen.returnOnly'),
-    ...(hasImages
+  const base =
+    opts?.mode === 'video'
       ? [
-          PromptCatalog.t(locale, 'mediaGen.imagePriority'),
-          PromptCatalog.t(locale, 'mediaGen.imageNoSwap')
-        ]
-      : noRef),
-    PromptCatalog.t(locale, 'mediaGen.imageFacts'),
-    PromptCatalog.t(locale, 'mediaGen.imageLayout'),
-    PromptCatalog.t(locale, 'mediaGen.imagePackage'),
-    PromptCatalog.t(locale, 'mediaGen.imageHardRules'),
-    lock
-  ].join('\n')
+          PromptCatalog.t(locale, 'mediaGen.videoSystem'),
+          PromptCatalog.t(locale, 'mediaGen.videoMerge'),
+          PromptCatalog.t(locale, 'mediaGen.returnOnly'),
+          PromptCatalog.t(locale, 'mediaGen.videoInclude'),
+          PromptCatalog.t(locale, 'mediaGen.videoFacts'),
+          ...(hasImages
+            ? [PromptCatalog.t(locale, 'mediaGen.videoNoSwap')]
+            : noRef),
+          PromptCatalog.t(locale, 'mediaGen.videoHardRules'),
+          lock
+        ].join('\n')
+      : [
+          PromptCatalog.t(locale, 'mediaGen.imageSystem'),
+          hasImages
+            ? PromptCatalog.t(locale, 'mediaGen.imageMergeStills')
+            : PromptCatalog.t(locale, 'mediaGen.imageMergeText'),
+          PromptCatalog.t(locale, 'mediaGen.returnOnly'),
+          ...(hasImages
+            ? [
+                PromptCatalog.t(locale, 'mediaGen.imagePriority'),
+                PromptCatalog.t(locale, 'mediaGen.imageNoSwap')
+              ]
+            : noRef),
+          PromptCatalog.t(locale, 'mediaGen.imageFacts'),
+          PromptCatalog.t(locale, 'mediaGen.imageLayout'),
+          PromptCatalog.t(locale, 'mediaGen.imagePackage'),
+          PromptCatalog.t(locale, 'mediaGen.imageHardRules'),
+          lock
+        ].join('\n')
+  return assembleSystemPrompt({
+    locale,
+    templateId: opts?.templateId,
+    family: 'media',
+    base
+  })
 }
 
 const PREAMBLE_SENTENCE =

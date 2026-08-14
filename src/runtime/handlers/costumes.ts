@@ -127,6 +127,7 @@ reg(
         }
         /** External / gallery still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
+        promptTemplateId?: string | null
       }
     ) => {
       const locale = payload.locale ?? 'zh-HK'
@@ -157,10 +158,17 @@ reg(
           'errors.ideaOrImageRequired'
         )
       }
-      const system = [
-        PromptCatalog.t(locale, 'costumeFill.system'),
-        hardRulesAiInstruction(locale)
-      ].join(' ')
+      const { assembleSystemPrompt, shouldFillMissingKeys, shouldPersistHardRulesFallback } =
+        await import('../../domain/promptTemplates')
+      const system = assembleSystemPrompt({
+        locale,
+        templateId: payload.promptTemplateId,
+        family: 'copy',
+        base: [
+          PromptCatalog.t(locale, 'costumeFill.system'),
+          hardRulesAiInstruction(locale)
+        ].join(' ')
+      })
       const userParts = [
         hasImage ? visionFillUserPreamble(locale, 'costume') : null,
         idea
@@ -188,8 +196,9 @@ reg(
       let name = ''
       let description = ''
       let artStyle: string | null = null
-      let hardRules =
-        defaultHardRulesFallback('costume', locale)
+      let hardRules = shouldPersistHardRulesFallback(payload.promptTemplateId)
+        ? defaultHardRulesFallback('costume', locale)
+        : ''
       try {
         const j = extractJsonObject(text)
         name = coerceProfileString(j.name) ?? ''
@@ -212,29 +221,35 @@ reg(
       const { fillMissingProfileFields } = await import(
         '../../domain/profileFillMissing'
       )
-      const costumePatch = await fillMissingProfileFields({
-        profile: {
-          name,
-          description,
-          artStyle: artStyle ?? '',
-          hardRules
-        },
-        requiredKeys: ['name', 'description'],
-        locale,
-        chat: (req) => ctx.aiClient.chat(req),
-        referenceImagePath: refPath,
-        maxTokens: 600
-      })
-      name = String(costumePatch.profile.name || name)
-      description = String(costumePatch.profile.description || description)
-      hardRules =
-        normalizeHardRules(
-          typeof costumePatch.profile.hardRules === 'string'
-            ? costumePatch.profile.hardRules
-        /* v8 ignore next */
-            : hardRules
-        ) || hardRules
-      const costumeRaw = mergeCostumeRaw(text, costumePatch.raw)
+      let costumePatchedKeys: string[] = []
+      let costumePatchRaw: string | undefined
+      if (shouldFillMissingKeys(payload.promptTemplateId)) {
+        const costumePatch = await fillMissingProfileFields({
+          profile: {
+            name,
+            description,
+            artStyle: artStyle ?? '',
+            hardRules
+          },
+          requiredKeys: ['name', 'description'],
+          locale,
+          chat: (req) => ctx.aiClient.chat(req),
+          referenceImagePath: refPath,
+          maxTokens: 600,
+          promptTemplateId: payload.promptTemplateId
+        })
+        name = String(costumePatch.profile.name || name)
+        description = String(costumePatch.profile.description || description)
+        costumePatchedKeys = costumePatch.patchedKeys
+        costumePatchRaw = costumePatch.raw
+        hardRules =
+          normalizeHardRules(
+            typeof costumePatch.profile.hardRules === 'string'
+              ? costumePatch.profile.hardRules
+              : hardRules
+          ) || hardRules
+      }
+      const costumeRaw = mergeCostumeRaw(text, costumePatchRaw)
       activity.append({
         kind: 'costume',
         message: hasImage
@@ -245,7 +260,7 @@ reg(
         meta: {
           name,
           usedImage: hasImage,
-          patchedKeys: costumePatch.patchedKeys
+          patchedKeys: costumePatchedKeys
         }
       })
       return {

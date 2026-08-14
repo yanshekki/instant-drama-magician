@@ -33,7 +33,12 @@ describe('PromptCatalog', () => {
   it('ja / fr video polish is not the English skeleton', () => {
     const en = PromptCatalog.t('en', 'videoPolish.system')
     expect(PromptCatalog.t('ja', 'videoPolish.system')).not.toBe(en)
+    expect(PromptCatalog.t('fr', 'videoPolish.system')).not.toBe(en)
     expect(PromptCatalog.t('fr', 'storyBeats.cast')).toMatch(/Casting/)
+    expect(en).not.toMatch(/6–10s/)
+    expect(PromptCatalog.t('zh-HK', 'videoPolish.system')).not.toMatch(
+      /6–10 秒/
+    )
   })
 
   it('master / improve / soul packs are native for all ten locales', () => {

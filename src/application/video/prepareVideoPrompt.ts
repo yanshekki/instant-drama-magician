@@ -27,6 +27,7 @@ export async function polishProfessionalVideoPrompt(options: {
   referenceImagePaths?: Array<string | null | undefined> | null
   maxTokens?: number
   signal?: AbortSignal
+  promptTemplateId?: string | null
 }): Promise<{ prompt: string; polished: boolean; imageCount?: number }> {
   const locale = options.locale ?? 'zh-HK'
   const fallback = options.fallbackPrompt.trim()
@@ -63,7 +64,10 @@ export async function polishProfessionalVideoPrompt(options: {
       messages: [
         {
           role: 'system',
-          content: buildVideoPromptPolishSystemPrompt(locale)
+          content: buildVideoPromptPolishSystemPrompt(
+            locale,
+            options.promptTemplateId
+          )
         },
         { role: 'user', content: userContent }
       ],

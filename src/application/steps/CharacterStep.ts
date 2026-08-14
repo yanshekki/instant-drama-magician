@@ -1,5 +1,7 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
 import { chatContentText } from '../../types/domain'
+import { PromptCatalog } from '../../prompts'
+import { assembleSystemPrompt } from '../../domain/promptTemplates'
 
 export class CharacterStep implements PipelineStep {
   readonly name = 'character' as const
@@ -36,8 +38,15 @@ export class CharacterStep implements PipelineStep {
         messages: [
           {
             role: 'system',
-            content:
-              'You refine character bibles for short-form AI video drama. Keep each character to 3-5 lines: look, voice, motivation, signature gesture.'
+            content: assembleSystemPrompt({
+              locale: context.locale || 'zh-HK',
+              templateId: context.promptTemplateId,
+              family: 'copy',
+              base: PromptCatalog.t(
+                context.locale || 'zh-HK',
+                'pipeline.character.system'
+              )
+            })
           },
           {
             role: 'user',

@@ -5,6 +5,7 @@
 import { PromptCatalog } from '../prompts'
 import { ART_STYLES, isArtStyleId, type ArtStyleId } from './characterArtStyles'
 import { AppError } from '../types/errors'
+import { assembleSystemPrompt } from './promptTemplates'
 
 export type PlotSegmentRef =
   | { type: 'all' }
@@ -39,15 +40,22 @@ export interface WardrobeSuggestInput {
 export interface WardrobeSuggestion {
   name: string
   costume: string
-  artStyle: ArtStyleId
+  /** Empty when the model did not return a valid style id — do not invent one. */
+  artStyle: ArtStyleId | ''
   rationale: string
 }
 
 export function buildWardrobeSuggestSystemPrompt(
-  locale: string = 'zh-HK'
+  locale: string = 'zh-HK',
+  templateId?: string | null
 ): string {
   const styleIds = ART_STYLES.map((s) => s.id).join(', ')
-  return PromptCatalog.t(locale, 'wardrobe.system', { styleIds })
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: PromptCatalog.t(locale, 'wardrobe.system', { styleIds })
+  })
 }
 
 export function buildWardrobeSuggestUserPrompt(
@@ -118,9 +126,7 @@ export function extractWardrobeSuggestionJson(
   if (!costume) throw new AppError('VALIDATION', 'errors.wardrobeCostumeMissing')
   const styleRaw =
     typeof parsed.artStyle === 'string' ? parsed.artStyle.trim() : ''
-  const artStyle: ArtStyleId = isArtStyleId(styleRaw)
-    ? styleRaw
-    : 'photo_cinematic'
+  const artStyle: ArtStyleId | '' = isArtStyleId(styleRaw) ? styleRaw : ''
   const rationale =
     typeof parsed.rationale === 'string' ? parsed.rationale.trim() : ''
   return { name, costume, artStyle, rationale }

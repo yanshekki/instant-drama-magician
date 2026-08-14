@@ -1,5 +1,7 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
 import { chatContentText } from '../../types/domain'
+import { PromptCatalog } from '../../prompts'
+import { assembleSystemPrompt } from '../../domain/promptTemplates'
 
 export class PropsStep implements PipelineStep {
   readonly name = 'props' as const
@@ -33,8 +35,15 @@ export class PropsStep implements PipelineStep {
         messages: [
           {
             role: 'system',
-            content:
-              'You refine prop continuity notes for short drama production. Note color, size, and when the prop appears.'
+            content: assembleSystemPrompt({
+              locale: context.locale || 'zh-HK',
+              templateId: context.promptTemplateId,
+              family: 'copy',
+              base: PromptCatalog.t(
+                context.locale || 'zh-HK',
+                'pipeline.props.system'
+              )
+            })
           },
           {
             role: 'user',

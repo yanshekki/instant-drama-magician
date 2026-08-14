@@ -38,6 +38,7 @@ reg(
         durationSeconds?: number
         aspectRatio?: string
         locale?: string
+        promptTemplateId?: string | null
       }
     ) => {
       const locale = PromptCatalog.locale(payload.locale)
@@ -174,6 +175,7 @@ reg(
           hardRules: regenHardRules
         }),
         hardRules: regenHardRules,
+        promptTemplateId: payload.promptTemplateId,
         referenceImagePaths: payload.sourceImagePath
           ? [payload.sourceImagePath]
           : []

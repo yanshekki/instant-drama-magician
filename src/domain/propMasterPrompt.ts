@@ -10,12 +10,9 @@ import {
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
 import { PromptCatalog, resolvePromptContext } from '../prompts'
-import { inventFromProvidedSourcesRules } from './storyContextPolicy'
-import {
-  appendHardRules,
-  defaultHardRulesFallback,
-  normalizeHardRules
-} from './promptHardRules'
+import { inventRulesForTemplate } from './storyContextPolicy'
+import { assembleSystemPrompt } from './promptTemplates'
+import { appendHardRules, normalizeHardRules } from './promptHardRules'
 
 export const PROP_PROFILE_JSON_KEYS = [
   'name',
@@ -28,20 +25,28 @@ export const PROP_PROFILE_JSON_KEYS = [
   'hardRules'
 ] as const
 
-export function buildPropMasterSystemPrompt(locale: string = 'zh-HK'): string {
+export function buildPropMasterSystemPrompt(
+  locale: string = 'zh-HK',
+  templateId?: string | null
+): string {
   const ctx = resolvePromptContext(locale)
   const keys = PROP_PROFILE_JSON_KEYS.join(', ')
-  return [
-    PromptCatalog.t(locale, 'prop.system'),
-    PromptCatalog.t(locale, 'prop.keysLead', { keys }),
-    PromptCatalog.t(locale, 'common.rules'),
-    ...profileCompletenessRules(PROP_PROFILE_JSON_KEYS, locale).map(
-      (r) => `- ${r}`
-    ),
-    ...inventFromProvidedSourcesRules(locale).map((r) => `- ${r}`),
-    ctx.pack.hardRulesInstruction,
-    ctx.outputLock
-  ].join('\n')
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: [
+      PromptCatalog.t(locale, 'prop.system'),
+      PromptCatalog.t(locale, 'prop.keysLead', { keys }),
+      PromptCatalog.t(locale, 'common.rules'),
+      ...profileCompletenessRules(PROP_PROFILE_JSON_KEYS, locale).map(
+        (r) => `- ${r}`
+      ),
+      ...inventRulesForTemplate(locale, templateId).map((r) => `- ${r}`),
+      ctx.pack.hardRulesInstruction,
+      ctx.outputLock
+    ].join('\n')
+  })
 }
 
 export function buildPropMasterUserPrompt(options: {
@@ -106,8 +111,7 @@ export function buildPropIntroVideoPrompt(
       art ? PromptCatalog.t(locale, 'propIntro.art', { art }) : null,
       PromptCatalog.t(locale, 'propIntro.camera'),
       PromptCatalog.t(locale, 'propIntro.beat'),
-      PromptCatalog.t(locale, 'propIntro.noHands'),
-      PromptCatalog.t(locale, 'propIntro.duration')
+      PromptCatalog.t(locale, 'propIntro.noHands')
     ]
       .filter(Boolean)
       .join(' '),
@@ -142,8 +146,6 @@ export function extractPropProfileJson(
     condition,
     visualTags,
     artStyle: artRaw && isArtStyleId(artRaw) ? artRaw : undefined,
-    hardRules:
-      normalizeHardRules(coerceProfileString(parsed.hardRules)) ||
-      defaultHardRulesFallback('prop', 'zh-HK')
+    hardRules: normalizeHardRules(coerceProfileString(parsed.hardRules)) || ''
   }
 }

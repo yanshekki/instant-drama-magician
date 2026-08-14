@@ -34,6 +34,7 @@ import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
+import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { useTimeline } from '../hooks/useTimeline'
 import { PageHeader } from '../components/PageHeader'
 import {
@@ -118,6 +119,7 @@ export function TimelinePage(): JSX.Element {
     hasVideoPrepDraft,
     continueVideoPrepDraft
   } = useAiJobs()
+  const { pick } = useOptionalPromptTemplate()
   const {
     entries,
     loading,
@@ -701,6 +703,8 @@ export function TimelinePage(): JSX.Element {
       return
     }
 
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     setCurrentStepLabel(t('common.generate'))
     toast.info(t('aiJobs.startedBackground'))
     startJob({
@@ -710,7 +714,9 @@ export function TimelinePage(): JSX.Element {
       run: async ({ setProgress, signal }) => {
         setProgress(5, 'start')
         const result = (await getApi().generation.run(storyId, {
-          interactiveVideo: true
+          interactiveVideo: true,
+          locale: i18n.language,
+          promptTemplateId
         })) as GenerationResult
         if (signal.cancelled) return
         const { summary, anyDegraded } = timelinePipelineSummary(

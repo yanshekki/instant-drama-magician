@@ -27,6 +27,7 @@ import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
 
 import { formatUserError } from '../lib/formatUserError'
+import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { Button, Label, Textarea } from './ui'
 import { LocalMediaImage } from './LocalMediaImage'
 
@@ -235,6 +236,8 @@ export function MediaGenPrepModal({
   }) => void
 }): JSX.Element | null {
   const { t, i18n } = useTranslation()
+  const { pick } = useOptionalPromptTemplate()
+  const [mediaTemplateId, setMediaTemplateId] = useState<string | null>(null)
   const mode = request
     ? mediaGenMode(request.kind as MediaGenKind)
     : 'image'
@@ -327,6 +330,7 @@ export function MediaGenPrepModal({
 
   const loadExtract = useCallback(async (): Promise<void> => {
     if (!request) return
+    setMediaTemplateId(null)
     setPhase('loading-extract')
     setErrorMessage(null)
     try {
@@ -499,6 +503,9 @@ export function MediaGenPrepModal({
   }
 
   const handlePolish = async (): Promise<void> => {
+    const picked = mediaTemplateId || (await pick('media'))
+    if (!picked) return
+    setMediaTemplateId(picked)
     setBusy(true)
     setPhase('loading-polish')
     setErrorMessage(null)
@@ -512,7 +519,8 @@ export function MediaGenPrepModal({
         taskHint,
         hardRules,
         locale: i18n.language,
-        mode: 'image'
+        mode: 'image',
+        promptTemplateId: picked
       } as never)
       setPolishedPrompt(r.polishedPrompt)
       setPolishedFlag(r.polished)
@@ -567,7 +575,8 @@ export function MediaGenPrepModal({
         fallbackPrompt: videoFallback,
         hardRules,
         includedSections: [...included, keyframeSection],
-        revisionPrompt: userExtra.trim() || request.userExtraPrompt || null
+        revisionPrompt: userExtra.trim() || request.userExtraPrompt || null,
+        promptTemplateId: mediaTemplateId
       })
       const r = await getApi().mediaGen.polish({
         kind: request.kind,
@@ -579,7 +588,8 @@ export function MediaGenPrepModal({
         hardRules,
         locale: localeTag,
         mode: 'video',
-        userTextOverride: userTextOverride || undefined
+        userTextOverride: userTextOverride || undefined,
+        promptTemplateId: mediaTemplateId
       } as never)
       setVideoPrompt(
         pickVideoDirectorPrompt(r.polishedPrompt, videoFallback, localeTag)

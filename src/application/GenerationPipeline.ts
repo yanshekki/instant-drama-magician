@@ -30,6 +30,8 @@ export interface PipelineRunOptions {
   videoConcurrency?: number
   aspectRatio?: string
   onClipProgress?: PipelineContext['onClipProgress']
+  locale?: string
+  promptTemplateId?: string | null
 }
 
 /**
@@ -70,7 +72,9 @@ export class GenerationPipeline {
       interactiveVideo: options?.interactiveVideo,
       videoConcurrency: options?.videoConcurrency,
       aspectRatio: options?.aspectRatio,
-      onClipProgress: options?.onClipProgress
+      onClipProgress: options?.onClipProgress,
+      locale: options?.locale,
+      promptTemplateId: options?.promptTemplateId
     }
 
     // Retry-failed path: only re-run video (skip script/export noise).

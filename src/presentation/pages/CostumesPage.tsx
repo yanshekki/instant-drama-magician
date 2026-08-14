@@ -60,6 +60,7 @@ import type { Character } from '../../types/domain'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
+import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { LocalMediaImage } from '../components/LocalMediaImage'
@@ -111,6 +112,7 @@ export function CostumesPage(): JSX.Element {
     hasVideoPrepDraft,
     continueVideoPrepDraft
   } = useAiJobs()
+  const { pick } = useOptionalPromptTemplate()
   const [items, setItems] = useState<CostumeRow[]>([])
   const [characters, setCharacters] = useState<Character[]>([])
   const [loading, setLoading] = useState(true)
@@ -361,7 +363,9 @@ export function CostumesPage(): JSX.Element {
     setDressPose('hero_front')
   }
 
-  const handleAiFill = (): void => {
+  const handleAiFill = async (): Promise<void> => {
+    const promptTemplateId = await pick('copy')
+    if (!promptTemplateId) return
     const refPath = costumesAiFillRefPath(
       selectedGalItem?.path,
       lookImagePath
@@ -401,7 +405,8 @@ export function CostumesPage(): JSX.Element {
                 artStyle: snapshot.artStyle,
                 hardRules: snapshot.hardRules
               },
-              referenceImagePath: hasImage ? path : null
+              referenceImagePath: hasImage ? path : null,
+              promptTemplateId
             })
             if (signal.cancelled) return
             setProgress(100, 'done')

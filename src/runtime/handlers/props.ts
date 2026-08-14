@@ -72,6 +72,7 @@ reg(
         suggestFromStory?: boolean
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
+        promptTemplateId?: string | null
       }
     ) => {
       const {
@@ -108,7 +109,10 @@ reg(
       if (
         payload.storyId &&
         shouldInjectStoryContext({
-          suggestFromStory: Boolean(payload.suggestFromStory)
+          suggestFromStory: Boolean(payload.suggestFromStory),
+          injectStory: (
+            await import('../../domain/promptTemplates')
+          ).templateFlags(payload.promptTemplateId, 'copy').injectStory
         })
       ) {
         const story = await host.getPrisma().story.findUnique({
@@ -150,7 +154,10 @@ reg(
         messages: [
           {
             role: 'system',
-            content: buildPropMasterSystemPrompt(locale)
+            content: buildPropMasterSystemPrompt(
+              locale,
+              payload.promptTemplateId
+            )
           },
           {
             role: 'user',
@@ -170,18 +177,27 @@ reg(
       const propRequired = PROP_PROFILE_JSON_KEYS.filter(
         (k) => k !== 'artStyle' && k !== 'hardRules'
       )
-      const propPatch = await fillMissingProfileFields({
-        profile: profile as unknown as Record<string, unknown>,
-        requiredKeys: propRequired,
-        locale,
-        chat: (req) => ctx.aiClient.chat(req),
-        referenceImagePath: refPath,
-        maxTokens: 900
-      })
-      profile = propPatch.profile as unknown as typeof profile
-      const propRaw = propPatch.raw
-        ? `${text}\n---missing-fill---\n${propPatch.raw}`
-        : text
+      const { shouldFillMissingKeys } = await import(
+        '../../domain/promptTemplates'
+      )
+      let propRaw = text
+      let patchedKeys: string[] = []
+      if (shouldFillMissingKeys(payload.promptTemplateId)) {
+        const propPatch = await fillMissingProfileFields({
+          profile: profile as unknown as Record<string, unknown>,
+          requiredKeys: propRequired,
+          locale,
+          chat: (req) => ctx.aiClient.chat(req),
+          referenceImagePath: refPath,
+          maxTokens: 900,
+          promptTemplateId: payload.promptTemplateId
+        })
+        profile = propPatch.profile as unknown as typeof profile
+        patchedKeys = propPatch.patchedKeys
+        propRaw = propPatch.raw
+          ? `${text}\n---missing-fill---\n${propPatch.raw}`
+          : text
+      }
       activity.append({
         kind: 'prop',
         message: hasImage
@@ -193,7 +209,7 @@ reg(
         meta: {
           name: profile.name,
           usedImage: hasImage,
-          patchedKeys: propPatch.patchedKeys
+          patchedKeys
         }
       })
       return {

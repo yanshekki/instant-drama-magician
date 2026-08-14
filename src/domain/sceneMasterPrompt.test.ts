@@ -9,8 +9,8 @@ import {
 
 describe('sceneMasterPrompt', () => {
   it('system prompt uses provided sources; invents when thin', () => {
-    const zh = buildSceneMasterSystemPrompt('zh-HK')
-    const en = buildSceneMasterSystemPrompt('en')
+    const zh = buildSceneMasterSystemPrompt('zh-HK', 'invent')
+    const en = buildSceneMasterSystemPrompt('en', 'invent')
     expect(zh).toMatch(/依據來源|自由補齊/)
     expect(en).toMatch(/Sources of truth|invent freely/i)
     expect(zh).not.toMatch(/硬性禁止雨夜/)

@@ -26,6 +26,7 @@ describe('storyContextPolicy', () => {
       })
     ).toBe(true)
     expect(shouldInjectStoryContext({ suggestFromStory: false })).toBe(false)
+    expect(shouldInjectStoryContext({ injectStory: true })).toBe(true)
   })
 
   it('principle rules: create + improve; no silent samples; no theme blacklist', () => {

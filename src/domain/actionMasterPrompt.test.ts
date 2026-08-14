@@ -47,14 +47,14 @@ const fullCast: ActionCastRef[] = [
 
 describe('actionMasterPrompt', () => {
   it('system prompt requires all keys and invent-from-provided rules', () => {
-    const zh = buildActionMasterSystemPrompt('zh-HK')
+    const zh = buildActionMasterSystemPrompt('zh-HK', 'invent')
     expect(zh).toMatch(/必須輸出|每一個鍵|JSON/)
     expect(zh).toContain('motionNotes')
     expect(zh).toMatch(/創作模式|改進模式|依據來源/)
     for (const k of ACTION_PROFILE_JSON_KEYS) {
       expect(zh).toContain(k)
     }
-    const en = buildActionMasterSystemPrompt('en')
+    const en = buildActionMasterSystemPrompt('en', 'invent')
     expect(en.toLowerCase()).toMatch(/json|key/)
     expect(en).toMatch(/Create mode|Improve mode|Sources of truth/i)
   })
@@ -315,6 +315,6 @@ describe('actionMasterPrompt', () => {
     const fb = extractActionProfileJson('totally not json at all just prose')
     expect(fb.name).toBe('Untitled action')
     expect(fb.description).toMatch(/prose|totally/)
-    expect(fb.hardRules).toBeTruthy()
+    expect(fb.hardRules).toBe('')
   })
 })

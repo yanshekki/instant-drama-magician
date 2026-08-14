@@ -30,6 +30,7 @@ reg(
         sceneNumber?: number
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
+        promptTemplateId?: string | null
       }
     ) => {
       const {
@@ -77,8 +78,11 @@ reg(
       // Inject story cast/style/scenes only on explicit suggestFromStory.
       // Draft refine = improve form only — never silent activeStory / Demo sample.
       const { shouldInjectStoryContext } = await import('../../../domain/storyContextPolicy')
+      const { templateFlags } = await import('../../../domain/promptTemplates')
+      const tplFlags = templateFlags(payload.promptTemplateId, 'copy')
       const injectStoryContext = shouldInjectStoryContext({
-        suggestFromStory: Boolean(payload.suggestFromStory)
+        suggestFromStory: Boolean(payload.suggestFromStory),
+        injectStory: tplFlags.injectStory
       })
       if (payload.storyId && injectStoryContext) {
         const story = await host.getPrisma().story.findUnique({
@@ -273,7 +277,10 @@ reg(
         messages: [
           {
             role: 'system',
-            content: buildSceneMasterSystemPrompt(locale)
+            content: buildSceneMasterSystemPrompt(
+              locale,
+              payload.promptTemplateId
+            )
           },
           {
             role: 'user',
@@ -287,22 +294,29 @@ reg(
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractSceneProfileJson(text)
       const { fillMissingProfileFields } = await import('../../../domain/profileFillMissing')
+      const { shouldFillMissingKeys } = await import('../../../domain/promptTemplates')
       const { SCENE_PROFILE_JSON_KEYS } = await import('../../../domain/sceneMasterPrompt')
       const sceneRequired = SCENE_PROFILE_JSON_KEYS.filter(
         (k) => k !== 'artStyle' && k !== 'hardRules'
       )
-      const scenePatch = await fillMissingProfileFields({
-        profile: profile as unknown as Record<string, unknown>,
-        requiredKeys: sceneRequired,
-        locale,
-        chat: (req) => ctx.aiClient.chat(req),
-        referenceImagePath: refPath,
-        maxTokens: 1200
-      })
-      profile = scenePatch.profile as unknown as typeof profile
-      const sceneRaw = scenePatch.raw
-        ? `${text}\n---missing-fill---\n${scenePatch.raw}`
-        : text
+      let sceneRaw = text
+      let patchedKeys: string[] = []
+      if (shouldFillMissingKeys(payload.promptTemplateId)) {
+        const scenePatch = await fillMissingProfileFields({
+          profile: profile as unknown as Record<string, unknown>,
+          requiredKeys: sceneRequired,
+          locale,
+          chat: (req) => ctx.aiClient.chat(req),
+          referenceImagePath: refPath,
+          maxTokens: 1200,
+          promptTemplateId: payload.promptTemplateId
+        })
+        profile = scenePatch.profile as unknown as typeof profile
+        patchedKeys = scenePatch.patchedKeys
+        sceneRaw = scenePatch.raw
+          ? `${text}\n---missing-fill---\n${scenePatch.raw}`
+          : text
+      }
       activity.append({
         kind: 'scene',
         message: payload.suggestFromStory
@@ -317,7 +331,7 @@ reg(
           title: profile.title,
           segmentKey: payload.segmentKey ?? null,
           usedImage: hasImage,
-          patchedKeys: scenePatch.patchedKeys
+          patchedKeys
         }
       })
       return {

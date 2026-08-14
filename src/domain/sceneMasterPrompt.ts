@@ -14,12 +14,9 @@ import {
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
 import { PromptCatalog, resolvePromptContext } from '../prompts'
-import { inventFromProvidedSourcesRules } from './storyContextPolicy'
-import {
-  appendHardRules,
-  defaultHardRulesFallback,
-  normalizeHardRules
-} from './promptHardRules'
+import { inventRulesForTemplate } from './storyContextPolicy'
+import { assembleSystemPrompt } from './promptTemplates'
+import { appendHardRules, normalizeHardRules } from './promptHardRules'
 
 export const SCENE_PROFILE_JSON_KEYS = [
   'title',
@@ -39,20 +36,28 @@ export const SCENE_PROFILE_JSON_KEYS = [
   'hardRules'
 ] as const
 
-export function buildSceneMasterSystemPrompt(locale: string = 'zh-HK'): string {
+export function buildSceneMasterSystemPrompt(
+  locale: string = 'zh-HK',
+  templateId?: string | null
+): string {
   const ctx = resolvePromptContext(locale)
   const keys = SCENE_PROFILE_JSON_KEYS.join(', ')
-  return [
-    PromptCatalog.t(locale, 'scene.system'),
-    PromptCatalog.t(locale, 'scene.keysLead', { keys }),
-    PromptCatalog.t(locale, 'common.rules'),
-    ...profileCompletenessRules(SCENE_PROFILE_JSON_KEYS, locale).map(
-      (r) => `- ${r}`
-    ),
-    ...inventFromProvidedSourcesRules(locale).map((r) => `- ${r}`),
-    ctx.pack.hardRulesInstruction,
-    ctx.outputLock
-  ].join('\n')
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: [
+      PromptCatalog.t(locale, 'scene.system'),
+      PromptCatalog.t(locale, 'scene.keysLead', { keys }),
+      PromptCatalog.t(locale, 'common.rules'),
+      ...profileCompletenessRules(SCENE_PROFILE_JSON_KEYS, locale).map(
+        (r) => `- ${r}`
+      ),
+      ...inventRulesForTemplate(locale, templateId).map((r) => `- ${r}`),
+      ctx.pack.hardRulesInstruction,
+      ctx.outputLock
+    ].join('\n')
+  })
 }
 
 export function buildSceneMasterUserPrompt(options: {
@@ -140,9 +145,7 @@ export function extractSceneProfileJson(text: string): SceneProfileFields & {
     soundscape: coerceProfileString(parsed.soundscape),
     cameraNotes: coerceProfileString(parsed.cameraNotes),
     visualTags,
-    hardRules:
-      normalizeHardRules(coerceProfileString(parsed.hardRules)) ||
-      defaultHardRulesFallback('scene', 'zh-HK'),
+    hardRules: normalizeHardRules(coerceProfileString(parsed.hardRules)) || '',
     artStyle: artRaw && isArtStyleId(artRaw) ? artRaw : undefined
   }
 }
@@ -217,14 +220,9 @@ export function buildSceneIntroVideoPrompt(
     profile.description.trim().slice(0, 48) ||
     PromptCatalog.t(locale, 'scene.fallbackName')
   const place = profile.description.trim() || name
-  const mood =
-    profile.mood?.trim() || PromptCatalog.t(locale, 'scene.fallbackMood')
-  const lighting =
-    profile.lighting?.trim() ||
-    PromptCatalog.t(locale, 'scene.fallbackLighting')
-  const camera =
-    profile.cameraNotes?.trim().slice(0, 200) ||
-    PromptCatalog.t(locale, 'scene.fallbackCamera')
+  const mood = profile.mood?.trim() || ''
+  const lighting = profile.lighting?.trim() || ''
+  const camera = profile.cameraNotes?.trim().slice(0, 200) || ''
   const time = profile.timeOfDay?.trim()
   const weather = profile.weather?.trim()
   const locationType = profile.locationType?.trim()
@@ -248,7 +246,9 @@ export function buildSceneIntroVideoPrompt(
       weather
         ? PromptCatalog.t(locale, 'sceneIntro.weather', { weather })
         : null,
-      PromptCatalog.t(locale, 'sceneIntro.moodLight', { mood, lighting }),
+      mood || lighting
+        ? PromptCatalog.t(locale, 'sceneIntro.moodLight', { mood, lighting })
+        : null,
       palette
         ? PromptCatalog.t(locale, 'sceneIntro.palette', { palette })
         : null,
@@ -263,9 +263,10 @@ export function buildSceneIntroVideoPrompt(
       scriptCue
         ? PromptCatalog.t(locale, 'sceneIntro.scriptCue', { cue: scriptCue })
         : null,
-      PromptCatalog.t(locale, 'sceneIntro.camera', { camera }),
-      PromptCatalog.t(locale, 'sceneIntro.beat'),
-      PromptCatalog.t(locale, 'sceneIntro.duration')
+      camera
+        ? PromptCatalog.t(locale, 'sceneIntro.camera', { camera })
+        : null,
+      PromptCatalog.t(locale, 'sceneIntro.beat')
     ]
       .filter(Boolean)
       .join(' '),

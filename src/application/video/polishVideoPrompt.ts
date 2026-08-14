@@ -25,6 +25,7 @@ export interface PolishThenGenerateOptions {
   /** Optional progress: 'llm' | 'generate' */
   onPhase?: (phase: 'llm' | 'generate') => void
   maxTokens?: number
+  promptTemplateId?: string | null
 }
 
 export type PolishThenGenerateResult = VideoGenResult & {
@@ -65,7 +66,10 @@ export async function polishThenGenerateVideo(
       messages: [
         {
           role: 'system',
-          content: buildVideoPromptPolishSystemPrompt(locale)
+          content: buildVideoPromptPolishSystemPrompt(
+            locale,
+            options.promptTemplateId
+          )
         },
         { role: 'user', content: options.polishUserContent }
       ],

@@ -116,6 +116,7 @@ const api: ElectronApi & {
       existingDraft?: Record<string, unknown>
       soulContent?: string | null
       referenceImagePath?: string | null
+      promptTemplateId?: string | null
     }) => ipcRenderer.invoke('characters:aiFill', payload),
     generateSoul: (payload: {
       storyId?: string

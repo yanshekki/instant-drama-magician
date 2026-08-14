@@ -82,7 +82,11 @@ describe('collectTimelineHardRules', () => {
   it('labels each object so rules stay attributable', () => {
     const m = collectTimelineHardRules({
       story: { hardRules: 'no watermark', title: 'Demo' },
-      characters: [{ name: 'Keith', hardRules: 'two hands\nno third arm' }],
+      characters: [{
+        name: 'Keith',
+        hardRules: 'two hands\nno third arm',
+        spokenLanguages: ['en']
+      }],
       scenes: [{ title: 'Roof', hardRules: 'empty set' }],
       props: [{ name: 'Umbrella', hardRules: 'no wires' }],
       actions: [{ name: 'Draw sword', hardRules: 'readable beats' }]

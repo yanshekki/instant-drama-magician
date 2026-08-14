@@ -2,6 +2,7 @@
  * Second-pass LLM fill: only keys still empty after the main AI profile fill.
  */
 import { PromptCatalog, resolvePromptContext } from '../prompts'
+import { assembleSystemPrompt } from './promptTemplates'
 import type { ChatCompletionRequest, ChatCompletionResponse } from '../types/domain'
 import { chatContentText } from '../types/domain'
 import { buildVisionUserContent } from './chatVision'
@@ -58,13 +59,19 @@ export function mergeProfilePatch(
 
 export function buildFillMissingSystemPrompt(
   locale: string,
-  missingKeys: readonly string[]
+  missingKeys: readonly string[],
+  templateId?: string | null
 ): string {
   const keys = missingKeys.join(', ')
-  return [
-    PromptCatalog.t(locale, 'fill.system', { keys }),
-    resolvePromptContext(locale).outputLock
-  ].join('\n')
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: [
+      PromptCatalog.t(locale, 'fill.system', { keys }),
+      resolvePromptContext(locale).outputLock
+    ].join('\n')
+  })
 }
 
 export function buildFillMissingUserPrompt(
@@ -96,6 +103,7 @@ export async function fillMissingProfileFields<
   chat: ProfileChatFn
   referenceImagePath?: string | null
   maxTokens?: number
+  promptTemplateId?: string | null
 }): Promise<{ profile: T; patchedKeys: string[]; raw?: string }> {
   let profile = { ...options.profile } as T
   const missing = listMissingProfileKeys(profile, options.requiredKeys)
@@ -115,7 +123,11 @@ export async function fillMissingProfileFields<
       messages: [
         {
           role: 'system',
-          content: buildFillMissingSystemPrompt(options.locale, missing)
+          content: buildFillMissingSystemPrompt(
+            options.locale,
+            missing,
+            options.promptTemplateId
+          )
         },
         {
           role: 'user',

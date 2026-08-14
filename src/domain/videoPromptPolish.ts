@@ -1,5 +1,9 @@
 import { PromptCatalog, resolvePromptContext } from '../prompts'
 import { speechLanguageLockLine } from './speechLanguageLock'
+import {
+  assembleSystemPrompt,
+  shouldForceCinematic
+} from './promptTemplates'
 
 /**
  * LLM polish step before any generateVideo call.
@@ -39,10 +43,16 @@ export function hardRulesMaterialsBlock(
  * Prompt body follows the user UI language (see output lock).
  */
 export function buildVideoPromptPolishSystemPrompt(
-  locale: string = 'zh-HK'
+  locale: string = 'zh-HK',
+  templateId?: string | null
 ): string {
   const { outputLock } = resolvePromptContext(locale)
-  return [PromptCatalog.t(locale, 'videoPolish.system'), outputLock].join('\n')
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'media',
+    base: [PromptCatalog.t(locale, 'videoPolish.system'), outputLock].join('\n')
+  })
 }
 
 export interface IntroVideoPolishContext {
@@ -141,6 +151,7 @@ export interface SceneIntroVideoPolishContext {
   artStyle?: string | null
   seedPrompt?: string | null
   hardRules?: string | null
+  promptTemplateId?: string | null
 }
 
 /** Materials for location / establishing intro clip polish. */
@@ -181,7 +192,9 @@ export function buildSceneIntroVideoPolishUserPrompt(
           script: truncateForVideoPrompt(ctx.script, 1200)
         })
       : null,
-    PromptCatalog.t(loc, 'sceneIntroPolish.emptySet'),
+    shouldForceCinematic(ctx.promptTemplateId)
+      ? PromptCatalog.t(loc, 'sceneIntroPolish.emptySet')
+      : null,
     hardRulesMaterialsBlock(ctx.hardRules, loc),
     PromptCatalog.t(loc, 'intro.templateDraft'),
     ctx.fallbackPrompt

@@ -66,6 +66,11 @@ import { useDialog } from '../context/DialogContext'
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, Card, Input, Label, Select } from '../components/ui'
+import {
+  clearPromptTemplatePrefs,
+  hasRememberedAlways,
+  readPromptTemplatePrefs
+} from '../lib/promptTemplatePref'
 
 type SettingsTab = 'llm' | 'image' | 'video' | 'app'
 
@@ -78,6 +83,11 @@ export function SettingsPage(): JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [recipePinned, setRecipePinned] = useState(() =>
+    hasRememberedAlways(readPromptTemplatePrefs(
+      typeof localStorage === 'undefined' ? null : localStorage
+    ))
+  )
   const [clearing, setClearing] = useState(false)
   /** Only set when FFmpeg is missing/broken — app requires FFmpeg always. */
   const [ffmpegError, setFfmpegError] = useState<string | null>(null)
@@ -1205,6 +1215,34 @@ export function SettingsPage(): JSX.Element {
                       )
                     })}
                   </div>
+                </div>
+                <div>
+                  <Label>{t('settings.promptRecipe')}</Label>
+                  <p className="mt-0.5 text-[11px] text-ink-500">
+                    {t('settings.promptRecipeHint')}
+                  </p>
+                  <p className="mt-1.5 text-xs text-ink-300">
+                    {recipePinned
+                      ? t('settings.promptRecipePinned')
+                      : t('settings.promptRecipeAsk')}
+                  </p>
+                  <Button
+                    className="mt-2"
+                    variant="secondary"
+                    type="button"
+                    disabled={!recipePinned}
+                    onClick={() => {
+                      clearPromptTemplatePrefs(
+                        typeof localStorage === 'undefined'
+                          ? null
+                          : localStorage
+                      )
+                      setRecipePinned(false)
+                      toast.success(t('settings.promptRecipeResetOk'))
+                    }}
+                  >
+                    {t('settings.promptRecipeReset')}
+                  </Button>
                 </div>
                 {ffmpegError && (
                   <div

@@ -21,12 +21,9 @@ import {
   synthesizeVisualTagsFromText,
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
-import {
-  appendHardRules,
-  defaultHardRulesFallback,
-  normalizeHardRules
-} from './promptHardRules'
-import { inventFromProvidedSourcesRules } from './storyContextPolicy'
+import { appendHardRules, normalizeHardRules } from './promptHardRules'
+import { inventRulesForTemplate } from './storyContextPolicy'
+import { assembleSystemPrompt } from './promptTemplates'
 
 export interface ActionProfileFields {
   name?: string
@@ -51,17 +48,25 @@ export const ACTION_PROFILE_JSON_KEYS = [
   'hardRules'
 ] as const
 
-export function buildActionMasterSystemPrompt(locale: string = 'zh-HK'): string {
+export function buildActionMasterSystemPrompt(
+  locale: string = 'zh-HK',
+  templateId?: string | null
+): string {
   const ctx = resolvePromptContext(locale)
   const keys = ACTION_PROFILE_JSON_KEYS.join(', ')
-  return [
-    PromptCatalog.t(locale, 'action.system'),
-    PromptCatalog.t(locale, 'action.fieldsLead', { keys }),
-    ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, locale),
-    ...inventFromProvidedSourcesRules(locale),
-    ctx.pack.hardRulesInstruction,
-    ctx.outputLock
-  ].join('\n')
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: [
+      PromptCatalog.t(locale, 'action.system'),
+      PromptCatalog.t(locale, 'action.fieldsLead', { keys }),
+      ...profileCompletenessRules(ACTION_PROFILE_JSON_KEYS, locale),
+      ...inventRulesForTemplate(locale, templateId),
+      ctx.pack.hardRulesInstruction,
+      ctx.outputLock
+    ].join('\n')
+  })
 }
 
 export function buildActionMasterUserPrompt(opts: {
@@ -122,15 +127,13 @@ export function extractActionProfileJson(text: string): ActionProfileFields {
       visualTags,
       artStyle: coerceProfileString(o.artStyle),
       panelLayout: coerceProfileString(o.panelLayout),
-      hardRules:
-        normalizeHardRules(coerceProfileString(o.hardRules)) ||
-        defaultHardRulesFallback('action', 'zh-HK')
+      hardRules: normalizeHardRules(coerceProfileString(o.hardRules)) || ''
     }
   } catch {
     return {
       name: 'Untitled action',
       description: text.slice(0, 400),
-      hardRules: defaultHardRulesFallback('action', 'zh-HK')
+      hardRules: ''
     }
   }
 }
@@ -148,7 +151,7 @@ export function buildActionCastBindingBlock(
   ]
   if (!castRefs.length) {
     lines.push(
-      'No cast stills attached — invent clear generic figures consistent across all panels.'
+      'No cast stills attached — do not invent a named person, face, wardrobe, or sample world. Stage motion only; anonymous silhouettes if a body is required, faceless and consistent across panels.'
     )
     return lines.join('\n')
   }

@@ -1,5 +1,7 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
 import { chatContentText } from '../../types/domain'
+import { PromptCatalog } from '../../prompts'
+import { assembleSystemPrompt } from '../../domain/promptTemplates'
 
 export class SceneStep implements PipelineStep {
   readonly name = 'scene' as const
@@ -38,8 +40,15 @@ export class SceneStep implements PipelineStep {
         messages: [
           {
             role: 'system',
-            content:
-              'You expand short-drama scenes into visual beat sheets. Each beat must fit AI video clips of max ~10 seconds.'
+            content: assembleSystemPrompt({
+              locale: context.locale || 'zh-HK',
+              templateId: context.promptTemplateId,
+              family: 'copy',
+              base: PromptCatalog.t(
+                context.locale || 'zh-HK',
+                'pipeline.scene.system'
+              )
+            })
           },
           {
             role: 'user',

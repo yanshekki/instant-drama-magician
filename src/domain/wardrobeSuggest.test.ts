@@ -40,7 +40,7 @@ describe('wardrobeSuggest', () => {
     const r = extractWardrobeSuggestionJson(
       '{"name":"X","costume":"robe","artStyle":"not_real","rationale":""}'
     )
-    expect(r.artStyle).toBe('photo_cinematic')
+    expect(r.artStyle).toBe('')
   })
 
   it('user prompt includes full character extras and empty scenes', () => {

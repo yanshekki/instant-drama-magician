@@ -594,4 +594,6 @@ export interface PipelineContext {
     jobId?: string
   }) => void
   aspectRatio?: string
+  locale?: string
+  promptTemplateId?: string | null
 }

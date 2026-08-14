@@ -64,6 +64,7 @@ reg(
         idea?: string | null
         locale?: string
         promptOverride?: string | null
+        promptTemplateId?: string | null
       }
     ) => {
       const locale = PromptCatalog.locale(payload.locale)
@@ -91,8 +92,23 @@ reg(
       const size = ctx.settings.imageSizeWide || '1792x1024'
       const aspectRatio = aspectFromImageSize(size)
       const coverLang = resolvePromptContext(String(locale || 'zh-HK'))
+      const { assembleSystemPrompt, shouldForceCinematic } = await import(
+        '../../domain/promptTemplates'
+      )
+      const posterLead = shouldForceCinematic(payload.promptTemplateId)
+        ? [
+            PromptCatalog.t(locale, 'cover.posterLead'),
+            PromptCatalog.t(locale, 'tpl.system.cinematicLock')
+          ].join(' ')
+        : PromptCatalog.t(locale, 'cover.posterLead')
+      const recipeTail = assembleSystemPrompt({
+        locale,
+        templateId: payload.promptTemplateId,
+        family: 'media',
+        base: ''
+      }).trim()
       const basePrompt = [
-        PromptCatalog.t(locale, 'cover.posterLead'),
+        posterLead,
         PromptCatalog.t(locale, 'cover.titleMood', { title }),
         artStyle.promptBlock,
         styleNote
@@ -101,6 +117,7 @@ reg(
         idea ? PromptCatalog.t(locale, 'cover.extraDir', { idea }) : '',
         PromptCatalog.t(locale, 'cover.establishing'),
         PromptCatalog.t(locale, 'cover.medium'),
+        recipeTail,
         coverLang.outputLock
       ]
         .filter(Boolean)
@@ -219,6 +236,7 @@ reg(
         existingStyleNote?: string | null
         existingHardRules?: string | null
         locale?: string
+        promptTemplateId?: string | null
       }
     ) => {
       const locale = payload.locale ?? 'zh-HK'
@@ -283,7 +301,10 @@ reg(
         messages: [
           {
             role: 'system',
-            content: buildStoryMetaSystemPrompt(locale)
+            content: buildStoryMetaSystemPrompt(
+              locale,
+              payload.promptTemplateId
+            )
           },
           {
             role: 'user',
@@ -333,6 +354,7 @@ reg(
         locale?: string
         /** When true, delete existing timeline then create new beats */
         replace?: boolean
+        promptTemplateId?: string | null
       }
     ) => {
       const locale = payload.locale ?? 'zh-HK'
@@ -350,7 +372,10 @@ reg(
         messages: [
           {
             role: 'system',
-            content: buildStoryBeatsSystemPrompt(locale)
+            content: buildStoryBeatsSystemPrompt(
+              locale,
+              payload.promptTemplateId
+            )
           },
           {
             role: 'user',

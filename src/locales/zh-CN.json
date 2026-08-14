@@ -1379,7 +1379,13 @@
       "disk": "磁碟空间不足或写入失败",
       "permission": "权限不足",
       "unknown": "未知更新错误"
-    }
+    },
+    "promptRecipe": "AI 配方记忆",
+    "promptRecipeHint": "若勾选“以后都用这套”，改善／生成会跳过选择窗。重置后会再问你。",
+    "promptRecipePinned": "已记住文字及／或影音配方。",
+    "promptRecipeAsk": "下次改善／生成会再弹出选择窗。",
+    "promptRecipeReset": "忘记已记住的配方",
+    "promptRecipeResetOk": "已清除配方记忆。下次会再问你。"
   },
   "ai": {
     "status": "人工智能状态",
@@ -2038,5 +2044,43 @@
     "videoDoneGalleryHint": "介绍片已挂到来源静图；在参考图库选中该图即可播放。完成页亦可直接播放。",
     "useStillAsKeyframe": "用现有静图作关键帧",
     "keyframePromptHint": "关键帧静图提示（图像导演）。关键帧就绪后会再做影片动作润饰。"
+  },
+  "promptTpl": {
+    "title": "选择这次 AI 怎么做",
+    "subtitle": "这个选择决定会不会发明世界、锁口白、锁身份。没选就不会偷偷套预设。",
+    "remember": "之后这类动作都用这套（可用箭头随时转）",
+    "confirm": "用这套",
+    "polish-only": {
+      "name": "只润饰",
+      "blurb": "保持身份和世界。只改措辞。不要发明时代、天气、职业或口白语言。不要把预设铁则写入档。"
+    },
+    "fill-blanks": {
+      "name": "只填空白",
+      "blurb": "只补空栏。已填内容不要改。"
+    },
+    "invent": {
+      "name": "自由创作",
+      "blurb": "授权模型按构想补齐可拍细节。仍然不引入 Demo 世界。"
+    },
+    "from-story": {
+      "name": "从故事建议",
+      "blurb": "用本故事标题、风格、选角、场景做 continuity。冲突时以你的构想为准。"
+    },
+    "follow-asset": {
+      "name": "跟资产／故事",
+      "blurb": "用已有风格和铁则。不要强加电影感、空镜或 6–10 秒。"
+    },
+    "cinematic-lock": {
+      "name": "电影感＋防幻觉",
+      "blurb": "电影短剧感、空镜、无水印多余脸、双手双臂双腿。"
+    },
+    "identity-lock": {
+      "name": "锁身份",
+      "blurb": "脸、体型、服装、场地、道具锁定附图。"
+    },
+    "restyle": {
+      "name": "可改造型／场地",
+      "blurb": "同一个人。服装、场地、时代可按你要求改。不要换成另一人。"
+    }
   }
 }

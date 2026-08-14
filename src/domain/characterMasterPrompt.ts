@@ -25,13 +25,10 @@ import {
   VISUAL_TAGS_KEYS
 } from './jsonProfileFields'
 import { PromptCatalog, resolvePromptContext } from '../prompts'
-import { inventFromProvidedSourcesRules } from './storyContextPolicy'
+import { inventRulesForTemplate } from './storyContextPolicy'
+import { assembleSystemPrompt } from './promptTemplates'
 import { normalizeLanguageCodes } from './worldLanguages'
-import {
-  appendHardRules,
-  defaultHardRulesFallback,
-  normalizeHardRules
-} from './promptHardRules'
+import { appendHardRules, normalizeHardRules } from './promptHardRules'
 
 export const CHARACTER_PROFILE_JSON_KEYS = [
   'name',
@@ -50,23 +47,31 @@ export const CHARACTER_PROFILE_JSON_KEYS = [
   'hardRules'
 ] as const
 
-export function buildCharacterMasterSystemPrompt(locale: string = 'zh-HK'): string {
+export function buildCharacterMasterSystemPrompt(
+  locale: string = 'zh-HK',
+  templateId?: string | null
+): string {
   const ctx = resolvePromptContext(locale)
   const keys = CHARACTER_PROFILE_JSON_KEYS.join(', ')
-  return [
-    PromptCatalog.t(locale, 'character.system'),
-    PromptCatalog.t(locale, 'character.keysLead', { keys }),
-    PromptCatalog.t(locale, 'common.rules'),
-    ...profileCompletenessRules(
-      CHARACTER_PROFILE_JSON_KEYS.filter((k) => k !== 'spokenLanguages'),
-      locale
-    ).map((r) => `- ${r}`),
-    ...inventFromProvidedSourcesRules(locale).map((r) => `- ${r}`),
-    `- ${PromptCatalog.t(locale, 'character.ruleSpoken')}`,
-    `- ${PromptCatalog.t(locale, 'character.ruleIdentity')}`,
-    ctx.pack.hardRulesInstruction,
-    ctx.outputLock
-  ].join('\n')
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: [
+      PromptCatalog.t(locale, 'character.system'),
+      PromptCatalog.t(locale, 'character.keysLead', { keys }),
+      PromptCatalog.t(locale, 'common.rules'),
+      ...profileCompletenessRules(
+        CHARACTER_PROFILE_JSON_KEYS.filter((k) => k !== 'spokenLanguages'),
+        locale
+      ).map((r) => `- ${r}`),
+      ...inventRulesForTemplate(locale, templateId).map((r) => `- ${r}`),
+      `- ${PromptCatalog.t(locale, 'character.ruleSpoken')}`,
+      `- ${PromptCatalog.t(locale, 'character.ruleIdentity')}`,
+      ctx.pack.hardRulesInstruction,
+      ctx.outputLock
+    ].join('\n')
+  })
 }
 
 export function buildCharacterMasterUserPrompt(options: {
@@ -138,9 +143,7 @@ export function extractCharacterProfileJson(text: string): CharacterProfileField
     mannerisms: coerceProfileString(parsed.mannerisms),
     relationships: coerceProfileString(parsed.relationships),
     visualTags,
-    hardRules:
-      normalizeHardRules(coerceProfileString(parsed.hardRules)) ||
-      defaultHardRulesFallback('character', 'zh-HK')
+    hardRules: normalizeHardRules(coerceProfileString(parsed.hardRules)) || ''
   }
 }
 
@@ -288,13 +291,9 @@ export function buildCharacterIntroVideoPrompt(
   const personality =
     profile.personality?.trim() ||
     profile.description?.trim() ||
-    PromptCatalog.t(locale, 'character.fallbackPersonality')
-  const manner =
-    profile.mannerisms?.trim() ||
-    PromptCatalog.t(locale, 'character.fallbackManner')
-  const voice =
-    profile.voiceDesc?.trim() ||
-    PromptCatalog.t(locale, 'character.fallbackVoice')
+    ''
+  const manner = profile.mannerisms?.trim() || ''
+  const voice = profile.voiceDesc?.trim() || ''
   const soul = (options?.soulExcerpt ?? '').trim().slice(0, 1200)
   const backstory = profile.backstory?.trim().slice(0, 240)
   const relationships = profile.relationships?.trim().slice(0, 160)
@@ -320,8 +319,7 @@ export function buildCharacterIntroVideoPrompt(
         locale
       }),
       PromptCatalog.t(locale, 'charIntro.beat'),
-      PromptCatalog.t(locale, 'charIntro.lighting'),
-      PromptCatalog.t(locale, 'charIntro.duration')
+      PromptCatalog.t(locale, 'charIntro.lighting')
     ]
       .filter(Boolean)
       .join(' '),

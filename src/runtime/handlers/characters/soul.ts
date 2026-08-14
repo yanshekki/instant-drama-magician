@@ -30,6 +30,7 @@ reg(
         profile: Record<string, unknown>
         existingSoul?: string | null
         userRequest?: string | null
+        promptTemplateId?: string | null
       }
     ) => {
       const spokenRaw = payload.profile?.spokenLanguages
@@ -71,7 +72,10 @@ reg(
         messages: [
           {
             role: 'system',
-            content: buildSoulGenerateSystemPrompt(locale)
+            content: buildSoulGenerateSystemPrompt(
+              locale,
+              payload.promptTemplateId
+            )
           },
           {
             role: 'user',

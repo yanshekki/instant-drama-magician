@@ -65,10 +65,22 @@ describe('speechLanguageLock', () => {
     expect(line).not.toMatch(/ja\)/)
   })
 
-  it('empty cast falls back to UI locale', () => {
-    const lines = speechLanguageLockLines({ characters: [], uiLocale: 'zh-HK' })
-    expect(lines).toHaveLength(1)
-    expect(lines[0]).toMatch(/yue|粵語/)
+  it('empty cast or empty spokenLanguages does not invent a lock', () => {
+    expect(speechLanguageLockLines({ characters: [], uiLocale: 'zh-HK' })).toEqual(
+      []
+    )
+    expect(
+      speechLanguageLockLines({
+        characters: [{ name: 'A' }],
+        uiLocale: 'zh-HK'
+      })
+    ).toEqual([])
+    expect(
+      speechLanguageLockLines({
+        characters: [{ name: 'A', spokenLanguages: ['yue'] }],
+        locale: 'zh-HK'
+      }).length
+    ).toBe(1)
   })
 
   it('merges lock without duplicating', () => {

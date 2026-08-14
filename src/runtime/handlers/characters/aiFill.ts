@@ -27,6 +27,7 @@ reg(
         soulContent?: string | null
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
+        promptTemplateId?: string | null
       }
     ) => {
       const idea = payload.idea?.trim() ?? ''
@@ -46,6 +47,8 @@ reg(
         resolveReadableImagePath,
         visionFillUserPreamble
       } = await import('../../../domain/chatVision')
+      const { templateFlags } = await import('../../../domain/promptTemplates')
+      const tplFlags = templateFlags(payload.promptTemplateId, 'copy')
       const refPath = resolveReadableImagePath(payload.referenceImagePath)
       const hasImage = Boolean(refPath)
       if (!idea && !hasDraft && !hasSoul && !hasImage) {
@@ -54,11 +57,17 @@ reg(
           'errors.ideaOrImageRequired'
         )
       }
-      // Character invent uses only idea + form + soul (not the open story’s style).
-      // Scene / clip / wardrobe flows own story continuity — never inject open story.
-      const storyTitle: string | undefined = undefined
-      const styleNote: string | null | undefined = undefined
+      // Character invent uses only idea + form + soul unless the user picked from-story.
+      let storyTitle: string | undefined
+      let styleNote: string | null | undefined
       const locale = payload.locale ?? 'zh-HK'
+      if (tplFlags.injectStory && payload.storyId?.trim()) {
+        const story = await ctx.host.getPrisma().story.findUnique({
+          where: { id: payload.storyId }
+        })
+        storyTitle = story?.title
+        styleNote = story?.styleNote
+      }
 
       const str = (k: string): string | undefined => {
         const v = draft?.[k]
@@ -115,7 +124,10 @@ reg(
         messages: [
           {
             role: 'system',
-            content: buildCharacterMasterSystemPrompt(locale)
+            content: buildCharacterMasterSystemPrompt(
+              locale,
+              payload.promptTemplateId
+            )
           },
           {
             role: 'user',
@@ -127,20 +139,27 @@ reg(
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractCharacterProfileJson(text)
       const { fillMissingProfileFields } = await import('../../../domain/profileFillMissing')
+      const { shouldFillMissingKeys } = await import('../../../domain/promptTemplates')
       const { CHARACTER_PROFILE_JSON_KEYS: charKeys } = await import('../../../domain/characterMasterPrompt')
       const charRequired = charKeys.filter((k) => k !== 'spokenLanguages' && k !== 'hardRules')
-      const charPatch = await fillMissingProfileFields({
-        profile: profile as unknown as Record<string, unknown>,
-        requiredKeys: charRequired,
-        locale,
-        chat: (req) => ctx.aiClient.chat(req),
-        referenceImagePath: refPath,
-        maxTokens: 1200
-      })
-      profile = charPatch.profile as unknown as typeof profile
-      const rawOut = charPatch.raw
-        ? `${text}\n---missing-fill---\n${charPatch.raw}`
-        : text
+      let rawOut = text
+      let patchedKeys: string[] = []
+      if (shouldFillMissingKeys(payload.promptTemplateId)) {
+        const charPatch = await fillMissingProfileFields({
+          profile: profile as unknown as Record<string, unknown>,
+          requiredKeys: charRequired,
+          locale,
+          chat: (req) => ctx.aiClient.chat(req),
+          referenceImagePath: refPath,
+          maxTokens: 1200,
+          promptTemplateId: payload.promptTemplateId
+        })
+        profile = charPatch.profile as unknown as typeof profile
+        patchedKeys = charPatch.patchedKeys
+        rawOut = charPatch.raw
+          ? `${text}\n---missing-fill---\n${charPatch.raw}`
+          : text
+      }
       activity.append({
         kind: 'character',
         message: hasImage
@@ -154,7 +173,7 @@ reg(
           usedSoul: hasSoul,
           usedDraft: hasDraft,
           usedImage: hasImage,
-          patchedKeys: charPatch.patchedKeys
+          patchedKeys
         }
       })
       return {

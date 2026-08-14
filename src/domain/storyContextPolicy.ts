@@ -1,4 +1,5 @@
 import { PromptCatalog } from '../prompts'
+import { flagsForTemplate, resolvePromptTemplate } from './promptTemplates'
 
 /**
  * Policy: only feed the model what the user actually provided.
@@ -23,6 +24,8 @@ export interface StoryContextInjectFlags {
   hasSoul?: boolean
   /** Explicit “suggest from story / plot segment” user action */
   suggestFromStory?: boolean
+  /** User picked the from-story recipe */
+  injectStory?: boolean
 }
 
 /**
@@ -33,7 +36,7 @@ export interface StoryContextInjectFlags {
 export function shouldInjectStoryContext(
   flags: StoryContextInjectFlags
 ): boolean {
-  return Boolean(flags.suggestFromStory)
+  return Boolean(flags.suggestFromStory || flags.injectStory)
 }
 
 /**
@@ -57,6 +60,20 @@ export function inventFromProvidedSourcesRules(
     PromptCatalog.t(locale, 'invent.improve'),
     PromptCatalog.t(locale, 'invent.noImport'),
     PromptCatalog.t(locale, 'invent.storyBlock')
+  ]
+}
+
+/** Skip "invent freely" unless the user picked invent / from-story. */
+export function inventRulesForTemplate(
+  locale: string,
+  templateId?: string | null
+): string[] {
+  const flags = flagsForTemplate(resolvePromptTemplate(templateId, 'copy'))
+  if (flags.inventWorld) return inventFromProvidedSourcesRules(locale)
+  return [
+    PromptCatalog.t(locale, 'invent.sources'),
+    PromptCatalog.t(locale, 'invent.improve'),
+    PromptCatalog.t(locale, 'invent.noImport')
   ]
 }
 

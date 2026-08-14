@@ -1379,7 +1379,13 @@
       "disk": "磁碟空間不足或寫入失敗",
       "permission": "權限不足",
       "unknown": "未知更新錯誤"
-    }
+    },
+    "promptRecipe": "AI 配方記憶",
+    "promptRecipeHint": "若勾選「之後都用呢套」，改善／生成會跳過選擇窗。重置後會再問你。",
+    "promptRecipePinned": "已記住文字及／或影音配方。",
+    "promptRecipeAsk": "下次改善／生成會再彈選擇窗。",
+    "promptRecipeReset": "忘記已記住嘅配方",
+    "promptRecipeResetOk": "已清除配方記憶。下次會再問你。"
   },
   "ai": {
     "status": "人工智能狀態",
@@ -2038,5 +2044,43 @@
     "videoDoneGalleryHint": "介紹片已掛到來源靜圖；在參考圖庫選中該圖即可播放。完成頁亦可直接播放。",
     "useStillAsKeyframe": "用現有靜圖作關鍵幀",
     "keyframePromptHint": "關鍵幀靜圖提示（圖像導演）。關鍵幀就緒後會再做影片動作潤飾。"
+  },
+  "promptTpl": {
+    "title": "揀今次 AI 點做",
+    "subtitle": "呢個選擇決定會唔會發明世界、鎖口白、鎖身份。冇揀就唔會偷偷套預設。",
+    "remember": "之後呢類動作都用呢套（可用箭咀隨時轉）",
+    "confirm": "用呢套",
+    "polish-only": {
+      "name": "只潤飾",
+      "blurb": "保持身份同世界。只改措辭。唔好發明時代、天氣、職業或口白語言。唔好把預設鐵則寫入檔。"
+    },
+    "fill-blanks": {
+      "name": "只填空白",
+      "blurb": "只補空欄。已填內容唔好改。"
+    },
+    "invent": {
+      "name": "自由創作",
+      "blurb": "授權模型按構思補齊可拍細節。仍然唔引入 Demo 世界。"
+    },
+    "from-story": {
+      "name": "從故事建議",
+      "blurb": "用本故事標題、風格、選角、場景做 continuity。衝突時以你嘅構思為準。"
+    },
+    "follow-asset": {
+      "name": "跟資產／故事",
+      "blurb": "用已有風格同鐵則。唔好強加電影感、空鏡或 6–10 秒。"
+    },
+    "cinematic-lock": {
+      "name": "電影感＋防幻覺",
+      "blurb": "電影短劇感、空鏡、無水印多餘臉、雙手雙臂雙腿。"
+    },
+    "identity-lock": {
+      "name": "鎖身份",
+      "blurb": "臉、體型、服裝、場地、道具鎖定附圖。"
+    },
+    "restyle": {
+      "name": "可改造型／場地",
+      "blurb": "同一個人。服裝、場地、時代可按你要求改。唔好換成另一人。"
+    }
   }
 }

@@ -535,7 +535,12 @@ export class GenerationService {
   async run(
     storyId: string,
     onProgress?: GenerationProgressHandler,
-    opts?: { onlyFailedVideos?: boolean; interactiveVideo?: boolean }
+    opts?: {
+      onlyFailedVideos?: boolean
+      interactiveVideo?: boolean
+      locale?: string
+      promptTemplateId?: string | null
+    }
   ): Promise<GenerationResult> {
     const story = await this.loadStory(storyId)
     if (!canStartGeneration(story.status) && !opts?.onlyFailedVideos) {
@@ -562,6 +567,8 @@ export class GenerationService {
         interactiveVideo: opts?.interactiveVideo,
         videoConcurrency: this.settings.videoConcurrency,
         aspectRatio: this.settings.aspectRatio,
+        locale: opts?.locale,
+        promptTemplateId: opts?.promptTemplateId,
         onStepComplete: (stepResult, index, total) => {
           onProgress?.({
             storyId,

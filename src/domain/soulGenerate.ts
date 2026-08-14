@@ -5,13 +5,22 @@
 
 import { PromptCatalog } from '../prompts'
 import type { CharacterProfileFields } from '../types/domain'
+import { assembleSystemPrompt } from './promptTemplates'
 
 export type SoulProfileInput = Partial<CharacterProfileFields> & {
   name?: string
 }
 
-export function buildSoulGenerateSystemPrompt(locale: string = 'zh-HK'): string {
-  return PromptCatalog.t(locale, 'soul.system')
+export function buildSoulGenerateSystemPrompt(
+  locale: string = 'zh-HK',
+  templateId?: string | null
+): string {
+  return assembleSystemPrompt({
+    locale,
+    templateId,
+    family: 'copy',
+    base: PromptCatalog.t(locale, 'soul.system')
+  })
 }
 
 export function buildSoulGenerateUserPrompt(options: {
