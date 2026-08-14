@@ -1,4 +1,9 @@
 import { getArtStyle, isArtStyleId } from '../../../domain/characterArtStyles'
+import { getLlmPresetDef, isLlmProviderPreset } from '../../../domain/openaiCompatible'
+import {
+  imageProviderOptions,
+  videoProviderOptions
+} from '../../../domain/providerEndpoints'
 import type { Scene } from '../../../types/domain'
 
 export type StoryCastScene = Scene & { sceneNumber?: number }
@@ -49,4 +54,40 @@ export function timelineArtStyleLabel(
   const id = raw.trim()
   if (!isArtStyleId(id)) return raw
   return t(`characters.${getArtStyle(id).labelKey}`)
+}
+
+/** Provider id (same-as-llm, stub, grok-gateway…) → settings picker label. */
+export function timelineProviderLabel(
+  id: string,
+  t: (key: string) => string
+): string {
+  const raw = id.trim()
+  if (!raw) return raw
+  const opt =
+    videoProviderOptions().find((o) => o.id === raw) ||
+    imageProviderOptions().find((o) => o.id === raw)
+  if (opt) {
+    const ns = opt.channelLabel ? 'settings.channelPreset' : 'settings.llmPreset'
+    return t(`${ns}.${opt.labelKey}`)
+  }
+  if (isLlmProviderPreset(raw)) {
+    return t(`settings.llmPreset.${getLlmPresetDef(raw).labelKey}`)
+  }
+  return raw
+}
+
+/** "same-as-llm · grok" → localized provider + raw model id. */
+export function timelineChannelLabel(
+  raw: string,
+  t: (key: string) => string
+): string {
+  const s = raw.trim()
+  if (!s) return s
+  const sep = ' · '
+  const i = s.indexOf(sep)
+  const provider = (i >= 0 ? s.slice(0, i) : s).trim()
+  const model = i >= 0 ? s.slice(i + sep.length).trim() : ''
+  const name = timelineProviderLabel(provider, t)
+  if (name && model) return `${name} · ${model}`
+  return name || model
 }

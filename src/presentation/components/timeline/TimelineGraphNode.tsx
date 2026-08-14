@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { TimelineGraphLaidOutNode } from '../../../domain/timelineGraph'
 import { LocalMediaImage } from '../LocalMediaImage'
 import { Button, Label, Textarea } from '../ui'
-import { timelineArtStyleLabel } from './timelineLabels'
+import { timelineArtStyleLabel, timelineChannelLabel } from './timelineLabels'
 
 export interface TimelineGraphNodeHandlers {
   promptValue: string
@@ -216,7 +216,9 @@ function nodeBody(
               handlers.onOpenSetup()
             }}
           >
-            {node.subtitle || t('timeline.graph.setup')}
+            {node.subtitle
+              ? timelineChannelLabel(node.subtitle, t)
+              : t('timeline.graph.setup')}
           </button>
         </div>
         <div className="min-h-0 flex-1 px-3 pt-2">

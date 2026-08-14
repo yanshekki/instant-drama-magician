@@ -56,6 +56,7 @@ describe('TimelineGraphCanvas', () => {
           mediaStatus: 'EMPTY'
         },
         story: { artStyle: 'photo_cinematic', styleNote: 'noir rain' },
+        videoProvider: 'same-as-llm',
         characters: [
           {
             id: 'c1',
@@ -79,6 +80,8 @@ describe('TimelineGraphCanvas', () => {
     )
     expect(screen.getAllByText(/Cinematic photoreal/i).length).toBeGreaterThan(0)
     expect(screen.queryByText('photo_cinematic')).toBeNull()
+    expect(screen.getAllByText(/Same as chat model/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText('same-as-llm')).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: /^Save$/i })[0]!)
     expect(handlers.onSavePrompt).toHaveBeenCalled()
   })

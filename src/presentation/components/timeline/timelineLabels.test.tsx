@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   sceneCastLabel,
   timelineArtStyleLabel,
+  timelineChannelLabel,
+  timelineProviderLabel,
   timelineTrackLabel
 } from './timelineLabels'
 
@@ -57,6 +59,22 @@ describe('sceneCastLabel', () => {
       '電影寫實（預設）'
     )
     expect(timelineArtStyleLabel('亞青手持', t)).toBe('亞青手持')
+  })
+
+  it('localizes channel ids such as same-as-llm', () => {
+    const t = (k: string) =>
+      k === 'settings.channelPreset.sameAsLlm'
+        ? '與對話模型相同'
+        : k === 'settings.channelPreset.stub'
+          ? 'Stub 佔位（離線）'
+          : k
+    expect(timelineProviderLabel('same-as-llm', t)).toBe('與對話模型相同')
+    expect(timelineChannelLabel('same-as-llm', t)).toBe('與對話模型相同')
+    expect(timelineChannelLabel('same-as-llm · grok-4.6', t)).toBe(
+      '與對話模型相同 · grok-4.6'
+    )
+    expect(timelineChannelLabel('stub', t)).toBe('Stub 佔位（離線）')
+    expect(timelineChannelLabel('mystery-api', t)).toBe('mystery-api')
   })
 
   it('dedupes repeated speaker prefixes on the track', () => {
