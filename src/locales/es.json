@@ -874,6 +874,8 @@
     "reorder": "Reordenar por tiempo",
     "importClip": "Importar clip",
     "openClip": "clip abierto",
+    "exportClip": "Exportar este clip",
+    "exportClipOk": "Clip exportado: {{path}}",
     "previewEmpty": "Seleccione un clip para obtener una vista previa",
     "previewNoMedia": "No hay medios reproducibles en este clip.",
     "previewUnplayable": "Este archivo no es un vídeo reproducible (archivo vacío o una página web guardada como mp4). Vuelva a generar el clip.",

@@ -70,7 +70,9 @@ function seed() {
       characterId: 'char-1',
       characterIds: ['char-1'],
       sceneId: 'scene-1',
-      sceneIds: ['scene-1']
+      sceneIds: ['scene-1'],
+      mediaPath: '/media/clip-1.mp4',
+      mediaStatus: 'READY'
     })
   ])
   api.timeline.getAdvancedPrep = vi.fn().mockResolvedValue({
@@ -107,6 +109,7 @@ function seed() {
   })
   api.generation.onProgress = vi.fn(() => () => undefined)
   api.media.listExports = vi.fn().mockResolvedValue({ items: [], latestPath: null })
+  api.media.saveAs = vi.fn().mockResolvedValue({ filePath: '/tmp/受戒下山-第1段.mp4' })
 }
 
 describe('TimelineV2Page', () => {
@@ -163,5 +166,26 @@ describe('TimelineV2Page', () => {
       fireEvent.click(adv!)
     })
     await waitFor(() => expect(screen.getByTestId('advanced')).toBeTruthy())
+  })
+
+  it('exports the selected clip via saveAs', async () => {
+    await renderWithProviders(<TimelineV2Page />, { route: '/timeline-v2' })
+    await waitFor(() => expect(api.timeline.list).toHaveBeenCalled())
+    const exportBtn = await waitFor(() => {
+      const btn = screen
+        .queryAllByRole('button')
+        .find((b) => /Export this clip|匯出此段|exportClip/i.test(b.textContent || ''))
+      expect(btn).toBeTruthy()
+      return btn!
+    })
+    await act(async () => {
+      fireEvent.click(exportBtn)
+    })
+    await waitFor(() => expect(api.media.saveAs).toHaveBeenCalled())
+    expect(api.media.saveAs).toHaveBeenCalledWith(
+      '/media/clip-1.mp4',
+      undefined,
+      expect.stringMatching(/第1段|\.mp4$/)
+    )
   })
 })

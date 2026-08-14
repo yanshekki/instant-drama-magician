@@ -165,7 +165,7 @@ reg(
  */
 reg(
   'media:saveAs',
-  (async (filePath: string, destPath?: string) => {
+  (async (filePath: string, destPath?: string, suggestedName?: string) => {
     if (!filePath || !existsSync(filePath)) {
       throw new AppError('NOT_FOUND', 'errors.mediaNotFound')
     }
@@ -192,9 +192,10 @@ reg(
         return dl
       }
       const win = host.getMainWindow()
+      const suggested = (suggestedName || '').trim()
       const options = {
         title: 'Save as',
-        defaultPath: basename(filePath),
+        defaultPath: suggested || basename(filePath),
         filters: saveAsDialogFilters(filePath)
       }
       const result = win

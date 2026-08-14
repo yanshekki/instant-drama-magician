@@ -11,6 +11,7 @@ import {
   extractSpokenLines,
   parseBeatContent
 } from '../../domain/beatContent'
+import { suggestedClipExportName } from '../../domain/mediaSaveAs'
 import { getAiLocale } from '../../lib/aiLocale'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import {
@@ -905,6 +906,20 @@ export function TimelinePage(): JSX.Element {
     open: (p) => getApi().media.openClip(p)
   })
 
+  const handleExportClip = timelineBindExportClip({
+    getPath: () => selected?.mediaPath,
+    suggestedName: () =>
+      suggestedClipExportName({
+        storyTitle: stories.find((s) => s.id === activeStoryId)?.title,
+        clipIndex: (selected?.order ?? 0) + 1
+      }),
+    saveAs: (path, dest, name) => getApi().media.saveAs(path, dest, name),
+    toastSuccess: (path) => toast.success(t('timeline.exportClipOk', { path })),
+    toastError: (m) => toast.error(m),
+    formatError: (e) =>
+      formatUserError(e instanceof Error ? e.message : String(e), t)
+  })
+
   const storyPicker = (
     <Select
       aria-label={t('timeline.story')}
@@ -1314,12 +1329,20 @@ export function TimelinePage(): JSX.Element {
                         {t('timeline.importClip')}
                       </Button>
                       {selected.mediaPath && (
-                        <Button
-                          variant="secondary"
-                          onClick={() => void handleOpenClip()}
-                        >
-                          {t('timeline.openClip')}
-                        </Button>
+                        <>
+                          <Button
+                            variant="secondary"
+                            onClick={() => void handleOpenClip()}
+                          >
+                            {t('timeline.openClip')}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={() => void handleExportClip()}
+                          >
+                            {t('timeline.exportClip')}
+                          </Button>
+                        </>
                       )}
                       <Button
                         variant="danger"
@@ -2992,6 +3015,32 @@ export function timelineBindOpenClip(ops: {
 }): () => Promise<void> {
   return async () => {
     await timelineOpenClip({ mediaPath: ops.getPath(), open: ops.open })
+  }
+}
+
+export function timelineBindExportClip(ops: {
+  getPath: () => string | null | undefined
+  suggestedName: () => string
+  saveAs: (
+    path: string,
+    destPath?: string,
+    suggestedName?: string
+  ) => Promise<{ filePath?: string; downloadUrl?: string } | null>
+  toastSuccess: (path: string) => void
+  toastError: (message: string) => void
+  formatError: (e: unknown) => string
+}): () => Promise<void> {
+  return async () => {
+    const path = ops.getPath()?.trim()
+    if (!path) return
+    try {
+      const r = await ops.saveAs(path, undefined, ops.suggestedName())
+      if (r?.filePath || r?.downloadUrl) {
+        ops.toastSuccess(r.filePath || r.downloadUrl || '')
+      }
+    } catch (e) {
+      ops.toastError(ops.formatError(e))
+    }
   }
 }
 

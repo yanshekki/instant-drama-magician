@@ -1375,7 +1375,9 @@ export interface ElectronApi {
      * Web: { downloadUrl, fileName } for browser attachment download.
      */
     saveAs: (
-      filePath: string
+      filePath: string,
+      destPath?: string,
+      suggestedName?: string
     ) => Promise<{
       filePath?: string
       downloadUrl?: string

@@ -518,7 +518,8 @@ const api: ElectronApi & {
       ipcRenderer.invoke('media:importClip', storyId, entryId),
     openClip: (filePath: string) => ipcRenderer.invoke('media:openClip', filePath),
     toPreviewUrl: (filePath: string) => ipcRenderer.invoke('media:toPreviewUrl', filePath),
-    saveAs: (filePath: string) => ipcRenderer.invoke('media:saveAs', filePath),
+    saveAs: (filePath: string, destPath?: string, suggestedName?: string) =>
+      ipcRenderer.invoke('media:saveAs', filePath, destPath, suggestedName),
     discardSheetDraft: (filePath: string) =>
       ipcRenderer.invoke('media:discardSheetDraft', filePath),
     checkFfmpeg: () => ipcRenderer.invoke('media:checkFfmpeg'),

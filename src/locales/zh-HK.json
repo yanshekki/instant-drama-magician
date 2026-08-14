@@ -874,6 +874,8 @@
     "reorder": "按時間重排",
     "importClip": "匯入片段",
     "openClip": "開啟片段",
+    "exportClip": "匯出此段",
+    "exportClipOk": "已匯出此段：{{path}}",
     "previewEmpty": "請選取片段以預覽",
     "previewNoMedia": "此片段尚無可播放媒體",
     "previewUnplayable": "呢段唔係有效影片（空檔或網頁被存成 mp4）。請重新生成。",

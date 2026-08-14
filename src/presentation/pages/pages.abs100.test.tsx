@@ -637,6 +637,7 @@ import {
   timelineBindExportFinal,
   timelineBindDeleteExport,
   timelineBindOpenClip,
+  timelineBindExportClip,
   timelineMediaClockTick,
   timelineClipEndedTick,
   timelineOnPipelineDone,
@@ -5066,6 +5067,22 @@ describe('abs100 Timeline pure + residual', () => {
     await timelineBindOpenClip({
       getPath: () => '/m',
       open: async () => undefined
+    })()
+    await timelineBindExportClip({
+      getPath: () => '/m.mp4',
+      suggestedName: () => 'story-第1段.mp4',
+      saveAs: async () => ({ filePath: '/out.mp4' }),
+      toastSuccess: () => undefined,
+      toastError: () => undefined,
+      formatError: () => 'e'
+    })()
+    await timelineBindExportClip({
+      getPath: () => null,
+      suggestedName: () => 'x.mp4',
+      saveAs: async () => null,
+      toastSuccess: () => undefined,
+      toastError: () => undefined,
+      formatError: () => 'e'
     })()
     timelineMediaClockTick(false, 1, () => undefined)
     timelineMediaClockTick(true, 1, () => undefined)

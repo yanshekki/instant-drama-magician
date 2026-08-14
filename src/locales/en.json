@@ -874,6 +874,8 @@
     "reorder": "Reorder by time",
     "importClip": "Import clip",
     "openClip": "Open clip",
+    "exportClip": "Export this clip",
+    "exportClipOk": "Exported this clip: {{path}}",
     "previewEmpty": "Select a clip to preview",
     "previewNoMedia": "No playable media on this clip",
     "previewUnplayable": "This file is not a playable video (empty stub or a web page saved as mp4). Regenerate the clip.",

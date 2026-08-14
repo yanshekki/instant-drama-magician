@@ -8,6 +8,7 @@ import {
   commitBeatScriptEdit
 } from '../../domain/beatContent'
 import { getAiLocale } from '../../lib/aiLocale'
+import { suggestedClipExportName } from '../../domain/mediaSaveAs'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import {
   snapClipRange,
@@ -53,6 +54,7 @@ import {
   timelineBindDeleteExport,
   timelineBindExportFinal,
   timelineBindNavigate,
+  timelineBindExportClip,
   timelineBindOpenClip,
   timelineBindUndoRedo,
   timelineClipGenerateLabel,
@@ -906,6 +908,20 @@ export function useTimelineV2Studio() {
     open: (p) => getApi().media.openClip(p)
   })
 
+  const handleExportClip = timelineBindExportClip({
+    getPath: () => selected?.mediaPath,
+    suggestedName: () =>
+      suggestedClipExportName({
+        storyTitle: activeStory?.title,
+        clipIndex: (selected?.order ?? 0) + 1
+      }),
+    saveAs: (path, dest, name) => getApi().media.saveAs(path, dest, name),
+    toastSuccess: (path) => toast.success(t('timeline.exportClipOk', { path })),
+    toastError: (m) => toast.error(m),
+    formatError: (e) =>
+      formatUserError(e instanceof Error ? e.message : String(e), t)
+  })
+
   const genStill = (force: boolean): void => {
     if (!activeStoryId || !selected || stillBusy) return
     const entryId = selected.id
@@ -1084,6 +1100,7 @@ export function useTimelineV2Studio() {
     handleClipEnded,
     handleImportClip,
     handleOpenClip,
+    handleExportClip,
     genStill,
     refineStill,
     applySetup,

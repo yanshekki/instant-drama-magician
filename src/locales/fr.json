@@ -874,6 +874,8 @@
     "reorder": "Réorganiser par heure",
     "importClip": "Importer un clip",
     "openClip": "Ouvrir le clip",
+    "exportClip": "Exporter ce clip",
+    "exportClipOk": "Clip exporté : {{path}}",
     "previewEmpty": "Sélectionnez un clip à prévisualiser",
     "previewNoMedia": "Aucun média lisible sur ce clip",
     "previewUnplayable": "Ce fichier n’est pas une vidéo lisible (stub vide ou page web enregistrée en mp4). Régénérez le clip.",

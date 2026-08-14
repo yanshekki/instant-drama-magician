@@ -5,7 +5,8 @@ import {
   isVideoPath,
   mediaExt,
   mediaSaveAsKind,
-  saveAsDialogFilters
+  saveAsDialogFilters,
+  suggestedClipExportName
 } from './mediaSaveAs'
 
 describe('mediaSaveAs', () => {
@@ -42,5 +43,18 @@ describe('mediaSaveAs', () => {
     expect(other[0]?.name).toBe('Media')
     expect(other[0]?.extensions).toContain('txt')
     expect(other[1]?.extensions).toContain('*')
+  })
+
+  it('suggests a per-clip export filename', () => {
+    expect(
+      suggestedClipExportName({ storyTitle: '受戒下山', clipIndex: 1 })
+    ).toBe('受戒下山-第1段.mp4')
+    expect(
+      suggestedClipExportName({
+        storyTitle: 'bad:name/ok',
+        clipIndex: 2,
+        ext: '.webm'
+      })
+    ).toBe('bad_name_ok-第2段.webm')
   })
 })

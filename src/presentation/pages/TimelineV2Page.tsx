@@ -314,13 +314,22 @@ export function TimelineV2Page(): JSX.Element {
                     {t('timeline.importClip')}
                   </Button>
                   {selected.mediaPath ? (
-                    <Button
-                      variant="ghost"
-                      className="!px-2 !py-1 !text-[11px]"
-                      onClick={() => void s.handleOpenClip()}
-                    >
-                      {t('timeline.openClip')}
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="!px-2 !py-1 !text-[11px]"
+                        onClick={() => void s.handleOpenClip()}
+                      >
+                        {t('timeline.openClip')}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="!px-2 !py-1 !text-[11px]"
+                        onClick={() => void s.handleExportClip()}
+                      >
+                        {t('timeline.exportClip')}
+                      </Button>
+                    </>
                   ) : null}
                   <Button
                     variant="ghost"

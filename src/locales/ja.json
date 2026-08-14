@@ -874,6 +874,8 @@
     "reorder": "時間ごとに並べ替える",
     "importClip": "クリップをインポートする",
     "openClip": "クリップを開く",
+    "exportClip": "このクリップを書き出す",
+    "exportClipOk": "このクリップを書き出しました：{{path}}",
     "previewEmpty": "プレビューするクリップを選択してください",
     "previewNoMedia": "このクリップには再生可能なメディアがありません",
     "previewUnplayable": "再生できる動画ではありません（空ファイルや Web ページが mp4 として保存されています）。再生成してください。",
