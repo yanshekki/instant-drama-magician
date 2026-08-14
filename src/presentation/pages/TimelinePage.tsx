@@ -11,7 +11,7 @@ import {
   extractSpokenLines,
   parseBeatContent
 } from '../../domain/beatContent'
-import { suggestedClipExportName } from '../../domain/mediaSaveAs'
+import { suggestedClipExportName } from '../../domain/clipExportName'
 import { getAiLocale } from '../../lib/aiLocale'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import {

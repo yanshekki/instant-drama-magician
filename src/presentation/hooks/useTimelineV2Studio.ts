@@ -8,7 +8,7 @@ import {
   commitBeatScriptEdit
 } from '../../domain/beatContent'
 import { getAiLocale } from '../../lib/aiLocale'
-import { suggestedClipExportName } from '../../domain/mediaSaveAs'
+import { suggestedClipExportName } from '../../domain/clipExportName'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import {
   snapClipRange,

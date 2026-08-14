@@ -5,9 +5,9 @@ import {
   isVideoPath,
   mediaExt,
   mediaSaveAsKind,
-  saveAsDialogFilters,
-  suggestedClipExportName
+  saveAsDialogFilters
 } from './mediaSaveAs'
+import { suggestedClipExportName } from './clipExportName'
 
 describe('mediaSaveAs', () => {
   it('classifies image and video paths', () => {
