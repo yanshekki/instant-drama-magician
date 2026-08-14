@@ -55,6 +55,7 @@ describe('TimelineGraphCanvas', () => {
           characterIds: ['c1'],
           mediaStatus: 'EMPTY'
         },
+        story: { artStyle: 'photo_cinematic', styleNote: 'noir rain' },
         characters: [
           {
             id: 'c1',
@@ -76,6 +77,8 @@ describe('TimelineGraphCanvas', () => {
     expect(screen.getAllByText(/Lead detective in the rain/i).length).toBeGreaterThan(
       0
     )
+    expect(screen.getAllByText(/Cinematic photoreal/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText('photo_cinematic')).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: /^Save$/i })[0]!)
     expect(handlers.onSavePrompt).toHaveBeenCalled()
   })

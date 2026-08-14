@@ -1,3 +1,4 @@
+import { getArtStyle, isArtStyleId } from '../../../domain/characterArtStyles'
 import type { Scene } from '../../../types/domain'
 
 export type StoryCastScene = Scene & { sceneNumber?: number }
@@ -38,4 +39,14 @@ export function timelineTrackLabel(raw: string, max = 220): string {
   const joined = compact.join('  ')
   if (joined.length <= max) return joined
   return `${joined.slice(0, Math.max(1, max - 1)).trimEnd()}…`
+}
+
+/** Known art-style ids → UI language; unknown / custom text stays as-is. */
+export function timelineArtStyleLabel(
+  raw: string,
+  t: (key: string) => string
+): string {
+  const id = raw.trim()
+  if (!isArtStyleId(id)) return raw
+  return t(`characters.${getArtStyle(id).labelKey}`)
 }

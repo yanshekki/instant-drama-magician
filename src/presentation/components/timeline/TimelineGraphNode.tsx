@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { TimelineGraphLaidOutNode } from '../../../domain/timelineGraph'
 import { LocalMediaImage } from '../LocalMediaImage'
 import { Button, Label, Textarea } from '../ui'
+import { timelineArtStyleLabel } from './timelineLabels'
 
 export interface TimelineGraphNodeHandlers {
   promptValue: string
@@ -237,7 +238,7 @@ function nodeBody(
         <p className={EYEBROW}>{t('timeline.graph.cinematic')}</p>
         {node.title ? (
           <p className="mt-1 break-words text-[11px] font-medium leading-snug text-brand-200">
-            {node.title}
+            {timelineArtStyleLabel(node.title, t)}
           </p>
         ) : null}
         {node.imagePath ? (

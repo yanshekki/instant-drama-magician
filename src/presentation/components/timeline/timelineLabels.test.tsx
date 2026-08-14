@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { sceneCastLabel, timelineTrackLabel } from './timelineLabels'
+import {
+  sceneCastLabel,
+  timelineArtStyleLabel,
+  timelineTrackLabel
+} from './timelineLabels'
 
 describe('sceneCastLabel', () => {
   it('uses sceneNumber and title', () => {
@@ -43,6 +47,16 @@ describe('sceneCastLabel', () => {
         description: null
       } as never)
     ).toBe('abcdefgh')
+  })
+
+  it('localizes known art style ids and keeps custom text', () => {
+    const t = (k: string) =>
+      k === 'characters.artPhotoCinematic' ? '電影寫實（預設）' : k
+    expect(timelineArtStyleLabel('photo_cinematic', t)).toBe('電影寫實（預設）')
+    expect(timelineArtStyleLabel('  photo_cinematic  ', t)).toBe(
+      '電影寫實（預設）'
+    )
+    expect(timelineArtStyleLabel('亞青手持', t)).toBe('亞青手持')
   })
 
   it('dedupes repeated speaker prefixes on the track', () => {
