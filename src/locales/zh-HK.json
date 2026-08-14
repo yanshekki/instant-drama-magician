@@ -49,7 +49,7 @@
     "cannotDeleteOrphan": "此為角色目前的服裝文字（尚未加入戲服庫）。請前往角色頁修改。",
     "activeNoDelete": "使用中，不可刪除",
     "subtitleGlobal": "全域戲服庫 — 可獨立存在，亦可連結零個或多個角色",
-    "editorHintGlobal": "戲服係獨立資產；角色可留空或多選。生成穿著圖需要角色參考圖。",
+    "editorHintGlobal": "戲服是獨立資產；角色可留空或多選。生成穿著圖需要角色參考圖。",
     "linkedCharacters": "連結角色",
     "linkedCharactersHint": "可選。留空＝獨立造型；可選多個可穿此戲服的角色。",
     "noLinkedCharacters": "未連結角色",
@@ -69,7 +69,7 @@
     "galleryTitle": "造型圖庫",
     "emptyGlobal": "尚未有戲服。可先建立造型，稍後再連結角色。",
     "generateDressed": "生成穿著圖",
-    "generateDressedHint": "揀角色底圖同姿勢方案，以本戲服描述鎖定身份生成穿著圖。",
+    "generateDressedHint": "選擇角色底圖與姿勢方案，以本戲服描述鎖定身份生成穿著圖。",
     "dressCharacter": "穿著角色",
     "pickCharacterForDress": "選擇角色…",
     "saveFirstForDress": "請先儲存戲服，再生成穿著圖。",
@@ -82,41 +82,41 @@
     "linkFromLibrary": "由戲服庫連結",
     "pickCostumeToLink": "選擇戲服…",
     "linkCostume": "連結",
-    "saveCharacterFirst": "請先儲存角色，先可以連結全域戲服。",
+    "saveCharacterFirst": "請先儲存角色，才可以連結全域戲服。",
     "aiNeedIdeaOrImage": "請先輸入構思、填寫草稿欄位，或上載參考圖。",
     "aiFillFromImage": "正在根據參考圖填寫資料…",
     "aiHintWithImage": "可輸入構思；亦可留空，只用左側選中／封面參考圖——AI 會按圖填寫全部欄位。",
     "aiUsingImage": "將使用目前選中（或封面）靜圖做視覺填寫。",
     "profileSection": "造型資料",
     "tabLinks": "連結角色",
-    "linksHint": "揀可以穿呢套戲服嘅角色。即時連結／取消，唔使等儲存。",
-    "linksSaveFirst": "請先儲存造型，先可以連結角色。",
+    "linksHint": "選擇可以穿此套戲服的角色。即時連結／取消，無須等儲存。",
+    "linksSaveFirst": "請先儲存造型，才可以連結角色。",
     "linksSearch": "搜尋角色…",
     "linksFilterAll": "全部",
     "linksFilterLinked": "已連結",
     "linksFilterUnlinked": "未連結",
-    "linksEmpty": "冇符合嘅角色。",
+    "linksEmpty": "沒有符合的角色。",
     "linksCount": "已連結 {{count}} 個角色",
     "linksManage": "管理連結角色",
-    "baseImageManual": "從角色圖庫揀底圖",
+    "baseImageManual": "從角色圖庫選擇底圖",
     "basePreview": "底圖預覽",
-    "baseNoImages": "呢個角色未有可用參考圖。請先到角色頁生成體型板或全身圖。",
+    "baseNoImages": "這個角色未有可用參考圖。請先到角色頁生成體型板或全身圖。",
     "poseGroupFullbody": "全身構圖",
     "poseGroupMulti": "多視圖",
     "poseGroupDetail": "半身／細節",
     "dressNote": "試穿備註（可選）",
     "dressNotePh": "例如：風褸要敞開、裙襬拖地、雨夜濕感…",
     "dressWorkstation": "試穿工作台",
-    "preferLinkedChars": "建議先喺「連結角色」加入角色；未連結時顯示全部角色。",
+    "preferLinkedChars": "建議先在「連結角色」加入角色；未連結時顯示全部角色。",
     "linkAction": "連結",
     "unlinkAction": "取消連結",
-    "dressStepChar": "揀角色",
-    "dressStepBase": "揀底圖",
-    "dressStepPose": "揀姿勢",
-    "baseStripHint": "撳縮圖揀底圖（建議用體型板／全身正面）",
+    "dressStepChar": "選擇角色",
+    "dressStepBase": "選擇底圖",
+    "dressStepPose": "選擇姿勢",
+    "baseStripHint": "按縮圖選擇底圖（建議用體型板／全身正面）",
     "dressNoteOptional": "（可選）",
-    "dressNeedCharBase": "請先揀角色同底圖。",
-    "dressNeedDesc": "資料 tab 需要有戲服描述先可以生成。",
+    "dressNeedCharBase": "請先選擇角色與底圖。",
+    "dressNeedDesc": "資料 tab 需要有戲服描述才可以生成。",
     "galleryBrowseHint": "按縮圖可預覽大圖；左上角 □ 可多選以納入身份鎖定；可拖曳排序。試穿生成圖會寫入此戲服多圖庫，已連結角色及其他使用者亦可瀏覽及選取。"
   },
   "nav": {
@@ -143,7 +143,7 @@
   },
   "audit": {
     "title": "活動紀錄",
-    "subtitle": "查看匯出、生成、錯誤與系統操作 — 除錯同支援都用得着",
+    "subtitle": "查看匯出、生成、錯誤與系統操作 — 除錯與支援都用得着",
     "kind": "類別",
     "allKinds": "全部類別",
     "level": "嚴重程度",
@@ -282,7 +282,7 @@
     "imageGenConfirmGo": "確認生成",
     "imageGenConfirmRefs": "已選身份參考圖",
     "imageGenConfirmPure": "未鎖定身份——只按設定與風格生成。",
-    "galleryMultiSelectHint": "撳縮圖＝睇大圖。左上角 □ 勾選＝納入身份鎖定生成（可多選）。",
+    "galleryMultiSelectHint": "按縮圖＝查看大圖。左上角 □ 勾選＝納入身份鎖定生成（可多選）。",
     "imageGenConfirmModeIdentity": "已鎖定身份（用選中參考圖）",
     "imageGenConfirmModePure": "全新生成（未鎖定身份）",
     "imageGenConfirmPromptNote": "以下為出圖模型用提示詞（跟介面語言）。可微調，但請保留身份與風格指示。",
@@ -881,7 +881,7 @@
     "exportClipOk": "已匯出此段：{{path}}",
     "previewEmpty": "請選取片段以預覽",
     "previewNoMedia": "此片段尚無可播放媒體",
-    "previewUnplayable": "呢段唔係有效影片（空檔或網頁被存成 mp4）。請重新生成。",
+    "previewUnplayable": "此段不是有效影片（空檔或網頁被存成 mp4）。請重新生成。",
     "play": "播放",
     "pause": "暫停",
     "undoDone": "已撤銷並寫回資料庫",
@@ -1016,7 +1016,7 @@
     "mergedHardRulesHint": "已合併本故事與本段連結的角色／場景／道具／動作鐵則。出片時最高優先（導演修訂不能取消鐵則）。",
     "graph": {
       "title": "時間軸",
-      "subtitle": "同一條時間軸，用流程圖顯示分鏡、靜圖同片段。",
+      "subtitle": "同一條時間軸，用流程圖顯示分鏡、靜圖與片段。",
       "useClassic": "軌道顯示",
       "useV2": "流程顯示",
       "cinematic": "風格／連貫",
@@ -1381,11 +1381,11 @@
       "unknown": "未知更新錯誤"
     },
     "promptRecipe": "AI 配方記憶",
-    "promptRecipeHint": "若勾選「之後都用呢套」，改善／生成會跳過選擇窗。重置後會再問你。",
+    "promptRecipeHint": "若勾選「此後均使用此套」，改善／生成會略過選擇視窗。重置後將再次詢問。",
     "promptRecipePinned": "已記住文字及／或影音配方。",
-    "promptRecipeAsk": "下次改善／生成會再彈選擇窗。",
-    "promptRecipeReset": "忘記已記住嘅配方",
-    "promptRecipeResetOk": "已清除配方記憶。下次會再問你。"
+    "promptRecipeAsk": "下次改善／生成將再次顯示選擇視窗。",
+    "promptRecipeReset": "忘記已記住的配方",
+    "promptRecipeResetOk": "已清除配方記憶。下次將再次詢問。"
   },
   "ai": {
     "status": "人工智能狀態",
@@ -1478,7 +1478,7 @@
     "backupMissingManifest": "備份缺少 manifest.json。",
     "backupMissingStoryJson": "備份無效：缺少 story.json。",
     "backupUnsupportedVersion": "不支援此完整備份版本。",
-    "backupWrongKind": "唔係完整 app 資料備份。故事 zip 請用故事匯入。",
+    "backupWrongKind": "不是完整 app 資料備份。故事 zip 請用故事匯入。",
     "backupZipNotFound": "找不到備份 zip。",
     "beatsMustBeArray": "段落必須是 JSON 陣列。",
     "cancelled": "已取消。",
@@ -1608,8 +1608,8 @@
     "urlRequired": "必須提供網址。",
     "videoApiEmptyBody": "影片 API 回傳空白內容。",
     "videoApiMissingJobId": "影片 API 回應缺少 job id。",
-    "videoContentEmpty": "閘道交回嘅唔係有效影片。",
-    "videoContentEmptyHint": "再撳「確認生成影片」。若仍然失敗，檢查閘道 image_to_video 有冇真嘅 mp4（唔好係 smoke 空檔）。",
+    "videoContentEmpty": "閘道交回的不是有效影片。",
+    "videoContentEmptyHint": "再按「確認生成影片」。若仍然失敗，檢查閘道 image_to_video 有沒有真的 mp4（不要是 smoke 空檔）。",
     "videoContentHttpFailed": "影片內容下載失敗。",
     "videoDownloadFailed": "下載影片失敗。",
     "videoFeatureOff": "閘道已停用影片 API。",
@@ -1917,7 +1917,7 @@
     "introVideo": "生成示範片",
     "introVideoOk": "示範片已就緒。請按「播放介紹片」觀看。",
     "plateVariant": "出圖方案",
-    "plateHintShort": "先揀格數同藝術風格，再生成多格指示圖。第 1 格係第一個動作，第 N 格係最後動作。",
+    "plateHintShort": "先選擇格數與藝術風格，再生成多格指示圖。第 1 格是第一個動作，第 N 格是最後動作。",
     "panelOrderHint": "共 {{count}} 格 · 閱讀順序由左至右（多行則先上後下）：{{beats}}",
     "panelLayout_strip-2": "2 格（起勢 → 結果）",
     "panelLayout_strip-5": "5 格橫向",
@@ -1927,8 +1927,8 @@
   },
   "mediaGen": {
     "title": "準備生成圖片",
-    "subtitle": "先揀 AI 要讀嘅材料，優化 prompt，再輸出一張圖。",
-    "materialsHint": "勾選要納入嘅項目。多張圖會一齊交 LLM（多圖 vision）。",
+    "subtitle": "先選擇 AI 要讀的材料，優化 prompt，再輸出一張圖。",
+    "materialsHint": "勾選要納入的項目。多張圖會一併交 LLM（多圖 vision）。",
     "useAsEditBase": "用作編輯底圖（可選）",
     "clearEditBase": "清除底圖 — 全新生成",
     "pureGenerateHint": "未選底圖：優化後全新生成（有角色／場景參考時建議）。",
@@ -1958,13 +1958,13 @@
       "videoDone": "完成"
     },
     "modeTitle": "最終出圖點樣做？",
-    "modeExplain": "勾選嘅圖會一齊交 LLM 做 vision 優化（可多張）。「編輯底圖」係另外一步：最終 export API 只可以有一張像素底圖。",
+    "modeExplain": "勾選的圖會一併交 LLM 做 vision 優化（可多張）。「編輯底圖」是另外一步：最終 export API 只可以有一張像素底圖。",
     "modePure": "全新生成（建議）",
     "modePureHint": "優化後由零砌一張圖。有角色／場景／道具靜圖時最適合。",
     "modeEdit": "用一張圖做像素底圖再改",
-    "modeEditHint": "可選。圖像編輯只收一張底圖。其他已勾圖仍然會喺優化階段畀 LLM 睇。",
+    "modeEditHint": "可選。圖像編輯只收一張底圖。其他已勾圖仍然會在優化階段供 LLM 閱讀。",
     "groupRefs": "參考靜圖",
-    "groupRefsHint": "勾選後一齊入多圖 vision，可以揀多張。",
+    "groupRefsHint": "勾選後一併入多圖 vision，可以選擇多張。",
     "groupTask": "任務與設定",
     "groupTaskHint": "動作描述、格位、畫風（文字交 LLM）。",
     "groupRules": "生成鐵則",
@@ -2010,7 +2010,7 @@
       "timeline-clip": "時間軸分鏡片段"
     },
     "reviewRefsTitle": "已用參考圖",
-    "reviewRefsHint": "以下圖片已在優化時以多圖交 LLM 閱讀。生成時唔會再全部上傳；只有標「底圖」嘅一張會做圖像編輯。",
+    "reviewRefsHint": "以下圖片已在優化時以多圖交 LLM 閱讀。生成時不會再全部上傳；只有標「底圖」的一張會做圖像編輯。",
     "reviewRefsNone": "沒有勾選任何參考圖——優化只用文字材料。請返回材料勾選靜圖。",
     "reviewEditBaseBadge": "底圖",
     "reviewModeEdit": "出圖模式：用標「底圖」嗰張做圖像編輯。",
@@ -2018,8 +2018,8 @@
     "reviewTextAlso": "另有 {{count}} 段純文字材料已納入優化。",
     "titleImage": "準備生成圖片",
     "titleVideo": "準備生成影片",
-    "subtitleImage": "先揀材料、優化 prompt，再輸出一張靜圖。",
-    "subtitleVideo": "先揀材料、優化導演詞、出關鍵幀，再生成影片——全程同一個流程。",
+    "subtitleImage": "先選擇材料、優化 prompt，再輸出一張靜圖。",
+    "subtitleVideo": "先選擇材料、優化導演詞、出關鍵幀，再生成影片——全程同一個流程。",
     "modePillImage": "圖片",
     "modePillVideo": "影片",
     "generateImage": "生成圖片",
@@ -2046,29 +2046,29 @@
     "keyframePromptHint": "關鍵幀靜圖提示（圖像導演）。關鍵幀就緒後會再做影片動作潤飾。"
   },
   "promptTpl": {
-    "title": "揀今次 AI 點做",
-    "subtitle": "呢個選擇決定會唔會發明世界、鎖口白、鎖身份。冇揀就唔會偷偷套預設。",
-    "remember": "之後呢類動作都用呢套（可用箭咀隨時轉）",
-    "confirm": "用呢套",
+    "title": "選擇今次 AI 做法",
+    "subtitle": "此選擇決定是否發明世界、鎖定口白與身份。未選擇則不會暗中套用預設。",
+    "remember": "此後此類動作均使用此套配方（可隨時以箭咀切換）",
+    "confirm": "使用此套",
     "polish-only": {
       "name": "只潤飾",
-      "blurb": "保持身份同世界。只改措辭。唔好發明時代、天氣、職業或口白語言。唔好把預設鐵則寫入檔。"
+      "blurb": "保持身份與世界。只改措辭。不要發明時代、天氣、職業或口白語言。不要把預設鐵則寫入檔。"
     },
     "fill-blanks": {
       "name": "只填空白",
-      "blurb": "只補空欄。已填內容唔好改。"
+      "blurb": "只補空欄。已填內容不要改。"
     },
     "invent": {
       "name": "自由創作",
-      "blurb": "授權模型按構思補齊可拍細節。仍然唔引入 Demo 世界。"
+      "blurb": "授權模型按構思補齊可拍細節。仍然不引入 Demo 世界。"
     },
     "from-story": {
       "name": "從故事建議",
-      "blurb": "用本故事標題、風格、選角、場景做 continuity。衝突時以你嘅構思為準。"
+      "blurb": "用本故事標題、風格、選角、場景做 continuity。衝突時以你的構思為準。"
     },
     "follow-asset": {
       "name": "跟資產／故事",
-      "blurb": "用已有風格同鐵則。唔好強加電影感、空鏡或 6–10 秒。"
+      "blurb": "用已有風格與鐵則。不要強加電影感、空鏡或 6–10 秒。"
     },
     "cinematic-lock": {
       "name": "電影感＋防幻覺",
@@ -2080,7 +2080,15 @@
     },
     "restyle": {
       "name": "可改造型／場地",
-      "blurb": "同一個人。服裝、場地、時代可按你要求改。唔好換成另一人。"
+      "blurb": "同一個人。服裝、場地、時代可按你要求改。不要換成另一人。"
+    },
+    "axis": {
+      "keepWorld": "守住世界",
+      "fillGaps": "補齊空白",
+      "followStory": "跟本故事",
+      "followAsset": "跟已有資產",
+      "lockId": "鎖身份",
+      "cinematic": "電影感"
     }
   }
 }

@@ -2081,6 +2081,14 @@
     "restyle": {
       "name": "Restyle allowed",
       "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+    },
+    "axis": {
+      "keepWorld": "संसार बचाएँ",
+      "fillGaps": "खाली भरें",
+      "followStory": "कहानी पर",
+      "followAsset": "संपत्ति पर",
+      "lockId": "पहचान ताला",
+      "cinematic": "सिनेमा"
     }
   }
 }

@@ -155,3 +155,66 @@ export function shouldForceCinematic(
 ): boolean {
   return templateFlags(raw, family).forceCinematic
 }
+
+export type RecipeCompareAxis =
+  | 'keepWorld'
+  | 'fillGaps'
+  | 'followStory'
+  | 'followAsset'
+  | 'lockId'
+  | 'cinematic'
+
+export type RecipeStar = 1 | 2 | 3 | 4 | 5
+
+export const COPY_COMPARE_AXES = [
+  'keepWorld',
+  'fillGaps',
+  'followStory'
+] as const satisfies readonly RecipeCompareAxis[]
+
+export const MEDIA_COMPARE_AXES = [
+  'followAsset',
+  'lockId',
+  'cinematic'
+] as const satisfies readonly RecipeCompareAxis[]
+
+const COPY_SCORES: Record<
+  CopyTemplateId,
+  Record<(typeof COPY_COMPARE_AXES)[number], RecipeStar>
+> = {
+  'polish-only': { keepWorld: 5, fillGaps: 1, followStory: 1 },
+  'fill-blanks': { keepWorld: 4, fillGaps: 5, followStory: 1 },
+  invent: { keepWorld: 1, fillGaps: 5, followStory: 1 },
+  'from-story': { keepWorld: 2, fillGaps: 4, followStory: 5 }
+}
+
+const MEDIA_SCORES: Record<
+  MediaTemplateId,
+  Record<(typeof MEDIA_COMPARE_AXES)[number], RecipeStar>
+> = {
+  'follow-asset': { followAsset: 5, lockId: 3, cinematic: 1 },
+  'cinematic-lock': { followAsset: 3, lockId: 5, cinematic: 5 },
+  'identity-lock': { followAsset: 4, lockId: 5, cinematic: 2 },
+  restyle: { followAsset: 2, lockId: 2, cinematic: 3 }
+}
+
+export function compareAxesForFamily(
+  family: PromptTemplateFamily
+): readonly RecipeCompareAxis[] {
+  return family === 'copy' ? COPY_COMPARE_AXES : MEDIA_COMPARE_AXES
+}
+
+export function recipeCompareScores(
+  id: PromptTemplateId
+): Record<string, RecipeStar> {
+  if (isCopyTemplateId(id)) return COPY_SCORES[id]
+  if (isMediaTemplateId(id)) return MEDIA_SCORES[id]
+  return {}
+}
+
+export function recipeStarOn(
+  id: PromptTemplateId,
+  axis: RecipeCompareAxis
+): RecipeStar {
+  return recipeCompareScores(id)[axis] ?? 1
+}

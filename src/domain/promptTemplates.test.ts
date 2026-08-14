@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   assembleSystemPrompt,
+  compareAxesForFamily,
+  COPY_TEMPLATE_IDS,
   defaultTemplateId,
   flagsForTemplate,
+  MEDIA_TEMPLATE_IDS,
+  recipeCompareScores,
+  recipeStarOn,
   resolvePromptTemplate,
   shouldFillMissingKeys,
   shouldForceCinematic,
@@ -44,7 +49,7 @@ describe('promptTemplates', () => {
       templateId: 'polish-only'
     })
     expect(zh).toContain('BASE')
-    expect(zh).toMatch(/潤飾|已填|唔好發明|不要發明/)
+    expect(zh).toMatch(/潤飾|已填|不要發明/)
     const en = assembleSystemPrompt({
       base: 'BASE',
       locale: 'en',
@@ -53,5 +58,29 @@ describe('promptTemplates', () => {
     })
     expect(en).toMatch(/invent|create freely/i)
     expect(en).not.toBe(zh)
+  })
+
+  it('gives every recipe three 1–5 compare stars', () => {
+    for (const id of COPY_TEMPLATE_IDS) {
+      const axes = compareAxesForFamily('copy')
+      expect(axes).toEqual(['keepWorld', 'fillGaps', 'followStory'])
+      const scores = recipeCompareScores(id)
+      expect(Object.keys(scores)).toHaveLength(3)
+      for (const axis of axes) {
+        const n = recipeStarOn(id, axis)
+        expect(n).toBeGreaterThanOrEqual(1)
+        expect(n).toBeLessThanOrEqual(5)
+      }
+    }
+    for (const id of MEDIA_TEMPLATE_IDS) {
+      const axes = compareAxesForFamily('media')
+      expect(axes).toHaveLength(3)
+      expect(Object.keys(recipeCompareScores(id))).toHaveLength(3)
+    }
+    expect(recipeStarOn('polish-only', 'keepWorld')).toBe(5)
+    expect(recipeStarOn('invent', 'keepWorld')).toBe(1)
+    expect(recipeStarOn('from-story', 'followStory')).toBe(5)
+    expect(recipeStarOn('cinematic-lock', 'cinematic')).toBe(5)
+    expect(recipeStarOn('follow-asset', 'followAsset')).toBe(5)
   })
 })

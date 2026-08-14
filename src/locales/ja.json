@@ -2081,6 +2081,14 @@
     "restyle": {
       "name": "衣装／場所の変更可",
       "blurb": "同一人物。衣装・場所・時代は指示があれば変えてよい。別人にするな。"
+    },
+    "axis": {
+      "keepWorld": "世界を守る",
+      "fillGaps": "空欄を埋める",
+      "followStory": "物語に従う",
+      "followAsset": "資産に従う",
+      "lockId": "身元ロック",
+      "cinematic": "映画的"
     }
   }
 }

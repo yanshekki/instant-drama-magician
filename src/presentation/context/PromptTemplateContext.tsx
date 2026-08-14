@@ -17,6 +17,7 @@ import {
   type PromptTemplateId
 } from '../../domain/promptTemplates'
 import { Button } from '../components/ui'
+import { RecipeCompareStars } from '../components/RecipeCompareStars'
 import {
   readPromptTemplatePrefs,
   rememberedTemplate,
@@ -120,7 +121,7 @@ export function PromptTemplateProvider({
             role="dialog"
             aria-modal="true"
             aria-labelledby="prompt-tpl-title"
-            className="relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 shadow-theme-md"
+            className="relative z-[1] flex max-h-[min(92vh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 shadow-theme-md"
           >
             <div className="border-b border-ink-800/80 px-5 py-4">
               <h2
@@ -133,7 +134,7 @@ export function PromptTemplateProvider({
                 {t('promptTpl.subtitle')}
               </p>
             </div>
-            <div className="flex flex-col gap-2 px-5 py-4">
+            <div className="flex flex-col gap-2 overflow-y-auto px-5 py-4">
               {ids.map((id) => {
                 const active = pending.selected === id
                 return (
@@ -157,6 +158,11 @@ export function PromptTemplateProvider({
                     <div className="mt-0.5 text-xs leading-relaxed text-ink-400">
                       {t(`promptTpl.${id}.blurb`)}
                     </div>
+                    <RecipeCompareStars
+                      id={id}
+                      family={pending.family}
+                      labelFor={(axis) => t(`promptTpl.axis.${axis}`)}
+                    />
                   </button>
                 )
               })}

@@ -2081,6 +2081,14 @@
     "restyle": {
       "name": "Restyle allowed",
       "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+    },
+    "axis": {
+      "keepWorld": "Keep world",
+      "fillGaps": "Fill gaps",
+      "followStory": "Follow story",
+      "followAsset": "Follow asset",
+      "lockId": "Lock ID",
+      "cinematic": "Cinematic"
     }
   }
 }

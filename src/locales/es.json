@@ -2081,6 +2081,14 @@
     "restyle": {
       "name": "Restyle allowed",
       "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+    },
+    "axis": {
+      "keepWorld": "Guardar mundo",
+      "fillGaps": "Rellenar",
+      "followStory": "Seguir historia",
+      "followAsset": "Seguir activo",
+      "lockId": "Bloquear ID",
+      "cinematic": "Cine"
     }
   }
 }

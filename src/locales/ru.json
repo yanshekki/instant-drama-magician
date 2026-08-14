@@ -2081,6 +2081,14 @@
     "restyle": {
       "name": "Restyle allowed",
       "blurb": "Same person. Outfit, set, and era may change if you asked. Not a different person."
+    },
+    "axis": {
+      "keepWorld": "Мир цел",
+      "fillGaps": "Заполнить",
+      "followStory": "По истории",
+      "followAsset": "По активу",
+      "lockId": "Замок ID",
+      "cinematic": "Кино"
     }
   }
 }
