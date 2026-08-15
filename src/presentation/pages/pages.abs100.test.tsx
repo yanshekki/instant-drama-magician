@@ -13478,7 +13478,7 @@ describe('abs100 Stories pure residual helpers', () => {
     expect(storiesSpokenPreview('x'.repeat(100)).endsWith('…')).toBe(true)
     expect(await storiesCreateId(async () => ({ id: 'n' }))).toEqual({ id: 'n' })
     expect(storiesEditPrefix('en')).toMatch(/IMAGE EDIT/)
-    expect(storiesEditPrefix('zh-HK')).toMatch(/IMAGE EDIT/)
+    expect(storiesEditPrefix('zh-HK')).toMatch(/圖像編輯/)
     expect(
       storiesPrimaryCover([{ id: 'a', path: '/a' }], '/a')?.id
     ).toBe('a')
