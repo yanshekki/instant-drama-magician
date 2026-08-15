@@ -1,19 +1,23 @@
 # 瞬劇魔法師 · InstantDrama Magician
 
-> **語言：** [English](./README.md) · [中文](./README-ZH.md)
+**由一個構想，到完整短劇——在你的工作檯上完成。**
 
-**AI 專業短劇生成桌面工具**
+鎖定角色面貌，為每一段分鏡出圖，再生成 6／10 秒、臉與戲服與場景都對得上的片段，最後用 FFmpeg 合成成片。
 
-由一個 idea 到完整短劇：故事 → 人物／服裝／場景／道具／**動作** → 線性時間軸 → AI 分鏡與影片 → FFmpeg 成片匯出。  
-跨平台桌面（Electron）+ 可選瀏覽器遠控 + 完整命令列 `instant-drama`（**158** 個 channel，對齊桌面 IPC）。
+[English](./README.md) · [中文](./README-ZH.md) · **v1.4.2** · MIT · [YSK Limited](https://ysk.hk) · [email@ysk.hk](mailto:email@ysk.hk)
 
-| | |
-|---|---|
-| **版本** | 1.4.2 |
-| **作者** | YSK Limited |
-| **聯絡** | [email@ysk.hk](mailto:email@ysk.hk) |
-| **授權** | MIT |
-| **English** | [README.md](./README.md) |
+![時間軸流程——分鏡靜圖、導演詞與已生成片段同板](./src/assets/screen/7.png)
+
+<p align="center"><em>一個故事，一條時間軸。每一欄是一段：角色聖經、場景、導演詞、關鍵幀靜圖，然後是片段。</em></p>
+
+| 桌面 | 遠控 | 命令列 |
+|---|---|---|
+| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**158** 個 channel，與應用相同 |
+
+- **身份鎖定** — 多角度角色聖經、戲服、場景、道具與動作板  
+- **畫面連續** — 上一段靜圖與片尾，餵給下一段  
+- **先選材料** — 勾選靜圖與文字，優化導演詞，再出靜圖與影片  
+- **你仍主控** — 配方選擇器、完成後作業系統通知、十種介面語言  
 
 ---
 
@@ -38,7 +42,13 @@
 
 ## 介面預覽
 
-以下截圖來自實際 App（`src/assets/screen/`）。
+截圖來自實際應用（`src/assets/screen/`）。上方主圖即 **流程** 板（角色、導演詞、靜圖、片段）。
+
+### MediaGen——準備出片
+
+先選材料：上一段靜圖、本段靜圖、角色、場景，再以文字鎖定連續。下一步優化導演詞並生成。
+
+![MediaGen 出片準備](./src/assets/screen/8.png)
 
 ### 1. 故事管理
 
@@ -94,7 +104,7 @@
 | **進階預備** | Cast 鎖定 → 分鏡 stills（**片尾連續**、強制上一段 keyframe、多 ref 潤飾）→ 出片；單格**精修靜圖／精修出片**（MediaGen） |
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
-| **設定** | LLM／影像／影片供應商、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
+| **設定** | LLM／影像／影片供應商、**完成後作業系統通知**、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
 | **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**158** 個 IPC channel） |
 | **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
 | **多語系** | 10 種介面語言（香港書面語、中國大陸書面語、阿語 RTL 等）；LLM 改善／生成前的**配方選擇器**；MediaGen 介面已本地化 |

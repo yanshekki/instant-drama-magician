@@ -1,19 +1,23 @@
 # InstantDrama Magician · 瞬劇魔法師
 
-> **Language:** [English](./README.md) · [中文](./README-ZH.md)
+**From one idea to a finished short drama — on your desk.**
 
-**AI professional short-drama desktop studio**
+Lock a cast. Board every beat. Generate 6 / 10 second clips that keep face, costume, and set. Then FFmpeg exports the film.
 
-From one idea to a finished short drama: story → characters / costumes / scenes / props / **actions** → linear timeline → AI storyboard & video → FFmpeg final export.  
-Cross-platform desktop (Electron) + optional browser remote control + full CLI `instant-drama` (**158** channels, same surface as desktop IPC).
+[English](./README.md) · [中文](./README-ZH.md) · **v1.4.2** · MIT · [YSK Limited](https://ysk.hk) · [email@ysk.hk](mailto:email@ysk.hk)
 
-| | |
-|---|---|
-| **Version** | 1.4.2 |
-| **Vendor** | YSK Limited |
-| **Contact** | [email@ysk.hk](mailto:email@ysk.hk) |
-| **License** | MIT |
-| **中文** | [README-ZH.md](./README-ZH.md) |
+![Timeline pipeline — stills, director notes, and generated clips on one board](./src/assets/screen/7.png)
+
+<p align="center"><em>One story, one timeline. Each column is a beat: character bible, scene, director notes, keyframe still, then the clip.</em></p>
+
+| Desktop | Remote | CLI |
+|---|---|---|
+| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **158** channels, same as the app |
+
+- **Identity lock** — multi-angle character bibles, costumes, scenes, props, and motion boards  
+- **Continuity** — previous-beat stills and end frames feed the next clip  
+- **Materials first** — pick stills and notes, polish the director prompt, then still and video  
+- **You stay in control** — recipe picker, OS completion notifications, ten UI languages  
 
 ---
 
@@ -38,7 +42,13 @@ Cross-platform desktop (Electron) + optional browser remote control + full CLI `
 
 ## UI screenshots
 
-Screenshots from the real app (`src/assets/screen/`).
+From the running app (`src/assets/screen/`). The hero above is the **flow** board (cast, notes, stills, clips).
+
+### MediaGen — prepare a clip
+
+Materials first: previous still, this beat’s still, character, scene, then lock continuity in text. Next step polishes the director prompt and generates.
+
+![MediaGen clip prep](./src/assets/screen/8.png)
 
 ### 1. Story management
 
@@ -94,7 +104,7 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 | **Advanced prep** | Cast lock → storyboard stills (**end-frame continuity**, prev keyframe edit base, multi-ref polish) → video; per-cell **Refine still / Refine to video** (MediaGen) |
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
-| **Settings** | LLM / image / video providers, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
+| **Settings** | LLM / image / video providers, **OS completion notifications**, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
 | **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**158** IPC channels) |
 | **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
 | **i18n** | 10 UI languages (incl. zh-HK written Chinese, zh-CN Mainland written Chinese, Arabic RTL); **recipe picker** before LLM improve/generate; MediaGen chrome localized |
