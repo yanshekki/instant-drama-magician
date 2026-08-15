@@ -23,19 +23,17 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
-## 近期焦點（1.4.1）
+## 近期焦點（1.4.2）
 
 | 區域 | 測試（示例） |
 |------|----------------|
+| 作業系統完成通知 | `desktopNotify.test.ts`、`notifyDesktop.test.ts`、`showDesktopNotification.test.ts`、`SettingsPage.test.tsx` |
+| Gateway 以真正 Node 啟動 | `GrokGatewayService.test.ts` |
+| 不再把 stub 當成功出片 | `CompositeVideoProvider.test.ts`、`VideoPrepHost.test.tsx` |
 | 本地化導演密封 | `mediaGenVideoPolishUser.test.ts`、`PromptCatalog.test.ts` |
 | 分鏡連續靜圖標題 | `mediaGenSectionTitleI18n.test.ts`、`timelineMediaGen.test.ts`、`MediaGenPrepModal.test.tsx` |
 | 確認出片步驟 | `mediaGen.test.ts`、`videoPrep.test.ts` |
 | 配方已選卡片 | `PromptTemplateContext.test.tsx` |
-| 時間軸連續性 | `writeClipContinuityStill`、`promptContinuity` |
-| MediaGen timeline | `mediaGen.test.ts`、`timelineMediaGen.test.ts` |
-| 進階 studio | `TimelineAdvancedStudio.test.tsx`（精修 → `startMediaGen`） |
-| 戲服雙寫 | `costumes:appendTryOnStill`、`AiJobsContext` |
-| 共用圖庫 | `EntityGalleryPanel.test.tsx` |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \
@@ -61,7 +59,7 @@ npx vitest run src/runtime/handlers/mediaGen.test.ts \
 
 ## Channel 對齊
 
-`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **157** 個 IPC channel。  
+`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **158** 個 IPC channel。  
 `channelInvoke.matrix.test.ts` 對安全無參 channel 做 invoke，不應 `NOT_FOUND`。
 
 ## 相關

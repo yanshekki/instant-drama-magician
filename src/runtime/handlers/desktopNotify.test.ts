@@ -47,5 +47,13 @@ describe('registerDesktopNotifyHandlers', () => {
     show.mockRejectedValueOnce(new Error('boom'))
     const fail = await fn({ title: 'T', body: 'B' })
     expect(fail).toMatchObject({ ok: false, reason: 'error' })
+
+    await fn({ body: 'only-body' })
+    expect(show).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'only-body', body: 'only-body' })
+    )
+    show.mockRejectedValueOnce('string-fail')
+    const fail2 = await fn({ title: 'T' })
+    expect(fail2).toMatchObject({ ok: false, reason: 'error' })
   })
 })

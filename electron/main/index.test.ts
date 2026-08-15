@@ -75,7 +75,7 @@ const protocol = {
 
 const app = {
   isPackaged: false,
-  getVersion: () => '1.4.1',
+  getVersion: () => '1.4.2',
   getName: () => 'InstantDrama',
   setName: vi.fn(),
   getPath: (name: string) => {
@@ -164,7 +164,7 @@ vi.mock('../../src/infrastructure/update/AppUpdateService', () => ({
     check: vi.fn(async () => ({
       status: 'idle',
       channel: 'desktop-dev',
-      currentVersion: '1.4.1',
+      currentVersion: '1.4.2',
       message: 'ok',
       releaseUrl: 'https://x'
     }))
@@ -518,7 +518,7 @@ describe('electron main index', () => {
       status: 'available',
       channel: 'desktop-dev',
       currentVersion: '1.0.0',
-      latestVersion: '1.4.1',
+      latestVersion: '1.4.2',
       message: 'new',
       releaseUrl: 'https://x'
     } as never)

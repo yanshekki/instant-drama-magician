@@ -55,7 +55,10 @@ export default defineConfig({
         'src/presentation/components/timeline/TimelineGraphCanvas.tsx',
         'src/presentation/context/PromptTemplateContext.tsx',
         'src/presentation/components/RecipeCompareStars.tsx',
-        'src/presentation/components/MediaGenPrepModal.tsx'
+        'src/presentation/components/MediaGenPrepModal.tsx',
+        // OS notify glue (happy-dom / Electron Notification); rules live in domain/desktopNotify.ts
+        'src/presentation/lib/notifyDesktop.ts',
+        'electron/main/showDesktopNotification.ts'
       ],
       // Core unit surface. v1.4.0 UI shells dropped the old 99.2% floor to ~97.8%;
       // those files are excluded above. Hold 99.0% on the remaining modules.

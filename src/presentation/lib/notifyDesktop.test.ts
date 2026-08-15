@@ -1,4 +1,4 @@
-/** @vitest-environment jsdom */
+/** @vitest-environment happy-dom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getApi = vi.fn()
@@ -135,5 +135,144 @@ describe('notifyDesktop', () => {
         settings: prefs
       })
     ).not.toThrow()
+  })
+
+  it('isAppForeground is false when hasFocus throws', () => {
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => {
+      throw new Error('no focus')
+    })
+    expect(isAppForeground()).toBe(false)
+  })
+
+  it('returns disabled / cancelled / too-soon reasons', async () => {
+    expect(
+      (
+        await notifyJobSettled({
+          outcome: 'succeeded',
+          kind: 'text',
+          startedAt: Date.now() - 10_000,
+          settings: { ...prefs, desktopNotifyEnabled: false }
+        })
+      ).reason
+    ).toBe('disabled')
+    expect(
+      (
+        await notifyJobSettled({
+          outcome: 'cancelled',
+          kind: 'text',
+          startedAt: Date.now() - 10_000,
+          settings: prefs
+        })
+      ).reason
+    ).toBe('cancelled')
+    expect(
+      (
+        await notifyJobSettled({
+          outcome: 'succeeded',
+          kind: 'text',
+          startedAt: Date.now(),
+          settings: prefs
+        })
+      ).reason
+    ).toBe('too-soon')
+  })
+
+  it('loads settings from the API and uses image / degraded copy', async () => {
+    const show = vi.fn(async () => ({ ok: true }))
+    getApi.mockReturnValue({
+      settings: { get: vi.fn(async () => ({ ...prefs, desktopNotifySound: false })) },
+      desktopNotify: { show }
+    })
+    const r = await notifyJobSettled({
+      outcome: 'degraded',
+      kind: 'image',
+      startedAt: Date.now() - 9_000
+    })
+    expect(r.ok).toBe(true)
+    expect(show.mock.calls[0][0].silent).toBe(true)
+    expect(String(show.mock.calls[0][0].body)).toBeTruthy()
+  })
+
+  it('treats a missing settings.get as defaults', async () => {
+    const show = vi.fn(async () => ({ ok: true }))
+    getApi.mockReturnValue({ desktopNotify: { show } })
+    const r = await notifyJobSettled({
+      outcome: 'succeeded',
+      kind: 'text',
+      startedAt: Date.now() - 9_000
+    })
+    expect(r.ok).toBe(true)
+  })
+
+  it('returns error when Electron show throws', async () => {
+    getApi.mockReturnValue({
+      desktopNotify: {
+        show: vi.fn(async () => {
+          throw new Error('ipc')
+        })
+      }
+    })
+    const r = await notifyJobSettled({
+      outcome: 'succeeded',
+      kind: 'video',
+      startedAt: Date.now() - 9_000,
+      settings: prefs
+    })
+    expect(r).toEqual({ ok: false, reason: 'error' })
+  })
+
+  it('falls back to unsupported when Electron has no show and Notification is missing', async () => {
+    getApi.mockReturnValue({})
+    const prev = (globalThis as { Notification?: unknown }).Notification
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (globalThis as any).Notification
+    const r = await notifyJobSettled({
+      outcome: 'succeeded',
+      kind: 'text',
+      startedAt: Date.now() - 9_000,
+      settings: prefs
+    })
+    expect(r.reason).toBe('unsupported')
+    if (prev) (globalThis as { Notification?: unknown }).Notification = prev
+  })
+
+  it('web path reports denied and constructor errors', async () => {
+    isElectron.mockReturnValue(false)
+    const denied = vi.fn()
+    Object.assign(denied, {
+      permission: 'denied',
+      requestPermission: vi.fn(async () => 'denied')
+    })
+    vi.stubGlobal('Notification', denied)
+    expect(
+      (
+        await notifyJobSettled({
+          outcome: 'succeeded',
+          kind: 'export',
+          startedAt: Date.now() - 9_000,
+          settings: prefs
+        })
+      ).reason
+    ).toBe('denied')
+
+    const boom = vi.fn(() => {
+      throw new Error('ctor')
+    })
+    Object.assign(boom, {
+      permission: 'granted',
+      requestPermission: vi.fn(async () => 'granted')
+    })
+    vi.stubGlobal('Notification', boom)
+    expect(
+      (
+        await notifyJobSettled({
+          outcome: 'failed',
+          kind: 'export',
+          startedAt: Date.now() - 9_000,
+          settings: prefs
+        })
+      ).reason
+    ).toBe('error')
+    vi.unstubAllGlobals()
   })
 })

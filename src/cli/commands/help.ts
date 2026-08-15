@@ -44,7 +44,7 @@ COMMANDS
 
 DOMAIN SUGAR (all ~158 channels)
   instant-drama <namespace> <action> [jsonArgs…]
-  Namespaces: activity ai app characters costumes diagnostics gateway
+  Namespaces: activity ai app characters costumes desktopNotify diagnostics gateway
     generation media mediaGen project props scenes settings shell souls
     stories support timeline updates videoPrep webServer
   kebab-case actions map to camelCase (generate-sheet → generateSheet)
@@ -82,7 +82,7 @@ EXAMPLES
   instant-drama doctor --json
   instant-drama update
   instant-drama update install --yes
-  instant-drama update install 1.4.1 --yes
+  instant-drama update install 1.4.2 --yes
   instant-drama --local stories list --json
   instant-drama invoke stories:create '{"title":"Demo"}' --json
   instant-drama --url http://127.0.0.1:8787 --token $IDM_TOKEN channels list

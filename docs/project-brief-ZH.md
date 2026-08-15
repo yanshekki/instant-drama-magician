@@ -6,14 +6,14 @@
 **Tagline：** AI 專業短劇生成桌面工具  
 **類型：** 跨平台 Electron 桌面應用  
 
-> ### 現況註記（v1.4.1）
+> ### 現況註記（v1.4.2）
 >
 > | 項目 | 目前 |
 > |------|------|
-> | 版本 | **1.4.1** |
+> | 版本 | **1.4.2** |
 > | 頁面 | Stories · Characters · **Costumes** · Scenes · Props · Timeline（軌道＋流程圖） · Activity · Settings |
-> | i18n | **10** 種語系；系統／導演密封已本地化；香港／中國大陸書面語 |
-> | CLI／Web | 完整 **157** channel 共用 runtime |
+> | i18n | **10** 種語系；完成後作業系統通知；系統／導演密封已本地化；香港／中國大陸書面語 |
+> | CLI／Web | 完整 **158** channel 共用 runtime |
 > | 聯絡 | **email@ysk.hk** · YSK Limited |
 > | 用戶說明 | [../README-ZH.md](../README-ZH.md) · [../README.md](../README.md) |
 > | 文件總覽 | [README-ZH.md](./README-ZH.md) |

@@ -11,16 +11,17 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.4.1)
+## Recent focus areas (1.4.2)
 
 | Area | Tests (examples) |
 |------|------------------|
+| OS completion notifications | `desktopNotify.test.ts`, `notifyDesktop.test.ts`, `showDesktopNotification.test.ts`, `SettingsPage.test.tsx` |
+| Gateway real Node start | `GrokGatewayService.test.ts` |
+| No stub video success | `CompositeVideoProvider.test.ts`, `VideoPrepHost.test.tsx` |
 | Localized director seals | `mediaGenVideoPolishUser.test.ts`, `PromptCatalog.test.ts` (no leftover SPEECH/HARD/IDENTITY lock jargon) |
 | Continuity still titles | `mediaGenSectionTitleI18n.test.ts`, `timelineMediaGen.test.ts`, `MediaGenPrepModal.test.tsx` |
 | Video confirm step | `mediaGen.test.ts`, `videoPrep.test.ts` |
 | Recipe picker selected card | `PromptTemplateContext.test.tsx` |
-| Timeline continuity | `writeClipContinuityStill.test.ts`, `promptContinuity` |
-| MediaGen timeline | `mediaGen.test.ts`, `timelineMediaGen.test.ts` |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \

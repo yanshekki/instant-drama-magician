@@ -2,7 +2,7 @@
 
 > **Language:** [English](./architecture.md) · [中文](./architecture-ZH.md)
 
-Version **1.4.1**. Presentation → Application → Domain → Infrastructure, with a **shared handler runtime** used by Electron, Web, and CLI.
+Version **1.4.2**. Presentation → Application → Domain → Infrastructure, with a **shared handler runtime** used by Electron, Web, and CLI.
 
 ## Layers
 
@@ -13,7 +13,7 @@ Presentation (React pages / CLI / browser UI)
   IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
-  registerAllHandlers + HandlerHost   ← single source of truth (~157 channels)
+  registerAllHandlers + HandlerHost   ← single source of truth (~158 channels)
         │
         ▼
   Application services (Generation, Timeline, Export, Backup, …)
@@ -35,7 +35,7 @@ Media in the desktop app is served via privileged scheme **`idm-media://`** (ran
 | CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR` (default `OS app data root (same as desktop)`) |
 | Web / server | `server/index.ts` + `EmbeddedWebServer` | Same handlers; SPA from `out/renderer` |
 
-Channel catalog: `src/runtime/channelManifest.ts` (**157** unique ids).
+Channel catalog: `src/runtime/channelManifest.ts` (**158** unique ids).
 
 Notable media surfaces:
 
