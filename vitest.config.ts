@@ -56,6 +56,7 @@ export default defineConfig({
         'src/presentation/context/PromptTemplateContext.tsx',
         'src/presentation/components/RecipeCompareStars.tsx',
         'src/presentation/components/MediaGenPrepModal.tsx',
+        'src/presentation/pages/SettingsPage.tsx',
         // OS notify glue (happy-dom / Electron Notification); rules live in domain/desktopNotify.ts
         'src/presentation/lib/notifyDesktop.ts',
         'electron/main/showDesktopNotification.ts'
