@@ -2,6 +2,7 @@
  * Domain *VideoPolishUserPrompt bodies for MediaGen video stage (second polish).
  */
 import { PromptCatalog } from '../prompts'
+import type { PromptCopyKey } from '../prompts/copy/keys'
 import { UI_LANGUAGES } from './uiLanguages'
 import type { MediaGenKind, MediaGenMaterialSection } from './mediaGenPrep'
 import {
@@ -39,7 +40,7 @@ export function localizeBeatDirectorText(text: string, locale: string): string {
   const raw = (text || '').trim()
   if (!raw) return ''
   const loc = locale || 'zh-HK'
-  const L = (key: string, vars?: Record<string, string | number>) =>
+  const L = (key: PromptCopyKey, vars?: Record<string, string | number>) =>
     PromptCatalog.t(loc, key, vars)
   return raw
     .replace(/^Story:\s*/gim, L('directorLabel.story'))
