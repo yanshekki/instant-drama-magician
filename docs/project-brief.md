@@ -6,14 +6,14 @@
 **Tagline:** AI professional short-drama desktop tool  
 **Type:** Cross-platform Electron desktop application  
 
-> ### Status note (v1.4.2)
+> ### Status note (v1.5.0)
 >
 > | Item | Current |
 > |------|---------|
-> | Version | **1.4.2** |
-> | Pages | Stories · Characters · **Costumes** · Scenes · Props · Timeline (track + pipeline board) · Activity · Settings |
+> | Version | **1.5.0** |
+> | Pages | Stories · Characters · **Costumes** · Scenes · Props · **Comics** · Timeline (track + pipeline board) · Activity · Settings |
 > | i18n | **10** locales; OS completion notifications; localized system / director seals; HK / Mainland written Chinese |
-> | CLI / Web | Full **158**-channel shared runtime |
+> | CLI / Web | Full **167**-channel shared runtime |
 > | Contact | **email@ysk.hk** · YSK Limited |
 > | User guides | [../README.md](../README.md) · [../README-ZH.md](../README-ZH.md) |
 > | Docs index | [README.md](./README.md) |
@@ -46,8 +46,9 @@ Shared `registerAllHandlers` powers Electron IPC, Web `/api/invoke`, and CLI `in
 4. Props  
 5. Timeline  
 6. **Costumes** (shipped)  
-7. **Activity** (shipped)  
-8. **Settings** (shipped)  
+7. **Comics** (shipped)  
+8. **Activity** (shipped)  
+9. **Settings** (shipped)  
 
 ## Related
 

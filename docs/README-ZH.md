@@ -2,7 +2,7 @@
 
 > **語言：** [English](./README.md) · [中文](./README-ZH.md)
 
-產品版本 **1.4.2** · 廠商 **YSK Limited** · 聯絡 **[email@ysk.hk](mailto:email@ysk.hk)**
+產品版本 **1.5.0** · 廠商 **YSK Limited** · 聯絡 **[email@ysk.hk](mailto:email@ysk.hk)**
 
 **命名規則：** 檔名**無** `-ZH` 為英文版；**有** `-ZH` 為中文版。每一對必須涵蓋相同主題與事實。
 
@@ -36,14 +36,14 @@
 
 | 項目 | 值 |
 |------|-----|
-| App 版本 | `1.4.2`（`package.json`） |
-| IPC／CLI channel | **158**（共用 `registerAllHandlers`） |
+| App 版本 | `1.5.0`（`package.json`） |
+| IPC／CLI channel | **167**（共用 `registerAllHandlers`） |
 | 法律文檔版本 | `LEGAL_VERSION` **1.0.0**（`src/domain/legal.ts`） |
 | 預設 LLM | Grok Gateway `http://127.0.0.1:3847/v1` |
 | AI clip 時長 | **僅 6 或 10** 秒（Grok 風格影片） |
 | FFmpeg | 經 **`ffmpeg-static`** 打包；可用 `FFMPEG_PATH` 覆寫 |
 | 安裝版 userData（Linux） | `~/.config/instant-drama-magician/` |
-| 開發 userData（Linux） | `~/.config/instant-drama-magician-dev/` |
+| 開發 userData（Linux） | 同一 OS 資料夾（`~/.config/instant-drama-magician/`），除非設 `IDM_DATA_DIR`／`IDM_PROFILE` |
 | 聯絡電郵 | **email@ysk.hk** |
 | UI 語系 | 10 種：en, zh-HK, zh-CN, es, hi, ar, pt-BR, fr, ja, ru |
 

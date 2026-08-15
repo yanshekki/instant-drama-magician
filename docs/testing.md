@@ -11,10 +11,11 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.4.2)
+## Recent focus areas (1.5.0)
 
 | Area | Tests (examples) |
 |------|------------------|
+| Comics studio | `ComicsPage.test.tsx`, `ComicService.test.ts`, `comics.test.ts`, `comicPageLayouts.test.ts`, `comicPageFormat.test.ts`, `comicPageVideos.test.ts` |
 | OS completion notifications | `desktopNotify.test.ts`, `notifyDesktop.test.ts`, `showDesktopNotification.test.ts`, `SettingsPage.test.tsx` |
 | Gateway real Node start | `GrokGatewayService.test.ts` |
 | No stub video success | `CompositeVideoProvider.test.ts`, `VideoPrepHost.test.tsx` |

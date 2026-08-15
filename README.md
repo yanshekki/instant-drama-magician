@@ -4,7 +4,7 @@
 
 Lock a cast. Board every beat. Generate 6 / 10 second clips that keep face, costume, and set. Then FFmpeg exports the film.
 
-[English](./README.md) · [中文](./README-ZH.md) · **v1.4.2** · MIT · [YSK Limited](https://ysk.hk) · [email@ysk.hk](mailto:email@ysk.hk)
+[English](./README.md) · [中文](./README-ZH.md) · **v1.5.0** · MIT · [YSK Limited](https://ysk.hk) · [email@ysk.hk](mailto:email@ysk.hk)
 
 ![Timeline pipeline — stills, director notes, and generated clips on one board](./src/assets/screen/7.png)
 
@@ -12,9 +12,10 @@ Lock a cast. Board every beat. Generate 6 / 10 second clips that keep face, cost
 
 | Desktop | Remote | CLI |
 |---|---|---|
-| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **158** channels, same as the app |
+| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **167** channels, same as the app |
 
 - **Identity lock** — multi-angle character bibles, costumes, scenes, props, and motion boards  
+- **Comics studio** — paginate beats into even or manga panels, pick 9:16 / 1:1 / 16:9, then page or short-drama video  
 - **Continuity** — previous-beat stills and end frames feed the next clip  
 - **Materials first** — pick stills and notes, polish the director prompt, then still and video  
 - **You stay in control** — recipe picker, OS completion notifications, ten UI languages  
@@ -101,11 +102,12 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 | **MediaGen shell** | Unified materials → multi-vision polish → still / video (`mediaGen:extract` · `polish` · `generateImage`); used by library pages and timeline refine |
 | **Gallery UI** | Shared **EntityGalleryPanel**: large preview, zoom/save/cover/remove/intro, multi-thumb strip (preview vs identity-lock multi-select) |
 | **Timeline** | Linear layout, snap/pack, per-clip generate, bind character / scene / prop / **action**, 6s/10s duration, dialogue & camera tags; **pipeline board** stacks to the live window height |
+| **Comics** | Turn beats into full pages (even grids + manga layouts), 9:16 / 1:1 / 16:9, page vs short-drama video schemes, versioned page videos, export a film of pages that already have video |
 | **Advanced prep** | Cast lock → storyboard stills (**end-frame continuity**, prev keyframe edit base, multi-ref polish) → video; per-cell **Refine still / Refine to video** (MediaGen) |
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
 | **Settings** | LLM / image / video providers, **OS completion notifications**, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
-| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**158** IPC channels) |
+| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**167** IPC channels) |
 | **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
 | **i18n** | 10 UI languages (incl. zh-HK written Chinese, zh-CN Mainland written Chinese, Arabic RTL); **recipe picker** before LLM improve/generate; MediaGen chrome localized |
 | **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
@@ -262,7 +264,7 @@ Local builds land in `release/`; or download from GitHub Releases.
 
 ```bash
 # Linux example
-sudo dpkg -i release/instant-drama-magician_1.4.2_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.5.0_amd64.deb
 # or
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -328,7 +330,7 @@ instant-drama version
 ```bash
 instant-drama update              # check npm registry for a newer version
 instant-drama update install --yes   # global install latest (with post-verify)
-instant-drama update install 1.4.2 --yes   # pin a version
+instant-drama update install 1.5.0 --yes   # pin a version
 ```
 
 `instant-drama doctor` also reports npm update status (skip with `IDM_SKIP_UPDATE=1`).
@@ -349,7 +351,7 @@ Typical usage after global install:
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # ~158 channels
+instant-drama channels list --json          # ~167 channels
 ```
 
 > **Note:** Global install provides the **CLI / headless / web-server** control plane (stories, cast, generation, export helpers, agent tools). Building or opening the **Electron desktop GUI** (`instant-drama build` / `instant-drama open`) still needs a full git clone with `npm install` (devDependencies such as Electron) and a local `release/` tree.
@@ -375,7 +377,7 @@ npm run instant-drama -- doctor --json
 ### Common commands
 
 ```bash
-# Diagnostics (channel count should be ~158)
+# Diagnostics (channel count should be ~167)
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -564,7 +566,7 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 |---------|---------|--------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | Docs index + facts |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | Product spec |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (158 channels) |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (167 channels) |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agents / OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | Web remote |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

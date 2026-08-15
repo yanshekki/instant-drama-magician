@@ -103,7 +103,7 @@ Cross-build: mac installers need a Mac. Use `--force` only when you know the too
 
 ## Discovery & invoke
 
-Electron, Web, and CLI share **`registerAllHandlers`** — **158** channels.
+Electron, Web, and CLI share **`registerAllHandlers`** — **167** channels.
 
 ```bash
 instant-drama doctor --json
@@ -129,9 +129,9 @@ instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces include: `activity` `ai` `app` `characters` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
+Namespaces include: `activity` `ai` `app` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
 
-## Recent API surface (1.4.2)
+## Recent API surface (1.5.0)
 
 Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 
@@ -145,6 +145,10 @@ Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 | `costumes:generateDressed` | Generate dressed still | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
 | `videoPrep:create` | Prep still / open clip flow | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
 | `videoPrep:confirm` | Confirm video from still | `instant-drama videoPrep confirm --args '[{...}]' --json` |
+| `comics:get` | Get or create the comic book for a story | `instant-drama comics get --args '["S"]' --json` |
+| `comics:addPage` / `updatePage` | Add or edit a page (layout, format, slots) | `instant-drama comics add-page --args '[{"storyId":"S","panelLayout":"grid-2x2"}]' --json` |
+| `comics:deletePageVideo` / `setPageVideoPrimary` | Versioned page videos | `instant-drama comics delete-page-video --args '["PAGE","VID"]' --json` |
+| `media:exportFinal` | Timeline film, or `{ clipSource: "comics" }` for pages that already have video | `instant-drama media export-final --args '["S",{"clipSource":"comics"}]' --json` |
 | `desktopNotify:show` | OS completion notification | `instant-drama desktopNotify show --args '[{"title":"T","body":"B"}]' --json` |
 | `timeline:getAdvancedPrep` | Advanced studio snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
 | `timeline:setCastPrep` | Persist cast lock prep | `instant-drama timeline set-cast-prep --args '[{...}]' --json` |
@@ -162,7 +166,7 @@ instant-drama channels describe costumes:appendTryOnStill --json
 bash scripts/cli-smoke.sh
 # or manually:
 npm run instant-drama -- version
-npm run instant-drama -- doctor --json          # expect channelCount 157
+npm run instant-drama -- doctor --json          # expect channelCount 167
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
@@ -205,7 +209,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 | Capability | Status |
 |------------|--------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel count | **158** |
+| Channel count | **167** |
 | `instant-drama invoke` | ✅ any channel |
 | Domain sugar | ✅ all namespaces |
 | OpenAI tool schema | ✅ |

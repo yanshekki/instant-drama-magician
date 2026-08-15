@@ -4,7 +4,7 @@
 
 鎖定角色面貌，為每一段分鏡出圖，再生成 6／10 秒、臉與戲服與場景都對得上的片段，最後用 FFmpeg 合成成片。
 
-[English](./README.md) · [中文](./README-ZH.md) · **v1.4.2** · MIT · [YSK Limited](https://ysk.hk) · [email@ysk.hk](mailto:email@ysk.hk)
+[English](./README.md) · [中文](./README-ZH.md) · **v1.5.0** · MIT · [YSK Limited](https://ysk.hk) · [email@ysk.hk](mailto:email@ysk.hk)
 
 ![時間軸流程——分鏡靜圖、導演詞與已生成片段同板](./src/assets/screen/7.png)
 
@@ -12,9 +12,10 @@
 
 | 桌面 | 遠控 | 命令列 |
 |---|---|---|
-| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**158** 個 channel，與應用相同 |
+| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**167** 個 channel，與應用相同 |
 
 - **身份鎖定** — 多角度角色聖經、戲服、場景、道具與動作板  
+- **漫畫工作室** — 將分鏡排成規則格或漫畫不規則格，選 9:16／1:1／16:9，再出本頁影片或短劇分鏡片  
 - **畫面連續** — 上一段靜圖與片尾，餵給下一段  
 - **先選材料** — 勾選靜圖與文字，優化導演詞，再出靜圖與影片  
 - **你仍主控** — 配方選擇器、完成後作業系統通知、十種介面語言  
@@ -101,11 +102,12 @@
 | **MediaGen 生成殼** | 統一材料 → 多圖 vision 潤飾 → 出圖／出片（`mediaGen:extract` · `polish` · `generateImage`）；庫頁與時間軸精修共用 |
 | **圖庫 UI** | 共用 **EntityGalleryPanel**：大圖預覽、放大／另存／封面／移除／介紹片、縮圖列（預覽 vs 身份鎖定多選） |
 | **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、綁定角色／場景／道具／**動作**、6s／10s 時長、對白與鏡頭標記；**流程圖**按視窗高度向下換欄 |
+| **漫畫 Comics** | 將分鏡排成完整頁（規則格＋漫畫格）、9:16／1:1／16:9、本頁動畫或短劇分鏡方案、多版本本頁影片、只串已有片的頁匯出成片 |
 | **進階預備** | Cast 鎖定 → 分鏡 stills（**片尾連續**、強制上一段 keyframe、多 ref 潤飾）→ 出片；單格**精修靜圖／精修出片**（MediaGen） |
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
 | **設定** | LLM／影像／影片供應商、**完成後作業系統通知**、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
-| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**158** 個 IPC channel） |
+| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**167** 個 IPC channel） |
 | **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
 | **多語系** | 10 種介面語言（香港書面語、中國大陸書面語、阿語 RTL 等）；LLM 改善／生成前的**配方選擇器**；MediaGen 介面已本地化 |
 | **自動更新** | 打包版經 GitHub Releases（electron-updater） |
@@ -262,7 +264,7 @@ instant-drama doctor --json
 
 ```bash
 # Linux 範例
-sudo dpkg -i release/instant-drama-magician_1.4.2_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.5.0_amd64.deb
 # 或
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -328,7 +330,7 @@ instant-drama version
 ```bash
 instant-drama update              # 檢查 npm registry 是否有新版
 instant-drama update install --yes   # 全域安裝 latest（會驗證版本）
-instant-drama update install 1.4.2 --yes   # 釘選版本
+instant-drama update install 1.5.0 --yes   # 釘選版本
 ```
 
 `instant-drama doctor` 亦會報告 npm 更新狀態（可用 `IDM_SKIP_UPDATE=1` 略過）。
@@ -349,7 +351,7 @@ instant-drama update install 1.4.2 --yes   # 釘選版本
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # 約 158 個 channel
+instant-drama channels list --json          # 約 167 個 channel
 ```
 
 > **說明：** 全域安裝提供 **CLI／headless／網頁伺服器** 控制面（故事、角色、生成、匯出輔助、agent 工具）。若要 **建置或開啟 Electron 桌面 GUI**（`instant-drama build`／`instant-drama open`），仍需完整 git clone、`npm install`（含 Electron 等 devDependencies）以及本機 `release/` 產物。
@@ -375,7 +377,7 @@ npm run instant-drama -- doctor --json
 ### 常用指令
 
 ```bash
-# 診斷（channel 數應約 158）
+# 診斷（channel 數應約 167）
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -564,7 +566,7 @@ rm -rf ~/.config/instant-drama-magician
 |------|------|------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | 文件總覽 + 準則 |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | 產品規格 |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（158 channels） |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（167 channels） |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agent／OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | 網頁遠控 |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |
