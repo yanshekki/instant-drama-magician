@@ -6,13 +6,13 @@
 **Tagline:** AI professional short-drama desktop tool  
 **Type:** Cross-platform Electron desktop application  
 
-> ### Status note (v1.4.0)
+> ### Status note (v1.4.1)
 >
 > | Item | Current |
 > |------|---------|
-> | Version | **1.4.0** |
+> | Version | **1.4.1** |
 > | Pages | Stories · Characters · **Costumes** · Scenes · Props · Timeline (track + pipeline board) · Activity · Settings |
-> | i18n | **10** locales; recipe picker; HK / Mainland written Chinese |
+> | i18n | **10** locales; localized system / director seals; HK / Mainland written Chinese |
 > | CLI / Web | Full **157**-channel shared runtime |
 > | Contact | **email@ysk.hk** · YSK Limited |
 > | User guides | [../README.md](../README.md) · [../README-ZH.md](../README-ZH.md) |

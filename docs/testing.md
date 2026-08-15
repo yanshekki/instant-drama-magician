@@ -11,19 +11,16 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.4.0)
+## Recent focus areas (1.4.1)
 
 | Area | Tests (examples) |
 |------|------------------|
-| Recipe picker | `promptTemplates.test.ts`, `PromptTemplateContext` / `RecipeCompareStars` |
-| Timeline v2 wrap | `timelineGraph.test.ts`, `useTimelineV2Studio.test.tsx` |
-| Clip export name | `clipExportName.test.ts` |
-| Timeline continuity | `writeClipContinuityStill.test.ts`, `promptContinuity` (`resolveTimelineStillRefs`), `AdvancedPrepService` end-frame heal |
-| MediaGen timeline | `mediaGen.test.ts` (extract / generate continuity path), `timelineMediaGen.test.ts` |
-| MediaGen UI host | `MediaGenHost.test.tsx` (`idm:timeline-still-done`) |
-| Advanced studio | `TimelineAdvancedStudio.test.tsx` (refine → `startMediaGen`) |
-| Costume dual-write | `costumes.test.ts` (`appendTryOnStill`), `AiJobsContext.test.tsx` |
-| Shared gallery | `EntityGalleryPanel.test.tsx` |
+| Localized director seals | `mediaGenVideoPolishUser.test.ts`, `PromptCatalog.test.ts` (no leftover SPEECH/HARD/IDENTITY lock jargon) |
+| Continuity still titles | `mediaGenSectionTitleI18n.test.ts`, `timelineMediaGen.test.ts`, `MediaGenPrepModal.test.tsx` |
+| Video confirm step | `mediaGen.test.ts`, `videoPrep.test.ts` |
+| Recipe picker selected card | `PromptTemplateContext.test.tsx` |
+| Timeline continuity | `writeClipContinuityStill.test.ts`, `promptContinuity` |
+| MediaGen timeline | `mediaGen.test.ts`, `timelineMediaGen.test.ts` |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \

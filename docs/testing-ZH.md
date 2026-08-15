@@ -23,16 +23,16 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
-## 近期焦點（1.4.0）
+## 近期焦點（1.4.1）
 
 | 區域 | 測試（示例） |
 |------|----------------|
-| 配方選擇器 | `promptTemplates.test.ts`、`PromptTemplateContext`／`RecipeCompareStars` |
-| Timeline 流程換行 | `timelineGraph.test.ts`、`useTimelineV2Studio.test.tsx` |
-| 單段匯出檔名 | `clipExportName.test.ts` |
-| 時間軸連續性 | `writeClipContinuityStill`、`resolveTimelineStillRefs`、片尾 heal |
+| 本地化導演密封 | `mediaGenVideoPolishUser.test.ts`、`PromptCatalog.test.ts` |
+| 分鏡連續靜圖標題 | `mediaGenSectionTitleI18n.test.ts`、`timelineMediaGen.test.ts`、`MediaGenPrepModal.test.tsx` |
+| 確認出片步驟 | `mediaGen.test.ts`、`videoPrep.test.ts` |
+| 配方已選卡片 | `PromptTemplateContext.test.tsx` |
+| 時間軸連續性 | `writeClipContinuityStill`、`promptContinuity` |
 | MediaGen timeline | `mediaGen.test.ts`、`timelineMediaGen.test.ts` |
-| MediaGen Host | `MediaGenHost.test.tsx`（`idm:timeline-still-done`） |
 | 進階 studio | `TimelineAdvancedStudio.test.tsx`（精修 → `startMediaGen`） |
 | 戲服雙寫 | `costumes:appendTryOnStill`、`AiJobsContext` |
 | 共用圖庫 | `EntityGalleryPanel.test.tsx` |
