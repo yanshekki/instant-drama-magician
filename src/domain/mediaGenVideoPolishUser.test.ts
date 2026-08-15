@@ -3,7 +3,8 @@ import {
   buildMediaGenVideoDirectorFallback,
   buildMediaGenVideoPolishUserOverride,
   looksLikeEnglishKeyframeTaskHint,
-  pickVideoDirectorPrompt
+  pickVideoDirectorPrompt,
+  rewriteDirectorSealWording
 } from './mediaGenVideoPolishUser'
 import type { MediaGenMaterialSection } from './mediaGenPrep'
 
@@ -42,7 +43,7 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
     })
     expect(u).toBeTruthy()
     expect(u!).toMatch(/Self-introduction|casting|Aria/i)
-    expect(u!).toMatch(/HARD RULES|no logo/i)
+    expect(u!).toMatch(/Hard rules|no logo/i)
   })
 
   it('builds costume-intro polish (zh + no ref)', () => {
@@ -84,7 +85,7 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
       ]
     })
     expect(u).toBeTruthy()
-    expect(u!).toMatch(/scene|rooftop|Neon|HARD RULES|set dressing/i)
+    expect(u!).toMatch(/scene|rooftop|Neon|Hard rules|set dressing/i)
   })
 
   it('builds prop-intro polish', () => {
@@ -126,7 +127,7 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
       ]
     })
     expect(u).toBeTruthy()
-    expect(u!).toMatch(/Action|motion|spinning kick|HARD RULES|no face morph/i)
+    expect(u!).toMatch(/Action|motion|spinning kick|Hard rules|no face morph/i)
     expect(u!).toMatch(/Reference still|Duration: 10s/i)
   })
 
@@ -267,6 +268,74 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
     expect(
       pickVideoDirectorPrompt('鏡頭推進，青年拔劍衝出巷口。', fb, 'zh-HK')
     ).toBe('鏡頭推進，青年拔劍衝出巷口。')
+    expect(
+      pickVideoDirectorPrompt(
+        '對白鎖定 · 角色「沈執一」：可聽語音與口型必須只用粵語（yue）。\n若前文與生成鐵則衝突，以生成鐵則為準。',
+        fb,
+        'zh-HK'
+      )
+    ).toBe(fb)
+  })
+
+  it('rewrites leftover English beat labels in director text', () => {
+    const raw = [
+      '情緒：生疏肅穆',
+      'Beat atmosphere: 祠堂門半掩',
+      'SFX cues: 門軸細響',
+      'VISUAL ACTION: 沈執一：推門',
+      'EXPRESSION: 沈執一：凝視',
+      'SPEECH (spoken lines): 沈執一：「你可願走？」',
+      'Ref#1是上一段終幀'
+    ].join('\n')
+    const out = rewriteDirectorSealWording(raw, 'zh-HK')
+    expect(out).toContain('氣氛：')
+    expect(out).toContain('聲效：')
+    expect(out).toContain('動作：')
+    expect(out).toContain('表情：')
+    expect(out).toContain('對白：')
+    expect(out).toContain('參考圖1')
+    expect(out).not.toMatch(/VISUAL ACTION/)
+    expect(out).not.toMatch(/SPEECH \(spoken/)
+    expect(out).not.toMatch(/Beat atmosphere/)
+    expect(out).not.toMatch(/SFX cues/)
+    expect(out).not.toMatch(/Ref#/)
+  })
+
+  it('rewrites leftover 口白 and English HARD RULES into 書面語', () => {
+    const raw = [
+      'SPEECH LOCK · 角色「沈執一」：每段都要同一種口白。',
+      'HARD RULES (highest priority — must obey; override any conflicting earlier details):',
+      '【禁止】水印',
+      'If any earlier instruction conflicts with HARD RULES, follow HARD RULES.'
+    ].join('\n')
+    const out = rewriteDirectorSealWording(raw, 'zh-HK')
+    expect(out).toContain('對白鎖定')
+    expect(out).toContain('同一種對白')
+    expect(out).toContain('生成鐵則')
+    expect(out).not.toMatch(/SPEECH LOCK/)
+    expect(out).not.toMatch(/口白/)
+    expect(out).not.toMatch(/If any earlier instruction/)
+  })
+
+  it('rewrites leftover English seals for ja and fr', () => {
+    const raw = [
+      'SPEECH LOCK · Character "Aoi": audible speech AND lip-sync MUST be Japanese.',
+      'HARD RULES (highest priority — must obey; override any conflicting earlier details):',
+      'no logo',
+      'If any earlier instruction conflicts with HARD RULES, follow HARD RULES.',
+      'VISUAL ACTION: open the door',
+      'SPEECH (spoken lines): Aoi: hello'
+    ].join('\n')
+    const ja = rewriteDirectorSealWording(raw, 'ja')
+    expect(ja).toContain('台詞ロック')
+    expect(ja).toContain('生成の鉄則')
+    expect(ja).toContain('動作：')
+    expect(ja).toContain('台詞：')
+    expect(ja).not.toMatch(/SPEECH LOCK|HARD RULES|VISUAL ACTION/)
+    const fr = rewriteDirectorSealWording(raw, 'fr')
+    expect(fr).toContain('Verrouillage des répliques')
+    expect(fr).toContain('RÈGLES FERMES')
+    expect(fr).not.toMatch(/SPEECH LOCK|HARD RULES/)
   })
 
   it('returns null for non-video image kinds', () => {

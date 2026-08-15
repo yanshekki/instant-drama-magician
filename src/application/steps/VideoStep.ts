@@ -142,7 +142,8 @@ export class VideoStep implements PipelineStep {
               previousDialogueSnippet: prev,
               sameCharacter,
               sameScene,
-              hasContinuityImage: Boolean(previousContinuityPath)
+              hasContinuityImage: Boolean(previousContinuityPath),
+              locale: context.locale || 'zh-HK'
             })
           : null
         const prevWithLock = [prev, continuityLock].filter(Boolean).join('\n')
@@ -226,7 +227,8 @@ export class VideoStep implements PipelineStep {
           ]
             .filter(Boolean)
             .join('\n'),
-          clipHardRules
+          clipHardRules,
+          genLocale
         )
 
         const outputPath =

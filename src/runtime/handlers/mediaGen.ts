@@ -1002,10 +1002,12 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       )
       const dialogue = entry.dialogue ?? null
       const beatContentJson = entry.beatContentJson ?? null
+      const extractLocale = PromptCatalog.locale(payload.locale)
       const beatBlock =
         beatContentToClipPromptBlock(
           parseBeatContent(dialogue, beatContentJson),
-          dialogue
+          dialogue,
+          extractLocale
         ) || dialogue
 
       const prevCharIds = prevEntry
@@ -1034,7 +1036,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
             previousDialogueSnippet: prevEntry.dialogue,
             sameCharacter,
             sameScene,
-            hasContinuityImage: Boolean(previousContinuityPath)
+            hasContinuityImage: Boolean(previousContinuityPath),
+            locale: extractLocale
           })
         : null
 
@@ -1058,6 +1061,15 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       ]
         .filter(Boolean)
         .join('\n')
+
+      let existingStillPath: string | null = null
+      try {
+        const own = store.clipContinuityStillPath(storyId, entryId)
+        if (own && existsSync(own)) existingStillPath = own
+      } catch {
+        existingStillPath = null
+      }
+
       const built = buildTimelineBeatMaterialSections({
         kind,
         storyTitle: String(
@@ -1068,6 +1080,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         beatBlock: beatBlockWithActions || beatBlock,
         previousContinuityPath,
         previousBeatIndex: prevEntry ? previousBeatIndex : undefined,
+        ownStillPath: existingStillPath,
         continuityLockText,
         castRefPath,
         castRefName: characterName,
@@ -1085,15 +1098,6 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         styleNote: (story as { styleNote?: string | null }).styleNote,
         locale: PromptCatalog.locale(payload.locale)
       })
-
-      // This entry's continuity still (for skipStillIfExists keyframe reuse)
-      let existingStillPath: string | null = null
-      try {
-        const own = store.clipContinuityStillPath(storyId, entryId, '.png')
-        if (own && existsSync(own)) existingStillPath = own
-      } catch {
-        existingStillPath = null
-      }
 
       return {
         kind,
@@ -1757,7 +1761,11 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         sexName,
         ctx.settings.uiLanguage
       )
-      let prompt = ensureHardRules(promptIn, hardRules)
+      let prompt = ensureHardRules(
+        promptIn,
+        hardRules,
+        ctx.settings.uiLanguage
+      )
       if (refList.length > 1) {
         prompt = appendMultiRefNote(prompt, refList, 'en')
       }

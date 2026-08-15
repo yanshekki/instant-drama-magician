@@ -39,7 +39,11 @@ export async function generateVideoStillKeyframe(options: {
     improvementNotes: options.improvementNotes,
     locale: options.locale
   })
-  stillPrompt = ensureHardRules(stillPrompt, options.hardRules)
+  stillPrompt = ensureHardRules(
+    stillPrompt,
+    options.hardRules,
+    options.locale
+  )
   const size = options.size || '1024x1024'
   const aspectRatio = options.aspectRatio || '16:9'
   const ref =

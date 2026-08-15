@@ -258,13 +258,15 @@ export class GenerationService {
       const sameScene = Boolean(
         scene && prevEntry?.sceneId && scene.id === prevEntry.sceneId
       )
+      const genUiLocale = String(this.settings.uiLanguage || 'zh-HK')
       const continuityLock = prevEntry
         ? buildContinuityLockPrompt({
             previousBeatIndex: prevBeatIndex,
             previousDialogueSnippet: prev,
             sameCharacter,
             sameScene,
-            hasContinuityImage: Boolean(previousContinuityPath)
+            hasContinuityImage: Boolean(previousContinuityPath),
+            locale: genUiLocale
           })
         : null
       const prevWithLock = [prev, continuityLock].filter(Boolean).join('\n')
@@ -274,7 +276,8 @@ export class GenerationService {
             entry.dialogue,
             (entry as { beatContentJson?: string | null }).beatContentJson
           ),
-          entry.dialogue
+          entry.dialogue,
+          genUiLocale
         ) || entry.dialogue || null
       const { collectTimelineHardRules } = await import(
         '../../domain/promptHardRules'
@@ -310,7 +313,8 @@ export class GenerationService {
           .filter(Boolean)
           .join('\n'),
         opts?.revisionPrompt,
-        clipHardRules
+        clipHardRules,
+        genUiLocale
       )
       let castRefPath: string | null = null
       try {

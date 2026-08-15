@@ -69,7 +69,8 @@ describe('sceneMasterPrompt', () => {
       },
       'en'
     )
-    expect(en).toMatch(/SPACE LOCK/)
+    expect(en).toMatch(/Space lock/)
+    expect(en).not.toMatch(/SPACE LOCK/)
     expect(en).toContain('Pier warehouse')
     expect(en).toContain('neon spill')
   })

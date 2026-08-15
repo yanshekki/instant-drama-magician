@@ -52,7 +52,7 @@ describe('promptContinuity', () => {
     expect(p).toContain('reference image')
     expect(p).toMatch(/SPEECH|Hello/)
     expect(p).toContain('Duration: 6s')
-    expect(p).toMatch(/SPEECH LOCK/)
+    expect(p).toMatch(/對白鎖定/)
   })
 
   it('summarises previous clip', () => {
@@ -241,20 +241,36 @@ describe('promptContinuity', () => {
       previousBeatIndex: 1,
       sameCharacter: true,
       sameScene: true,
-      hasContinuityImage: true
+      hasContinuityImage: true,
+      locale: 'en'
     })
-    expect(lock).toMatch(/CONTINUITY LOCK/)
-    expect(lock).toMatch(/IDENTITY/)
+    expect(lock).toMatch(/Continuity lock/)
+    expect(lock).not.toMatch(/CONTINUITY LOCK/)
+    expect(lock).toMatch(/IDENTITY|Identity/)
+    const zh = buildContinuityLockPrompt({
+      previousBeatIndex: 2,
+      sameCharacter: true,
+      sameScene: true,
+      hasContinuityImage: true,
+      locale: 'zh-HK'
+    })
+    expect(zh).toMatch(/畫面連續鎖定/)
+    expect(zh).not.toMatch(/CONTINUITY LOCK/)
+    expect(zh).toMatch(/第 2 段/)
   })
 
   it('appends director revision notes for re-generate', () => {
     const base = 'Short drama clip.\nDuration: 6s.'
     expect(appendRevisionToClipPrompt(base, null)).toBe(base)
     expect(appendRevisionToClipPrompt(base, '  ')).toBe(base)
-    const withRev = appendRevisionToClipPrompt(base, 'only two hands, no extra limbs')
+    const withRev = appendRevisionToClipPrompt(
+      base,
+      'only two hands, no extra limbs',
+      null,
+      'en'
+    )
     expect(withRev).toContain('DIRECTOR REVISION')
     expect(withRev).toContain('only two hands, no extra limbs')
-    expect(withRev).toContain('Anatomically correct')
   })
 
   it('lists characters missing ref that appear on timeline', () => {
@@ -328,7 +344,7 @@ describe('promptContinuity', () => {
     })
     expect(p).toContain('Rain')
     expect(p).toMatch(/alley|umbrella|Prev|nylon|handheld/i)
-    const withRev = appendRevisionToClipPrompt(p, 'darker', 'NO logo')
+    const withRev = appendRevisionToClipPrompt(p, 'darker', 'NO logo', 'en')
     expect(withRev).toMatch(/darker|NO logo|DIRECTOR REVISION/)
   })
 
@@ -350,6 +366,6 @@ describe('promptContinuity', () => {
       sameScene: false,
       hasContinuityImage: false
     })
-    expect(lock).toMatch(/CONTINUITY|beat/i)
+    expect(lock).toMatch(/畫面連續鎖定|無靜圖|第 2 段/)
   })
 })

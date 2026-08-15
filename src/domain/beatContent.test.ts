@@ -51,9 +51,10 @@ describe('beatContent', () => {
       ].join('\n')
     )
     const block = beatContentToClipPromptBlock(c)
-    expect(block).toMatch(/VISUAL ACTION/)
-    expect(block).toMatch(/SPEECH/)
+    expect(block).toMatch(/【動作/)
+    expect(block).toMatch(/【對白/)
     expect(block).toMatch(/又係落雨/)
+    expect(block).not.toMatch(/VISUAL ACTION/)
   })
 
   it('commitBeatScriptEdit stores json + spoken cache', () => {
@@ -214,7 +215,7 @@ describe('beatContent', () => {
     expect(beatContentForEditor(null, null, 'zh-HK')).toBe('')
 
     const block = beatContentToClipPromptBlock(c)
-    expect(block).toMatch(/SPEECH|VISUAL|MOOD|CAMERA/i)
+    expect(block).toMatch(/心情|氣氛|鏡頭|對白|動作/)
     expect(beatContentToClipPromptBlock(null, 'just dialogue')).toBeTruthy()
     expect(beatContentToClipPromptBlock(null, null)).toBeNull()
 

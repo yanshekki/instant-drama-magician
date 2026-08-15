@@ -49,7 +49,7 @@ export async function polishMediaGenPrompt(options: {
   }
 
   const seal = (prompt: string): string =>
-    ensureHardRules(prompt, options.hardRules)
+    ensureHardRules(prompt, options.hardRules, locale)
 
   const imagePaths = includedMaterialImagePaths(options.includedSections)
   const mode = options.mode ?? mediaGenMode(options.kind)

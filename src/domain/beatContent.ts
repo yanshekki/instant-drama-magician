@@ -420,42 +420,53 @@ export function beatContentForEditor(
  */
 export function beatContentToClipPromptBlock(
   content: BeatContent | null | undefined,
-  fallbackDialogue?: string | null
+  fallbackDialogue?: string | null,
+  locale?: string | null
 ): string | null {
+  const loc = locale || 'zh-HK'
   const c =
     content ??
     (fallbackDialogue ? legacyDialogueToBeatContent(fallbackDialogue) : null)
   if (!c) return null
   const bits: string[] = []
-  if (c.mood) bits.push(`Mood: ${c.mood}`)
-  if (c.atmosphere) bits.push(`Beat atmosphere: ${c.atmosphere}`)
-  if (c.camera) bits.push(`Camera: ${c.camera}`)
-  if (c.sfx) bits.push(`SFX cues: ${c.sfx}`)
-  const actions: string[] = []
-  const exprs: string[] = []
-  const speech: string[] = []
-  const notes: string[] = []
+  if (c.mood) bits.push(PromptCatalog.t(loc, 'beat.mood', { text: c.mood }))
+  if (c.atmosphere) {
+    bits.push(PromptCatalog.t(loc, 'beat.atmo', { text: c.atmosphere }))
+  }
+  if (c.camera) {
+    bits.push(PromptCatalog.t(loc, 'beat.camera', { text: c.camera }))
+  }
+  if (c.sfx) bits.push(PromptCatalog.t(loc, 'beat.sfx', { text: c.sfx }))
   for (const u of c.units) {
     if (u.type === 'action') {
-      actions.push(u.who ? `${u.who}: ${u.text}` : u.text)
-    } else if (u.type === 'expression') {
-      exprs.push(u.who ? `${u.who}: ${u.text}` : u.text)
-    } else if (u.type === 'dialogue') {
-      const tone = u.tone ? ` (${u.tone})` : ''
-      const p = u.parenthetical ? ` [${u.parenthetical}]` : ''
-      speech.push(
+      bits.push(
         u.who
-          ? `${u.who}${tone}${p}: 「${u.line}」`
-          : `${tone}${p}「${u.line}」`.trim()
+          ? PromptCatalog.t(loc, 'beat.actionWho', { who: u.who, text: u.text })
+          : PromptCatalog.t(loc, 'beat.action', { text: u.text })
+      )
+    } else if (u.type === 'expression') {
+      bits.push(
+        u.who
+          ? PromptCatalog.t(loc, 'beat.exprWho', { who: u.who, text: u.text })
+          : PromptCatalog.t(loc, 'beat.expr', { text: u.text })
+      )
+    } else if (u.type === 'dialogue') {
+      bits.push(
+        u.tone
+          ? PromptCatalog.t(loc, 'beat.dialogueTone', {
+              who: u.who || PromptCatalog.t(loc, 'beat.whoUnknown'),
+              tone: u.tone,
+              body: u.line
+            })
+          : PromptCatalog.t(loc, 'beat.dialogue', {
+              who: u.who || PromptCatalog.t(loc, 'beat.whoUnknown'),
+              body: u.line
+            })
       )
     } else if (u.type === 'note') {
-      notes.push(u.text)
+      bits.push(u.text)
     }
   }
-  if (actions.length) bits.push(`VISUAL ACTION: ${actions.join(' / ')}`)
-  if (exprs.length) bits.push(`EXPRESSION: ${exprs.join(' / ')}`)
-  if (speech.length) bits.push(`SPEECH (spoken lines): ${speech.join(' | ')}`)
-  if (notes.length) bits.push(`Director notes: ${notes.join(' / ')}`)
   return bits.length ? bits.join('\n') : null
 }
 

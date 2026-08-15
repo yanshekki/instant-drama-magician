@@ -567,13 +567,15 @@ reg(
             prevEntry.sceneId &&
             String(scene.id) === String(prevEntry.sceneId)
         )
+        const clipLocale = PromptCatalog.locale(payload.locale)
         const continuityLock = prevEntry
           ? buildContinuityLockPrompt({
               previousBeatIndex: prevBeatIndex,
               previousDialogueSnippet: prev,
               sameCharacter,
               sameScene,
-              hasContinuityImage: Boolean(previousContinuityPath)
+              hasContinuityImage: Boolean(previousContinuityPath),
+              locale: clipLocale
             })
           : null
         const prevWithLock = [prev, continuityLock].filter(Boolean).join('\n')
@@ -584,7 +586,8 @@ reg(
         const beatOrDialogue =
           beatContentToClipPromptBlock(
             parseBeatContent(dialogue, beatContentJson),
-            dialogue
+            dialogue,
+            clipLocale
           ) ||
           dialogue ||
           null

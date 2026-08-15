@@ -21,7 +21,8 @@ import {
   buildMediaGenVideoDirectorFallback,
   buildMediaGenVideoPolishUserOverride,
   looksLikeEnglishKeyframeTaskHint,
-  pickVideoDirectorPrompt
+  pickVideoDirectorPrompt,
+  rewriteDirectorSealWording
 } from '../../domain/mediaGenVideoPolishUser'
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
@@ -318,8 +319,12 @@ export function MediaGenPrepModal({
       looksLikeEnglishKeyframeTaskHint(current) &&
       videoDirectorFallback
     ) {
-      setVideoPrompt(videoDirectorFallback)
+      setVideoPrompt(rewriteDirectorSealWording(videoDirectorFallback, localeTag))
+      return
     }
+    if (!current) return
+    const rewritten = rewriteDirectorSealWording(current, localeTag)
+    if (rewritten !== current) setVideoPrompt(rewritten)
   }, [
     phase,
     videoPrompt,
@@ -549,15 +554,19 @@ export function MediaGenPrepModal({
       stillPrompt: polishedPrompt.trim(),
       beatText: included.find((s) => s.id === 'beat_profile')?.text ?? null
     })
+    // Stay on step 4: seed fallback immediately so stepper never jumps to 優化.
+    if (!videoPrompt.trim()) {
+      setVideoPrompt(videoFallback)
+    }
     setBusy(true)
-    setPhase('loading-polish')
+    setPhase('confirm-video')
     setErrorMessage(null)
     try {
       const keyframeSection: MediaGenMaterialSection = {
         id: 'keyframe_still',
         kind: 'ref-image',
         title: 'Keyframe',
-        entityType: 'gallery',
+        entityType: 'continuity',
         imagePath: resultPath,
         text: zh
           ? '已生成關鍵幀——圖生影片必須鎖定此畫面的身份、戲服、場景與構圖，由此畫面開始動。'
@@ -886,6 +895,11 @@ export function MediaGenPrepModal({
             {s.entityType ? (
               <span className="rounded-full border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
                 {entityLabel(t, s.entityType)}
+              </span>
+            ) : null}
+            {editBaseSectionId === s.id ? (
+              <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                {t('mediaGen.reviewEditBaseBadge')}
               </span>
             ) : null}
           </div>
@@ -1290,8 +1304,9 @@ export function MediaGenPrepModal({
             </div>
           ) : null}
 
-          {/* Confirm video */}
-          {phase === 'confirm-video' && resultPath ? (
+          {/* Confirm video (director polish stays on this step) */}
+          {(phase === 'confirm-video' || phase === 'loading-director') &&
+          resultPath ? (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
               <div>
                 <h3 className="mb-2 text-xs font-semibold text-ink-300">
@@ -1314,9 +1329,15 @@ export function MediaGenPrepModal({
                   <p className="mb-1 text-[10px] text-ink-500">
                     {t('mediaGen.polishPromptVideoHint')}
                   </p>
+                  {busy ? (
+                    <p className="mb-1 text-[11px] text-brand-600">
+                      {t('mediaGen.phase.director')}
+                    </p>
+                  ) : null}
                   <Textarea
                     size="lg"
                     className="mt-1 min-h-[8rem] font-mono text-[12px]"
+                    disabled={busy}
                     value={
                       videoPrompt.trim() ||
                       pickVideoDirectorPrompt(
@@ -1487,7 +1508,7 @@ export function MediaGenPrepModal({
               </Button>
             </>
           ) : null}
-          {phase === 'confirm-video' ? (
+          {phase === 'confirm-video' || phase === 'loading-director' ? (
             <>
               <Button
                 variant="ghost"

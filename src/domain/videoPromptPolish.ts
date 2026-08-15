@@ -325,9 +325,13 @@ export function buildClipVideoPolishUserPrompt(
   return [
     PromptCatalog.t(loc, 'clip.task'),
     ctx.hasRefImage ? PromptCatalog.t(loc, 'clip.hasRef') : null,
-    `Story: ${ctx.storyTitle}`,
+    loc.toLowerCase().startsWith('zh')
+      ? `故事：${ctx.storyTitle}`
+      : `Story: ${ctx.storyTitle}`,
     ctx.styleNote?.trim()
-      ? `Style bible: ${ctx.styleNote.trim().slice(0, 600)}`
+      ? loc.toLowerCase().startsWith('zh')
+        ? `風格：${ctx.styleNote.trim().slice(0, 600)}`
+        : `Style bible: ${ctx.styleNote.trim().slice(0, 600)}`
       : null,
     PromptCatalog.t(loc, 'common.durationAspect', {
       seconds: ctx.seconds,

@@ -184,7 +184,7 @@ describe('characterMasterPrompt', () => {
     expect(block).toContain('Ming')
     expect(block).toContain('short hair')
     expect(block).toMatch(/yue|粵語|Cantonese/i)
-    expect(block).toMatch(/SPEECH LOCK/)
+    expect(block).toMatch(/對白鎖定/)
 
     const zh = buildCharacterIntroVideoPrompt(
       {

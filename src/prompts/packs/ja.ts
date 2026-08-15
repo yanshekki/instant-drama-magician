@@ -13,7 +13,7 @@ export const jaPromptPack: PromptPack = {
     `ハードルール行の接頭辞は ${must} と ${mustNot} のみ。`,
     'JSON のキー名は英語のまま。'
   ].join(''),
-  imagePolishDirective: `実行可能な一枚絵の演出／技術プロンプトを、全文日本語で書く。HARD RULES があれば末尾に置き、タグは ${must}／${mustNot} のみ。`,
+  imagePolishDirective: `実行可能な一枚絵の演出／技術プロンプトを、全文日本語で書く。生成の鉄則 があれば末尾に置き、タグは ${must}／${mustNot} のみ。`,
   noRefPolishDirective:
     '参照スチールは添付されていません。テキスト資料だけから書いてください。ワークスペース、Wikipedia、ウェブ検索、添付画像への身元固定に言及しないでください。Ref# ロックを捏造しないでください。',
   sexLockMale:
@@ -24,7 +24,7 @@ export const jaPromptPack: PromptPack = {
     '女性の顔や体、胸、女性美の既定、性別の入替、男性を女性として描くこと',
   sexForbidFemale:
     '男性の顔や体、指定のない髭、女性を男性として描くこと',
-  videoPolishDirective: `改善後の演出プロンプトを一条だけ返す。全文日本語。IDENTITY／SPACE／OBJECT ロックと鉄則（${must}／${mustNot}）を残す。`,
+  videoPolishDirective: `改善後の演出プロンプトを一条だけ返す。全文日本語。身元／空間／物件ロックと鉄則（${must}／${mustNot}）を残す。`,
   hardRulesInstruction: [
     'hardRules：必須の非空文字列（キー欠落・null／配列は不可）。',
     `${must} と ${mustNot} を混ぜた 3–8 行を、この資産の画像・動画生成だけに書く。`,

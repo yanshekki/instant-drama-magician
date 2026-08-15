@@ -76,6 +76,7 @@ export type MaterialEntityType =
   | 'scene'
   | 'prop'
   | 'gallery'
+  | 'continuity'
   | 'action'
   | 'story'
   | 'hardRules'
@@ -179,6 +180,7 @@ export type MediaGenShellPhase =
   | 'loading-generate' // image final OR video keyframe gen
   | 'result' // image result
   | 'keyframe' // video: still preview
+  | 'loading-director' // video: polish motion prompt, stay on confirm step
   | 'loading-video'
   | 'confirm-video'
   | 'video-done'
@@ -221,6 +223,7 @@ export function shellPhaseToStepIndex(
       case 'loading-generate':
       case 'keyframe':
         return 2
+      case 'loading-director':
       case 'loading-video':
       case 'confirm-video':
         return 3
@@ -254,6 +257,7 @@ export function isMediaGenPrepPhaseLocked(phase: MediaGenShellPhase): boolean {
   return (
     phase === 'loading-extract' ||
     phase === 'loading-polish' ||
+    phase === 'loading-director' ||
     phase === 'loading-generate' ||
     phase === 'loading-video'
   )
@@ -876,6 +880,8 @@ export function buildTimelineBeatMaterialSections(opts: {
   beatBlock?: string | null
   previousContinuityPath?: string | null
   previousBeatIndex?: number
+  /** This beat's own continuity / storyboard still, if already on disk. */
+  ownStillPath?: string | null
   continuityLockText?: string | null
   castRefPath?: string | null
   castRefName?: string | null
@@ -925,9 +931,9 @@ export function buildTimelineBeatMaterialSections(opts: {
       id: 'prev_clip',
       kind: 'ref-image',
       title: opts.previousBeatIndex
-        ? `#${opts.previousBeatIndex}`
-        : 'Previous',
-      entityType: 'gallery',
+        ? String(opts.previousBeatIndex)
+        : '',
+      entityType: 'continuity',
       imagePath: prev,
       text: [
         `CONTINUITY KEYFRAME from previous beat${
@@ -939,6 +945,26 @@ export function buildTimelineBeatMaterialSections(opts: {
       include: true,
       canBeEditBase: true,
       editBasePriority: 200,
+      group: 'refs'
+    })
+  }
+
+  const own = opts.ownStillPath?.trim() || null
+  if (own) {
+    pushRef({
+      id: 'own_still',
+      kind: 'ref-image',
+      title: String(beatN),
+      entityType: 'continuity',
+      imagePath: own,
+      text: [
+        `STORYBOARD STILL for this beat #${beatN}.`,
+        'Use as the keyframe / identity lock for this shot when generating video.',
+        'Do not replace the actor, wardrobe, or set unless the beat text requires it.'
+      ].join(' '),
+      include: true,
+      canBeEditBase: true,
+      editBasePriority: 220,
       group: 'refs'
     })
   }
@@ -1113,7 +1139,7 @@ export function buildTimelineBeatMaterialSections(opts: {
       id: 'continuity_lock',
       kind: 'prompt-block',
       title: 'Continuity',
-      entityType: 'other',
+      entityType: 'continuity',
       text: opts.continuityLockText.trim(),
       include: true,
       group: 'task'
@@ -1143,7 +1169,7 @@ export function buildTimelineBeatMaterialSections(opts: {
   }
 
   // Timeline keyframe: library stills are vision refs only. Pixel edit
-  // base is the previous beat still (continuity), else generate from scratch.
+  // base is this beat's still (if any), else the previous beat still.
   const editBaseSectionId = pickDefaultEditBaseSectionId(sections)
   // First polish is always the keyframe still, even when kind is timeline-clip.
   const taskHint = timelineBeatTaskHint({

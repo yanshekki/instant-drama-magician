@@ -46,7 +46,8 @@ describe('speechLanguageLock', () => {
       codes: ['yue'],
       locale: 'zh-HK'
     })
-    expect(line).toMatch(/SPEECH LOCK/)
+    expect(line).toMatch(/對白鎖定/)
+    expect(line).not.toMatch(/SPEECH LOCK/)
     expect(line).toMatch(/沈執一/)
     expect(line).toMatch(/粵語|Cantonese/i)
     expect(line).toContain('yue')
@@ -92,7 +93,7 @@ describe('speechLanguageLock', () => {
     expect(mergeSpeechLockIntoHardRules(lock, lock)).toBe(lock)
     const merged = mergeSpeechLockIntoHardRules('two hands', lock)
     expect(merged).toContain('two hands')
-    expect(merged).toContain('SPEECH LOCK')
-    expect(merged!.split('SPEECH LOCK').length).toBe(2)
+    expect(merged).toContain('對白鎖定')
+    expect(merged!.split('對白鎖定').length).toBe(2)
   })
 })

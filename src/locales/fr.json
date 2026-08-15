@@ -1946,6 +1946,7 @@
       "polish": "Lecture de {{count}} image(s) et peaufinage…",
       "generate": "Génération de l’image…",
       "loadingKeyframe": "Génération du photogramme clé…",
+      "director": "Rédaction du prompt de mise en scène à partir du photogramme…",
       "loadingVideo": "Génération de la vidéo…"
     },
     "steps": {
@@ -1990,7 +1991,8 @@
       "hardRules": "Règles strictes",
       "layout": "Disposition",
       "art": "Style artistique",
-      "other": "Autre"
+      "other": "Autre",
+      "continuity": "Photogramme de storyboard"
     },
     "kind": {
       "action-plate": "Planche d’action",
@@ -2043,13 +2045,18 @@
     "duration": "Durée (secondes)",
     "videoDoneGalleryHint": "La vidéo d’intro est liée au photogramme source dans la galerie — lancez Lecture là à tout moment.",
     "useStillAsKeyframe": "Utiliser le photogramme existant comme image clé",
-    "keyframePromptHint": "Invite du photogramme clé (direction image). Le peaufinage du mouvement vidéo suit une fois l’image clé prête."
+    "keyframePromptHint": "Invite du photogramme clé (direction image). Le peaufinage du mouvement vidéo suit une fois l’image clé prête.",
+    "continuityPrev": "Photogramme précédent (plan {{n}})",
+    "continuityPrevBare": "Photogramme précédent",
+    "continuityOwn": "Photogramme de ce plan",
+    "continuityLock": "Verrouillage de continuité"
   },
   "promptTpl": {
     "title": "Choisir comment l’IA doit travailler",
     "subtitle": "Ce choix décide si l’on invente un monde, si l’on verrouille le dialogue et l’identité. Rien n’est appliqué en secret si vous ne le choisissez pas.",
     "remember": "Toujours utiliser cette recette pour ce type d’action (modifiable à tout moment via la flèche)",
     "confirm": "Utiliser cette recette",
+    "selected": "Sélectionné",
     "polish-only": {
       "name": "Peaufiner seulement",
       "blurb": "Conserver l’identité et le monde. Améliorer le libellé. N’inventez pas l’époque, la météo, le métier ni la langue du dialogue. N’écrivez pas les règles strictes par défaut dans le fichier."

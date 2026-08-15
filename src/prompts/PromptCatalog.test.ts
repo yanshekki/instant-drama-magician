@@ -53,4 +53,20 @@ describe('PromptCatalog', () => {
     )
     expect(PromptCatalog.t('fr', 'wardrobe.system')).toMatch(/costume|costume/i)
   })
+
+  it('has no leftover English lock jargon in any locale', () => {
+    for (const { id } of UI_LANGUAGES) {
+      for (const key of PROMPT_COPY_KEYS) {
+        const v = PromptCatalog.t(id, key)
+        expect(v, `${id} ${key}`).not.toMatch(
+          /SPEECH LOCK|HARD RULES|IDENTITY LOCK|SPACE LOCK|CONTINUITY LOCK/
+        )
+      }
+    }
+    expect(PromptCatalog.t('zh-HK', 'speechLock.named')).toMatch(/對白鎖定/)
+    expect(PromptCatalog.t('ja', 'speechLock.named')).toMatch(/台詞ロック/)
+    expect(PromptCatalog.t('fr', 'speechLock.named')).toMatch(/Verrouillage des répliques/)
+    expect(PromptCatalog.t('en', 'speechLock.named')).toMatch(/Dialogue lock/)
+    expect(PromptCatalog.t('ja', 'clip.task')).toMatch(/画像から動画/)
+  })
 })

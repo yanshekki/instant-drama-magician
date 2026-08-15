@@ -166,7 +166,8 @@ reg(
       const finalPrompt = mergeFinalVideoPrompt(
         payload.professionalPrompt,
         payload.userExtraPrompt,
-        videoHardRules
+        videoHardRules,
+        payload.locale ?? 'zh-HK'
       )
       if (!finalPrompt) {
         throw new AppError('VALIDATION', 'errors.ideaOrDraftRequired')

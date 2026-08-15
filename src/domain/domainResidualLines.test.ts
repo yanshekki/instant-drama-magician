@@ -344,7 +344,7 @@ describe('residual: beatContent', () => {
       version: 1,
       units: [{ type: 'dialogue', who: '', line: 'alone', tone: 'soft' }]
     })
-    expect(block).toMatch(/「alone」/)
+    expect(block).toMatch(/alone/)
   })
 })
 
@@ -368,7 +368,8 @@ describe('residual: promptContinuity', () => {
     const lock = buildContinuityLockPrompt({
       previousBeatIndex: 1,
       previousDialogueSnippet: 'Hello there from last beat',
-      hasContinuityImage: true
+      hasContinuityImage: true,
+      locale: 'en'
     })
     expect(lock).toContain('Previous beat context')
     expect(lock).toContain('Hello there')
@@ -974,7 +975,7 @@ describe('residual: storyMasterPrompt + promptHardRules + sceneMaster', () => {
     const m = collectTimelineHardRules({
       scenes: [{ hardRules: 'empty set only' }]
     })
-    expect(m).toContain('[Scene · Scene]')
+    expect(m).toContain('[場景 · 場景]')
   })
 
   it('focus vs scenes labels en/zh', () => {

@@ -35,7 +35,7 @@ export async function polishProfessionalVideoPrompt(options: {
   if (options.signal?.aborted) throw new AppError('CANCELLED', 'errors.cancelled')
 
   const seal = (prompt: string): string =>
-    ensureHardRules(prompt, options.hardRules)
+    ensureHardRules(prompt, options.hardRules, locale)
 
   const paths = (options.referenceImagePaths ?? [])
     .map((p) => (typeof p === 'string' ? p.trim() : ''))

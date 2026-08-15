@@ -258,6 +258,96 @@ describe('MediaGenPrepModal', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('timeline materials label continuity stills and mark edit base', async () => {
+    seedExtract([
+      {
+        id: 'prev_clip',
+        kind: 'ref-image' as const,
+        title: '2',
+        entityType: 'continuity' as const,
+        imagePath: '/media/prev.png',
+        text: 'prev',
+        include: true,
+        canBeEditBase: true,
+        editBasePriority: 200,
+        group: 'refs' as const
+      },
+      {
+        id: 'own_still',
+        kind: 'ref-image' as const,
+        title: '3',
+        entityType: 'continuity' as const,
+        imagePath: '/media/own.png',
+        text: 'own',
+        include: true,
+        canBeEditBase: true,
+        editBasePriority: 220,
+        group: 'refs' as const
+      }
+    ])
+    api.mediaGen.extract = vi.fn().mockResolvedValue({
+      kind: 'timeline-clip',
+      entityIds: { storyId: 's1', entryId: 'e3' },
+      sections: [
+        {
+          id: 'prev_clip',
+          kind: 'ref-image',
+          title: '2',
+          entityType: 'continuity',
+          imagePath: '/media/prev.png',
+          text: 'prev',
+          include: true,
+          canBeEditBase: true,
+          editBasePriority: 200,
+          group: 'refs'
+        },
+        {
+          id: 'own_still',
+          kind: 'ref-image',
+          title: '3',
+          entityType: 'continuity',
+          imagePath: '/media/own.png',
+          text: 'own',
+          include: true,
+          canBeEditBase: true,
+          editBasePriority: 220,
+          group: 'refs'
+        }
+      ],
+      editBaseSectionId: 'own_still',
+      fallbackPrompt: 'FALLBACK PROMPT LONG ENOUGH',
+      taskHint: 'clip task',
+      genOptions: { useIdentityEdit: true, durationSeconds: 8 },
+      hardRules: null
+    })
+    render(
+      <MediaGenPrepModal
+        open
+        request={{
+          kind: 'timeline-clip',
+          storyId: 's1',
+          entryId: 'e3',
+          durationSeconds: 8
+        }}
+        onClose={vi.fn()}
+        onGenerated={vi.fn()}
+      />
+    )
+    await waitFor(() => expect(api.mediaGen.extract).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(screen.getAllByText('mediaGen.continuityOwn').length).toBeGreaterThan(
+        0
+      )
+    )
+    expect(screen.getAllByText('mediaGen.continuityPrev').length).toBeGreaterThan(
+      0
+    )
+    expect(
+      screen.getAllByText('mediaGen.reviewEditBaseBadge').length
+    ).toBeGreaterThan(0)
+    expect(document.body.textContent || '').not.toMatch(/mediaGen\.galleryBoard/)
+  })
+
   it('extract error shows error phase', async () => {
     api.mediaGen.extract = vi.fn().mockRejectedValue(new Error('extract boom'))
     render(
@@ -401,6 +491,9 @@ describe('MediaGenPrepModal', () => {
     await waitFor(() =>
       expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
     )
+    expect(document.body.textContent || '').not.toMatch(
+      /mediaGen\.phase\.polish/
+    )
 
     // back to keyframe then re-enter confirm (step chip + footer may both match)
     const keyframeBack = screen
@@ -466,6 +559,73 @@ describe('MediaGenPrepModal', () => {
       )
     })
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('director polish stays on confirm-video, not step 2', async () => {
+    let polishN = 0
+    let finishDirector: ((v: unknown) => void) | undefined
+    api.mediaGen.polish = vi.fn().mockImplementation(async () => {
+      polishN += 1
+      if (polishN === 1) {
+        return {
+          polishedPrompt: 'POLISHED PROMPT LONG ENOUGH FOR GENERATION',
+          polished: true,
+          imageCount: 1
+        }
+      }
+      return new Promise((resolve) => {
+        finishDirector = resolve
+      })
+    })
+    render(
+      <MediaGenPrepModal
+        open
+        request={{
+          kind: 'timeline-clip',
+          storyId: 's1',
+          entryId: 'e1',
+          durationSeconds: 8
+        }}
+        onClose={vi.fn()}
+        onGenerated={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.continuePolish')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.continuePolish'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.generateKeyframe')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.generateKeyframe'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.nextConfirmVideo')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.nextConfirmVideo'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
+    )
+    expect(screen.getByText('mediaGen.phase.director')).toBeTruthy()
+    expect(document.body.textContent || '').not.toMatch(
+      /mediaGen\.phase\.polish/
+    )
+    await act(async () => {
+      finishDirector?.({
+        polishedPrompt: 'DIRECTOR PROMPT LONG ENOUGH FOR VIDEO',
+        polished: true,
+        imageCount: 2
+      })
+    })
+    await waitFor(() =>
+      expect(screen.queryByText('mediaGen.phase.director')).toBeNull()
+    )
+    expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
   })
 
   it('video confirm failure returns to confirm-video', async () => {

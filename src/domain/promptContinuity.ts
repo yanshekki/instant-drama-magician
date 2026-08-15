@@ -1,4 +1,5 @@
 import type { Action, Character, Prop, Scene, TimelineEntry } from '../types/domain'
+import { PromptCatalog } from '../prompts'
 import {
   beatContentToClipPromptBlock,
   extractSpokenLines,
@@ -172,23 +173,26 @@ export function buildContinuityLockPrompt(options: {
   sameCharacter?: boolean
   sameScene?: boolean
   hasContinuityImage: boolean
+  locale?: string | null
 }): string {
+  const loc = options.locale || 'zh-HK'
+  const n = options.previousBeatIndex
   const lines = [
-    'CONTINUITY LOCK (must obey for short-drama sequence):',
+    PromptCatalog.t(loc, 'continuity.lockHeader'),
     options.hasContinuityImage
-      ? `The attached image is the END FRAME / KEYFRAME of beat #${options.previousBeatIndex}. This new shot continues from that exact visual state.`
-      : `Continue from beat #${options.previousBeatIndex} (no still available — match dossier only).`,
+      ? PromptCatalog.t(loc, 'continuity.hasImage', { n })
+      : PromptCatalog.t(loc, 'continuity.noImage', { n }),
     options.sameCharacter
-      ? 'IDENTITY: same person — face, hair, body proportions, wardrobe colors, accessories. No restyle, no age shift.'
+      ? PromptCatalog.t(loc, 'continuity.identity')
       : null,
-    options.sameScene
-      ? 'SPACE: same location — architecture, materials, layout, light direction. Only subtle time-of-day drift if the beat requires it.'
-      : null,
-    'ACTION: pick up motion/pose/gaze from the previous frame; do not hard-cut to a different setup.',
+    options.sameScene ? PromptCatalog.t(loc, 'continuity.space') : null,
+    PromptCatalog.t(loc, 'continuity.action'),
     options.previousDialogueSnippet
-      ? `Previous beat context: ${options.previousDialogueSnippet.slice(0, 120)}`
+      ? PromptCatalog.t(loc, 'continuity.prevContext', {
+          snippet: options.previousDialogueSnippet.slice(0, 120)
+        })
       : null,
-    'No text overlays, logos, watermarks.'
+    PromptCatalog.t(loc, 'continuity.noText')
   ]
   return lines.filter(Boolean).join('\n')
 }
@@ -250,7 +254,8 @@ export function buildClipPrompt(options: {
   const beatBlock =
     beatContentToClipPromptBlock(
       parseBeatContent(options.dialogue, options.beatContentJson),
-      options.dialogue
+      options.dialogue,
+      options.locale
     ) ||
     (options.dialogue ? `Dialogue: ${options.dialogue}` : null)
   return [
@@ -322,20 +327,18 @@ export function buildClipPrompt(options: {
 export function appendRevisionToClipPrompt(
   basePrompt: string,
   revisionPrompt?: string | null,
-  hardRules?: string | null
+  hardRules?: string | null,
+  locale?: string | null
 ): string {
   const note = revisionPrompt?.trim()
+  const loc = locale || 'zh-HK'
   let out = basePrompt
   if (note) {
-    out = [
-      basePrompt,
-      '',
-      'DIRECTOR REVISION (supplement only — must not violate HARD RULES):',
-      note,
-      'Anatomically correct humans unless the script requires otherwise: two hands, two arms, two legs; no extra limbs.'
-    ].join('\n')
+    out = [basePrompt, '', PromptCatalog.t(loc, 'clip.revision'), note].join(
+      '\n'
+    )
   }
-  return ensureHardRules(out, hardRules)
+  return ensureHardRules(out, hardRules, loc)
 }
 
 /** Characters used on timeline that lack a reference image. */

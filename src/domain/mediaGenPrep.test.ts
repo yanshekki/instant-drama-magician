@@ -10,6 +10,7 @@ import {
   extractPolishedMediaPrompt,
   stripMediaGenPreamble,
   includedMaterialImagePaths,
+  isMediaGenPrepPhaseLocked,
   mediaGenMode,
   pickDefaultEditBaseSectionId,
   resolveEditBasePath,
@@ -211,8 +212,11 @@ describe('mediaGenPrep', () => {
       'video-done'
     ])
     expect(shellPhaseToStepIndex('keyframe', 'video')).toBe(2)
+    expect(shellPhaseToStepIndex('loading-polish', 'video')).toBe(1)
+    expect(shellPhaseToStepIndex('loading-director', 'video')).toBe(3)
     expect(shellPhaseToStepIndex('result', 'image')).toBe(3)
     expect(shellPhaseToStepIndex('confirm-video', 'video')).toBe(3)
+    expect(isMediaGenPrepPhaseLocked('loading-director')).toBe(true)
   })
 
   it('buildGenericEntityMaterialSections layout + forcePureLayout', () => {

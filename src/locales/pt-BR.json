@@ -1946,6 +1946,7 @@
       "polish": "Lendo {{count}} imagem(ns) e polindo…",
       "generate": "Gerando imagem…",
       "loadingKeyframe": "Gerando still de keyframe…",
+      "director": "Escrevendo o texto de direção a partir do keyframe…",
       "loadingVideo": "Gerando vídeo…"
     },
     "steps": {
@@ -1990,7 +1991,8 @@
       "hardRules": "Regras rígidas",
       "layout": "Disposição",
       "art": "Estilo artístico",
-      "other": "Outro"
+      "other": "Outro",
+      "continuity": "Still do storyboard"
     },
     "kind": {
       "action-plate": "Prancha de ação",
@@ -2043,13 +2045,18 @@
     "duration": "Duração (segundos)",
     "videoDoneGalleryHint": "O vídeo de intro está ligado ao still de origem na galeria — use Reproduzir lá a qualquer momento.",
     "useStillAsKeyframe": "Usar still existente como keyframe",
-    "keyframePromptHint": "Prompt do still de keyframe (direção de imagem). O polimento do movimento do vídeo roda depois que o keyframe estiver pronto."
+    "keyframePromptHint": "Prompt do still de keyframe (direção de imagem). O polimento do movimento do vídeo roda depois que o keyframe estiver pronto.",
+    "continuityPrev": "Still do plano anterior (beat {{n}})",
+    "continuityPrevBare": "Still do plano anterior",
+    "continuityOwn": "Still deste plano",
+    "continuityLock": "Trava de continuidade"
   },
   "promptTpl": {
     "title": "Escolha como a IA deve trabalhar",
     "subtitle": "Esta escolha controla inventar um mundo, travar a fala e travar a identidade. Nada oculto é aplicado se você não escolher.",
     "remember": "Sempre usar esta receita neste tipo de ação (mude quando quiser pela seta)",
     "confirm": "Usar esta receita",
+    "selected": "Selecionado",
     "polish-only": {
       "name": "Só polir",
       "blurb": "Mantenha identidade e mundo. Melhore a redação. Não invente época, clima, profissão nem idioma da fala. Não grave regras rígidas padrão no arquivo."

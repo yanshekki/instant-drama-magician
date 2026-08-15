@@ -13,7 +13,7 @@ export const ptBrPromptPack: PromptPack = {
     `Prefixe as linhas de regras rígidas apenas com ${must} e ${mustNot}.`,
     'As chaves JSON continuam em inglês.'
   ].join(' '),
-  imagePolishDirective: `Produza um prompt técnico/de direção para UMA imagem, inteiro em português brasileiro. Se houver HARD RULES, no fim, só ${must} / ${mustNot}.`,
+  imagePolishDirective: `Produza um prompt técnico/de direção para UMA imagem, inteiro em português brasileiro. Se houver REGRAS RÍGIDAS, no fim, só ${must} / ${mustNot}.`,
   noRefPolishDirective:
     'Não há stills de referência anexados. Escreva só a partir dos materiais de texto. Não mencione a área de trabalho, a Wikipédia, busca na web nem travar identidade em imagens anexadas. Não invente travas Ref#.',
   sexLockMale:
@@ -24,7 +24,7 @@ export const ptBrPromptPack: PromptPack = {
     'rosto ou corpo femininos, seios, padrão de beleza feminina, troca de sexo, desenhar o homem como mulher',
   sexForbidFemale:
     'rosto ou corpo masculinos, barba não pedida, desenhar a mulher como homem',
-  videoPolishDirective: `Devolva UM único prompt de direção melhorado, inteiro em português brasileiro. Mantenha os bloqueios IDENTITY/SPACE/OBJECT e as regras (${must} / ${mustNot}).`,
+  videoPolishDirective: `Devolva UM único prompt de direção melhorado, inteiro em português brasileiro. Mantenha os travamentos de identidade, espaço e objeto e as regras (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules: string NÃO vazia obrigatória (nunca omita a chave, nunca null/array).',
     `Escreva 3–8 linhas curtas misturando ${must} e ${mustNot} só para imagem e vídeo DESTE ativo.`,

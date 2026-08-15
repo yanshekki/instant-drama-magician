@@ -24,10 +24,10 @@ describe('mergeFinalVideoPrompt', () => {
   })
 
   it('appends user revision block', () => {
-    const out = mergeFinalVideoPrompt('PRO', 'darker light')
+    const out = mergeFinalVideoPrompt('PRO', 'darker light', null, 'en')
     expect(out).toContain('PRO')
     expect(out).toContain('darker light')
-    expect(out).toMatch(/REVISION|USER/i)
+    expect(out).toMatch(/REVISION|修訂|USER/i)
   })
 })
 

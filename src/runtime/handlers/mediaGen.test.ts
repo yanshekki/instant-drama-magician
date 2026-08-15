@@ -386,14 +386,27 @@ describe('registerMediagenHandlers', () => {
       skipStillIfExists: true
     })) as { existingStillPath?: string | null }
     expect(r.existingStillPath).toBe(ownStill)
+    expect(
+      (r as { sections: Array<{ id: string; entityType?: string }> }).sections.some(
+        (s) => s.id === 'own_still' && s.entityType === 'continuity'
+      )
+    ).toBe(true)
 
     const r2 = (await invokeRegistered(h as never, 'mediaGen:extract', {
       kind: 'timeline-clip',
       storyId: 's1',
       entryId: 'e1',
       skipStillIfExists: false
-    })) as { existingStillPath?: string | null }
+    })) as {
+      existingStillPath?: string | null
+      sections: Array<{ id: string; entityType?: string }>
+    }
     expect(r2.existingStillPath).toBeNull()
+    expect(
+      r2.sections.some(
+        (s) => s.id === 'own_still' && s.entityType === 'continuity'
+      )
+    ).toBe(true)
   })
 
   it('extract timeline-still builds prev_clip when previous still exists', async () => {
@@ -487,7 +500,7 @@ describe('registerMediagenHandlers', () => {
       storyId: 's1',
       entryId: 'e1'
     })) as {
-      sections: Array<{ id: string; include: boolean }>
+      sections: Array<{ id: string; include: boolean; entityType?: string }>
       editBaseSectionId: string | null
       entityIds: { storyId?: string; entryId?: string }
     }
@@ -497,7 +510,68 @@ describe('registerMediagenHandlers', () => {
     expect(r.sections.some((s) => s.id === 'prev_clip' && s.include)).toBe(
       true
     )
+    expect(
+      r.sections.find((s) => s.id === 'prev_clip')?.entityType
+    ).toBe('continuity')
     expect(r.editBaseSectionId).toBe('prev_clip')
+  })
+
+  it('extract timeline-clip includes own still and prefers it over prev', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-mg-both-'))
+    const prevStill = join(dir, 'e0_cont.png')
+    const ownStill = join(dir, 'e1_cont.png')
+    writeFileSync(prevStill, 'png')
+    writeFileSync(ownStill, 'png')
+    const { h } = baseCtx({
+      stories: () =>
+        ({
+          get: vi.fn(async () =>
+            storyWithEntries([
+              {
+                id: 'e0',
+                order: 0,
+                startTime: 0,
+                endTime: 6,
+                dialogue: 'first',
+                characterId: null
+              },
+              {
+                id: 'e1',
+                order: 1,
+                startTime: 6,
+                endTime: 12,
+                dialogue: 'second',
+                characterId: null
+              }
+            ])
+          )
+        }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () =>
+            mediaStore({
+              clipContinuityStillPath: (_sid: string, eid: string) =>
+                eid === 'e0' ? prevStill : ownStill,
+              readStoryCastPrepJson: () => null
+            })
+        }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1'
+    })) as {
+      sections: Array<{ id: string; entityType?: string; include: boolean }>
+      editBaseSectionId: string | null
+    }
+    expect(r.sections.find((s) => s.id === 'prev_clip')?.entityType).toBe(
+      'continuity'
+    )
+    expect(r.sections.find((s) => s.id === 'own_still')?.entityType).toBe(
+      'continuity'
+    )
+    expect(r.sections.find((s) => s.id === 'own_still')?.include).toBe(true)
+    expect(r.editBaseSectionId).toBe('own_still')
   })
 
   it('extract timeline validates storyId/entryId/timeline array', async () => {

@@ -14,6 +14,12 @@ function t(key: string, opts?: Record<string, unknown>): string {
     'mediaGen.hardRulesTitle': '鐵則',
     'mediaGen.layoutTitle': `格位 · ${opts?.id ?? ''}`,
     'mediaGen.galleryBoard': `圖庫板 ${opts?.n ?? ''}`,
+    'mediaGen.entity.continuity': '分鏡靜圖',
+    'mediaGen.continuityPrev': `上一段分鏡靜圖（第 ${opts?.n ?? ''} 段）`,
+    'mediaGen.continuityPrevBare': '上一段分鏡靜圖',
+    'mediaGen.continuityOwn': '本段分鏡靜圖',
+    'mediaGen.continuityLock': '畫面連續鎖定',
+    'mediaGen.keyframeTitle': '關鍵幀靜圖',
     'characters.sheetBust': '半身胸像（對話用）',
     'characters.artPhotoDocumentary': '紀實自然光',
     'characters.artPhotoCinematic': '電影寫實（預設）',
@@ -78,5 +84,44 @@ describe('mediaGenSectionTitleI18n', () => {
     )
     expect(profile).toContain('角色')
     expect(profile).toContain('Kana Momonogi')
+  })
+
+  it('labels timeline continuity stills, not gallery boards', () => {
+    expect(
+      translateMediaGenSectionTitle(
+        { id: 'prev_clip', entityType: 'continuity', title: '2' },
+        t
+      )
+    ).toBe('上一段分鏡靜圖（第 2 段）')
+    expect(
+      translateMediaGenSectionTitle(
+        { id: 'own_still', entityType: 'continuity', title: '3' },
+        t
+      )
+    ).toBe('本段分鏡靜圖')
+    expect(
+      translateMediaGenSectionTitle(
+        { entityType: 'gallery', title: '2' },
+        t
+      )
+    ).toMatch(/圖庫板/)
+    expect(
+      translateMediaGenSectionTitle(
+        { id: 'keyframe_still', entityType: 'continuity', title: 'Keyframe' },
+        t
+      )
+    ).toBe('關鍵幀靜圖')
+    expect(
+      translateMediaGenSectionTitle(
+        { id: 'continuity_lock', entityType: 'continuity', title: 'Continuity' },
+        t
+      )
+    ).toBe('畫面連續鎖定')
+    expect(
+      translateMediaGenSectionTitle(
+        { id: 'continuity_lock', entityType: 'other', title: 'Continuity' },
+        t
+      )
+    ).toBe('畫面連續鎖定')
   })
 })

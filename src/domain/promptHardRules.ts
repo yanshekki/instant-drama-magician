@@ -1,4 +1,5 @@
 import {
+  PromptCatalog,
   packHardRulesFallback,
   packHardRulesInstruction
 } from '../prompts'
@@ -6,6 +7,7 @@ import {
   buildSpeechLanguageLockText,
   mergeSpeechLockIntoHardRules
 } from './speechLanguageLock'
+import { UI_LANGUAGES } from './uiLanguages'
 
 /**
  * High-priority user hard rules (必須 / 禁止) for image & video generation.
@@ -13,11 +15,43 @@ import {
  * negative-prompt channel.
  */
 
+/** Legacy English seal — still recognized when stripping old drafts. */
 export const HARD_RULES_HEADER =
   'HARD RULES (highest priority — must obey; override any conflicting earlier details):'
 
 export const HARD_RULES_FOOTER =
   'If any earlier instruction conflicts with HARD RULES, follow HARD RULES.'
+
+export function hardRulesSealHeader(locale?: string | null): string {
+  return PromptCatalog.t(locale || 'zh-HK', 'hardRules.sealHeader')
+}
+
+export function hardRulesSealFooter(locale?: string | null): string {
+  return PromptCatalog.t(locale || 'zh-HK', 'hardRules.sealFooter')
+}
+
+export function allHardRulesHeaders(): string[] {
+  const out = new Set<string>([HARD_RULES_HEADER])
+  for (const lang of UI_LANGUAGES) {
+    const h = PromptCatalog.t(lang.id, 'hardRules.sealHeader').trim()
+    if (h) out.add(h)
+  }
+  return [...out]
+}
+
+function firstHardRulesHeaderIndex(prompt: string): number {
+  let earliest = -1
+  for (const h of allHardRulesHeaders()) {
+    if (!h) continue
+    const i = prompt.indexOf(h)
+    if (i >= 0 && (earliest < 0 || i < earliest)) earliest = i
+  }
+  return earliest
+}
+
+export function promptHasHardRulesHeader(prompt: string): boolean {
+  return firstHardRulesHeaderIndex(prompt) >= 0
+}
 
 /** Normalize / cap user hard-rules text. Empty → null. */
 export function normalizeHardRules(
@@ -32,10 +66,17 @@ export function normalizeHardRules(
 }
 
 /** Format the HARD RULES block (no surrounding blank lines). */
-export function hardRulesBlock(hardRules: string): string {
+export function hardRulesBlock(
+  hardRules: string,
+  locale?: string | null
+): string {
   const body = hardRules.trim()
   if (!body) return ''
-  return [HARD_RULES_HEADER, body, HARD_RULES_FOOTER].join('\n')
+  return [
+    hardRulesSealHeader(locale),
+    body,
+    hardRulesSealFooter(locale)
+  ].join('\n')
 }
 
 /**
@@ -46,20 +87,18 @@ export function hardRulesBlock(hardRules: string): string {
 export function appendHardRules(
   prompt: string,
   hardRules?: string | null,
-  opts?: { force?: boolean }
+  opts?: { force?: boolean; locale?: string | null }
 ): string {
   const rules = normalizeHardRules(hardRules)
   if (!rules) return prompt
+  const locale = opts?.locale ?? 'zh-HK'
   const base = String(prompt ?? '').trimEnd()
-  if (!base) return hardRulesBlock(rules)
-  if (
-    !opts?.force &&
-    base.includes(HARD_RULES_HEADER)
-  ) {
+  if (!base) return hardRulesBlock(rules, locale)
+  if (!opts?.force && promptHasHardRulesHeader(base)) {
     // Already injected (e.g. builder + handler) — avoid duplicate walls of text
     return base
   }
-  return `${base}\n\n${hardRulesBlock(rules)}`
+  return `${base}\n\n${hardRulesBlock(rules, locale)}`
 }
 
 /**
@@ -68,23 +107,20 @@ export function appendHardRules(
  */
 export function ensureHardRules(
   prompt: string,
-  hardRules?: string | null
+  hardRules?: string | null,
+  locale?: string | null
 ): string {
   const rules = normalizeHardRules(hardRules)
   if (!rules) return prompt
   const stripped = stripHardRulesBlocks(String(prompt ?? ''))
-  return appendHardRules(stripped, rules, { force: true })
+  return appendHardRules(stripped, rules, { force: true, locale })
 }
 
 /** Remove previous HARD RULES sections (best-effort). */
 export function stripHardRulesBlocks(prompt: string): string {
-  if (!prompt.includes(HARD_RULES_HEADER)) return prompt
-  // Split on header; keep text before first header; drop rule blocks
-  const parts = prompt.split(HARD_RULES_HEADER)
-  if (parts.length <= 1) return prompt
-  const head = parts[0].trimEnd()
-  // Any trailing content after footer in later parts is rare — drop rule segments
-  return head
+  const i = firstHardRulesHeaderIndex(prompt)
+  if (i < 0) return prompt
+  return prompt.slice(0, i).trimEnd()
 }
 
 /** Merge multiple hard-rules sources (story + cast assets); de-dupe lines. */
@@ -144,19 +180,25 @@ export type TimelineHardRulesSources = {
 /**
  * Merge hard rules from story + assets bound on a timeline clip.
  * Default: label each source so the video model knows which object the rule targets
- * (e.g. `[Character · Keith]` vs `[Scene · 屋頂]`).
+ * (e.g. `[角色 · Keith]` vs `[場景 · 屋頂]`).
  */
 export function collectTimelineHardRules(
   sources: TimelineHardRulesSources,
   opts?: { labelObjects?: boolean; uiLocale?: string | null }
 ): string | null {
   const labelObjects = opts?.labelObjects !== false
+  const loc = opts?.uiLocale ?? 'zh-HK'
+  const storyL = PromptCatalog.t(loc, 'hardRules.labelStory')
+  const charL = PromptCatalog.t(loc, 'hardRules.labelCharacter')
+  const sceneL = PromptCatalog.t(loc, 'hardRules.labelScene')
+  const propL = PromptCatalog.t(loc, 'hardRules.labelProp')
+  const actionL = PromptCatalog.t(loc, 'hardRules.labelAction')
   const speechLock = buildSpeechLanguageLockText({
     characters: (sources.characters ?? []).filter(
       (c): c is NonNullable<typeof c> => c != null
     ),
-    uiLocale: opts?.uiLocale ?? 'zh-HK',
-    locale: opts?.uiLocale ?? 'zh-HK'
+    uiLocale: loc,
+    locale: loc
   })
   if (!labelObjects) {
     const parts: Array<string | null | undefined> = []
@@ -184,30 +226,30 @@ export function collectTimelineHardRules(
 
   if (sources.story?.hardRules) {
     const st = sources.story.title?.trim()
-    pushSection(st ? `Story · ${st}` : 'Story', sources.story.hardRules)
+    pushSection(st ? `${storyL} · ${st}` : storyL, sources.story.hardRules)
   }
   for (const c of sources.characters ?? []) {
     if (!c?.hardRules) continue
-    const name = c.name?.trim() || 'Character'
-    pushSection(`Character · ${name}`, c.hardRules)
+    const name = c.name?.trim() || charL
+    pushSection(`${charL} · ${name}`, c.hardRules)
   }
   for (const s of sources.scenes ?? []) {
     if (!s?.hardRules) continue
     const name =
       s.title?.trim() ||
       (s.description ? String(s.description).slice(0, 32).trim() : '') ||
-      'Scene'
-    pushSection(`Scene · ${name}`, s.hardRules)
+      sceneL
+    pushSection(`${sceneL} · ${name}`, s.hardRules)
   }
   for (const p of sources.props ?? []) {
     if (!p?.hardRules) continue
-    const name = p.name?.trim() || 'Prop'
-    pushSection(`Prop · ${name}`, p.hardRules)
+    const name = p.name?.trim() || propL
+    pushSection(`${propL} · ${name}`, p.hardRules)
   }
   for (const a of sources.actions ?? []) {
     if (!a?.hardRules) continue
-    const name = a.name?.trim() || 'Action'
-    pushSection(`Action · ${name}`, a.hardRules)
+    const name = a.name?.trim() || actionL
+    pushSection(`${actionL} · ${name}`, a.hardRules)
   }
 
   const merged = sections.length

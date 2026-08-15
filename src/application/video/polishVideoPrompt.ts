@@ -90,7 +90,7 @@ export async function polishThenGenerateVideo(
   // Force HARD RULES onto the final video prompt (LLM often drops them).
   if (options.hardRules) {
     const { ensureHardRules } = await import('../../domain/promptHardRules')
-    promptUsed = ensureHardRules(promptUsed, options.hardRules)
+    promptUsed = ensureHardRules(promptUsed, options.hardRules, locale)
   }
 
   assertNotAborted(options.signal)

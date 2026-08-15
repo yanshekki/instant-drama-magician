@@ -4,9 +4,12 @@ import {
   collectTimelineHardRules,
   defaultHardRulesFallback,
   ensureHardRules,
+  HARD_RULES_FOOTER,
   HARD_RULES_HEADER,
   hardRulesAiInstruction,
   hardRulesBlock,
+  hardRulesSealFooter,
+  hardRulesSealHeader,
   mergeHardRules,
   normalizeHardRules,
   stripHardRulesBlocks
@@ -29,9 +32,16 @@ describe('appendHardRules', () => {
   it('appends highest-priority block', () => {
     const out = appendHardRules('draw a cup', '【禁止】電線')
     expect(out).toContain('draw a cup')
-    expect(out).toContain(HARD_RULES_HEADER)
+    expect(out).toContain('生成鐵則')
     expect(out).toContain('【禁止】電線')
-    expect(out.indexOf('draw a cup')).toBeLessThan(out.indexOf(HARD_RULES_HEADER))
+    expect(out.indexOf('draw a cup')).toBeLessThan(out.indexOf('生成鐵則'))
+  })
+
+  it('uses English seal when locale is en', () => {
+    const out = appendHardRules('draw a cup', 'no wires', { locale: 'en' })
+    expect(out).toContain(hardRulesSealHeader('en'))
+    expect(out).toContain(hardRulesSealFooter('en'))
+    expect(out).not.toContain(HARD_RULES_HEADER)
   })
 
   it('skips duplicate when already present', () => {
@@ -45,11 +55,16 @@ describe('ensureHardRules', () => {
   it('re-appends after user strips rules from override', () => {
     const full = appendHardRules('base prompt', 'no wires')
     const stripped = stripHardRulesBlocks(full)
-    expect(stripped).not.toContain(HARD_RULES_HEADER)
+    expect(stripped).not.toContain('生成鐵則')
     const fixed = ensureHardRules(stripped + ' user edit', 'no wires')
     expect(fixed).toContain('user edit')
     expect(fixed).toContain('no wires')
-    expect(fixed).toContain(HARD_RULES_HEADER)
+    expect(fixed).toContain('生成鐵則')
+  })
+
+  it('strips legacy English header from old drafts', () => {
+    const old = `base\n\n${HARD_RULES_HEADER}\nno wires\n${HARD_RULES_FOOTER}`
+    expect(stripHardRulesBlocks(old)).toBe('base')
   })
 })
 
@@ -66,8 +81,9 @@ describe('mergeHardRules', () => {
 describe('hardRulesBlock', () => {
   it('includes header and footer', () => {
     const b = hardRulesBlock('must: two hands')
-    expect(b.startsWith(HARD_RULES_HEADER)).toBe(true)
+    expect(b.startsWith('生成鐵則')).toBe(true)
     expect(b).toContain('must: two hands')
+    expect(b).toContain('若前文與生成鐵則衝突')
   })
 })
 
@@ -91,14 +107,15 @@ describe('collectTimelineHardRules', () => {
       props: [{ name: 'Umbrella', hardRules: 'no wires' }],
       actions: [{ name: 'Draw sword', hardRules: 'readable beats' }]
     })
-    expect(m).toContain('[Story · Demo]')
-    expect(m).toContain('[Character · Keith]')
-    expect(m).toContain('[Scene · Roof]')
-    expect(m).toContain('[Prop · Umbrella]')
-    expect(m).toContain('[Action · Draw sword]')
+    expect(m).toContain('[故事 · Demo]')
+    expect(m).toContain('[角色 · Keith]')
+    expect(m).toContain('[場景 · Roof]')
+    expect(m).toContain('[道具 · Umbrella]')
+    expect(m).toContain('[動作 · Draw sword]')
     expect(m).toContain('two hands')
     expect(m).toContain('no wires')
-    expect(m).toMatch(/SPEECH LOCK/)
+    expect(m).toMatch(/對白鎖定/)
+    expect(m).not.toMatch(/SPEECH LOCK/)
   })
 
   it('can merge without labels (legacy dedupe)', () => {

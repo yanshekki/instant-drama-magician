@@ -53,22 +53,28 @@ describe('hardRulesMaterialsBlock + system polish prompt', () => {
     expect(hardRulesMaterialsBlock(null, 'en')).toBeNull()
     expect(hardRulesMaterialsBlock('  ', 'zh-HK')).toBeNull()
     const en = hardRulesMaterialsBlock('NO watermark', 'en')
-    expect(en).toMatch(/HARD RULES/)
+    expect(en).toMatch(/Hard rules/)
+    expect(en).not.toMatch(/HARD RULES/)
     expect(en).toContain('NO watermark')
     const zh = hardRulesMaterialsBlock('【禁止】水印', 'zh-HK')
-    expect(zh).toMatch(/HARD RULES|鐵則/)
+    expect(zh).toMatch(/生成鐵則/)
+    expect(zh).not.toMatch(/HARD RULES/)
     expect(zh).toContain('水印')
   })
 
   it('buildVideoPromptPolishSystemPrompt en/zh forbids silent sample worlds', () => {
     const zh = buildVideoPromptPolishSystemPrompt('zh-HK')
     expect(zh.length).toBeGreaterThan(40)
-    expect(zh).toMatch(/固定樣本|Demo|材料/)
-    expect(zh).toMatch(/SPEECH LOCK/)
+    expect(zh).toMatch(/固定樣本|示範樣本|材料/)
+    expect(zh).toMatch(/對白鎖定/)
+    expect(zh).not.toMatch(/SPEECH LOCK/)
+    expect(zh).not.toMatch(/IDENTITY LOCK/)
     const en = buildVideoPromptPolishSystemPrompt('en')
     expect(en).toMatch(/image-to-video|director|prompt/i)
     expect(en).toMatch(/materials and seed|Demo story|fixed sample/i)
-    expect(en).toMatch(/SPEECH LOCK/)
+    expect(en).toMatch(/Dialogue lock/)
+    expect(en).not.toMatch(/SPEECH LOCK/)
+    expect(en).not.toMatch(/HARD RULES/)
   })
 })
 
@@ -94,7 +100,7 @@ describe('buildIntroVideoPolishUserPrompt', () => {
     expect(u).toContain('soul.md')
     expect(u).toContain('TEMPLATE FALLBACK')
     expect(u).toMatch(/yue|粵語|Cantonese/i)
-    expect(u).toMatch(/SPEECH LOCK/)
+    expect(u).toMatch(/對白鎖定/)
   })
 })
 
@@ -181,7 +187,7 @@ describe('buildClipVideoPolishUserPrompt', () => {
       storyTitle: 'S',
       hardRules: '[Character · Keith]\n【必須】two hands'
     })
-    expect(u).toContain('HARD RULES')
+    expect(u).toContain('Hard rules')
     expect(u).toContain('[Character · Keith]')
     expect(u).toContain('two hands')
   })
@@ -197,7 +203,7 @@ describe('buildIntroVideoPolishUserPrompt hardRules', () => {
       name: '小雨',
       hardRules: '【禁止】第三人臉'
     })
-    expect(u).toContain('HARD RULES')
+    expect(u).toContain('生成鐵則')
     expect(u).toContain('第三人臉')
     expect(u).toContain('CHAR TEMPLATE')
   })
@@ -288,7 +294,7 @@ describe('other polish prompts en without ref', () => {
       seedPrompt: 'seed',
       soulExcerpt: '## Id\nCourier'
     })
-    expect(u).toMatch(/Ming|courier|soul|SPEECH LOCK|English/i)
+    expect(u).toMatch(/Ming|courier|soul|Dialogue lock|English/i)
   })
 
   it('scene polish title fallback and hasRefImage true en', () => {

@@ -1946,6 +1946,7 @@
       "polish": "{{count}} 枚を読み、磨いています…",
       "generate": "画像を生成しています…",
       "loadingKeyframe": "キーフレーム静止画を生成しています…",
+      "director": "キーフレームから演出文を書いています…",
       "loadingVideo": "動画を生成しています…"
     },
     "steps": {
@@ -1990,7 +1991,8 @@
       "hardRules": "厳格ルール",
       "layout": "コマ割り",
       "art": "画風",
-      "other": "その他"
+      "other": "その他",
+      "continuity": "絵コンテ静止画"
     },
     "kind": {
       "action-plate": "アクション指示図",
@@ -2043,13 +2045,18 @@
     "duration": "尺（秒）",
     "videoDoneGalleryHint": "紹介動画はギャラリーの元静止画に付いています。そこで再生できます。",
     "useStillAsKeyframe": "既存の静止画をキーフレームにする",
-    "keyframePromptHint": "キーフレーム静止画のプロンプト（画像演出）。キーフレームのあとで動画の動きを磨きます。"
+    "keyframePromptHint": "キーフレーム静止画のプロンプト（画像演出）。キーフレームのあとで動画の動きを磨きます。",
+    "continuityPrev": "前のビートの絵コンテ静止画（第{{n}}段）",
+    "continuityPrevBare": "前のビートの絵コンテ静止画",
+    "continuityOwn": "このビートの絵コンテ静止画",
+    "continuityLock": "画面連続ロック"
   },
   "promptTpl": {
     "title": "AI のやり方を選ぶ",
     "subtitle": "世界の発明、台詞ロック、身元ロックの有無をここで決める。選ばない限り隠れた既定は使わない。",
     "remember": "この種の操作では今後もこれを使う（矢印でいつでも変更）",
     "confirm": "このレシピを使う",
+    "selected": "選択中",
     "polish-only": {
       "name": "磨くだけ",
       "blurb": "身元と世界を保つ。文言だけ。時代・天候・職業・台詞言語を発明しない。既定鉄則をファイルに書かない。"

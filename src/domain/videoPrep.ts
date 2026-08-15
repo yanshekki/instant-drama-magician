@@ -303,22 +303,20 @@ export function removeVideoPrepDraft(
 export function mergeFinalVideoPrompt(
   professionalPrompt: string,
   userExtraPrompt?: string | null,
-  hardRules?: string | null
+  hardRules?: string | null,
+  locale?: string | null
 ): string {
   const pro = (professionalPrompt ?? '').trim()
   const extra = (userExtraPrompt ?? '').trim()
+  const loc = locale || 'zh-HK'
   let base = ''
   if (!pro && !extra) base = ''
   else if (!extra) base = pro
   else if (!pro) base = extra
   else {
-    base = [
-      pro,
-      'DIRECTOR / USER REVISION (supplement only — must not violate HARD RULES):',
-      extra
-    ].join('\n')
+    base = [pro, PromptCatalog.t(loc, 'clip.revision'), extra].join('\n')
   }
-  return appendHardRules(base, hardRules)
+  return appendHardRules(base, hardRules, { locale: loc })
 }
 
 /**

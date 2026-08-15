@@ -33,6 +33,13 @@ function storage(): Storage | null {
   }
 }
 
+/** Selected card must use `brand-*` (theme tokens). `accent-*` is not defined. */
+export function recipePickerCardClass(active: boolean): string {
+  return active
+    ? 'border-2 border-brand-600 bg-brand-950 ring-2 ring-brand-600/50'
+    : 'border border-ink-700 bg-ink-950/40 hover:border-ink-500'
+}
+
 function inVitest(): boolean {
   return Boolean(
     (import.meta as { env?: { MODE?: string; VITEST?: boolean } }).env
@@ -134,35 +141,66 @@ export function PromptTemplateProvider({
                 {t('promptTpl.subtitle')}
               </p>
             </div>
-            <div className="flex flex-col gap-2 overflow-y-auto px-5 py-4">
+            <div
+              className="flex flex-col gap-2 overflow-y-auto px-5 py-4"
+              role="radiogroup"
+              aria-labelledby="prompt-tpl-title"
+            >
               {ids.map((id) => {
                 const active = pending.selected === id
                 return (
                   <button
                     key={id}
                     type="button"
+                    role="radio"
+                    aria-checked={active}
                     onClick={() =>
                       setPending((cur) =>
                         cur ? { ...cur, selected: id } : cur
                       )
                     }
-                    className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                      active
-                        ? 'border-accent-500 bg-accent-950/40 ring-1 ring-accent-500/40'
-                        : 'border-ink-700 bg-ink-950/40 hover:border-ink-500'
+                    className={`rounded-xl px-3 py-2.5 text-left transition ${
+                      recipePickerCardClass(active)
                     }`}
                   >
-                    <div className="text-sm font-medium text-ink-50">
-                      {t(`promptTpl.${id}.name`)}
+                    <div className="flex items-start gap-3">
+                      <span
+                        aria-hidden
+                        className={
+                          active
+                            ? 'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-brand-600 bg-brand-600 text-[11px] font-bold text-white'
+                            : 'mt-0.5 flex h-5 w-5 shrink-0 rounded-full border-2 border-ink-500 bg-ink-900'
+                        }
+                      >
+                        {active ? '✓' : null}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div
+                            className={`text-sm ${
+                              active
+                                ? 'font-semibold text-ink-50'
+                                : 'font-medium text-ink-50'
+                            }`}
+                          >
+                            {t(`promptTpl.${id}.name`)}
+                          </div>
+                          {active ? (
+                            <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                              {t('promptTpl.selected')}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-0.5 text-xs leading-relaxed text-ink-400">
+                          {t(`promptTpl.${id}.blurb`)}
+                        </div>
+                        <RecipeCompareStars
+                          id={id}
+                          family={pending.family}
+                          labelFor={(axis) => t(`promptTpl.axis.${axis}`)}
+                        />
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-xs leading-relaxed text-ink-400">
-                      {t(`promptTpl.${id}.blurb`)}
-                    </div>
-                    <RecipeCompareStars
-                      id={id}
-                      family={pending.family}
-                      labelFor={(axis) => t(`promptTpl.axis.${axis}`)}
-                    />
                   </button>
                 )
               })}

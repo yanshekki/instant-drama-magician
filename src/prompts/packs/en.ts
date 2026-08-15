@@ -13,7 +13,7 @@ export const enPromptPack: PromptPack = {
     `Prefix hard-rule lines with ${must} and ${mustNot} only.`,
     'JSON object keys stay in English.'
   ].join(' '),
-  imagePolishDirective: `Produce an executable single-image director/technical prompt entirely in English. Put HARD RULES at the end if present, using only ${must} / ${mustNot}.`,
+  imagePolishDirective: `Produce an executable single-image director/technical prompt entirely in English. Put hard rules at the end if present, using only ${must} / ${mustNot}.`,
   noRefPolishDirective:
     'No reference stills are attached. Write from the text materials only. Do not mention a workspace, Wikipedia, searching the web, or locking identity to attached images. Do not invent Ref# locks.',
   sexLockMale:
@@ -24,7 +24,7 @@ export const enPromptPack: PromptPack = {
     'female face or body, breasts, feminine-beauty default, gender-swap, drawing the man as a woman',
   sexForbidFemale:
     'male face or body, beard unless specified, drawing the woman as a man',
-  videoPolishDirective: `Return ONE improved director prompt only, written entirely in English. Apply the improvement; keep IDENTITY/SPACE/OBJECT locks and HARD RULES (${must} / ${mustNot}).`,
+  videoPolishDirective: `Return ONE improved director prompt only, written entirely in English. Apply the improvement; keep identity, space and object locks and hard rules (${must} / ${mustNot}).`,
   hardRulesInstruction: [
     'hardRules: REQUIRED non-empty string (never omit the key, never use null/array).',
     'Write 3–8 short lines mixing MUST and MUST-NOT for image & video gen of THIS asset only.',

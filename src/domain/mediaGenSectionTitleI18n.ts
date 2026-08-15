@@ -94,6 +94,25 @@ export function translateMediaGenSectionTitle(
     return t('mediaGen.hardRulesTitle')
   }
 
+  if (
+    section.entityType === 'continuity' ||
+    section.id === 'prev_clip' ||
+    section.id === 'own_still' ||
+    section.id === 'continuity_lock' ||
+    section.id === 'keyframe_still'
+  ) {
+    if (section.id === 'continuity_lock') return t('mediaGen.continuityLock')
+    if (section.id === 'own_still' || section.id === 'keyframe_still') {
+      return section.id === 'keyframe_still'
+        ? t('mediaGen.keyframeTitle')
+        : t('mediaGen.continuityOwn')
+    }
+    const n = title.replace(/^#/, '').trim()
+    return n
+      ? t('mediaGen.continuityPrev', { n })
+      : t('mediaGen.continuityPrevBare')
+  }
+
   if (section.entityType === 'gallery') {
     const n = translateCharacterGalleryLabel(title, t) || title
     // Prefer character map; also try action/scene/prop if still English-ish

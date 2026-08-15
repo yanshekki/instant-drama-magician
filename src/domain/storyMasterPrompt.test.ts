@@ -142,7 +142,7 @@ describe('storyMasterPrompt', () => {
   it('builds beats system/user prompts', () => {
     const zh = buildStoryBeatsSystemPrompt('zh-HK')
     expect(zh).toMatch(/劇情段落|units/)
-    expect(zh).toMatch(/口白|SPEECH/)
+    expect(zh).toMatch(/對白|SPEECH/)
     const en = buildStoryBeatsSystemPrompt('en')
     expect(en).toMatch(/TIMELINE BEATS|dialogue/)
     expect(en).toMatch(/SPEECH|spoken language/)

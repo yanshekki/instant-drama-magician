@@ -1946,6 +1946,7 @@
       "polish": "Leyendo {{count}} imagen(es) y puliendo...",
       "generate": "Generando imagen…",
       "loadingKeyframe": "Generando fotograma clave…",
+      "director": "Escribiendo el texto de dirección a partir del fotograma…",
       "loadingVideo": "Generando vídeo…"
     },
     "steps": {
@@ -1990,7 +1991,8 @@
       "hardRules": "Reglas duras",
       "layout": "Disposición",
       "art": "estilo de arte",
-      "other": "Otro"
+      "other": "Otro",
+      "continuity": "Fotograma de storyboard"
     },
     "kind": {
       "action-plate": "Placa de acción",
@@ -2043,13 +2045,18 @@
     "duration": "Duración (segundos)",
     "videoDoneGalleryHint": "El video de introducción se adjunta a la fuente que aún está en la galería; use Reproducir allí en cualquier momento.",
     "useStillAsKeyframe": "Usar la imagen fija como fotograma clave",
-    "keyframePromptHint": "Prompt de fotograma clave (dirección de imagen). El polish de vídeo sigue cuando el fotograma esté listo."
+    "keyframePromptHint": "Prompt de fotograma clave (dirección de imagen). El polish de vídeo sigue cuando el fotograma esté listo.",
+    "continuityPrev": "Fotograma anterior (plano {{n}})",
+    "continuityPrevBare": "Fotograma anterior",
+    "continuityOwn": "Fotograma de este plano",
+    "continuityLock": "Bloqueo de continuidad"
   },
   "promptTpl": {
     "title": "Elige cómo debe trabajar la IA",
     "subtitle": "Esta elección controla si se inventa un mundo, se bloquea el diálogo y se bloquea la identidad. No se aplica nada oculto si no lo eliges.",
     "remember": "Usar siempre esta receta para este tipo de acción (cámbiala cuando quieras con la flecha)",
     "confirm": "Usar esta receta",
+    "selected": "Seleccionado",
     "polish-only": {
       "name": "Solo pulir",
       "blurb": "Conserva identidad y mundo. Mejora el redactado. No inventes época, clima, oficio ni idioma del diálogo. No escribas reglas fijas por defecto en el archivo."
