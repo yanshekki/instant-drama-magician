@@ -1078,7 +1078,7 @@
     "imageTabHint": "Character, scene, and prop reference images. Inherit chat, or pick Seedream (Ark) / another image API.",
     "videoTabHint": "Short-drama clip generation. Inherit chat, Grok gateway, Seedance (Ark), stub, or a custom video API.",
     "exportTabHint": "Final encode, subtitles, audio levels, and FFmpeg.",
-    "appTabHint": "UI language, appearance, and FFmpeg status.",
+    "appTabHint": "Interface language, appearance, completion notifications, and FFmpeg status.",
     "channelPreset": {
       "sameAsLlm": "Same as chat model",
       "grokGateway": "Grok local gateway",
@@ -1101,6 +1101,16 @@
     "colorSchemeSystem": "System",
     "colorSchemeLight": "Light",
     "colorSchemeDark": "Dark",
+    "desktopNotifyTitle": "Completion notifications",
+    "desktopNotifyHint": "When a language-model reply, image, video, or export finishes, show an operating-system notification.",
+    "desktopNotifyEnable": "Enable operating-system notifications",
+    "desktopNotifyUnfocusedOnly": "Notify only when the app is in the background",
+    "desktopNotifyOnFailure": "Also notify on failure",
+    "desktopNotifySound": "Play a system alert sound when supported",
+    "desktopNotifyTest": "Send test notification",
+    "desktopNotifyTestSent": "Test notification sent",
+    "desktopNotifyDenied": "The system denied notification permission. Allow InstantDrama Magician in system settings.",
+    "desktopNotifyUnsupported": "This environment cannot show operating-system notifications.",
     "showAdvanced": "Show advanced options",
     "hideAdvanced": "Hide advanced options",
     "exportProfile": "Encode profile",
@@ -2097,5 +2107,16 @@
       "lockId": "Lock ID",
       "cinematic": "Cinematic"
     }
+  },
+  "notify": {
+    "appName": "InstantDrama Magician",
+    "done": "{{label}} finished",
+    "fail": "{{label}} failed",
+    "exportDone": "Final video exported",
+    "exportFail": "Final video export failed",
+    "testBody": "If you can see this notification, the setting is working.",
+    "videoReady": "Video is ready",
+    "imageReady": "Image is ready",
+    "textReady": "Text is ready"
   }
 }

@@ -11,7 +11,7 @@ import type {
   SaveDialogOptions,
   Shell
 } from 'electron'
-import { app, BrowserWindow as BW } from 'electron'
+import { app, BrowserWindow as BW, Notification } from 'electron'
 import type { PrismaClient } from '../../src/types/prisma'
 import { join } from 'path'
 import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
@@ -23,6 +23,8 @@ import type {
   HandlerHost,
   HandlerShell
 } from '../../src/runtime/HandlerHost'
+import { resolveAppIconPathFrom } from './pureHelpers'
+import { createShowDesktopNotification } from './showDesktopNotification'
 
 export interface IpcContext {
   ipcMain: IpcMain
@@ -145,6 +147,30 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       }
     },
     getLastGenerationProgress: () => lastProgress,
+    showDesktopNotification: createShowDesktopNotification({
+      isSupported: () =>
+        typeof Notification !== 'undefined' &&
+        typeof Notification.isSupported === 'function' &&
+        Notification.isSupported(),
+      create: (opts) => {
+        const n = new Notification(opts)
+        return {
+          show: () => n.show(),
+          close: () => n.close(),
+          on: (ev, cb) => {
+            if (ev === 'click') n.on('click', cb)
+            else n.on('close', cb)
+          }
+        }
+      },
+      getMainWindow: () => getMainWindow(),
+      iconPath: resolveAppIconPathFrom([
+        join(process.resourcesPath || '', 'icon.png'),
+        join(process.cwd(), 'resources', 'icon.png'),
+        join(process.cwd(), 'build', 'icon.png'),
+        join(process.cwd(), 'src', 'assets', 'app-icon.png')
+      ])
+    }),
     openAdminWindow: async (target: string) => {
       const {
         getGrokGatewayService

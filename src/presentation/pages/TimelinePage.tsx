@@ -22,6 +22,7 @@ import {
 import { getApi } from '../../lib/api'
 // import {  } from '../../lib/ipc'
 import { formatUserError } from '../lib/formatUserError'
+import { notifyJobSettledSafe } from '../lib/notifyDesktop'
 import type {
   Action,
   Character,
@@ -2566,6 +2567,7 @@ export async function timelineRunExportFinal(ops: {
   const opts = defaultExportFinalOptions(ops.opts)
   ops.setExporting(true)
   ops.setError(null)
+  let exportStartedAt = Date.now()
   try {
     const pre = await ops.preflight(ops.storyId)
     if (!pre.canExport) {
@@ -2580,6 +2582,7 @@ export async function timelineRunExportFinal(ops: {
       )
       if (!ok) return 'cancel'
     }
+    exportStartedAt = Date.now()
     const { outputPath } = await ops.exportFinal(ops.storyId, opts)
     ops.setLastPath(outputPath)
     ops.setInitial(opts)
@@ -2587,6 +2590,12 @@ export async function timelineRunExportFinal(ops: {
     ops.openHistory()
     await ops.refreshHistory()
     ops.toastSuccess(outputPath)
+    notifyJobSettledSafe({
+      outcome: 'succeeded',
+      kind: 'export',
+      startedAt: exportStartedAt,
+      tagScope: ops.storyId
+    })
     if (opts.openExportFolder) {
       ops.openFolder?.(outputPath)
     }
@@ -2595,6 +2604,12 @@ export async function timelineRunExportFinal(ops: {
     const msg = timelineExportCatchMsg(e, ops.needFfmpeg)
     ops.setError(msg)
     ops.toastError(msg)
+    notifyJobSettledSafe({
+      outcome: 'failed',
+      kind: 'export',
+      startedAt: exportStartedAt,
+      tagScope: ops.storyId
+    })
     return 'error'
   } finally {
     ops.setExporting(false)

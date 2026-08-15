@@ -41,6 +41,10 @@ import type {
 } from '../../types/domain'
 import type { ArtStyleId } from '../../domain/characterArtStyles'
 import { persistJobsSafe, loadDraftStoreSafe, pipelineProgressPct } from './aiJobsPure'
+import {
+  desktopNotifyKindFromJob,
+  notifyJobSettledSafe
+} from '../lib/notifyDesktop'
 
 const AI_JOBS_STORAGE_KEY = 'idm.aiJobs.v1'
 const AI_JOBS_MAX_PERSIST = 24
@@ -671,6 +675,11 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
             })
             return
           }
+          const degraded =
+            Boolean(draft) &&
+            typeof draft === 'object' &&
+            'degraded' in draft &&
+            Boolean((draft as { degraded?: boolean }).degraded)
           if (draft) {
             patchJob(id, {
               status: 'succeeded',
@@ -687,6 +696,13 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
               finishedAt: Date.now()
             })
           }
+          notifyJobSettledSafe({
+            outcome: degraded ? 'degraded' : 'succeeded',
+            kind: desktopNotifyKindFromJob(input.kind),
+            label: input.label,
+            startedAt: job.startedAt,
+            tagScope: input.kind
+          })
         } catch (e) {
           if (flag.cancelled) {
             patchJob(id, {
@@ -702,6 +718,13 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
             progress: 100,
             error: `${err.message}${err.details ? ` — ${err.details}` : ''}`,
             finishedAt: Date.now()
+          })
+          notifyJobSettledSafe({
+            outcome: 'failed',
+            kind: desktopNotifyKindFromJob(input.kind),
+            label: input.label,
+            startedAt: job.startedAt,
+            tagScope: input.kind
           })
         } finally {
           cancelFlags.current.delete(id)

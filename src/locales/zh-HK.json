@@ -1078,7 +1078,7 @@
     "imageTabHint": "角色／場景／道具參考圖。可沿用對話端點，或選 Seedream（方舟）／其他圖像 API。",
     "videoTabHint": "短劇片段生成。可沿用對話端點、Grok 閘道、Seedance（方舟）、stub 佔位，或自訂影片 API。",
     "exportTabHint": "最終成片編碼、字幕、音量與 FFmpeg。",
-    "appTabHint": "介面語言、外觀與 FFmpeg 狀態。",
+    "appTabHint": "介面語言、外觀、完成通知與 FFmpeg 狀態。",
     "channelPreset": {
       "sameAsLlm": "與對話模型相同",
       "grokGateway": "Grok 本機閘道",
@@ -1101,6 +1101,16 @@
     "colorSchemeSystem": "跟隨系統",
     "colorSchemeLight": "淺色",
     "colorSchemeDark": "深色",
+    "desktopNotifyTitle": "完成通知",
+    "desktopNotifyHint": "語言模型、出圖、出片或匯出完成後，於作業系統通知中心提示。",
+    "desktopNotifyEnable": "啟用作業系統通知",
+    "desktopNotifyUnfocusedOnly": "僅在應用程式不在前台時通知",
+    "desktopNotifyOnFailure": "失敗時亦通知",
+    "desktopNotifySound": "播放系統提示音（若系統支援）",
+    "desktopNotifyTest": "傳送測試通知",
+    "desktopNotifyTestSent": "已傳送測試通知",
+    "desktopNotifyDenied": "系統已拒絕通知權限。請於作業系統設定允許 InstantDrama Magician。",
+    "desktopNotifyUnsupported": "此環境無法顯示作業系統通知。",
     "showAdvanced": "顯示進階選項",
     "hideAdvanced": "隱藏進階選項",
     "exportProfile": "編碼設定檔",
@@ -2097,5 +2107,16 @@
       "lockId": "鎖身份",
       "cinematic": "電影感"
     }
+  },
+  "notify": {
+    "appName": "InstantDrama Magician",
+    "done": "{{label}}已完成",
+    "fail": "{{label}}失敗",
+    "exportDone": "成片已匯出",
+    "exportFail": "成片匯出失敗",
+    "testBody": "若你見到此則通知，設定已生效。",
+    "videoReady": "影片已就緒",
+    "imageReady": "圖像已就緒",
+    "textReady": "文字已就緒"
   }
 }

@@ -481,8 +481,8 @@ reg(
           }
         }
         await timeline().setMedia(payload.entryId, {
-          mediaPath: result.outputPath,
-          mediaStatus: 'READY',
+          mediaPath: result.degraded ? null : result.outputPath,
+          mediaStatus: result.degraded ? 'FAILED' : 'READY',
           mediaError: result.degraded ? 'STUB_PLACEHOLDER' : null
         })
         return {

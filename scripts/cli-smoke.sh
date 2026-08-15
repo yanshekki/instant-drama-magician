@@ -13,16 +13,16 @@ echo "== doctor =="
 DOC="$("${CLI[@]}" doctor --json)"
 echo "$DOC" | head -c 400
 echo "…"
-# channelCount must be 157
-echo "$DOC" | grep -q '"channelCount":157' || {
-  echo "FAIL: expected channelCount 157 in doctor output" >&2
+# channelCount must be 158
+echo "$DOC" | grep -q '"channelCount":158' || {
+  echo "FAIL: expected channelCount 158 in doctor output" >&2
   exit 1
 }
 
 echo "== channels list count =="
 LIST="$("${CLI[@]}" channels list --json)"
-echo "$LIST" | grep -q '"count":157' || {
-  echo "FAIL: expected channels list count 157" >&2
+echo "$LIST" | grep -q '"count":158' || {
+  echo "FAIL: expected channels list count 158" >&2
   exit 1
 }
 
@@ -38,4 +38,4 @@ echo "== describe mediaGen:extract =="
 echo "== help =="
 "${CLI[@]}" help >/dev/null
 
-echo "OK: CLI smoke passed (157 channels)."
+echo "OK: CLI smoke passed (158 channels)."

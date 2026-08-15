@@ -198,6 +198,12 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     description: 'Open external URL (desktop)',
     desktopOnly: true
   },
+  {
+    channel: 'desktopNotify:show',
+    description: 'Show an OS completion notification',
+    argsHint: '[{title, body, silent?, tag?, unfocusedOnly?}]',
+    desktopOnly: true
+  },
   { channel: 'app:rebuildMenu', description: 'Rebuild native menu', desktopOnly: true },
   {
     channel: 'activity:clear',
@@ -827,6 +833,7 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'scenes:update',
   'settings:get',
   'settings:set',
+  'desktopNotify:show',
   'shell:openExternal',
   'shell:openPath',
   'shell:showItemInFolder',

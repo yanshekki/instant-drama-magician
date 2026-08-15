@@ -488,6 +488,9 @@ const api: ElectronApi & {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (partial) => ipcRenderer.invoke('settings:set', partial)
   },
+  desktopNotify: {
+    show: (payload) => ipcRenderer.invoke('desktopNotify:show', payload)
+  },
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
     openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath),

@@ -9,6 +9,7 @@ export type WebCapability =
   | 'nativeUpdates'
   | 'webServerAdmin'
   | 'rebuildMenu'
+  | 'desktopNotify'
 
 /** True when the capability is available in the current runtime. */
 export function canUse(cap: WebCapability): boolean {
@@ -19,6 +20,9 @@ export function canUse(cap: WebCapability): boolean {
   switch (cap) {
     case 'filePickUpload':
       // Browser file input + /api/upload (httpAppClient)
+      return true
+    case 'desktopNotify':
+      // Web Notification API is still an OS banner
       return true
     case 'openExportFolder':
     case 'nativeUpdates':

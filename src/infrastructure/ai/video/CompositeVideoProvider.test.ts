@@ -108,7 +108,7 @@ describe('CompositeVideoProvider', () => {
     expect(p.lastUsedId).toBe('grok-http')
   })
 
-  it('auto falls back to stub when http unavailable', async () => {
+  it('auto throws when http unavailable instead of writing a stub clip', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'idm-comp-a-'))
     const out = join(dir, 'a.mp4')
     const stub = {
@@ -137,15 +137,14 @@ describe('CompositeVideoProvider', () => {
 
     const st = await p.probe()
     expect(st.message).toMatch(/auto/)
-    const r = await p.generate({
-      prompt: 'p',
-      durationSeconds: 6,
-      outputPath: out
-    })
-    expect(r.degraded).toBe(true)
-    expect(p.lastUsedId).toBe('stub')
-    // jobId keeps stub's id when present; fallback prefix only if stub omits it
-    expect(r.jobId).toBeTruthy()
+    await expect(
+      p.generate({
+        prompt: 'p',
+        durationSeconds: 6,
+        outputPath: out
+      })
+    ).rejects.toMatchObject({ code: 'AI_UNAVAILABLE' })
+    expect(stub.generate).not.toHaveBeenCalled()
   })
 
   it('auto rethrows when http available but generate fails', async () => {

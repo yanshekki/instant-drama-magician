@@ -16,6 +16,7 @@ import {
 import { openLegalDocument } from '../components/LegalDocumentModal'
 import { formatIpcError, parseIpcError } from '../../lib/ipc'
 import { formatUserError } from '../lib/formatUserError'
+import { notifyJobSettled } from '../lib/notifyDesktop'
 import {
   applyLlmPreset,
   coerceLlmProviderPreset,
@@ -1215,6 +1216,104 @@ export function SettingsPage(): JSX.Element {
                       )
                     })}
                   </div>
+                </div>
+                <div>
+                  <Label>{t('settings.desktopNotifyTitle')}</Label>
+                  <p className="mt-0.5 text-[11px] text-ink-500">
+                    {t('settings.desktopNotifyHint')}
+                  </p>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-ink-200">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-ink-600"
+                      checked={Boolean(settings?.desktopNotifyEnabled !== false)}
+                      onChange={(e) => {
+                        const on = e.target.checked
+                        patch('desktopNotifyEnabled', on)
+                        void getApi()
+                          .settings.set({ desktopNotifyEnabled: on })
+                          .catch(() => undefined)
+                      }}
+                    />
+                    {t('settings.desktopNotifyEnable')}
+                  </label>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-ink-200">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-ink-600"
+                      disabled={settings?.desktopNotifyEnabled === false}
+                      checked={Boolean(
+                        settings?.desktopNotifyWhenUnfocusedOnly !== false
+                      )}
+                      onChange={(e) => {
+                        const on = e.target.checked
+                        patch('desktopNotifyWhenUnfocusedOnly', on)
+                        void getApi()
+                          .settings.set({ desktopNotifyWhenUnfocusedOnly: on })
+                          .catch(() => undefined)
+                      }}
+                    />
+                    {t('settings.desktopNotifyUnfocusedOnly')}
+                  </label>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-ink-200">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-ink-600"
+                      disabled={settings?.desktopNotifyEnabled === false}
+                      checked={Boolean(settings?.desktopNotifyOnFailure !== false)}
+                      onChange={(e) => {
+                        const on = e.target.checked
+                        patch('desktopNotifyOnFailure', on)
+                        void getApi()
+                          .settings.set({ desktopNotifyOnFailure: on })
+                          .catch(() => undefined)
+                      }}
+                    />
+                    {t('settings.desktopNotifyOnFailure')}
+                  </label>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-ink-200">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-ink-600"
+                      disabled={settings?.desktopNotifyEnabled === false}
+                      checked={Boolean(settings?.desktopNotifySound !== false)}
+                      onChange={(e) => {
+                        const on = e.target.checked
+                        patch('desktopNotifySound', on)
+                        void getApi()
+                          .settings.set({ desktopNotifySound: on })
+                          .catch(() => undefined)
+                      }}
+                    />
+                    {t('settings.desktopNotifySound')}
+                  </label>
+                  <Button
+                    className="mt-3"
+                    variant="secondary"
+                    type="button"
+                    disabled={settings?.desktopNotifyEnabled === false}
+                    onClick={() => {
+                      void notifyJobSettled({
+                        outcome: 'succeeded',
+                        kind: 'test',
+                        startedAt: Date.now(),
+                        force: true,
+                        settings
+                      }).then((r) => {
+                        if (r.ok) {
+                          toast.success(t('settings.desktopNotifyTestSent'))
+                          return
+                        }
+                        if (r.reason === 'denied') {
+                          toast.error(t('settings.desktopNotifyDenied'))
+                          return
+                        }
+                        toast.error(t('settings.desktopNotifyUnsupported'))
+                      })
+                    }}
+                  >
+                    {t('settings.desktopNotifyTest')}
+                  </Button>
                 </div>
                 <div>
                   <Label>{t('settings.promptRecipe')}</Label>

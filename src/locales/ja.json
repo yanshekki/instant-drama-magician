@@ -1078,7 +1078,7 @@
     "imageTabHint": "キャラクター、シーン、小道具の参考画像。チャット エンドポイントを継承するか、別のイメージ プロバイダーを構成します。",
     "videoTabHint": "ショートドラマクリップの生成。チャットを継承し、Grok ゲートウェイ、スタブ プレースホルダー、またはカスタム ビデオ API を使用します。",
     "exportTabHint": "最終的なエンコード、字幕、音声レベル、FFmpeg。",
-    "appTabHint": "UI言語、タイムライン吸着、FFmpeg状態、診断。",
+    "appTabHint": "UI言語、外観、完了通知、FFmpegの状態。",
     "channelPreset": {
       "sameAsLlm": "チャットモデルと同じ",
       "grokGateway": "Grok ローカル ゲートウェイ",
@@ -1101,6 +1101,16 @@
     "colorSchemeSystem": "システム",
     "colorSchemeLight": "ライト",
     "colorSchemeDark": "ダーク",
+    "desktopNotifyTitle": "完了通知",
+    "desktopNotifyHint": "言語モデル、画像、動画、または書き出しが完了すると、OSの通知センターに表示します。",
+    "desktopNotifyEnable": "OS通知を有効にする",
+    "desktopNotifyUnfocusedOnly": "アプリが前面にないときのみ通知する",
+    "desktopNotifyOnFailure": "失敗時も通知する",
+    "desktopNotifySound": "対応している場合はシステム通知音を再生する",
+    "desktopNotifyTest": "テスト通知を送る",
+    "desktopNotifyTestSent": "テスト通知を送りました",
+    "desktopNotifyDenied": "システムが通知を拒否しました。システム設定で InstantDrama Magician を許可してください。",
+    "desktopNotifyUnsupported": "この環境ではOS通知を表示できません。",
     "showAdvanced": "詳細オプションを表示",
     "hideAdvanced": "詳細オプションを非表示にする",
     "exportProfile": "プロファイルをエンコードする",
@@ -2097,5 +2107,16 @@
       "lockId": "身元ロック",
       "cinematic": "映画的"
     }
+  },
+  "notify": {
+    "appName": "InstantDrama Magician",
+    "done": "{{label}}が完了しました",
+    "fail": "{{label}}が失敗しました",
+    "exportDone": "完成動画を書き出しました",
+    "exportFail": "完成動画の書き出しに失敗しました",
+    "testBody": "この通知が表示されていれば、設定は有効です。",
+    "videoReady": "動画の準備ができました",
+    "imageReady": "画像の準備ができました",
+    "textReady": "文章の準備ができました"
   }
 }

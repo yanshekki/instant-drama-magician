@@ -2,7 +2,7 @@
  * Unified image/video shell: materials → polish → (image result | video keyframe → confirm → done).
  * One modal for the whole journey — no jump to a second wizard.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -28,6 +28,7 @@ import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
 
 import { formatUserError } from '../lib/formatUserError'
+import { notifyJobSettledSafe } from '../lib/notifyDesktop'
 import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { Button, Label, Textarea } from './ui'
 import { LocalMediaImage } from './LocalMediaImage'
@@ -244,6 +245,24 @@ export function MediaGenPrepModal({
     : 'image'
   const shellSteps = shellStepsForMode(mode)
 
+  const waitStartedAt = useRef(Date.now())
+  const beginWait = (): void => {
+    waitStartedAt.current = Date.now()
+  }
+  const settleWait = (
+    outcome: 'succeeded' | 'failed' | 'degraded',
+    kind: 'text' | 'image' | 'video',
+    label: string
+  ): void => {
+    notifyJobSettledSafe({
+      outcome,
+      kind,
+      label,
+      startedAt: waitStartedAt.current,
+      tagScope: request?.kind ?? kind
+    })
+  }
+
   const [phase, setPhase] = useState<MediaGenShellPhase>('loading-extract')
   const [sections, setSections] = useState<MediaGenMaterialSection[]>([])
   const [editBaseSectionId, setEditBaseSectionId] = useState<string | null>(
@@ -338,6 +357,7 @@ export function MediaGenPrepModal({
     setMediaTemplateId(null)
     setPhase('loading-extract')
     setErrorMessage(null)
+    beginWait()
     try {
       const r = await getApi().mediaGen.extract({
         kind: request.kind,
@@ -428,6 +448,7 @@ export function MediaGenPrepModal({
             ? p
             : 'confirm-video'
         )
+        settleWait('succeeded', 'text', t('aiJobs.step.start'))
         return
       }
       setPolishedPrompt('')
@@ -435,10 +456,14 @@ export function MediaGenPrepModal({
       setResultPath(null)
       setResultMeta(null)
       setPhase('materials')
+      settleWait('succeeded', 'text', t('aiJobs.step.start'))
     } catch (e) {
       setErrorMessage(formatUserError(formatIpcError(e), t))
       setPhase('error')
+      settleWait('failed', 'text', t('aiJobs.step.start'))
     }
+    // t / settleWait are stable enough; extra deps retrigger extract forever
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, i18n.language])
 
   useEffect(() => {
@@ -514,6 +539,7 @@ export function MediaGenPrepModal({
     setBusy(true)
     setPhase('loading-polish')
     setErrorMessage(null)
+    beginWait()
     try {
       const included = sections.filter((s) => s.include)
       // Always image director for the still / keyframe pipeline (video kinds too)
@@ -532,9 +558,11 @@ export function MediaGenPrepModal({
       setImageCount(r.imageCount)
       setVideoPrompt('')
       setPhase('review-prompt')
+      settleWait('succeeded', 'text', t('aiJobs.step.llm'))
     } catch (e) {
       setErrorMessage(formatUserError(formatIpcError(e), t))
       setPhase('materials')
+      settleWait('failed', 'text', t('aiJobs.step.llm'))
     } finally {
       setBusy(false)
     }
@@ -561,6 +589,7 @@ export function MediaGenPrepModal({
     setBusy(true)
     setPhase('confirm-video')
     setErrorMessage(null)
+    beginWait()
     try {
       const keyframeSection: MediaGenMaterialSection = {
         id: 'keyframe_still',
@@ -605,10 +634,12 @@ export function MediaGenPrepModal({
       )
       setPolishedFlag(r.polished)
       setPhase('confirm-video')
+      settleWait('succeeded', 'text', t('aiJobs.step.llm'))
     } catch (e) {
       setErrorMessage(formatUserError(formatIpcError(e), t))
       setVideoPrompt(videoFallback)
       setPhase('confirm-video')
+      settleWait('failed', 'text', t('aiJobs.step.llm'))
     } finally {
       setBusy(false)
     }
@@ -633,6 +664,7 @@ export function MediaGenPrepModal({
     setBusy(true)
     setPhase('loading-generate')
     setErrorMessage(null)
+    beginWait()
     try {
       const finalPrompt = [polishedPrompt.trim(), userExtra.trim()]
         .filter(Boolean)
@@ -651,6 +683,7 @@ export function MediaGenPrepModal({
           setResultPath(src)
           setResultMeta(meta)
           setPhase('keyframe')
+          settleWait('succeeded', 'image', t('mediaGen.generateImage'))
           return
         }
       }
@@ -710,9 +743,11 @@ export function MediaGenPrepModal({
       } else {
         setPhase('result')
       }
+      settleWait('succeeded', 'image', t('mediaGen.generateImage'))
     } catch (e) {
       setErrorMessage(formatUserError(formatIpcError(e), t))
       setPhase(mode === 'video' ? 'review-prompt' : 'review-prompt')
+      settleWait('failed', 'image', t('mediaGen.generateImage'))
     } finally {
       setBusy(false)
     }
@@ -728,6 +763,7 @@ export function MediaGenPrepModal({
     setBusy(true)
     setPhase('loading-video')
     setErrorMessage(null)
+    beginWait()
     try {
       const entityIds = {
         characterId: request.characterId,
@@ -766,8 +802,15 @@ export function MediaGenPrepModal({
         aspectRatio,
         locale: i18n.language
       })
+      if ((r as { degraded?: boolean }).degraded) {
+        setErrorMessage(t('pipeline.clipDoneStub'))
+        setPhase('confirm-video')
+        settleWait('degraded', 'video', t('notify.videoReady'))
+        return
+      }
       setVideoPath(r.path)
       setPhase('video-done')
+      settleWait('succeeded', 'video', t('notify.videoReady'))
       // Same event as VideoPrepHost — pages reload gallery introVideoPath + play buttons
       window.dispatchEvent(
         new CustomEvent('idm:video-prep-done', {
@@ -796,6 +839,7 @@ export function MediaGenPrepModal({
     } catch (e) {
       setErrorMessage(formatUserError(formatIpcError(e), t))
       setPhase('confirm-video')
+      settleWait('failed', 'video', t('notify.videoReady'))
     } finally {
       setBusy(false)
     }

@@ -22,6 +22,7 @@ import { registerGatewayHandlers } from './handlers/gateway'
 import { registerSettingsHandlers } from './handlers/settings'
 import { registerWebserverHandlers } from './handlers/webServer'
 import { registerShellHandlers } from './handlers/shell'
+import { registerDesktopNotifyHandlers } from './handlers/desktopNotify'
 import { registerMediaHandlers } from './handlers/media'
 import { registerUpdatesHandlers } from './handlers/updates'
 import { registerActivityHandlers } from './handlers/activity'
@@ -57,6 +58,7 @@ export function registerAllHandlers(
   registerSettingsHandlers(ctx)
   registerWebserverHandlers(ctx)
   registerShellHandlers(ctx)
+  registerDesktopNotifyHandlers(ctx)
   registerMediaHandlers(ctx)
   registerUpdatesHandlers(ctx)
   registerActivityHandlers(ctx)

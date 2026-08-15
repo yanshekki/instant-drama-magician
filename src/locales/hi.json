@@ -1078,7 +1078,7 @@
     "imageTabHint": "चरित्र, दृश्य और प्रोप संदर्भ छवियाँ। चैट समापन बिंदु को इनहेरिट करें या एक अलग छवि प्रदाता कॉन्फ़िगर करें।",
     "videoTabHint": "लघु-नाटक क्लिप पीढ़ी। चैट इनहेरिट करें, ग्रोक गेटवे, स्टब प्लेसहोल्डर या कस्टम वीडियो एपीआई का उपयोग करें।",
     "exportTabHint": "अंतिम एनकोड, उपशीर्षक, ऑडियो स्तर और एफएफएमपीईजी।",
-    "appTabHint": "UI भाषा, टाइमलाइन स्नैप, FFmpeg स्थिति और निदान।",
+    "appTabHint": "इंटरफ़ेस भाषा, रूप, पूर्णता सूचनाएँ और FFmpeg स्थिति।",
     "channelPreset": {
       "sameAsLlm": "चैट मॉडल के समान",
       "grokGateway": "ग्रोक स्थानीय प्रवेश द्वार",
@@ -1101,6 +1101,16 @@
     "colorSchemeSystem": "सिस्टम",
     "colorSchemeLight": "लाइट",
     "colorSchemeDark": "डार्क",
+    "desktopNotifyTitle": "पूर्णता सूचनाएँ",
+    "desktopNotifyHint": "भाषा-मॉडल उत्तर, छवि, वीडियो या निर्यात पूरा होने पर ऑपरेटिंग सिस्टम सूचना दिखाएँ।",
+    "desktopNotifyEnable": "ऑपरेटिंग सिस्टम सूचनाएँ चालू करें",
+    "desktopNotifyUnfocusedOnly": "केवल तब सूचित करें जब ऐप अग्रभूमि में न हो",
+    "desktopNotifyOnFailure": "विफल होने पर भी सूचित करें",
+    "desktopNotifySound": "समर्थित होने पर सिस्टम चेतावनी ध्वनि चलाएँ",
+    "desktopNotifyTest": "परीक्षण सूचना भेजें",
+    "desktopNotifyTestSent": "परीक्षण सूचना भेज दी गई",
+    "desktopNotifyDenied": "सिस्टम ने सूचना अनुमति अस्वीकार कर दी। सिस्टम सेटिंग में InstantDrama Magician को अनुमति दें।",
+    "desktopNotifyUnsupported": "यह वातावरण ऑपरेटिंग सिस्टम सूचना नहीं दिखा सकता।",
     "showAdvanced": "उन्नत विकल्प दिखाएं",
     "hideAdvanced": "उन्नत विकल्प छिपाएँ",
     "exportProfile": "प्रोफ़ाइल एनकोड करें",
@@ -2097,5 +2107,16 @@
       "lockId": "पहचान लॉक",
       "cinematic": "सिनेमाई"
     }
+  },
+  "notify": {
+    "appName": "InstantDrama Magician",
+    "done": "{{label}} पूरा हुआ",
+    "fail": "{{label}} असफल रहा",
+    "exportDone": "अंतिम फ़िल्म निर्यात हो गई",
+    "exportFail": "अंतिम फ़िल्म निर्यात असफल रहा",
+    "testBody": "यदि आपको यह सूचना दिख रही है, तो सेटिंग चालू है।",
+    "videoReady": "वीडियो तैयार है",
+    "imageReady": "छवि तैयार है",
+    "textReady": "पाठ तैयार है"
   }
 }

@@ -101,6 +101,14 @@ export interface AppSettings {
   uiLanguage: UiLanguage
   /** Appearance: system (OS) | light | dark */
   colorScheme: ColorSchemePref
+  /** OS notification when a long AI / export wait finishes */
+  desktopNotifyEnabled: boolean
+  /** Skip OS notification while the app window is focused and visible */
+  desktopNotifyWhenUnfocusedOnly: boolean
+  /** Also notify when the wait ends in failure (not user cancel) */
+  desktopNotifyOnFailure: boolean
+  /** Prefer a system alert sound when the OS supports it */
+  desktopNotifySound: boolean
   /** Grok video clip aspect_ratio */
   aspectRatio: string
   /** Final export clip transition */
@@ -190,6 +198,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   snapGridSec: 0.5,
   uiLanguage: 'zh-HK',
   colorScheme: 'system',
+  desktopNotifyEnabled: true,
+  desktopNotifyWhenUnfocusedOnly: true,
+  desktopNotifyOnFailure: true,
+  desktopNotifySound: true,
   aspectRatio: '16:9',
   transitionMode: 'fade',
   transitionSec: 0.3,
@@ -355,6 +367,19 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
   } else if (merged.imageTimeoutMs === 180_000) {
     // Previous factory default — bump so existing installs match Gateway headroom.
     merged.imageTimeoutMs = DEFAULT_SETTINGS.imageTimeoutMs
+  }
+  if (typeof merged.desktopNotifyEnabled !== 'boolean') {
+    merged.desktopNotifyEnabled = DEFAULT_SETTINGS.desktopNotifyEnabled
+  }
+  if (typeof merged.desktopNotifyWhenUnfocusedOnly !== 'boolean') {
+    merged.desktopNotifyWhenUnfocusedOnly =
+      DEFAULT_SETTINGS.desktopNotifyWhenUnfocusedOnly
+  }
+  if (typeof merged.desktopNotifyOnFailure !== 'boolean') {
+    merged.desktopNotifyOnFailure = DEFAULT_SETTINGS.desktopNotifyOnFailure
+  }
+  if (typeof merged.desktopNotifySound !== 'boolean') {
+    merged.desktopNotifySound = DEFAULT_SETTINGS.desktopNotifySound
   }
   if (typeof merged.webServerEnabled !== 'boolean') {
     merged.webServerEnabled = DEFAULT_SETTINGS.webServerEnabled

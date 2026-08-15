@@ -1327,6 +1327,15 @@ export interface ElectronApi {
     get: () => Promise<AppSettings>
     set: (partial: Partial<AppSettings>) => Promise<AppSettings>
   }
+  desktopNotify: {
+    show: (payload: {
+      title: string
+      body: string
+      silent?: boolean
+      tag?: string
+      unfocusedOnly?: boolean
+    }) => Promise<{ ok: boolean; reason?: string }>
+  }
   shell: {
     openExternal: (url: string) => Promise<{ ok: boolean }>
     openPath: (filePath: string) => Promise<{ ok: boolean }>

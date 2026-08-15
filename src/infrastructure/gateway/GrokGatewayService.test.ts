@@ -29,7 +29,8 @@ import {
   GrokGatewayService,
   getGrokGatewayService,
   isGrokGatewayPreset,
-  IDM_GATEWAY_PRESET
+  IDM_GATEWAY_PRESET,
+  resolveNodeLaunch
 } from './GrokGatewayService'
 
 describe('GrokGatewayService', () => {
@@ -329,6 +330,44 @@ describe('GrokGatewayService', () => {
     expect(r.apiKey || r.keyCreated || true).toBeTruthy()
   })
 
+  it('resolveNodeLaunch prefers a real node binary over Electron', () => {
+    const binDir = join(root, 'node-bin')
+    mkdirSync(binDir, { recursive: true })
+    const nodeBin = join(binDir, 'node')
+    writeFileSync(nodeBin, '#!/bin/sh\n')
+    const electronBin = join(binDir, 'electron')
+    writeFileSync(electronBin, '#!/bin/sh\n')
+
+    const viaNpm = resolveNodeLaunch({
+      execPath: electronBin,
+      env: { npm_node_execpath: nodeBin },
+      exists: (p) => existsSync(p),
+      which: () => null
+    })
+    expect(viaNpm.execPath).toBe(nodeBin)
+    expect(viaNpm.usedElectronAsNode).toBe(false)
+    expect(viaNpm.env.ELECTRON_RUN_AS_NODE).toBeUndefined()
+
+    const viaWhich = resolveNodeLaunch({
+      execPath: electronBin,
+      env: {},
+      exists: (p) => existsSync(p),
+      which: () => nodeBin
+    })
+    expect(viaWhich.execPath).toBe(nodeBin)
+    expect(viaWhich.usedElectronAsNode).toBe(false)
+
+    const electronOnly = resolveNodeLaunch({
+      execPath: electronBin,
+      env: {},
+      exists: (p) => p === electronBin,
+      which: () => null
+    })
+    expect(electronOnly.execPath).toBe(electronBin)
+    expect(electronOnly.usedElectronAsNode).toBe(true)
+    expect(electronOnly.env.ELECTRON_RUN_AS_NODE).toBe('1')
+  })
+
   it('startInternal spawn fallback', async () => {
     const gw = new GrokGatewayService(3847, root)
     vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue(
@@ -343,6 +382,11 @@ describe('GrokGatewayService', () => {
     // @ts-expect-error private
     await gw.startInternal()
     expect(spawn).toHaveBeenCalled()
+    const spawnBin = String(spawn.mock.calls[0]?.[0] ?? '')
+    expect(spawnBin.toLowerCase()).not.toContain('electron')
+    expect(spawn.mock.calls[0]?.[1]).toEqual(
+      expect.arrayContaining(['start', '--port', '3847'])
+    )
 
     // no node entry
     vi.spyOn(gw, 'resolveGctoacPath').mockReturnValue('/no/gctoac')

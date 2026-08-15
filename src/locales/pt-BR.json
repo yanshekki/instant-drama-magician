@@ -1078,7 +1078,7 @@
     "imageTabHint": "Imagens de referência de personagens, cenas e acessórios. Herde o endpoint de chat ou configure um provedor de imagem separado.",
     "videoTabHint": "Geração de clipes de drama curto. Herde o bate-papo, use o gateway Grok, marcadores de stub ou uma API de vídeo personalizada.",
     "exportTabHint": "Codificação final, legendas, níveis de áudio e FFmpeg.",
-    "appTabHint": "Idioma da interface, snap da timeline, status do FFmpeg e diagnósticos.",
+    "appTabHint": "Idioma da interface, aparência, notificações de conclusão e status do FFmpeg.",
     "channelPreset": {
       "sameAsLlm": "Igual ao modelo de chat",
       "grokGateway": "Gateway local Grok",
@@ -1101,6 +1101,16 @@
     "colorSchemeSystem": "Sistema",
     "colorSchemeLight": "Claro",
     "colorSchemeDark": "Escuro",
+    "desktopNotifyTitle": "Notificações de conclusão",
+    "desktopNotifyHint": "Quando uma resposta do modelo, imagem, vídeo ou exportação terminar, mostrar uma notificação do sistema.",
+    "desktopNotifyEnable": "Ativar notificações do sistema",
+    "desktopNotifyUnfocusedOnly": "Notificar somente quando o aplicativo não estiver em primeiro plano",
+    "desktopNotifyOnFailure": "Notificar também em caso de falha",
+    "desktopNotifySound": "Reproduzir um alerta do sistema quando houver suporte",
+    "desktopNotifyTest": "Enviar notificação de teste",
+    "desktopNotifyTestSent": "Notificação de teste enviada",
+    "desktopNotifyDenied": "O sistema recusou a permissão de notificações. Permita o InstantDrama Magician nas configurações do sistema.",
+    "desktopNotifyUnsupported": "Este ambiente não pode mostrar notificações do sistema.",
     "showAdvanced": "Mostrar opções avançadas",
     "hideAdvanced": "Ocultar opções avançadas",
     "exportProfile": "Perfil de codificação",
@@ -2097,5 +2107,16 @@
       "lockId": "Travar identidade",
       "cinematic": "Cinematográfico"
     }
+  },
+  "notify": {
+    "appName": "InstantDrama Magician",
+    "done": "{{label}} concluído",
+    "fail": "{{label}} falhou",
+    "exportDone": "Vídeo final exportado",
+    "exportFail": "Falha ao exportar o vídeo final",
+    "testBody": "Se você vê esta notificação, a configuração está ativa.",
+    "videoReady": "O vídeo está pronto",
+    "imageReady": "A imagem está pronta",
+    "textReady": "O texto está pronto"
   }
 }

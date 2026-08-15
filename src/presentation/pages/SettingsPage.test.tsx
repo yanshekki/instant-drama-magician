@@ -203,6 +203,35 @@ describe('SettingsPage', () => {
     await waitFor(() => expect(api.settings.set).toHaveBeenCalled())
   })
 
+  it('app tab: desktop notify toggles and test button', async () => {
+    api.desktopNotify.show = vi.fn().mockResolvedValue({ ok: true })
+    await renderWithProviders(<SettingsPage />)
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
+    await visitTab(/^App$/i)
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(
+        /Completion notifications/i
+      )
+    )
+    const enable = screen.getByLabelText(
+      /Enable operating-system notifications/i
+    ) as HTMLInputElement
+    expect(enable.checked).toBe(true)
+    await act(async () => {
+      fireEvent.click(enable)
+    })
+    await waitFor(() =>
+      expect(api.settings.set).toHaveBeenCalledWith({
+        desktopNotifyEnabled: false
+      })
+    )
+    await act(async () => {
+      fireEvent.click(enable)
+    })
+    await clickBtn(/Send test notification/i)
+    await waitFor(() => expect(api.desktopNotify.show).toHaveBeenCalled())
+  })
+
   it('chat tab: presets, models, test chat, advanced', async () => {
     await renderWithProviders(<SettingsPage />)
     await waitFor(() => expect(api.settings.get).toHaveBeenCalled())

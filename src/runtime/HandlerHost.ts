@@ -81,4 +81,12 @@ export interface HandlerHost {
     state?: string
     healthOk?: boolean
   }>
+  /** Desktop OS notification (Electron). Headless / tests omit. */
+  showDesktopNotification?: (input: {
+    title: string
+    body: string
+    silent?: boolean
+    tag?: string
+    unfocusedOnly?: boolean
+  }) => Promise<{ ok: boolean; reason?: string }>
 }

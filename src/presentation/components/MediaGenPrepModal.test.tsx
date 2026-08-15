@@ -628,6 +628,57 @@ describe('MediaGenPrepModal', () => {
     expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
   })
 
+  it('degraded stub video stays on confirm-video and is not treated as done', async () => {
+    api.videoPrep.confirm = vi.fn().mockResolvedValue({
+      path: '/stub.mp4',
+      degraded: true
+    })
+    const onVideoDone = vi.fn()
+    render(
+      <MediaGenPrepModal
+        open
+        request={{
+          kind: 'timeline-clip',
+          storyId: 's1',
+          entryId: 'e1',
+          durationSeconds: 5
+        }}
+        onClose={vi.fn()}
+        onGenerated={vi.fn()}
+        onVideoDone={onVideoDone}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.continuePolish')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.continuePolish'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.generateKeyframe')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.generateKeyframe'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.nextConfirmVideo')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.nextConfirmVideo'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.confirmGenerateVideo'))
+    })
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(
+        /pipeline\.clipDoneStub|clipDoneStub/
+      )
+    )
+    expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
+    expect(onVideoDone).not.toHaveBeenCalled()
+    expect(screen.queryByText('mediaGen.videoDoneOk')).toBeNull()
+  })
+
   it('video confirm failure returns to confirm-video', async () => {
     api.videoPrep.confirm = vi.fn().mockRejectedValue(new Error('vid fail'))
     render(

@@ -7,7 +7,7 @@
  */
 import { spawn, execFile, type ChildProcess } from 'child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { join, dirname } from 'path'
+import { join, dirname, basename } from 'path'
 import { promisify } from 'util'
 import { GROK_GATEWAY_BASE_URL } from '../../domain/gatewayDefaults'
 import { homedir } from 'os'
@@ -102,6 +102,61 @@ export function whichOnPath(
     /* not on PATH */
   }
   return null
+}
+
+export interface NodeLaunch {
+  execPath: string
+  env: NodeJS.ProcessEnv
+  usedElectronAsNode: boolean
+}
+
+function looksLikeElectronBinary(filePath: string): boolean {
+  return /electron/i.test(basename(filePath))
+}
+
+function looksLikeNodeBinary(filePath: string): boolean {
+  return /^node(\.exe)?$/i.test(basename(filePath))
+}
+
+/**
+ * Real Node for gctoac / prisma. Electron's process.execPath is a GUI
+ * binary — spawning it as "node" hangs on `prisma generate` and Chromium
+ * steals `--port`.
+ */
+export function resolveNodeLaunch(
+  opts: {
+    execPath?: string
+    env?: NodeJS.ProcessEnv
+    platform?: string
+    which?: typeof whichOnPath
+    exists?: (p: string) => boolean
+  } = {}
+): NodeLaunch {
+  const envIn = opts.env ?? process.env
+  const current = opts.execPath ?? process.execPath
+  const exists = opts.exists ?? ((p: string) => existsSync(p))
+  const which = opts.which ?? whichOnPath
+  const env: NodeJS.ProcessEnv = { ...envIn }
+
+  const candidates: Array<string | undefined> = [
+    envIn.NODE_BINARY,
+    envIn.npm_node_execpath,
+    looksLikeElectronBinary(current) ? undefined : current,
+    which('node', { platform: opts.platform, exists }) ?? undefined,
+    '/usr/local/bin/node',
+    '/usr/bin/node'
+  ]
+
+  for (const candidate of candidates) {
+    if (!candidate || !exists(candidate)) continue
+    if (looksLikeElectronBinary(candidate)) continue
+    if (!looksLikeNodeBinary(candidate)) continue
+    delete env.ELECTRON_RUN_AS_NODE
+    return { execPath: candidate, env, usedElectronAsNode: false }
+  }
+
+  env.ELECTRON_RUN_AS_NODE = '1'
+  return { execPath: current, env, usedElectronAsNode: true }
 }
 
 export class GrokGatewayService {
@@ -675,10 +730,11 @@ export class GrokGatewayService {
       // Fallback: spawn node on dist if bin wrapper fails
       const nodeEntry = this.resolveGctoacNodeEntry(gctoac)
       if (nodeEntry) {
-        this.child = spawn(process.execPath, [nodeEntry, 'start', '--port', String(this.port)], {
+        const launch = resolveNodeLaunch()
+        this.child = spawn(launch.execPath, [nodeEntry, 'start', '--port', String(this.port)], {
           detached: true,
           stdio: 'ignore',
-          env: { ...process.env },
+          env: launch.env,
           cwd: dirname(nodeEntry)
         })
         this.child.unref()
@@ -708,12 +764,15 @@ export class GrokGatewayService {
     args: string[],
     timeoutMs: number
   ): Promise<{ stdout: string; stderr: string }> {
-    const isJs = gctoacPath.endsWith('.js')
-    const bin = isJs ? process.execPath : gctoacPath
-    const fullArgs = isJs ? [gctoacPath, ...args] : args
+    const launch = resolveNodeLaunch()
+    const entry =
+      this.resolveGctoacNodeEntry(gctoacPath) ??
+      (gctoacPath.endsWith('.js') ? gctoacPath : null)
+    const bin = entry ? launch.execPath : gctoacPath
+    const fullArgs = entry ? [entry, ...args] : args
     return execFileAsync(bin, fullArgs, {
       timeout: timeoutMs,
-      env: { ...process.env },
+      env: launch.env,
       maxBuffer: 2 * 1024 * 1024
     })
   }

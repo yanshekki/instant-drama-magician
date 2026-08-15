@@ -42,7 +42,21 @@ vi.mock('electron', () => {
       getVersion: () => '1.0.0',
       isPackaged: false
     },
-    BrowserWindow: MockBW
+    BrowserWindow: MockBW,
+    Notification: class {
+      static isSupported(): boolean {
+        return true
+      }
+      show(): void {
+        /* */
+      }
+      close(): void {
+        /* */
+      }
+      on(): void {
+        /* */
+      }
+    }
   }
 })
 

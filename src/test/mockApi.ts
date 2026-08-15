@@ -129,6 +129,9 @@ export function createMockApi(
       getAdvancedPrep: vi.fn().mockResolvedValue({}),
       setCastPrep: vi.fn().mockResolvedValue({})
     },
+    desktopNotify: {
+      show: vi.fn().mockResolvedValue({ ok: false, reason: 'unsupported' })
+    },
     settings: {
       get: vi.fn().mockResolvedValue({
         uiLanguage: 'en',

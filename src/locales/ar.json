@@ -1078,7 +1078,7 @@
     "imageTabHint": "الصور المرجعية للشخصية والمشهد والدعامة. يمكنك اكتساب نقطة نهاية الدردشة أو تكوين موفر صور منفصل.",
     "videoTabHint": "- توليد المقاطع الدرامية القصيرة . وراثة الدردشة، أو استخدام بوابة Grok، أو العناصر النائبة، أو واجهة برمجة تطبيقات الفيديو المخصصة.",
     "exportTabHint": "التشفير النهائي والترجمات ومستويات الصوت وFFmpeg.",
-    "appTabHint": "لغة الواجهة، التقاط الخط الزمني، حالة FFmpeg والتشخيص.",
+    "appTabHint": "لغة الواجهة والمظهر وإشعارات الاكتمال وحالة FFmpeg.",
     "channelPreset": {
       "sameAsLlm": "نفس نموذج الدردشة",
       "grokGateway": "بوابة Grok المحلية",
@@ -1101,6 +1101,16 @@
     "colorSchemeSystem": "النظام",
     "colorSchemeLight": "فاتح",
     "colorSchemeDark": "داكن",
+    "desktopNotifyTitle": "إشعارات الاكتمال",
+    "desktopNotifyHint": "عند انتهاء رد النموذج أو الصورة أو الفيديو أو التصدير، اعرض إشعارًا في نظام التشغيل.",
+    "desktopNotifyEnable": "تفعيل إشعارات نظام التشغيل",
+    "desktopNotifyUnfocusedOnly": "أبلغ فقط عندما لا يكون التطبيق في المقدمة",
+    "desktopNotifyOnFailure": "أبلغ أيضًا عند الفشل",
+    "desktopNotifySound": "تشغيل تنبيه النظام إن كان مدعومًا",
+    "desktopNotifyTest": "إرسال إشعار تجريبي",
+    "desktopNotifyTestSent": "تم إرسال الإشعار التجريبي",
+    "desktopNotifyDenied": "رفض النظام إذن الإشعارات. اسمح لـ InstantDrama Magician في إعدادات النظام.",
+    "desktopNotifyUnsupported": "لا يمكن لهذا البيئة عرض إشعارات نظام التشغيل.",
     "showAdvanced": "إظهار الخيارات المتقدمة",
     "hideAdvanced": "إخفاء الخيارات المتقدمة",
     "exportProfile": "تشفير الملف الشخصي",
@@ -2097,5 +2107,16 @@
       "lockId": "قفل الهوية",
       "cinematic": "سينمائي"
     }
+  },
+  "notify": {
+    "appName": "InstantDrama Magician",
+    "done": "اكتمل {{label}}",
+    "fail": "فشل {{label}}",
+    "exportDone": "تم تصدير الفيلم النهائي",
+    "exportFail": "فشل تصدير الفيلم النهائي",
+    "testBody": "إذا ظهرت لك هذه الإشعارة، فالإعداد يعمل.",
+    "videoReady": "الفيديو جاهز",
+    "imageReady": "الصورة جاهزة",
+    "textReady": "النص جاهز"
   }
 }

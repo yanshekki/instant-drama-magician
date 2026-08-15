@@ -115,6 +115,20 @@ vi.mock('electron', () => ({
     createFromPath: () => ({
       isEmpty: () => false
     })
+  },
+  Notification: class {
+    static isSupported(): boolean {
+      return false
+    }
+    show(): void {
+      /* */
+    }
+    close(): void {
+      /* */
+    }
+    on(): void {
+      /* */
+    }
   }
 }))
 

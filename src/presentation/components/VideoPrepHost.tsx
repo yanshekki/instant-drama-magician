@@ -280,16 +280,21 @@ export function VideoPrepHost(): JSX.Element | null {
       const degraded = Boolean(
         (r as { degraded?: boolean }).degraded
       )
+      if (degraded) {
+        toast.error(t('pipeline.clipDoneStub'))
+        patchSession({
+          phase: 'error',
+          errorMessage: t('pipeline.clipDoneStub'),
+          draft
+        })
+        return
+      }
       patchSession({
         phase: 'success',
         resultPath: r.path,
         draft
       })
-      if (degraded) {
-        toast.error(t('pipeline.clipDoneStub'))
-      } else {
-        toast.success(t('videoPrep.videoOk'))
-      }
+      toast.success(t('videoPrep.videoOk'))
       window.dispatchEvent(
         new CustomEvent('idm:video-prep-done', {
           detail: {

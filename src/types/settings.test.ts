@@ -71,6 +71,10 @@ describe('settings defaults', () => {
       imageEnhanceMaxEdge: 100,
       imageEnhanceScale: 0,
       imageTimeoutMs: 100,
+      desktopNotifyEnabled: 'x' as never,
+      desktopNotifyWhenUnfocusedOnly: 1 as never,
+      desktopNotifyOnFailure: null as never,
+      desktopNotifySound: 'no' as never,
       webServerEnabled: 'x' as never,
       webServerPort: 99999,
       webServerHost: '  ',
@@ -95,12 +99,17 @@ describe('settings defaults', () => {
     expect(mergeSettings({ imageTimeoutMs: 240_000 }).imageTimeoutMs).toBe(
       240_000
     )
+    expect(m.desktopNotifyEnabled).toBe(true)
+    expect(m.desktopNotifyWhenUnfocusedOnly).toBe(true)
+    expect(m.desktopNotifyOnFailure).toBe(true)
+    expect(m.desktopNotifySound).toBe(true)
     expect(m.webServerEnabled).toBe(DEFAULT_SETTINGS.webServerEnabled)
     expect(m.webServerPort).toBe(DEFAULT_SETTINGS.webServerPort)
     expect(m.webServerHost).toBe(DEFAULT_SETTINGS.webServerHost)
     expect(m.webServerAuthToken).toBe('')
     expect(m.legalAcceptedVersion).toBeNull()
     expect(m.legalAcceptedAt).toBeNull()
+    expect(DEFAULT_SETTINGS.desktopNotifyEnabled).toBe(true)
   })
 
   it('defaultMaxClipSeconds clamps 6/10 only', () => {

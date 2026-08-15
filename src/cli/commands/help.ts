@@ -42,7 +42,7 @@ COMMANDS
   app info            Runtime info via API
   app open|build      Same as open / build
 
-DOMAIN SUGAR (all ~157 channels)
+DOMAIN SUGAR (all ~158 channels)
   instant-drama <namespace> <action> [jsonArgs…]
   Namespaces: activity ai app characters costumes diagnostics gateway
     generation media mediaGen project props scenes settings shell souls

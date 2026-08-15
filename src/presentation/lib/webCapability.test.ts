@@ -17,12 +17,14 @@ describe('webCapability', () => {
     expect(canUse('filePickUpload')).toBe(true)
     expect(canUse('openExportFolder')).toBe(true)
     expect(canUse('nativeUpdates')).toBe(true)
+    expect(canUse('desktopNotify')).toBe(true)
     expect(isWebUi()).toBe(false)
   })
 
   it('web allows upload; blocks folder/updates/server admin', () => {
     isWebRuntime.mockReturnValue(true)
     expect(canUse('filePickUpload')).toBe(true)
+    expect(canUse('desktopNotify')).toBe(true)
     expect(canUse('openExportFolder')).toBe(false)
     expect(canUse('nativeUpdates')).toBe(false)
     expect(canUse('webServerAdmin')).toBe(false)

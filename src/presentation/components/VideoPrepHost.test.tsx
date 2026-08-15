@@ -453,6 +453,7 @@ describe('VideoPrepHost', () => {
     fireEvent.click(screen.getByText('confirm'))
     await waitFor(() => expect(api.videoPrep.confirm).toHaveBeenCalled())
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    expect(done).not.toHaveBeenCalled()
     window.removeEventListener('idm:video-prep-done', done)
   })
 

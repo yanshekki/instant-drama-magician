@@ -1078,7 +1078,7 @@
     "imageTabHint": "Imágenes de referencia de personajes, escenas y accesorios. Herede el punto final del chat o configure un proveedor de imágenes independiente.",
     "videoTabHint": "Generación de clips de drama corto. Herede el chat, use la puerta de enlace de Grok, marcadores de posición de código auxiliar o una API de video personalizada.",
     "exportTabHint": "Codificación final, subtítulos, niveles de audio y FFmpeg.",
-    "appTabHint": "Idioma de la interfaz, snap del timeline, estado de FFmpeg y diagnósticos.",
+    "appTabHint": "Idioma de la interfaz, apariencia, notificaciones de finalización y estado de FFmpeg.",
     "channelPreset": {
       "sameAsLlm": "Igual que el modelo de chat",
       "grokGateway": "Puerta de enlace local de Grok",
@@ -1101,6 +1101,16 @@
     "colorSchemeSystem": "Sistema",
     "colorSchemeLight": "Claro",
     "colorSchemeDark": "Oscuro",
+    "desktopNotifyTitle": "Notificaciones de finalización",
+    "desktopNotifyHint": "Cuando termine una respuesta del modelo, una imagen, un vídeo o una exportación, mostrar una notificación del sistema.",
+    "desktopNotifyEnable": "Activar notificaciones del sistema",
+    "desktopNotifyUnfocusedOnly": "Notificar solo cuando la aplicación no esté en primer plano",
+    "desktopNotifyOnFailure": "Notificar también si falla",
+    "desktopNotifySound": "Reproducir un aviso del sistema si está disponible",
+    "desktopNotifyTest": "Enviar notificación de prueba",
+    "desktopNotifyTestSent": "Notificación de prueba enviada",
+    "desktopNotifyDenied": "El sistema denegó el permiso de notificaciones. Permita InstantDrama Magician en la configuración del sistema.",
+    "desktopNotifyUnsupported": "Este entorno no puede mostrar notificaciones del sistema.",
     "showAdvanced": "Mostrar opciones avanzadas",
     "hideAdvanced": "Ocultar opciones avanzadas",
     "exportProfile": "Codificar perfil",
@@ -2097,5 +2107,16 @@
       "lockId": "Bloquear identidad",
       "cinematic": "Cinematográfico"
     }
+  },
+  "notify": {
+    "appName": "InstantDrama Magician",
+    "done": "{{label}} ha terminado",
+    "fail": "{{label}} ha fallado",
+    "exportDone": "Vídeo final exportado",
+    "exportFail": "Error al exportar el vídeo final",
+    "testBody": "Si ve esta notificación, el ajuste funciona.",
+    "videoReady": "El vídeo está listo",
+    "imageReady": "La imagen está lista",
+    "textReady": "El texto está listo"
   }
 }
