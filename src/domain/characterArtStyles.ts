@@ -2,6 +2,8 @@
  * Visual art styles for character reference generation.
  * Injected after identity lock, before layout — keeps style consistent per run.
  */
+import { PromptCatalog } from '../prompts'
+import type { PromptCopyKey } from '../prompts/copy/keys'
 
 export type ArtStyleFamily = 'photo' | 'cgi' | 'anime' | 'illust'
 
@@ -182,6 +184,34 @@ export function isArtStyleId(v: unknown): v is ArtStyleId {
 export function getArtStyle(id: string | null | undefined): ArtStyleDef {
   if (id && BY_ID.has(id as ArtStyleId)) return BY_ID.get(id as ArtStyleId)!
   return BY_ID.get(DEFAULT_ART_STYLE)!
+}
+
+const ART_PROMPT_KEY: Record<ArtStyleId, PromptCopyKey> = {
+  photo_cinematic: 'art.photoCinematic',
+  photo_portrait: 'art.photoPortrait',
+  photo_documentary: 'art.photoDocumentary',
+  cgi_film: 'art.cgiFilm',
+  cgi_stylized: 'art.cgiStylized',
+  cgi_clay: 'art.cgiClay',
+  anime_modern: 'art.animeModern',
+  anime_shonen: 'art.animeShonen',
+  anime_shoujo: 'art.animeShoujo',
+  anime_gekiga: 'art.animeGekiga',
+  anime_chibi: 'art.animeChibi',
+  donghua: 'art.donghua',
+  manhwa: 'art.manhwa',
+  comic_western: 'art.comicWestern',
+  concept_game: 'art.conceptGame',
+  illustration_soft: 'art.illustrationSoft'
+}
+
+/** Locale-aware art-medium sentence for director / fallback prompts. */
+export function artStylePrompt(
+  id?: string | null,
+  locale?: string | null
+): string {
+  const def = getArtStyle(id)
+  return PromptCatalog.t(locale, ART_PROMPT_KEY[def.id])
 }
 
 export function artStylesByGroup(): Record<

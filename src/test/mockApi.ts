@@ -99,6 +99,40 @@ export function createMockApi(
       }),
       generateIntroVideo: vi.fn().mockResolvedValue({})
     },
+    comics: {
+      get: vi.fn().mockResolvedValue({
+        comic: { id: 'comic-1', storyId: 's1', artStyle: null, hardRules: null },
+        pages: []
+      }),
+      update: vi.fn().mockResolvedValue({}),
+      addPage: vi.fn().mockResolvedValue({
+        id: 'page-1',
+        panelLayout: 'grid-2x2',
+        order: 0,
+        mediaStatus: 'EMPTY'
+      }),
+      updatePage: vi.fn().mockResolvedValue({}),
+      deletePage: vi.fn().mockResolvedValue({ ok: true }),
+      deletePageVideo: vi.fn().mockResolvedValue({
+        ok: true,
+        removedPath: '/tmp/v.mp4',
+        videoPath: null
+      }),
+      setPageVideoPrimary: vi.fn().mockResolvedValue({
+        ok: true,
+        videoPath: '/tmp/v.mp4'
+      }),
+      autoPaginate: vi.fn().mockResolvedValue({
+        created: 1,
+        layout: 'grid-2x2',
+        pages: []
+      }),
+      importToTimeline: vi.fn().mockResolvedValue({
+        imported: 1,
+        entryIds: ['e1'],
+        path: '/tmp/page.png'
+      })
+    },
     costumes: {
       list: vi.fn().mockResolvedValue([]),
       get: vi.fn().mockResolvedValue(null),

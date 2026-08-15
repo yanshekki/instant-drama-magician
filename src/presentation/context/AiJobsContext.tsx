@@ -11,6 +11,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type Context,
   type ReactNode
 } from 'react'
 import { getApi } from '../../lib/api'
@@ -409,7 +410,19 @@ interface AiJobsContextValue {
   ) => () => void
 }
 
-const AiJobsContext = createContext<AiJobsContextValue | null>(null)
+/**
+ * Pin the React context object on globalThis so Vite HMR can re-evaluate
+ * this module without minting a second context identity. Otherwise
+ * Fast Refresh remounts the Provider on the new object while already-mounted
+ * consumers still call useContext on the old one → "must be used within Provider".
+ */
+const AiJobsContext: Context<AiJobsContextValue | null> = (() => {
+  const g = globalThis as typeof globalThis & {
+    __idmAiJobsReactContext?: Context<AiJobsContextValue | null>
+  }
+  g.__idmAiJobsReactContext ??= createContext<AiJobsContextValue | null>(null)
+  return g.__idmAiJobsReactContext
+})()
 
 function newId(): string {
   return `job_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`

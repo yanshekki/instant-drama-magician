@@ -85,6 +85,7 @@ reg(
         bgmVolume: number
         dialogueVolume: number
         openExportFolder: boolean
+        clipSource: 'timeline' | 'comics'
       }>
     ) => {
       // Remember last one-shot export choices (not a permanent Settings tab)

@@ -317,6 +317,26 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
     expect(out).not.toMatch(/If any earlier instruction/)
   })
 
+  it('rewrites leftover English comic geometry into 香港書面語', () => {
+    const raw = [
+      '故事「受戒下山」漫畫第 1 頁：一張完整漫畫頁，剛好 4 格。',
+      'Layout: ONE single square comic PAGE: a 2×2 grid with EXACTLY 4 equal panels (2 rows × 2 columns), thick white gutters, reading left-to-right then top-to-bottom.',
+      'PANEL COUNT IS NON-NEGOTIABLE: EXACTLY 4 panels.',
+      'GEOMETRY LOCK: 2 rows × 2 columns. FORBIDDEN: strip, 2×3, splash.',
+      'Reading order: left → right, then top → bottom (vertical 4-koma: top → bottom only).',
+      'Small panel numbers 1-4 at the top-left of each panel.',
+      'Panel 1/4 (1): 沈執一：先淨手。'
+    ].join('\n')
+    const out = rewriteDirectorSealWording(raw, 'zh-HK')
+    expect(out).toContain('版式：')
+    expect(out).toMatch(/剛好 4 格|必須剛好 4/)
+    expect(out).toContain('排版鎖定')
+    expect(out).toContain('閱讀順序')
+    expect(out).toContain('第 1／4 格')
+    expect(out).toContain('沈執一：先淨手。')
+    expect(out).not.toMatch(/GEOMETRY LOCK|EXACTLY 4|Layout:|PANEL COUNT|Panel 1\/4/)
+  })
+
   it('rewrites leftover English seals for ja and fr', () => {
     const raw = [
       'SPEECH LOCK · Character "Aoi": audible speech AND lip-sync MUST be Japanese.',
@@ -336,6 +356,42 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
     expect(fr).toContain('Verrouillage des répliques')
     expect(fr).toContain('RÈGLES FERMES')
     expect(fr).not.toMatch(/SPEECH LOCK|HARD RULES/)
+  })
+
+  it('comic-intro page scheme uses printed-layout polish', () => {
+    const u = buildMediaGenVideoPolishUserOverride({
+      kind: 'comic-intro',
+      locale: 'zh-HK',
+      seconds: 10,
+      hasRefImage: true,
+      fallbackPrompt: 'FALLBACK COMIC PAGE PROMPT LONG ENOUGH XX',
+      includedSections: [profile],
+      comicVideoScheme: 'page'
+    })
+    expect(u).toBeTruthy()
+    expect(u!).toMatch(/鎖定|版式|運鏡|紙張/)
+    expect(u!).not.toMatch(/短劇時間軸|IMAGE-TO-VIDEO/)
+  })
+
+  it('comic-intro drama scheme uses timeline clip polish', () => {
+    const u = buildMediaGenVideoPolishUserOverride({
+      kind: 'comic-intro',
+      locale: 'zh-HK',
+      seconds: 10,
+      hasRefImage: true,
+      fallbackPrompt: 'FALLBACK COMIC DRAMA PROMPT LONG ENOUGH XX',
+      includedSections: [
+        sec({
+          id: 'beat_profile',
+          kind: 'text-profile',
+          title: '夜巴',
+          text: '開門'
+        })
+      ],
+      comicVideoScheme: 'drama'
+    })
+    expect(u).toBeTruthy()
+    expect(u!).toMatch(/短劇|時間軸|開門/)
   })
 
   it('returns null for non-video image kinds', () => {

@@ -41,6 +41,8 @@ export function createMockPrisma(seed?: {
   costume?: Row | Row[] | null
   action?: Row | Row[] | null
   timelineEntry?: Row | Row[] | null
+  comic?: Row | Row[] | null
+  comicPage?: Row | Row[] | null
 }) {
   const story = chainable(
     Array.isArray(seed?.story) ? seed?.story : seed?.story ? [seed.story] : []
@@ -123,6 +125,30 @@ export function createMockPrisma(seed?: {
         : []
   )
 
+  const comic = chainable(
+    Array.isArray(seed?.comic) ? seed?.comic : seed?.comic ? [seed.comic] : []
+  )
+  if (seed?.comic && !Array.isArray(seed.comic)) {
+    ;(comic.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(seed.comic)
+  } else {
+    ;(comic.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  }
+
+  const comicPage = chainable(
+    Array.isArray(seed?.comicPage)
+      ? seed?.comicPage
+      : seed?.comicPage
+        ? [seed.comicPage]
+        : []
+  )
+  if (seed?.comicPage && !Array.isArray(seed.comicPage)) {
+    ;(comicPage.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      seed.comicPage
+    )
+  } else {
+    ;(comicPage.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  }
+
   const storyCharacter = chainable([])
   const storyScene = chainable([])
   const storyProp = chainable([])
@@ -138,6 +164,8 @@ export function createMockPrisma(seed?: {
     costume,
     action,
     timelineEntry,
+    comic,
+    comicPage,
     storyCharacter,
     storyScene,
     storyProp,
@@ -154,6 +182,8 @@ export function createMockPrisma(seed?: {
           costume,
           action,
           timelineEntry,
+          comic,
+          comicPage,
           storyCharacter,
           storyScene,
           storyProp,

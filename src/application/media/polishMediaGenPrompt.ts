@@ -13,7 +13,9 @@ import {
   type MediaGenMaterialSection
 } from '../../domain/mediaGenPrep'
 import { buildMultiVisionUserContent } from '../../domain/chatVision'
+import { rewriteDirectorSealWording } from '../../domain/mediaGenVideoPolishUser'
 import { ensureHardRules } from '../../domain/promptHardRules'
+import { PromptCatalog } from '../../prompts'
 import { AppError } from '../../types/errors'
 
 export async function polishMediaGenPrompt(options: {
@@ -49,7 +51,10 @@ export async function polishMediaGenPrompt(options: {
   }
 
   const seal = (prompt: string): string =>
-    ensureHardRules(prompt, options.hardRules, locale)
+    rewriteDirectorSealWording(
+      ensureHardRules(prompt, options.hardRules, locale),
+      locale
+    )
 
   const imagePaths = includedMaterialImagePaths(options.includedSections)
   const mode = options.mode ?? mediaGenMode(options.kind)
@@ -63,7 +68,9 @@ export async function polishMediaGenPrompt(options: {
       taskHint:
         options.taskHint ||
         (mode === 'video'
-          ? 'Write a professional IMAGE-TO-VIDEO director prompt (camera, performance, pacing).'
+          ? PromptCatalog.t(locale, 'mediaGen.videoTaskHint', {
+              kind: options.kind
+            })
           : undefined)
     })
 

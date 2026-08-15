@@ -40,6 +40,7 @@ export const NATIVE_COPY_KEYS = [
   'navScenes',
   'navProps',
   'navActions',
+  'navComics',
   'navTimeline',
   'navTimelineTrack',
   'navTimelineBoard',
@@ -127,6 +128,7 @@ const en: NativeCopyTable = {
   navScenes: 'Scenes',
   navProps: 'Props',
   navActions: 'Actions',
+  navComics: 'Comics',
   navTimeline: 'Timeline',
   navTimelineTrack: 'Track view',
   navTimelineBoard: 'Board view',
@@ -215,6 +217,7 @@ const zhHK: NativeCopyTable = {
   navScenes: '場景',
   navProps: '道具',
   navActions: '動作',
+  navComics: '漫畫',
   navTimeline: '時間軸',
   navTimelineTrack: '軌道顯示',
   navTimelineBoard: '流程顯示',
@@ -349,6 +352,7 @@ function hans(s: string): string {
     .replaceAll('與', '与')
     .replaceAll('這', '这')
     .replaceAll('個', '个')
+    .replaceAll('畫', '画')
 }
 
 const zhCN: NativeCopyTable = Object.fromEntries(
@@ -381,6 +385,7 @@ const ja: NativeCopyTable = {
   navScenes: '場面',
   navProps: '小道具',
   navActions: '動作',
+  navComics: '漫画',
   navTimeline: 'タイムライン',
   navTimelineTrack: 'トラック表示',
   navTimelineBoard: 'フロー表示',
@@ -468,6 +473,7 @@ const es: NativeCopyTable = {
   navScenes: 'Escenas',
   navProps: 'Atrezzo',
   navActions: 'Acciones',
+  navComics: 'Cómic',
   navTimeline: 'Línea de tiempo',
   navTimelineTrack: 'Vista de pista',
   navTimelineBoard: 'Vista de flujo',
@@ -555,6 +561,7 @@ const fr: NativeCopyTable = {
   navScenes: 'Scènes',
   navProps: 'Accessoires',
   navActions: 'Actions',
+  navComics: 'BD',
   navTimeline: 'Chronologie',
   navTimelineTrack: 'Vue piste',
   navTimelineBoard: 'Vue flux',
@@ -641,6 +648,7 @@ const ptBR: NativeCopyTable = {
   navScenes: 'Cenas',
   navProps: 'Objetos',
   navActions: 'Ações',
+  navComics: 'Quadrinhos',
   navTimeline: 'Linha do tempo',
   navTimelineTrack: 'Vista de faixa',
   navTimelineBoard: 'Vista de fluxo',
@@ -727,6 +735,7 @@ const ru: NativeCopyTable = {
   navScenes: 'Сцены',
   navProps: 'Реквизит',
   navActions: 'Действия',
+  navComics: 'Комикс',
   navTimeline: 'Таймлайн',
   navTimelineTrack: 'Вид дорожки',
   navTimelineBoard: 'Вид потока',
@@ -813,6 +822,7 @@ const hi: NativeCopyTable = {
   navScenes: 'दृश्य',
   navProps: 'प्रॉप्स',
   navActions: 'क्रियाएँ',
+  navComics: 'कॉमिक',
   navTimeline: 'टाइमलाइन',
   navTimelineTrack: 'ट्रैक दृश्य',
   navTimelineBoard: 'प्रवाह दृश्य',
@@ -899,6 +909,7 @@ const ar: NativeCopyTable = {
   navScenes: 'مشاهد',
   navProps: 'إكسسوارات',
   navActions: 'حركات',
+  navComics: 'قصص مصورة',
   navTimeline: 'الخط الزمني',
   navTimelineTrack: 'عرض المسار',
   navTimelineBoard: 'عرض التدفق',

@@ -4,6 +4,7 @@
 import { GrokCliClient } from '../../infrastructure/ai/GrokCliClient'
 import {
   ActionService,
+  ComicService,
   CharacterService,
   CostumeService,
   GenerationService,
@@ -35,6 +36,7 @@ export type HandlerContext = {
   scenes: () => SceneService
   props: () => PropService
   actions: () => ActionService
+  comics: () => ComicService
   costumes: () => CostumeService
   timeline: () => TimelinePersistenceService
   generation: () => GenerationService
@@ -56,6 +58,7 @@ export function createHandlerContext(
   const scenes = (): SceneService => new SceneService(host.getPrisma())
   const props = (): PropService => new PropService(host.getPrisma())
   const actions = (): ActionService => new ActionService(host.getPrisma())
+  const comics = (): ComicService => new ComicService(host.getPrisma())
   const costumes = (): CostumeService => new CostumeService(host.getPrisma())
   const timeline = (): TimelinePersistenceService =>
     new TimelinePersistenceService(host.getPrisma())
@@ -98,6 +101,7 @@ export function createHandlerContext(
     scenes,
     props,
     actions,
+    comics,
     costumes,
     timeline,
     generation

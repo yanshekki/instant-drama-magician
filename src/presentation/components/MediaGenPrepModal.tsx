@@ -24,6 +24,7 @@ import {
   pickVideoDirectorPrompt,
   rewriteDirectorSealWording
 } from '../../domain/mediaGenVideoPolishUser'
+import { PromptCatalog } from '../../prompts'
 import { getApi } from '../../lib/api'
 import { formatIpcError } from '../../lib/ipc'
 
@@ -90,6 +91,8 @@ export type MediaGenPrepKind =
   | 'costume-swap'
   | 'atmosphere-swap'
   | 'timeline-still'
+  | 'comic-page'
+  | 'comic-intro'
   | 'character-intro'
   | 'scene-intro'
   | 'prop-intro'
@@ -106,6 +109,7 @@ export interface MediaGenPrepOpenRequest {
   storyId?: string
   costumeId?: string
   entryId?: string
+  pageId?: string
   panelLayout?: string | null
   artStyle?: string | null
   /** Character sheet package (出圖方案) */
@@ -126,6 +130,8 @@ export interface MediaGenPrepOpenRequest {
   skipStillIfExists?: boolean
   /** Explicit source still for skip / identity (also put in galleryIdentityPaths) */
   sourceImagePath?: string
+  comicVideoScheme?: 'page' | 'drama'
+  pageFormat?: 'tall' | 'square' | 'wide'
   /** Video export aspect; default 16:9 */
   aspectRatio?: string
   /**
@@ -301,9 +307,7 @@ export function MediaGenPrepModal({
   )
 
   const locked = isMediaGenPrepPhaseLocked(phase) || busy
-  const localeTag = (i18n.language || 'zh-HK').toLowerCase().startsWith('zh')
-    ? 'zh-HK'
-    : 'en'
+  const localeTag = PromptCatalog.locale(i18n.language)
   const videoAspect =
     request?.aspectRatio === '9:16' || request?.aspectRatio === '16:9'
       ? request.aspectRatio
@@ -334,7 +338,6 @@ export function MediaGenPrepModal({
     if (phase !== 'confirm-video') return
     const current = videoPrompt.trim() || polishedPrompt.trim()
     if (
-      localeTag === 'zh-HK' &&
       looksLikeEnglishKeyframeTaskHint(current) &&
       videoDirectorFallback
     ) {
@@ -368,6 +371,7 @@ export function MediaGenPrepModal({
         storyId: request.storyId,
         costumeId: request.costumeId,
         entryId: request.entryId,
+        pageId: request.pageId,
         panelLayout: request.panelLayout,
         artStyle: request.artStyle,
         sheetVariant: request.sheetVariant,
@@ -379,11 +383,16 @@ export function MediaGenPrepModal({
         durationSeconds: request.durationSeconds,
         skipStillIfExists:
           request.skipStillIfExists || Boolean(request.resumeDraft?.stillPath),
-        locale: i18n.language
+        locale: i18n.language,
+        comicVideoScheme: request.comicVideoScheme,
+        pageFormat: request.pageFormat,
+        forcePureLayout: request.preferIdentityEdit === false
       } as never)
       setSections(r.sections as MediaGenMaterialSection[])
       setEditBaseSectionId(r.editBaseSectionId ?? null)
-      setFallbackPrompt(r.fallbackPrompt ?? '')
+      setFallbackPrompt(
+        rewriteDirectorSealWording(r.fallbackPrompt ?? '', localeTag)
+      )
       setTaskHint(r.taskHint ?? '')
       setHardRules(r.hardRules ?? null)
       setGenOptions({
@@ -413,7 +422,9 @@ export function MediaGenPrepModal({
       setVideoPath(null)
       if (resume?.stillPath?.trim() && resume.polishedPrompt?.trim()) {
         // Resume draft: land on keyframe / confirm-video with prompts ready
-        setPolishedPrompt(resume.polishedPrompt)
+        setPolishedPrompt(
+          rewriteDirectorSealWording(resume.polishedPrompt, localeTag)
+        )
         const resumeSeconds =
           resume.durationSeconds ?? request.durationSeconds ?? 10
         const resumeAspect =
@@ -553,7 +564,7 @@ export function MediaGenPrepModal({
         mode: 'image',
         promptTemplateId: picked
       } as never)
-      setPolishedPrompt(r.polishedPrompt)
+      setPolishedPrompt(rewriteDirectorSealWording(r.polishedPrompt, localeTag))
       setPolishedFlag(r.polished)
       setImageCount(r.imageCount)
       setVideoPrompt('')
@@ -574,7 +585,6 @@ export function MediaGenPrepModal({
     const included = sections.filter((s) => s.include)
     const seconds = durationSeconds || request.durationSeconds || 10
     const aspect = videoAspect
-    const zh = localeTag === 'zh-HK'
     const videoFallback = buildMediaGenVideoDirectorFallback({
       locale: localeTag,
       seconds,
@@ -594,12 +604,10 @@ export function MediaGenPrepModal({
       const keyframeSection: MediaGenMaterialSection = {
         id: 'keyframe_still',
         kind: 'ref-image',
-        title: 'Keyframe',
+        title: PromptCatalog.t(localeTag, 'mediaGen.directorFallback'),
         entityType: 'continuity',
         imagePath: resultPath,
-        text: zh
-          ? '已生成關鍵幀——圖生影片必須鎖定此畫面的身份、戲服、場景與構圖，由此畫面開始動。'
-          : 'Generated keyframe still — IMAGE-TO-VIDEO must lock identity, wardrobe, set, and framing to this frame. Animate from this exact visual.',
+        text: PromptCatalog.t(localeTag, 'mediaGen.directorFallback'),
         include: true,
         canBeEditBase: false,
         group: 'refs'
@@ -614,15 +622,19 @@ export function MediaGenPrepModal({
         hardRules,
         includedSections: [...included, keyframeSection],
         revisionPrompt: userExtra.trim() || request.userExtraPrompt || null,
-        promptTemplateId: mediaTemplateId
+        promptTemplateId: mediaTemplateId,
+        comicVideoScheme:
+          request.comicVideoScheme ||
+          (genOptions as { comicVideoScheme?: 'page' | 'drama' })
+            .comicVideoScheme
       })
       const r = await getApi().mediaGen.polish({
         kind: request.kind,
         includedSections: [...included, keyframeSection] as never,
         fallbackPrompt: videoFallback,
-        taskHint: zh
-          ? `由關鍵幀寫專業圖生影片導演詞（${request.kind}）。含鏡頭、表演、節奏；鎖定關鍵幀靜圖。`
-          : `Professional image-to-video prompt from keyframe for ${request.kind}. Camera, performance, pacing; lock to keyframe still.`,
+        taskHint: PromptCatalog.t(localeTag, 'mediaGen.videoTaskHint', {
+          kind: request.kind
+        }),
         hardRules,
         locale: localeTag,
         mode: 'video',
@@ -696,6 +708,7 @@ export function MediaGenPrepModal({
       const useIdentityEdit = Boolean(editBasePath) && !forcePure
       const isTimeline =
         request.kind === 'timeline-still' || request.kind === 'timeline-clip'
+      const persistNow = isTimeline || request.kind === 'comic-page'
       const includedPaths = sections
         .filter((s) => s.include && s.imagePath?.trim())
         .map((s) => s.imagePath!.trim())
@@ -707,6 +720,7 @@ export function MediaGenPrepModal({
         propId: request.propId,
         storyId: request.storyId,
         entryId: request.entryId,
+        pageId: request.pageId,
         costumeId: request.costumeId,
         polishedPrompt: finalPrompt,
         editBasePath: forcePure ? null : editBasePath,
@@ -721,8 +735,12 @@ export function MediaGenPrepModal({
         galleryIdentityPaths: includedPaths,
         galleryLabel: genOptions.galleryLabel,
         hardRules,
+        pageFormat:
+          request.pageFormat ||
+          (genOptions as { pageFormat?: 'tall' | 'square' | 'wide' })
+            .pageFormat,
         // Timeline refine writes continuity still immediately
-        persist: isTimeline
+        persist: persistNow
       } as never)
       const meta: MediaGenPrepResult = {
         path: r.path,
@@ -772,7 +790,8 @@ export function MediaGenPrepModal({
         costumeId: request.costumeId,
         actionId: request.actionId,
         storyId: request.storyId,
-        entryId: request.entryId
+        entryId: request.entryId,
+        pageId: request.pageId
       }
       // Prefer generated keyframe as video ref; keep original gallery path as source
       const sourceStill =
@@ -792,6 +811,7 @@ export function MediaGenPrepModal({
           | 'prop-intro'
           | 'costume-intro'
           | 'action-intro'
+          | 'comic-intro'
           | 'timeline-clip',
         professionalPrompt: pro,
         userExtraPrompt: userExtra.trim() || null,
@@ -800,7 +820,11 @@ export function MediaGenPrepModal({
         ...entityIds,
         durationSeconds: durationSeconds || request.durationSeconds || 10,
         aspectRatio,
-        locale: i18n.language
+        locale: i18n.language,
+        comicVideoScheme:
+          request.comicVideoScheme ||
+          (genOptions as { comicVideoScheme?: 'page' | 'drama' })
+            .comicVideoScheme
       })
       if ((r as { degraded?: boolean }).degraded) {
         setErrorMessage(t('pipeline.clipDoneStub'))

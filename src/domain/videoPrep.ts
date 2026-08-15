@@ -12,6 +12,7 @@ export type VideoPrepKind =
   | 'prop-intro'
   | 'costume-intro'
   | 'action-intro'
+  | 'comic-intro'
   | 'timeline-clip'
 
 export interface VideoPrepEntityIds {
@@ -22,6 +23,7 @@ export interface VideoPrepEntityIds {
   actionId?: string
   storyId?: string
   entryId?: string
+  pageId?: string
 }
 
 /** Wizard step index 0..4 for stepper UI. */

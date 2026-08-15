@@ -158,13 +158,12 @@ const isDev = !app.isPackaged
 
 /**
  * Unified OS data root (see src/domain/appPaths.ts).
- * - Packaged: …/instant-drama-magician
- * - Dev:      …/instant-drama-magician-dev  (unless IDM_PROFILE / IDM_DATA_DIR)
+ * Packaged and `npm run dev` share …/instant-drama-magician
+ * (unless IDM_PROFILE / IDM_DATA_DIR). No silent -dev split.
  * DB + settings + media always live under the same root (no prisma/dev.db).
  * Must set userData before the first app.getPath('userData').
  */
 const appPaths: AppPaths = resolveAppPaths({
-  isDevRuntime: isDev,
   envDataDir: process.env.IDM_DATA_DIR,
   profile: process.env.IDM_PROFILE || null
 })

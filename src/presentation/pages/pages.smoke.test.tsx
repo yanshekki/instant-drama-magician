@@ -25,6 +25,11 @@ describe('pages module load (coverage campaign)', () => {
     expect(m.PropsPage || m.default).toBeTypeOf('function')
   })
 
+  it('loads ComicsPage module', async () => {
+    const m = await import('./ComicsPage')
+    expect(m.ComicsPage || m.default).toBeTypeOf('function')
+  })
+
   it('loads ActionsPage module', async () => {
     const m = await import('./ActionsPage')
     expect(m.ActionsPage || m.default).toBeTypeOf('function')

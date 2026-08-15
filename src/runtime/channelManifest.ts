@@ -82,6 +82,45 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     destructive: true
   },
   { channel: 'actions:list', description: 'List actions', argsHint: '[{}]' },
+  { channel: 'comics:get', description: 'Get story comic book + pages', argsHint: '["storyId"]' },
+  {
+    channel: 'comics:update',
+    description: 'Update comic book fields',
+    argsHint: '["storyId", {...}]'
+  },
+  { channel: 'comics:addPage', description: 'Add a comic page', argsHint: '["storyId", {...}]' },
+  {
+    channel: 'comics:updatePage',
+    description: 'Update comic page',
+    argsHint: '["pageId", {...}]'
+  },
+  {
+    channel: 'comics:deletePage',
+    description: 'Delete comic page',
+    argsHint: '["pageId"]',
+    destructive: true
+  },
+  {
+    channel: 'comics:autoPaginate',
+    description: 'Paginate unbound timeline beats into comic pages',
+    argsHint: '["storyId", "grid-2x2"]'
+  },
+  {
+    channel: 'comics:importToTimeline',
+    description: 'Copy comic page onto bound timeline continuity stills',
+    argsHint: '["pageId"]'
+  },
+  {
+    channel: 'comics:deletePageVideo',
+    description: 'Delete one comic page video version',
+    argsHint: '["pageId", "videoId"]',
+    destructive: true
+  },
+  {
+    channel: 'comics:setPageVideoPrimary',
+    description: 'Set comic page export video version',
+    argsHint: '["pageId", "videoId"]'
+  },
   { channel: 'actions:get', description: 'Get action', argsHint: '["id"]' },
   { channel: 'actions:create', description: 'Create action', argsHint: '[{...}]' },
   { channel: 'actions:update', description: 'Update action', argsHint: '["id", {...}]' },
@@ -821,6 +860,15 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'actions:list',
   'actions:unlinkStory',
   'actions:update',
+  'comics:addPage',
+  'comics:autoPaginate',
+  'comics:deletePage',
+  'comics:deletePageVideo',
+  'comics:get',
+  'comics:importToTimeline',
+  'comics:setPageVideoPrimary',
+  'comics:update',
+  'comics:updatePage',
   'scenes:aiFill',
   'scenes:commitPlate',
   'scenes:copyGalleryFrom',

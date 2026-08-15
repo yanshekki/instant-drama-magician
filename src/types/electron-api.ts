@@ -845,6 +845,90 @@ export interface ElectronApi {
       polished?: boolean
     }>
   }
+  comics: {
+    get: (storyId: string) => Promise<{
+      comic: {
+        id: string
+        storyId: string
+        title?: string | null
+        artStyle?: string | null
+        hardRules?: string | null
+        pageFormat?: string | null
+      }
+      pages: Array<{
+        id: string
+        comicId: string
+        order: number
+        panelLayout: string
+        pageFormat?: string | null
+        artStyle?: string | null
+        panelScriptJson?: string | null
+        imagePath?: string | null
+        videoPath?: string | null
+        videoGalleryJson?: string | null
+        mediaStatus?: string
+        mediaError?: string | null
+        seedPrompt?: string | null
+        hardRules?: string | null
+      }>
+    }>
+    update: (
+      storyId: string,
+      data: {
+        title?: string | null
+        artStyle?: string | null
+        hardRules?: string | null
+        pageFormat?: string | null
+      }
+    ) => Promise<unknown>
+    addPage: (
+      storyId: string,
+      input?: {
+        panelLayout?: string | null
+        pageFormat?: string | null
+        artStyle?: string | null
+        panelScript?: Array<{
+          caption: string
+          timelineEntryId?: string | null
+        }>
+      }
+    ) => Promise<{ id: string }>
+    updatePage: (
+      pageId: string,
+      data: {
+        panelLayout?: string | null
+        pageFormat?: string | null
+        artStyle?: string | null
+        panelScript?: Array<{
+          caption: string
+          timelineEntryId?: string | null
+        }>
+        hardRules?: string | null
+      }
+    ) => Promise<unknown>
+    deletePage: (pageId: string) => Promise<{ ok: boolean }>
+    deletePageVideo: (
+      pageId: string,
+      videoId: string
+    ) => Promise<{
+      ok: boolean
+      removedPath: string
+      videoPath: string | null
+    }>
+    setPageVideoPrimary: (
+      pageId: string,
+      videoId: string
+    ) => Promise<{ ok: boolean; videoPath: string }>
+    autoPaginate: (
+      storyId: string,
+      layoutId?: string | null
+    ) => Promise<{ created: number; layout: string; pages: unknown[] }>
+    importToTimeline: (pageId: string) => Promise<{
+      imported: number
+      entryIds: string[]
+      path: string
+    }>
+  }
   /** Media gen prep: materials checkboxes → multi-vision polish → one image */
   mediaGen: {
     extract: (payload: {
@@ -856,6 +940,7 @@ export interface ElectronApi {
       storyId?: string
       costumeId?: string
       entryId?: string
+      pageId?: string
       panelLayout?: string | null
       artStyle?: string | null
       sheetVariant?: string | null
@@ -920,6 +1005,7 @@ export interface ElectronApi {
       propId?: string
       storyId?: string
       entryId?: string
+      pageId?: string
       costumeId?: string
       polishedPrompt: string
       editBasePath?: string | null
@@ -958,6 +1044,7 @@ export interface ElectronApi {
         | 'prop-intro'
         | 'costume-intro'
         | 'action-intro'
+        | 'comic-intro'
         | 'timeline-clip'
       sourceImagePath?: string | null
       characterId?: string
@@ -967,6 +1054,7 @@ export interface ElectronApi {
       actionId?: string
       storyId?: string
       entryId?: string
+      pageId?: string
       durationSeconds?: number
       locale?: string
       skipStillIfExists?: boolean
@@ -1030,6 +1118,7 @@ export interface ElectronApi {
         | 'prop-intro'
         | 'costume-intro'
         | 'action-intro'
+        | 'comic-intro'
         | 'timeline-clip'
       professionalPrompt: string
       userExtraPrompt?: string | null
@@ -1042,9 +1131,11 @@ export interface ElectronApi {
       actionId?: string
       storyId?: string
       entryId?: string
+      pageId?: string
       durationSeconds?: number
       aspectRatio?: string
       locale?: string
+      comicVideoScheme?: 'page' | 'drama'
     }) => Promise<{
       path: string
       gallery?: unknown
@@ -1355,6 +1446,7 @@ export interface ElectronApi {
         bgmVolume: number
         dialogueVolume: number
         openExportFolder: boolean
+        clipSource: 'timeline' | 'comics'
       }>
     ) => Promise<{ outputPath: string }>
     /** All export versions for a story (newest first). */

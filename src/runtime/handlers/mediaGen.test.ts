@@ -60,6 +60,8 @@ describe('registerMediagenHandlers', () => {
         join(dir!, `p_${id}_${kind}${ext}`),
       actionImagePath: (id: string, kind = 'plate', ext = '.png') =>
         join(dir!, `a_${id}_${kind}${ext}`),
+      comicPagePath: (sid: string, pid: string, ext = '.png') =>
+        join(dir!, `comic_${sid}_${pid}${ext}`),
       ...extra
     }
   }
@@ -2036,6 +2038,353 @@ describe('registerMediagenHandlers', () => {
     const sent = generateImage.mock.calls[0][0].prompt as string
     expect(sent).toMatch(/^Single 16:9 live-action photoreal/)
     expect(sent).not.toMatch(/I'll check|workspace/i)
+  })
+
+  it('extract and generate comic-page', async () => {
+    const img = mkImg('hero.png')
+    const prev = mkImg('prev.png')
+    const updatePage = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const { h, generateImage } = baseCtx({
+      comics: () =>
+        ({
+          getPage: vi.fn(async () => ({
+            id: 'pg1',
+            comicId: 'cb1',
+            order: 1,
+            panelLayout: 'grid-2x2',
+            artStyle: 'comic_western',
+            hardRules: null,
+            panelScriptJson: JSON.stringify([
+              { caption: '開門', timelineEntryId: 'e1' },
+              { caption: '對打' },
+              { caption: '' },
+              { caption: '收勢' }
+            ]),
+            imagePath: null
+          })),
+          getById: vi.fn(async () => ({
+            id: 'cb1',
+            storyId: 's1',
+            title: '夜巴',
+            artStyle: 'comic_western',
+            hardRules: 'no logo'
+          })),
+          getWithPages: vi.fn(async () => ({
+            comic: { id: 'cb1', storyId: 's1' },
+            pages: [
+              { id: 'pg0', imagePath: prev, order: 0 },
+              { id: 'pg1', imagePath: null, order: 1 }
+            ]
+          })),
+          updatePage
+        }) as never,
+      stories: () =>
+        ({
+          get: vi.fn(async () =>
+            storyWithEntries([
+              {
+                id: 'e1',
+                characterId: 'c1',
+                sceneId: 'sc1',
+                propId: 'p1',
+                actionId: 'a1'
+              }
+            ])
+          )
+        }) as never,
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            refImagePath: img,
+            refSheetPath: null
+          }))
+        }) as never,
+      scenes: () =>
+        ({
+          get: vi.fn(async () => ({ id: 'sc1', refImagePath: img }))
+        }) as never,
+      props: () =>
+        ({
+          get: vi.fn(async () => ({ id: 'p1', refImagePath: img }))
+        }) as never,
+      actions: () =>
+        ({
+          get: vi.fn(async () => ({ id: 'a1', refImagePath: img }))
+        }) as never
+    })
+    await expect(
+      invokeRegistered(h as never, 'mediaGen:extract', { kind: 'comic-page' })
+    ).rejects.toMatchObject({ message: 'errors.comicPageIdRequired' })
+    const extracted = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'comic-page',
+      pageId: 'pg1',
+      locale: 'zh-HK'
+    })) as {
+      kind: string
+      fallbackPrompt: string
+      genOptions: { panelLayout?: string; aspectRatio?: string }
+    }
+    expect(extracted.kind).toBe('comic-page')
+    expect(extracted.fallbackPrompt).toMatch(/剛好 4 格|必須剛好 4/)
+    expect(extracted.fallbackPrompt).toMatch(/開本鎖定|方形/)
+    expect(extracted.fallbackPrompt).not.toMatch(/EXACTLY 4|GEOMETRY LOCK|Layout:/)
+    expect(extracted.genOptions.panelLayout).toBe('grid-2x2')
+    expect(extracted.genOptions.aspectRatio).toBe('1:1')
+
+    const out = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'comic-page',
+      pageId: 'pg1',
+      polishedPrompt:
+        'ONE finished comic PAGE with EXACTLY 4 panels, thick white gutters, cinematic ink.'
+    })) as { path: string }
+    expect(generateImage).toHaveBeenCalled()
+    expect(out.path).toBeTruthy()
+    expect(updatePage).toHaveBeenCalled()
+  })
+
+  it('extract comic-intro requires a page still', async () => {
+    const img = mkImg('page.png')
+    const { h } = baseCtx({
+      comics: () =>
+        ({
+          getPage: vi.fn(async () => ({
+            id: 'pg1',
+            comicId: 'cb1',
+            order: 0,
+            panelLayout: 'focus-quad',
+            artStyle: 'comic_western',
+            hardRules: null,
+            panelScriptJson: JSON.stringify([{ caption: '開門' }]),
+            imagePath: img
+          })),
+          getById: vi.fn(async () => ({
+            id: 'cb1',
+            storyId: 's1',
+            title: '夜巴',
+            hardRules: null
+          }))
+        }) as never,
+      stories: () =>
+        ({
+          get: vi.fn(async () => ({ id: 's1', title: '夜巴', hardRules: null }))
+        }) as never
+    })
+    await expect(
+      invokeRegistered(h as never, 'mediaGen:extract', { kind: 'comic-intro' })
+    ).rejects.toMatchObject({ message: 'errors.comicPageIdRequired' })
+    const extracted = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'comic-intro',
+      pageId: 'pg1',
+      locale: 'zh-HK',
+      skipStillIfExists: true
+    })) as {
+      kind: string
+      fallbackPrompt: string
+      existingStillPath?: string | null
+    }
+    expect(extracted.kind).toBe('comic-intro')
+    expect(extracted.fallbackPrompt).toMatch(/圖生影片|鎖定/)
+    expect(extracted.fallbackPrompt).toMatch(/版式|格/)
+    expect(extracted.existingStillPath).toBe(img)
+    expect(
+      (extracted as { genOptions?: { comicVideoScheme?: string } }).genOptions
+        ?.comicVideoScheme
+    ).toBe('page')
+
+    const drama = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'comic-intro',
+      pageId: 'pg1',
+      locale: 'zh-HK',
+      skipStillIfExists: true,
+      comicVideoScheme: 'drama'
+    })) as {
+      kind: string
+      fallbackPrompt: string
+      taskHint?: string
+      genOptions?: { comicVideoScheme?: string }
+    }
+    expect(drama.kind).toBe('comic-intro')
+    expect(drama.fallbackPrompt).toMatch(/短劇時間軸/)
+    expect(drama.fallbackPrompt).toMatch(/真人短劇|不是在印刷格/)
+    expect(drama.taskHint).toMatch(/短劇時間軸/)
+    expect(drama.genOptions?.comicVideoScheme).toBe('drama')
+  })
+
+  it('extract comic-intro drama binds timeline dialogue and previous page', async () => {
+    const img = mkImg('page.png')
+    const prev = mkImg('prev-page.png')
+    const { h } = baseCtx({
+      comics: () =>
+        ({
+          getPage: vi.fn(async () => ({
+            id: 'pg2',
+            comicId: 'cb1',
+            order: 1,
+            panelLayout: 'grid-2x2',
+            artStyle: 'comic_western',
+            hardRules: 'page lock',
+            panelScriptJson: JSON.stringify([
+              { caption: 'caption-only', timelineEntryId: 'e1' }
+            ]),
+            imagePath: img
+          })),
+          getById: vi.fn(async () => ({
+            id: 'cb1',
+            storyId: 's1',
+            title: '夜巴',
+            hardRules: 'book lock'
+          })),
+          getWithPages: vi.fn(async () => ({
+            comic: { id: 'cb1', storyId: 's1' },
+            pages: [
+              { id: 'pg1', order: 0, imagePath: prev, videoPath: '/v.mp4' },
+              { id: 'pg2', order: 1, imagePath: img }
+            ]
+          }))
+        }) as never,
+      stories: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 's1',
+            title: '夜巴',
+            hardRules: 'story lock'
+          }))
+        }) as never,
+      timeline: () =>
+        ({
+          list: vi.fn(async () => [
+            { id: 'e1', dialogue: '開門。' },
+            { id: 'e2', dialogue: '走。' }
+          ])
+        }) as never
+    })
+    const drama = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'comic-intro',
+      pageId: 'pg2',
+      locale: 'zh-HK',
+      comicVideoScheme: 'drama'
+    })) as { fallbackPrompt: string }
+    expect(drama.fallbackPrompt).toMatch(/開門/)
+  })
+
+  it('extract comic-page hydrates slot cast and generate persists layout', async () => {
+    const img = mkImg('hero.png')
+    const updatePage = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const { h, generateImage } = baseCtx({
+      comics: () =>
+        ({
+          getPage: vi.fn(async () => ({
+            id: 'pg1',
+            comicId: 'cb1',
+            order: 0,
+            panelLayout: 'grid-2x2',
+            artStyle: 'comic_western',
+            pageFormat: 'tall',
+            hardRules: null,
+            panelScriptJson: JSON.stringify([
+              {
+                caption: '開',
+                characterIds: ['c1'],
+                sceneId: 'sc1',
+                propId: 'p1',
+                actionId: 'a1',
+                timelineEntryId: 'e9'
+              }
+            ]),
+            imagePath: img
+          })),
+          getById: vi.fn(async () => ({
+            id: 'cb1',
+            storyId: 's1',
+            title: '夜巴',
+            artStyle: 'comic_western',
+            pageFormat: 'tall',
+            hardRules: null
+          })),
+          getWithPages: vi.fn(async () => ({
+            comic: { id: 'cb1', storyId: 's1' },
+            pages: [{ id: 'pg1', imagePath: img, order: 0 }]
+          })),
+          updatePage
+        }) as never,
+      stories: () =>
+        ({
+          get: vi.fn(async () =>
+            storyWithEntries([
+              {
+                id: 'e9',
+                characterIds: ['c2'],
+                sceneIds: ['sc2'],
+                propIds: ['p2'],
+                actionIds: ['a2']
+              }
+            ])
+          )
+        }) as never,
+      characters: () =>
+        ({
+          get: vi.fn(async () => {
+            throw new Error('gone')
+          })
+        }) as never,
+      scenes: () =>
+        ({
+          get: vi.fn(async () => {
+            throw new Error('gone')
+          })
+        }) as never,
+      props: () =>
+        ({
+          get: vi.fn(async () => {
+            throw new Error('gone')
+          })
+        }) as never,
+      actions: () =>
+        ({
+          get: vi.fn(async () => {
+            throw new Error('gone')
+          })
+        }) as never
+    })
+    const extracted = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'comic-page',
+      pageId: 'pg1',
+      locale: 'zh-HK',
+      forcePureLayout: true
+    })) as { kind: string }
+    expect(extracted.kind).toBe('comic-page')
+
+    await expect(
+      invokeRegistered(h as never, 'mediaGen:generateImage', {
+        kind: 'comic-page',
+        polishedPrompt: 'ONE finished comic PAGE'
+      })
+    ).rejects.toMatchObject({ message: 'errors.comicPageIdRequired' })
+
+    await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'comic-page',
+      pageId: 'pg1',
+      artStyle: 'manhwa',
+      panelLayout: 'yonkoma',
+      pageFormat: 'wide',
+      polishedPrompt: 'ONE finished comic PAGE with EXACTLY 4 panels'
+    })
+    expect(generateImage).toHaveBeenCalled()
+    expect(updatePage).toHaveBeenCalledWith(
+      'pg1',
+      expect.objectContaining({ artStyle: 'manhwa' })
+    )
+    expect(updatePage).toHaveBeenCalledWith(
+      'pg1',
+      expect.objectContaining({ panelLayout: 'yonkoma' })
+    )
   })
 })
 

@@ -24,6 +24,8 @@ function t(key: string, opts?: Record<string, unknown>): string {
     'characters.artPhotoDocumentary': '紀實自然光',
     'characters.artPhotoCinematic': '電影寫實（預設）',
     'actions.panelLayout_grid-2x2': '4 格（2×2）',
+    'comics.layoutYonkoma': '四格漫畫 · 直向',
+    'comics.layoutSplash1': '1 格 · 跨頁大圖',
     'characters.photoFallback': '參考圖'
   }
   return map[key] ?? key
@@ -66,6 +68,15 @@ describe('mediaGenSectionTitleI18n', () => {
     )
     expect(h).toContain('2×2')
     expect(h).not.toMatch(/grid-2x2/)
+  })
+
+  it('localizes comic-only page layouts', () => {
+    const h = translateMediaGenSectionTitle(
+      { entityType: 'layout', title: 'yonkoma' },
+      t
+    )
+    expect(h).toContain('四格漫畫')
+    expect(h).not.toMatch(/yonkoma/i)
   })
 
   it('hard rules and profile keep expected shape', () => {

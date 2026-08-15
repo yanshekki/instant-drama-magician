@@ -15,6 +15,7 @@ export function registerVideoPrepConfirm(ctx: HandlerContext): void {
     props,
     actions,
     costumes,
+    comics,
     timeline,
     generation,
     activity
@@ -31,6 +32,7 @@ reg(
           | 'prop-intro'
           | 'costume-intro'
           | 'action-intro'
+          | 'comic-intro'
           | 'timeline-clip'
         professionalPrompt: string
         userExtraPrompt?: string | null
@@ -43,9 +45,11 @@ reg(
         actionId?: string
         storyId?: string
         entryId?: string
+        pageId?: string
         durationSeconds?: number
         aspectRatio?: string
         locale?: string
+        comicVideoScheme?: 'page' | 'drama'
       }
     ) => {
       if (!ctx.aiClient.generateVideo) {
@@ -86,6 +90,12 @@ reg(
         } else if (payload.kind === 'costume-intro' && payload.costumeId) {
           const cos = await costumes().get(payload.costumeId)
           videoHardRules = cos?.hardRules ?? null
+        } else if (payload.kind === 'comic-intro' && payload.pageId) {
+          const page = await comics().getPage(payload.pageId)
+          const comic = await comics().getById(page.comicId)
+          videoHardRules = [page.hardRules, comic.hardRules]
+            .filter((x): x is string => Boolean(x?.trim()))
+            .join('\n')
         } else if (
           payload.kind === 'timeline-clip' &&
           payload.storyId &&
@@ -179,6 +189,7 @@ reg(
         /\.png$/i,
         '.mp4'
       )
+      let comicVideoId: string | null = null
       // Prefer library video paths by kind
       if (payload.kind === 'character-intro' && payload.characterId) {
         outPath = store.characterVideoPath(
@@ -194,6 +205,24 @@ reg(
         outPath = store.costumeVideoPath(payload.costumeId, 'intro', '.mp4')
       } else if (payload.kind === 'action-intro' && payload.actionId) {
         outPath = store.actionVideoPath(payload.actionId, 'intro', '.mp4')
+      } else if (
+        payload.kind === 'comic-intro' &&
+        payload.pageId &&
+        payload.storyId
+      ) {
+        const { newComicPageVideoId } = await import(
+          '../../../domain/comicPageVideos'
+        )
+        store.ensureStoryDirs(payload.storyId)
+        comicVideoId = newComicPageVideoId()
+        outPath = store.comicPageVideoPath
+          ? store.comicPageVideoPath(
+              payload.storyId,
+              payload.pageId,
+              comicVideoId,
+              '.mp4'
+            )
+          : store.comicPagePath(payload.storyId, payload.pageId, '.mp4')
       } else if (
         payload.kind === 'timeline-clip' &&
         payload.storyId &&
@@ -439,6 +468,50 @@ reg(
           path: result.outputPath,
           gallery: next,
           entity: updated,
+          polished: result.polished,
+          promptUsed: result.promptUsed
+        }
+      }
+
+      if (payload.kind === 'comic-intro' && payload.pageId) {
+        if (result.degraded) {
+          return {
+            path: result.outputPath,
+            entity: await comics().getPage(payload.pageId),
+            polished: result.polished,
+            promptUsed: result.promptUsed
+          }
+        }
+        const {
+          newComicPageVideoId,
+          parseComicPageVideos,
+          prependComicPageVideo,
+          serializeComicPageVideos
+        } = await import('../../../domain/comicPageVideos')
+        const { coerceComicVideoScheme } = await import(
+          '../../../domain/comicPageLayouts'
+        )
+        const page = await comics().getPage(payload.pageId)
+        const videoId = comicVideoId || newComicPageVideoId()
+        const next = prependComicPageVideo(
+          parseComicPageVideos(page.videoGalleryJson, {
+            videoPath: page.videoPath
+          }),
+          {
+            id: videoId,
+            path: result.outputPath,
+            scheme: coerceComicVideoScheme(payload.comicVideoScheme),
+            createdAt: new Date().toISOString()
+          }
+        )
+        const updated = await comics().updatePage(payload.pageId, {
+          videoPath: result.outputPath,
+          videoGalleryJson: serializeComicPageVideos(next)
+        })
+        return {
+          path: result.outputPath,
+          entity: updated,
+          gallery: next,
           polished: result.polished,
           promptUsed: result.promptUsed
         }

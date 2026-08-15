@@ -169,6 +169,10 @@ export function buildAppMenuTemplate(
       click: () => handlers.sendAction({ type: 'navigate', path: '/actions' })
     },
     {
+      label: t.navComics,
+      click: () => handlers.sendAction({ type: 'navigate', path: '/comics' })
+    },
+    {
       label: t.navTimeline,
       submenu: [
         {

@@ -14,6 +14,7 @@ import { CostumesPage } from './presentation/pages/CostumesPage'
 import { ScenesPage } from './presentation/pages/ScenesPage'
 import { PropsPage } from './presentation/pages/PropsPage'
 import { ActionsPage } from './presentation/pages/ActionsPage'
+import { ComicsPage } from './presentation/pages/ComicsPage'
 import { TimelinePage } from './presentation/pages/TimelinePage'
 import { TimelineV2Page } from './presentation/pages/TimelineV2Page'
 import { SettingsPage } from './presentation/pages/SettingsPage'
@@ -44,6 +45,7 @@ export default function App(): JSX.Element {
                     <Route path="scenes" element={<ScenesPage />} />
                     <Route path="props" element={<PropsPage />} />
                     <Route path="actions" element={<ActionsPage />} />
+                    <Route path="comics" element={<ComicsPage />} />
                     <Route path="timeline" element={<TimelinePage />} />
                     <Route path="timeline-v2" element={<TimelineV2Page />} />
                     <Route path="audit" element={<AuditLogPage />} />

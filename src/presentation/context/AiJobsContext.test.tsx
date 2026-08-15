@@ -1254,6 +1254,14 @@ describe('AiJobsContext', () => {
     ).toBe(true)
   })
 
+  it('pins React context on globalThis so HMR remounts keep the same identity', () => {
+    const g = globalThis as typeof globalThis & {
+      __idmAiJobsReactContext?: { Provider?: unknown }
+    }
+    expect(g.__idmAiJobsReactContext).toBeTruthy()
+    expect(g.__idmAiJobsReactContext?.Provider).toBeTypeOf('object')
+  })
+
   it('useAiJobs outside provider throws', async () => {
     const { useAiJobs } = await import('./AiJobsContext')
     // cannot easily render without provider — call hook via renderHook pattern

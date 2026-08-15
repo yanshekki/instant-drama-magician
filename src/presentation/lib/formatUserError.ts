@@ -45,6 +45,7 @@ const ERROR_KEYS = new Set([
   'errors.cliUnauthorizedToken',
   'errors.clipDurationTooLong',
   'errors.clipNotFound',
+  'errors.comicsNoVideos',
   'errors.costumeActiveCannotDelete',
   'errors.costumeActiveCannotUnlink',
   'errors.costumeCreateFailed',

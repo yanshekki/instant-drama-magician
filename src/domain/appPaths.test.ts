@@ -52,12 +52,12 @@ describe('appPaths', () => {
     expect(appFolderName('staging')).toBe(`${APP_ID}-staging`)
   })
 
-  it('dev runtime defaults to dev profile', () => {
-    expect(resolveProfile({ isDevRuntime: true, env: {} })).toBe('dev')
+  it('dev and packaged share the default profile unless IDM_PROFILE is set', () => {
+    expect(resolveProfile({ isDevRuntime: true, env: {} })).toBe('default')
     expect(resolveProfile({ isDevRuntime: false, env: {} })).toBe('default')
     expect(
-      resolveProfile({ isDevRuntime: true, env: { IDM_PROFILE: 'default' } })
-    ).toBe('default')
+      resolveProfile({ isDevRuntime: true, env: { IDM_PROFILE: 'dev' } })
+    ).toBe('dev')
   })
 
   it('IDM_DATA_DIR wins and marks override', () => {
@@ -79,7 +79,7 @@ describe('appPaths', () => {
       home,
       env: {}
     })
-    expect(p.dataRoot).toBe(join(home, '.config', `${APP_ID}-dev`))
+    expect(p.dataRoot).toBe(join(home, '.config', APP_ID))
     expect(p.databasePath).toBe(join(p.dataRoot, 'instant-drama.db'))
     expect(p.mediaRoot).toBe(join(p.dataRoot, 'media'))
     expect(p.settingsPath).toBe(join(p.dataRoot, 'settings.json'))

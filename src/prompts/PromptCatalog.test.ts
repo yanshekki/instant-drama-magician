@@ -59,7 +59,7 @@ describe('PromptCatalog', () => {
       for (const key of PROMPT_COPY_KEYS) {
         const v = PromptCatalog.t(id, key)
         expect(v, `${id} ${key}`).not.toMatch(
-          /SPEECH LOCK|HARD RULES|IDENTITY LOCK|SPACE LOCK|CONTINUITY LOCK/
+          /SPEECH LOCK|HARD RULES|IDENTITY LOCK|SPACE LOCK|CONTINUITY LOCK|GEOMETRY LOCK|PANEL COUNT IS NON-NEGOTIABLE/
         )
       }
     }

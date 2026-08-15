@@ -32,12 +32,12 @@ describe('createLocalClient', () => {
     try {
       expect(client.mode).toBe('local')
       const ch = await client.channels()
-      expect(ch.length).toBe(158)
+      expect(ch.length).toBe(167)
       const list = await client.invoke('stories:list', [])
       expect(Array.isArray(list)).toBe(true)
       const d = client.describe?.()
       expect(d).toMatchObject({ mode: 'local' })
-      expect((d as { channelCount?: number }).channelCount).toBe(158)
+      expect((d as { channelCount?: number }).channelCount).toBe(167)
     } finally {
       await client.dispose?.()
       rmSync(dataDir, { recursive: true, force: true })

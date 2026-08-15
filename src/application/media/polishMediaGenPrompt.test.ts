@@ -45,7 +45,7 @@ describe('polishMediaGenPrompt', () => {
     expect(r.prompt).toMatch(/Ming|six|panels|identity/i)
     expect(chat).toHaveBeenCalled()
     const userMsg = chat.mock.calls[0][0].messages[1]
-    expect(userMsg.content).toMatch(/Ref#|MATERIALS|Ming|Slash/i)
+    expect(userMsg.content).toMatch(/參考圖|Ref|材料|MATERIALS|Ming|Slash/i)
   })
 
   it('falls back when LLM fails', async () => {

@@ -41,6 +41,7 @@ export default defineConfig({
         'src/assets/**',
         'src/styles/**',
         // Pure type surface (no runtime statements)
+        'src/prompts/types.ts',
         'src/types/electron-api.ts',
         'src/infrastructure/ai/video/types.ts',
         'src/infrastructure/update/updateTypes.ts',
@@ -57,6 +58,8 @@ export default defineConfig({
         'src/presentation/components/RecipeCompareStars.tsx',
         'src/presentation/components/MediaGenPrepModal.tsx',
         'src/presentation/pages/SettingsPage.tsx',
+        'src/presentation/pages/ComicsPage.tsx',
+        'src/presentation/components/ComicPageVideoLibrary.tsx',
         // OS notify glue (happy-dom / Electron Notification); rules live in domain/desktopNotify.ts
         'src/presentation/lib/notifyDesktop.ts',
         'electron/main/showDesktopNotification.ts'

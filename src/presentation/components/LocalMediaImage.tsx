@@ -62,6 +62,13 @@ interface LocalMediaImageProps {
   isCover?: boolean
   /** Remove this still from the gallery (left action bar). */
   onRemove?: () => void
+  /** Override intro-video action labels (comics page film, etc.). */
+  videoLabels?: {
+    generate?: string
+    regen?: string
+    play?: string
+    open?: string
+  }
 }
 
 type SaveTarget = 'still' | 'video' | 'both'
@@ -91,7 +98,8 @@ export function LocalMediaImage({
   hoverZoom,
   onSetAsCover,
   isCover = false,
-  onRemove
+  onRemove,
+  videoLabels
 }: LocalMediaImageProps): JSX.Element | null {
   void _onRegenerate
   void _regenerateBusy
@@ -401,8 +409,8 @@ export function LocalMediaImage({
             introVideoHasDraft
               ? t('videoPrep.continueVideo')
               : introVideoPath
-                ? t('media.introVideoRegen')
-                : t('media.introVideo')
+                ? videoLabels?.regen || t('media.introVideoRegen')
+                : videoLabels?.generate || t('media.introVideo')
           }
           onClick={(e) => void handleIntroVideo(e)}
           className={[
@@ -417,30 +425,32 @@ export function LocalMediaImage({
             : introVideoHasDraft
               ? t('videoPrep.continueVideo')
               : introVideoPath
-                ? t('media.introVideoRegen')
-                : t('media.introVideo')}
+                ? videoLabels?.regen || t('media.introVideoRegen')
+                : videoLabels?.generate || t('media.introVideo')}
         </button>
       )}
       {introVideoPath ? (
         <button
           type="button"
           disabled={busy || introPlayBusy}
-          title={t('media.playIntroVideo')}
+          title={videoLabels?.play || t('media.playIntroVideo')}
           onClick={(e) => void handlePlayIntroVideo(e)}
           className={actionBtnClass(actionsLayout, false)}
         >
-          {introPlayBusy ? t('common.loading') : t('media.playIntroVideo')}
+          {introPlayBusy
+            ? t('common.loading')
+            : videoLabels?.play || t('media.playIntroVideo')}
         </button>
       ) : null}
       {introVideoPath ? (
         <button
           type="button"
           disabled={busy}
-          title={t('media.openIntroVideo')}
+          title={videoLabels?.open || t('media.openIntroVideo')}
           onClick={(e) => void handleOpenIntroVideo(e)}
           className={actionBtnClass(actionsLayout, false)}
         >
-          {t('media.openIntroVideo')}
+          {videoLabels?.open || t('media.openIntroVideo')}
         </button>
       ) : null}
       {saveButton}
@@ -715,7 +725,7 @@ export function LocalMediaImage({
           className="fixed inset-0 z-[110] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
-          aria-label={t('media.playIntroVideo')}
+          aria-label={videoLabels?.play || t('media.playIntroVideo')}
           onClick={closeIntroPlayer}
         >
           <div
@@ -724,7 +734,7 @@ export function LocalMediaImage({
           >
             <div className="flex items-center justify-between gap-2 border-b border-ink-800 px-4 py-2.5">
               <span className="truncate text-sm font-medium text-ink-100">
-                {t('media.playIntroVideo')}
+                {videoLabels?.play || t('media.playIntroVideo')}
               </span>
               <button
                 type="button"

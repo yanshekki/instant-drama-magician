@@ -3,6 +3,12 @@
  */
 import { PromptCatalog } from '../prompts'
 import type { PromptCopyKey } from '../prompts/copy/keys'
+import { ART_STYLES, artStylePrompt } from './characterArtStyles'
+import {
+  COMIC_PAGE_LAYOUTS,
+  comicLayoutPrompt,
+  getComicPageLayout
+} from './comicPageLayouts'
 import { UI_LANGUAGES } from './uiLanguages'
 import type { MediaGenKind, MediaGenMaterialSection } from './mediaGenPrep'
 import {
@@ -196,7 +202,99 @@ export function rewriteDirectorSealWording(
   s = s.split(HARD_RULES_HEADER).join(hardRulesSealHeader(loc))
   s = s.split(HARD_RULES_FOOTER).join(hardRulesSealFooter(loc))
   s = s.replace(/HARD RULES/g, hard)
+  s = rewriteLeftoverEnglishComicPrompt(s, loc)
   return localizeBeatDirectorText(s, loc)
+}
+
+/** Rewrite leftover English comic geometry / art jargon into the UI language. */
+export function rewriteLeftoverEnglishComicPrompt(
+  text: string,
+  locale: string
+): string {
+  const raw = text || ''
+  if (!raw) return raw
+  const loc = locale || 'zh-HK'
+  let s = raw
+  for (const layout of COMIC_PAGE_LAYOUTS) {
+    if (layout.promptLayout) {
+      s = s.split(layout.promptLayout).join(comicLayoutPrompt(layout, loc))
+    }
+  }
+  for (const art of ART_STYLES) {
+    if (art.promptBlock) {
+      s = s.split(art.promptBlock).join(artStylePrompt(art.id, loc))
+    }
+  }
+  const layoutLead = PromptCatalog.t(loc, 'comic.layoutLead', { layout: '' })
+  s = s.replace(/^Layout:\s*/gim, layoutLead)
+  s = s.replace(/^Art medium:\s*/gim, PromptCatalog.t(loc, 'comic.artMedium', { art: '' }))
+  s = s.replace(/^Art:\s*/gim, PromptCatalog.t(loc, 'comic.artMedium', { art: '' }))
+  s = s.replace(
+    /PANEL COUNT IS NON-NEGOTIABLE:\s*EXACTLY\s+(\d+)\s+panels?\.?/gi,
+    (_, n) => PromptCatalog.t(loc, 'comic.panelCount', { n })
+  )
+  s = s.replace(
+    /GEOMETRY LOCK:\s*ONE full-page splash[^\n]*/gi,
+    PromptCatalog.t(loc, 'comic.lockSplash')
+  )
+  s = s.replace(
+    /GEOMETRY LOCK:\s*VERTICAL 4-koma[^\n]*/gi,
+    PromptCatalog.t(loc, 'comic.lockYonkoma')
+  )
+  s = s.replace(
+    /GEOMETRY LOCK:\s*2 rows\s*[×x]\s*2 columns[^\n]*/gi,
+    PromptCatalog.t(loc, 'comic.lockGrid2x2')
+  )
+  s = s.replace(
+    /GEOMETRY LOCK:\s*2 rows\s*[×x]\s*3 columns[^\n]*/gi,
+    PromptCatalog.t(loc, 'comic.lockGrid2x3')
+  )
+  s = s.replace(
+    /GEOMETRY LOCK:\s*3 rows\s*[×x]\s*3 columns[^\n]*/gi,
+    PromptCatalog.t(loc, 'comic.lockGrid3x3')
+  )
+  s = s.replace(
+    /GEOMETRY LOCK:\s*ONE horizontal row with EXACTLY\s+(\d+)[^\n]*/gi,
+    (_, n) => PromptCatalog.t(loc, 'comic.lockStrip', { n })
+  )
+  s = s.replace(/^GEOMETRY LOCK:\s*/gim, '')
+  s = s.replace(
+    /^Reading order:\s*left\s*(?:→|->)\s*right,\s*then\s*top\s*(?:→|->)\s*bottom[^\n]*/gim,
+    PromptCatalog.t(loc, 'comic.readingOrder')
+  )
+  s = s.replace(
+    /^Small panel numbers\s+1[-–](\d+)\s+at the top-left of each panel\.?/gim,
+    (_, n) => PromptCatalog.t(loc, 'comic.panelNumbers', { n })
+  )
+  s = s.replace(
+    /^Panel\s+(\d+)\s*\/\s*(\d+)\s+\(([^)]+)\):\s*/gim,
+    (_, i, n, label) =>
+      PromptCatalog.t(loc, 'comic.panelLine', { i, n, label, cap: '' })
+  )
+  s = s.replace(
+    /Same character identity, wardrobe, and location across every panel on this page\.?/gi,
+    PromptCatalog.t(loc, 'comic.identity')
+  )
+  s = s.replace(
+    /This is a finished (?:printed )?comic PAGE, not a collage of unrelated photos, not a UI mockup\.?/gi,
+    PromptCatalog.t(loc, 'comic.finished')
+  )
+  s = s.replace(
+    /A finished printed comic PAGE\.[^\n]*/gi,
+    PromptCatalog.t(loc, 'comic.fallbackClose')
+  )
+  s = s.replace(
+    /Previous comic page\. Keep character identity, wardrobe, and location continuous\. Do not copy the previous panel grid\.?/gi,
+    PromptCatalog.t(loc, 'comic.prevPage')
+  )
+  const grid = getComicPageLayout('grid-2x2')
+  if (s.includes('ONE single square comic PAGE')) {
+    s = s.replace(
+      /ONE single square comic PAGE:[^\n]*/gi,
+      comicLayoutPrompt(grid, loc)
+    )
+  }
+  return s
 }
 
 /** Prefer a polished director line; drop English keyframe boilerplate. */
@@ -233,6 +331,7 @@ export function buildMediaGenVideoPolishUserOverride(opts: {
   /** Timeline director revision / user extra */
   revisionPrompt?: string | null
   promptTemplateId?: string | null
+  comicVideoScheme?: 'page' | 'drama' | null
 }): string | null {
   const {
     kind,
@@ -244,7 +343,8 @@ export function buildMediaGenVideoPolishUserOverride(opts: {
     hardRules,
     includedSections,
     revisionPrompt,
-    promptTemplateId
+    promptTemplateId,
+    comicVideoScheme
   } = opts
   const name = firstProfileName(includedSections)
   const profile = sectionText(includedSections, 'profile')
@@ -311,6 +411,45 @@ export function buildMediaGenVideoPolishUserOverride(opts: {
         aspect: aspectRatio
       }),
       profile || `Action: ${name}`,
+      hardRules
+        ? `${PromptCatalog.t(locale, 'hardRules.sealHeader')}\n${hardRules}`
+        : null,
+      PromptCatalog.t(locale, 'common.templateDraft'),
+      fallbackPrompt
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+  if (kind === 'comic-intro') {
+    if (comicVideoScheme === 'drama') {
+      const beatLine =
+        sectionText(includedSections, 'beat_profile') || profile
+      return buildClipVideoPolishUserPrompt({
+        locale,
+        seconds,
+        aspectRatio,
+        hasRefImage,
+        fallbackPrompt,
+        storyTitle: name,
+        beatOrDialogue: beatLine
+          ? localizeBeatDirectorText(beatLine, locale)
+          : null,
+        previousContext: continuity
+          ? localizeBeatDirectorText(continuity, locale)
+          : null,
+        revisionPrompt: revisionPrompt || null,
+        hardRules
+      })
+    }
+    return [
+      hasRefImage ? PromptCatalog.t(locale, 'clip.hasRef') : null,
+      PromptCatalog.t(locale, 'comic.introLock'),
+      PromptCatalog.t(locale, 'comic.introCamera'),
+      PromptCatalog.t(locale, 'comic.introClose'),
+      PromptCatalog.t(locale, 'common.durationAspect', {
+        seconds,
+        aspect: aspectRatio
+      }),
       hardRules
         ? `${PromptCatalog.t(locale, 'hardRules.sealHeader')}\n${hardRules}`
         : null,

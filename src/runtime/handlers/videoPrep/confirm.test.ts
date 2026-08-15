@@ -86,7 +86,13 @@ describe('registerVideoPrepConfirm', () => {
       costumeVideoPath: () => out,
       actionVideoPath: () => out,
       clipPath: () => out,
-      clipContinuityStillPath: () => out.replace(/\.mp4$/, '_cont.png')
+      clipContinuityStillPath: () => out.replace(/\.mp4$/, '_cont.png'),
+      comicPagePath: () => out,
+      comicPageVideoPath: (
+        _s: string,
+        _p: string,
+        videoId: string
+      ) => out.replace(/\.mp4$/, `_${videoId}.mp4`)
     }
   }
 
@@ -636,4 +642,67 @@ describe('registerVideoPrepConfirm', () => {
     expect(setMedia).toHaveBeenCalled()
   })
 
+  it('appends comic-intro versions instead of overwriting', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vp-comic-'))
+    const still = join(dir, 'still.png')
+    writeFileSync(still, 'png')
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => ({
+      outputPath: req.outputPath,
+      degraded: false
+    }))
+    const updatePage = vi.fn(async (_id: string, data: unknown) => data)
+    const getPage = vi.fn(async () => ({
+      id: 'p1',
+      comicId: 'c1',
+      hardRules: null,
+      videoPath: join(dir!, 'old.mp4'),
+      videoGalleryJson: JSON.stringify([
+        {
+          id: 'legacy_primary',
+          path: join(dir!, 'old.mp4'),
+          scheme: 'page',
+          createdAt: '2026-01-01T00:00:00.000Z'
+        }
+      ])
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateVideo, chat: vi.fn() },
+      comics: () =>
+        ({
+          getPage,
+          getById: vi.fn(async () => ({ id: 'c1', hardRules: null })),
+          updatePage
+        }) as never,
+      generation: () =>
+        ({ getMediaStore: () => mediaStore(join(dir!, 'out.mp4')) }) as never
+    })
+    registerVideoPrepConfirm(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'videoPrep:confirm', {
+      kind: 'comic-intro',
+      pageId: 'p1',
+      storyId: 's1',
+      professionalPrompt: 'COMIC PAGE VIDEO PROMPT LONG ENOUGH',
+      stillPath: still,
+      comicVideoScheme: 'drama'
+    })
+    expect(updatePage).toHaveBeenCalledWith(
+      'p1',
+      expect.objectContaining({
+        videoPath: expect.stringMatching(/_cv_/),
+        videoGalleryJson: expect.stringMatching(/drama/)
+      })
+    )
+    const payload = updatePage.mock.calls[0]![1] as {
+      videoGalleryJson: string
+      videoPath: string
+    }
+    const gallery = JSON.parse(payload.videoGalleryJson) as Array<{
+      path: string
+    }>
+    expect(gallery).toHaveLength(2)
+    expect(gallery[1]!.path).toContain('old.mp4')
+    expect(gallery[0]!.path).toBe(payload.videoPath)
+    expect(gallery[0]!.path).not.toBe(gallery[1]!.path)
+  })
 })

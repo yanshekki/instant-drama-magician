@@ -335,4 +335,25 @@ describe('LocalMediaImage', () => {
     expect(true).toBe(true)
   })
 
+  it('uses videoLabels instead of intro-video copy', async () => {
+    render(
+      <LocalMediaImage
+        filePath="/s.png"
+        alt="labels"
+        onIntroVideo={vi.fn()}
+        introVideoPath="/v.mp4"
+        videoLabels={{
+          generate: 'comics.pageVideo',
+          regen: 'comics.pageVideoRegen',
+          play: 'comics.playPageVideo',
+          open: 'comics.openPageVideo'
+        }}
+      />
+    )
+    await waitFor(() => screen.getByAltText('labels'))
+    expect(screen.getByText('comics.pageVideoRegen')).toBeTruthy()
+    expect(screen.getByText('comics.playPageVideo')).toBeTruthy()
+    expect(screen.getByText('comics.openPageVideo')).toBeTruthy()
+    expect(screen.queryByText('media.introVideoRegen')).toBeNull()
+  })
 })

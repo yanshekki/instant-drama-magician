@@ -11,6 +11,7 @@ export type IntroMediaGenKind =
   | 'prop-intro'
   | 'costume-intro'
   | 'action-intro'
+  | 'comic-intro'
   | 'timeline-clip'
 
 export async function resolveVideoAspectRatio(): Promise<'16:9' | '9:16'> {
@@ -35,6 +36,7 @@ export async function buildIntroMediaGenRequest(opts: {
   actionId?: string
   storyId?: string
   entryId?: string
+  pageId?: string
   artStyle?: string | null
   durationSeconds?: number
   locale?: 'zh-HK' | 'en'
@@ -42,9 +44,14 @@ export async function buildIntroMediaGenRequest(opts: {
   skipStillIfExists?: boolean
   /** Timeline revision / director notes */
   userExtraPrompt?: string | null
+  comicVideoScheme?: 'page' | 'drama'
+  aspectRatio?: '16:9' | '9:16'
 }): Promise<MediaGenPrepOpenRequest> {
   const source = opts.sourceImagePath.trim()
-  const aspectRatio = await resolveVideoAspectRatio()
+  const aspectRatio =
+    opts.aspectRatio === '9:16' || opts.aspectRatio === '16:9'
+      ? opts.aspectRatio
+      : await resolveVideoAspectRatio()
   // Timeline clip may skip still via extract.existingStillPath without a client path
   const allowSkipWithoutSource =
     opts.kind === 'timeline-clip' && opts.skipStillIfExists === true
@@ -61,6 +68,7 @@ export async function buildIntroMediaGenRequest(opts: {
     actionId: opts.actionId,
     storyId: opts.storyId,
     entryId: opts.entryId,
+    pageId: opts.pageId,
     artStyle: opts.artStyle ?? undefined,
     galleryIdentityPaths: source ? [source] : [],
     sourceImagePath: source || undefined,
@@ -68,7 +76,8 @@ export async function buildIntroMediaGenRequest(opts: {
     skipStillIfExists: skip,
     durationSeconds: opts.durationSeconds ?? 10,
     aspectRatio,
-    userExtraPrompt: opts.userExtraPrompt?.trim() || null
+    userExtraPrompt: opts.userExtraPrompt?.trim() || null,
+    comicVideoScheme: opts.comicVideoScheme
   }
 }
 

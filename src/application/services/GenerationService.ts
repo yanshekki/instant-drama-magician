@@ -797,10 +797,17 @@ export class GenerationService {
       includeSilentAudio: boolean
       bgmVolume: number
       dialogueVolume: number
+      clipSource: 'timeline' | 'comics'
     }>
   ): Promise<{ outputPath: string }> {
     const story = await this.loadStory(storyId)
-    const clips = this.mapClips(story)
+    const fromComics = options?.clipSource === 'comics'
+    const clips = fromComics
+      ? await this.mapComicClips(storyId)
+      : this.mapClips(story)
+    if (fromComics && clips.length === 0) {
+      throw new AppError('VALIDATION', 'errors.comicsNoVideos')
+    }
     // Work dir under app media (intermediates); final file also copied to ~/Videos
     const outDir = this.store.exportsDir(storyId)
     this.store.ensureStoryDirs(storyId)
@@ -823,28 +830,30 @@ export class GenerationService {
       openExportFolder: this.settings.openExportFolder
     })
 
-    const srt = buildSrt(
-      story.timeline.map((e) => {
-        const spoken = extractSpokenLines(
-          parseBeatContent(
-            e.dialogue,
-            (e as { beatContentJson?: string | null }).beatContentJson
-          )
+    const srt = fromComics
+      ? ''
+      : buildSrt(
+          story.timeline.map((e) => {
+            const spoken = extractSpokenLines(
+              parseBeatContent(
+                e.dialogue,
+                (e as { beatContentJson?: string | null }).beatContentJson
+              )
+            )
+            return {
+              startSeconds: e.startTime,
+              endSeconds: e.endTime,
+              text: spoken
+            }
+          })
         )
-        return {
-          startSeconds: e.startTime,
-          endSeconds: e.endTime,
-          text: spoken
-        }
-      })
-    )
 
     const dialogueAudioPaths: Array<{
       path: string
       startSeconds: number
       endSeconds: number
     }> = []
-    if (this.settings.ttsEnabled) {
+    if (this.settings.ttsEnabled && !fromComics) {
       try {
         const { CompositeTtsProvider } = await import(
           '../../infrastructure/audio/TtsProvider'
@@ -923,6 +932,47 @@ export class GenerationService {
 
   getMediaStore(): MediaStore {
     return this.store
+  }
+
+  private async mapComicClips(storyId: string): Promise<
+    Array<{
+      startTime: number
+      endTime: number
+      label: string
+      dialogue: string
+      mediaPath: string | null
+      imagePath: string | null
+    }>
+  > {
+    const comic = await this.prisma.comic.findUnique({
+      where: { storyId },
+      include: { pages: { orderBy: { order: 'asc' } } }
+    })
+    const pages = comic?.pages ?? []
+    const clips: Array<{
+      startTime: number
+      endTime: number
+      label: string
+      dialogue: string
+      mediaPath: string | null
+      imagePath: string | null
+    }> = []
+    let t = 0
+    for (const p of pages) {
+      const mediaPath = (p as { videoPath?: string | null }).videoPath?.trim()
+      if (!mediaPath || !existsSync(mediaPath)) continue
+      const dur = 10
+      clips.push({
+        startTime: t,
+        endTime: t + dur,
+        label: `Page ${p.order + 1}`,
+        dialogue: '',
+        mediaPath,
+        imagePath: null
+      })
+      t += dur
+    }
+    return clips
   }
 
   private mapClips(story: Awaited<ReturnType<GenerationService['loadStory']>>) {

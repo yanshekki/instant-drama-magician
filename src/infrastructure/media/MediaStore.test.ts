@@ -51,6 +51,11 @@ describe('MediaStore', () => {
   it('ensure dirs', () => {
     store.ensureStoryDirs('s1')
     expect(existsSync(store.clipsDir('s1'))).toBe(true)
+    expect(existsSync(store.comicsDir('s1'))).toBe(true)
+    expect(store.comicPagePath('s1', 'p1')).toContain('comics')
+    expect(store.comicPageVideoPath('s1', 'p1', 'cv_ab')).toContain(
+      'p1_cv_ab.mp4'
+    )
     store.ensureLibraryDirs()
     expect(existsSync(join(root, 'library'))).toBe(true)
     store.ensureTmpDir()

@@ -12,9 +12,18 @@ import {
   getActionPanelLayout,
   type ActionPanelLayoutId
 } from './actionPlateVariants'
-import { getArtStyle } from './characterArtStyles'
+import { artStylePrompt, getArtStyle } from './characterArtStyles'
 import { PromptCatalog, resolvePromptContext } from '../prompts'
 import { assembleSystemPrompt } from './promptTemplates'
+import {
+  buildComicPanelInstructions,
+  getComicPageLayout
+} from './comicPageLayouts'
+import {
+  comicFormatLockKey,
+  coerceComicPageFormat
+} from './comicPageFormat'
+import type { ComicPanelSlot } from './comicPanelScript'
 
 export type MediaGenKind =
   // images
@@ -27,7 +36,9 @@ export type MediaGenKind =
   | 'costume-swap'
   | 'atmosphere-swap'
   | 'timeline-still'
+  | 'comic-page'
   // videos
+  | 'comic-intro'
   | 'character-intro'
   | 'scene-intro'
   | 'prop-intro'
@@ -56,6 +67,8 @@ export const ALL_MEDIA_GEN_KINDS: MediaGenKind[] = [
   'costume-swap',
   'atmosphere-swap',
   'timeline-still',
+  'comic-page',
+  'comic-intro',
   'character-intro',
   'scene-intro',
   'prop-intro',
@@ -83,6 +96,7 @@ export type MaterialEntityType =
   | 'layout'
   | 'art'
   | 'other'
+  | 'comic'
 
 /** UI grouping — refs (images) vs task text vs hard rules. */
 export type MaterialSectionGroup = 'refs' | 'task' | 'rules'
@@ -153,6 +167,10 @@ export interface MediaGenGenOptions {
   galleryLabel?: string
   /** Wardrobe / plate layer tag for gallery commit */
   layer?: string
+  /** Comic page film: page-pan vs timeline-style drama */
+  comicVideoScheme?: 'page' | 'drama'
+  /** Comic still page format */
+  pageFormat?: 'tall' | 'square' | 'wide'
 }
 
 export interface MediaGenPrepDraft {
@@ -533,30 +551,40 @@ export function buildMediaGenPolishUserText(opts: {
     lines.push(ctx.noRefPolishDirective)
   }
   if (opts.taskHint?.trim()) {
-    lines.push('', `Task: ${opts.taskHint.trim()}`)
+    lines.push(
+      '',
+      PromptCatalog.t(locale, 'mediaGen.polishTask', {
+        hint: opts.taskHint.trim()
+      })
+    )
   }
-  lines.push('', `Kind: ${opts.kind}`, '', '--- MATERIALS ---')
+  lines.push(
+    '',
+    PromptCatalog.t(locale, 'mediaGen.polishKind', { kind: opts.kind }),
+    '',
+    PromptCatalog.t(locale, 'mediaGen.polishMaterials')
+  )
   let refI = 0
   for (const s of opts.includedSections) {
     const hasImg = Boolean(s.imagePath?.trim())
+    const tagged = s.entityType ? ` [${s.entityType}]` : ''
     if (hasImg) {
       refI += 1
       lines.push(
         '',
-        `### Ref#${refI} — ${s.title}${s.entityType ? ` [${s.entityType}]` : ''}`,
+        `### ${PromptCatalog.t(locale, 'mediaGen.polishRef', {
+          n: refI,
+          title: `${s.title}${tagged}`
+        })}`,
         s.text
       )
     } else {
-      lines.push(
-        '',
-        `### ${s.title}${s.entityType ? ` [${s.entityType}]` : ''}`,
-        s.text
-      )
+      lines.push('', `### ${s.title}${tagged}`, s.text)
     }
   }
   lines.push(
     '',
-    '--- END MATERIALS ---',
+    PromptCatalog.t(locale, 'mediaGen.polishEndMaterials'),
     ctx.imagePolishDirective,
     ctx.outputLock
   )
@@ -1217,6 +1245,205 @@ export function buildTimelineBeatMaterialSections(opts: {
       artStyle: art.id,
       durationSeconds: opts.durationSeconds,
       useIdentityEdit: Boolean(editBaseSectionId)
+    }
+  }
+}
+
+export function comicPageTaskHint(opts: {
+  locale?: string | null
+  storyTitle: string
+  pageOrder: number
+  panelCount: number
+}): string {
+  const locale = PromptCatalog.locale(opts.locale)
+  const title =
+    opts.storyTitle.trim() || PromptCatalog.t(locale, 'hardRules.labelStory')
+  return PromptCatalog.t(locale, 'comic.taskHint', {
+    title,
+    n: Math.max(1, opts.pageOrder),
+    count: opts.panelCount
+  })
+}
+
+export function buildComicPageMaterialSections(opts: {
+  storyTitle: string
+  pageOrder: number
+  styleNote?: string | null
+  layoutId?: string | null
+  artStyleId?: string | null
+  hardRules?: string | null
+  slots: ComicPanelSlot[]
+  galleryPaths?: string[]
+  previousPagePath?: string | null
+  ownPagePath?: string | null
+  preferIdentityEdit?: boolean
+  allowOwnEditBase?: boolean
+  pageFormat?: string | null
+  locale?: string | null
+}): {
+  sections: MediaGenMaterialSection[]
+  editBaseSectionId: string | null
+  fallbackPrompt: string
+  taskHint: string
+  genOptions: MediaGenGenOptions
+} {
+  const locale = PromptCatalog.locale(opts.locale)
+  const layout = getComicPageLayout(opts.layoutId)
+  const art = getArtStyle(opts.artStyleId ?? undefined)
+  const captions = opts.slots.map((s) => s.caption.trim())
+  const panelBlock = buildComicPanelInstructions(layout, captions, locale)
+  const sections: MediaGenMaterialSection[] = []
+  const storyTitle =
+    opts.storyTitle.trim() || PromptCatalog.t(locale, 'hardRules.labelStory')
+
+  const prev = opts.previousPagePath?.trim()
+  if (prev) {
+    sections.push({
+      id: 'prev_page',
+      kind: 'ref-image',
+      title: storyTitle,
+      entityType: 'continuity',
+      imagePath: prev,
+      text: PromptCatalog.t(locale, 'comic.prevPage'),
+      include: true,
+      canBeEditBase: false,
+      editBasePriority: 40,
+      group: 'refs'
+    })
+  }
+
+  const own = opts.ownPagePath?.trim()
+  if (own) {
+    sections.push({
+      id: 'own_page',
+      kind: 'ref-image',
+      title: storyTitle,
+      entityType: 'comic',
+      imagePath: own,
+      text: PromptCatalog.t(locale, 'comic.ownPage'),
+      include: true,
+      canBeEditBase: opts.allowOwnEditBase !== false,
+      editBasePriority: 120,
+      group: 'refs'
+    })
+  }
+
+  const paths = (opts.galleryPaths ?? [])
+    .map((p) => p?.trim())
+    .filter((p): p is string => Boolean(p))
+  paths.forEach((path, i) => {
+    sections.push({
+      id: `gallery_${i}`,
+      kind: 'ref-image',
+      title: String(i + 1),
+      entityType: 'gallery',
+      imagePath: path,
+      text: PromptCatalog.t(locale, 'comic.galleryRef'),
+      include: true,
+      canBeEditBase: !own,
+      editBasePriority: 90 - i,
+      group: 'refs'
+    })
+  })
+
+  const profileParts = [
+    PromptCatalog.t(locale, 'comic.profileLine', {
+      title: storyTitle,
+      n: Math.max(1, opts.pageOrder)
+    }),
+    opts.styleNote?.trim()
+      ? PromptCatalog.t(locale, 'comic.styleBible', {
+          note: opts.styleNote.trim()
+        })
+      : '',
+    panelBlock
+  ].filter(Boolean)
+
+  sections.push({
+    id: 'profile',
+    kind: 'text-profile',
+    title: storyTitle,
+    entityType: 'comic',
+    text: profileParts.join('\n'),
+    include: true,
+    group: 'task'
+  })
+
+  sections.push({
+    id: 'layout_package',
+    kind: 'prompt-block',
+    title: layout.id,
+    entityType: 'layout',
+    text: panelBlock,
+    include: true,
+    group: 'task'
+  })
+
+  sections.push({
+    id: 'art_style',
+    kind: 'prompt-block',
+    title: art.id,
+    entityType: 'art',
+    text: PromptCatalog.t(locale, 'comic.artMedium', {
+      art: artStylePrompt(art.id, locale)
+    }),
+    include: true,
+    group: 'task'
+  })
+
+  if (opts.hardRules?.trim()) {
+    sections.push({
+      id: 'hard_rules',
+      kind: 'prompt-block',
+      title: PromptCatalog.t(locale, 'comic.hardRules'),
+      entityType: 'hardRules',
+      text: opts.hardRules.trim(),
+      include: true,
+      group: 'rules'
+    })
+  }
+
+  const preferIdentity = opts.preferIdentityEdit !== false
+  const editBaseSectionId = preferIdentity
+    ? pickDefaultEditBaseSectionId(sections)
+    : null
+  const taskHint = comicPageTaskHint({
+    locale,
+    storyTitle,
+    pageOrder: opts.pageOrder,
+    panelCount: layout.panelCount
+  })
+  const fmt = coerceComicPageFormat(opts.pageFormat) ?? layout.sizeClass
+  const formatLock = PromptCatalog.t(locale, comicFormatLockKey(fmt))
+  const fallbackPrompt = [
+    taskHint,
+    formatLock,
+    panelBlock,
+    PromptCatalog.t(locale, 'comic.artMedium', {
+      art: artStylePrompt(art.id, locale)
+    }),
+    opts.styleNote?.trim()
+      ? PromptCatalog.t(locale, 'comic.styleBible', {
+          note: opts.styleNote.trim()
+        })
+      : null,
+    PromptCatalog.t(locale, 'comic.fallbackClose')
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  return {
+    sections,
+    editBaseSectionId,
+    fallbackPrompt,
+    taskHint,
+    genOptions: {
+      panelLayout: layout.id,
+      artStyle: art.id,
+      useIdentityEdit: Boolean(editBaseSectionId),
+      pageFormat: fmt,
+      aspectRatio:
+        fmt === 'wide' ? '16:9' : fmt === 'square' ? '1:1' : '9:16'
     }
   }
 }

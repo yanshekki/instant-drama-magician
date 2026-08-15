@@ -32,6 +32,9 @@ vi.mock('./presentation/pages/PropsPage', () => ({
 vi.mock('./presentation/pages/ActionsPage', () => ({
   ActionsPage: () => <div data-testid="page-actions">ActionsPage</div>
 }))
+vi.mock('./presentation/pages/ComicsPage', () => ({
+  ComicsPage: () => <div data-testid="page-comics">ComicsPage</div>
+}))
 vi.mock('./presentation/pages/TimelinePage', () => ({
   TimelinePage: () => <div data-testid="page-timeline">TimelinePage</div>
 }))

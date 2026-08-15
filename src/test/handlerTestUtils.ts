@@ -176,6 +176,7 @@ export function makeHandlerContext(
     scenes: overrides.scenes ?? (noopService as never),
     props: overrides.props ?? (noopService as never),
     actions: overrides.actions ?? (noopService as never),
+    comics: overrides.comics ?? (noopService as never),
     costumes: overrides.costumes ?? (noopService as never),
     timeline: overrides.timeline ?? (noopService as never),
     generation:

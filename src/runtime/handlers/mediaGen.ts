@@ -23,6 +23,7 @@ type ExtractPayload = {
   storyId?: string
   costumeId?: string
   entryId?: string
+  pageId?: string
   panelLayout?: string | null
   artStyle?: string | null
   /** Character sheet package (出圖方案) */
@@ -38,6 +39,9 @@ type ExtractPayload = {
   locale?: string
   /** When true, surface existing continuity/keyframe path if on disk */
   skipStillIfExists?: boolean
+  comicVideoScheme?: 'page' | 'drama'
+  pageFormat?: 'tall' | 'square' | 'wide'
+  forcePureLayout?: boolean
 }
 
 function sanitizeSections(
@@ -122,7 +126,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
     scenes,
     props,
     stories,
+    comics,
     costumes,
+    timeline,
     generation,
     activity
   } = ctx
@@ -1412,6 +1418,347 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       }
     }
 
+    if (kind === 'comic-intro') {
+      const pageId = payload.pageId?.trim()
+      if (!pageId) {
+        throw new AppError('VALIDATION', 'errors.comicPageIdRequired')
+      }
+      const page = await comics().getPage(pageId)
+      const comic = await comics().getById(page.comicId)
+      const story = await stories().get(comic.storyId)
+      const locale = PromptCatalog.locale(payload.locale)
+      const {
+        getComicPageLayout,
+        buildComicIntroVideoPrompt,
+        buildComicDramaVideoPrompt,
+        comicLayoutPrompt,
+        coerceComicVideoScheme
+      } = await import('../../domain/comicPageLayouts')
+      const { parsePanelScriptJson, boundTimelineIdsFromSlots } = await import(
+        '../../domain/comicPanelScript'
+      )
+      const layout = getComicPageLayout(
+        payload.panelLayout ?? page.panelLayout
+      )
+      const slots = parsePanelScriptJson(page.panelScriptJson, layout.id)
+      const scheme = coerceComicVideoScheme(payload.comicVideoScheme)
+      const still =
+        payload.galleryIdentityPaths?.find((p) => p?.trim())?.trim() ||
+        page.imagePath?.trim() ||
+        ''
+      if (!still) {
+        throw new AppError('VALIDATION', 'errors.sourceImageRequired')
+      }
+      const storyTitle =
+        (story as { title?: string }).title ||
+        comic.title ||
+        PromptCatalog.t(locale, 'hardRules.labelStory')
+      const hardRules = [
+        comic.hardRules,
+        page.hardRules,
+        (story as { hardRules?: string | null }).hardRules
+      ]
+        .filter((x): x is string => Boolean(x?.trim()))
+        .join('\n')
+      const artStyle = getArtStyle(
+        payload.artStyle ?? page.artStyle ?? comic.artStyle ?? undefined
+      ).id
+      const captionBlock = slots
+        .map((s, i) => (s.caption.trim() ? `${i + 1}. ${s.caption.trim()}` : ''))
+        .filter(Boolean)
+        .join('\n')
+      let beatText = captionBlock
+      const boundIds = boundTimelineIdsFromSlots(slots)
+      if (scheme === 'drama' && boundIds.length > 0) {
+        try {
+          const list = (await timeline().list(comic.storyId)) as Array<{
+            id: string
+            dialogue?: string | null
+          }>
+          const lines = boundIds
+            .map((id) => list.find((e) => e.id === id)?.dialogue?.trim())
+            .filter((x): x is string => Boolean(x))
+          if (lines.length) beatText = lines.join('\n')
+        } catch {
+          /* captions already set */
+        }
+      }
+      let prevSnippet: string | null = null
+      if (scheme === 'drama') {
+        try {
+          const pack = await comics().getWithPages(comic.storyId)
+          const idx = pack.pages.findIndex((p) => p.id === page.id)
+          for (let i = idx - 1; i >= 0; i--) {
+            const prev = pack.pages[i]
+            if (prev.imagePath?.trim() || (prev as { videoPath?: string }).videoPath) {
+              prevSnippet = PromptCatalog.t(locale, 'continuity.hasImage', {
+                n: prev.order + 1
+              })
+              break
+            }
+          }
+        } catch {
+          /* optional */
+        }
+      }
+      const fallbackPrompt =
+        scheme === 'drama'
+          ? buildComicDramaVideoPrompt({
+              locale,
+              storyTitle,
+              pageOrder: page.order + 1,
+              beatText,
+              prevSnippet
+            })
+          : [
+              buildComicIntroVideoPrompt({
+                locale,
+                storyTitle,
+                pageOrder: page.order + 1,
+                panelCount: layout.panelCount,
+                layoutLabel: comicLayoutPrompt(layout, locale)
+              }),
+              captionBlock
+            ]
+              .filter(Boolean)
+              .join('\n')
+      const { buildGenericEntityMaterialSections } = await import(
+        '../../domain/mediaGenPrep'
+      )
+      const built = buildGenericEntityMaterialSections({
+        kind,
+        name: storyTitle,
+        profileText: fallbackPrompt,
+        hardRules: hardRules || null,
+        artStyleId: artStyle,
+        galleryPaths: [still],
+        preferIdentityEdit: true,
+        fallbackPrompt
+      })
+      if (scheme === 'drama' && beatText.trim()) {
+        built.sections.push({
+          id: 'beat_profile',
+          kind: 'text-profile',
+          title: storyTitle,
+          entityType: 'story',
+          text: beatText,
+          include: true,
+          group: 'task'
+        })
+      }
+      return {
+        kind,
+        entityIds: { storyId: comic.storyId, pageId: page.id },
+        sections: sanitizeSections(built.sections),
+        editBaseSectionId: built.editBaseSectionId,
+        fallbackPrompt: built.fallbackPrompt,
+        taskHint:
+          scheme === 'drama'
+            ? PromptCatalog.t(locale, 'clip.task')
+            : PromptCatalog.t(locale, 'comic.introTask', {
+                title: storyTitle,
+                n: page.order + 1,
+                count: layout.panelCount
+              }),
+        genOptions: {
+          ...built.genOptions,
+          panelLayout: layout.id,
+          artStyle,
+          durationSeconds: payload.durationSeconds,
+          comicVideoScheme: scheme
+        },
+        existingStillPath:
+          payload.skipStillIfExists === true ? still : null,
+        hardRules: hardRules || null
+      }
+    }
+
+    if (kind === 'comic-page') {
+      const pageId = payload.pageId?.trim()
+      if (!pageId) {
+        throw new AppError('VALIDATION', 'errors.comicPageIdRequired')
+      }
+      const page = await comics().getPage(pageId)
+      const comic = await comics().getById(page.comicId)
+      const story = await stories().get(comic.storyId)
+      const {
+        buildComicPageMaterialSections
+      } = await import('../../domain/mediaGenPrep')
+      const { parsePanelScriptJson } = await import(
+        '../../domain/comicPanelScript'
+      )
+      const { getArtStyle } = await import('../../domain/characterArtStyles')
+      const { getComicPageLayout } = await import(
+        '../../domain/comicPageLayouts'
+      )
+      const layout = getComicPageLayout(
+        payload.panelLayout ?? page.panelLayout
+      )
+      const slots = parsePanelScriptJson(page.panelScriptJson, layout.id)
+      const artStyle = getArtStyle(
+        payload.artStyle ?? page.artStyle ?? comic.artStyle ?? undefined
+      ).id
+      const galleryFromPayload = (payload.galleryIdentityPaths ?? [])
+        .map((p) => p?.trim())
+        .filter((p): p is string => Boolean(p))
+      const galleryPaths = [...galleryFromPayload]
+      const collectPath = (p?: string | null): void => {
+        const t = p?.trim()
+        if (t && !galleryPaths.includes(t)) galleryPaths.push(t)
+      }
+      const charIds = new Set<string>()
+      const sceneIds = new Set<string>()
+      const propIds = new Set<string>()
+      const actionIds = new Set<string>()
+      const entryIds = new Set<string>()
+      for (const slot of slots) {
+        for (const id of slot.characterIds ?? []) {
+          if (id.trim()) charIds.add(id.trim())
+        }
+        if (slot.sceneId?.trim()) sceneIds.add(slot.sceneId.trim())
+        if (slot.propId?.trim()) propIds.add(slot.propId.trim())
+        if (slot.actionId?.trim()) actionIds.add(slot.actionId.trim())
+        if (slot.timelineEntryId?.trim()) {
+          entryIds.add(slot.timelineEntryId.trim())
+        }
+      }
+      const timeline = (story as { timeline?: Array<Record<string, unknown>> })
+        .timeline
+      if (Array.isArray(timeline)) {
+        for (const e of timeline) {
+          if (typeof e.id === 'string' && entryIds.has(e.id)) {
+            const c =
+              (e.characterId as string | null) ||
+              (Array.isArray(e.characterIds) ? e.characterIds[0] : null)
+            const s =
+              (e.sceneId as string | null) ||
+              (Array.isArray(e.sceneIds) ? e.sceneIds[0] : null)
+            const p =
+              (e.propId as string | null) ||
+              (Array.isArray(e.propIds) ? e.propIds[0] : null)
+            const a =
+              (e.actionId as string | null) ||
+              (Array.isArray(e.actionIds) ? e.actionIds[0] : null)
+            if (typeof c === 'string' && c.trim()) charIds.add(c.trim())
+            if (typeof s === 'string' && s.trim()) sceneIds.add(s.trim())
+            if (typeof p === 'string' && p.trim()) propIds.add(p.trim())
+            if (typeof a === 'string' && a.trim()) actionIds.add(a.trim())
+          }
+        }
+      }
+      for (const id of charIds) {
+        try {
+          const row = await characters().get(id)
+          collectPath(row.refImagePath)
+          collectPath((row as { refSheetPath?: string | null }).refSheetPath)
+        } catch {
+          /* optional */
+        }
+      }
+      for (const id of sceneIds) {
+        try {
+          collectPath((await scenes().get(id)).refImagePath)
+        } catch {
+          /* optional */
+        }
+      }
+      for (const id of propIds) {
+        try {
+          collectPath((await props().get(id)).refImagePath)
+        } catch {
+          /* optional */
+        }
+      }
+      for (const id of actionIds) {
+        try {
+          collectPath((await actions().get(id)).refImagePath)
+        } catch {
+          /* optional */
+        }
+      }
+      const pack = await comics().getWithPages(comic.storyId)
+      const ordered = pack.pages
+      const idx = ordered.findIndex((p) => p.id === page.id)
+      let previousPagePath: string | null = null
+      if (idx > 0) {
+        for (let i = idx - 1; i >= 0; i--) {
+          const p = ordered[i].imagePath?.trim()
+          if (p) {
+            previousPagePath = p
+            break
+          }
+        }
+      }
+      const ownPagePath = page.imagePath?.trim() || null
+      const hardRules = [
+        comic.hardRules,
+        page.hardRules,
+        (story as { hardRules?: string | null }).hardRules
+      ]
+        .filter((x): x is string => Boolean(x?.trim()))
+        .join('\n')
+      const { effectiveComicPageFormat } = await import(
+        '../../domain/comicPageFormat'
+      )
+      const pageFormat = effectiveComicPageFormat({
+        pageFormat: payload.pageFormat ?? page.pageFormat,
+        bookFormat: (comic as { pageFormat?: string | null }).pageFormat,
+        layout
+      })
+      const allowOwnEdit =
+        payload.preferIdentityEdit !== false &&
+        payload.forcePureLayout !== true
+      const built = buildComicPageMaterialSections({
+        storyTitle:
+          (story as { title?: string }).title ||
+          comic.title ||
+          PromptCatalog.t(payload.locale, 'hardRules.labelStory'),
+        pageOrder: page.order + 1,
+        styleNote: (story as { styleNote?: string | null }).styleNote,
+        layoutId: layout.id,
+        artStyleId: artStyle,
+        hardRules: hardRules || null,
+        slots,
+        galleryPaths,
+        previousPagePath,
+        ownPagePath,
+        preferIdentityEdit: allowOwnEdit,
+        allowOwnEditBase: allowOwnEdit,
+        pageFormat,
+        locale: payload.locale
+      })
+      activity.append({
+        kind: 'ai',
+        level: 'info',
+        message: 'mediaGenExtract',
+        meta: { kind, pageId, storyId: comic.storyId }
+      })
+      return {
+        kind,
+        entityIds: {
+          storyId: comic.storyId,
+          pageId: page.id
+        },
+        sections: sanitizeSections(built.sections),
+        editBaseSectionId: built.editBaseSectionId,
+        fallbackPrompt: built.fallbackPrompt,
+        taskHint: built.taskHint,
+        genOptions: {
+          ...built.genOptions,
+          panelLayout: layout.id,
+          artStyle,
+          pageFormat,
+          aspectRatio:
+            pageFormat === 'wide'
+              ? '16:9'
+              : pageFormat === 'square'
+                ? '1:1'
+                : '9:16'
+        },
+        hardRules: hardRules || null
+      }
+    }
+
     throw new AppError('VALIDATION', 'errors.unsupportedMediaGenKind')
   })
 
@@ -1485,6 +1832,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       propId?: string
       storyId?: string
       entryId?: string
+      pageId?: string
       costumeId?: string
       polishedPrompt: string
       editBasePath?: string | null
@@ -1498,6 +1846,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       galleryLabel?: string | null
       hardRules?: string | null
       persist?: boolean
+      pageFormat?: 'tall' | 'square' | 'wide'
     }) => {
       const promptIn = extractPolishedMediaPrompt(
         payload.polishedPrompt ?? ''
@@ -1747,6 +2096,47 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         entityKey = payload.entryId.trim()
         size = ctx.settings.imageSizeWide || '1792x1024'
         aspectRatio = aspectFromImageSize(size)
+      } else if (kind === 'comic-page') {
+        const pageId = payload.pageId?.trim()
+        if (!pageId) {
+          throw new AppError('VALIDATION', 'errors.comicPageIdRequired')
+        }
+        const page = await comics().getPage(pageId)
+        const comic = await comics().getById(page.comicId)
+        entityKey = page.id
+        const { getComicPageLayout } = await import(
+          '../../domain/comicPageLayouts'
+        )
+        const layout = getComicPageLayout(
+          payload.panelLayout ?? page.panelLayout
+        )
+        panelLayoutId = layout.id
+        artStyle = getArtStyle(
+          payload.artStyle ?? page.artStyle ?? comic.artStyle ?? undefined
+        ).id
+        hardRules = payload.hardRules ?? page.hardRules ?? comic.hardRules
+        const { effectiveComicPageFormat, imageSizeForComicFormat } =
+          await import('../../domain/comicPageFormat')
+        const pageFormat = effectiveComicPageFormat({
+          pageFormat: payload.pageFormat ?? page.pageFormat,
+          bookFormat: (comic as { pageFormat?: string | null }).pageFormat,
+          layout
+        })
+        size = imageSizeForComicFormat(pageFormat, {
+          tall: ctx.settings.imageSizeTall || '1024x1792',
+          square: ctx.settings.imageSizeSquare || '1024x1024',
+          wide: ctx.settings.imageSizeWide || '1792x1024'
+        })
+        aspectRatio = aspectFromImageSize(size)
+        galleryLabel = galleryLabel || `Comic page · ${layout.id}`
+        if (payload.artStyle && page.artStyle !== artStyle) {
+          await comics().updatePage(page.id, { artStyle })
+        }
+        if (payload.panelLayout && payload.panelLayout !== page.panelLayout) {
+          await comics().updatePage(page.id, { panelLayout: layout.id })
+        }
+        payload.storyId = comic.storyId
+        payload.pageId = page.id
       } else {
         throw new AppError('VALIDATION', 'errors.unsupportedMediaGenKind')
       }
@@ -1796,7 +2186,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       const persist =
         payload.persist === true ||
         kind === 'timeline-still' ||
-        kind === 'timeline-clip'
+        kind === 'timeline-clip' ||
+        kind === 'comic-page'
       store.ensureTmpDir()
       store.ensureLibraryDirs()
       let outPath: string
@@ -1841,6 +2232,13 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         } catch {
           /* ignore */
         }
+      } else if (kind === 'comic-page') {
+        const sid = (payload.storyId || '').trim()
+        const pid = (payload.pageId || entityKey).trim()
+        if (sid) store.ensureStoryDirs(sid)
+        outPath = sid
+          ? store.comicPagePath(sid, pid, '.png')
+          : store.tmpImagePath(`comic_${pid || 'page'}`, '.png')
       } else if (kind === 'story-cover') {
         outPath = persist
           ? store.tmpImagePath('story_cover', '.png')
@@ -1949,6 +2347,20 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           )
         } catch {
           /* best-effort cache */
+        }
+      }
+
+      if (kind === 'comic-page' && payload.pageId?.trim()) {
+        try {
+          await comics().updatePage(payload.pageId.trim(), {
+            imagePath: finalPath,
+            mediaStatus: 'READY',
+            mediaError: null,
+            seedPrompt: prompt,
+            artStyle
+          })
+        } catch {
+          /* best-effort persist */
         }
       }
 

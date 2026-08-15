@@ -520,6 +520,62 @@ describe('GenerationService', () => {
     expect(exportFinal).toHaveBeenCalled()
   })
 
+  it('exportFinal clipSource comics concatenates only pages with videos', async () => {
+    const prisma = createMockPrisma()
+    const v1 = join(dir, 'comic-p1.mp4')
+    const v2 = join(dir, 'comic-p2.mp4')
+    writeFileSync(v1, 'a')
+    writeFileSync(v2, 'b')
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({ title: 'Comic Film' })
+    )
+    ;(prisma.comic.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'cb1',
+      storyId: 's1',
+      pages: [
+        { id: 'pg1', order: 0, videoPath: v1 },
+        { id: 'pg2', order: 1, videoPath: null },
+        { id: 'pg3', order: 2, videoPath: v2 }
+      ]
+    })
+    const exportFinal = vi.fn(async (opts: { fileName: string; outDir: string }) => {
+      const p = join(opts.outDir, opts.fileName)
+      mkdirSync(opts.outDir, { recursive: true })
+      writeFileSync(p, 'final')
+      return p
+    })
+    const { svc } = makeSvc({
+      prisma,
+      ffmpeg: {
+        ensureAvailable: vi.fn().mockResolvedValue(undefined),
+        exportFinal,
+        exportStoryboard: vi.fn()
+      }
+    })
+    const r = await svc.exportFinal('s1', { clipSource: 'comics' })
+    expect(r.outputPath).toBeTruthy()
+    const clips = (exportFinal.mock.calls[0][0] as { clips: Array<{ mediaPath: string }> })
+      .clips
+    expect(clips).toHaveLength(2)
+    expect(clips.map((c) => c.mediaPath)).toEqual([v1, v2])
+  })
+
+  it('exportFinal clipSource comics with no videos throws', async () => {
+    const prisma = createMockPrisma()
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({ title: 'Empty Book' })
+    )
+    ;(prisma.comic.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'cb1',
+      storyId: 's1',
+      pages: [{ id: 'pg1', order: 0, videoPath: null }]
+    })
+    const { svc } = makeSvc({ prisma })
+    await expect(svc.exportFinal('s1', { clipSource: 'comics' })).rejects.toMatchObject(
+      { message: 'errors.comicsNoVideos' }
+    )
+  })
+
   it('generateClip multi-cast with action + failure path marks FAILED', async () => {
     const prisma = createMockPrisma()
     ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(

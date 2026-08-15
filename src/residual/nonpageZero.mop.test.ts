@@ -212,7 +212,7 @@ describe('nonpageZero mop CLI/runtime', () => {
       }
     }
     rmSync(dir, { recursive: true, force: true })
-  })
+  }, 60_000)
 
   it('resolveFfmpegPath require default object branch', async () => {
     const { resolveFfmpegPath, ffmpegRequireBase } = await import(

@@ -229,6 +229,24 @@ export function MediaGenHost(): JSX.Element | null {
       }
 
       if (
+        req.kind === 'comic-page' &&
+        result.path
+      ) {
+        window.dispatchEvent(
+          new CustomEvent('idm:comic-page-done', {
+            detail: {
+              storyId: req.storyId,
+              pageId: req.pageId,
+              path: result.path,
+              kind: req.kind
+            }
+          })
+        )
+        toast.success(t('comics.generateOk'))
+        return
+      }
+
+      if (
         req.kind === 'timeline-still' &&
         req.storyId &&
         req.entryId &&

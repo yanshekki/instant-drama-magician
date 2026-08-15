@@ -3,6 +3,10 @@
  * Section.text stays English for the LLM; only display labels go through i18n.
  */
 import { getActionPanelLayout, ACTION_PANEL_LAYOUTS } from './actionPlateVariants'
+import {
+  COMIC_PAGE_LAYOUTS,
+  getComicPageLayout
+} from './comicPageLayouts'
 import { getArtStyle, isArtStyleId } from './characterArtStyles'
 import { getSheetVariant, isSheetVariantId } from './characterSheetVariants'
 import { getScenePlateVariant, isScenePlateVariantId } from './scenePlateVariants'
@@ -54,6 +58,11 @@ function localizeLayoutPackageId(
     const def = getActionPanelLayout(id)
     const label = t(`actions.${def.labelKey}`)
     return label === `actions.${def.labelKey}` ? def.galleryLabel : label
+  }
+  if (COMIC_PAGE_LAYOUTS.some((l) => l.id === id)) {
+    const def = getComicPageLayout(id)
+    const label = t(`comics.${def.labelKey}`)
+    return label === `comics.${def.labelKey}` ? def.id : label
   }
   if (isScenePlateVariantId(id)) {
     const def = getScenePlateVariant(id)

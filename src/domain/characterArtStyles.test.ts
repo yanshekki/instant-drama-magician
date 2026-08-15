@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ART_STYLES,
   DEFAULT_ART_STYLE,
+  artStylePrompt,
   getArtStyle,
   qualityBlockForFamily,
   artStylesByGroup
@@ -28,6 +29,15 @@ describe('characterArtStyles', () => {
     expect(qualityBlockForFamily('cgi')).toMatch(/3D|PBR|CG/i)
     expect(qualityBlockForFamily('illust')).toMatch(/illustration|silhouette/i)
     expect(qualityBlockForFamily('illust' as never)).toBeTruthy()
+  })
+
+  it('artStylePrompt follows the UI locale', () => {
+    expect(artStylePrompt('comic_western', 'zh-HK')).toMatch(/必須媒介：西式漫畫/)
+    expect(artStylePrompt('comic_western', 'zh-HK')).not.toMatch(
+      /MANDATORY MEDIUM|WESTERN COMIC/
+    )
+    expect(artStylePrompt('comic_western', 'en')).toMatch(/Western comic-book/i)
+    expect(artStylePrompt('comic_western', 'zh-CN')).toMatch(/必须媒介：西式漫画/)
   })
 
   it('front-loads mandatory medium and repeats style id', () => {

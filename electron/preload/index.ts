@@ -319,6 +319,37 @@ const api: ElectronApi & {
     confirm: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('videoPrep:confirm', payload)
   },
+  comics: {
+    get: (storyId: string) => ipcRenderer.invoke('comics:get', storyId),
+    update: (
+      storyId: string,
+      data: {
+        title?: string | null
+        artStyle?: string | null
+        hardRules?: string | null
+      }
+    ) => ipcRenderer.invoke('comics:update', storyId, data),
+    addPage: (
+      storyId: string,
+      input?: {
+        panelLayout?: string | null
+        artStyle?: string | null
+        panelScript?: unknown
+      }
+    ) => ipcRenderer.invoke('comics:addPage', storyId, input),
+    updatePage: (pageId: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('comics:updatePage', pageId, data),
+    deletePage: (pageId: string) =>
+      ipcRenderer.invoke('comics:deletePage', pageId),
+    deletePageVideo: (pageId: string, videoId: string) =>
+      ipcRenderer.invoke('comics:deletePageVideo', pageId, videoId),
+    setPageVideoPrimary: (pageId: string, videoId: string) =>
+      ipcRenderer.invoke('comics:setPageVideoPrimary', pageId, videoId),
+    autoPaginate: (storyId: string, layoutId?: string | null) =>
+      ipcRenderer.invoke('comics:autoPaginate', storyId, layoutId),
+    importToTimeline: (pageId: string) =>
+      ipcRenderer.invoke('comics:importToTimeline', pageId)
+  },
   mediaGen: {
     extract: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('mediaGen:extract', payload),

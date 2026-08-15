@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildIntroMediaGenRequest,
+  introLocaleFromI18n,
   resolveVideoAspectRatio
 } from './startIntroMediaGen'
 
@@ -16,6 +17,11 @@ describe('startIntroMediaGen', () => {
   beforeEach(() => {
     settingsGet.mockClear()
     settingsGet.mockResolvedValue({ aspectRatio: '9:16' })
+  })
+
+  it('introLocaleFromI18n falls back when empty', () => {
+    expect(introLocaleFromI18n('ja')).toBe('ja')
+    expect(introLocaleFromI18n('')).toBe('zh-HK')
   })
 
   it('resolveVideoAspectRatio reads settings', async () => {
@@ -51,6 +57,43 @@ describe('startIntroMediaGen', () => {
     })
     expect(r.skipStillIfExists).toBe(false)
     expect(r.galleryIdentityPaths).toEqual([])
+  })
+
+  it('comic-intro includes pageId and source still', async () => {
+    const r = await buildIntroMediaGenRequest({
+      kind: 'comic-intro',
+      sourceImagePath: '/tmp/page.png',
+      storyId: 's1',
+      pageId: 'pg1',
+      skipStillIfExists: true
+    })
+    expect(r.kind).toBe('comic-intro')
+    expect(r.pageId).toBe('pg1')
+    expect(r.storyId).toBe('s1')
+    expect(r.sourceImagePath).toBe('/tmp/page.png')
+    expect(r.skipStillIfExists).toBe(true)
+  })
+
+  it('comic-intro can lock video aspect to the page format', async () => {
+    const r = await buildIntroMediaGenRequest({
+      kind: 'comic-intro',
+      sourceImagePath: '/tmp/page.png',
+      storyId: 's1',
+      pageId: 'pg1',
+      aspectRatio: '9:16'
+    })
+    expect(r.aspectRatio).toBe('9:16')
+  })
+
+  it('comic-intro forwards the video scheme', async () => {
+    const r = await buildIntroMediaGenRequest({
+      kind: 'comic-intro',
+      sourceImagePath: '/tmp/page.png',
+      storyId: 's1',
+      pageId: 'pg1',
+      comicVideoScheme: 'drama'
+    })
+    expect(r.comicVideoScheme).toBe('drama')
   })
 
   it('timeline-clip can skip still without client source path', async () => {

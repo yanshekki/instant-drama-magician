@@ -10,6 +10,7 @@ const SAFE = [
   'props:list',
   'costumes:list',
   'actions:list',
+  'comics:get',
   'settings:get',
   'ai:status',
   'ai:listModels',

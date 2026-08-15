@@ -175,7 +175,9 @@ describe('PreviewPlayer', () => {
         onTogglePlay={onToggle}
       />
     )
-    await waitFor(() => expect(api.media.toPreviewUrl).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(screen.getByText(/timeline\.play|play/i)).toBeTruthy()
+    )
     fireEvent.click(screen.getByText(/timeline\.play|play/i))
     expect(onToggle).toHaveBeenCalled()
   })

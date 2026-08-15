@@ -6,15 +6,14 @@
  *   macOS:   ~/Library/Application Support/instant-drama-magician
  *   Windows: %APPDATA%\\instant-drama-magician
  *
- * Profile isolation (dev vs default) uses a sibling folder suffix `-dev`,
- * not a separate DB under the repo. Everything lives under one dataRoot:
+ * One data root for packaged app, `npm run dev`, CLI, and the web server:
  *   instant-drama.db, settings.json, media/, logs/, cache/, exports/
  *
  * Override order:
  *   1. explicit dataDir option / --data-dir
  *   2. IDM_DATA_DIR
- *   3. IDM_PROFILE (dev|default|custom) on top of OS base
- *   4. OS default (+ packaged vs dev profile)
+ *   3. IDM_PROFILE (default | dev | custom) — optional isolation only
+ *   4. OS default folder `instant-drama-magician` (never a hidden -dev split)
  */
 import { homedir } from 'os'
 import { join, resolve } from 'path'
@@ -37,8 +36,8 @@ export type ResolveAppPathsOptions = {
   /** process.env.IDM_PROFILE — 'default' | 'dev' | custom segment */
   profile?: AppPathProfile | null
   /**
-   * When true (Electron !isPackaged), default profile becomes 'dev'
-   * unless IDM_PROFILE / profile option is set.
+   * Kept for call-site compatibility. Does NOT pick a different folder.
+   * Dev and packaged share the OS home data root unless IDM_PROFILE / IDM_DATA_DIR is set.
    */
   isDevRuntime?: boolean
   /** Override process.platform */
@@ -113,10 +112,8 @@ export function appFolderName(profile: AppPathProfile = 'default'): string {
 
 export function resolveProfile(opts: ResolveAppPathsOptions = {}): AppPathProfile {
   const env = envOf(opts)
-  const raw =
-    opts.profile ??
-    env.IDM_PROFILE ??
-    (opts.isDevRuntime ? 'dev' : 'default')
+  // Ignore isDevRuntime — one OS home library for `npm run dev` and packaged.
+  const raw = opts.profile ?? env.IDM_PROFILE ?? 'default'
   const p = String(raw || 'default').trim() || 'default'
   return p
 }

@@ -56,6 +56,25 @@ export class MediaStore {
     return join(this.storyDir(storyId), 'tts')
   }
 
+  comicsDir(storyId: string): string {
+    return join(this.storyDir(storyId), 'comics')
+  }
+
+  comicPagePath(storyId: string, pageId: string, ext = '.png'): string {
+    return join(this.comicsDir(storyId), `${pageId}${ext}`)
+  }
+
+  /** Versioned page video so a new take never overwrites an older mp4. */
+  comicPageVideoPath(
+    storyId: string,
+    pageId: string,
+    videoId: string,
+    ext = '.mp4'
+  ): string {
+    const id = videoId.replace(/[^a-zA-Z0-9_-]/g, '') || 'v'
+    return join(this.comicsDir(storyId), `${pageId}_${id}${ext}`)
+  }
+
   clipPath(storyId: string, entryId: string, ext = '.mp4'): string {
     return join(this.clipsDir(storyId), `${entryId}${ext}`)
   }
@@ -392,6 +411,7 @@ export class MediaStore {
     mkdirSync(this.clipsDir(storyId), { recursive: true })
     mkdirSync(this.exportsDir(storyId), { recursive: true })
     mkdirSync(this.ttsDir(storyId), { recursive: true })
+    mkdirSync(this.comicsDir(storyId), { recursive: true })
   }
 
   importClip(storyId: string, entryId: string, sourcePath: string): string {

@@ -35,6 +35,7 @@ model Story {
   storyScenes     StoryScene[]
   storyProps      StoryProp[]
   storyActions    StoryAction[]
+  comics          Comic[]
 }
 
 /** Global character library asset (not owned by a story). */
@@ -283,6 +284,45 @@ model TimelineEntry {
   scene     Scene?     @relation(fields: [sceneId], references: [id], onDelete: SetNull)
   prop      Prop?      @relation(fields: [propId], references: [id], onDelete: SetNull)
   action    Action?    @relation(fields: [actionId], references: [id], onDelete: SetNull)
+}
+
+/** One comic book per story (pages are multi-panel stills). */
+model Comic {
+  id         String   @id @default(cuid())
+  storyId    String   @unique
+  title      String?
+  artStyle   String?
+  hardRules  String?
+  pageFormat String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  story Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  pages ComicPage[]
+}
+
+model ComicPage {
+  id              String      @id @default(cuid())
+  comicId         String
+  order           Int         @default(0)
+  panelLayout     String
+  pageFormat      String?
+  artStyle        String?
+  panelScriptJson String?
+  imagePath         String?
+  videoPath         String?
+  videoGalleryJson  String?
+  refGalleryJson    String?
+  mediaStatus     MediaStatus @default(EMPTY)
+  mediaError      String?
+  seedPrompt      String?
+  hardRules       String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  comic Comic @relation(fields: [comicId], references: [id], onDelete: Cascade)
+
+  @@index([comicId, order])
 }
 
 enum StoryStatus {

@@ -6,7 +6,9 @@ import {
   buildGenericEntityMaterialSections,
   buildMediaGenPolishSystemPrompt,
   buildMediaGenPolishUserText,
+  buildComicPageMaterialSections,
   buildTimelineBeatMaterialSections,
+  comicPageTaskHint,
   extractPolishedMediaPrompt,
   stripMediaGenPreamble,
   includedMaterialImagePaths,
@@ -119,8 +121,8 @@ describe('mediaGenPrep', () => {
       includedSections: sections.filter((s) => s.include),
       taskHint: actionPlateTaskHint('strip-3', 'Slash')
     })
-    expect(text).toMatch(/Ref#1/)
-    expect(text).toMatch(/Ref#2/)
+    expect(text).toMatch(/Ref#1|參考圖1/)
+    expect(text).toMatch(/Ref#2|參考圖2/)
     expect(text).toMatch(/Slash|strip-3|EXACTLY 3/i)
     expect(text).toMatch(/ground-truth|Lock identity/i)
     expect(text).not.toMatch(/No reference stills are attached/)
@@ -170,6 +172,8 @@ describe('mediaGenPrep', () => {
     })
     expect(zh0).toMatch(/沒有附上參考靜圖/)
     expect(zh0).not.toMatch(/附圖圖序/)
+    expect(zh0).toMatch(/任務：|種類：|材料/)
+    expect(zh0).not.toMatch(/^Task:|^Kind:|--- MATERIALS ---/m)
   })
 
   it('extractPolishedMediaPrompt strips fences', () => {
@@ -273,5 +277,53 @@ describe('mediaGenPrep', () => {
     const i = buildMediaGenPolishSystemPrompt('zh-HK')
     expect(i).toMatch(/LAYOUT|出圖方案|layout/i)
     expect(i).toMatch(/固定樣本|Demo|材料/)
+  })
+
+  it('buildComicPageMaterialSections locks panel count', () => {
+    const built = buildComicPageMaterialSections({
+      storyTitle: '夜巴',
+      pageOrder: 2,
+      layoutId: 'grid-2x2',
+      artStyleId: 'comic_western',
+      hardRules: 'no logo',
+      slots: [
+        { caption: '開門' },
+        { caption: '' },
+        { caption: '對打' },
+        { caption: '收勢' }
+      ],
+      galleryPaths: ['/c.png'],
+      previousPagePath: '/prev.png',
+      ownPagePath: '/own.png',
+      locale: 'zh-HK'
+    })
+    expect(built.genOptions.panelLayout).toBe('grid-2x2')
+    expect(built.fallbackPrompt).toMatch(/剛好 4 格|必須剛好 4/)
+    expect(built.fallbackPrompt).toMatch(/必須媒介：西式漫畫|畫風：/)
+    expect(built.fallbackPrompt).not.toMatch(
+      /EXACTLY 4|GEOMETRY LOCK|Layout:|MANDATORY MEDIUM/
+    )
+    expect(built.fallbackPrompt).toContain('開門')
+    expect(built.taskHint).toContain('夜巴')
+    expect(built.sections.some((s) => s.id === 'prev_page')).toBe(true)
+    expect(built.sections.some((s) => s.id === 'own_page')).toBe(true)
+    expect(built.sections.some((s) => s.entityType === 'hardRules')).toBe(true)
+    expect(mediaGenMode('comic-page')).toBe('image')
+    expect(
+      comicPageTaskHint({
+        storyTitle: 'X',
+        pageOrder: 1,
+        panelCount: 4,
+        locale: 'en'
+      })
+    ).toMatch(/exactly 4/i)
+    expect(
+      comicPageTaskHint({
+        storyTitle: '夜巴',
+        pageOrder: 1,
+        panelCount: 4,
+        locale: 'zh-HK'
+      })
+    ).toMatch(/剛好 4 格/)
   })
 })
