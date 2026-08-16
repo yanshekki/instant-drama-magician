@@ -1,4 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 import { classifyUpdateError, emptyUpdateState } from './updateTypes'
 
 const handlers: Record<string, (...a: unknown[]) => void> = {}
@@ -31,6 +33,37 @@ vi.mock('../../domain/installChannel', () => ({
   githubReleaseUrl: (v?: string) =>
     v ? `https://github.com/r/releases/tag/v${v}` : 'https://github.com/r/releases'
 }))
+
+describe('installer artifactName (GitHub auto-update)', () => {
+  it('uses space-free names so feed URLs match Release assets', () => {
+    const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as {
+      build: {
+        appImage?: { artifactName?: string }
+        nsis?: { artifactName?: string }
+        dmg?: { artifactName?: string }
+      }
+    }
+    const names = [
+      pkg.build.appImage?.artifactName,
+      pkg.build.nsis?.artifactName,
+      pkg.build.dmg?.artifactName
+    ]
+    for (const name of names) {
+      expect(name).toBeTruthy()
+      expect(name).not.toMatch(/\s/)
+      expect(name).not.toContain('${productName}')
+    }
+    expect(pkg.build.appImage?.artifactName).toBe(
+      'InstantDrama-Magician-${version}.${ext}'
+    )
+    expect(pkg.build.nsis?.artifactName).toBe(
+      'InstantDrama-Magician-Setup-${version}.${ext}'
+    )
+    expect(pkg.build.dmg?.artifactName).toBe(
+      'InstantDrama-Magician-${version}-${arch}.${ext}'
+    )
+  })
+})
 
 describe('classifyUpdateError', () => {
   it('classifies kinds', () => {

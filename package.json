@@ -62,10 +62,10 @@
     "locales:zh-cn": "node scripts/generate-locales.mjs --zh-cn-only",
     "postinstall": "prisma generate",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder",
-    "dist:linux": "npm run build && electron-builder --linux AppImage deb",
-    "dist:win": "npm run build && electron-builder --win nsis",
-    "dist:mac": "npm run build && electron-builder --mac dmg"
+    "dist": "npm run build && electron-builder --publish never",
+    "dist:linux": "npm run build && electron-builder --linux AppImage deb --publish never",
+    "dist:win": "npm run build && electron-builder --win nsis --publish never",
+    "dist:mac": "npm run build && electron-builder --mac dmg --publish never"
   },
   "build": {
     "appId": "hk.ysk.instant-drama-magician",
@@ -134,6 +134,9 @@
         "StartupWMClass": "instant-drama-magician"
       }
     },
+    "appImage": {
+      "artifactName": "InstantDrama-Magician-${version}.${ext}"
+    },
     "mac": {
       "target": [
         "dmg"
@@ -141,6 +144,9 @@
       "category": "public.app-category.video",
       "icon": "build/icon.png",
       "identity": null
+    },
+    "dmg": {
+      "artifactName": "InstantDrama-Magician-${version}-${arch}.${ext}"
     },
     "win": {
       "target": [
@@ -152,7 +158,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "InstantDrama Magician"
+      "shortcutName": "InstantDrama Magician",
+      "artifactName": "InstantDrama-Magician-Setup-${version}.${ext}"
     }
   },
   "dependencies": {

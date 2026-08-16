@@ -51,14 +51,14 @@ jobs:
       - name: Build
         run: npm run build
       - name: Dist (AppImage + deb)
-        run: npx electron-builder --linux AppImage deb
+        run: npx electron-builder --linux AppImage deb --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify linux update assets
         run: |
           test -n "$(ls release/*.AppImage 2>/dev/null)" || { echo "missing AppImage"; exit 1; }
           test -f release/latest-linux.yml || { echo "missing latest-linux.yml"; exit 1; }
+          node scripts/verify-update-feed.mjs release
           echo "Linux assets OK"
           ls -la release/*.{AppImage,deb,yml} 2>/dev/null || true
       - name: Upload linux artifacts
@@ -103,15 +103,15 @@ jobs:
       - name: Build
         run: npm run build
       - name: Dist (NSIS)
-        run: npx electron-builder --win nsis
+        run: npx electron-builder --win nsis --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify windows update assets
         shell: bash
         run: |
           test -n "$(ls release/*.exe 2>/dev/null)" || { echo "missing exe"; exit 1; }
           test -f release/latest.yml || { echo "missing latest.yml"; exit 1; }
+          node scripts/verify-update-feed.mjs release
           echo "Windows assets OK"
       - name: Upload windows artifacts
         uses: actions/upload-artifact@v4
@@ -152,14 +152,14 @@ jobs:
       - name: Build
         run: npm run build
       - name: Dist (dmg unsigned)
-        run: npx electron-builder --mac dmg
+        run: npx electron-builder --mac dmg --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify mac update assets
         run: |
           test -n "$(ls release/*.dmg 2>/dev/null)" || { echo "missing dmg"; exit 1; }
           test -f release/latest-mac.yml || { echo "missing latest-mac.yml"; exit 1; }
+          node scripts/verify-update-feed.mjs release
           echo "macOS assets OK"
       - name: Upload mac artifacts
         uses: actions/upload-artifact@v4
