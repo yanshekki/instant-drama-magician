@@ -165,6 +165,49 @@ describe('MediaGenHost', () => {
     }
   })
 
+  it('comic-page and key-art dispatch done events', async () => {
+    const comicEv: unknown[] = []
+    const artEv: unknown[] = []
+    const onComic = (ev: Event): void => {
+      comicEv.push((ev as CustomEvent).detail)
+    }
+    const onArt = (ev: Event): void => {
+      artEv.push((ev as CustomEvent).detail)
+    }
+    window.addEventListener('idm:comic-page-done', onComic)
+    window.addEventListener('idm:key-art-done', onArt)
+    try {
+      mediaGenRequest = {
+        kind: 'comic-page',
+        storyId: 's1',
+        pageId: 'p1'
+      }
+      const { unmount } = render(<MediaGenHost />)
+      await waitFor(() => expect(lastOnGenerated).toBeTruthy())
+      await act(async () => {
+        lastOnGenerated!({ path: '/c.png' })
+      })
+      expect(comicEv).toHaveLength(1)
+      expect(startJob).not.toHaveBeenCalled()
+      unmount()
+      mediaGenRequest = {
+        kind: 'key-art',
+        storyId: 's1',
+        pageId: 'sh1'
+      }
+      render(<MediaGenHost />)
+      await waitFor(() => expect(lastOnGenerated).toBeTruthy())
+      await act(async () => {
+        lastOnGenerated!({ path: '/k.png' })
+      })
+      expect(artEv).toHaveLength(1)
+      expect(toast.success).toHaveBeenCalledWith('keyArt.generateOk')
+    } finally {
+      window.removeEventListener('idm:comic-page-done', onComic)
+      window.removeEventListener('idm:key-art-done', onArt)
+    }
+  })
+
   it('timeline-clip video mode no-ops onGenerated (video via confirm + video-prep-done)', async () => {
     mediaGenRequest = {
       kind: 'timeline-clip',

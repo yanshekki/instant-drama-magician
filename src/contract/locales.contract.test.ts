@@ -75,4 +75,26 @@ describe('locales contract', () => {
       expect(same, `${f} leftover English ${same}`).toBeLessThan(220)
     }
   })
+
+  it('keyArt UI strings are not English paste', () => {
+    const en = flatten(
+      JSON.parse(readFileSync(join(dir, 'en.json'), 'utf8')) as Record<
+        string,
+        unknown
+      >
+    )
+    const keys = Object.keys(en).filter((k) => k.startsWith('keyArt.'))
+    expect(keys.length).toBeGreaterThan(80)
+    for (const f of files) {
+      if (f === 'en.json') continue
+      const flat = flatten(
+        JSON.parse(readFileSync(join(dir, f), 'utf8')) as Record<
+          string,
+          unknown
+        >
+      )
+      const same = keys.filter((k) => flat[k] === en[k])
+      expect(same, `${f} keyArt leftover ${same.join(',')}`).toEqual([])
+    }
+  })
 })

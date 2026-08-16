@@ -309,6 +309,7 @@ describe('mediaGenPrep', () => {
     expect(built.sections.some((s) => s.id === 'own_page')).toBe(true)
     expect(built.sections.some((s) => s.entityType === 'hardRules')).toBe(true)
     expect(mediaGenMode('comic-page')).toBe('image')
+    expect(mediaGenMode('key-art')).toBe('image')
     expect(
       comicPageTaskHint({
         storyTitle: 'X',

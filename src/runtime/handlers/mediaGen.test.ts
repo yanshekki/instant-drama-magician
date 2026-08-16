@@ -62,6 +62,12 @@ describe('registerMediagenHandlers', () => {
         join(dir!, `a_${id}_${kind}${ext}`),
       comicPagePath: (sid: string, pid: string, ext = '.png') =>
         join(dir!, `comic_${sid}_${pid}${ext}`),
+      keyArtShotPath: (
+        sid: string,
+        pid: string,
+        imageId: string,
+        ext = '.png'
+      ) => join(dir!, `keyart_${sid}_${pid}_${imageId}${ext}`),
       ...extra
     }
   }
@@ -2144,6 +2150,224 @@ describe('registerMediagenHandlers', () => {
     expect(generateImage).toHaveBeenCalled()
     expect(out.path).toBeTruthy()
     expect(updatePage).toHaveBeenCalled()
+  })
+
+  it('extract and generate key-art', async () => {
+    const img = mkImg('hero.png')
+    const updateShot = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const { h, generateImage } = baseCtx({
+      keyArt: () =>
+        ({
+          getShot: vi.fn(async () => ({
+            id: 'sh1',
+            keyArtId: 'ka1',
+            order: 0,
+            shotType: 'cover',
+            makeMethod: 'fresh',
+            pageFormat: 'wide',
+            artStyle: null,
+            brief: '雨夜',
+            characterIdsJson: JSON.stringify(['c1']),
+            sceneId: 'sc1',
+            timelineEntryId: null,
+            comicPageId: null,
+            imagePath: null,
+            imageGalleryJson: null,
+            hardRules: null
+          })),
+          getById: vi.fn(async () => ({
+            id: 'ka1',
+            storyId: 's1',
+            title: '夜巴',
+            artStyle: 'photo_cinematic',
+            hardRules: 'no logo',
+            pageFormat: 'wide'
+          })),
+          getWithShots: vi.fn(async () => ({
+            book: { id: 'ka1', storyId: 's1' },
+            shots: []
+          })),
+          parseCharacterIds: (json?: string | null) => {
+            if (!json) return []
+            return JSON.parse(json) as string[]
+          },
+          updateShot
+        }) as never,
+      stories: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 's1',
+            title: '夜巴',
+            hardRules: null
+          }))
+        }) as never,
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Aria',
+            refImagePath: img,
+            refSheetPath: null
+          }))
+        }) as never,
+      scenes: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'sc1',
+            title: 'Roof',
+            refImagePath: img
+          }))
+        }) as never
+    })
+    await expect(
+      invokeRegistered(h as never, 'mediaGen:extract', { kind: 'key-art' })
+    ).rejects.toMatchObject({ message: 'errors.keyArtShotIdRequired' })
+    const extracted = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'key-art',
+      pageId: 'sh1',
+      locale: 'zh-HK',
+      shotType: 'cover',
+      keyArtMakeMethod: 'fresh'
+    })) as {
+      kind: string
+      fallbackPrompt: string
+      genOptions: { aspectRatio?: string; galleryLabel?: string }
+      sections: Array<{ id: string; entityType?: string }>
+    }
+    expect(extracted.kind).toBe('key-art')
+    expect(extracted.fallbackPrompt).toMatch(/夜巴|劇照|封面/)
+    expect(extracted.fallbackPrompt).not.toMatch(/GEOMETRY LOCK|LAYOUT LOCK/)
+    expect(extracted.genOptions.aspectRatio).toBe('16:9')
+    expect(extracted.sections.some((s) => s.entityType === 'character')).toBe(
+      true
+    )
+    const out = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'key-art',
+      pageId: 'sh1',
+      shotType: 'cover',
+      keyArtMakeMethod: 'fresh',
+      polishedPrompt: 'One finished 16:9 cover poster, title-safe band, rain night.'
+    })) as { path: string }
+    expect(generateImage).toHaveBeenCalled()
+    expect(out.path).toContain('keyart_')
+    expect(updateShot).toHaveBeenCalled()
+  })
+
+  it('extract key-art continue uses previous still and persist swallows errors', async () => {
+    const img = mkImg('hero.png')
+    const prev = mkImg('prev.png')
+    const own = mkImg('own.png')
+    const comicStill = mkImg('comic.png')
+    const { h, generateImage } = baseCtx({
+      keyArt: () =>
+        ({
+          getShot: vi.fn(async () => ({
+            id: 'sh2',
+            keyArtId: 'ka1',
+            order: 1,
+            shotType: 'still',
+            makeMethod: 'continue',
+            pageFormat: 'tall',
+            artStyle: null,
+            brief: 'next',
+            characterIdsJson: JSON.stringify(['gone']),
+            sceneId: 'missing-sc',
+            timelineEntryId: 'e1',
+            comicPageId: 'pg1',
+            imagePath: own,
+            imageGalleryJson: JSON.stringify([
+              { id: 'v1', path: own, method: 'fresh', createdAt: 't' }
+            ]),
+            hardRules: null
+          })),
+          getById: vi.fn(async () => ({
+            id: 'ka1',
+            storyId: 's1',
+            title: '夜巴',
+            artStyle: null,
+            hardRules: null,
+            pageFormat: 'tall'
+          })),
+          getWithShots: vi.fn(async () => ({
+            book: { id: 'ka1', storyId: 's1' },
+            shots: [
+              { id: 'sh1', imagePath: prev, order: 0 },
+              { id: 'sh2', imagePath: own, order: 1 }
+            ]
+          })),
+          parseCharacterIds: () => ['gone'],
+          updateShot: vi.fn(async () => {
+            throw new Error('persist fail')
+          })
+        }) as never,
+      stories: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 's1',
+            title: '夜巴',
+            hardRules: 'no logo'
+          }))
+        }) as never,
+      characters: () =>
+        ({
+          get: vi.fn(async () => {
+            throw new Error('missing char')
+          })
+        }) as never,
+      scenes: () =>
+        ({
+          get: vi.fn(async () => {
+            throw new Error('missing scene')
+          })
+        }) as never,
+      comics: () =>
+        ({
+          getPage: vi.fn(async () => ({
+            id: 'pg1',
+            order: 2,
+            imagePath: comicStill
+          }))
+        }) as never,
+      timeline: () =>
+        ({
+          list: vi.fn(async () => [{ id: 'e1', dialogue: '開門' }])
+        }) as never
+    })
+    const extracted = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'key-art',
+      pageId: 'sh2',
+      locale: 'zh-HK',
+      keyArtMakeMethod: 'continue',
+      shotType: 'still',
+      galleryIdentityPaths: [img]
+    })) as {
+      sections: Array<{ id: string }>
+      editBaseSectionId: string | null
+      fallbackPrompt: string
+    }
+    expect(extracted.sections.some((s) => s.id === 'keyart_prev')).toBe(true)
+    expect(extracted.sections.some((s) => s.id.startsWith('comic_'))).toBe(true)
+    expect(extracted.editBaseSectionId).toBe('keyart_prev')
+    expect(extracted.fallbackPrompt).toMatch(/開門|綁定分鏡/)
+    const edited = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'key-art',
+      pageId: 'sh2',
+      locale: 'zh-HK',
+      keyArtMakeMethod: 'edit'
+    })) as { editBaseSectionId: string | null; sections: Array<{ id: string }> }
+    expect(edited.editBaseSectionId).toBe('keyart_own')
+    expect(edited.sections.some((s) => s.id === 'keyart_own')).toBe(true)
+    const out = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'key-art',
+      pageId: 'sh2',
+      keyArtMakeMethod: 'edit',
+      polishedPrompt: 'One finished tall 9:16 production still in rain.'
+    })) as { path: string }
+    expect(generateImage).toHaveBeenCalled()
+    expect(out.path).toBeTruthy()
   })
 
   it('extract comic-intro requires a page still', async () => {

@@ -13,6 +13,7 @@ import { registerStorycastHandlers } from './handlers/storyCast'
 import { registerPropsHandlers } from './handlers/props'
 import { registerActionsHandlers } from './handlers/actions'
 import { registerComicsHandlers } from './handlers/comics'
+import { registerKeyArtHandlers } from './handlers/keyArt'
 import { registerMediagenHandlers } from './handlers/mediaGen'
 import { registerCostumesHandlers } from './handlers/costumes'
 import { registerVideoprepHandlers } from './handlers/videoPrep'
@@ -50,6 +51,7 @@ export function registerAllHandlers(
   registerPropsHandlers(ctx)
   registerActionsHandlers(ctx)
   registerComicsHandlers(ctx)
+  registerKeyArtHandlers(ctx)
   registerMediagenHandlers(ctx)
   registerCostumesHandlers(ctx)
   registerVideoprepHandlers(ctx)

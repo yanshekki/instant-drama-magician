@@ -43,7 +43,7 @@ describe('createRuntime', () => {
       appVersion: 'test',
       isPackaged: false
     })
-    expect(runtime.channels().length).toBe(167)
+    expect(runtime.channels().length).toBe(175)
     expect(runtime.hasChannel('stories:list')).toBe(true)
     const list = await runtime.invoke('stories:list', [])
     expect(Array.isArray(list)).toBe(true)

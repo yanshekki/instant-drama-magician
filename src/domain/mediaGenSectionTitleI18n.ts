@@ -20,6 +20,10 @@ import {
   translatePropGalleryLabel,
   translateSceneGalleryLabel
 } from './galleryLabelI18n'
+import {
+  KEY_ART_SHOT_TYPES,
+  getKeyArtShotType
+} from './keyArtShotTypes'
 
 export type MediaGenSectionTitleT = (
   key: string,
@@ -64,6 +68,11 @@ function localizeLayoutPackageId(
     const label = t(`comics.${def.labelKey}`)
     return label === `comics.${def.labelKey}` ? def.id : label
   }
+  if (KEY_ART_SHOT_TYPES.some((tpe) => tpe.id === id)) {
+    const def = getKeyArtShotType(id)
+    const label = t(`keyArt.${def.labelKey}`)
+    return label === `keyArt.${def.labelKey}` ? def.id : label
+  }
   if (isScenePlateVariantId(id)) {
     const def = getScenePlateVariant(id)
     const label = t(`scenes.${def.labelKey}`)
@@ -102,6 +111,9 @@ export function translateMediaGenSectionTitle(
   if (section.entityType === 'hardRules') {
     return t('mediaGen.hardRulesTitle')
   }
+
+  if (section.id === 'keyart_own') return t('mediaGen.keyArtOwn')
+  if (section.id === 'keyart_prev') return t('mediaGen.keyArtPrev')
 
   if (
     section.entityType === 'continuity' ||

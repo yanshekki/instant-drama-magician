@@ -53,6 +53,7 @@ describe('MediaStore', () => {
     expect(existsSync(store.clipsDir('s1'))).toBe(true)
     expect(existsSync(store.comicsDir('s1'))).toBe(true)
     expect(store.comicPagePath('s1', 'p1')).toContain('comics')
+    expect(store.keyArtShotPath('s1', 'k1', 'ka_1')).toContain('key-art')
     expect(store.comicPageVideoPath('s1', 'p1', 'cv_ab')).toContain(
       'p1_cv_ab.mp4'
     )

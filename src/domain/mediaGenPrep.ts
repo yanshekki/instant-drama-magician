@@ -37,6 +37,7 @@ export type MediaGenKind =
   | 'atmosphere-swap'
   | 'timeline-still'
   | 'comic-page'
+  | 'key-art'
   // videos
   | 'comic-intro'
   | 'character-intro'
@@ -68,6 +69,7 @@ export const ALL_MEDIA_GEN_KINDS: MediaGenKind[] = [
   'atmosphere-swap',
   'timeline-still',
   'comic-page',
+  'key-art',
   'comic-intro',
   'character-intro',
   'scene-intro',

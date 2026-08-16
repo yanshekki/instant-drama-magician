@@ -8,24 +8,40 @@
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
 </p>
 
-鎖定角色面貌，為每一段分鏡出圖。同一套分鏡可以走兩條路：**時間軸** 出 6／10 秒片段，或 **漫畫書** 出完整頁，頁面仍然可以再出片。
+<p align="center">
+  <a href="#安裝與啟動"><img src="https://img.shields.io/badge/桌面-Linux%20%7C%20Windows%20%7C%20macOS-1f6feb?style=flat-square" alt="桌面"></a>
+  <a href="#命令列-cliidm"><img src="https://img.shields.io/badge/命令列-175%20channels-238636?style=flat-square" alt="命令列"></a>
+  <a href="#多語系"><img src="https://img.shields.io/badge/介面-10%20種語言-6e40c9?style=flat-square" alt="語言"></a>
+  <img src="https://img.shields.io/badge/授權-MIT-8b949e?style=flat-square" alt="MIT">
+</p>
+
+鎖定角色面貌，為每一段分鏡出圖。同一套故事可以走三條路：**時間軸** 出 6／10 秒片段、**漫畫書** 出完整頁（頁面仍可再出片），或 **劇照檯** 做封面、劇照、宣傳圖與主角大頭。
 
 <p align="center">
   <img src="./src/assets/screen/7.png" alt="時間軸流程——分鏡靜圖、導演詞與已生成片段同板" width="100%">
 </p>
 <p align="center"><em>時間軸——每一欄是一段：角色聖經、場景、導演詞、關鍵幀靜圖，然後是片段。</em></p>
 
-<p align="center">
-  <img src="./src/assets/screen/10.png" alt="漫畫成圖頁：完成頁與多版本本頁影片" width="100%">
-</p>
-<p align="center"><em>漫畫——把分鏡排成一頁，鎖定成圖，再出多版本本頁影片（漫畫頁動畫或短劇分鏡）。</em></p>
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./src/assets/screen/10.png" alt="漫畫成圖頁：完成頁與多版本本頁影片" width="100%">
+      <p align="center"><em>漫畫——把分鏡排成一頁，鎖定成圖，再出多版本本頁影片。</em></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./src/assets/screen/12.png" alt="劇照成圖：出圖方式、主圖與多版本宣傳靜圖" width="100%">
+      <p align="center"><em>劇照——封面、劇照、宣傳、大頭。四種出圖方式，版本一格格排。</em></p>
+    </td>
+  </tr>
+</table>
 
 | 桌面 | 遠控 | 命令列 |
 |---|---|---|
-| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**167** 個 channel，與應用相同 |
+| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**175** 個 channel，與應用相同 |
 
 - **身份鎖定** — 多角度角色聖經、戲服、場景、道具與動作板  
 - **漫畫工作室** — 規則格或漫畫不規則格、9:16／1:1／16:9、本頁動畫或短劇分鏡、多版本本頁影片  
+- **劇照檯** — 八種題材、四種出圖方式（全新／改圖／鎖臉重畫／延續上一張）、多版本靜圖、可設為故事封面  
 - **畫面連續** — 上一段靜圖與片尾，餵給下一段  
 - **先選材料** — 勾選靜圖與文字，優化導演詞，再出靜圖與影片  
 - **你仍主控** — 配方選擇器、完成後作業系統通知、十種介面語言  
@@ -53,7 +69,19 @@
 
 ## 介面預覽
 
-截圖來自實際應用（`src/assets/screen/`）。上方兩張主圖分別是 **時間軸流程** 板與 **漫畫成圖** 工作檯。
+截圖來自實際應用（`src/assets/screen/`）。上方主圖是 **時間軸**、**漫畫** 與 **劇照** 三張工作檯。
+
+### 劇照——選題材
+
+八種宣傳題材（封面、直立海報、劇照、宣傳圖、社交直圖、主角大頭、半身、群像）。開本跟題材走（直向 9:16、方形、橫向），你亦可自行鎖定。
+
+![劇照題材與開本](./src/assets/screen/11.png)
+
+### 劇照——出圖方式與版本
+
+成圖頁四張方案卡：全新生成、用此圖改、鎖定面貌重畫、延續上一張。版本會一直保留至你刪除。一鍵可設為故事封面。
+
+![劇照出圖方式與版本庫](./src/assets/screen/12.png)
 
 ### 漫畫——選頁面模板
 
@@ -125,11 +153,12 @@
 | **圖庫 UI** | 共用 **EntityGalleryPanel**：大圖預覽、放大／另存／封面／移除／介紹片、縮圖列（預覽 vs 身份鎖定多選） |
 | **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、綁定角色／場景／道具／**動作**、6s／10s 時長、對白與鏡頭標記；**流程圖**按視窗高度向下換欄 |
 | **漫畫 Comics** | 將分鏡排成完整頁（規則格＋漫畫格）、9:16／1:1／16:9、本頁動畫或短劇分鏡方案、多版本本頁影片、只串已有片的頁匯出成片 |
+| **劇照 Key art** | 故事宣傳靜圖：封面／海報／劇照／宣傳／社交／大頭／半身／群像；四種出圖方式；多版本 PNG；可選 **設為故事封面** |
 | **進階預備** | Cast 鎖定 → 分鏡 stills（**片尾連續**、強制上一段 keyframe、多 ref 潤飾）→ 出片；單格**精修靜圖／精修出片**（MediaGen） |
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
 | **設定** | LLM／影像／影片供應商、**完成後作業系統通知**、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
-| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**167** 個 IPC channel） |
+| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**175** 個 IPC channel） |
 | **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
 | **多語系** | 10 種介面語言（香港書面語、中國大陸書面語、阿語 RTL 等）；LLM 改善／生成前的**配方選擇器**；MediaGen 介面已本地化 |
 | **自動更新** | 打包版經 GitHub Releases（electron-updater） |
@@ -138,7 +167,7 @@
 
 ## 桌面應用詳解
 
-側欄導航：**Stories · Characters · Costumes · Scenes · Props · Actions · Comics · Timeline · Activity · Settings**。
+側欄導航：**故事 · 角色 · 戲服 · 場景 · 道具 · 動作 · 漫畫 · 劇照 · 時間軸 · 活動紀錄 · 設定**。
 
 ### Stories（故事）
 
@@ -205,6 +234,20 @@
 - **匯出成片** 只串已有片的漫畫頁（`clipSource: comics`），不會改寫故事時間軸  
 - 可選把頁面靜圖 **引入時間軸** 做連續鎖定  
 
+### Key art（劇照）
+
+- 每個故事一本劇照冊；每一項是宣傳靜圖（不是漫畫頁，也不是時間軸片段）  
+- **題材**：八張卡——封面海報、直立海報、劇照、宣傳圖、社交直圖、主角大頭、半身宣傳、群像  
+- 開本 **直向 9:16**／**方形 1:1**／**橫向 16:9** 跟題材建議，可覆寫  
+- **材料**：拍攝指示、畫風、多選角色、場景、時間軸分鏡、可選漫畫頁  
+- **成圖**：四張常駐出圖方式卡  
+  - **全新生成** — 參考圖只鎖定身份  
+  - **用此圖改** — 本張成圖做像素底圖（要已有成圖）  
+  - **鎖定面貌重畫** — 同一個人，姿勢／裁切可新  
+  - **延續上一張** — 同一批人、同一場，下一拍  
+- 靜圖版本一格格排；指定主圖；只有你選擇才刪  
+- **設為故事封面** 才寫入 `Story.coverPath`，絕不會自動覆寫  
+
 ### Timeline（時間軸 · 主製作台）
 
 - 選擇當前故事；**Play**／**Undo**／**Redo**  
@@ -268,6 +311,7 @@
 ⑥ 劇情段落 → 每段綁定資產（含動作）
 ⑦ Timeline → 排 clip、寫 beat screenplay
    或 Comics → 選模板 → 寫分格 → 生成漫畫頁 → 本頁影片
+   或 劇照 → 選題材 → 綁角色 → 揀出圖方式 → 生成靜圖／設為封面
 ⑧ Advanced prep → stills（連貫）→ 出片
 ⑨ Export → 成片（可選 TTS／字幕）；漫畫亦可只串已有片的頁自行匯出成片
 ```
@@ -386,7 +430,7 @@ instant-drama update install 1.5.0 --yes   # 釘選版本
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # 約 167 個 channel
+instant-drama channels list --json          # 約 175 個 channel
 ```
 
 > **說明：** 全域安裝提供 **CLI／headless／網頁伺服器** 控制面（故事、角色、生成、匯出輔助、agent 工具）。若要 **建置或開啟 Electron 桌面 GUI**（`instant-drama build`／`instant-drama open`），仍需完整 git clone、`npm install`（含 Electron 等 devDependencies）以及本機 `release/` 產物。
@@ -412,7 +456,7 @@ npm run instant-drama -- doctor --json
 ### 常用指令
 
 ```bash
-# 診斷（channel 數應約 167）
+# 診斷（channel 數應約 175）
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -601,7 +645,7 @@ rm -rf ~/.config/instant-drama-magician
 |------|------|------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | 文件總覽 + 準則 |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | 產品規格 |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（167 channels） |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（175 channels） |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agent／OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | 網頁遠控 |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

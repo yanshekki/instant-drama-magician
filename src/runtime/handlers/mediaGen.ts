@@ -40,6 +40,8 @@ type ExtractPayload = {
   /** When true, surface existing continuity/keyframe path if on disk */
   skipStillIfExists?: boolean
   comicVideoScheme?: 'page' | 'drama'
+  keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
+  shotType?: string | null
   pageFormat?: 'tall' | 'square' | 'wide'
   forcePureLayout?: boolean
 }
@@ -127,6 +129,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
     props,
     stories,
     comics,
+    keyArt,
     costumes,
     timeline,
     generation,
@@ -1759,6 +1762,266 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       }
     }
 
+    if (kind === 'key-art') {
+      const shotId = payload.pageId?.trim()
+      if (!shotId) {
+        throw new AppError('VALIDATION', 'errors.keyArtShotIdRequired')
+      }
+      const shot = await keyArt().getShot(shotId)
+      const book = await keyArt().getById(shot.keyArtId)
+      const story = await stories().get(book.storyId)
+      const locale = PromptCatalog.locale(payload.locale)
+      const {
+        getKeyArtShotType,
+        coerceKeyArtShotType
+      } = await import('../../domain/keyArtShotTypes')
+      const { getKeyArtMakeMethod } = await import(
+        '../../domain/keyArtMakeMethods'
+      )
+      const { parseKeyArtShotImages } = await import(
+        '../../domain/keyArtShotImages'
+      )
+      const { buildKeyArtFallbackPrompt } = await import(
+        '../../domain/keyArtPrompt'
+      )
+      const {
+        effectiveComicPageFormat,
+        aspectForComicFormat
+      } = await import('../../domain/comicPageFormat')
+      const { getArtStyle } = await import('../../domain/characterArtStyles')
+      const shotType = coerceKeyArtShotType(
+        payload.shotType ?? shot.shotType
+      )
+      const type = getKeyArtShotType(shotType)
+      const method = getKeyArtMakeMethod(
+        payload.keyArtMakeMethod ?? shot.makeMethod
+      )
+      const pageFormat = effectiveComicPageFormat({
+        pageFormat: payload.pageFormat ?? shot.pageFormat,
+        bookFormat: book.pageFormat ?? 'wide',
+        layout: { sizeClass: type.sizeClass }
+      })
+      const artStyle = getArtStyle(
+        payload.artStyle ?? shot.artStyle ?? book.artStyle ?? undefined
+      ).id
+      const usedPaths = new Set<string>()
+      const takePath = (p?: string | null): string | null => {
+        const t = p?.trim()
+        if (!t || usedPaths.has(t)) return null
+        usedPaths.add(t)
+        return t
+      }
+      const charIds = keyArt().parseCharacterIds(shot.characterIdsJson)
+      const charSections: MediaGenMaterialSection[] = []
+      for (const id of charIds) {
+        try {
+          const row = await characters().get(id)
+          const path =
+            takePath(row.refImagePath) ||
+            takePath((row as { refSheetPath?: string | null }).refSheetPath)
+          if (!path) continue
+          charSections.push({
+            id: `char_${id}`,
+            kind: 'ref-image',
+            title: (row as { name?: string }).name || id,
+            entityType: 'character',
+            text: '',
+            imagePath: path,
+            include: true,
+            canBeEditBase: false,
+            group: 'refs'
+          })
+        } catch {
+          /* optional */
+        }
+      }
+      let sceneSection: MediaGenMaterialSection | null = null
+      if (shot.sceneId?.trim()) {
+        try {
+          const row = await scenes().get(shot.sceneId.trim())
+          const path = takePath(row.refImagePath)
+          if (path) {
+            sceneSection = {
+              id: `scene_${row.id}`,
+              kind: 'ref-image',
+              title:
+                (row as { title?: string; name?: string }).title ||
+                (row as { name?: string }).name ||
+                row.id,
+              entityType: 'scene',
+              text: '',
+              imagePath: path,
+              include: true,
+              canBeEditBase: false,
+              group: 'refs'
+            }
+          }
+        } catch {
+          /* optional */
+        }
+      }
+      let comicSection: MediaGenMaterialSection | null = null
+      if (shot.comicPageId?.trim()) {
+        try {
+          const page = await comics().getPage(shot.comicPageId.trim())
+          const path = takePath(page.imagePath)
+          if (path) {
+            comicSection = {
+              id: `comic_${page.id}`,
+              kind: 'ref-image',
+              title: String((page.order ?? 0) + 1),
+              entityType: 'comic',
+              text: '',
+              imagePath: path,
+              include: true,
+              canBeEditBase: false,
+              group: 'refs'
+            }
+          }
+        } catch {
+          /* optional */
+        }
+      }
+      let beatText: string | null = shot.brief
+      if (shot.timelineEntryId?.trim()) {
+        try {
+          const list = (await timeline().list(book.storyId)) as Array<{
+            id: string
+            dialogue?: string | null
+          }>
+          const hit = list.find((e) => e.id === shot.timelineEntryId)
+          if (hit?.dialogue?.trim()) beatText = hit.dialogue.trim()
+        } catch {
+          /* captions */
+        }
+      }
+      let prevPath: string | null = null
+      if (method.usesPreviousShot) {
+        try {
+          const pack = await keyArt().getWithShots(book.storyId)
+          const idx = pack.shots.findIndex((s) => s.id === shot.id)
+          for (let i = idx - 1; i >= 0; i--) {
+            const p = takePath(pack.shots[i]!.imagePath)
+            if (p) {
+              prevPath = p
+              break
+            }
+          }
+        } catch {
+          /* optional */
+        }
+      }
+      const ownRaw = parseKeyArtShotImages(shot.imageGalleryJson, {
+        imagePath: shot.imagePath
+      })[0]?.path
+      const own = ownRaw?.trim() || null
+      const allowOwn = method.usesOwnEditBase && Boolean(own)
+      if (allowOwn && own) usedPaths.add(own)
+      const extraRefs = (payload.galleryIdentityPaths ?? [])
+        .map((p) => takePath(p))
+        .filter((p): p is string => Boolean(p))
+      const hardRules = [
+        book.hardRules,
+        shot.hardRules,
+        (story as { hardRules?: string | null }).hardRules
+      ]
+        .filter((x): x is string => Boolean(x?.trim()))
+        .join('\n')
+      const fallbackPrompt = buildKeyArtFallbackPrompt({
+        locale,
+        storyTitle:
+          (story as { title?: string }).title ||
+          book.title ||
+          PromptCatalog.t(locale, 'hardRules.labelStory'),
+        shotOrder: shot.order + 1,
+        shotType,
+        pageFormat,
+        method: method.id,
+        brief: shot.brief,
+        beatText
+      })
+      const sections: MediaGenMaterialSection[] = [
+        {
+          id: 'task',
+          kind: 'prompt-block',
+          title: type.id,
+          entityType: 'layout',
+          text: fallbackPrompt,
+          imagePath: null,
+          include: true,
+          canBeEditBase: false,
+          group: 'task'
+        }
+      ]
+      if (allowOwn && own) {
+        sections.push({
+          id: 'keyart_own',
+          kind: 'ref-image',
+          title: 'own',
+          entityType: 'gallery',
+          text: '',
+          imagePath: own,
+          include: true,
+          canBeEditBase: allowOwn,
+          group: 'refs'
+        })
+      }
+      if (prevPath) {
+        sections.push({
+          id: 'keyart_prev',
+          kind: 'ref-image',
+          title: 'prev',
+          entityType: 'continuity',
+          text: '',
+          imagePath: prevPath,
+          include: true,
+          canBeEditBase: method.id === 'continue',
+          group: 'refs'
+        })
+      }
+      sections.push(...charSections)
+      if (sceneSection) sections.push(sceneSection)
+      if (comicSection) sections.push(comicSection)
+      for (const [i, p] of extraRefs.entries()) {
+        sections.push({
+          id: `ref_${i}`,
+          kind: 'ref-image',
+          title: String(i + 1),
+          entityType: 'gallery',
+          text: '',
+          imagePath: p,
+          include: true,
+          canBeEditBase: false,
+          group: 'refs'
+        })
+      }
+      return {
+        kind,
+        entityIds: { storyId: book.storyId, pageId: shot.id },
+        sections: sanitizeSections(sections),
+        editBaseSectionId: allowOwn
+          ? 'keyart_own'
+          : method.id === 'continue' && prevPath
+            ? 'keyart_prev'
+            : null,
+        fallbackPrompt,
+        taskHint: fallbackPrompt,
+        genOptions: {
+          artStyle,
+          pageFormat,
+          aspectRatio: aspectForComicFormat(pageFormat),
+          useIdentityEdit: allowOwn,
+          galleryLabel: PromptCatalog.t(
+            locale,
+            type.lockKey as import('../../prompts/copy/keys').PromptCopyKey
+          )
+            .split(/[：:]/)[0]!
+            .trim()
+        },
+        hardRules: hardRules || null
+      }
+    }
+
     throw new AppError('VALIDATION', 'errors.unsupportedMediaGenKind')
   })
 
@@ -1847,6 +2110,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       hardRules?: string | null
       persist?: boolean
       pageFormat?: 'tall' | 'square' | 'wide'
+      shotType?: string | null
+      keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
     }) => {
       const promptIn = extractPolishedMediaPrompt(
         payload.polishedPrompt ?? ''
@@ -1887,6 +2152,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           ? payload.galleryLabel.trim()
           : undefined
       let layer: string | undefined
+      let keyArtImageId: string | undefined
 
       if (kind === 'action-plate') {
         if (!payload.actionId?.trim()) {
@@ -2096,6 +2362,45 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         entityKey = payload.entryId.trim()
         size = ctx.settings.imageSizeWide || '1792x1024'
         aspectRatio = aspectFromImageSize(size)
+      } else if (kind === 'key-art') {
+        const shotId = payload.pageId?.trim()
+        if (!shotId) {
+          throw new AppError('VALIDATION', 'errors.keyArtShotIdRequired')
+        }
+        const shot = await keyArt().getShot(shotId)
+        const book = await keyArt().getById(shot.keyArtId)
+        entityKey = shot.id
+        const { getKeyArtShotType } = await import(
+          '../../domain/keyArtShotTypes'
+        )
+        const type = getKeyArtShotType(
+          payload.shotType ?? shot.shotType
+        )
+        artStyle = getArtStyle(
+          payload.artStyle ?? shot.artStyle ?? book.artStyle ?? undefined
+        ).id
+        hardRules = payload.hardRules ?? shot.hardRules ?? book.hardRules
+        const { effectiveComicPageFormat, imageSizeForComicFormat } =
+          await import('../../domain/comicPageFormat')
+        const pageFormat = effectiveComicPageFormat({
+          pageFormat: payload.pageFormat ?? shot.pageFormat,
+          bookFormat: book.pageFormat ?? 'wide',
+          layout: { sizeClass: type.sizeClass }
+        })
+        size = imageSizeForComicFormat(pageFormat, {
+          tall: ctx.settings.imageSizeTall || '1024x1792',
+          square: ctx.settings.imageSizeSquare || '1024x1024',
+          wide: ctx.settings.imageSizeWide || '1792x1024'
+        })
+        aspectRatio = aspectFromImageSize(size)
+        const locale = PromptCatalog.locale(ctx.settings.uiLanguage)
+        galleryLabel =
+          galleryLabel ||
+          PromptCatalog.t(locale, type.lockKey as import('../../prompts/copy/keys').PromptCopyKey)
+            .split(/[：:]/)[0]!
+            .trim()
+        payload.storyId = book.storyId
+        payload.pageId = shot.id
       } else if (kind === 'comic-page') {
         const pageId = payload.pageId?.trim()
         if (!pageId) {
@@ -2187,7 +2492,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         payload.persist === true ||
         kind === 'timeline-still' ||
         kind === 'timeline-clip' ||
-        kind === 'comic-page'
+        kind === 'comic-page' ||
+        kind === 'key-art'
       store.ensureTmpDir()
       store.ensureLibraryDirs()
       let outPath: string
@@ -2239,6 +2545,17 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         outPath = sid
           ? store.comicPagePath(sid, pid, '.png')
           : store.tmpImagePath(`comic_${pid || 'page'}`, '.png')
+      } else if (kind === 'key-art') {
+        const sid = (payload.storyId || '').trim()
+        const pid = (payload.pageId || entityKey).trim()
+        const { newKeyArtShotImageId } = await import(
+          '../../domain/keyArtShotImages'
+        )
+        keyArtImageId = newKeyArtShotImageId()
+        if (sid) store.ensureStoryDirs(sid)
+        outPath = sid
+          ? store.keyArtShotPath(sid, pid, keyArtImageId, '.png')
+          : store.tmpImagePath(`keyart_${pid || 'shot'}`, '.png')
       } else if (kind === 'story-cover') {
         outPath = persist
           ? store.tmpImagePath('story_cover', '.png')
@@ -2358,6 +2675,46 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
             mediaError: null,
             seedPrompt: prompt,
             artStyle
+          })
+        } catch {
+          /* best-effort persist */
+        }
+      }
+
+      if (kind === 'key-art' && payload.pageId?.trim()) {
+        try {
+          const {
+            parseKeyArtShotImages,
+            prependKeyArtShotImage,
+            serializeKeyArtShotImages,
+            newKeyArtShotImageId
+          } = await import('../../domain/keyArtShotImages')
+          const { coerceKeyArtMakeMethod } = await import(
+            '../../domain/keyArtMakeMethods'
+          )
+          const shot = await keyArt().getShot(payload.pageId.trim())
+          const nextItem = {
+            id: keyArtImageId || newKeyArtShotImageId(),
+            path: finalPath,
+            method: coerceKeyArtMakeMethod(
+              payload.keyArtMakeMethod ?? shot.makeMethod
+            ),
+            createdAt: new Date().toISOString()
+          }
+          const gallery = prependKeyArtShotImage(
+            parseKeyArtShotImages(shot.imageGalleryJson, {
+              imagePath: shot.imagePath
+            }),
+            nextItem
+          )
+          await keyArt().updateShot(shot.id, {
+            imagePath: nextItem.path,
+            imageGalleryJson: serializeKeyArtShotImages(gallery),
+            mediaStatus: 'READY',
+            mediaError: null,
+            seedPrompt: prompt,
+            artStyle,
+            makeMethod: nextItem.method
           })
         } catch {
           /* best-effort persist */

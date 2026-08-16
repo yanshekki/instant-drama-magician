@@ -246,6 +246,21 @@ export function MediaGenHost(): JSX.Element | null {
         return
       }
 
+      if (req.kind === 'key-art' && result.path) {
+        window.dispatchEvent(
+          new CustomEvent('idm:key-art-done', {
+            detail: {
+              storyId: req.storyId,
+              pageId: req.pageId,
+              path: result.path,
+              kind: req.kind
+            }
+          })
+        )
+        toast.success(t('keyArt.generateOk'))
+        return
+      }
+
       if (
         req.kind === 'timeline-still' &&
         req.storyId &&

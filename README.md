@@ -8,24 +8,40 @@
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
 </p>
 
-Lock a cast. Board every beat. Then take the **same beats** two ways: a **timeline** of 6 / 10 second clips, or a **comic book** of full pages you can still turn into film.
+<p align="center">
+  <a href="#install--run"><img src="https://img.shields.io/badge/desktop-Linux%20%7C%20Windows%20%7C%20macOS-1f6feb?style=flat-square" alt="Desktop"></a>
+  <a href="#cli-instant-drama"><img src="https://img.shields.io/badge/CLI-175%20channels-238636?style=flat-square" alt="CLI"></a>
+  <a href="#ui-languages"><img src="https://img.shields.io/badge/UI-10%20languages-6e40c9?style=flat-square" alt="Languages"></a>
+  <img src="https://img.shields.io/badge/license-MIT-8b949e?style=flat-square" alt="MIT">
+</p>
+
+Lock a cast. Board every beat. Then work the **same story** three ways: a **timeline** of 6 / 10 second clips, a **comic book** of full pages you can still turn into film, or a **key-art desk** for covers, stills, promo frames, and hero headshots.
 
 <p align="center">
   <img src="./src/assets/screen/7.png" alt="Timeline pipeline — stills, director notes, and generated clips on one board" width="100%">
 </p>
 <p align="center"><em>Timeline — one column per beat: character bible, scene, director notes, keyframe, then the clip.</em></p>
 
-<p align="center">
-  <img src="./src/assets/screen/10.png" alt="Comics artwork tab with a finished page and versioned page videos" width="100%">
-</p>
-<p align="center"><em>Comics — paginate those beats, lock the page, then generate versioned page videos (page animation or short-drama shot).</em></p>
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./src/assets/screen/10.png" alt="Comics artwork tab with a finished page and versioned page videos" width="100%">
+      <p align="center"><em>Comics — paginate the beats, lock the page, then versioned page videos.</em></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./src/assets/screen/12.png" alt="Key art desk — methods, primary still, and versioned publicity frames" width="100%">
+      <p align="center"><em>Key art — covers, stills, promo, headshots. Four make methods, versioned takes.</em></p>
+    </td>
+  </tr>
+</table>
 
 | Desktop | Remote | CLI |
 |---|---|---|
-| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **167** channels, same as the app |
+| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **175** channels, same as the app |
 
 - **Identity lock** — multi-angle character bibles, costumes, scenes, props, and motion boards  
 - **Comics studio** — even grids or manga panels, 9:16 / 1:1 / 16:9, page vs short-drama video, versioned takes  
+- **Key art desk** — eight publicity types, four make methods (new / edit / lock face / continue), versioned stills, set as story cover  
 - **Continuity** — previous-beat stills and end frames feed the next clip  
 - **Materials first** — pick stills and notes, polish the director prompt, then still and video  
 - **You stay in control** — recipe picker, OS completion notifications, ten UI languages  
@@ -53,7 +69,19 @@ Lock a cast. Board every beat. Then take the **same beats** two ways: a **timeli
 
 ## UI screenshots
 
-From the running app (`src/assets/screen/`). The two heroes above are the **timeline flow** board and the **comics artwork** desk.
+From the running app (`src/assets/screen/`). The heroes above are the **timeline**, **comics**, and **key-art** desks.
+
+### Key art — pick a type
+
+Eight publicity types (cover, poster, still, promo, social, headshot, bust, lineup). Format follows the type (portrait 9:16, square, landscape) or you lock it yourself.
+
+![Key art types and page format](./src/assets/screen/11.png)
+
+### Key art — how to make it, and versions
+
+Four methods on the artwork tab: new image, edit this still, lock the face and redraw, continue the last still. Takes stay in a version grid until you delete them. One click sets the story cover.
+
+![Key art methods and version library](./src/assets/screen/12.png)
 
 ### Comics — pick a page template
 
@@ -125,11 +153,12 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 | **Gallery UI** | Shared **EntityGalleryPanel**: large preview, zoom/save/cover/remove/intro, multi-thumb strip (preview vs identity-lock multi-select) |
 | **Timeline** | Linear layout, snap/pack, per-clip generate, bind character / scene / prop / **action**, 6s/10s duration, dialogue & camera tags; **pipeline board** stacks to the live window height |
 | **Comics** | Turn beats into full pages (even grids + manga layouts), 9:16 / 1:1 / 16:9, page vs short-drama video schemes, versioned page videos, export a film of pages that already have video |
+| **Key art** | Story publicity stills: cover / poster / still / promo / social / headshot / bust / lineup; four make methods; versioned PNGs; optional **set as story cover** |
 | **Advanced prep** | Cast lock → storyboard stills (**end-frame continuity**, prev keyframe edit base, multi-ref polish) → video; per-cell **Refine still / Refine to video** (MediaGen) |
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
 | **Settings** | LLM / image / video providers, **OS completion notifications**, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
-| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**167** IPC channels) |
+| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**175** IPC channels) |
 | **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
 | **i18n** | 10 UI languages (incl. zh-HK written Chinese, zh-CN Mainland written Chinese, Arabic RTL); **recipe picker** before LLM improve/generate; MediaGen chrome localized |
 | **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
@@ -138,7 +167,7 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 
 ## Desktop app details
 
-Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Comics · Timeline · Activity · Settings**.
+Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Comics · Key art · Timeline · Activity · Settings**.
 
 ### Stories
 
@@ -205,6 +234,20 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 - **Export film** concatenates pages that already have video (`clipSource: comics`) — does not rewrite the story timeline  
 - Optional **import page stills** onto the timeline as continuity locks  
 
+### Key art
+
+- One key-art book per story; each item is a publicity still (not a comic page, not a timeline clip)  
+- **Type** tab: eight cards — cover poster, tall poster, production still, promo, social story, hero headshot, bust, cast lineup  
+- Format chips **tall 9:16** / **square 1:1** / **wide 16:9** follow the type, or you override  
+- **Materials** tab: brief, art style, multi-select characters, scene, timeline beat, optional comic page  
+- **Artwork** tab: four resident make-method cards  
+  - **New image** — refs lock identity only  
+  - **Edit this still** — this take is the pixel base (needs artwork)  
+  - **Lock the face, redraw** — same person, new pose / crop  
+  - **Continue last still** — same people and place, next beat of the shoot  
+- Versioned stills in a grid; set primary; delete only when you choose  
+- **Set as story cover** writes `Story.coverPath` — never automatic  
+
 ### Timeline (main production desk)
 
 - Select current story; **Play** / **Undo** / **Redo**  
@@ -268,6 +311,7 @@ Best when you want continuity locked before video generation.
 6) Script beats → bind assets per beat (incl. actions)
 7) Timeline → lay out clips, write beat screenplay
    *or* Comics → pick a template → write panels → generate the page → page video
+   *or* Key art → pick a type → bind cast → choose a make method → generate stills / set cover
 8) Advanced prep → stills (continuity) → video
 9) Export → final (optional TTS / subtitles); Comics can export its own film from pages that have video
 ```
@@ -386,7 +430,7 @@ Typical usage after global install:
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # ~167 channels
+instant-drama channels list --json          # ~175 channels
 ```
 
 > **Note:** Global install provides the **CLI / headless / web-server** control plane (stories, cast, generation, export helpers, agent tools). Building or opening the **Electron desktop GUI** (`instant-drama build` / `instant-drama open`) still needs a full git clone with `npm install` (devDependencies such as Electron) and a local `release/` tree.
@@ -412,7 +456,7 @@ npm run instant-drama -- doctor --json
 ### Common commands
 
 ```bash
-# Diagnostics (channel count should be ~167)
+# Diagnostics (channel count should be ~175)
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -601,7 +645,7 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 |---------|---------|--------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | Docs index + facts |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | Product spec |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (167 channels) |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (175 channels) |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agents / OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | Web remote |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

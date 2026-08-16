@@ -133,6 +133,30 @@ export function createMockApi(
         path: '/tmp/page.png'
       })
     },
+    keyArt: {
+      get: vi.fn().mockResolvedValue({
+        book: { id: 'ka-1', storyId: 's1', artStyle: null, hardRules: null },
+        shots: []
+      }),
+      update: vi.fn().mockResolvedValue({}),
+      addShot: vi.fn().mockResolvedValue({ id: 'shot-1', shotType: 'cover' }),
+      updateShot: vi.fn().mockResolvedValue({}),
+      deleteShot: vi.fn().mockResolvedValue({ ok: true }),
+      deleteShotImage: vi.fn().mockResolvedValue({
+        ok: true,
+        removedPath: '/tmp/a.png',
+        imagePath: null
+      }),
+      setShotImagePrimary: vi.fn().mockResolvedValue({
+        ok: true,
+        imagePath: '/tmp/a.png'
+      }),
+      setAsStoryCover: vi.fn().mockResolvedValue({
+        ok: true,
+        storyId: 's1',
+        coverPath: '/tmp/a.png'
+      })
+    },
     costumes: {
       list: vi.fn().mockResolvedValue([]),
       get: vi.fn().mockResolvedValue(null),

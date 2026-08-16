@@ -121,6 +121,40 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     description: 'Set comic page export video version',
     argsHint: '["pageId", "videoId"]'
   },
+  { channel: 'keyArt:get', description: 'Get story key-art book + shots', argsHint: '["storyId"]' },
+  {
+    channel: 'keyArt:update',
+    description: 'Update key-art book fields',
+    argsHint: '["storyId", {...}]'
+  },
+  { channel: 'keyArt:addShot', description: 'Add a key-art shot', argsHint: '["storyId", {...}]' },
+  {
+    channel: 'keyArt:updateShot',
+    description: 'Update key-art shot',
+    argsHint: '["shotId", {...}]'
+  },
+  {
+    channel: 'keyArt:deleteShot',
+    description: 'Delete key-art shot',
+    argsHint: '["shotId"]',
+    destructive: true
+  },
+  {
+    channel: 'keyArt:deleteShotImage',
+    description: 'Delete one key-art still version',
+    argsHint: '["shotId", "imageId"]',
+    destructive: true
+  },
+  {
+    channel: 'keyArt:setShotImagePrimary',
+    description: 'Set key-art primary still version',
+    argsHint: '["shotId", "imageId"]'
+  },
+  {
+    channel: 'keyArt:setAsStoryCover',
+    description: 'Set story cover from a key-art still',
+    argsHint: '["shotId"]'
+  },
   { channel: 'actions:get', description: 'Get action', argsHint: '["id"]' },
   { channel: 'actions:create', description: 'Create action', argsHint: '[{...}]' },
   { channel: 'actions:update', description: 'Update action', argsHint: '["id", {...}]' },
@@ -869,6 +903,14 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'comics:setPageVideoPrimary',
   'comics:update',
   'comics:updatePage',
+  'keyArt:addShot',
+  'keyArt:deleteShot',
+  'keyArt:deleteShotImage',
+  'keyArt:get',
+  'keyArt:setAsStoryCover',
+  'keyArt:setShotImagePrimary',
+  'keyArt:update',
+  'keyArt:updateShot',
   'scenes:aiFill',
   'scenes:commitPlate',
   'scenes:copyGalleryFrom',

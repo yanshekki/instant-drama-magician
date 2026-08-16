@@ -173,6 +173,10 @@ export function buildAppMenuTemplate(
       click: () => handlers.sendAction({ type: 'navigate', path: '/comics' })
     },
     {
+      label: t.navKeyArt,
+      click: () => handlers.sendAction({ type: 'navigate', path: '/key-art' })
+    },
+    {
       label: t.navTimeline,
       submenu: [
         {

@@ -54,6 +54,21 @@ describe('PromptCatalog', () => {
     expect(PromptCatalog.t('fr', 'wardrobe.system')).toMatch(/costume|costume/i)
   })
 
+  it('keyArt system prompts are native in all ten locales', () => {
+    const keys = PROMPT_COPY_KEYS.filter((k) => k.startsWith('keyArt.'))
+    expect(keys.length).toBeGreaterThan(10)
+    const en = PROMPT_COPY.en
+    for (const { id } of UI_LANGUAGES) {
+      if (id === 'en') continue
+      const table = PROMPT_COPY[id]
+      const same = keys.filter((k) => table[k] === en[k])
+      expect(same, `${id} keyArt prompt leftover`).toEqual([])
+    }
+    expect(PromptCatalog.t('zh-HK', 'keyArt.task')).toMatch(/劇照/)
+    expect(PromptCatalog.t('zh-CN', 'keyArt.task')).toMatch(/剧照/)
+    expect(PromptCatalog.t('ja', 'keyArt.lockCover')).not.toMatch(/COVER POSTER/)
+  })
+
   it('has no leftover English lock jargon in any locale', () => {
     for (const { id } of UI_LANGUAGES) {
       for (const key of PROMPT_COPY_KEYS) {

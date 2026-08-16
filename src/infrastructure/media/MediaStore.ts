@@ -60,6 +60,21 @@ export class MediaStore {
     return join(this.storyDir(storyId), 'comics')
   }
 
+  keyArtDir(storyId: string): string {
+    return join(this.storyDir(storyId), 'key-art')
+  }
+
+  /** Versioned still so a new take never overwrites an older png. */
+  keyArtShotPath(
+    storyId: string,
+    shotId: string,
+    imageId: string,
+    ext = '.png'
+  ): string {
+    const id = imageId.replace(/[^a-zA-Z0-9_-]/g, '') || 'v'
+    return join(this.keyArtDir(storyId), `${shotId}_${id}${ext}`)
+  }
+
   comicPagePath(storyId: string, pageId: string, ext = '.png'): string {
     return join(this.comicsDir(storyId), `${pageId}${ext}`)
   }
@@ -412,6 +427,7 @@ export class MediaStore {
     mkdirSync(this.exportsDir(storyId), { recursive: true })
     mkdirSync(this.ttsDir(storyId), { recursive: true })
     mkdirSync(this.comicsDir(storyId), { recursive: true })
+    mkdirSync(this.keyArtDir(storyId), { recursive: true })
   }
 
   importClip(storyId: string, entryId: string, sourcePath: string): string {

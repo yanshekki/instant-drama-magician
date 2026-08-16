@@ -47,6 +47,7 @@ const navItems: NavItem[] = [
   { kind: 'link', to: '/props', key: 'props' },
   { kind: 'link', to: '/actions', key: 'actions' },
   { kind: 'link', to: '/comics', key: 'comics' },
+  { kind: 'link', to: '/key-art', key: 'keyArt' },
   { kind: 'timeline' },
   { kind: 'link', to: '/audit', key: 'audit' },
   { kind: 'link', to: '/settings', key: 'settings' }

@@ -26,7 +26,10 @@ function t(key: string, opts?: Record<string, unknown>): string {
     'actions.panelLayout_grid-2x2': '4 格（2×2）',
     'comics.layoutYonkoma': '四格漫畫 · 直向',
     'comics.layoutSplash1': '1 格 · 跨頁大圖',
-    'characters.photoFallback': '參考圖'
+    'characters.photoFallback': '參考圖',
+    'keyArt.typeCover': '封面海報',
+    'mediaGen.keyArtOwn': '本張成圖',
+    'mediaGen.keyArtPrev': '上一張劇照'
   }
   return map[key] ?? key
 }
@@ -134,5 +137,26 @@ describe('mediaGenSectionTitleI18n', () => {
         t
       )
     ).toBe('畫面連續鎖定')
+  })
+
+  it('localizes key-art type and own/prev stills', () => {
+    expect(
+      translateMediaGenSectionTitle(
+        { entityType: 'layout', title: 'cover' },
+        t
+      )
+    ).toContain('封面海報')
+    expect(
+      translateMediaGenSectionTitle(
+        { id: 'keyart_own', entityType: 'gallery', title: 'own' },
+        t
+      )
+    ).toBe('本張成圖')
+    expect(
+      translateMediaGenSectionTitle(
+        { id: 'keyart_prev', entityType: 'continuity', title: 'prev' },
+        t
+      )
+    ).toBe('上一張劇照')
   })
 })

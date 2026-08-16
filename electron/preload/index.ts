@@ -350,6 +350,23 @@ const api: ElectronApi & {
     importToTimeline: (pageId: string) =>
       ipcRenderer.invoke('comics:importToTimeline', pageId)
   },
+  keyArt: {
+    get: (storyId: string) => ipcRenderer.invoke('keyArt:get', storyId),
+    update: (storyId: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('keyArt:update', storyId, data),
+    addShot: (storyId: string, input?: Record<string, unknown>) =>
+      ipcRenderer.invoke('keyArt:addShot', storyId, input),
+    updateShot: (shotId: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('keyArt:updateShot', shotId, data),
+    deleteShot: (shotId: string) =>
+      ipcRenderer.invoke('keyArt:deleteShot', shotId),
+    deleteShotImage: (shotId: string, imageId: string) =>
+      ipcRenderer.invoke('keyArt:deleteShotImage', shotId, imageId),
+    setShotImagePrimary: (shotId: string, imageId: string) =>
+      ipcRenderer.invoke('keyArt:setShotImagePrimary', shotId, imageId),
+    setAsStoryCover: (shotId: string) =>
+      ipcRenderer.invoke('keyArt:setAsStoryCover', shotId)
+  },
   mediaGen: {
     extract: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('mediaGen:extract', payload),

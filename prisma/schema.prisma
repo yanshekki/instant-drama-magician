@@ -36,6 +36,7 @@ model Story {
   storyProps      StoryProp[]
   storyActions    StoryAction[]
   comics          Comic[]
+  keyArts         KeyArt[]
 }
 
 /** Global character library asset (not owned by a story). */
@@ -323,6 +324,48 @@ model ComicPage {
   comic Comic @relation(fields: [comicId], references: [id], onDelete: Cascade)
 
   @@index([comicId, order])
+}
+
+/** One key-art book per story (covers, stills, promo, headshots). */
+model KeyArt {
+  id         String   @id @default(cuid())
+  storyId    String   @unique
+  title      String?
+  artStyle   String?
+  hardRules  String?
+  pageFormat String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  story Story        @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  shots KeyArtShot[]
+}
+
+model KeyArtShot {
+  id               String      @id @default(cuid())
+  keyArtId         String
+  order            Int         @default(0)
+  shotType         String
+  makeMethod       String?
+  pageFormat       String?
+  artStyle         String?
+  brief            String?
+  characterIdsJson String?
+  sceneId          String?
+  timelineEntryId  String?
+  comicPageId      String?
+  imagePath        String?
+  imageGalleryJson String?
+  mediaStatus      MediaStatus @default(EMPTY)
+  mediaError       String?
+  seedPrompt       String?
+  hardRules        String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  book KeyArt @relation(fields: [keyArtId], references: [id], onDelete: Cascade)
+
+  @@index([keyArtId, order])
 }
 
 enum StoryStatus {

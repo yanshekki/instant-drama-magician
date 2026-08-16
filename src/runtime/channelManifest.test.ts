@@ -7,9 +7,9 @@ import {
 } from './channelManifest'
 
 describe('channelManifest', () => {
-  it('has 167 desktop channels unique', () => {
-    expect(DESKTOP_CHANNEL_NAMES.length).toBe(167)
-    expect(new Set(DESKTOP_CHANNEL_NAMES).size).toBe(167)
+  it('has 175 desktop channels unique', () => {
+    expect(DESKTOP_CHANNEL_NAMES.length).toBe(175)
+    expect(new Set(DESKTOP_CHANNEL_NAMES).size).toBe(175)
   })
 
   it('specFor returns description', () => {

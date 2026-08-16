@@ -929,6 +929,78 @@ export interface ElectronApi {
       path: string
     }>
   }
+  keyArt: {
+    get: (storyId: string) => Promise<{
+      book: {
+        id: string
+        storyId: string
+        title?: string | null
+        artStyle?: string | null
+        hardRules?: string | null
+        pageFormat?: string | null
+      }
+      shots: Array<{
+        id: string
+        keyArtId: string
+        order: number
+        shotType: string
+        makeMethod?: string | null
+        pageFormat?: string | null
+        artStyle?: string | null
+        brief?: string | null
+        characterIdsJson?: string | null
+        sceneId?: string | null
+        timelineEntryId?: string | null
+        comicPageId?: string | null
+        imagePath?: string | null
+        imageGalleryJson?: string | null
+        mediaStatus?: string
+        hardRules?: string | null
+      }>
+    }>
+    update: (
+      storyId: string,
+      data: {
+        title?: string | null
+        artStyle?: string | null
+        hardRules?: string | null
+        pageFormat?: string | null
+      }
+    ) => Promise<unknown>
+    addShot: (
+      storyId: string,
+      input?: {
+        shotType?: string | null
+        pageFormat?: string | null
+        artStyle?: string | null
+        brief?: string | null
+        characterIds?: string[] | null
+        sceneId?: string | null
+        timelineEntryId?: string | null
+        comicPageId?: string | null
+      }
+    ) => Promise<{ id: string }>
+    updateShot: (
+      shotId: string,
+      data: Record<string, unknown>
+    ) => Promise<unknown>
+    deleteShot: (shotId: string) => Promise<{ ok: boolean }>
+    deleteShotImage: (
+      shotId: string,
+      imageId: string
+    ) => Promise<{
+      ok: boolean
+      removedPath: string
+      imagePath: string | null
+    }>
+    setShotImagePrimary: (
+      shotId: string,
+      imageId: string
+    ) => Promise<{ ok: boolean; imagePath: string }>
+    setAsStoryCover: (
+      shotId: string
+    ) => Promise<{ ok: boolean; storyId: string; coverPath: string }>
+  }
   /** Media gen prep: materials checkboxes → multi-vision polish → one image */
   mediaGen: {
     extract: (payload: {
@@ -951,6 +1023,10 @@ export interface ElectronApi {
       atmosphereDescription?: string
       durationSeconds?: number
       locale?: string
+      comicVideoScheme?: 'page' | 'drama'
+      keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
+      shotType?: string | null
+      pageFormat?: 'tall' | 'square' | 'wide'
     }) => Promise<{
       kind: string
       entityIds: Record<string, string | undefined>
@@ -1019,6 +1095,9 @@ export interface ElectronApi {
       galleryLabel?: string | null
       hardRules?: string | null
       persist?: boolean
+      pageFormat?: 'tall' | 'square' | 'wide'
+      shotType?: string | null
+      keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
     }) => Promise<{
       path: string
       draft?: boolean

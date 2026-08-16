@@ -92,6 +92,7 @@ export type MediaGenPrepKind =
   | 'atmosphere-swap'
   | 'timeline-still'
   | 'comic-page'
+  | 'key-art'
   | 'comic-intro'
   | 'character-intro'
   | 'scene-intro'
@@ -131,6 +132,8 @@ export interface MediaGenPrepOpenRequest {
   /** Explicit source still for skip / identity (also put in galleryIdentityPaths) */
   sourceImagePath?: string
   comicVideoScheme?: 'page' | 'drama'
+  keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
+  shotType?: string | null
   pageFormat?: 'tall' | 'square' | 'wide'
   /** Video export aspect; default 16:9 */
   aspectRatio?: string
@@ -386,6 +389,8 @@ export function MediaGenPrepModal({
         locale: i18n.language,
         comicVideoScheme: request.comicVideoScheme,
         pageFormat: request.pageFormat,
+        shotType: request.shotType,
+        keyArtMakeMethod: request.keyArtMakeMethod,
         forcePureLayout: request.preferIdentityEdit === false
       } as never)
       setSections(r.sections as MediaGenMaterialSection[])
@@ -708,7 +713,8 @@ export function MediaGenPrepModal({
       const useIdentityEdit = Boolean(editBasePath) && !forcePure
       const isTimeline =
         request.kind === 'timeline-still' || request.kind === 'timeline-clip'
-      const persistNow = isTimeline || request.kind === 'comic-page'
+      const persistNow =
+        isTimeline || request.kind === 'comic-page' || request.kind === 'key-art'
       const includedPaths = sections
         .filter((s) => s.include && s.imagePath?.trim())
         .map((s) => s.imagePath!.trim())
@@ -739,6 +745,8 @@ export function MediaGenPrepModal({
           request.pageFormat ||
           (genOptions as { pageFormat?: 'tall' | 'square' | 'wide' })
             .pageFormat,
+        shotType: request.shotType,
+        keyArtMakeMethod: request.keyArtMakeMethod,
         // Timeline refine writes continuity still immediately
         persist: persistNow
       } as never)

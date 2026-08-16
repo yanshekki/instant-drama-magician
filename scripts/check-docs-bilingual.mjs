@@ -20,7 +20,7 @@ if (!existsSync(rootEn) || !existsSync(rootZh)) fail('README.md / README-ZH.md m
 else {
   for (const f of [rootEn, rootZh]) {
     const t = readFileSync(f, 'utf8')
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 12; i++) {
       if (!t.includes(`screen/${i}.png`)) fail(`${f} missing screen ${i}`)
     }
   }
@@ -42,4 +42,4 @@ if (errors) {
   console.error(`\n${errors} error(s)`)
   process.exit(1)
 }
-console.log('OK: bilingual doc pairs present; README screens 1–10 embedded')
+console.log('OK: bilingual doc pairs present; README screens 1–12 embedded')

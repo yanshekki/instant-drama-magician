@@ -410,7 +410,26 @@ export const PROMPT_COPY_KEYS = [
   'pipeline.scene.system',
   'pipeline.props.system',
   'pipeline.script.system',
-  'pipeline.script.noScenes'
+  'pipeline.script.noScenes',
+  'keyArt.task',
+  'keyArt.lockCover',
+  'keyArt.lockPoster',
+  'keyArt.lockStill',
+  'keyArt.lockPromo',
+  'keyArt.lockSocial',
+  'keyArt.lockHeadshot',
+  'keyArt.lockBust',
+  'keyArt.lockGroup',
+  'keyArt.formatLockTall',
+  'keyArt.formatLockSquare',
+  'keyArt.formatLockWide',
+  'keyArt.methodFreshLock',
+  'keyArt.methodEditLock',
+  'keyArt.methodIdentityLock',
+  'keyArt.methodContinueLock',
+  'keyArt.briefLine',
+  'keyArt.beatLine',
+  'keyArt.close',
 ] as const
 
 export type PromptCopyKey = (typeof PROMPT_COPY_KEYS)[number]
