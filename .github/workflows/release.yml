@@ -202,9 +202,15 @@ jobs:
       - name: Prisma generate
         run: npx prisma generate
       - name: Publish to npm
-        run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Repo secret is NPM (added 2026-08-16); keep NPM_TOKEN as alias.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NPM }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::Set repository secret NPM_TOKEN or NPM (npm Automation token with publish rights)."
+            exit 1
+          fi
+          npm publish --access public
       - name: Verify published version
         run: |
           PKG=$(node -p "require('./package.json').version")
