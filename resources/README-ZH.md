@@ -22,7 +22,7 @@ Linux 桌面：
 
 ## 截圖（文件）
 
-README 用 UI 截圖：**`../src/assets/screen/`**（`1.png` … `6.png`），嵌入 [../README-ZH.md](../README-ZH.md) 與 [../README.md](../README.md)。
+README 用 UI 截圖：**`../src/assets/screen/`**（`1.png` … `10.png`），嵌入 [../README-ZH.md](../README-ZH.md) 與 [../README.md](../README.md)。
 
 ## 聯絡
 

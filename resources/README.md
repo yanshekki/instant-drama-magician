@@ -22,7 +22,7 @@ Linux desktop:
 
 ## Screenshots (docs)
 
-UI screenshots for README: **`../src/assets/screen/`** (`1.png` … `6.png`), embedded in [../README.md](../README.md) and [../README-ZH.md](../README-ZH.md).
+UI screenshots for README: **`../src/assets/screen/`** (`1.png` … `10.png`), embedded in [../README.md](../README.md) and [../README-ZH.md](../README-ZH.md).
 
 ## Contact
 

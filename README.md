@@ -1,21 +1,31 @@
 # InstantDrama Magician · 瞬劇魔法師
 
-**From one idea to a finished short drama — on your desk.**
+<p align="center">
+  <strong>From one idea to a finished short drama — on your desk.</strong><br>
+  <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
+  · <strong>v1.5.0</strong> · MIT
+  · <a href="https://ysk.hk">YSK Limited</a>
+  · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
+</p>
 
-Lock a cast. Board every beat. Generate 6 / 10 second clips that keep face, costume, and set. Then FFmpeg exports the film.
+Lock a cast. Board every beat. Then take the **same beats** two ways: a **timeline** of 6 / 10 second clips, or a **comic book** of full pages you can still turn into film.
 
-[English](./README.md) · [中文](./README-ZH.md) · **v1.5.0** · MIT · [YSK Limited](https://ysk.hk) · [email@ysk.hk](mailto:email@ysk.hk)
+<p align="center">
+  <img src="./src/assets/screen/7.png" alt="Timeline pipeline — stills, director notes, and generated clips on one board" width="100%">
+</p>
+<p align="center"><em>Timeline — one column per beat: character bible, scene, director notes, keyframe, then the clip.</em></p>
 
-![Timeline pipeline — stills, director notes, and generated clips on one board](./src/assets/screen/7.png)
-
-<p align="center"><em>One story, one timeline. Each column is a beat: character bible, scene, director notes, keyframe still, then the clip.</em></p>
+<p align="center">
+  <img src="./src/assets/screen/10.png" alt="Comics artwork tab with a finished page and versioned page videos" width="100%">
+</p>
+<p align="center"><em>Comics — paginate those beats, lock the page, then generate versioned page videos (page animation or short-drama shot).</em></p>
 
 | Desktop | Remote | CLI |
 |---|---|---|
 | Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **167** channels, same as the app |
 
 - **Identity lock** — multi-angle character bibles, costumes, scenes, props, and motion boards  
-- **Comics studio** — paginate beats into even or manga panels, pick 9:16 / 1:1 / 16:9, then page or short-drama video  
+- **Comics studio** — even grids or manga panels, 9:16 / 1:1 / 16:9, page vs short-drama video, versioned takes  
 - **Continuity** — previous-beat stills and end frames feed the next clip  
 - **Materials first** — pick stills and notes, polish the director prompt, then still and video  
 - **You stay in control** — recipe picker, OS completion notifications, ten UI languages  
@@ -43,7 +53,19 @@ Lock a cast. Board every beat. Generate 6 / 10 second clips that keep face, cost
 
 ## UI screenshots
 
-From the running app (`src/assets/screen/`). The hero above is the **flow** board (cast, notes, stills, clips).
+From the running app (`src/assets/screen/`). The two heroes above are the **timeline flow** board and the **comics artwork** desk.
+
+### Comics — pick a page template
+
+Even grids and irregular manga layouts. Page format (portrait 9:16, square, landscape) follows the template, or you lock it yourself.
+
+![Comics layout templates](./src/assets/screen/9.png)
+
+### Comics — finished page and page videos
+
+Materials stay on the page. Two video schemes: animate the printed page, or shoot it as a short-drama clip (same polish as timeline). Versions stay until you delete them; export a film from pages that already have video.
+
+![Comics artwork and page videos](./src/assets/screen/10.png)
 
 ### MediaGen — prepare a clip
 
@@ -116,7 +138,7 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 
 ## Desktop app details
 
-Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Timeline · Activity · Settings**.
+Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Comics · Timeline · Activity · Settings**.
 
 ### Stories
 
@@ -170,6 +192,18 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Ti
 - Art style, external reference stills, cast refs from character / costume / scene / prop libraries  
 - **Vision AI fill** from a still; multi-gallery accumulate (append plates, reorder, cover)  
 - Linked into story cast, script beats, and timeline clips; video gen injects motion notes / can use the instruction still as image ref  
+
+### Comics
+
+- One comic book per story; pages are full multi-panel stills, not the timeline  
+- **Layout** tab: even grids + manga irregular panels; book / page format **tall 9:16**, **square 1:1**, **wide 16:9**  
+- **Panels** tab: caption, bind a timeline beat, art style (inherit the book or override)  
+- **Artwork** tab: generate the page still; two resident scheme cards  
+  - **Page animation** — lock gutters and print layout, gentle camera  
+  - **Short-drama shot** — same lock / camera / materials polish as timeline **Generate video**  
+- Versioned **page videos** in a grid; set primary for export; delete only when you choose  
+- **Export film** concatenates pages that already have video (`clipSource: comics`) — does not rewrite the story timeline  
+- Optional **import page stills** onto the timeline as continuity locks  
 
 ### Timeline (main production desk)
 
@@ -233,8 +267,9 @@ Best when you want continuity locked before video generation.
 5) Story Cast → link characters, scenes, props, actions
 6) Script beats → bind assets per beat (incl. actions)
 7) Timeline → lay out clips, write beat screenplay
+   *or* Comics → pick a template → write panels → generate the page → page video
 8) Advanced prep → stills (continuity) → video
-9) Export → final (optional TTS / subtitles)
+9) Export → final (optional TTS / subtitles); Comics can export its own film from pages that have video
 ```
 
 Demo: load a sample story in dev; CLI also has `instant-drama stories seed-demo`.

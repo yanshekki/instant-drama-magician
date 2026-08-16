@@ -1,21 +1,31 @@
 # 瞬劇魔法師 · InstantDrama Magician
 
-**由一個構想，到完整短劇——在你的工作檯上完成。**
+<p align="center">
+  <strong>由一個構想，到完整短劇——在你的工作檯上完成。</strong><br>
+  <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
+  · <strong>v1.5.0</strong> · MIT
+  · <a href="https://ysk.hk">YSK Limited</a>
+  · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
+</p>
 
-鎖定角色面貌，為每一段分鏡出圖，再生成 6／10 秒、臉與戲服與場景都對得上的片段，最後用 FFmpeg 合成成片。
+鎖定角色面貌，為每一段分鏡出圖。同一套分鏡可以走兩條路：**時間軸** 出 6／10 秒片段，或 **漫畫書** 出完整頁，頁面仍然可以再出片。
 
-[English](./README.md) · [中文](./README-ZH.md) · **v1.5.0** · MIT · [YSK Limited](https://ysk.hk) · [email@ysk.hk](mailto:email@ysk.hk)
+<p align="center">
+  <img src="./src/assets/screen/7.png" alt="時間軸流程——分鏡靜圖、導演詞與已生成片段同板" width="100%">
+</p>
+<p align="center"><em>時間軸——每一欄是一段：角色聖經、場景、導演詞、關鍵幀靜圖，然後是片段。</em></p>
 
-![時間軸流程——分鏡靜圖、導演詞與已生成片段同板](./src/assets/screen/7.png)
-
-<p align="center"><em>一個故事，一條時間軸。每一欄是一段：角色聖經、場景、導演詞、關鍵幀靜圖，然後是片段。</em></p>
+<p align="center">
+  <img src="./src/assets/screen/10.png" alt="漫畫成圖頁：完成頁與多版本本頁影片" width="100%">
+</p>
+<p align="center"><em>漫畫——把分鏡排成一頁，鎖定成圖，再出多版本本頁影片（漫畫頁動畫或短劇分鏡）。</em></p>
 
 | 桌面 | 遠控 | 命令列 |
 |---|---|---|
 | Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**167** 個 channel，與應用相同 |
 
 - **身份鎖定** — 多角度角色聖經、戲服、場景、道具與動作板  
-- **漫畫工作室** — 將分鏡排成規則格或漫畫不規則格，選 9:16／1:1／16:9，再出本頁影片或短劇分鏡片  
+- **漫畫工作室** — 規則格或漫畫不規則格、9:16／1:1／16:9、本頁動畫或短劇分鏡、多版本本頁影片  
 - **畫面連續** — 上一段靜圖與片尾，餵給下一段  
 - **先選材料** — 勾選靜圖與文字，優化導演詞，再出靜圖與影片  
 - **你仍主控** — 配方選擇器、完成後作業系統通知、十種介面語言  
@@ -43,7 +53,19 @@
 
 ## 介面預覽
 
-截圖來自實際應用（`src/assets/screen/`）。上方主圖即 **流程** 板（角色、導演詞、靜圖、片段）。
+截圖來自實際應用（`src/assets/screen/`）。上方兩張主圖分別是 **時間軸流程** 板與 **漫畫成圖** 工作檯。
+
+### 漫畫——選頁面模板
+
+規則格與不規則漫畫格。開本（直向 9:16、方形、橫向）跟模板走，你亦可自行鎖定。
+
+![漫畫排板模板](./src/assets/screen/9.png)
+
+### 漫畫——成圖與本頁影片
+
+材料留在該頁。兩套出片方案：按印刷頁做動畫，或當短劇分鏡拍（潤飾與時間軸「生成影片」相同）。版本會一直保留至你刪除；只串已有片的頁即可匯出成片。
+
+![漫畫成圖與本頁影片](./src/assets/screen/10.png)
 
 ### MediaGen——準備出片
 
@@ -116,7 +138,7 @@
 
 ## 桌面應用詳解
 
-側欄導航：**Stories · Characters · Costumes · Scenes · Props · Actions · Timeline · Activity · Settings**。
+側欄導航：**Stories · Characters · Costumes · Scenes · Props · Actions · Comics · Timeline · Activity · Settings**。
 
 ### Stories（故事）
 
@@ -170,6 +192,18 @@
 - 藝術風格、外部參考圖、由角色／服裝／場景／道具引入 cast 參考  
 - **vision AI 填充**；多圖累積（append 指示板、排序、封面）  
 - 可掛入故事 cast、劇情段落與時間軸 clip；出片時注入節奏／意圖／鏡頭備註，並可使用指示圖作 image-to-video 參考  
+
+### Comics（漫畫）
+
+- 每個故事一本漫畫書；每一頁是完整多格靜圖，不是時間軸本身  
+- **排板**：規則格＋漫畫不規則格；整冊／本頁開本 **直向 9:16**、**方形 1:1**、**橫向 16:9**  
+- **分格**：對白、綁定時間軸分鏡、畫風（跟全書或本頁覆寫）  
+- **成圖**：生成整頁靜圖；常駐兩張方案卡  
+  - **漫畫頁動畫** — 鎖定分欄與印刷版式，運鏡輕  
+  - **短劇分鏡** — 鎖定重點／運鏡／材料與時間軸「生成影片」相同  
+- **本頁影片** 以格子排版本；指定匯出用主片；只有你選擇才刪  
+- **匯出成片** 只串已有片的漫畫頁（`clipSource: comics`），不會改寫故事時間軸  
+- 可選把頁面靜圖 **引入時間軸** 做連續鎖定  
 
 ### Timeline（時間軸 · 主製作台）
 
@@ -233,8 +267,9 @@
 ⑤ 故事 Cast → 連結角色、場景、道具、動作
 ⑥ 劇情段落 → 每段綁定資產（含動作）
 ⑦ Timeline → 排 clip、寫 beat screenplay
+   或 Comics → 選模板 → 寫分格 → 生成漫畫頁 → 本頁影片
 ⑧ Advanced prep → stills（連貫）→ 出片
-⑨ Export → 成片（可選 TTS／字幕）
+⑨ Export → 成片（可選 TTS／字幕）；漫畫亦可只串已有片的頁自行匯出成片
 ```
 
 Demo：開發時可載入示範故事；CLI 亦有 `instant-drama stories seed-demo`。
