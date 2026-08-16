@@ -172,6 +172,39 @@ describe('registerPropsHandlers', () => {
     })
   })
 
+  it('suggestFromStory injects segmentKeys plot body', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: PROP_PROFILE } }]
+    }))
+    const findUnique = vi.fn(async () => ({
+      id: 's1',
+      title: 'Night Rain',
+      styleNote: 'neon wet',
+      chapters: [
+        { id: 'c1', order: 0, title: 'Night', body: 'Rain on the roof. Ming waits.' }
+      ],
+      storyScenes: [],
+      timeline: []
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() },
+      host: {
+        ...(makeHandlerContext().host as object),
+        getPrisma: () => ({ story: { findUnique } }) as never
+      } as never
+    })
+    registerPropsHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'props:aiFill', {
+      suggestFromStory: true,
+      storyId: 's1',
+      segmentKeys: ['chapter:c1'],
+      locale: 'en'
+    })
+    const msgs = JSON.stringify(chat.mock.calls[0]?.[0]?.messages ?? [])
+    expect(msgs).toMatch(/Rain on the roof/)
+  })
+
   it('generatePlate draft and persist paths with edit/generate', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-prop-plate-'))
     const ref = join(dir, 'ref.png')

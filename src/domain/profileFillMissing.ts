@@ -137,7 +137,8 @@ export async function fillMissingProfileFields<
           )
         }
       ],
-      max_tokens: options.maxTokens ?? 800
+      max_tokens: options.maxTokens ?? 800,
+      timeoutMs: 240_000
     })
     raw = chatContentText(completion.choices[0]?.message.content)
     try {

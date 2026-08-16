@@ -20,8 +20,13 @@
     "unknownCharacter": "未指定角色",
     "beat": "段落",
     "character": "角色",
-    "pickerHint": "先选故事，再选场次或对白段落；右侧会预览该段剧情，建议才有依据。",
-    "styleNoteLine": "风格：{{note}}"
+    "pickerHint": "先选故事，再勾选段落。章节默认不勾。不勾即用全剧（优先章节正文）。可展开预览。",
+    "styleNoteLine": "风格：{{note}}",
+    "groupChapters": "章节",
+    "groupScenes": "场次",
+    "groupBeats": "段落",
+    "segmentChapter": "第 {{n}} 章：{{title}}",
+    "emptyMeansAll": "全部不勾即用全剧（优先章节正文）。"
   },
   "costumes": {
     "title": "戏服库",
@@ -117,7 +122,11 @@
     "dressNoteOptional": "（可选）",
     "dressNeedCharBase": "请先选择角色与底图。",
     "dressNeedDesc": "资料 tab 需要有戏服描述才可以生成。",
-    "galleryBrowseHint": "按缩图可预览大图；左上角 □ 可多选以纳入身份锁定；可拖曳排序。试穿生成图会写入此戏服多图库，已连结角色及其他使用者亦可浏览及选取。"
+    "galleryBrowseHint": "按缩图可预览大图；左上角 □ 可多选以纳入身份锁定；可拖曳排序。试穿生成图会写入此戏服多图库，已连结角色及其他使用者亦可浏览及选取。",
+    "suggestFromStory": "由剧情建议服装",
+    "suggestPlotPickerHint": "选故事并勾选段落，AI 会依剧情填写服装。",
+    "suggestNeedStory": "请先选择一个故事",
+    "suggestPlotConfirm": "用此剧情生成"
   },
   "nav": {
     "stories": "故事",
@@ -707,7 +716,11 @@
     "swapPoseProfile": "侧面全身（9:16）",
     "swapPoseBack": "背面全身（9:16）",
     "swapPoseBust": "半身胸像（3:4）",
-    "swapPoseDetailFabric": "面料细节板（1:1）"
+    "swapPoseDetailFabric": "面料细节板（1:1）",
+    "suggestFromStory": "由剧情建议角色",
+    "suggestPlotPickerHint": "选故事并勾选段落，AI 会依剧情填写角色。",
+    "suggestNeedStory": "请先选择一个故事",
+    "suggestPlotConfirm": "用此剧情生成"
   },
   "scenes": {
     "title": "场景创作",
@@ -814,7 +827,7 @@
     "aiFill": "AI 填写／改进",
     "aiFillOk": "人工智能已填入场景，请检查后储存。",
     "suggestFromStory": "由剧情建议场景",
-    "suggestPlotPickerHint": "请先选择故事，再可细选场次或对白段落；确认后才会生成场景。",
+    "suggestPlotPickerHint": "先选故事，再勾选段落；这个场景已经在故事段落选过的，会默认勾上。确认后才会生成场景。",
     "suggestPlotConfirm": "用此剧情生成",
     "suggestNeedStory": "请先选择一个故事",
     "ideaPlaceholder": "例如：午后公园长椅、一次迟到的道歉…",
@@ -855,8 +868,8 @@
     "tabRefs": "参考图",
     "plateHintShort": "先出主视觉，再细节／比例。",
     "aiHintShort": "输入构想，一键填写道具栏位。",
-    "suggestFromStory": "由故事建议",
-    "suggestPlotPickerHint": "选故事与剧情段落，AI 会依剧情填写道具栏位。",
+    "suggestFromStory": "由剧情建议道具",
+    "suggestPlotPickerHint": "选故事并勾选剧情，AI 会依剧情填写道具栏位。",
     "suggestIdeaFromStory": "依所选故事风格与剧情，建议一件关键道具。",
     "suggestIdeaFromSegment": "依剧情段落 {{segment}} 建议关键道具。",
     "photoFallback": "道具图",
@@ -1984,7 +1997,11 @@
     "panelLayout_strip-5": "5 格横向",
     "panelLayout_grid-2x3": "6 格（2×3）",
     "galleryFallback": "指示图",
-    "castRefsCount": "参考素材 {{count}} 张"
+    "castRefsCount": "参考素材 {{count}} 张",
+    "suggestFromStory": "由剧情建议动作",
+    "suggestPlotPickerHint": "选故事并勾选段落，AI 会依剧情填写动作。",
+    "suggestNeedStory": "请先选择一个故事",
+    "suggestPlotConfirm": "用此剧情生成"
   },
   "mediaGen": {
     "title": "准备生成图片",

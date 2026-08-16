@@ -20,8 +20,13 @@
     "unknownCharacter": "Неназначенный",
     "beat": "Бить",
     "character": "Характер",
-    "pickerHint": "Выберите историю, затем сцену или диалог. Предварительный просмотр показывает контекст сюжета, используемый для предложений.",
-    "styleNoteLine": "Стиль: {{note}}"
+    "pickerHint": "Pick a story, then check beats. Chapters stay unchecked. Leave all unchecked to use the whole story.",
+    "styleNoteLine": "Стиль: {{note}}",
+    "groupChapters": "Chapters",
+    "groupScenes": "Scenes",
+    "groupBeats": "Beats",
+    "segmentChapter": "Chapter {{n}}: {{title}}",
+    "emptyMeansAll": "Nothing checked uses the whole story (chapters first)."
   },
   "costumes": {
     "title": "Костюмы",
@@ -117,7 +122,11 @@
     "dressNoteOptional": "(необязательный)",
     "dressNeedCharBase": "Сначала выберите персонажа и базу.",
     "dressNeedDesc": "Сначала добавьте описание костюма на вкладке «Профиль».",
-    "galleryBrowseHint": "Нажмите кадр для просмотра. Флажок — множественный выбор для фиксации личности. Перетаскивайте для порядка. Кадры примерки остаются в галерее этого костюма для связанных персонажей и других."
+    "galleryBrowseHint": "Нажмите кадр для просмотра. Флажок — множественный выбор для фиксации личности. Перетаскивайте для порядка. Кадры примерки остаются в галерее этого костюма для связанных персонажей и других.",
+    "suggestFromStory": "Suggest costume from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this look from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "nav": {
     "stories": "Истории",
@@ -707,7 +716,11 @@
     "swapPoseProfile": "Боковой профиль в полный рост (9:16)",
     "swapPoseBack": "Спина в полный рост (9:16)",
     "swapPoseBust": "Портрет бюста (3:4)",
-    "swapPoseDetailFabric": "Детали ткани (1:1)"
+    "swapPoseDetailFabric": "Детали ткани (1:1)",
+    "suggestFromStory": "Suggest character from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this character from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "scenes": {
     "title": "Сцены",
@@ -814,7 +827,7 @@
     "aiFill": "ИИ наполнить/улучшить",
     "aiFillOk": "ИИ заполнил сцену. Просмотрите, затем сохраните.",
     "suggestFromStory": "Предложить из истории",
-    "suggestPlotPickerHint": "Выберите историю, а затем, по желанию, сцену или диалог. Генерировать только после вашего подтверждения.",
+    "suggestPlotPickerHint": "Pick a story, then check beats that already picked this scene. Generate only after you confirm.",
     "suggestPlotConfirm": "Создать из сюжета",
     "suggestNeedStory": "Сначала выберите историю",
     "ideaPlaceholder": "например ночное противостояние в магазине под дождем…",
@@ -855,8 +868,8 @@
     "tabRefs": "Тарелки",
     "plateHintShort": "Сначала пластина героя, затем детали/масштаб.",
     "aiHintShort": "Описать идею; заполнить поля реквизита за один шаг.",
-    "suggestFromStory": "Предложить из истории",
-    "suggestPlotPickerHint": "Выберите историю и сегмент; ИИ заполнит поля реквизита.",
+    "suggestFromStory": "Suggest from story",
+    "suggestPlotPickerHint": "Pick a story, then check beats; AI fills prop fields from that plot.",
     "suggestIdeaFromStory": "Предложить ключевой реквизит для выбранной истории и тона.",
     "suggestIdeaFromSegment": "Предложить ключевой реквизит для сегмента {{segment}}.",
     "photoFallback": "Тарелка",
@@ -1984,7 +1997,11 @@
     "panelLayout_strip-5": "5 панелей (горизонтальные)",
     "panelLayout_grid-2x3": "6 панелей (сетка 2х3)",
     "galleryFallback": "Инструкция по эксплуатации",
-    "castRefsCount": "{{count}} кадры актеров"
+    "castRefsCount": "{{count}} кадры актеров",
+    "suggestFromStory": "Suggest action from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this action from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "mediaGen": {
     "title": "Подготовка генерации изображения",

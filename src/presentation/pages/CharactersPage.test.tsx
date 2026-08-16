@@ -643,4 +643,29 @@ describe('CharactersPage', () => {
     await clickRe(/Upload reference|Add external ref/i)
     expect(api.media.pickRefImage).toHaveBeenCalled()
   })
+
+  it('shows suggest-from-plot beside AI fill', async () => {
+    api.stories.get = vi.fn().mockResolvedValue({
+      id: 'story-1',
+      title: 'Demo Story',
+      chapters: [
+        { id: 'ch1', order: 0, title: 'Night', body: 'Rain on the roof' }
+      ],
+      scenes: [],
+      timeline: []
+    })
+    await renderWithProviders(<CharactersPage />)
+    await openFirstEdit()
+    await clickRe(/^Profile$/i)
+    const suggest = screen
+      .getAllByRole('button')
+      .find((b) => /Suggest character from plot/i.test(b.textContent || ''))
+    expect(suggest).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(suggest as HTMLElement)
+    })
+    await waitFor(() =>
+      expect(document.querySelector('[role="dialog"]')).toBeTruthy()
+    )
+  })
 })

@@ -77,6 +77,7 @@ import {
   EditorShell,
   editorFormClass
 } from '../components/EditorShell'
+import { PlotSuggestModal } from '../components/PlotContextPicker'
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Textarea } from '../components/ui'
@@ -135,7 +136,7 @@ function formFromAction(a: Action): FormState {
 
 export function ActionsPage(): JSX.Element {
   const { t, i18n } = useTranslation()
-  const { activeStoryId } = useApp()
+  const { activeStoryId, stories } = useApp()
   const toast = useToast()
   const dialog = useDialog()
   const {
@@ -175,6 +176,9 @@ export function ActionsPage(): JSX.Element {
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([])
   const [useIdentityRef, setUseIdentityRef] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [plotSuggestOpen, setPlotSuggestOpen] = useState(false)
+  const [plotStoryId, setPlotStoryId] = useState('')
+  const [plotSegmentKeys, setPlotSegmentKeys] = useState<string[]>([])
 
 
   const browse = useLibraryBrowse(
@@ -335,7 +339,11 @@ export function ActionsPage(): JSX.Element {
     })
   }
 
-  const handleAiFill = async (): Promise<void> => {
+  const handleAiFill = async (opts?: {
+    suggestFromStory?: boolean
+    storyId?: string | null
+    segmentKeys?: string[]
+  }): Promise<void> => {
     const promptTemplateId = await pick('copy')
     if (!promptTemplateId) return
     actionsRunAiFill({
@@ -358,28 +366,35 @@ export function ActionsPage(): JSX.Element {
         gallery0: form.gallery[0]?.path,
         cast0: form.castRefs[0]?.imagePath
       }),
+      suggestFromStory: Boolean(opts?.suggestFromStory),
+      storyId: opts?.storyId,
       setError: setActionError,
       toastError: toast.error,
       needMsg: t('common.aiNeedIdeaOrImage'),
+      needStoryMsg: t('actions.suggestNeedStory'),
       fromImageMsg: t('common.aiFillFromImage'),
       backgroundMsg: t('aiJobs.startedBackground'),
       startJob: (idea, hasDraft, hasImage, refPath, snapshot) =>
         startJob({
           kind: 'action-ai-fill',
-          label: t('common.aiFill'),
+          label: opts?.suggestFromStory
+            ? t('actions.suggestFromStory')
+            : t('common.aiFill'),
           scope: {
             actionId: editingId ?? undefined,
-            storyId: activeStoryId ?? undefined
+            storyId: (opts?.storyId || activeStoryId) ?? undefined
           },
           run: async ({ setProgress, signal }) => {
             setProgress(20, hasImage ? 'image' : 'llm')
             const r = await getApi().actions.aiFill({
               idea: idea || undefined,
-              storyId: activeStoryId ?? undefined,
+              storyId: (opts?.storyId || activeStoryId) ?? undefined,
               locale: i18n.language,
               existingDraft: hasDraft ? snapshot : undefined,
               referenceImagePath: hasImage ? refPath : null,
-              promptTemplateId
+              promptTemplateId,
+              suggestFromStory: Boolean(opts?.suggestFromStory),
+              segmentKeys: opts?.suggestFromStory ? opts.segmentKeys : undefined
             })
             if (signal.cancelled) return
             setProgress(100, 'done')
@@ -792,13 +807,27 @@ export function ActionsPage(): JSX.Element {
                 placeholder={t('actions.aiIdeaPh')}
                 rows={3}
               />
-              <Button
-                className="mt-2"
-                disabled={editorBusy}
-                onClick={() => handleAiFill()}
-              >
-                {t('common.aiFill')}
-              </Button>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  disabled={editorBusy}
+                  onClick={() => handleAiFill()}
+                >
+                  {t('common.aiFill')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={editorBusy}
+                  onClick={() => {
+                    if (activeStoryId && !plotStoryId) {
+                      setPlotStoryId(activeStoryId)
+                    }
+                    setPlotSegmentKeys([])
+                    setPlotSuggestOpen(true)
+                  }}
+                >
+                  {t('actions.suggestFromStory')}
+                </Button>
+              </div>
             </section>
 
             <EditorField label={t('actions.name')}>
@@ -974,6 +1003,40 @@ export function ActionsPage(): JSX.Element {
           </div>
         )}
       </EditorShell>
+      <PlotSuggestModal
+        open={plotSuggestOpen}
+        titleId="action-plot-suggest-title"
+        title={t('actions.suggestFromStory')}
+        hint={t('actions.suggestPlotPickerHint')}
+        stories={stories}
+        storyId={plotStoryId}
+        segmentKeys={plotSegmentKeys}
+        onStoryChange={(id) => {
+          setPlotStoryId(id)
+          setPlotSegmentKeys([])
+        }}
+        onSegmentKeysChange={setPlotSegmentKeys}
+        defaultBeatBind="action"
+        focusBindId={editingId}
+        onClose={() => setPlotSuggestOpen(false)}
+        confirmLabel={t('actions.suggestPlotConfirm')}
+        cancelLabel={t('common.cancel')}
+        confirmDisabled={!plotStoryId.trim() || editorBusy}
+        onConfirm={() => {
+          if (!plotStoryId.trim()) {
+            setActionError(t('actions.suggestNeedStory'))
+            toast.error(t('actions.suggestNeedStory'))
+            return
+          }
+          setPlotSuggestOpen(false)
+          if (!editorOpen) openNew()
+          void handleAiFill({
+            suggestFromStory: true,
+            storyId: plotStoryId,
+            segmentKeys: plotSegmentKeys
+          })
+        }}
+      />
     </div>
   )
 }
@@ -1379,9 +1442,12 @@ export function actionsRunAiFill(ops: {
   idea: string
   formSnapshot: Record<string, string | undefined>
   refPath: string
+  suggestFromStory?: boolean
+  storyId?: string | null
   setError: (m: string) => void
   toastError: (m: string) => void
   needMsg: string
+  needStoryMsg?: string
   fromImageMsg: string
   backgroundMsg: string
   startJob: (
@@ -1391,7 +1457,7 @@ export function actionsRunAiFill(ops: {
     refPath: string,
     snapshot: Record<string, string | undefined>
   ) => void
-}): 'busy' | 'need' | 'started' {
+}): 'busy' | 'need' | 'needStory' | 'started' {
   if (actionsGuardBusy(ops.busy, ops.toastInfo, ops.loadingMsg)) {
     return 'busy'
   }
@@ -1400,7 +1466,7 @@ export function actionsRunAiFill(ops: {
   const hasDraft = Object.values(snapshot).some(
     (v) => typeof v === 'string' && v.length > 0
   )
-  const hasImage = Boolean(ops.refPath)
+  const hasImage = Boolean(ops.refPath) && !ops.suggestFromStory
   if (
     actionsGuardAiNeedIdea(
       idea,
@@ -1408,10 +1474,17 @@ export function actionsRunAiFill(ops: {
       hasImage,
       ops.setError,
       ops.toastError,
-      ops.needMsg
+      ops.needMsg,
+      Boolean(ops.suggestFromStory)
     )
   ) {
     return 'need'
+  }
+  if (ops.suggestFromStory && !ops.storyId?.trim()) {
+    const msg = ops.needStoryMsg || ops.needMsg
+    ops.setError(msg)
+    ops.toastError(msg)
+    return 'needStory'
   }
   ops.setError(null as unknown as string)
   ops.toastInfo(
@@ -1539,8 +1612,10 @@ export function actionsGuardAiNeedIdea(
   hasImage: boolean,
   setError: (msg: string) => void,
   toastError: (msg: string) => void,
-  msg: string
+  msg: string,
+  suggestFromStory = false
 ): boolean {
+  if (suggestFromStory) return false
   if (!idea && !hasDraft && !hasImage) {
     setError(msg)
     toastError(msg)

@@ -320,4 +320,34 @@ describe('ActionsPage', () => {
     })
     expect(api.actions.list).toHaveBeenCalled()
   })
+
+  it('shows suggest-from-plot beside AI fill', async () => {
+    api.stories.get = vi.fn().mockResolvedValue({
+      id: 'story-1',
+      title: 'Demo Story',
+      chapters: [
+        { id: 'ch1', order: 0, title: 'Night', body: 'Rain on the roof' }
+      ],
+      scenes: [],
+      timeline: []
+    })
+    await renderWithProviders(<ActionsPage />)
+    await waitFor(() => expect(screen.getByText('Draw gun')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    const suggest = screen
+      .getAllByRole('button')
+      .find((b) => /Suggest action from plot/i.test(b.textContent || ''))
+    expect(suggest).toBeTruthy()
+    await act(async () => {
+      suggest?.click()
+    })
+    await waitFor(() =>
+      expect(document.querySelector('[role="dialog"]')).toBeTruthy()
+    )
+  })
 })

@@ -178,6 +178,7 @@ const api: ElectronApi & {
       characterId?: string
       storyId?: string
       segmentKey?: string | null
+      segmentKeys?: string[] | null
       locale?: string
       name?: string
       appearance?: string | null

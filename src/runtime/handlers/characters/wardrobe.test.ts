@@ -167,27 +167,12 @@ describe('registerCharactersWardrobe', () => {
     })
     expect(chat.mock.calls.length).toBeGreaterThanOrEqual(3)
 
-    await expect(
-      invokeRegistered(h as never, 'characters:suggestWardrobe', {
-        name: 'Ming',
-        storyId: 's1',
-        segmentKey: 'scene:nope'
-      })
-    ).rejects.toMatchObject({ message: 'errors.sceneNotLinked' })
-    await expect(
-      invokeRegistered(h as never, 'characters:suggestWardrobe', {
-        name: 'Ming',
-        storyId: 's1',
-        segmentKey: 'beat:nope'
-      })
-    ).rejects.toMatchObject({ message: 'errors.timelineBeatNotFound' })
-    await expect(
-      invokeRegistered(h as never, 'characters:suggestWardrobe', {
-        name: 'Ming',
-        storyId: 's1',
-        segmentKey: 'x:y'
-      })
-    ).rejects.toMatchObject({ message: 'errors.unknownSegmentKey' })
+    await invokeRegistered(h as never, 'characters:suggestWardrobe', {
+      name: 'Ming',
+      storyId: 's1',
+      segmentKeys: ['scene:nope', 'x:y']
+    })
+    expect(chat.mock.calls.length).toBeGreaterThanOrEqual(4)
 
     prisma.story.findUnique.mockResolvedValueOnce(null)
     await expect(

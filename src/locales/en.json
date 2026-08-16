@@ -20,8 +20,13 @@
     "unknownCharacter": "Unassigned",
     "beat": "Beat",
     "character": "Character",
-    "pickerHint": "Pick a story, then a scene or dialogue beat. Preview shows the plot context used for suggestions.",
-    "styleNoteLine": "Style: {{note}}"
+    "pickerHint": "Pick a story, then check beats. Chapters stay unchecked. Leave all unchecked to use the whole story.",
+    "styleNoteLine": "Style: {{note}}",
+    "groupChapters": "Chapters",
+    "groupScenes": "Scenes",
+    "groupBeats": "Beats",
+    "segmentChapter": "Chapter {{n}}: {{title}}",
+    "emptyMeansAll": "Nothing checked uses the whole story (chapters first)."
   },
   "costumes": {
     "title": "Costumes",
@@ -117,7 +122,11 @@
     "dressNoteOptional": "(optional)",
     "dressNeedCharBase": "Pick a character and a base still first.",
     "dressNeedDesc": "Add a costume description on the Profile tab first.",
-    "galleryBrowseHint": "Click a still to preview. Use the checkbox for identity-lock multi-select. Drag to reorder. Try-on stills stay on this costume multi-gallery for linked characters and others to browse."
+    "galleryBrowseHint": "Click a still to preview. Use the checkbox for identity-lock multi-select. Drag to reorder. Try-on stills stay on this costume multi-gallery for linked characters and others to browse.",
+    "suggestFromStory": "Suggest costume from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this look from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "nav": {
     "stories": "Stories",
@@ -707,7 +716,11 @@
     "swapPoseProfile": "Side profile full body (9:16)",
     "swapPoseBack": "Back full body (9:16)",
     "swapPoseBust": "Bust portrait (3:4)",
-    "swapPoseDetailFabric": "Fabric detail board (1:1)"
+    "swapPoseDetailFabric": "Fabric detail board (1:1)",
+    "suggestFromStory": "Suggest character from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this character from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "scenes": {
     "title": "Scenes",
@@ -814,7 +827,7 @@
     "aiFill": "AI fill / improve",
     "aiFillOk": "AI filled the scene. Review, then save.",
     "suggestFromStory": "Suggest from story",
-    "suggestPlotPickerHint": "Pick a story, then optionally a scene or dialogue beat. Generate only after you confirm.",
+    "suggestPlotPickerHint": "Pick a story, then check beats that already picked this scene. Generate only after you confirm.",
     "suggestPlotConfirm": "Generate from plot",
     "suggestNeedStory": "Select a story first",
     "ideaPlaceholder": "e.g. park bench at golden hour, a late apology…",
@@ -856,7 +869,7 @@
     "plateHintShort": "Hero plate first, then detail/scale.",
     "aiHintShort": "Describe an idea; fill prop fields in one step.",
     "suggestFromStory": "Suggest from story",
-    "suggestPlotPickerHint": "Pick a story and plot segment; AI fills prop fields from the plot.",
+    "suggestPlotPickerHint": "Pick a story, then check beats; AI fills prop fields from that plot.",
     "suggestIdeaFromStory": "Suggest a key prop for the selected story and tone.",
     "suggestIdeaFromSegment": "Suggest a key prop for plot segment {{segment}}.",
     "photoFallback": "Plate",
@@ -1984,7 +1997,11 @@
     "panelLayout_strip-5": "5 panels (horizontal)",
     "panelLayout_grid-2x3": "6 panels (2×3 grid)",
     "galleryFallback": "Instruction board",
-    "castRefsCount": "{{count}} cast stills"
+    "castRefsCount": "{{count}} cast stills",
+    "suggestFromStory": "Suggest action from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this action from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "mediaGen": {
     "title": "Prepare image generation",

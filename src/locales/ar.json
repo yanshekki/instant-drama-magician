@@ -20,8 +20,13 @@
     "unknownCharacter": "غير معين",
     "beat": "يهزم",
     "character": "شخصية",
-    "pickerHint": "اختر قصة، ثم مشهدًا أو حوارًا. تُظهر المعاينة سياق الحبكة المستخدم للاقتراحات.",
-    "styleNoteLine": "الأسلوب: {{note}}"
+    "pickerHint": "Pick a story, then check beats. Chapters stay unchecked. Leave all unchecked to use the whole story.",
+    "styleNoteLine": "الأسلوب: {{note}}",
+    "groupChapters": "Chapters",
+    "groupScenes": "Scenes",
+    "groupBeats": "Beats",
+    "segmentChapter": "Chapter {{n}}: {{title}}",
+    "emptyMeansAll": "Nothing checked uses the whole story (chapters first)."
   },
   "costumes": {
     "title": "أزياء",
@@ -117,7 +122,11 @@
     "dressNoteOptional": "(خياري)",
     "dressNeedCharBase": "اختر شخصية وقاعدة أولاً.",
     "dressNeedDesc": "أضف وصفًا للزي في علامة تبويب الملف الشخصي أولاً.",
-    "galleryBrowseHint": "انقر لقطة للمعاينة. استخدم المربع لتحديد متعدد لقفل الهوية. اسحب لإعادة الترتيب. لقطات التجربة تبقى في معرض هذا الزي للشخصيات المرتبطة وللآخرين."
+    "galleryBrowseHint": "انقر لقطة للمعاينة. استخدم المربع لتحديد متعدد لقفل الهوية. اسحب لإعادة الترتيب. لقطات التجربة تبقى في معرض هذا الزي للشخصيات المرتبطة وللآخرين.",
+    "suggestFromStory": "Suggest costume from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this look from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "nav": {
     "stories": "قصص",
@@ -707,7 +716,11 @@
     "swapPoseProfile": "الجانب الجانبي لكامل الجسم (9:16)",
     "swapPoseBack": "ظهر كامل الجسم (9:16)",
     "swapPoseBust": "صورة التمثال النصفي (3:4)",
-    "swapPoseDetailFabric": "لوحة تفاصيل القماش (1:1)"
+    "swapPoseDetailFabric": "لوحة تفاصيل القماش (1:1)",
+    "suggestFromStory": "Suggest character from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this character from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "scenes": {
     "title": "مشاهد",
@@ -814,7 +827,7 @@
     "aiFill": "ملء / تحسين الذكاء الاصطناعي",
     "aiFillOk": "ملأت منظمة العفو الدولية المشهد. المراجعة ثم الحفظ.",
     "suggestFromStory": "أقترح من القصة",
-    "suggestPlotPickerHint": "اختر قصة، ثم اختياريًا مشهدًا أو حوارًا. لا يتم الإنشاء إلا بعد التأكيد.",
+    "suggestPlotPickerHint": "Pick a story, then check beats that already picked this scene. Generate only after you confirm.",
     "suggestPlotConfirm": "توليد من المؤامرة",
     "suggestNeedStory": "اختر القصة أولاً",
     "ideaPlaceholder": "على سبيل المثال مواجهات في المتاجر في وقت متأخر من الليل تحت المطر …",
@@ -855,8 +868,8 @@
     "tabRefs": "لوحات",
     "plateHintShort": "لوحة البطل أولاً، ثم التفاصيل/المقياس.",
     "aiHintShort": "وصف فكرة؛ املأ حقول الدعامة في خطوة واحدة.",
-    "suggestFromStory": "اقتراح من القصة",
-    "suggestPlotPickerHint": "اختر قصة ومقطع حبكة؛ يملأ الذكاء الاصطناعي حقول الدعامة.",
+    "suggestFromStory": "Suggest from story",
+    "suggestPlotPickerHint": "Pick a story, then check beats; AI fills prop fields from that plot.",
     "suggestIdeaFromStory": "اقترح دعامة رئيسية للقصة والنبرة المختارة.",
     "suggestIdeaFromSegment": "اقترح دعامة رئيسية لمقطع الحبكة {{segment}}.",
     "photoFallback": "طبق",
@@ -1984,7 +1997,11 @@
     "panelLayout_strip-5": "5 لوحات (أفقية)",
     "panelLayout_grid-2x3": "6 لوحات (شبكة 2 × 3)",
     "galleryFallback": "لوحة التعليمات",
-    "castRefsCount": "{{count}} لقطات ثابتة"
+    "castRefsCount": "{{count}} لقطات ثابتة",
+    "suggestFromStory": "Suggest action from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this action from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "mediaGen": {
     "title": "تجهيز توليد الصورة",

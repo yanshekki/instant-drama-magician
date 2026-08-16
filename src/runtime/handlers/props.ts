@@ -70,6 +70,9 @@ reg(
         existingDraft?: Record<string, string | undefined | null>
         /** Explicit “suggest from story” — only then inject story title/style */
         suggestFromStory?: boolean
+        /** @deprecated Prefer segmentKeys */
+        segmentKey?: string | null
+        segmentKeys?: string[] | null
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
         promptTemplateId?: string | null
@@ -94,18 +97,28 @@ reg(
       const idea = payload.idea?.trim() ?? ''
       const refPath = resolveReadableImagePath(payload.referenceImagePath)
       const hasImage = Boolean(refPath)
-      if (!idea && !hasDraft && !hasImage) {
+      if (!idea && !hasDraft && !hasImage && !payload.suggestFromStory) {
         throw new AppError(
           'VALIDATION',
           'errors.ideaOrImageRequired'
         )
       }
+      if (payload.suggestFromStory && !payload.storyId?.trim()) {
+        throw new AppError('VALIDATION', 'errors.storyIdRequired')
+      }
       // Inject story only on explicit suggestFromStory — never from draft/activeStory.
       const { shouldInjectStoryContext } = await import(
         '../../domain/storyContextPolicy'
       )
+      const {
+        normalizeSegmentKeys,
+        PLOT_FOCUS_STORY_INCLUDE,
+        plotFocusUserBlock,
+        resolvePlotFocus
+      } = await import('../../domain/plotFocus')
       let storyTitle: string | undefined
       let styleNote: string | null | undefined
+      let plotBlock = ''
       if (
         payload.storyId &&
         shouldInjectStoryContext({
@@ -116,10 +129,28 @@ reg(
         })
       ) {
         const story = await host.getPrisma().story.findUnique({
-          where: { id: payload.storyId }
+          where: { id: payload.storyId },
+          ...(payload.suggestFromStory
+            ? { include: PLOT_FOCUS_STORY_INCLUDE }
+            : {})
         })
+        if (payload.suggestFromStory && !story) {
+          throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(payload.storyId))
+        }
         storyTitle = story?.title
         styleNote = story?.styleNote
+        if (payload.suggestFromStory && story) {
+          plotBlock = plotFocusUserBlock(
+            resolvePlotFocus(
+              story,
+              normalizeSegmentKeys({
+                segmentKeys: payload.segmentKeys,
+                segmentKey: payload.segmentKey
+              }),
+              locale
+            )
+          )
+        }
       }
       const ideaForPrompt =
         idea ||
@@ -130,6 +161,7 @@ reg(
           : PromptCatalog.t(locale, 'scene.polishIdea'))
       const textPrompt = [
         hasImage ? visionFillUserPreamble(locale, 'prop') : null,
+        plotBlock || null,
         buildPropMasterUserPrompt({
           idea: ideaForPrompt,
           storyTitle,
@@ -164,7 +196,8 @@ reg(
             content: buildVisionUserContent(textPrompt, refPath)
           }
         ],
-        max_tokens: 1500
+        max_tokens: 1500,
+        timeoutMs: 240_000
       })
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractPropProfileJson(text)

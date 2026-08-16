@@ -1,5 +1,9 @@
 import { PromptCatalog } from '../../../prompts'
-import { beatSegmentLabel, locationSnippet, sceneLinkLabel, unknownCharacterName, whereFromScene } from '../../../domain/residualLabels'
+import {
+  normalizeSegmentKeys,
+  PLOT_FOCUS_STORY_INCLUDE,
+  resolvePlotFocus
+} from '../../../domain/plotFocus'
 /**
  * registerCharactersWardrobe
  */
@@ -22,8 +26,9 @@ reg(
       payload: {
         characterId?: string
         storyId?: string
-        /** all | scene:<id> | beat:<timelineEntryId> */
+        /** @deprecated Prefer segmentKeys */
         segmentKey?: string | null
+        segmentKeys?: string[] | null
         locale?: string
         name?: string
         appearance?: string | null
@@ -83,111 +88,21 @@ reg(
       if (storyId) {
         const story = await host.getPrisma().story.findUnique({
           where: { id: storyId },
-          include: {
-            storyScenes: {
-              orderBy: { sceneNumber: 'asc' },
-              take: 40,
-              include: { scene: true }
-            },
-            timeline: {
-              orderBy: { order: 'asc' },
-              take: 80,
-              include: {
-                character: true,
-                scene: true,
-                prop: true
-              }
-            }
-          }
+          include: PLOT_FOCUS_STORY_INCLUDE
         })
         if (!story) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(storyId))
         storyTitle = story.title
         styleNote = story.styleNote
-        const seg = (payload.segmentKey ?? 'all').trim() || 'all'
-
-        if (seg === 'all') {
-          segmentLabel =
-            PromptCatalog.t(locale, 'segment.entireStory')
-          sceneSnippets = story.storyScenes.map((link) => {
-            const s = link.scene
-            const script = link.scriptOverride ?? s.script
-            return [
-              `Scene ${link.sceneNumber}: ${s.title || s.description}`,
-              s.description,
-              script ? String(script).slice(0, 500) : ''
-            ]
-              .filter(Boolean)
-              .join('\n')
-          })
-          // Also fold short dialogue beats when available
-          for (const beat of story.timeline.slice(0, 12)) {
-            if (!beat.dialogue?.trim()) continue
-            const who = beat.character?.name ?? '?'
-            sceneSnippets.push(
-              `Beat ${beat.order + 1} [${who}]: ${beat.dialogue.slice(0, 300)}`
-            )
-          }
-        } else if (seg.startsWith('scene:')) {
-          const sceneId = seg.slice('scene:'.length)
-          const link = story.storyScenes.find((l) => l.sceneId === sceneId)
-          if (!link) {
-            throw new AppError('VALIDATION', 'errors.sceneNotLinked')
-          }
-          const s = link.scene
-          const script = link.scriptOverride ?? s.script
-          segmentLabel =
-            sceneLinkLabel(
-              locale,
-              link.sceneNumber,
-              s.title,
-              s.description
-            )
-          sceneSnippets = [
-            [
-              segmentLabel,
-              s.description,
-              script ? String(script).slice(0, 800) : '',
-              s.mood ? `mood: ${s.mood}` : '',
-              s.timeOfDay ? `time: ${s.timeOfDay}` : '',
-              s.weather ? `weather: ${s.weather}` : ''
-            ]
-              .filter(Boolean)
-              .join('\n')
-          ]
-          for (const beat of story.timeline) {
-            if (beat.sceneId !== sceneId || !beat.dialogue?.trim()) continue
-            const who = beat.character?.name ?? '?'
-            sceneSnippets.push(
-              `Dialogue [${who}]: ${beat.dialogue.slice(0, 400)}`
-            )
-          }
-        } else if (seg.startsWith('beat:')) {
-          const entryId = seg.slice('beat:'.length)
-          const beat = story.timeline.find((e) => e.id === entryId)
-          if (!beat) {
-            throw new AppError('VALIDATION', 'errors.timelineBeatNotFound')
-          }
-          const who = beat.character?.name ?? unknownCharacterName(locale)
-          const where =
-            whereFromScene(beat.scene)
-          segmentLabel =
-            beatSegmentLabel(locale, beat.order, who, where)
-          sceneSnippets = [
-            [
-              segmentLabel,
-              beat.dialogue ? `Dialogue: ${beat.dialogue}` : '',
-              locationSnippet(
-                Boolean(beat.scene),
-                beat.scene?.description || ''
-              ),
-              beat.prop ? `Prop: ${beat.prop.name}` : ''
-            ]
-              .filter(Boolean)
-              .join('\n')
-          ]
-        } else {
-          throw new AppError('VALIDATION', 'errors.unknownSegmentKey', String(seg))
-        }
+        const focus = resolvePlotFocus(
+          story,
+          normalizeSegmentKeys({
+            segmentKeys: payload.segmentKeys,
+            segmentKey: payload.segmentKey
+          }),
+          locale
+        )
+        segmentLabel = focus.segmentLabel
+        sceneSnippets = focus.focusSnippets
       } else {
         segmentLabel =
           PromptCatalog.t(locale, 'segment.noStory')
@@ -242,7 +157,8 @@ reg(
           characterId: payload.characterId ?? null,
           name: suggestion.name,
           artStyle: suggestion.artStyle,
-          segmentKey: payload.segmentKey ?? 'all'
+          segmentKey: payload.segmentKey ?? 'all',
+          segmentKeys: payload.segmentKeys ?? null
         }
       })
       return { suggestion, raw: text, segmentLabel, storyTitle }

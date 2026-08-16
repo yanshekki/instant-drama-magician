@@ -57,6 +57,7 @@ import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import { formatUserError } from '../lib/formatUserError'
 import type { Character } from '../../types/domain'
+import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
 import { useAiJobs } from '../context/AiJobsContext'
@@ -72,6 +73,7 @@ import {
   editorFormClass,
   editorFormWideClass
 } from '../components/EditorShell'
+import { PlotSuggestModal } from '../components/PlotContextPicker'
 import { Button, EmptyState, Input, Textarea } from '../components/ui'
 
 type CostumeEditorTab = 'profile' | 'links' | 'dress'
@@ -101,6 +103,7 @@ type CostumeRow = {
 
 export function CostumesPage(): JSX.Element {
   const { t, i18n } = useTranslation()
+  const { activeStoryId, stories } = useApp()
   const toast = useToast()
   const dialog = useDialog()
   const {
@@ -142,6 +145,9 @@ export function CostumesPage(): JSX.Element {
     'all'
   )
   const [aiIdea, setAiIdea] = useState('')
+  const [plotSuggestOpen, setPlotSuggestOpen] = useState(false)
+  const [plotStoryId, setPlotStoryId] = useState('')
+  const [plotSegmentKeys, setPlotSegmentKeys] = useState<string[]>([])
   const [gallery, setGallery] = useState<CharacterGalleryItem[]>([])
   const [selectedGalId, setSelectedGalId] = useState<string | null>(null)
   /** Multi-select for identity-lock + browsing which stills feed try-on. */
@@ -363,7 +369,11 @@ export function CostumesPage(): JSX.Element {
     setDressPose('hero_front')
   }
 
-  const handleAiFill = async (): Promise<void> => {
+  const handleAiFill = async (opts?: {
+    suggestFromStory?: boolean
+    storyId?: string | null
+    segmentKeys?: string[]
+  }): Promise<void> => {
     const promptTemplateId = await pick('copy')
     if (!promptTemplateId) return
     const refPath = costumesAiFillRefPath(
@@ -383,8 +393,12 @@ export function CostumesPage(): JSX.Element {
           kind: ['costume-ai-fill', 'costume-intro-video', 'costume-swap'],
           costumeId: editId ?? undefined
         }) || busy,
+      suggestFromStory: Boolean(opts?.suggestFromStory),
+      storyId: opts?.storyId,
       toastInfo: toast.info,
+      toastError: toast.error,
       needMsg: t('common.aiNeedIdeaOrImage'),
+      needStoryMsg: t('costumes.suggestNeedStory'),
       runningMsg: t('aiJobs.running'),
       fromImageMsg: t('common.aiFillFromImage'),
       backgroundMsg: t('aiJobs.startedBackground'),
@@ -392,13 +406,18 @@ export function CostumesPage(): JSX.Element {
       startJob: (snapshot, idea, hasImage, path) =>
         startJob({
           kind: 'costume-ai-fill',
-          label: t('common.aiFill'),
+          label: opts?.suggestFromStory
+            ? t('costumes.suggestFromStory')
+            : t('common.aiFill'),
           scope: { costumeId: costumeId ?? undefined },
           run: async ({ setProgress, signal }) => {
             setProgress(20, hasImage ? 'image' : 'llm')
             const r = await getApi().costumes.aiFill({
               idea: idea || undefined,
               locale: i18n.language,
+              storyId: opts?.storyId || undefined,
+              suggestFromStory: Boolean(opts?.suggestFromStory),
+              segmentKeys: opts?.suggestFromStory ? opts.segmentKeys : undefined,
               existingDraft: {
                 name: snapshot.name,
                 description: snapshot.description,
@@ -953,15 +972,31 @@ export function CostumesPage(): JSX.Element {
                 onChange={(e) => setAiIdea(e.target.value)}
                 placeholder={t('costumes.aiIdeaPlaceholder')}
               />
-              <Button
-                className="mt-3 w-full sm:w-auto"
-                disabled={busy || costumeBusy(editId)}
-                onClick={() => handleAiFill()}
-              >
-                {costumeBusy(editId)
-                  ? t('common.generating')
-                  : t('common.aiFill')}
-              </Button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={busy || costumeBusy(editId)}
+                  onClick={() => handleAiFill()}
+                >
+                  {costumeBusy(editId)
+                    ? t('common.generating')
+                    : t('common.aiFill')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  disabled={busy || costumeBusy(editId)}
+                  onClick={() => {
+                    if (activeStoryId && !plotStoryId) {
+                      setPlotStoryId(activeStoryId)
+                    }
+                    setPlotSegmentKeys([])
+                    setPlotSuggestOpen(true)
+                  }}
+                >
+                  {t('costumes.suggestFromStory')}
+                </Button>
+              </div>
             </section>
 
             <section className="space-y-4">
@@ -1460,6 +1495,39 @@ export function CostumesPage(): JSX.Element {
           </div>
         )}
       </EditorShell>
+      <PlotSuggestModal
+        open={plotSuggestOpen}
+        titleId="costume-plot-suggest-title"
+        title={t('costumes.suggestFromStory')}
+        hint={t('costumes.suggestPlotPickerHint')}
+        stories={stories}
+        storyId={plotStoryId}
+        segmentKeys={plotSegmentKeys}
+        onStoryChange={(id) => {
+          setPlotStoryId(id)
+          setPlotSegmentKeys([])
+        }}
+        onSegmentKeysChange={setPlotSegmentKeys}
+        defaultBeatBind="character"
+        focusBindId={dressCharId || linkedCharIds[0] || null}
+        onClose={() => setPlotSuggestOpen(false)}
+        confirmLabel={t('costumes.suggestPlotConfirm')}
+        cancelLabel={t('common.cancel')}
+        confirmDisabled={!plotStoryId.trim() || busy || costumeBusy(editId)}
+        onConfirm={() => {
+          if (!plotStoryId.trim()) {
+            toast.error(t('costumes.suggestNeedStory'))
+            return
+          }
+          setPlotSuggestOpen(false)
+          if (!editorOpen) openCreate()
+          void handleAiFill({
+            suggestFromStory: true,
+            storyId: plotStoryId,
+            segmentKeys: plotSegmentKeys
+          })
+        }}
+      />
     </div>
   )
 }
@@ -1887,8 +1955,10 @@ export function costumesGuardAiNeed(
   lookName: string,
   hasImage: boolean,
   toastInfo: (m: string) => void,
-  msg: string
+  msg: string,
+  suggestFromStory = false
 ): boolean {
+  if (suggestFromStory) return false
   if (!idea && !lookDesc.trim() && !lookName.trim() && !hasImage) {
     toastInfo(msg)
     return true
@@ -1911,8 +1981,12 @@ export function costumesRunAiFill(ops: {
   lookHardRules: string
   refPath: string
   busy: boolean
+  suggestFromStory?: boolean
+  storyId?: string | null
   toastInfo: (m: string) => void
+  toastError?: (m: string) => void
   needMsg: string
+  needStoryMsg?: string
   runningMsg: string
   fromImageMsg: string
   backgroundMsg: string
@@ -1928,9 +2002,9 @@ export function costumesRunAiFill(ops: {
     hasImage: boolean,
     refPath: string
   ) => void
-}): 'need' | 'busy' | 'started' {
+}): 'need' | 'busy' | 'needStory' | 'started' {
   const idea = ops.idea.trim()
-  const hasImage = Boolean(ops.refPath)
+  const hasImage = Boolean(ops.refPath) && !ops.suggestFromStory
   if (
     costumesGuardAiNeed(
       idea,
@@ -1938,10 +2012,17 @@ export function costumesRunAiFill(ops: {
       ops.lookName,
       hasImage,
       ops.toastInfo,
-      ops.needMsg
+      ops.needMsg,
+      Boolean(ops.suggestFromStory)
     )
   ) {
     return 'need'
+  }
+  if (ops.suggestFromStory && !ops.storyId?.trim()) {
+    const msg = ops.needStoryMsg || ops.needMsg
+    ops.toastError?.(msg)
+    ops.toastInfo(msg)
+    return 'needStory'
   }
   if (costumesGuardBusy(ops.busy, ops.toastInfo, ops.runningMsg)) {
     return 'busy'

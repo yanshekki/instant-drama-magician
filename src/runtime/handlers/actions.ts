@@ -79,6 +79,10 @@ reg(
         storyId?: string
         locale?: string
         existingDraft?: Record<string, string | undefined | null>
+        suggestFromStory?: boolean
+        /** @deprecated Prefer segmentKeys */
+        segmentKey?: string | null
+        segmentKeys?: string[] | null
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
         promptTemplateId?: string | null
@@ -103,14 +107,50 @@ reg(
       const idea = payload.idea?.trim() ?? ''
       const refPath = resolveReadableImagePath(payload.referenceImagePath)
       const hasImage = Boolean(refPath)
-      if (!idea && !hasDraft && !hasImage) {
+      if (!idea && !hasDraft && !hasImage && !payload.suggestFromStory) {
         throw new AppError(
           'VALIDATION',
           'errors.ideaOrImageRequired'
         )
       }
+      if (payload.suggestFromStory && !payload.storyId?.trim()) {
+        throw new AppError('VALIDATION', 'errors.storyIdRequired')
+      }
+      let storyTitle: string | undefined
+      let styleNote: string | null | undefined
+      let plotBlock = ''
+      if (payload.suggestFromStory && payload.storyId?.trim()) {
+        const {
+          normalizeSegmentKeys,
+          PLOT_FOCUS_STORY_INCLUDE,
+          plotFocusUserBlock,
+          resolvePlotFocus
+        } = await import('../../domain/plotFocus')
+        const story = await ctx.host.getPrisma().story.findUnique({
+          where: { id: payload.storyId },
+          include: PLOT_FOCUS_STORY_INCLUDE
+        })
+        if (!story) {
+          throw new AppError(
+            'NOT_FOUND',
+            'errors.storyNotFound',
+            String(payload.storyId)
+          )
+        }
+        storyTitle = story.title
+        styleNote = story.styleNote
+        plotBlock = plotFocusUserBlock(
+          resolvePlotFocus(
+            story,
+            normalizeSegmentKeys({
+              segmentKeys: payload.segmentKeys,
+              segmentKey: payload.segmentKey
+            }),
+            locale
+          )
+        )
+      }
       // Never silently inject active story / Demo into action fill.
-      // storyId is only for activity scope; blanks are invented by the LLM.
       const ideaForPrompt =
         idea ||
         (hasImage
@@ -120,9 +160,12 @@ reg(
           : PromptCatalog.t(locale, 'scene.polishIdea'))
       const textPrompt = [
         hasImage ? visionFillUserPreamble(locale, 'action') : null,
+        plotBlock || null,
         buildActionMasterUserPrompt({
           idea: ideaForPrompt,
           locale,
+          storyTitle,
+          styleNote,
           existingDraft: hasDraft
             ? {
                 name: draft?.name ?? undefined,
@@ -152,7 +195,8 @@ reg(
             content: buildVisionUserContent(textPrompt, refPath)
           }
         ],
-        max_tokens: 1600
+        max_tokens: 1600,
+        timeoutMs: 240_000
       })
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractActionProfileJson(text)

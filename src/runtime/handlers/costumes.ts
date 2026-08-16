@@ -119,6 +119,11 @@ reg(
       payload: {
         idea?: string
         locale?: string
+        storyId?: string
+        suggestFromStory?: boolean
+        /** @deprecated Prefer segmentKeys */
+        segmentKey?: string | null
+        segmentKeys?: string[] | null
         existingDraft?: {
           name?: string | null
           description?: string | null
@@ -152,10 +157,43 @@ reg(
       )
       const refPath = resolveReadableImagePath(payload.referenceImagePath)
       const hasImage = Boolean(refPath)
-      if (!idea && !hasDraft && !hasImage) {
+      if (!idea && !hasDraft && !hasImage && !payload.suggestFromStory) {
         throw new AppError(
           'VALIDATION',
           'errors.ideaOrImageRequired'
+        )
+      }
+      if (payload.suggestFromStory && !payload.storyId?.trim()) {
+        throw new AppError('VALIDATION', 'errors.storyIdRequired')
+      }
+      let plotBlock = ''
+      if (payload.suggestFromStory && payload.storyId?.trim()) {
+        const {
+          normalizeSegmentKeys,
+          PLOT_FOCUS_STORY_INCLUDE,
+          plotFocusUserBlock,
+          resolvePlotFocus
+        } = await import('../../domain/plotFocus')
+        const story = await ctx.host.getPrisma().story.findUnique({
+          where: { id: payload.storyId },
+          include: PLOT_FOCUS_STORY_INCLUDE
+        })
+        if (!story) {
+          throw new AppError(
+            'NOT_FOUND',
+            'errors.storyNotFound',
+            String(payload.storyId)
+          )
+        }
+        plotBlock = plotFocusUserBlock(
+          resolvePlotFocus(
+            story,
+            normalizeSegmentKeys({
+              segmentKeys: payload.segmentKeys,
+              segmentKey: payload.segmentKey
+            }),
+            locale
+          )
         )
       }
       const { assembleSystemPrompt, shouldFillMissingKeys, shouldPersistHardRulesFallback } =
@@ -171,6 +209,7 @@ reg(
       })
       const userParts = [
         hasImage ? visionFillUserPreamble(locale, 'costume') : null,
+        plotBlock || null,
         idea
           ? PromptCatalog.t(locale, 'costumeFill.idea', { idea })
           : !hasImage
@@ -190,7 +229,8 @@ reg(
             content: buildVisionUserContent(textPrompt, refPath)
           }
         ],
-        max_tokens: 900
+        max_tokens: 900,
+        timeoutMs: 240_000
       })
       const text = chatContentText(completion.choices[0]?.message.content)
       let name = ''

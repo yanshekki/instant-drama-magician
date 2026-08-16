@@ -22,7 +22,7 @@ import {
   buildPropPlateEditPrompt,
   buildPropPlateImagePrompt
 } from '../../domain/propPlateVariants'
-import { PlotContextPicker } from '../components/PlotContextPicker'
+import { PlotSuggestModal } from '../components/PlotContextPicker'
 import type { StoryWithCounts } from '../../types/domain'
 import {
   libraryBodyClass,
@@ -191,7 +191,7 @@ export function PropsPage(): JSX.Element {
     useState<PropPlateVariantId>(DEFAULT_PROP_PLATE)
   const [plotSuggestOpen, setPlotSuggestOpen] = useState(false)
   const [plotStoryId, setPlotStoryId] = useState('')
-  const [plotSegmentKey, setPlotSegmentKey] = useState('all')
+  const [plotSegmentKeys, setPlotSegmentKeys] = useState<string[]>([])
   const [stories, setStories] = useState<StoryWithCounts[]>([])
   const [aiIdea, setAiIdea] = useState('')
   const [pageBanner, setPageBanner] = useState<string | null>(null)
@@ -922,7 +922,10 @@ export function PropsPage(): JSX.Element {
                   <Button
                     variant="secondary"
                     disabled={editorBusy}
-                    onClick={() => setPlotSuggestOpen(true)}
+                    onClick={() => {
+                      setPlotSegmentKeys([])
+                      setPlotSuggestOpen(true)
+                    }}
                   >
                     {t('props.suggestFromStory')}
                   </Button>
@@ -1102,112 +1105,89 @@ export function PropsPage(): JSX.Element {
       )}
 
       {plotSuggestOpen && (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-overlay/70 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setPlotSuggestOpen(false)
+        <PlotSuggestModal
+          open={plotSuggestOpen}
+          titleId="prop-plot-suggest-title"
+          title={t('props.suggestFromStory')}
+          hint={t('props.suggestPlotPickerHint')}
+          stories={stories}
+          storyId={plotStoryId}
+          segmentKeys={plotSegmentKeys}
+          onStoryChange={(id) => {
+            setPlotStoryId(id)
+            setPlotSegmentKeys([])
           }}
-        >
-          <div className="w-full max-w-lg rounded-2xl border border-ink-700 bg-ink-900 p-5 shadow-theme-md">
-            <h2 className="text-base font-semibold text-ink-50">
-              {t('props.suggestFromStory')}
-            </h2>
-            <p className="mt-1 text-[12px] text-ink-400">
-              {t('props.suggestPlotPickerHint')}
-            </p>
-            <div className="mt-4">
-              <PlotContextPicker
-                stories={stories}
-                storyId={plotStoryId}
-                segmentKey={plotSegmentKey}
-                onStoryChange={(id) => {
-                  setPlotStoryId(id)
-                  setPlotSegmentKey('all')
-                }}
-                onSegmentChange={setPlotSegmentKey}
-              />
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setPlotSuggestOpen(false)}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                disabled={!plotStoryId || editorBusy}
-                onClick={() => {
-                  void (async () => {
-                  const promptTemplateId = await pick('copy')
-                  if (!promptTemplateId) return
-                  setPlotSuggestOpen(false)
-                  const ideaBase = propsSuggestIdeaLabel(
-                    !(plotSegmentKey && plotSegmentKey !== 'all'),
-                    t('props.suggestIdeaFromStory'),
-                    t('props.suggestIdeaFromSegment', {
-                      segment: plotSegmentKey
+          onSegmentKeysChange={setPlotSegmentKeys}
+          defaultBeatBind="prop"
+          focusBindId={editingId}
+          onClose={() => setPlotSuggestOpen(false)}
+          confirmLabel={t('common.aiFill')}
+          cancelLabel={t('common.cancel')}
+          confirmDisabled={!plotStoryId || editorBusy}
+          onConfirm={() => {
+            void (async () => {
+              const promptTemplateId = await pick('copy')
+              if (!promptTemplateId) return
+              setPlotSuggestOpen(false)
+              const keysSnap = plotSegmentKeys
+              const ideaBase = propsSuggestIdeaLabel(
+                keysSnap.length === 0,
+                t('props.suggestIdeaFromStory'),
+                t('props.suggestIdeaFromSegment', {
+                  segment: keysSnap.join(', ')
+                })
+              )
+              setAiIdea((prev) => prev.trim() || ideaBase)
+              setTimeout(() => {
+                if (editorBusy) return
+                const idea = (aiIdea.trim() || ideaBase).trim()
+                const snapshot = {
+                  name: form.name.trim() || undefined,
+                  description: form.description.trim() || undefined,
+                  material: form.material.trim() || undefined,
+                  sizeNotes: form.sizeNotes.trim() || undefined,
+                  condition: form.condition.trim() || undefined,
+                  visualTags: form.visualTags.trim() || undefined,
+                  artStyle: form.artStyle || undefined
+                }
+                const hasDraft = Object.values(snapshot).some(
+                  (v) => typeof v === 'string' && v.length > 0
+                )
+                toast.info(t('aiJobs.startedBackground'))
+                startJob({
+                  kind: 'prop-ai-fill',
+                  label: t('props.suggestFromStory'),
+                  scope: {
+                    propId: editingId ?? undefined,
+                    storyId: plotStoryId
+                  },
+                  run: async ({ setProgress, signal }) => {
+                    setProgress(20, 'llm')
+                    const r = await getApi().props.aiFill({
+                      idea,
+                      storyId: plotStoryId,
+                      locale: i18n.language,
+                      existingDraft: hasDraft ? snapshot : undefined,
+                      suggestFromStory: true,
+                      segmentKeys: keysSnap,
+                      promptTemplateId
                     })
-                  )
-                  setAiIdea((prev) => prev.trim() || ideaBase)
-                  // Run fill with story context
-                  setTimeout(() => {
-                    if (editorBusy) return
-                    const idea = (
-                      aiIdea.trim() || ideaBase
-                    ).trim()
-                    const snapshot = {
-                      name: form.name.trim() || undefined,
-                      description: form.description.trim() || undefined,
-                      material: form.material.trim() || undefined,
-                      sizeNotes: form.sizeNotes.trim() || undefined,
-                      condition: form.condition.trim() || undefined,
-                      visualTags: form.visualTags.trim() || undefined,
-                      artStyle: form.artStyle || undefined
+                    if (signal.cancelled) return
+                    setProgress(100, 'done')
+                    return {
+                      type: 'prop-profile' as const,
+                      propId: editingId,
+                      storyId: plotStoryId,
+                      profile: r.profile,
+                      profileJson: r.profileJson,
+                      isNew: !editingId
                     }
-                    const hasDraft = Object.values(snapshot).some(
-                      (v) => typeof v === 'string' && v.length > 0
-                    )
-                    toast.info(t('aiJobs.startedBackground'))
-                    startJob({
-                      kind: 'prop-ai-fill',
-                      label: t('props.suggestFromStory'),
-                      scope: {
-                        propId: editingId ?? undefined,
-                        storyId: plotStoryId
-                      },
-                      run: async ({ setProgress, signal }) => {
-                        setProgress(20, 'llm')
-                        const r = await getApi().props.aiFill({
-                          idea,
-                          storyId: plotStoryId,
-                          locale: i18n.language,
-                          existingDraft: hasDraft ? snapshot : undefined,
-                          suggestFromStory: true,
-                          promptTemplateId
-                        })
-                        if (signal.cancelled) return
-                        setProgress(100, 'done')
-                        return {
-                          type: 'prop-profile' as const,
-                          propId: editingId,
-                          storyId: plotStoryId,
-                          profile: r.profile,
-                          profileJson: r.profileJson,
-                          isNew: !editingId
-                        }
-                      }
-                    })
-                  }, 0)
-                  })()
-                }}
-              >
-                {t('common.aiFill')}
-              </Button>
-            </div>
-          </div>
-        </div>
+                  }
+                })
+              }, 0)
+            })()
+          }}
+        />
       )}
     </div>
   )

@@ -120,7 +120,7 @@ import {
   EditorShell,
   editorFormClass
 } from '../components/EditorShell'
-import { PlotContextPicker } from '../components/PlotContextPicker'
+import { PlotContextPicker, PlotSuggestModal } from '../components/PlotContextPicker'
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
@@ -466,7 +466,8 @@ export function CharactersPage(): JSX.Element {
     useState<GalleryLayerFilter>('all')
   const [newCostumeName, setNewCostumeName] = useState('')
   const [plotStoryId, setPlotStoryId] = useState('')
-  const [plotSegmentKey, setPlotSegmentKey] = useState('all')
+  const [plotSegmentKeys, setPlotSegmentKeys] = useState<string[]>([])
+  const [plotSuggestOpen, setPlotSuggestOpen] = useState(false)
   const sheetGroups = useMemo(
     () => sheetVariantsByGroupForProfile({ ageRange: form.ageRange }),
     [form.ageRange]
@@ -766,7 +767,14 @@ export function CharactersPage(): JSX.Element {
     })
   }
 
-  const handleAiFill = async (fromEditor = false): Promise<void> => {
+  const handleAiFill = async (
+    fromEditor = false,
+    opts?: {
+      suggestFromStory?: boolean
+      storyId?: string | null
+      segmentKeys?: string[]
+    }
+  ): Promise<void> => {
     const promptTemplateId = await pick('copy')
     if (!promptTemplateId) return
     const snapshot = {
@@ -800,8 +808,11 @@ export function CharactersPage(): JSX.Element {
       soulContent,
       refPath,
       fromEditor,
+      suggestFromStory: Boolean(opts?.suggestFromStory),
+      storyId: opts?.storyId,
       setError: setActionError,
       needMsg: t('common.aiNeedIdeaOrImage'),
+      needStoryMsg: t('characters.suggestNeedStory'),
       setBanner: setPageBanner,
       toastInfo: toast.info,
       toastError: toast.error,
@@ -816,13 +827,15 @@ export function CharactersPage(): JSX.Element {
         startJob({
           kind: 'character-ai-fill',
           label: charactersAiCreateLabel(
-            isImprove,
-            t('characters.aiImproveTitle'),
+            Boolean(opts?.suggestFromStory) || isImprove,
+            opts?.suggestFromStory
+              ? t('characters.suggestFromStory')
+              : t('characters.aiImproveTitle'),
             t('characters.aiCreate')
           ),
           scope: {
             characterId: characterId ?? undefined,
-            storyId: activeStoryId ?? undefined
+            storyId: (opts?.storyId || activeStoryId) ?? undefined
           },
           run: async ({ setProgress, signal }) => {
             setProgress(15, hasImage ? 'image' : 'chat')
@@ -842,12 +855,14 @@ export function CharactersPage(): JSX.Element {
             setProgress(35, 'merge')
             const r = await getApi().characters.aiFill({
               idea: idea || undefined,
-              storyId: activeStoryId ?? undefined,
+              storyId: (opts?.storyId || activeStoryId) ?? undefined,
               locale,
               existingDraft: hasDraft ? (snap as never) : undefined,
               soulContent: soul || undefined,
               referenceImagePath: hasImage ? ref : null,
-              promptTemplateId
+              promptTemplateId,
+              suggestFromStory: Boolean(opts?.suggestFromStory),
+              segmentKeys: opts?.suggestFromStory ? opts.segmentKeys : undefined
             })
             if (signal.cancelled) return
             setProgress(100, 'done')
@@ -958,7 +973,7 @@ export function CharactersPage(): JSX.Element {
         const r = await getApi().characters.suggestWardrobe({
           characterId: editingId ?? undefined,
           storyId,
-          segmentKey: storyId ? plotSegmentKey : undefined,
+          segmentKeys: storyId ? plotSegmentKeys : undefined,
           locale: i18n.language,
           name: form.name,
           promptTemplateId,
@@ -1820,18 +1835,34 @@ export function CharactersPage(): JSX.Element {
                         : t('characters.ideaPlaceholder')
                     }
                   />
-                  <Button
-                    className="mt-3 w-full sm:w-auto"
-                    disabled={editorAiBusy}
-                    loading={editorAiBusy}
-                    onClick={() => handleAiFill(true)}
-                  >
-                    {charactersGeneratingLabel(
-                      editorAiBusy,
-                      t('common.generating'),
-                      t('common.aiFill')
-                    )}
-                  </Button>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      className="w-full sm:w-auto"
+                      disabled={editorAiBusy}
+                      loading={editorAiBusy}
+                      onClick={() => handleAiFill(true)}
+                    >
+                      {charactersGeneratingLabel(
+                        editorAiBusy,
+                        t('common.generating'),
+                        t('common.aiFill')
+                      )}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="w-full sm:w-auto"
+                      disabled={editorAiBusy}
+                      onClick={() => {
+                        if (activeStoryId && !plotStoryId) {
+                          setPlotStoryId(activeStoryId)
+                        }
+                        setPlotSegmentKeys([])
+                        setPlotSuggestOpen(true)
+                      }}
+                    >
+                      {t('characters.suggestFromStory')}
+                    </Button>
+                  </div>
                 </section>
 
                 <section className="space-y-4">
@@ -2640,9 +2671,17 @@ export function CharactersPage(): JSX.Element {
                     <PlotContextPicker
                       stories={stories}
                       storyId={plotStoryId}
-                      segmentKey={plotSegmentKey}
-                      onStoryChange={(id) => charactersPlotStoryChange(id, setPlotStoryId, setPlotSegmentKey)}
-                      onSegmentChange={setPlotSegmentKey}
+                      segmentKeys={plotSegmentKeys}
+                      onStoryChange={(id) =>
+                        charactersPlotStoryChange(
+                          id,
+                          setPlotStoryId,
+                          setPlotSegmentKeys
+                        )
+                      }
+                      onSegmentKeysChange={setPlotSegmentKeys}
+                      defaultBeatBind="character"
+                      focusBindId={editingId}
                     />
                     <Button
                       className="mt-3"
@@ -2754,6 +2793,40 @@ export function CharactersPage(): JSX.Element {
           </EditorShell>
         )}
 
+        <PlotSuggestModal
+          open={plotSuggestOpen}
+          titleId="character-plot-suggest-title"
+          title={t('characters.suggestFromStory')}
+          hint={t('characters.suggestPlotPickerHint')}
+          stories={stories}
+          storyId={plotStoryId}
+          segmentKeys={plotSegmentKeys}
+          onStoryChange={(id) =>
+            charactersPlotStoryChange(id, setPlotStoryId, setPlotSegmentKeys)
+          }
+          onSegmentKeysChange={setPlotSegmentKeys}
+          defaultBeatBind="character"
+          focusBindId={editingId}
+          onClose={() => setPlotSuggestOpen(false)}
+          confirmLabel={t('characters.suggestPlotConfirm')}
+          cancelLabel={t('common.cancel')}
+          confirmDisabled={!plotStoryId.trim() || editorAiBusy}
+          onConfirm={() => {
+            if (!plotStoryId.trim()) {
+              setActionError(t('characters.suggestNeedStory'))
+              toast.error(t('characters.suggestNeedStory'))
+              return
+            }
+            setPlotSuggestOpen(false)
+            if (!editorOpen) openCreate()
+            void handleAiFill(true, {
+              suggestFromStory: true,
+              storyId: plotStoryId,
+              segmentKeys: plotSegmentKeys
+            })
+          }}
+        />
+
       </div>
     </div>
   )
@@ -2856,8 +2929,10 @@ export function charactersGuardAiNeed(
   hasImage: boolean,
   setError: (m: string) => void,
   toastError: (m: string) => void,
-  msg: string
+  msg: string,
+  suggestFromStory = false
 ): boolean {
+  if (suggestFromStory) return false
   if (!idea && !hasDraft && !hasSoul && !hasImage) {
     setError(msg)
     toastError(msg)
@@ -3495,8 +3570,11 @@ export function charactersRunAiFill(ops: {
   soulContent: string
   refPath: string
   fromEditor: boolean
+  suggestFromStory?: boolean
+  storyId?: string | null
   setError: (m: string | null) => void
   needMsg: string
+  needStoryMsg?: string
   setBanner: (m: string) => void
   toastInfo: (m: string) => void
   toastError: (m: string) => void
@@ -3514,14 +3592,14 @@ export function charactersRunAiFill(ops: {
     snapshot: Record<string, unknown>,
     isImprove: boolean
   ) => void
-}): 'busy' | 'need' | 'started' {
+}): 'busy' | 'need' | 'needStory' | 'started' {
   if (charactersGuardBusy(ops.busy, ops.toastInfo, ops.runningMsg)) {
     return 'busy'
   }
   const idea = ops.idea.trim()
   const hasDraft = charactersHasDraftValues(ops.formSnapshot)
   const hasSoul = ops.soulContent.length > 0
-  const hasImage = Boolean(ops.refPath)
+  const hasImage = Boolean(ops.refPath) && !ops.suggestFromStory
   if (
     charactersGuardAiNeed(
       idea,
@@ -3530,10 +3608,17 @@ export function charactersRunAiFill(ops: {
       hasImage,
       (m) => ops.setError(m),
       ops.toastError,
-      ops.needMsg
+      ops.needMsg,
+      Boolean(ops.suggestFromStory)
     )
   ) {
     return 'need'
+  }
+  if (ops.suggestFromStory && !ops.storyId?.trim()) {
+    const msg = ops.needStoryMsg || ops.needMsg
+    ops.setError(msg)
+    ops.toastError(msg)
+    return 'needStory'
   }
   ops.setError(null)
   const open = charactersShouldOpenEditorOnAi(ops.fromEditor)
@@ -4277,10 +4362,10 @@ export function charactersToggleSelectIds(
 export function charactersPlotStoryChange(
   id: string,
   setPlotStoryId: (id: string) => void,
-  setPlotSegmentKey: (k: string) => void
+  setPlotSegmentKeys: (k: string[]) => void
 ): void {
   setPlotStoryId(id)
-  setPlotSegmentKey('all')
+  setPlotSegmentKeys([])
 }
 
 export function charactersUseSoulButtonClick(

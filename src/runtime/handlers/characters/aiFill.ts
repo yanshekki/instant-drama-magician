@@ -25,6 +25,11 @@ reg(
         existingDraft?: Record<string, unknown>
         /** Full soul.md / hub markdown for identity merge */
         soulContent?: string | null
+        /** Explicit “suggest from story” — only then inject story title/style */
+        suggestFromStory?: boolean
+        /** @deprecated Prefer segmentKeys */
+        segmentKey?: string | null
+        segmentKeys?: string[] | null
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
         promptTemplateId?: string | null
@@ -51,22 +56,57 @@ reg(
       const tplFlags = templateFlags(payload.promptTemplateId, 'copy')
       const refPath = resolveReadableImagePath(payload.referenceImagePath)
       const hasImage = Boolean(refPath)
-      if (!idea && !hasDraft && !hasSoul && !hasImage) {
+      if (!idea && !hasDraft && !hasSoul && !hasImage && !payload.suggestFromStory) {
         throw new AppError(
           'VALIDATION',
           'errors.ideaOrImageRequired'
         )
       }
+      if (payload.suggestFromStory && !payload.storyId?.trim()) {
+        throw new AppError('VALIDATION', 'errors.storyIdRequired')
+      }
       // Character invent uses only idea + form + soul unless the user picked from-story.
       let storyTitle: string | undefined
       let styleNote: string | null | undefined
+      let plotBlock = ''
       const locale = payload.locale ?? 'zh-HK'
-      if (tplFlags.injectStory && payload.storyId?.trim()) {
+      if (
+        payload.storyId?.trim() &&
+        (payload.suggestFromStory || tplFlags.injectStory)
+      ) {
+        const {
+          normalizeSegmentKeys,
+          PLOT_FOCUS_STORY_INCLUDE,
+          plotFocusUserBlock,
+          resolvePlotFocus
+        } = await import('../../../domain/plotFocus')
         const story = await ctx.host.getPrisma().story.findUnique({
-          where: { id: payload.storyId }
+          where: { id: payload.storyId },
+          ...(payload.suggestFromStory
+            ? { include: PLOT_FOCUS_STORY_INCLUDE }
+            : {})
         })
+        if (payload.suggestFromStory && !story) {
+          throw new AppError(
+            'NOT_FOUND',
+            'errors.storyNotFound',
+            String(payload.storyId)
+          )
+        }
         storyTitle = story?.title
         styleNote = story?.styleNote
+        if (payload.suggestFromStory && story) {
+          plotBlock = plotFocusUserBlock(
+            resolvePlotFocus(
+              story,
+              normalizeSegmentKeys({
+                segmentKeys: payload.segmentKeys,
+                segmentKey: payload.segmentKey
+              }),
+              locale
+            )
+          )
+        }
       }
 
       const str = (k: string): string | undefined => {
@@ -109,6 +149,7 @@ reg(
           : PromptCatalog.t(locale, 'vision.polishAll'))
       const textPrompt = [
         hasImage ? visionFillUserPreamble(locale, 'character') : null,
+        plotBlock || null,
         buildCharacterMasterUserPrompt({
           idea: ideaForPrompt,
           storyTitle,
@@ -134,7 +175,8 @@ reg(
             content: buildVisionUserContent(textPrompt, refPath)
           }
         ],
-        max_tokens: 3000
+        max_tokens: 3000,
+        timeoutMs: 240_000
       })
       const text = chatContentText(completion.choices[0]?.message.content)
       let profile = extractCharacterProfileJson(text)

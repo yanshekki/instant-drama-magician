@@ -20,8 +20,13 @@
     "unknownCharacter": "未指定角色",
     "beat": "段落",
     "character": "角色",
-    "pickerHint": "先選故事，再選場次或對白段落；右側會預覽該段劇情，建議才有依據。",
-    "styleNoteLine": "風格：{{note}}"
+    "pickerHint": "先選故事，再勾選段落。章節預設唔勾。唔勾即用全劇（優先章節正文）。可展開預覽。",
+    "styleNoteLine": "風格：{{note}}",
+    "groupChapters": "章節",
+    "groupScenes": "場次",
+    "groupBeats": "段落",
+    "segmentChapter": "第 {{n}} 章：{{title}}",
+    "emptyMeansAll": "全部唔勾即用全劇（優先章節正文）。"
   },
   "costumes": {
     "title": "戲服庫",
@@ -117,7 +122,11 @@
     "dressNoteOptional": "（可選）",
     "dressNeedCharBase": "請先選擇角色與底圖。",
     "dressNeedDesc": "資料 tab 需要有戲服描述才可以生成。",
-    "galleryBrowseHint": "按縮圖可預覽大圖；左上角 □ 可多選以納入身份鎖定；可拖曳排序。試穿生成圖會寫入此戲服多圖庫，已連結角色及其他使用者亦可瀏覽及選取。"
+    "galleryBrowseHint": "按縮圖可預覽大圖；左上角 □ 可多選以納入身份鎖定；可拖曳排序。試穿生成圖會寫入此戲服多圖庫，已連結角色及其他使用者亦可瀏覽及選取。",
+    "suggestFromStory": "由劇情建議服裝",
+    "suggestPlotPickerHint": "選故事並勾選段落；故事裡已經揀過角色嘅段落會預設勾上。",
+    "suggestNeedStory": "請先選擇一個故事",
+    "suggestPlotConfirm": "用此劇情生成"
   },
   "nav": {
     "stories": "故事",
@@ -707,7 +716,11 @@
     "swapPoseProfile": "側面全身（9:16）",
     "swapPoseBack": "背面全身（9:16）",
     "swapPoseBust": "半身胸像（3:4）",
-    "swapPoseDetailFabric": "面料細節板（1:1）"
+    "swapPoseDetailFabric": "面料細節板（1:1）",
+    "suggestFromStory": "由劇情建議角色",
+    "suggestPlotPickerHint": "選故事並勾選段落；故事裡已經揀過角色嘅段落會預設勾上。",
+    "suggestNeedStory": "請先選擇一個故事",
+    "suggestPlotConfirm": "用此劇情生成"
   },
   "scenes": {
     "title": "場景創作",
@@ -814,7 +827,7 @@
     "aiFill": "AI 填寫／改進",
     "aiFillOk": "人工智能已填入場景，請檢查後儲存。",
     "suggestFromStory": "由劇情建議場景",
-    "suggestPlotPickerHint": "請先選擇故事，再可細選場次或對白段落；確認後才會生成場景。",
+    "suggestPlotPickerHint": "先選故事，再勾選段落；呢個場景已經喺故事段落揀過嘅，會預設勾上。確認後先會生成場景。",
     "suggestPlotConfirm": "用此劇情生成",
     "suggestNeedStory": "請先選擇一個故事",
     "ideaPlaceholder": "例如：午後公園長椅、一次遲到的道歉…",
@@ -855,8 +868,8 @@
     "tabRefs": "參考圖",
     "plateHintShort": "先出主視覺，再細節／比例。",
     "aiHintShort": "輸入構想，一鍵填寫道具欄位。",
-    "suggestFromStory": "由故事建議",
-    "suggestPlotPickerHint": "選故事與劇情段落，AI 會依劇情填寫道具欄位。",
+    "suggestFromStory": "由劇情建議道具",
+    "suggestPlotPickerHint": "選故事並勾選段落；故事裡已經揀過道具嘅段落會預設勾上。",
     "suggestIdeaFromStory": "依所選故事風格與劇情，建議一件關鍵道具。",
     "suggestIdeaFromSegment": "依劇情段落 {{segment}} 建議關鍵道具。",
     "photoFallback": "道具圖",
@@ -1984,7 +1997,11 @@
     "panelLayout_strip-5": "5 格橫向",
     "panelLayout_grid-2x3": "6 格（2×3）",
     "galleryFallback": "指示圖",
-    "castRefsCount": "參考素材 {{count}} 張"
+    "castRefsCount": "參考素材 {{count}} 張",
+    "suggestFromStory": "由劇情建議動作",
+    "suggestPlotPickerHint": "選故事並勾選段落；故事裡已經揀過動作嘅段落會預設勾上。",
+    "suggestNeedStory": "請先選擇一個故事",
+    "suggestPlotConfirm": "用此劇情生成"
   },
   "mediaGen": {
     "title": "準備生成圖片",

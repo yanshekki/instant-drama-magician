@@ -99,7 +99,7 @@ import {
   EntityGalleryPanel,
   EntityGalleryLayerChip
 } from '../components/EntityGalleryPanel'
-import { PlotContextPicker } from '../components/PlotContextPicker'
+import { PlotSuggestModal } from '../components/PlotContextPicker'
 import {
   EditorField,
   EditorSelect,
@@ -292,7 +292,7 @@ export function ScenesPage(): JSX.Element {
   /** Popup: pick story + plot segment, then AI-suggest a scene */
   const [plotSuggestOpen, setPlotSuggestOpen] = useState(false)
   const [plotStoryId, setPlotStoryId] = useState('')
-  const [plotSegmentKey, setPlotSegmentKey] = useState('all')
+  const [plotSegmentKeys, setPlotSegmentKeys] = useState<string[]>([])
   const [stories, setStories] = useState<StoryWithCounts[]>([])
 
   const plateGroups = useMemo(() => scenePlatesByGroup(), [])
@@ -521,13 +521,14 @@ export function ScenesPage(): JSX.Element {
   const openPlotSuggest = (): void => {
     setActionError(null)
     if (activeStoryId && !plotStoryId) setPlotStoryId(activeStoryId)
+    setPlotSegmentKeys([])
     setPlotSuggestOpen(true)
   }
 
   const handleAiFill = async (opts?: {
     suggestFromStory?: boolean
     storyId?: string | null
-    segmentKey?: string | null
+    segmentKeys?: string[] | null
   }): Promise<void> => {
     const promptTemplateId = await pick('copy')
     if (!promptTemplateId) return
@@ -585,7 +586,7 @@ export function ScenesPage(): JSX.Element {
             const r = await getApi().scenes.aiFill({
               idea: suggest ? undefined : idea || undefined,
               storyId: storyIdForJob,
-              segmentKey: suggest ? opts?.segmentKey ?? 'all' : undefined,
+              segmentKeys: suggest ? opts?.segmentKeys : undefined,
               locale: i18n.language,
               suggestFromStory: suggest,
               sceneNumber: form.sceneNumber,
@@ -617,7 +618,7 @@ export function ScenesPage(): JSX.Element {
     setPlotSuggestOpen,
     () => editorOpen,
     openCreate,
-    scenesPlotFill(handleAiFill, plotStoryId, plotSegmentKey)
+    scenesPlotFill(handleAiFill, plotStoryId, plotSegmentKeys)
   )
 
 
@@ -1726,53 +1727,27 @@ export function ScenesPage(): JSX.Element {
       )}
 
       {plotSuggestOpen && (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-overlay/70 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="scene-plot-suggest-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setPlotSuggestOpen(false)
+        <PlotSuggestModal
+          open={plotSuggestOpen}
+          titleId="scene-plot-suggest-title"
+          title={t('scenes.suggestFromStory')}
+          hint={t('scenes.suggestPlotPickerHint')}
+          stories={stories}
+          storyId={plotStoryId}
+          segmentKeys={plotSegmentKeys}
+          defaultBeatBind="scene"
+          focusBindId={editingId}
+          onStoryChange={(id) => {
+            setPlotStoryId(id)
+            setPlotSegmentKeys([])
           }}
-        >
-          <div className="w-full max-w-lg rounded-2xl border border-ink-700 bg-ink-900 p-5 shadow-2xl">
-            <h2
-              id="scene-plot-suggest-title"
-              className="text-base font-semibold text-ink-50"
-            >
-              {t('scenes.suggestFromStory')}
-            </h2>
-            <p className="mt-1 text-[12px] text-ink-400">
-              {t('scenes.suggestPlotPickerHint')}
-            </p>
-            <div className="mt-4">
-              <PlotContextPicker
-                stories={stories}
-                storyId={plotStoryId}
-                segmentKey={plotSegmentKey}
-                onStoryChange={(id) => {
-                  setPlotStoryId(id)
-                  setPlotSegmentKey('all')
-                }}
-                onSegmentChange={setPlotSegmentKey}
-              />
-            </div>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setPlotSuggestOpen(false)}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                disabled={!plotStoryId.trim() || editorBusy}
-                onClick={confirmPlotSuggest}
-              >
-                {t('scenes.suggestPlotConfirm')}
-              </Button>
-            </div>
-          </div>
-        </div>
+          onSegmentKeysChange={setPlotSegmentKeys}
+          onClose={() => setPlotSuggestOpen(false)}
+          onConfirm={confirmPlotSuggest}
+          confirmLabel={t('scenes.suggestPlotConfirm')}
+          cancelLabel={t('common.cancel')}
+          confirmDisabled={!plotStoryId.trim() || editorBusy}
+        />
       )}
     </div>
   )
@@ -1910,12 +1885,12 @@ export function scenesPlotFill(
   handleAiFill: (opts: {
     suggestFromStory?: boolean
     storyId?: string | null
-    segmentKey?: string | null
+    segmentKeys?: string[] | null
   }) => void,
   plotStoryId: string,
-  plotSegmentKey: string
+  plotSegmentKeys: string[]
 ): () => void {
-  return () => handleAiFill(scenesPlotFillArgs(plotStoryId, plotSegmentKey))
+  return () => handleAiFill(scenesPlotFillArgs(plotStoryId, plotSegmentKeys))
 }
 
 export function scenesNextSceneNum(
@@ -1975,16 +1950,16 @@ export function scenesMapVideoGalleryItem(item: {
 
 export function scenesPlotFillArgs(
   plotStoryId: string,
-  plotSegmentKey: string
+  plotSegmentKeys: string[]
 ): {
   suggestFromStory: true
   storyId: string
-  segmentKey: string
+  segmentKeys: string[]
 } {
   return {
     suggestFromStory: true,
     storyId: plotStoryId,
-    segmentKey: plotSegmentKey || 'all'
+    segmentKeys: plotSegmentKeys
   }
 }
 

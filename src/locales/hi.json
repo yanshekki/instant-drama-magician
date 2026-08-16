@@ -20,8 +20,13 @@
     "unknownCharacter": "सौंपे नहीं गए",
     "beat": "मारो",
     "character": "चरित्र",
-    "pickerHint": "एक कहानी चुनें, फिर एक दृश्य या संवाद चुनें। पूर्वावलोकन सुझावों के लिए प्रयुक्त कथानक संदर्भ दिखाता है।",
-    "styleNoteLine": "शैली: {{note}}"
+    "pickerHint": "Pick a story, then check beats. Chapters stay unchecked. Leave all unchecked to use the whole story.",
+    "styleNoteLine": "शैली: {{note}}",
+    "groupChapters": "Chapters",
+    "groupScenes": "Scenes",
+    "groupBeats": "Beats",
+    "segmentChapter": "Chapter {{n}}: {{title}}",
+    "emptyMeansAll": "Nothing checked uses the whole story (chapters first)."
   },
   "costumes": {
     "title": "पोशाक",
@@ -117,7 +122,11 @@
     "dressNoteOptional": "(वैकल्पिक)",
     "dressNeedCharBase": "सबसे पहले एक पात्र और आधार चुनें।",
     "dressNeedDesc": "पहले प्रोफ़ाइल टैब पर पोशाक विवरण जोड़ें।",
-    "galleryBrowseHint": "पूर्वावलोकन करने के लिए स्टिल पर क्लिक करें। पहचान-लॉक बहु-चयन के लिए चेकबॉक्स का उपयोग करें। पुन: व्यवस्थित करने के लिए खींचें। लिंक किए गए पात्रों और अन्य लोगों को ब्राउज़ करने के लिए ट्राई-ऑन स्टिल इस पोशाक मल्टी-गैलरी पर बने रहते हैं।"
+    "galleryBrowseHint": "पूर्वावलोकन करने के लिए स्टिल पर क्लिक करें। पहचान-लॉक बहु-चयन के लिए चेकबॉक्स का उपयोग करें। पुन: व्यवस्थित करने के लिए खींचें। लिंक किए गए पात्रों और अन्य लोगों को ब्राउज़ करने के लिए ट्राई-ऑन स्टिल इस पोशाक मल्टी-गैलरी पर बने रहते हैं।",
+    "suggestFromStory": "Suggest costume from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this look from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "nav": {
     "stories": "कहानियां",
@@ -707,7 +716,11 @@
     "swapPoseProfile": "साइड प्रोफाइल फुल बॉडी (9:16)",
     "swapPoseBack": "पूरा शरीर पीछे (9:16)",
     "swapPoseBust": "वक्ष चित्र (3:4)",
-    "swapPoseDetailFabric": "कपड़ा विवरण बोर्ड (1:1)"
+    "swapPoseDetailFabric": "कपड़ा विवरण बोर्ड (1:1)",
+    "suggestFromStory": "Suggest character from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this character from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "scenes": {
     "title": "पर्दे",
@@ -814,7 +827,7 @@
     "aiFill": "एआई भरें/सुधारें",
     "aiFillOk": "एआई ने दृश्य भर दिया। समीक्षा करें, फिर सहेजें.",
     "suggestFromStory": "कहानी से सुझाव दें",
-    "suggestPlotPickerHint": "एक कहानी चुनें, फिर वैकल्पिक रूप से एक दृश्य या संवाद बीट चुनें। पुष्टि करने के बाद ही जेनरेट करें।",
+    "suggestPlotPickerHint": "Pick a story, then check beats that already picked this scene. Generate only after you confirm.",
     "suggestPlotConfirm": "प्लॉट से उत्पन्न करें",
     "suggestNeedStory": "पहले एक कहानी चुनें",
     "ideaPlaceholder": "जैसे बारिश में देर रात सुविधा स्टोर में गतिरोध...",
@@ -855,8 +868,8 @@
     "tabRefs": "प्लेटें",
     "plateHintShort": "पहले हीरो प्लेट, फिर डिटेल/स्केल।",
     "aiHintShort": "एक विचार का वर्णन करें; प्रोप फ़ील्ड को एक चरण में भरें।",
-    "suggestFromStory": "कहानी से सुझाव",
-    "suggestPlotPickerHint": "कहानी और खंड चुनें; AI प्रॉप फ़ील्ड भरता है।",
+    "suggestFromStory": "Suggest from story",
+    "suggestPlotPickerHint": "Pick a story, then check beats; AI fills prop fields from that plot.",
     "suggestIdeaFromStory": "चयनित कहानी और टोन के लिए मुख्य प्रॉप सुझाएँ।",
     "suggestIdeaFromSegment": "प्लॉट खंड {{segment}} के लिए मुख्य प्रॉप सुझाएँ।",
     "photoFallback": "थाली",
@@ -1984,7 +1997,11 @@
     "panelLayout_strip-5": "5 पैनल (क्षैतिज)",
     "panelLayout_grid-2x3": "6 पैनल (2×3 ग्रिड)",
     "galleryFallback": "अनुदेश बोर्ड",
-    "castRefsCount": "{{count}} कास्ट स्टिल"
+    "castRefsCount": "{{count}} कास्ट स्टिल",
+    "suggestFromStory": "Suggest action from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this action from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "mediaGen": {
     "title": "छवि निर्माण तैयार करें",

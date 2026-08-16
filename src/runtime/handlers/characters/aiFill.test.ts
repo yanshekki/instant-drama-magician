@@ -219,4 +219,42 @@ describe('registerCharactersAiFill', () => {
 
     rmSync(dir, { recursive: true, force: true })
   })
+
+  it('suggestFromStory injects plot body', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: PROFILE_JSON } }]
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() }
+    })
+    ;(ctx.host as { getPrisma: () => unknown }).getPrisma = () => ({
+      story: {
+        findUnique: vi.fn(async () => ({
+          id: 's1',
+          title: 'Rain',
+          styleNote: 'noir',
+          chapters: [
+            {
+              id: 'c1',
+              order: 0,
+              title: 'Night',
+              body: 'Rain on the roof. Ming waits.'
+            }
+          ],
+          storyScenes: [],
+          timeline: []
+        }))
+      }
+    })
+    registerCharactersAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'characters:aiFill', {
+      suggestFromStory: true,
+      storyId: 's1',
+      segmentKeys: ['chapter:c1'],
+      locale: 'en'
+    })
+    const msgs = JSON.stringify(chat.mock.calls[0]?.[0]?.messages ?? [])
+    expect(msgs).toMatch(/Rain on the roof/)
+  })
 })

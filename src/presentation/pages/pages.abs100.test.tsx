@@ -12378,12 +12378,14 @@ describe('abs100 Scenes pure residual helpers', () => {
     expect(scenesAiFillLabel(false, 'S', 'F')).toBe('F')
 
 
-    expect(scenesPlotFillArgs('s', '')).toEqual({
+    expect(scenesPlotFillArgs('s', [])).toEqual({
       suggestFromStory: true,
       storyId: 's',
-      segmentKey: 'all'
+      segmentKeys: []
     })
-    expect(scenesPlotFillArgs('s', 'seg')).toMatchObject({ segmentKey: 'seg' })
+    expect(scenesPlotFillArgs('s', ['seg'])).toMatchObject({
+      segmentKeys: ['seg']
+    })
     expect(scenesStatusValue('READY', () => true)).toBe('READY')
     expect(scenesStatusValue('x', () => false)).toBe('PENDING')
     expect(scenesCustomLocationOption('custom', ['a', 'b'])).toBe('custom')
@@ -12498,7 +12500,7 @@ describe('abs100 Scenes pure residual helpers', () => {
     scenesPlotFill(
       (opts) => msgs.push('fill:' + JSON.stringify(opts)),
       's1',
-      'all'
+      []
     )()
     expect(scenesNextSceneNum([], () => 1)).toBe(1)
     expect(

@@ -268,6 +268,10 @@ export interface ElectronApi {
       existingDraft?: Record<string, unknown>
       /** Full soul.md / hub markdown for identity merge */
       soulContent?: string | null
+      suggestFromStory?: boolean
+      /** @deprecated Prefer segmentKeys */
+      segmentKey?: string | null
+      segmentKeys?: string[] | null
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
       promptTemplateId?: string | null
@@ -411,8 +415,9 @@ export interface ElectronApi {
     suggestWardrobe: (payload: {
       characterId?: string
       storyId?: string
-      /** all | scene:<id> | beat:<timelineEntryId> */
+      /** @deprecated Prefer segmentKeys */
       segmentKey?: string | null
+      segmentKeys?: string[] | null
       locale?: string
       name?: string
       appearance?: string | null
@@ -507,8 +512,9 @@ export interface ElectronApi {
     aiFill: (payload: {
       idea?: string
       storyId?: string
-      /** all | scene:<id> | beat:<timelineEntryId> — with suggestFromStory */
+      /** @deprecated Prefer segmentKeys */
       segmentKey?: string | null
+      segmentKeys?: string[] | null
       locale?: string
       existingDraft?: Record<string, string | undefined | null>
       suggestFromStory?: boolean
@@ -616,6 +622,9 @@ export interface ElectronApi {
       existingDraft?: Record<string, string | undefined | null>
       /** Explicit suggest-from-story — only then inject story title/style */
       suggestFromStory?: boolean
+      /** @deprecated Prefer segmentKeys */
+      segmentKey?: string | null
+      segmentKeys?: string[] | null
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
       promptTemplateId?: string | null
@@ -692,6 +701,10 @@ export interface ElectronApi {
       storyId?: string
       locale?: string
       existingDraft?: Record<string, string | undefined | null>
+      suggestFromStory?: boolean
+      /** @deprecated Prefer segmentKeys */
+      segmentKey?: string | null
+      segmentKeys?: string[] | null
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
       promptTemplateId?: string | null
@@ -813,6 +826,11 @@ export interface ElectronApi {
     aiFill: (payload: {
       idea?: string
       locale?: string
+      storyId?: string
+      suggestFromStory?: boolean
+      /** @deprecated Prefer segmentKeys */
+      segmentKey?: string | null
+      segmentKeys?: string[] | null
       existingDraft?: {
         name?: string | null
         description?: string | null

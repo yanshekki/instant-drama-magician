@@ -153,30 +153,18 @@ describe('registerScenesAiFill', () => {
       locale: 'en'
     })
     expect(chat.mock.calls.length).toBeGreaterThanOrEqual(3)
+    expect(chat.mock.calls[0][0]).toMatchObject({
+      max_tokens: 2500,
+      timeoutMs: 240_000
+    })
 
-    await expect(
-      invokeRegistered(h as never, 'scenes:aiFill', {
-        suggestFromStory: true,
-        storyId: 's1',
-        segmentKey: 'scene:missing'
-      })
-    ).rejects.toMatchObject({ message: 'errors.sceneNotLinked' })
-
-    await expect(
-      invokeRegistered(h as never, 'scenes:aiFill', {
-        suggestFromStory: true,
-        storyId: 's1',
-        segmentKey: 'beat:missing'
-      })
-    ).rejects.toMatchObject({ message: 'errors.timelineBeatNotFound' })
-
-    await expect(
-      invokeRegistered(h as never, 'scenes:aiFill', {
-        suggestFromStory: true,
-        storyId: 's1',
-        segmentKey: 'weird:x'
-      })
-    ).rejects.toMatchObject({ message: 'errors.unknownSegmentKey' })
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      suggestFromStory: true,
+      storyId: 's1',
+      segmentKeys: ['scene:missing', 'weird:x']
+    })
+    const fallback = JSON.stringify(chat.mock.calls.at(-1)?.[0]?.messages ?? [])
+    expect(fallback).toMatch(/wet alley|Alley/)
 
     prisma.story.findUnique.mockResolvedValueOnce(null)
     await expect(
@@ -201,6 +189,77 @@ describe('registerScenesAiFill', () => {
       locale: 'en'
     })) as { profile: { title?: string } }
     expect(r.profile.title).toBeTruthy()
+  })
+
+  it('suggestFromStory prefers chapter bodies as plot source', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: SCENE_JSON } }]
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() }
+    })
+    ;(ctx.host as { getPrisma: () => unknown }).getPrisma = () => ({
+      story: {
+        findUnique: vi.fn(async () => ({
+          ...storyBundle(),
+          chapters: [
+            { order: 0, title: 'Night', body: 'Rain on the roof. Ming waits.' }
+          ]
+        }))
+      }
+    })
+    registerScenesAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      suggestFromStory: true,
+      storyId: 's1',
+      segmentKey: 'all',
+      locale: 'en'
+    })
+    const msgs = JSON.stringify(chat.mock.calls[0]?.[0]?.messages ?? [])
+    expect(msgs).toMatch(/Rain on the roof/)
+    expect(chat.mock.calls[0][0]).toMatchObject({ timeoutMs: 240_000 })
+  })
+
+  it('suggestFromStory merges segmentKeys into the prompt', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: SCENE_JSON } }]
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() }
+    })
+    ;(ctx.host as { getPrisma: () => unknown }).getPrisma = () => ({
+      story: {
+        findUnique: vi.fn(async () => ({
+          ...storyBundle(),
+          chapters: [
+            {
+              id: 'c1',
+              order: 0,
+              title: 'Night',
+              body: 'Rain on the roof. Ming waits.'
+            },
+            {
+              id: 'c2',
+              order: 1,
+              title: 'Dawn',
+              body: 'Sun hits the alley.'
+            }
+          ]
+        }))
+      }
+    })
+    registerScenesAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'scenes:aiFill', {
+      suggestFromStory: true,
+      storyId: 's1',
+      segmentKeys: ['chapter:c1', 'chapter:c2'],
+      locale: 'en'
+    })
+    const msgs = JSON.stringify(chat.mock.calls[0]?.[0]?.messages ?? [])
+    expect(msgs).toMatch(/Rain on the roof/)
+    expect(msgs).toMatch(/Sun hits the alley/)
   })
 
   it('draft + storyId without suggestFromStory does not inject story sample', async () => {

@@ -20,8 +20,13 @@
     "unknownCharacter": "未割り当て",
     "beat": "ビート",
     "character": "キャラクター",
-    "pickerHint": "ストーリーを選択してから、シーンまたは会話のビートを選択します。プレビューには、提案に使用されるプロット コンテキストが表示されます。",
-    "styleNoteLine": "スタイル：{{note}}"
+    "pickerHint": "Pick a story, then check beats. Chapters stay unchecked. Leave all unchecked to use the whole story.",
+    "styleNoteLine": "スタイル：{{note}}",
+    "groupChapters": "Chapters",
+    "groupScenes": "Scenes",
+    "groupBeats": "Beats",
+    "segmentChapter": "Chapter {{n}}: {{title}}",
+    "emptyMeansAll": "Nothing checked uses the whole story (chapters first)."
   },
   "costumes": {
     "title": "コスチューム",
@@ -117,7 +122,11 @@
     "dressNoteOptional": "(オプション)",
     "dressNeedCharBase": "まずキャラクターとベースを選択します。",
     "dressNeedDesc": "まず、[プロフィール] タブにコスチュームの説明を追加します。",
-    "galleryBrowseHint": "静止画をクリックしてプレビュー。チェックで身元ロックの複数選択。ドラッグで並べ替え。試着静止画はこの衣装ギャラリーに残り、紐づくキャラや他の人も閲覧できます。"
+    "galleryBrowseHint": "静止画をクリックしてプレビュー。チェックで身元ロックの複数選択。ドラッグで並べ替え。試着静止画はこの衣装ギャラリーに残り、紐づくキャラや他の人も閲覧できます。",
+    "suggestFromStory": "Suggest costume from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this look from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "nav": {
     "stories": "ストーリー",
@@ -707,7 +716,11 @@
     "swapPoseProfile": "横顔全身 (9:16)",
     "swapPoseBack": "背中 全身 (9:16)",
     "swapPoseBust": "胸像 (3:4)",
-    "swapPoseDetailFabric": "ファブリックディテールボード (1:1)"
+    "swapPoseDetailFabric": "ファブリックディテールボード (1:1)",
+    "suggestFromStory": "Suggest character from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this character from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "scenes": {
     "title": "シーン",
@@ -814,7 +827,7 @@
     "aiFill": "AIによる補完・改善",
     "aiFillOk": "AI が現場を埋め尽くしました。確認してから保存します。",
     "suggestFromStory": "ストーリーから提案",
-    "suggestPlotPickerHint": "ストーリーを選択し、必要に応じてシーンまたは会話のビートを選択します。確認した後にのみ生成します。",
+    "suggestPlotPickerHint": "Pick a story, then check beats that already picked this scene. Generate only after you confirm.",
     "suggestPlotConfirm": "プロットから生成",
     "suggestNeedStory": "最初にストーリーを選択してください",
     "ideaPlaceholder": "例えば公園のベンチ、遅れた謝罪…",
@@ -855,8 +868,8 @@
     "tabRefs": "プレート",
     "plateHintShort": "最初にヒーロープレート、次に詳細/スケール。",
     "aiHintShort": "アイデアを説明します。 1 つのステップで prop フィールドに入力します。",
-    "suggestFromStory": "ストーリーから提案",
-    "suggestPlotPickerHint": "ストーリーとプロット区間を選び、AI が小道具欄を埋めます。",
+    "suggestFromStory": "Suggest from story",
+    "suggestPlotPickerHint": "Pick a story, then check beats; AI fills prop fields from that plot.",
     "suggestIdeaFromStory": "選択したストーリーのトーンに合うキー小道具を提案。",
     "suggestIdeaFromSegment": "プロット区間 {{segment}} のキー小道具を提案。",
     "photoFallback": "皿",
@@ -1984,7 +1997,11 @@
     "panelLayout_strip-5": "5パネル（横）",
     "panelLayout_grid-2x3": "6 パネル (2×3 グリッド)",
     "galleryFallback": "説明板",
-    "castRefsCount": "{{count}} キャスト静止画"
+    "castRefsCount": "{{count}} キャスト静止画",
+    "suggestFromStory": "Suggest action from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this action from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "mediaGen": {
     "title": "画像生成の準備",

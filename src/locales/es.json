@@ -20,8 +20,13 @@
     "unknownCharacter": "No asignado",
     "beat": "Derrotar",
     "character": "Personaje",
-    "pickerHint": "Elija una historia, luego una escena o un diálogo. La vista previa muestra el contexto de la trama utilizado para las sugerencias.",
-    "styleNoteLine": "Estilo: {{note}}"
+    "pickerHint": "Pick a story, then check beats. Chapters stay unchecked. Leave all unchecked to use the whole story.",
+    "styleNoteLine": "Estilo: {{note}}",
+    "groupChapters": "Chapters",
+    "groupScenes": "Scenes",
+    "groupBeats": "Beats",
+    "segmentChapter": "Chapter {{n}}: {{title}}",
+    "emptyMeansAll": "Nothing checked uses the whole story (chapters first)."
   },
   "costumes": {
     "title": "Disfraces",
@@ -117,7 +122,11 @@
     "dressNoteOptional": "(opcional)",
     "dressNeedCharBase": "Elige un personaje y una base primero.",
     "dressNeedDesc": "Primero agregue una descripción del disfraz en la pestaña Perfil.",
-    "galleryBrowseHint": "Haga clic en una imagen fija para obtener una vista previa. Utilice la casilla de verificación para la selección múltiple de bloqueo de identidad. Arrastre para reordenar. Las imágenes de prueba permanecen en esta galería múltiple de disfraces para que los personajes vinculados y otros puedan explorar."
+    "galleryBrowseHint": "Haga clic en una imagen fija para obtener una vista previa. Utilice la casilla de verificación para la selección múltiple de bloqueo de identidad. Arrastre para reordenar. Las imágenes de prueba permanecen en esta galería múltiple de disfraces para que los personajes vinculados y otros puedan explorar.",
+    "suggestFromStory": "Suggest costume from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this look from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "nav": {
     "stories": "Historias",
@@ -707,7 +716,11 @@
     "swapPoseProfile": "Perfil lateral de cuerpo completo (9:16)",
     "swapPoseBack": "Espalda cuerpo completo (9:16)",
     "swapPoseBust": "Retrato de busto (3:4)",
-    "swapPoseDetailFabric": "Tablero de detalles de tela (1:1)"
+    "swapPoseDetailFabric": "Tablero de detalles de tela (1:1)",
+    "suggestFromStory": "Suggest character from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this character from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "scenes": {
     "title": "Escenas",
@@ -814,7 +827,7 @@
     "aiFill": "Relleno/mejora de IA",
     "aiFillOk": "La IA llenó la escena. Revisa y luego guarda.",
     "suggestFromStory": "Sugerir de la historia",
-    "suggestPlotPickerHint": "Elija una historia y, opcionalmente, una escena o un ritmo de diálogo. Generar sólo después de confirmar.",
+    "suggestPlotPickerHint": "Pick a story, then check beats that already picked this scene. Generate only after you confirm.",
     "suggestPlotConfirm": "Generar a partir de la trama",
     "suggestNeedStory": "Seleccione una historia primero",
     "ideaPlaceholder": "p.ej. Enfrentamiento nocturno en una tienda de conveniencia bajo la lluvia...",
@@ -855,8 +868,8 @@
     "tabRefs": "Platos",
     "plateHintShort": "Primero la placa del héroe, luego el detalle/escala.",
     "aiHintShort": "Describe una idea; Complete los campos de accesorios en un solo paso.",
-    "suggestFromStory": "Sugerir desde la historia",
-    "suggestPlotPickerHint": "Elige historia y segmento; la IA rellena los campos del atrezo.",
+    "suggestFromStory": "Suggest from story",
+    "suggestPlotPickerHint": "Pick a story, then check beats; AI fills prop fields from that plot.",
     "suggestIdeaFromStory": "Sugerir un atrezo clave para la historia y el tono elegidos.",
     "suggestIdeaFromSegment": "Sugerir un atrezo clave para el segmento {{segment}}.",
     "photoFallback": "Lámina",
@@ -1984,7 +1997,11 @@
     "panelLayout_strip-5": "5 paneles (horizontales)",
     "panelLayout_grid-2x3": "6 paneles (cuadrícula 2×3)",
     "galleryFallback": "tablero de instrucciones",
-    "castRefsCount": "{{count}} emitir imágenes fijas"
+    "castRefsCount": "{{count}} emitir imágenes fijas",
+    "suggestFromStory": "Suggest action from plot",
+    "suggestPlotPickerHint": "Pick a story and check plot slices; AI fills this action from that context.",
+    "suggestNeedStory": "Select a story first",
+    "suggestPlotConfirm": "Generate from plot"
   },
   "mediaGen": {
     "title": "Preparar la generación de imágenes.",
