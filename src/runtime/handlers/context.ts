@@ -12,6 +12,7 @@ import {
   PropService,
   SceneService,
   StoryService,
+  ChapterService,
   TimelinePersistenceService
 } from '../../application/services'
 import type { AppSettings } from '../../types/settings'
@@ -41,6 +42,7 @@ export type HandlerContext = {
   keyArt: () => KeyArtService
   costumes: () => CostumeService
   timeline: () => TimelinePersistenceService
+  chapters: () => ChapterService
   generation: () => GenerationService
 }
 
@@ -65,6 +67,7 @@ export function createHandlerContext(
   const costumes = (): CostumeService => new CostumeService(host.getPrisma())
   const timeline = (): TimelinePersistenceService =>
     new TimelinePersistenceService(host.getPrisma())
+  const chapters = (): ChapterService => new ChapterService(host.getPrisma())
 
   let generationService: GenerationService | null = null
   const generation = (): GenerationService => {
@@ -108,6 +111,7 @@ export function createHandlerContext(
     keyArt,
     costumes,
     timeline,
+    chapters,
     generation
   }
 }

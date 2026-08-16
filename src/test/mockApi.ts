@@ -34,6 +34,27 @@ export function createMockApi(
       listCast: vi.fn().mockResolvedValue([]),
       setCharacterCostume: vi.fn().mockResolvedValue({})
     },
+    chapters: {
+      list: vi.fn().mockResolvedValue([]),
+      create: vi.fn().mockResolvedValue({ id: 'ch1', title: '', body: '', order: 0 }),
+      update: vi.fn().mockResolvedValue({}),
+      delete: vi.fn().mockResolvedValue({ ok: true }),
+      reorder: vi.fn().mockResolvedValue([]),
+      aiFill: vi.fn().mockResolvedValue({
+        chapters: [],
+        replaced: true,
+        drafts: [],
+        raw: ''
+      }),
+      aiPolish: vi.fn().mockResolvedValue({ chapter: {}, raw: '' }),
+      generateCast: vi.fn().mockResolvedValue({
+        preview: true,
+        plan: { characters: [], scenes: [], props: [], actions: [] },
+        summary: { create: 0, link: 0, skip: 0 },
+        drafts: { characters: [], scenes: [], props: [], actions: [] },
+        raw: ''
+      })
+    },
     characters: {
       list: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue({ id: 'c1' }),

@@ -27,6 +27,7 @@ export interface StoryWithCounts extends Story {
     props?: number
     actions?: number
     timeline?: number
+    chapters?: number
     storyCharacters?: number
     storyScenes?: number
     storyProps?: number
@@ -40,6 +41,28 @@ export interface StoryDetail extends Story {
   props: Prop[]
   actions: Action[]
   timeline: TimelineEntry[]
+  chapters: Chapter[]
+}
+
+export interface Chapter {
+  id: string
+  storyId: string
+  order: number
+  title: string
+  body: string
+  createdAt?: string | Date
+  updatedAt?: string | Date
+}
+
+export interface CreateChapterInput {
+  storyId: string
+  title?: string
+  body?: string
+}
+
+export interface UpdateChapterInput {
+  title?: string
+  body?: string
 }
 
 export interface Character {
@@ -455,6 +478,8 @@ export interface ChatCompletionRequest {
   messages: ChatMessage[]
   temperature?: number
   max_tokens?: number
+  /** Per-request abort window; falls back to settings.chatTimeoutMs. */
+  timeoutMs?: number
 }
 
 export interface ChatCompletionChoice {

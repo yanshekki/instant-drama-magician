@@ -55,6 +55,8 @@ const api: ElectronApi & {
       idea?: string
       locale?: string
       replace?: boolean
+      promptTemplateId?: string | null
+      chapterIds?: string[]
     }) => ipcRenderer.invoke('stories:aiFillScript', payload),
     linkCharacter: (payload: {
       storyId: string
@@ -85,6 +87,22 @@ const api: ElectronApi & {
     unlinkAction: (payload: { storyId: string; actionId: string }) =>
       ipcRenderer.invoke('stories:unlinkAction', payload),
     listCast: (storyId: string) => ipcRenderer.invoke('stories:listCast', storyId)
+  },
+  chapters: {
+    list: (storyId: string) => ipcRenderer.invoke('chapters:list', storyId),
+    create: (input: { storyId: string; title?: string; body?: string }) =>
+      ipcRenderer.invoke('chapters:create', input),
+    update: (id: string, data: { title?: string; body?: string }) =>
+      ipcRenderer.invoke('chapters:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('chapters:delete', id),
+    reorder: (storyId: string, orderedIds: string[]) =>
+      ipcRenderer.invoke('chapters:reorder', storyId, orderedIds),
+    aiFill: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('chapters:aiFill', payload),
+    aiPolish: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('chapters:aiPolish', payload),
+    generateCast: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('chapters:generateCast', payload)
   },
   characters: {
     get: (id: string) => ipcRenderer.invoke('characters:get', id),

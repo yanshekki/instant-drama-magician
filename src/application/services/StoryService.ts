@@ -2,11 +2,13 @@ import type { PrismaClient, StoryStatus } from '../../types/prisma'
 import type { CreateStoryInput, UpdateStoryInput } from '../../types/domain'
 import { AppError } from '../../types/errors'
 import { isStoryStatus, normalizeStoryTitle, validateStoryTitle } from '../../domain/story'
+import { ensureChapterSchema } from './ChapterService'
 
 export class StoryService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  list() {
+  async list() {
+    await ensureChapterSchema(this.prisma)
     return this.prisma.story.findMany({
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       include: {
@@ -16,7 +18,8 @@ export class StoryService {
             storyScenes: true,
             storyProps: true,
             storyActions: true,
-            timeline: true
+            timeline: true,
+            chapters: true
           }
         }
       }
@@ -24,6 +27,7 @@ export class StoryService {
   }
 
   async get(id: string) {
+    await ensureChapterSchema(this.prisma)
     const story = await this.prisma.story.findUnique({
       where: { id },
       include: {
@@ -46,7 +50,8 @@ export class StoryService {
           orderBy: { sortOrder: 'asc' },
           include: { action: true }
         },
-        timeline: { orderBy: { order: 'asc' } }
+        timeline: { orderBy: { order: 'asc' } },
+        chapters: { orderBy: { order: 'asc' } }
       }
     })
     if (!story) throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(id))
@@ -61,6 +66,12 @@ export class StoryService {
         }
       ).storyActions ?? []
     const timeline = story.timeline ?? []
+    const chapters =
+      (
+        story as {
+          chapters?: unknown[]
+        }
+      ).chapters ?? []
     return {
       ...story,
       characters: storyCharacters.map((l) => ({
@@ -84,12 +95,14 @@ export class StoryService {
       })),
       props: storyProps.map((l) => l.prop),
       actions: storyActions.map((l) => l.action),
+      chapters,
       _count: {
         characters: storyCharacters.length,
         scenes: storyScenes.length,
         props: storyProps.length,
         actions: storyActions.length,
-        timeline: timeline.length
+        timeline: timeline.length,
+        chapters: chapters.length
       }
     }
   }

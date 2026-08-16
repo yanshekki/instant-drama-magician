@@ -4,6 +4,8 @@ import * as services from './index'
 describe('services index', () => {
   it('re-exports core services', () => {
     expect(services.StoryService).toBeTruthy()
+    expect(services.ChapterService).toBeTruthy()
+    expect(services.ChapterCastService).toBeTruthy()
     expect(services.CharacterService).toBeTruthy()
     expect(services.GenerationService).toBeTruthy()
   })

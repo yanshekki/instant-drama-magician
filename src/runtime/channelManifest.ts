@@ -41,6 +41,43 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     description: 'Seed demo story',
     argsHint: '["zh-HK"|"en"]'
   },
+  { channel: 'chapters:list', description: 'List story chapters', argsHint: '["storyId"]' },
+  {
+    channel: 'chapters:create',
+    description: 'Create a story chapter',
+    argsHint: '[{"storyId":"…","title":"…","body":"…"}]'
+  },
+  {
+    channel: 'chapters:update',
+    description: 'Update a story chapter',
+    argsHint: '["id", {"title":"…","body":"…"}]'
+  },
+  {
+    channel: 'chapters:delete',
+    description: 'Delete a story chapter',
+    argsHint: '["id"]',
+    destructive: true
+  },
+  {
+    channel: 'chapters:reorder',
+    description: 'Reorder story chapters',
+    argsHint: '["storyId", ["id1","id2"]]'
+  },
+  {
+    channel: 'chapters:aiFill',
+    description: 'AI generate story chapters from idea',
+    argsHint: '[{storyId, idea, locale, replace}]'
+  },
+  {
+    channel: 'chapters:aiPolish',
+    description: 'AI polish one story chapter',
+    argsHint: '[{storyId, chapterId, idea, locale}]'
+  },
+  {
+    channel: 'chapters:generateCast',
+    description: 'Extract/create characters scenes props actions from chapters',
+    argsHint: '[{storyId, preview, drafts, locale}]'
+  },
   { channel: 'characters:list', description: 'List characters', argsHint: '[{}]' },
   {
     channel: 'characters:get',
@@ -818,6 +855,14 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'app:getInfo',
   'app:importFullBackup',
   'app:rebuildMenu',
+  'chapters:aiFill',
+  'chapters:aiPolish',
+  'chapters:create',
+  'chapters:delete',
+  'chapters:generateCast',
+  'chapters:list',
+  'chapters:reorder',
+  'chapters:update',
   'characters:aiFill',
   'characters:commitSheet',
   'characters:create',

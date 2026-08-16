@@ -14,7 +14,11 @@ const BEATS_JSON = JSON.stringify([
   {
     characterName: 'Ming',
     sceneTitle: 'Rooftop',
+    sceneHints: ['Rooftop', 'Alley'],
     propName: 'Umbrella',
+    propNames: ['Umbrella', 'Lantern'],
+    actionName: 'Sprint',
+    actionNames: ['Sprint', 'Bow'],
     dialogue: 'Wait for me.',
     scriptText: 'Ming runs through the rain.',
     durationSeconds: 6
@@ -388,9 +392,27 @@ describe('registerStoriesHandlers', () => {
           title: 'Rooftop',
           description: 'rain',
           script: null
+        },
+        {
+          id: 'sc2',
+          sceneNumber: 2,
+          title: 'Alley',
+          description: 'wet',
+          script: null
         }
       ],
-      props: [{ id: 'p1', name: 'Umbrella', description: 'black' }]
+      props: [
+        { id: 'p1', name: 'Umbrella', description: 'black' },
+        { id: 'p2', name: 'Lantern', description: 'paper' }
+      ],
+      actions: [
+        { id: 'a1', name: 'Sprint', description: 'run', motionNotes: 'fast' },
+        { id: 'a2', name: 'Bow', description: 'nod', motionNotes: 'slow' }
+      ],
+      chapters: [
+        { id: 'ch-night', order: 0, title: 'Night', body: 'Rain on the roof.' },
+        { id: 'ch-dawn', order: 1, title: 'Dawn', body: 'Sun on the alley.' }
+      ]
     }))
     const makeCtx = () =>
       makeHandlerContext({
@@ -437,9 +459,38 @@ describe('registerStoriesHandlers', () => {
     expect(deleteMany).toHaveBeenCalled()
     expect(create).toHaveBeenCalled()
     expect(replaced.beats.length).toBeGreaterThan(0)
+    expect(JSON.stringify(chat.mock.calls[0][0])).toMatch(/Rain on the roof/)
+    expect(JSON.stringify(chat.mock.calls[0][0])).toMatch(/Sprint/)
+    expect(JSON.stringify(chat.mock.calls[0][0])).toMatch(/at most 6 beats/)
+    expect(JSON.stringify(chat.mock.calls[0][0])).not.toMatch(/exactly 4 beats/)
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actionId: 'a1',
+          actionIds: JSON.stringify(['a1', 'a2']),
+          propIds: JSON.stringify(['p1', 'p2']),
+          sceneIds: JSON.stringify(['sc1', 'sc2'])
+        })
+      })
+    )
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'aiFillScript' })
     )
+
+    deleteMany.mockClear()
+    aggregate.mockClear()
+    create.mockClear()
+    chat.mockClear()
+    const filtered = (await invokeRegistered(h as never, 'stories:aiFillScript', {
+      storyId: 's1',
+      replace: true,
+      locale: 'en',
+      chapterIds: ['ch-dawn']
+    })) as { beats: unknown[] }
+    expect(filtered.beats.length).toBeGreaterThan(0)
+    const filteredPrompt = JSON.stringify(chat.mock.calls[0][0])
+    expect(filteredPrompt).toMatch(/Sun on the alley/)
+    expect(filteredPrompt).not.toMatch(/Rain on the roof/)
 
     deleteMany.mockClear()
     aggregate.mockClear()

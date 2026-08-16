@@ -182,6 +182,7 @@ export function makeStoryDetail(overrides: Record<string, unknown> = {}) {
     scenes: [makeScene()],
     props: [makeProp()],
     actions: [],
+    chapters: [],
     ...overrides
   }
 }

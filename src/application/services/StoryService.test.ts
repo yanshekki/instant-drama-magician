@@ -114,7 +114,8 @@ describe('StoryService', () => {
       scenes: 2,
       props: 1,
       actions: 1,
-      timeline: 1
+      timeline: 1,
+      chapters: 0
     })
   })
 
@@ -134,10 +135,10 @@ describe('StoryService', () => {
     expect(row._count.timeline).toBe(0)
   })
 
-  it('list uses orderBy updatedAt', () => {
+  it('list uses orderBy updatedAt', async () => {
     const prisma = createMockPrisma()
     const svc = new StoryService(prisma as never)
-    void svc.list()
+    await svc.list()
     expect(prisma.story.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],

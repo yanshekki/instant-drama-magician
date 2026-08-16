@@ -35,6 +35,7 @@ describe('createHandlerContext', () => {
       expect(typeof ctx.actions).toBe('function')
       expect(typeof ctx.costumes).toBe('function')
       expect(typeof ctx.timeline).toBe('function')
+      expect(typeof ctx.chapters).toBe('function')
       expect(typeof ctx.generation).toBe('function')
       expect(ctx.mediaRoot()).toContain('media')
       expect(ctx.userDataPath()).toBe(dir)

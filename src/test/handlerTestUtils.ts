@@ -40,6 +40,8 @@ export function makeHandlerContext(
     })),
     delete: vi.fn(async (id: string) => ({ id })),
     reorder: vi.fn(async () => ({ ok: true })),
+    replaceAll: vi.fn(async () => []),
+    appendAll: vi.fn(async () => []),
     setMedia: vi.fn(async (id: string, data: unknown) => ({ id, ...(data as object) }))
   })
 
@@ -180,6 +182,7 @@ export function makeHandlerContext(
     keyArt: overrides.keyArt ?? (noopService as never),
     costumes: overrides.costumes ?? (noopService as never),
     timeline: overrides.timeline ?? (noopService as never),
+    chapters: overrides.chapters ?? (noopService as never),
     generation:
       overrides.generation ??
       (() =>

@@ -1,5 +1,9 @@
 import { PromptCatalog, resolvePromptContext } from '../../prompts'
 import { defaultStoryTitle, defaultDuration, maybeAppendMultiRef } from '../../domain/residualLabels'
+import {
+  filterChaptersForPrompt,
+  formatChaptersForPrompt
+} from '../../domain/storyChapterPrompt'
 /**
  * Domain IPC handlers (split for maintainability).
  */
@@ -355,6 +359,7 @@ reg(
         /** When true, delete existing timeline then create new beats */
         replace?: boolean
         promptTemplateId?: string | null
+        chapterIds?: string[]
       }
     ) => {
       const locale = payload.locale ?? 'zh-HK'
@@ -362,19 +367,54 @@ reg(
         throw new AppError('VALIDATION', 'errors.storyIdRequired')
       }
       const story = await stories().get(payload.storyId)
+      const pickedChapters = filterChaptersForPrompt(
+        (
+          (story as {
+            chapters?: Array<{
+              id: string
+              order: number
+              title: string
+              body: string
+            }>
+          }).chapters ?? []
+        ),
+        payload.chapterIds
+      )
+      if (
+        Array.isArray(payload.chapterIds) &&
+        payload.chapterIds.length > 0 &&
+        pickedChapters.length === 0
+      ) {
+        throw new AppError('VALIDATION', 'errors.chaptersRequired')
+      }
       const {
+        beatAiMaxBeats,
+        beatAiMaxTokens,
         buildStoryBeatsSystemPrompt,
         buildStoryBeatsUserPrompt,
         extractStoryBeatsJson,
         resolveBeatIds
       } = await import('../../domain/storyMasterPrompt')
+      const maxBeats = beatAiMaxBeats(pickedChapters.length)
+      const maxTokens = beatAiMaxTokens(maxBeats)
+      const storyActions = (
+        story as {
+          actions?: Array<{
+            id: string
+            name: string
+            description?: string | null
+            motionNotes?: string | null
+          }>
+        }
+      ).actions ?? []
       const completion = await ctx.aiClient.chat({
         messages: [
           {
             role: 'system',
             content: buildStoryBeatsSystemPrompt(
               locale,
-              payload.promptTemplateId
+              payload.promptTemplateId,
+              { maxBeats }
             )
           },
           {
@@ -410,11 +450,25 @@ reg(
                 name: p.name,
                 description: p.description
               })),
+              actions: storyActions.map((a) => ({
+                name: a.name,
+                description: a.description,
+                motionNotes: a.motionNotes
+              })),
+              chaptersText: formatChaptersForPrompt(
+                pickedChapters.map((c, i) => ({
+                  order: c.order ?? i,
+                  title: c.title ?? '',
+                  body: c.body ?? ''
+                })),
+                locale
+              ),
               locale
             })
           }
         ],
-        max_tokens: 3500
+        max_tokens: maxTokens,
+        timeoutMs: 240_000
       })
       const raw = chatContentText(completion.choices[0]?.message.content)
       const drafts = extractStoryBeatsJson(raw, locale)
@@ -429,7 +483,8 @@ reg(
           title: s.title,
           description: s.description
         })),
-        props: story.props.map((p) => ({ id: p.id, name: p.name }))
+        props: story.props.map((p) => ({ id: p.id, name: p.name })),
+        actions: storyActions.map((a) => ({ id: a.id, name: a.name }))
       }
 
       if (payload.replace !== false) {
@@ -488,9 +543,11 @@ reg(
             characterId: ids.characterId,
             sceneId: ids.sceneId,
             propId: ids.propId,
+            actionId: ids.actionId,
             characterIds: serializeIdList(ids.characterIds),
             sceneIds: serializeIdList(ids.sceneIds),
-            propIds: serializeIdList(ids.propIds)
+            propIds: serializeIdList(ids.propIds),
+            actionIds: serializeIdList(ids.actionIds)
           }
         })
         created.push({

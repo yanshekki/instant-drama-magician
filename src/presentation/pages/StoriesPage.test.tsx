@@ -539,7 +539,7 @@ describe('StoriesPage', () => {
     })
     await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
     for (const re of [
-      /Meta|Cast|Script|Beats/i,
+      /Meta|Chapters|Cast|Script|Beats/i,
       /AI|fill meta|fill script|Suggest/i,
       /Generate cover|cover|Upload|pick/i,
       /^Generate$/i,
@@ -585,5 +585,54 @@ describe('StoriesPage', () => {
       await new Promise((r) => setTimeout(r, 40))
     })
     expect(api.stories.get).toHaveBeenCalled()
+  })
+
+  it('shows Chapters tab before Cast and blocks generateCast without body', async () => {
+    await renderWithProviders(<StoriesPage />, { withToastHost: true })
+    await waitFor(() => expect(screen.getByText('Demo Story')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^Edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
+    const labels = screen.getAllByRole('button').map((b) =>
+      (b.textContent || '').trim()
+    )
+    const chaptersIdx = labels.findIndex((t) => /^Chapters$/i.test(t))
+    const castIdx = labels.findIndex((t) => /Cast \/ set/i.test(t))
+    const scriptIdx = labels.findIndex((t) => /Script beats/i.test(t))
+    expect(chaptersIdx).toBeGreaterThan(-1)
+    expect(chaptersIdx).toBeLessThan(castIdx)
+    expect(castIdx).toBeLessThan(scriptIdx)
+
+    const chaptersTab = screen.getAllByRole('button').find((b) =>
+      /^Chapters$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      chaptersTab?.click()
+    })
+    const generateCast = screen.getAllByRole('button').find((b) =>
+      /Generate cast from chapters/i.test(b.textContent || '')
+    )
+    expect(generateCast).toBeTruthy()
+    await act(async () => {
+      generateCast?.click()
+    })
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(
+        /Write at least one chapter/i
+      )
+    )
+    expect(api.chapters.generateCast).not.toHaveBeenCalled()
+
+    const castTab = screen.getAllByRole('button').find((b) =>
+      /Cast \/ set/i.test(b.textContent || '')
+    )
+    await act(async () => {
+      castTab?.click()
+    })
+    expect(document.body.textContent || '').toMatch(/Write them first|source/i)
   })
 })

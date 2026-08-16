@@ -1,5 +1,6 @@
 import type {
   CharacterProfileFields,
+  CreateChapterInput,
   CreateCharacterInput,
   CreateActionInput,
   CreatePropInput,
@@ -10,6 +11,7 @@ import type {
   PropProfileFields,
   SceneProfileFields,
   UpdateActionInput,
+  UpdateChapterInput,
   UpdateCharacterInput,
   UpdatePropInput,
   UpdateSceneInput,
@@ -124,6 +126,7 @@ export interface ElectronApi {
       locale?: string
       replace?: boolean
       promptTemplateId?: string | null
+      chapterIds?: string[]
     }) => Promise<{
       beats: Array<{
         id: string
@@ -181,6 +184,48 @@ export interface ElectronApi {
       scenes: unknown[]
       props: unknown[]
       actions?: unknown[]
+    }>
+  }
+  chapters: {
+    list: (storyId: string) => Promise<unknown>
+    create: (input: CreateChapterInput) => Promise<unknown>
+    update: (id: string, data: UpdateChapterInput) => Promise<unknown>
+    delete: (id: string) => Promise<{ ok: boolean }>
+    reorder: (storyId: string, orderedIds: string[]) => Promise<unknown>
+    aiFill: (payload: {
+      storyId: string
+      idea?: string
+      locale?: string
+      replace?: boolean
+      chapterCount?: number
+      wordsPerChapter?: number
+      promptTemplateId?: string | null
+    }) => Promise<{
+      chapters: unknown[]
+      replaced: boolean
+      drafts?: unknown
+      raw: string
+    }>
+    aiPolish: (payload: {
+      storyId: string
+      chapterId: string
+      idea?: string
+      locale?: string
+      promptTemplateId?: string | null
+    }) => Promise<{ chapter: unknown; raw: string }>
+    generateCast: (payload: {
+      storyId: string
+      idea?: string
+      locale?: string
+      preview?: boolean
+      drafts?: unknown
+      promptTemplateId?: string | null
+    }) => Promise<{
+      preview: boolean
+      plan: unknown
+      summary: { create: number; link: number; skip: number }
+      drafts: unknown
+      raw: string
     }>
   }
   characters: {

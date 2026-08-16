@@ -556,6 +556,8 @@ import {
   storiesPropLinkToggleOps,
   storiesCastBrowserRows,
   storiesRunAddBeat,
+  storiesFilledChapterIds,
+  storiesToggleId,
   storiesCoverSetHandler,
   storiesCoverRemoveHandler,
   storiesBlurDialogue,
@@ -13108,6 +13110,19 @@ describe('abs100 Stories pure residual helpers', () => {
     expect(
       storiesGuardAiScript('id', 1, 0, setErr, 'save', 'cast')
     ).toBe('ok')
+    expect(
+      storiesGuardAiScript(
+        'id',
+        0,
+        0,
+        setErr,
+        'save',
+        'cast',
+        true,
+        'from-chapters'
+      )
+    ).toBe('needCast')
+    expect(msgs.some((m) => m === 's:from-chapters')).toBe(true)
     storiesApplyAiMetaResult('  hard  ', (s) => msgs.push('hr:' + s))
     storiesApplyAiMetaResult('   ', () => msgs.push('skip'))
     storiesApplyAiMetaResult(undefined, () => msgs.push('skip2'))
@@ -13806,17 +13821,21 @@ describe('abs100 Stories pure residual helpers', () => {
     expect(
       await storiesRunAddBeat({
         editingId: 's',
-        order: 2,
-        firstChar: 'c1',
-        firstScene: 'sc1',
+        beats: [{ order: 0, startTime: 0, endTime: 40 }],
         create: async (payload) => {
-          msgs.push('create-beat:' + payload.order)
+          msgs.push('slot:' + payload.startTime + ':' + payload.order)
         },
         loadDetail: async () => undefined,
         refreshStories: async () => undefined,
         setError: () => undefined
       })
     ).toBe('ok')
+    expect(msgs).toContain('slot:40:1')
+    expect(storiesFilledChapterIds([{ id: 'a', body: 'x' }, { id: 'b', body: '  ' }])).toEqual(
+      ['a']
+    )
+    expect(storiesToggleId(['a'], 'b').sort()).toEqual(['a', 'b'])
+    expect(storiesToggleId(['a', 'b'], 'a')).toEqual(['b'])
     expect(
       await storiesRunAddBeat({
         editingId: 's',

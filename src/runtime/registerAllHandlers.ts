@@ -18,6 +18,7 @@ import { registerMediagenHandlers } from './handlers/mediaGen'
 import { registerCostumesHandlers } from './handlers/costumes'
 import { registerVideoprepHandlers } from './handlers/videoPrep'
 import { registerTimelineHandlers } from './handlers/timeline'
+import { registerChaptersHandlers } from './handlers/chapters'
 import { registerAdvancedprepHandlers } from './handlers/advancedPrep'
 import { registerGenerationHandlers } from './handlers/generation'
 import { registerGatewayHandlers } from './handlers/gateway'
@@ -56,6 +57,7 @@ export function registerAllHandlers(
   registerCostumesHandlers(ctx)
   registerVideoprepHandlers(ctx)
   registerTimelineHandlers(ctx)
+  registerChaptersHandlers(ctx)
   registerAdvancedprepHandlers(ctx)
   registerGenerationHandlers(ctx)
   registerGatewayHandlers(ctx)

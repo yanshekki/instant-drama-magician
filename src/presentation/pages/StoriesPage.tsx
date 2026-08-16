@@ -2,7 +2,9 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +14,7 @@ import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import type {
   Action,
+  Chapter,
   Character,
   Prop,
   Scene,
@@ -55,6 +58,8 @@ import {
   editorFormWideClass
 } from '../components/EditorShell'
 import { MultiIdPick } from '../components/MultiIdPick'
+import { StoryChaptersTab } from '../components/StoryChaptersTab'
+import { hasNonEmptyChapterBody } from '../../domain/storyChapterPrompt'
 import {
   appendGalleryItem,
   isGalleryCoverPath,
@@ -77,6 +82,7 @@ import {
   resolveIdentityPaths,
   toggleGallerySelection
 } from '../../domain/imageGenConfirm'
+import { suggestNextSlot } from '../../domain/timeline'
 import {
   MAX_BEAT_ACTIONS,
   MAX_BEAT_CHARACTERS,
@@ -123,7 +129,7 @@ function castCount(
   return count.storyProps ?? count.props ?? 0
 }
 
-type EditorTab = 'meta' | 'cast' | 'script'
+type EditorTab = 'meta' | 'chapters' | 'cast' | 'script'
 
 const STORY_STATUSES: StoryStatus[] = [
   'DRAFT',
@@ -254,6 +260,11 @@ export function StoriesPage(): JSX.Element {
   const [allProps, setAllProps] = useState<Prop[]>([])
   const [allActions, setAllActions] = useState<Action[]>([])
   const [beats, setBeats] = useState<TimelineEntry[]>([])
+  const [chapters, setChapters] = useState<Chapter[]>([])
+  const [scriptChapterIds, setScriptChapterIds] = useState<string[]>([])
+  const [scriptReplace, setScriptReplace] = useState(false)
+  const [scrollBeatsToEnd, setScrollBeatsToEnd] = useState(false)
+  const beatsListRef = useRef<HTMLUListElement>(null)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [aiIdea, setAiIdea] = useState('')
@@ -346,12 +357,30 @@ export function StoriesPage(): JSX.Element {
       setCoverGallery(cg)
       setSelectedCoverId(cg.find((x) => x.path === d.coverPath)?.id ?? cg[0]?.id ?? null)
       setBeats(timeline)
+      setChapters(((d as { chapters?: Chapter[] }).chapters ?? []) as Chapter[])
     } catch (e) {
       storiesApplyIpc(e, setActionError)
     } finally {
       setBusy(false)
     }
   }, [applyCatalog])
+
+  useEffect(() => {
+    const filled = storiesFilledChapterIds(chapters)
+    setScriptChapterIds((prev) => {
+      if (filled.length === 0) return []
+      const kept = prev.filter((id) => filled.includes(id))
+      return kept.length > 0 ? kept : filled
+    })
+  }, [chapters])
+
+  useLayoutEffect(() => {
+    if (!scrollBeatsToEnd) return
+    beatsListRef.current?.lastElementChild?.scrollIntoView({
+      block: 'nearest'
+    })
+    setScrollBeatsToEnd(false)
+  }, [scrollBeatsToEnd, beats.length])
 
   /** characterId → costumes linked to that character */
   const costumesByCharacter = useMemo(() => {
@@ -409,6 +438,7 @@ export function StoriesPage(): JSX.Element {
     setCoverGallery([])
     setSelectedCoverId(null)
     setBeats([])
+    setChapters([])
     setDetail(null)
     setAiIdea('')
     setUseIdentityRef(false)
@@ -435,6 +465,7 @@ export function StoriesPage(): JSX.Element {
     setEditingId(null)
     setDetail(null)
     setBeats([])
+    setChapters([])
     resetEditorForm()
   }
 
@@ -503,7 +534,7 @@ export function StoriesPage(): JSX.Element {
     editingId &&
       isBlocked({
         storyId: editingId,
-        kind: ['story-ai-meta', 'story-ai-script']
+        kind: ['story-ai-meta', 'story-ai-script', 'story-ai-chapters', 'story-ai-chapter-polish', 'story-ai-chapter-cast']
       })
   )
 
@@ -666,12 +697,22 @@ export function StoriesPage(): JSX.Element {
       detail?.scenes?.length ?? 0,
       setActionError,
       t('stories.saveFirst'),
-      t('stories.aiNeedCast')
+      t('stories.aiNeedCast'),
+      hasNonEmptyChapterBody(chapters),
+      t('stories.aiNeedCastFromChapters')
     )
     if (g !== 'ok') return
+    if (
+      hasNonEmptyChapterBody(chapters) &&
+      scriptChapterIds.length === 0
+    ) {
+      setActionError(t('stories.aiNeedChapterPick'))
+      return
+    }
     const promptTemplateId = await pick('copy')
     if (!promptTemplateId) return
-    if (beats.length > 0) {
+    const replace = beats.length > 0 && scriptReplace
+    if (replace) {
       const ok = await dialog.confirm({
         message: t('stories.aiReplaceBeatsConfirm'),
         variant: 'danger',
@@ -697,13 +738,17 @@ export function StoriesPage(): JSX.Element {
           storyId: sid,
           idea: aiIdea,
           locale: i18n.language,
-          replace: true,
-          promptTemplateId
+          replace,
+          promptTemplateId,
+          chapterIds: hasNonEmptyChapterBody(chapters)
+            ? scriptChapterIds
+            : undefined
         })
         if (signal.cancelled) return
         setProgress(100, 'done')
-        setBeats(r.beats as TimelineEntry[])
+        await loadDetail(sid)
         setEditorTab('script')
+        setScrollBeatsToEnd(true)
         setPageBanner(t('stories.aiScriptOk', { n: r.beats.length }))
         toast.success(t('stories.aiScriptOk', { n: r.beats.length }))
         await refreshStories()
@@ -973,9 +1018,9 @@ export function StoriesPage(): JSX.Element {
   }
 
   const addBeat = async (): Promise<void> => {
-    await storiesRunAddBeat({
+    const result = await storiesRunAddBeat({
       editingId,
-      order: beats.length,
+      beats,
       firstChar: detail?.characters[0]?.id,
       firstScene: detail?.scenes[0]?.id,
       create: (payload) => getApi().timeline.create(payload),
@@ -983,6 +1028,7 @@ export function StoriesPage(): JSX.Element {
       refreshStories,
       setError: setActionError
     })
+    if (result === 'ok') setScrollBeatsToEnd(true)
   }
 
   const updateBeat = async (
@@ -1253,6 +1299,7 @@ export function StoriesPage(): JSX.Element {
         busy={busy || storyCoverBusy}
         tabs={[
           { id: 'meta', label: t('stories.tabMeta') },
+          { id: 'chapters', label: t('stories.tabChapters') },
           { id: 'cast', label: t('stories.tabCast') },
           { id: 'script', label: t('stories.tabScript') }
         ]}
@@ -1463,9 +1510,38 @@ export function StoriesPage(): JSX.Element {
           </div>
         )}
 
+        {editorTab === 'chapters' && (
+          <StoryChaptersTab
+            editingId={editingId}
+            aiIdea={aiIdea}
+            onAiIdeaChange={setAiIdea}
+            chapters={chapters}
+            onChaptersChange={setChapters}
+            ensureStoryId={ensureStoryId}
+            onCastApplied={async () => {
+              if (editingId) await loadDetail(editingId)
+            }}
+            setActionError={setActionError}
+            setPageBanner={setPageBanner}
+            aiBusy={storyAiBusy || aiBusy}
+          />
+        )}
+
         {editorTab === 'cast' && (
           <div className={`${editorFormWideClass} flex flex-col gap-3`}>
             <p className="text-[11px] text-ink-500">{t('stories.castHint')}</p>
+            {editingId && chapters.length === 0 ? (
+              <p className="rounded-xl border border-brand-800/40 bg-brand-950/20 px-4 py-3 text-sm text-brand-100">
+                {t('stories.castNeedChaptersBanner')}{' '}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => setEditorTab('chapters')}
+                >
+                  {t('stories.goToChapters')}
+                </button>
+              </p>
+            ) : null}
             {!editingId ? (
               <p className="rounded-xl border border-ink-800 bg-ink-900/40 px-4 py-3 text-sm text-ink-400">
                 {t('stories.metaHint')}
@@ -1724,7 +1800,11 @@ export function StoriesPage(): JSX.Element {
                     {t('stories.aiFillScript')}
                   </h3>
                   <p className="mt-0.5 text-[11px] text-ink-500">
-                    {t('stories.aiScriptHint')}
+                    {t(
+                      hasNonEmptyChapterBody(chapters)
+                        ? 'stories.aiScriptHintWithChapters'
+                        : 'stories.aiScriptHint'
+                    )}
                   </p>
                 </div>
                 <Button
@@ -1745,6 +1825,65 @@ export function StoriesPage(): JSX.Element {
                 onChange={(e) => setAiIdea(e.target.value)}
                 placeholder={t('stories.aiIdeaPlaceholder')}
               />
+              {storiesFilledChapterIds(chapters).length > 0 ? (
+                <fieldset className="mt-2 space-y-1.5">
+                  <legend className="flex items-center justify-between gap-2 text-[11px] font-medium text-ink-300">
+                    <span>{t('stories.aiScriptPickChapters')}</span>
+                    <button
+                      type="button"
+                      className="text-[11px] text-brand-200 underline"
+                      onClick={() =>
+                        setScriptChapterIds(storiesFilledChapterIds(chapters))
+                      }
+                    >
+                      {t('stories.aiScriptSelectAll')}
+                    </button>
+                  </legend>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {chapters
+                      .filter((c) => (c.body ?? '').trim())
+                      .map((c, i) => (
+                        <label
+                          key={c.id}
+                          className="flex items-center gap-1.5 text-xs text-ink-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={scriptChapterIds.includes(c.id)}
+                            onChange={() =>
+                              setScriptChapterIds(
+                                storiesToggleId(scriptChapterIds, c.id)
+                              )
+                            }
+                          />
+                          {c.title.trim() ||
+                            t('stories.chapterN', { n: (c.order ?? i) + 1 })}
+                        </label>
+                      ))}
+                  </div>
+                  <p className="text-[11px] text-ink-500">
+                    {t('stories.aiScriptSplitHint')}
+                  </p>
+                </fieldset>
+              ) : null}
+              {beats.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    variant={scriptReplace ? 'ghost' : 'secondary'}
+                    className="!py-1 !text-xs"
+                    onClick={() => setScriptReplace(false)}
+                  >
+                    {t('stories.aiScriptAppend')}
+                  </Button>
+                  <Button
+                    variant={scriptReplace ? 'secondary' : 'ghost'}
+                    className="!py-1 !text-xs"
+                    onClick={() => setScriptReplace(true)}
+                  >
+                    {t('stories.aiScriptReplace')}
+                  </Button>
+                </div>
+              ) : null}
               {pageBanner && (
                 <p className="mt-2 text-[11px] text-brand-200">{pageBanner}</p>
               )}
@@ -1755,7 +1894,11 @@ export function StoriesPage(): JSX.Element {
                   {t('stories.scriptTitle')}
                 </h3>
                 <p className="mt-0.5 text-[11px] text-ink-500">
-                  {t('stories.scriptHint')}
+                  {t(
+                    hasNonEmptyChapterBody(chapters)
+                      ? 'stories.scriptHintWithChapters'
+                      : 'stories.scriptHint'
+                  )}
                 </p>
               </div>
               <Button variant="secondary" onClick={() => void addBeat()}>
@@ -1765,7 +1908,7 @@ export function StoriesPage(): JSX.Element {
             {beats.length === 0 ? (
               <EmptyState message={t('stories.noBeats')} />
             ) : (
-              <ul className="space-y-3">
+              <ul ref={beatsListRef} className="space-y-3">
                 {beats.map((beat, idx) => (
                   <li
                     key={beat.id}
@@ -2178,14 +2321,18 @@ export function storiesGuardAiScript(
   sceneCount: number,
   setError: (m: string) => void,
   needSave: string,
-  needCast: string
+  needCast: string,
+  hasChapters = false,
+  needCastFromChapters?: string
 ): 'needSave' | 'needCast' | 'ok' {
   if (!editingId) {
     setError(needSave)
     return 'needSave'
   }
   if (charCount === 0 && sceneCount === 0) {
-    setError(needCast)
+    setError(
+      hasChapters && needCastFromChapters ? needCastFromChapters : needCast
+    )
     return 'needCast'
   }
   return 'ok'
@@ -2931,9 +3078,22 @@ export function storiesCastBrowserRows(
   }
 }
 
+export function storiesFilledChapterIds(
+  chapters: Array<{ id: string; body?: string | null }>
+): string[] {
+  return chapters
+    .filter((c) => (c.body ?? '').trim().length > 0)
+    .map((c) => c.id)
+}
+
+export function storiesToggleId(ids: string[], id: string): string[] {
+  return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]
+}
+
 export async function storiesRunAddBeat(ops: {
   editingId: string | null
-  order: number
+  order?: number
+  beats?: Array<{ order: number; startTime: number; endTime: number }>
   firstChar?: string
   firstScene?: string
   create: (payload: {
@@ -2953,12 +3113,18 @@ export async function storiesRunAddBeat(ops: {
 }): Promise<'no-id' | 'ok' | 'error'> {
   if (!ops.editingId) return 'no-id'
   try {
-    const start = ops.order * 6
+    const slot = ops.beats
+      ? suggestNextSlot(ops.beats as TimelineEntry[], 6)
+      : {
+          startTime: (ops.order ?? 0) * 6,
+          endTime: (ops.order ?? 0) * 6 + 6,
+          order: ops.order ?? 0
+        }
     await ops.create({
       storyId: ops.editingId,
-      startTime: start,
-      endTime: start + 6,
-      order: ops.order,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      order: slot.order,
       dialogue: '',
       characterIds: ops.firstChar ? [ops.firstChar] : [],
       sceneIds: ops.firstScene ? [ops.firstScene] : [],

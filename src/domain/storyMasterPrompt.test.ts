@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { AppError } from '../types/errors'
 import {
+  beatAiMaxBeats,
+  beatAiMaxTokens,
   buildStoryBeatsSystemPrompt,
   buildStoryBeatsUserPrompt,
   buildStoryMetaSystemPrompt,
@@ -72,7 +74,11 @@ describe('storyMasterPrompt', () => {
         characterName: '阿明',
         characterNames: ['阿明'],
         sceneHint: '2',
+        sceneHints: [],
         propName: '傘',
+        propNames: [],
+        actionName: '',
+        actionNames: [],
         dialogue: '走',
         content: { version: 1, units: [{ type: 'dialogue', who: '阿明', line: '走' }] },
         scriptText: '【對白｜阿明】走',
@@ -140,12 +146,25 @@ describe('storyMasterPrompt', () => {
   })
 
   it('builds beats system/user prompts', () => {
-    const zh = buildStoryBeatsSystemPrompt('zh-HK')
+    const zh = buildStoryBeatsSystemPrompt('zh-HK', null, { maxBeats: 12 })
     expect(zh).toMatch(/劇情段落|units/)
     expect(zh).toMatch(/對白|SPEECH/)
-    const en = buildStoryBeatsSystemPrompt('en')
+    expect(zh).toMatch(/{{maxBeats}}|12/)
+    expect(zh).not.toMatch(/固定寫 4 段/)
+    expect(zh).toMatch(/sceneHints|propNames/)
+    expect(zh).toMatch(/必須填 actionNames|唔好每樣只填一個/)
+    const en = buildStoryBeatsSystemPrompt('en', null, { maxBeats: 12 })
     expect(en).toMatch(/TIMELINE BEATS|dialogue/)
     expect(en).toMatch(/SPEECH|spoken language/)
+    expect(en).toMatch(/at most 12 beats/)
+    expect(en).not.toMatch(/exactly 4 beats/)
+    expect(en).toMatch(/sceneHints/)
+    expect(en).toMatch(/actionNames is REQUIRED/)
+    expect(en).toMatch(/Never leave actionNames empty/)
+    expect(en).not.toMatch(/Do not dump the whole library/)
+    expect(en).not.toMatch(/leave empty if none fit/)
+    expect(zh).toMatch(/唔准留空|已選動作/)
+    expect(zh).not.toMatch(/唔好每段 dump/)
 
     const userZh = buildStoryBeatsUserPrompt({
       title: '雨夜',
@@ -154,9 +173,11 @@ describe('storyMasterPrompt', () => {
       characters: [{ name: '阿明', description: '鐵工' }],
       scenes: [{ sceneNumber: 1, description: '巷口' }],
       props: [{ name: '傘', description: '紅傘' }],
+      actions: [{ name: '摘頭盔', motionNotes: 'slow' }],
       locale: 'zh-HK'
     })
     expect(userZh).toMatch(/阿明|巷口|傘|neon|重逢/)
+    expect(userZh).toMatch(/摘頭盔/)
 
     const userEnEmpty = buildStoryBeatsUserPrompt({
       title: 'Rain',
@@ -190,7 +211,11 @@ describe('storyMasterPrompt', () => {
         characterName: '',
         characterNames: ['Mei'],
         sceneHint: 'rooftop',
+        sceneHints: [],
         propName: 'blade',
+        propNames: [],
+        actionName: '',
+        actionNames: [],
         dialogue: 'hi',
         content: {
           version: 1,
@@ -226,7 +251,11 @@ describe('storyMasterPrompt', () => {
         characterName: '',
         characterNames: [],
         sceneHint: '',
+        sceneHints: [],
         propName: '',
+        propNames: [],
+        actionName: '',
+        actionNames: [],
         dialogue: 'x',
         content: { version: 1, units: [{ type: 'action', text: 'walks' }] },
         scriptText: 'walks',
@@ -293,7 +322,11 @@ describe('storyMasterPrompt', () => {
         characterName: 'Xiao',
         characterNames: [],
         sceneHint: '',
+        sceneHints: [],
         propName: 'silv',
+        propNames: [],
+        actionName: '',
+        actionNames: [],
         dialogue: 'hi',
         content: {
           version: 1,
@@ -311,5 +344,183 @@ describe('storyMasterPrompt', () => {
     expect(r.characterId).toBe('c1')
     expect(r.propId).toBe('p1')
     expect(r.sceneId).toBeNull()
+    expect(r.actionId).toBeNull()
+    expect(r.actionIds).toEqual([])
+  })
+
+  it('clamps beat AI maxBeats and token budget', () => {
+    expect(beatAiMaxBeats(undefined)).toBe(12)
+    expect(beatAiMaxBeats(0)).toBe(12)
+    expect(beatAiMaxBeats(1)).toBe(6)
+    expect(beatAiMaxBeats(4)).toBe(12)
+    expect(beatAiMaxBeats(8)).toBe(16)
+    expect(beatAiMaxTokens(6)).toBe(1720)
+    expect(beatAiMaxTokens(16)).toBe(3500)
+  })
+
+  it('extracts and resolves action names; dialogue-only does not bind the palette', () => {
+    const beats = extractStoryBeatsJson(
+      JSON.stringify([
+        {
+          characterName: 'Ming',
+          sceneHint: '1',
+          actionName: 'Sprint',
+          actionNames: ['Bow'],
+          dialogue: 'Go!'
+        }
+      ])
+    )
+    expect(beats[0].actionName).toBe('Sprint')
+    expect(beats[0].actionNames).toEqual(['Sprint', 'Bow'])
+    const hit = resolveBeatIds(beats[0], {
+      characters: [{ id: 'c1', name: 'Ming' }],
+      scenes: [{ id: 's1', sceneNumber: 1, description: 'roof' }],
+      props: [],
+      actions: [
+        { id: 'a1', name: 'Sprint' },
+        { id: 'a2', name: 'Deep Bow' }
+      ]
+    })
+    expect(hit.actionId).toBe('a1')
+    expect(hit.actionIds).toEqual(['a1', 'a2'])
+    const miss = resolveBeatIds(
+      {
+        ...beats[0],
+        actionName: '',
+        actionNames: []
+      },
+      {
+        characters: [],
+        scenes: [],
+        props: [],
+        actions: [{ id: 'a1', name: 'Sprint' }]
+      }
+    )
+    expect(miss.actionId).toBeNull()
+    expect(miss.actionIds).toEqual([])
+  })
+
+  it('extracts plural scene/prop/action hints', () => {
+    const beats = extractStoryBeatsJson(
+      JSON.stringify([
+        {
+          characterNames: ['A', 'B'],
+          sceneHint: 'Alley',
+          sceneHints: ['Shrine'],
+          propName: 'Talisman',
+          propNames: ['Token'],
+          actionNames: ['Descend', 'Bow'],
+          units: [{ type: 'action', who: 'A', text: 'walks' }]
+        }
+      ])
+    )
+    expect(beats[0].sceneHints).toEqual(['Alley', 'Shrine'])
+    expect(beats[0].propNames).toEqual(['Talisman', 'Token'])
+    expect(beats[0].actionNames).toEqual(['Descend', 'Bow'])
+  })
+
+  it('resolveBeatIds binds multiple scenes/props and infers actions from unit text', () => {
+    const r = resolveBeatIds(
+      {
+        characterName: '',
+        characterNames: [],
+        sceneHint: '巷口',
+        sceneHints: ['祠堂'],
+        propName: '',
+        propNames: ['硃砂符紙', '令牌'],
+        actionName: '',
+        actionNames: [],
+        dialogue: '',
+        content: {
+          version: 1,
+          units: [
+            { type: 'action', who: '沈執一', text: '獨自下山，停在祠堂前' }
+          ]
+        },
+        scriptText: '獨自下山',
+        beatContentJson: '{}'
+      },
+      {
+        characters: [{ id: 'c1', name: '沈執一' }],
+        scenes: [
+          { id: 's1', sceneNumber: 1, title: '巷口', description: 'night alley' },
+          { id: 's2', sceneNumber: 2, title: '祠堂', description: 'shrine' }
+        ],
+        props: [
+          { id: 'p1', name: '硃砂符紙' },
+          { id: 'p2', name: '令牌' }
+        ],
+        actions: [
+          { id: 'a1', name: '獨自下山' },
+          { id: 'a2', name: '誦咒捉鬼' }
+        ]
+      }
+    )
+    expect(r.sceneIds).toEqual(['s1', 's2'])
+    expect(r.propIds).toEqual(['p1', 'p2'])
+    expect(r.characterIds).toEqual(['c1'])
+    expect(r.actionIds).toEqual(['a1'])
+    expect(r.actionId).toBe('a1')
+  })
+
+  it('resolveBeatIds matches CJK action slices and uses the story palette on motion beats', () => {
+    const paraphrased = resolveBeatIds(
+      {
+        characterName: '',
+        characterNames: [],
+        sceneHint: '',
+        sceneHints: [],
+        propName: '',
+        propNames: [],
+        actionName: '',
+        actionNames: [],
+        dialogue: '',
+        content: {
+          version: 1,
+          units: [{ type: 'action', text: '沿石階走下山門，令牌握緊' }]
+        },
+        scriptText: '沿石階走下山門，令牌握緊',
+        beatContentJson: '{}'
+      },
+      {
+        characters: [],
+        scenes: [],
+        props: [],
+        actions: [
+          { id: 'a1', name: '獨自下山' },
+          { id: 'a2', name: '握令牌趕路' }
+        ]
+      }
+    )
+    expect(paraphrased.actionIds).toEqual(['a1', 'a2'])
+    const palette = resolveBeatIds(
+      {
+        characterName: '',
+        characterNames: [],
+        sceneHint: '',
+        sceneHints: [],
+        propName: '',
+        propNames: [],
+        actionName: '',
+        actionNames: [],
+        dialogue: '',
+        content: {
+          version: 1,
+          units: [{ type: 'action', text: 'walks into frame' }]
+        },
+        scriptText: 'walks into frame',
+        beatContentJson: '{}'
+      },
+      {
+        characters: [],
+        scenes: [],
+        props: [],
+        actions: [
+          { id: 'a1', name: 'Sprint' },
+          { id: 'a2', name: 'Bow' }
+        ]
+      }
+    )
+    expect(palette.actionIds).toEqual(['a1', 'a2'])
   })
 })

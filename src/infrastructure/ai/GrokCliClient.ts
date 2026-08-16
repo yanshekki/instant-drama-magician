@@ -419,6 +419,7 @@ export class GrokCliClient implements AIProvider {
       omitSampling: this.omitSampling
     })
 
+    const timeoutMs = request.timeoutMs ?? this.chatTimeoutMs
     const doFetch = (): Promise<Response> =>
       fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
@@ -427,7 +428,7 @@ export class GrokCliClient implements AIProvider {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(this.chatTimeoutMs)
+        signal: AbortSignal.timeout(timeoutMs)
       })
 
     let res: Response
@@ -439,7 +440,7 @@ export class GrokCliClient implements AIProvider {
         throw new AppError(
           'AI_FAILED',
           'errors.chatTimedOut',
-          String(this.chatTimeoutMs)
+          String(timeoutMs)
         )
       }
       // One auto-recover: start local gateway then retry once
@@ -454,7 +455,7 @@ export class GrokCliClient implements AIProvider {
             throw new AppError(
               'AI_FAILED',
               'errors.chatTimedOut',
-              String(this.chatTimeoutMs)
+              String(timeoutMs)
             )
           }
           throw new AppError(

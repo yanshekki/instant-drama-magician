@@ -31,12 +31,28 @@ model Story {
   updatedAt  DateTime    @updatedAt
 
   timeline        TimelineEntry[]
+  chapters        Chapter[]
   storyCharacters StoryCharacter[]
   storyScenes     StoryScene[]
   storyProps      StoryProp[]
   storyActions    StoryAction[]
   comics          Comic[]
   keyArts         KeyArt[]
+}
+
+/** Story-owned narrative chapters — source of truth before cast / beats. */
+model Chapter {
+  id        String   @id @default(cuid())
+  storyId   String
+  order     Int
+  title     String
+  body      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId, order])
 }
 
 /** Global character library asset (not owned by a story). */
