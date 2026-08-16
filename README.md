@@ -3,7 +3,7 @@
 <p align="center">
   <strong>From one idea to a finished short drama — on your desk.</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
-  · <strong>v1.5.0</strong> · MIT
+  · <strong>v1.6.0</strong> · MIT
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
 </p>
@@ -343,7 +343,7 @@ Local builds land in `release/`; or download from GitHub Releases.
 
 ```bash
 # Linux example
-sudo dpkg -i release/instant-drama-magician_1.5.0_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.6.0_amd64.deb
 # or
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -409,7 +409,7 @@ instant-drama version
 ```bash
 instant-drama update              # check npm registry for a newer version
 instant-drama update install --yes   # global install latest (with post-verify)
-instant-drama update install 1.5.0 --yes   # pin a version
+instant-drama update install 1.6.0 --yes   # pin a version
 ```
 
 `instant-drama doctor` also reports npm update status (skip with `IDM_SKIP_UPDATE=1`).

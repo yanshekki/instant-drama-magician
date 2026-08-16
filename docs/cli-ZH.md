@@ -103,7 +103,7 @@ instant-drama app open|build
 
 ## 探索與 invoke
 
-Electron、Web、CLI 共用 **`registerAllHandlers`** — **167** 個 channel。
+Electron、Web、CLI 共用 **`registerAllHandlers`** — **175** 個 channel。
 
 ```bash
 instant-drama doctor --json
@@ -129,9 +129,9 @@ instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces 包括：`activity` `ai` `app` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
+Namespaces 包括：`activity` `ai` `app` `characters` `comics` `keyArt` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
 
-## 近期 API 表面（1.5.0）
+## 近期 API 表面（1.6.0）
 
 桌面、Web、CLI 共用同一 registry。優先用 **domain sugar** 或 `invoke`。
 
@@ -148,6 +148,9 @@ Namespaces 包括：`activity` `ai` `app` `characters` `comics` `costumes` `desk
 | `comics:get` | 取得或建立該故事的漫畫書 | `instant-drama comics get --args '["S"]' --json` |
 | `comics:addPage`／`updatePage` | 新增或編輯頁（排板、開本、分格） | `instant-drama comics add-page --args '[{"storyId":"S","panelLayout":"grid-2x2"}]' --json` |
 | `comics:deletePageVideo`／`setPageVideoPrimary` | 多版本本頁影片 | `instant-drama comics delete-page-video --args '["PAGE","VID"]' --json` |
+| `keyArt:get` | 取得或建立該故事的劇照冊 | `instant-drama keyArt get --args '["S"]' --json` |
+| `keyArt:addShot`／`updateShot` | 新增或編輯宣傳靜圖（題材、開本、出圖方式） | `instant-drama keyArt add-shot --args '[{"storyId":"S","shotType":"cover"}]' --json` |
+| `keyArt:setAsStoryCover` | 用成圖寫入 `Story.coverPath` | `instant-drama keyArt set-as-story-cover --args '["SHOT"]' --json` |
 | `media:exportFinal` | 時間軸成片，或 `{ clipSource: "comics" }` 只串已有片的漫畫頁 | `instant-drama media export-final --args '["S",{"clipSource":"comics"}]' --json` |
 | `desktopNotify:show` | 作業系統完成通知 | `instant-drama desktopNotify show --args '[{"title":"T","body":"B"}]' --json` |
 | `timeline:getAdvancedPrep` | 進階預備 snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
@@ -166,7 +169,7 @@ instant-drama channels describe costumes:appendTryOnStill --json
 bash scripts/cli-smoke.sh
 # 或手動：
 npm run instant-drama -- version
-npm run instant-drama -- doctor --json          # 預期 channelCount 167
+npm run instant-drama -- doctor --json          # 預期 channelCount 175
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
@@ -209,7 +212,7 @@ instant-drama server start --port 8787 --host 0.0.0.0
 | 能力 | 狀態 |
 |------|------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel 數 | **167** |
+| Channel 數 | **175** |
 | `instant-drama invoke` | ✅ 任意 channel |
 | Domain sugar | ✅ 全部 namespace |
 | OpenAI tool schema | ✅ |

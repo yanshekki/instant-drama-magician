@@ -23,10 +23,11 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
-## 近期焦點（1.5.0）
+## 近期焦點（1.6.0）
 
 | 區域 | 測試（示例） |
 |------|----------------|
+| 劇照檯 | `KeyArtPage.test.tsx`、`KeyArtService.test.ts`、`keyArt.test.ts`、`keyArtShotTypes.test.ts`、`keyArtMakeMethods.test.ts`、`keyArtShotImages.test.ts` |
 | 漫畫工作室 | `ComicsPage.test.tsx`、`ComicService.test.ts`、`comics.test.ts`、`comicPageLayouts.test.ts`、`comicPageFormat.test.ts`、`comicPageVideos.test.ts` |
 | 作業系統完成通知 | `desktopNotify.test.ts`、`notifyDesktop.test.ts`、`showDesktopNotification.test.ts`、`SettingsPage.test.tsx` |
 | Gateway 以真正 Node 啟動 | `GrokGatewayService.test.ts` |
@@ -56,11 +57,11 @@ npx vitest run src/runtime/handlers/mediaGen.test.ts \
 |------|------|
 | 模組 companion 測試 | 生產模組 **100%**（+ electron／server 入口） |
 | 行覆蓋（整體） | 漸進（整體約 22%；UI／handlers 為 smoke） |
-| Channel 註冊數 | **167/167** 契約 + 安全 invoke 矩陣 |
+| Channel 註冊數 | **175/175** 契約 + 安全 invoke 矩陣 |
 
 ## Channel 對齊
 
-`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **167** 個 IPC channel。  
+`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **175** 個 IPC channel。  
 `channelInvoke.matrix.test.ts` 對安全無參 channel 做 invoke，不應 `NOT_FOUND`。
 
 ## 相關
