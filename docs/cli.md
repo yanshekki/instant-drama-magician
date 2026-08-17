@@ -103,7 +103,7 @@ Cross-build: mac installers need a Mac. Use `--force` only when you know the too
 
 ## Discovery & invoke
 
-Electron, Web, and CLI share **`registerAllHandlers`** — **175** channels.
+Electron, Web, and CLI share **`registerAllHandlers`** — **183** channels.
 
 ```bash
 instant-drama doctor --json
@@ -169,7 +169,7 @@ instant-drama channels describe costumes:appendTryOnStill --json
 bash scripts/cli-smoke.sh
 # or manually:
 npm run instant-drama -- version
-npm run instant-drama -- doctor --json          # expect channelCount 175
+npm run instant-drama -- doctor --json          # expect channelCount 183
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
@@ -212,7 +212,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 | Capability | Status |
 |------------|--------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel count | **175** |
+| Channel count | **183** |
 | `instant-drama invoke` | ✅ any channel |
 | Domain sugar | ✅ all namespaces |
 | OpenAI tool schema | ✅ |

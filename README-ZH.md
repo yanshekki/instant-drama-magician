@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#安裝與啟動"><img src="https://img.shields.io/badge/桌面-Linux%20%7C%20Windows%20%7C%20macOS-1f6feb?style=flat-square" alt="桌面"></a>
-  <a href="#命令列-cliidm"><img src="https://img.shields.io/badge/命令列-175%20channels-238636?style=flat-square" alt="命令列"></a>
+  <a href="#命令列-cliidm"><img src="https://img.shields.io/badge/命令列-183%20channels-238636?style=flat-square" alt="命令列"></a>
   <a href="#多語系"><img src="https://img.shields.io/badge/介面-10%20種語言-6e40c9?style=flat-square" alt="語言"></a>
   <img src="https://img.shields.io/badge/授權-MIT-8b949e?style=flat-square" alt="MIT">
 </p>
@@ -37,7 +37,7 @@
 
 | 桌面 | 遠控 | 命令列 |
 |---|---|---|
-| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**175** 個 channel，與應用相同 |
+| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**183** 個 channel，與應用相同 |
 
 - **身份鎖定** — 多角度角色聖經、戲服、場景、道具與動作板  
 - **漫畫工作室** — 規則格或漫畫不規則格、9:16／1:1／16:9、本頁動畫或短劇分鏡、多版本本頁影片  
@@ -158,7 +158,7 @@
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
 | **設定** | LLM／影像／影片供應商、**完成後作業系統通知**、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
-| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**175** 個 IPC channel） |
+| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**183** 個 IPC channel） |
 | **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
 | **多語系** | 10 種介面語言（香港書面語、中國大陸書面語、阿語 RTL 等）；LLM 改善／生成前的**配方選擇器**；MediaGen 介面已本地化 |
 | **自動更新** | 打包版經 GitHub Releases（electron-updater） |
@@ -430,7 +430,7 @@ instant-drama update install 1.6.0 --yes   # 釘選版本
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # 約 175 個 channel
+instant-drama channels list --json          # 約 183 個 channel
 ```
 
 > **說明：** 全域安裝提供 **CLI／headless／網頁伺服器** 控制面（故事、角色、生成、匯出輔助、agent 工具）。若要 **建置或開啟 Electron 桌面 GUI**（`instant-drama build`／`instant-drama open`），仍需完整 git clone、`npm install`（含 Electron 等 devDependencies）以及本機 `release/` 產物。
@@ -456,7 +456,7 @@ npm run instant-drama -- doctor --json
 ### 常用指令
 
 ```bash
-# 診斷（channel 數應約 175）
+# 診斷（channel 數應約 183）
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -645,7 +645,7 @@ rm -rf ~/.config/instant-drama-magician
 |------|------|------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | 文件總覽 + 準則 |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | 產品規格 |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（175 channels） |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（183 channels） |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agent／OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | 網頁遠控 |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

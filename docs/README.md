@@ -37,7 +37,7 @@ Product version **1.6.0** · Vendor **YSK Limited** · Contact **[email@ysk.hk](
 | Fact | Value |
 |------|--------|
 | App version | `1.6.0` (`package.json`) |
-| IPC / CLI channels | **175** (shared `registerAllHandlers`) |
+| IPC / CLI channels | **183** (shared `registerAllHandlers`) |
 | Legal copy version | `LEGAL_VERSION` **1.0.0** (`src/domain/legal.ts`) |
 | Default LLM | Grok Gateway `http://127.0.0.1:3847/v1` |
 | AI clip duration | **6 or 10** seconds only (Grok-style video) |

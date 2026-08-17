@@ -103,7 +103,7 @@ instant-drama app open|build
 
 ## 探索與 invoke
 
-Electron、Web、CLI 共用 **`registerAllHandlers`** — **175** 個 channel。
+Electron、Web、CLI 共用 **`registerAllHandlers`** — **183** 個 channel。
 
 ```bash
 instant-drama doctor --json
@@ -169,7 +169,7 @@ instant-drama channels describe costumes:appendTryOnStill --json
 bash scripts/cli-smoke.sh
 # 或手動：
 npm run instant-drama -- version
-npm run instant-drama -- doctor --json          # 預期 channelCount 175
+npm run instant-drama -- doctor --json          # 預期 channelCount 183
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
@@ -212,7 +212,7 @@ instant-drama server start --port 8787 --host 0.0.0.0
 | 能力 | 狀態 |
 |------|------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel 數 | **175** |
+| Channel 數 | **183** |
 | `instant-drama invoke` | ✅ 任意 channel |
 | Domain sugar | ✅ 全部 namespace |
 | OpenAI tool schema | ✅ |

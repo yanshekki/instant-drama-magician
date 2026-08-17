@@ -13,7 +13,7 @@
 > | 版本 | **1.6.0** |
 > | 頁面 | Stories · Characters · **Costumes** · Scenes · Props · **Comics** · **劇照** · Timeline（軌道＋流程圖） · Activity · Settings |
 > | i18n | **10** 種語系；完成後作業系統通知；系統／導演密封已本地化；香港／中國大陸書面語 |
-> | CLI／Web | 完整 **175** channel 共用 runtime |
+> | CLI／Web | 完整 **183** channel 共用 runtime |
 > | 聯絡 | **email@ysk.hk** · YSK Limited |
 > | 用戶說明 | [../README-ZH.md](../README-ZH.md) · [../README.md](../README.md) |
 > | 文件總覽 | [README-ZH.md](./README-ZH.md) |

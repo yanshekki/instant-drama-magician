@@ -37,7 +37,7 @@
 | 項目 | 值 |
 |------|-----|
 | App 版本 | `1.6.0`（`package.json`） |
-| IPC／CLI channel | **175**（共用 `registerAllHandlers`） |
+| IPC／CLI channel | **183**（共用 `registerAllHandlers`） |
 | 法律文檔版本 | `LEGAL_VERSION` **1.0.0**（`src/domain/legal.ts`） |
 | 預設 LLM | Grok Gateway `http://127.0.0.1:3847/v1` |
 | AI clip 時長 | **僅 6 或 10** 秒（Grok 風格影片） |

@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#install--run"><img src="https://img.shields.io/badge/desktop-Linux%20%7C%20Windows%20%7C%20macOS-1f6feb?style=flat-square" alt="Desktop"></a>
-  <a href="#cli-instant-drama"><img src="https://img.shields.io/badge/CLI-175%20channels-238636?style=flat-square" alt="CLI"></a>
+  <a href="#cli-instant-drama"><img src="https://img.shields.io/badge/CLI-183%20channels-238636?style=flat-square" alt="CLI"></a>
   <a href="#ui-languages"><img src="https://img.shields.io/badge/UI-10%20languages-6e40c9?style=flat-square" alt="Languages"></a>
   <img src="https://img.shields.io/badge/license-MIT-8b949e?style=flat-square" alt="MIT">
 </p>
@@ -37,7 +37,7 @@ Lock a cast. Board every beat. Then work the **same story** three ways: a **time
 
 | Desktop | Remote | CLI |
 |---|---|---|
-| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **175** channels, same as the app |
+| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **183** channels, same as the app |
 
 - **Identity lock** — multi-angle character bibles, costumes, scenes, props, and motion boards  
 - **Comics studio** — even grids or manga panels, 9:16 / 1:1 / 16:9, page vs short-drama video, versioned takes  
@@ -158,7 +158,7 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
 | **Settings** | LLM / image / video providers, **OS completion notifications**, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
-| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**175** IPC channels) |
+| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**183** IPC channels) |
 | **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
 | **i18n** | 10 UI languages (incl. zh-HK written Chinese, zh-CN Mainland written Chinese, Arabic RTL); **recipe picker** before LLM improve/generate; MediaGen chrome localized |
 | **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
@@ -430,7 +430,7 @@ Typical usage after global install:
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # ~175 channels
+instant-drama channels list --json          # ~183 channels
 ```
 
 > **Note:** Global install provides the **CLI / headless / web-server** control plane (stories, cast, generation, export helpers, agent tools). Building or opening the **Electron desktop GUI** (`instant-drama build` / `instant-drama open`) still needs a full git clone with `npm install` (devDependencies such as Electron) and a local `release/` tree.
@@ -456,7 +456,7 @@ npm run instant-drama -- doctor --json
 ### Common commands
 
 ```bash
-# Diagnostics (channel count should be ~175)
+# Diagnostics (channel count should be ~183)
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -645,7 +645,7 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 |---------|---------|--------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | Docs index + facts |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | Product spec |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (175 channels) |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (183 channels) |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agents / OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | Web remote |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |
