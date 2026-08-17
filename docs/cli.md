@@ -129,9 +129,9 @@ instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces include: `activity` `ai` `app` `characters` `comics` `keyArt` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
+Namespaces include: `activity` `ai` `app` `chapters` `characters` `comics` `keyArt` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
 
-## Recent API surface (1.6.0)
+## Recent API surface (1.6.1)
 
 Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 
@@ -151,6 +151,9 @@ Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 | `keyArt:get` | Get or create the key-art book for a story | `instant-drama keyArt get --args '["S"]' --json` |
 | `keyArt:addShot` / `updateShot` | Add or edit a publicity still (type, format, method) | `instant-drama keyArt add-shot --args '[{"storyId":"S","shotType":"cover"}]' --json` |
 | `keyArt:setAsStoryCover` | Write `Story.coverPath` from a still | `instant-drama keyArt set-as-story-cover --args '["SHOT"]' --json` |
+| `chapters:list` / `create` / `update` / `delete` / `reorder` | Story chapter bodies | `instant-drama chapters list --args '["S"]' --json` |
+| `chapters:aiFill` / `aiPolish` | Generate or polish chapter text | `instant-drama chapters ai-fill --args '[{"storyId":"S","idea":"…"}]' --json` |
+| `chapters:generateCast` | Preview or apply cast extracted from chapters | `instant-drama chapters generate-cast --args '[{"storyId":"S","preview":true}]' --json` |
 | `media:exportFinal` | Timeline film, or `{ clipSource: "comics" }` for pages that already have video | `instant-drama media export-final --args '["S",{"clipSource":"comics"}]' --json` |
 | `desktopNotify:show` | OS completion notification | `instant-drama desktopNotify show --args '[{"title":"T","body":"B"}]' --json` |
 | `timeline:getAdvancedPrep` | Advanced studio snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |

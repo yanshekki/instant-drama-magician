@@ -23,10 +23,11 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
-## 近期焦點（1.6.0）
+## 近期焦點（1.6.1）
 
 | 區域 | 測試（示例） |
 |------|----------------|
+| 故事章節＋劇情焦點 | `ChapterService.test.ts`、`ChapterCastService.test.ts`、`chapters.test.ts`、`plotFocus.test.ts`、`storyChapterPrompt.test.ts`、`StoryChaptersTab.test.tsx`、`PlotContextPicker.test.tsx`、`StoriesPage.test.tsx` |
 | 劇照檯 | `KeyArtPage.test.tsx`、`KeyArtService.test.ts`、`keyArt.test.ts`、`keyArtShotTypes.test.ts`、`keyArtMakeMethods.test.ts`、`keyArtShotImages.test.ts` |
 | 漫畫工作室 | `ComicsPage.test.tsx`、`ComicService.test.ts`、`comics.test.ts`、`comicPageLayouts.test.ts`、`comicPageFormat.test.ts`、`comicPageVideos.test.ts` |
 | 作業系統完成通知 | `desktopNotify.test.ts`、`notifyDesktop.test.ts`、`showDesktopNotification.test.ts`、`SettingsPage.test.tsx` |

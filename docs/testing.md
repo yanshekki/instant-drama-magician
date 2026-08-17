@@ -11,10 +11,11 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.6.0)
+## Recent focus areas (1.6.1)
 
 | Area | Tests (examples) |
 |------|------------------|
+| Story chapters + plot focus | `ChapterService.test.ts`, `ChapterCastService.test.ts`, `chapters.test.ts`, `plotFocus.test.ts`, `storyChapterPrompt.test.ts`, `StoryChaptersTab.test.tsx`, `PlotContextPicker.test.tsx`, `StoriesPage.test.tsx` |
 | Key art desk | `KeyArtPage.test.tsx`, `KeyArtService.test.ts`, `keyArt.test.ts`, `keyArtShotTypes.test.ts`, `keyArtMakeMethods.test.ts`, `keyArtShotImages.test.ts` |
 | Comics studio | `ComicsPage.test.tsx`, `ComicService.test.ts`, `comics.test.ts`, `comicPageLayouts.test.ts`, `comicPageFormat.test.ts`, `comicPageVideos.test.ts` |
 | OS completion notifications | `desktopNotify.test.ts`, `notifyDesktop.test.ts`, `showDesktopNotification.test.ts`, `SettingsPage.test.tsx` |

@@ -129,9 +129,9 @@ instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces 包括：`activity` `ai` `app` `characters` `comics` `keyArt` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
+Namespaces 包括：`activity` `ai` `app` `chapters` `characters` `comics` `keyArt` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
 
-## 近期 API 表面（1.6.0）
+## 近期 API 表面（1.6.1）
 
 桌面、Web、CLI 共用同一 registry。優先用 **domain sugar** 或 `invoke`。
 
@@ -151,6 +151,9 @@ Namespaces 包括：`activity` `ai` `app` `characters` `comics` `keyArt` `costum
 | `keyArt:get` | 取得或建立該故事的劇照冊 | `instant-drama keyArt get --args '["S"]' --json` |
 | `keyArt:addShot`／`updateShot` | 新增或編輯宣傳靜圖（題材、開本、出圖方式） | `instant-drama keyArt add-shot --args '[{"storyId":"S","shotType":"cover"}]' --json` |
 | `keyArt:setAsStoryCover` | 用成圖寫入 `Story.coverPath` | `instant-drama keyArt set-as-story-cover --args '["SHOT"]' --json` |
+| `chapters:list`／`create`／`update`／`delete`／`reorder` | 故事章節正文 | `instant-drama chapters list --args '["S"]' --json` |
+| `chapters:aiFill`／`aiPolish` | 生成或潤飾章節 | `instant-drama chapters ai-fill --args '[{"storyId":"S","idea":"…"}]' --json` |
+| `chapters:generateCast` | 由章節預覽或寫入角色／場景／道具／動作 | `instant-drama chapters generate-cast --args '[{"storyId":"S","preview":true}]' --json` |
 | `media:exportFinal` | 時間軸成片，或 `{ clipSource: "comics" }` 只串已有片的漫畫頁 | `instant-drama media export-final --args '["S",{"clipSource":"comics"}]' --json` |
 | `desktopNotify:show` | 作業系統完成通知 | `instant-drama desktopNotify show --args '[{"title":"T","body":"B"}]' --json` |
 | `timeline:getAdvancedPrep` | 進階預備 snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
