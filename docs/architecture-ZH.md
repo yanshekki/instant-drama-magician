@@ -27,6 +27,19 @@ Presentation（React 頁面／CLI／瀏覽器 UI）
 
 桌面媒體經特權協定 **`idm-media://`** 提供（支援影片 Range）。
 
+同一 runtime、三條路——時間軸流程、漫畫成頁、劇照成圖：
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="../src/assets/screen/7.png" alt="時間軸流程" width="100%">
+    </td>
+    <td width="50%" valign="top">
+      <img src="../src/assets/screen/10.png" alt="漫畫成圖" width="100%">
+    </td>
+  </tr>
+</table>
+
 ## 共用 runtime
 
 | 入口 | 路徑 | 說明 |

@@ -18,19 +18,19 @@
 Lock a cast. Board every beat. Then work the **same story** three ways: a **timeline** of 6 / 10 second clips, a **comic book** of full pages you can still turn into film, or a **key-art desk** for covers, stills, promo frames, and hero headshots.
 
 <p align="center">
-  <img src="./src/assets/screen/7.png" alt="Timeline pipeline — stills, director notes, and generated clips on one board" width="100%">
+  <img src="./src/assets/screen/7.png" alt="Timeline pipeline — character bible, scene, and props wired on one board" width="100%">
 </p>
-<p align="center"><em>Timeline — one column per beat: character bible, scene, director notes, keyframe, then the clip.</em></p>
+<p align="center"><em>Timeline — character bible, scene, and props on one board; the clip track stays underneath.</em></p>
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="./src/assets/screen/10.png" alt="Comics artwork tab with a finished page and versioned page videos" width="100%">
-      <p align="center"><em>Comics — paginate the beats, lock the page, then versioned page videos.</em></p>
+      <img src="./src/assets/screen/10.png" alt="Comics artwork tab with a finished page and two video schemes" width="100%">
+      <p align="center"><em>Comics — lock the printed page, then animate it or shoot it as a short-drama clip.</em></p>
     </td>
     <td width="50%" valign="top">
-      <img src="./src/assets/screen/12.png" alt="Key art desk — methods, primary still, and versioned publicity frames" width="100%">
-      <p align="center"><em>Key art — covers, stills, promo, headshots. Four make methods, versioned takes.</em></p>
+      <img src="./src/assets/screen/12.png" alt="Key art desk — four make methods and a publicity still" width="100%">
+      <p align="center"><em>Key art — covers, stills, promo, headshots. Four methods, then the take.</em></p>
     </td>
   </tr>
 </table>
@@ -40,6 +40,7 @@ Lock a cast. Board every beat. Then work the **same story** three ways: a **time
 | Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **183** channels, same as the app |
 
 - **Identity lock** — multi-angle character bibles, costumes, scenes, props, and motion boards  
+- **Chapters first** — write the story, then pick chapters and beats when you fill cast, scenes, or props  
 - **Comics studio** — even grids or manga panels, 9:16 / 1:1 / 16:9, page vs short-drama video, versioned takes  
 - **Key art desk** — eight publicity types, four make methods (new / edit / lock face / continue), versioned stills, set as story cover  
 - **Continuity** — previous-beat stills and end frames feed the next clip  
@@ -69,73 +70,133 @@ Lock a cast. Board every beat. Then work the **same story** three ways: a **time
 
 ## UI screenshots
 
-From the running app (`src/assets/screen/`). The heroes above are the **timeline**, **comics**, and **key-art** desks.
-
-### Key art — pick a type
-
-Eight publicity types (cover, poster, still, promo, social, headshot, bust, lineup). Format follows the type (portrait 9:16, square, landscape) or you lock it yourself.
-
-![Key art types and page format](./src/assets/screen/11.png)
-
-### Key art — how to make it, and versions
-
-Four methods on the artwork tab: new image, edit this still, lock the face and redraw, continue the last still. Takes stay in a version grid until you delete them. One click sets the story cover.
-
-![Key art methods and version library](./src/assets/screen/12.png)
-
-### Comics — pick a page template
-
-Even grids and irregular manga layouts. Page format (portrait 9:16, square, landscape) follows the template, or you lock it yourself.
-
-![Comics layout templates](./src/assets/screen/9.png)
-
-### Comics — finished page and page videos
-
-Materials stay on the page. Two video schemes: animate the printed page, or shoot it as a short-drama clip (same polish as timeline). Versions stay until you delete them; export a film from pages that already have video.
-
-![Comics artwork and page videos](./src/assets/screen/10.png)
-
-### MediaGen — prepare a clip
-
-Materials first: previous still, this beat’s still, character, scene, then lock continuity in text. Next step polishes the director prompt and generates.
-
-![MediaGen clip prep](./src/assets/screen/8.png)
+From the running app (`src/assets/screen/`, v1.6.1). The heroes above are the **timeline**, **comics**, and **key-art** desks.
 
 ### 1. Story management
 
-Multi-project list: covers, status (Draft, etc.), character / scene / prop / action / clip counts, search & filters, **export backup** / **import story backup**, new story.
+Covers, draft status, cast / scene / prop / clip counts, search, **export backup** / **import story backup**.
 
 ![Story management](./src/assets/screen/1.png)
 
-### 2. Story editor (Basics)
+### 2. Story editor — basics
 
-Story cover, AI quick create (**AI generate style note** / **AI generate beats**), title & status, art style, **Style bible**, external reference images and identity-lock options.
+Cover, AI style note, title, art style, and the **style bible** (must / must-not rules).
 
-![Story editor](./src/assets/screen/2.png)
+![Story editor basics](./src/assets/screen/2.png)
 
-### 3. Character library
+### 3. Story chapters
 
-Global cast library: multi-image reference sheets, filters (gender / art style / has image / soul / language), zoom / regenerate / save as, edit & delete. Sidebar shows Grok CLI connection status.
+Write the narrative first. AI can fill or polish chapters; those bodies become the plot source for later fills.
+
+![Story chapters](./src/assets/screen/13.png)
+
+### 4. Plot beats
+
+Split chapters into filmable beats. Bind character, scene, prop, and action on each beat.
+
+![Plot beats](./src/assets/screen/14.png)
+
+### 5. Bind cast, sets, props
+
+Browse the global libraries and attach what this story actually uses.
+
+![Bind cast sets and props](./src/assets/screen/15.png)
+
+### 6. Character library
+
+Global cast: multi-image cards, gender / style / soul / language filters.
 
 ![Character library](./src/assets/screen/3.png)
 
-### 4. Character references
+### 7. Character bible
 
-Professional reference flow: Identity / Body / Base / Costume / Detail gallery, multi-angle **Character bible**, art-style lock, external refs, **Lock identity**, Intro video, set as cover.
+Identity, body, costume, and detail stills plus the written profile and hard rules.
 
-![Character references](./src/assets/screen/4.png)
+![Character bible](./src/assets/screen/4.png)
 
-### 5. Timeline production desk
+### 8. Character reference schemes
 
-Core pipeline: timeline snap, clip list, preview, **Clip editor** (bound assets, 6s/10s AI duration, beat screenplay), per-clip generate/retry, **Generate** / **Export** / Export history, **Advanced** prep entry.
+Turnaround packs, face locks, costume plates — pick a scheme, then generate.
 
-![Timeline](./src/assets/screen/5.png)
+![Character reference schemes](./src/assets/screen/19.png)
 
-### 6. Advanced prep
+### 9. Costume try-on
 
-Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyframe stills, continuity lock, per-cell re-gen / To video, video queue.
+Pick the wearer, a body-plate, and a pose. The still writes to both costume and character galleries.
+
+![Costume try-on](./src/assets/screen/16.png)
+
+### 10. Scene plates
+
+Establishing, hero, interior, weather — generate or swap atmosphere on the same set.
+
+![Scene plates](./src/assets/screen/17.png)
+
+### 11. Prop stills
+
+Hero product, three-quarter, detail, material, scale.
+
+![Prop stills](./src/assets/screen/18.png)
+
+### 12. Comics — page templates
+
+Even grids and irregular manga layouts. Format (9:16 / 1:1 / 16:9) follows the template.
+
+![Comics layout templates](./src/assets/screen/9.png)
+
+### 13. Comics — finished page
+
+Two video schemes: animate the printed page, or shoot it as a short-drama clip.
+
+![Comics artwork and video schemes](./src/assets/screen/10.png)
+
+### 14. Key art — pick a type
+
+Cover, poster, still, promo, social, headshot, bust, lineup.
+
+![Key art types and page format](./src/assets/screen/11.png)
+
+### 15. Key art — make methods
+
+New image, edit this still, lock the face, continue the last take. One click sets the story cover.
+
+![Key art methods](./src/assets/screen/12.png)
+
+### 16. MediaGen — prepare a clip
+
+Previous still, this beat’s still, character, scene, then lock continuity in text.
+
+![MediaGen clip prep](./src/assets/screen/8.png)
+
+### 17. Timeline track
+
+Snap, 6s / 10s clips, bound assets, beat screenplay, per-clip generate.
+
+![Timeline track](./src/assets/screen/5.png)
+
+### 18. Timeline pipeline
+
+The same beats as a board: character → scene → props → action, with the track underneath.
+
+![Timeline pipeline](./src/assets/screen/7.png)
+
+### 19. Advanced prep
+
+Cast lock → storyboard stills → video. Continuity lock and per-cell refine.
 
 ![Advanced prep](./src/assets/screen/6.png)
+
+### 20. Settings — languages and notify
+
+Ten UI languages, light / dark / system, OS completion notifications.
+
+![Settings languages and notifications](./src/assets/screen/20.png)
+
+### 21. Settings — providers
+
+Local Grok Gateway by default, plus cloud and local LLM / image / video cards.
+
+![Settings providers](./src/assets/screen/21.png)
 
 ---
 
@@ -143,7 +204,7 @@ Three-step pipeline: **Cast lock → Storyboard stills → Video**. Batch keyfra
 
 | Area | What you can do |
 |------|-----------------|
-| **Stories** | Multi-story management, cover AI, style bible, script beats, cast binding (characters / scenes / props / **actions**), `.idm.zip` backup import/export |
+| **Stories** | Multi-story management, cover AI, style bible, **chapters**, multi-select **plot beats**, cast binding (characters / scenes / props / **actions**), `.idm.zip` backup import/export |
 | **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle sheets, identity lock, external refs, intro video, **vision AI fill** from a still |
 | **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, **AI fill from reference photo only**, multi-still gallery; **try-on dual-write** to character **and** costume multi-gallery (`costumes:appendTryOnStill`) |
 | **Scenes** | Scene copy, plates / looks / atmosphere, scene gallery, **vision AI fill** from a plate still |

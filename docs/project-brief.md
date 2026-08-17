@@ -20,6 +20,10 @@
 >
 > Sections below preserve the **original bootstrap specification**.
 
+<p align="center">
+  <img src="../src/assets/screen/7.png" alt="Timeline pipeline — one story, one board" width="100%">
+</p>
+
 ## Project goal
 
 Build a professional, modular, extensible AI short-drama generator. Users create characters, scenes, props, and multiple stories on independent pages, then control short-film generation with a **linear timeline**. The system supports idea-to-film workflows and precise timeline management given AI video length limits (6s/10s).

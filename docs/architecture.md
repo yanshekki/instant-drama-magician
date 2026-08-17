@@ -27,6 +27,19 @@ Presentation (React pages / CLI / browser UI)
 
 Media in the desktop app is served via privileged scheme **`idm-media://`** (range requests for video).
 
+Same runtime, three desks — timeline board, comic page, key-art still:
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="../src/assets/screen/7.png" alt="Timeline pipeline" width="100%">
+    </td>
+    <td width="50%" valign="top">
+      <img src="../src/assets/screen/10.png" alt="Comics finished page" width="100%">
+    </td>
+  </tr>
+</table>
+
 ## Shared runtime
 
 | Entry | Path | Notes |

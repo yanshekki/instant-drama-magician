@@ -49,3 +49,11 @@ Product version **1.6.1** · Vendor **YSK Limited** · Contact **[email@ysk.hk](
 
 When code changes any of the above, update **both** language files in the same PR.
 
+## Product screenshots
+
+Full gallery (stories → chapters → cast → comics → key art → timeline → settings) lives in the root [README](../README.md#ui-screenshots). The timeline pipeline is the same story as three desks:
+
+<p align="center">
+  <img src="../src/assets/screen/7.png" alt="Timeline pipeline board" width="100%">
+</p>
+
