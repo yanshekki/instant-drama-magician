@@ -130,9 +130,7 @@ reg(
       ) {
         const story = await host.getPrisma().story.findUnique({
           where: { id: payload.storyId },
-          ...(payload.suggestFromStory
-            ? { include: PLOT_FOCUS_STORY_INCLUDE }
-            : {})
+          include: PLOT_FOCUS_STORY_INCLUDE
         })
         if (payload.suggestFromStory && !story) {
           throw new AppError('NOT_FOUND', 'errors.storyNotFound', String(payload.storyId))

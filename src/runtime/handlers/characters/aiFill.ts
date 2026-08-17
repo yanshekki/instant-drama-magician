@@ -82,9 +82,7 @@ reg(
         } = await import('../../../domain/plotFocus')
         const story = await ctx.host.getPrisma().story.findUnique({
           where: { id: payload.storyId },
-          ...(payload.suggestFromStory
-            ? { include: PLOT_FOCUS_STORY_INCLUDE }
-            : {})
+          include: PLOT_FOCUS_STORY_INCLUDE
         })
         if (payload.suggestFromStory && !story) {
           throw new AppError(
