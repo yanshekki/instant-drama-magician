@@ -60,6 +60,8 @@ export default defineConfig({
         'src/presentation/pages/SettingsPage.tsx',
         'src/presentation/pages/ComicsPage.tsx',
         'src/presentation/pages/KeyArtPage.tsx',
+        'src/presentation/components/StoryChaptersTab.tsx',
+        'src/presentation/components/PlotContextPicker.tsx',
         'src/presentation/components/KeyArtImageLibrary.tsx',
         'src/presentation/components/ComicPageVideoLibrary.tsx',
         // OS notify glue (happy-dom / Electron Notification); rules live in domain/desktopNotify.ts
