@@ -262,6 +262,23 @@ describe('registerScenesAiFill', () => {
     expect(msgs).toMatch(/Sun hits the alley/)
   })
 
+  it('fill-blanks patches missing scene keys', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: SCENE_JSON } }]
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() }
+    })
+    registerScenesAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const filled = (await invokeRegistered(h as never, 'scenes:aiFill', {
+      idea: 'rooftop',
+      locale: 'en',
+      promptTemplateId: 'fill-blanks'
+    })) as { profile?: { title?: string } }
+    expect(filled).toBeTruthy()
+  })
+
   it('draft + storyId without suggestFromStory does not inject story sample', async () => {
     const chat = vi.fn(async () => ({
       choices: [{ message: { content: SCENE_JSON } }]

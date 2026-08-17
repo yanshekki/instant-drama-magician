@@ -66,6 +66,18 @@ describe('ChapterCastService', () => {
     vi.restoreAllMocks()
   })
 
+  it('loadPlanContext requires the story to exist', async () => {
+    const prisma = prismaReady([
+      { id: 'c1', storyId: 's1', order: 0, title: 'Night', body: 'Rain.' }
+    ])
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      null
+    )
+    await expect(
+      new ChapterCastService(prisma as never).loadPlanContext('missing')
+    ).rejects.toMatchObject({ message: 'errors.storyNotFound' })
+  })
+
   it('loadPlanContext requires a chapter with body', async () => {
     const prisma = prismaReady([
       { id: 'c1', storyId: 's1', order: 0, title: 'Empty', body: '  ' }
@@ -159,5 +171,43 @@ describe('ChapterCastService', () => {
     expect(linkScene).not.toHaveBeenCalled()
     expect(linkProp).not.toHaveBeenCalled()
     expect(linkAction).not.toHaveBeenCalled()
+  })
+
+  it('applyPlan links existing library scenes props and actions', async () => {
+    const prisma = prismaReady([
+      { id: 'ch1', storyId: 's1', order: 0, title: 'One', body: 'Rain.' }
+    ])
+    ;(prisma.scene.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 'lib-roof', title: 'Roof', description: 'rain' }
+    ])
+    ;(prisma.prop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 'lib-umb', name: 'Umbrella' }
+    ])
+    ;(prisma.action.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 'lib-run', name: 'Sprint' }
+    ])
+    const linkScene = vi
+      .spyOn(StoryCastService.prototype, 'linkScene')
+      .mockResolvedValue({} as never)
+    const linkProp = vi
+      .spyOn(StoryCastService.prototype, 'linkProp')
+      .mockResolvedValue({} as never)
+    const linkAction = vi
+      .spyOn(StoryCastService.prototype, 'linkAction')
+      .mockResolvedValue({} as never)
+    const svc = new ChapterCastService(prisma as never)
+    const ctx = await svc.loadPlanContext('s1')
+    expect(ctx.linked.scenes).toEqual([])
+    const plan = svc.planFromDrafts(
+      { characters: [], scenes: drafts.scenes, props: drafts.props, actions: drafts.actions },
+      ctx
+    )
+    expect(plan.scenes[0].action).toBe('link')
+    expect(plan.props[0].action).toBe('link')
+    expect(plan.actions[0].action).toBe('link')
+    await svc.applyPlan('s1', plan, null)
+    expect(linkScene).toHaveBeenCalledWith('s1', 'lib-roof')
+    expect(linkProp).toHaveBeenCalledWith('s1', 'lib-umb')
+    expect(linkAction).toHaveBeenCalledWith('s1', 'lib-run')
   })
 })

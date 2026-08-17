@@ -199,6 +199,41 @@ describe('registerActionsHandlers', () => {
     expect(msgs).toMatch(/Rain on the roof/)
   })
 
+  it('suggestFromStory requires a real story; fill-blanks patches missing keys', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: ACTION_PROFILE } }]
+    }))
+    const findUnique = vi.fn(async () => null)
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() },
+      host: {
+        ...(makeHandlerContext().host as object),
+        getPrisma: () => ({ story: { findUnique } }) as never
+      } as never
+    })
+    registerActionsHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(h as never, 'actions:aiFill', {
+        suggestFromStory: true,
+        locale: 'en'
+      })
+    ).rejects.toMatchObject({ message: 'errors.storyIdRequired' })
+    await expect(
+      invokeRegistered(h as never, 'actions:aiFill', {
+        suggestFromStory: true,
+        storyId: 'missing',
+        locale: 'en'
+      })
+    ).rejects.toMatchObject({ message: 'errors.storyNotFound' })
+    const filled = (await invokeRegistered(h as never, 'actions:aiFill', {
+      idea: 'sprint',
+      locale: 'en',
+      promptTemplateId: 'fill-blanks'
+    })) as { name?: string }
+    expect(filled).toBeTruthy()
+  })
+
   it('generatePlate draft + persist with edit', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-act-plate-'))
     const ref = join(dir, 'r.png')

@@ -635,4 +635,59 @@ describe('StoriesPage', () => {
     })
     expect(document.body.textContent || '').toMatch(/Write them first|source/i)
   })
+
+  it('script tab lists filled chapters and requires a pick before generate', async () => {
+    api.stories.get = vi.fn().mockResolvedValue(
+      makeStoryDetail({
+        chapters: [
+          { id: 'ch1', title: 'Night', body: 'Rain on the roof.', order: 0 },
+          { id: 'ch2', title: '', body: '   ', order: 1 }
+        ]
+      })
+    )
+    await renderWithProviders(<StoriesPage />, { withToastHost: true })
+    await waitFor(() => expect(screen.getByText('Demo Story')).toBeTruthy())
+    const edit = screen.getAllByRole('button').find((b) =>
+      /^Edit$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      edit?.click()
+    })
+    await waitFor(() => expect(api.stories.get).toHaveBeenCalled())
+    const scriptTab = screen.getAllByRole('button').find((b) =>
+      /Script beats/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      scriptTab?.click()
+    })
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(/Which chapters/i)
+    )
+    expect(document.body.textContent || '').toMatch(/Split the chapters/i)
+    expect(document.body.textContent || '').toMatch(/Night/)
+    const selectAll = screen.getAllByRole('button').find((b) =>
+      /^Select all$/i.test((b.textContent || '').trim())
+    )
+    await act(async () => {
+      selectAll?.click()
+    })
+    const night = screen.getByLabelText('Night') as HTMLInputElement
+    expect(night.checked).toBe(true)
+    await act(async () => {
+      fireEvent.click(night)
+    })
+    expect(night.checked).toBe(false)
+    const generate = screen.getAllByRole('button').find((b) =>
+      /AI generate beats/i.test(b.textContent || '')
+    )
+    await act(async () => {
+      generate?.click()
+    })
+    await waitFor(() =>
+      expect(document.body.textContent || '').toMatch(
+        /Select at least one chapter/i
+      )
+    )
+    expect(api.stories.aiFillScript).not.toHaveBeenCalled()
+  })
 })

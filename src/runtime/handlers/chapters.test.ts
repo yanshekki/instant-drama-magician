@@ -247,4 +247,71 @@ describe('registerChaptersHandlers', () => {
       invokeRegistered(h as never, 'chapters:generateCast', { storyId: 's1' })
     ).rejects.toMatchObject({ message: 'errors.chaptersRequired' })
   })
+
+  it('aiFill requires storyId; aiPolish requires an existing chapter', async () => {
+    const svc = {
+      list: vi.fn(async () => [{ id: 'ch1', title: 'Old', body: 'Rain.' }]),
+      update: vi.fn(),
+      replaceAll: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+      reorder: vi.fn()
+    }
+    const ctx = makeHandlerContext({
+      chapters: () => svc as never,
+      stories: () =>
+        ({ get: vi.fn(async () => ({ id: 's1', title: 'Rain' })) }) as never
+    })
+    registerChaptersHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(h as never, 'chapters:aiFill', { idea: 'x' })
+    ).rejects.toMatchObject({ message: 'errors.storyIdRequired' })
+    await expect(
+      invokeRegistered(h as never, 'chapters:aiPolish', {
+        storyId: 's1',
+        chapterId: 'missing'
+      })
+    ).rejects.toMatchObject({ message: 'errors.chapterNotFound' })
+  })
+
+  it('generateCast apply writes the plan when preview is false', async () => {
+    const { ChapterCastService } = await import(
+      '../../application/services/ChapterCastService'
+    )
+    const apply = vi
+      .spyOn(ChapterCastService.prototype, 'applyPlan')
+      .mockResolvedValue({} as never)
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: CAST_JSON } }]
+    }))
+    const prisma = prismaWithChapters()
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() },
+      stories: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 's1',
+            title: 'Rain',
+            characters: [],
+            scenes: [],
+            props: []
+          }))
+        }) as never,
+      host: {
+        ...(makeHandlerContext().host as object),
+        getPrisma: () => prisma
+      } as never
+    })
+    registerChaptersHandlers(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const applied = (await invokeRegistered(h as never, 'chapters:generateCast', {
+      storyId: 's1',
+      locale: 'en',
+      preview: false
+    })) as { preview: boolean }
+    expect(applied.preview).toBe(false)
+    expect(apply).toHaveBeenCalled()
+    apply.mockRestore()
+  })
 })

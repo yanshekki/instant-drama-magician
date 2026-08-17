@@ -257,4 +257,47 @@ describe('registerCharactersAiFill', () => {
     const msgs = JSON.stringify(chat.mock.calls[0]?.[0]?.messages ?? [])
     expect(msgs).toMatch(/Rain on the roof/)
   })
+
+  it('suggestFromStory requires a real story; fill-blanks patches missing keys', async () => {
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: PROFILE_JSON } }]
+    }))
+    const findUnique = vi.fn(async () => null)
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() }
+    })
+    ;(ctx.host as { getPrisma: () => unknown }).getPrisma = () => ({
+      story: { findUnique }
+    })
+    registerCharactersAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(h as never, 'characters:aiFill', {
+        suggestFromStory: true,
+        locale: 'en'
+      })
+    ).rejects.toMatchObject({ message: 'errors.storyIdRequired' })
+    await expect(
+      invokeRegistered(h as never, 'characters:aiFill', {
+        suggestFromStory: true,
+        storyId: 'missing',
+        locale: 'en'
+      })
+    ).rejects.toMatchObject({ message: 'errors.storyNotFound' })
+
+    findUnique.mockResolvedValueOnce({
+      id: 's1',
+      title: 'Rain',
+      styleNote: null,
+      chapters: [],
+      storyScenes: [],
+      timeline: []
+    })
+    const filled = (await invokeRegistered(h as never, 'characters:aiFill', {
+      idea: 'courier',
+      locale: 'en',
+      promptTemplateId: 'fill-blanks'
+    })) as { profile: { name: string } }
+    expect(filled.profile.name).toBe('阿明')
+  })
 })
