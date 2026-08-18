@@ -51,8 +51,9 @@ Clean Architecture + 分層：Presentation · Application · Domain · Infrastru
 5. Timeline  
 6. **Costumes**（已出貨）  
 7. **Comics**（已出貨）  
-8. **Activity**（已出貨）  
-9. **Settings**（已出貨）  
+8. **Key art／劇照**（已出貨）  
+9. **Activity**（已出貨）  
+10. **Settings**（已出貨）  
 
 ## 相關
 

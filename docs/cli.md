@@ -124,12 +124,13 @@ instant-drama settings get|set
 instant-drama ai status|models|test-chat …
 instant-drama app info
 instant-drama characters list
-instant-drama characters generate-sheet --args '[{...}]' --json
+instant-drama chapters list --args '["S"]' --json
+instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
 instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces include: `activity` `ai` `app` `chapters` `characters` `comics` `keyArt` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
+Namespaces include: `actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
 
 ## Recent API surface (1.6.1)
 
@@ -159,6 +160,18 @@ Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 | `timeline:getAdvancedPrep` | Advanced studio snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
 | `timeline:setCastPrep` | Persist cast lock prep | `instant-drama timeline set-cast-prep --args '[{...}]' --json` |
 | `timeline:clearEntryStill` | Clear beat continuity still | `instant-drama timeline clear-entry-still --args '[{...}]' --json` |
+| `timeline:create` / `update` | Beats; multi-bind `characterIds` (max 4), `sceneIds` (max 2), `propIds` (max 4), `actionIds` (max 4) | `instant-drama timeline create --args '[{"storyId":"S","characterIds":["…"],"sceneIds":["…"]}]' --json` |
+| `*:aiFill` plot focus | `suggestFromStory` + `segmentKeys` on characters / scenes / props / actions / costumes (+ wardrobe) | See **Plot focus / AI fill** below |
+
+### Plot focus / AI fill
+
+`suggestFromStory: true` requires `storyId`. Omit `segmentKeys` or pass `[]` to use the **entire story** (chapter bodies first, then beats). Keys are `chapter:<id>` and `beat:<id>` (`scene:<id>` still resolves; the desktop picker no longer lists scenes). Singular `segmentKey` is **deprecated**. Desktop default-check (beats already bound to this entity) is **GUI-only** — CLI must pass keys explicitly.
+
+```bash
+instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:C1","beat:B1"]}]' --json
+instant-drama characters ai-fill --args '[{"storyId":"S","suggestFromStory":true}]' --json
+instant-drama channels describe scenes:aiFill --json
+```
 
 ```bash
 instant-drama channels list --filter mediaGen --json
@@ -176,6 +189,7 @@ npm run instant-drama -- doctor --json          # expect channelCount 183
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
+npm run instant-drama -- channels describe scenes:aiFill --json
 npm run instant-drama -- help
 ```
 

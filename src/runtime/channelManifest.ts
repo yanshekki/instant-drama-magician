@@ -222,12 +222,14 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'timeline:create',
     description: 'Create timeline beat',
-    argsHint: '[{...}]'
+    argsHint:
+      '[{storyId, dialogue?, characterIds? (max 4), sceneIds? (max 2), propIds? (max 4), actionIds? (max 4), ...}]'
   },
   {
     channel: 'timeline:update',
     description: 'Update timeline entry',
-    argsHint: '["id", {...}]'
+    argsHint:
+      '["id", {characterIds? (max 4), sceneIds? (max 2), propIds? (max 4), actionIds? (max 4), ...}]'
   },
   {
     channel: 'timeline:delete',
@@ -354,7 +356,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'characters:aiFill',
     description: 'characters: ai fill',
-    argsHint: '[{idea?, locale?, existingDraft?}]'
+    argsHint:
+      '[{idea?, locale?, existingDraft?, storyId?, suggestFromStory?, segmentKeys?:["chapter:<id>","beat:<id>"], promptTemplateId?}]'
   },
   {
     channel: 'characters:commitSheet',
@@ -398,7 +401,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'characters:suggestWardrobe',
     description: 'characters: suggest wardrobe',
-    argsHint: '[{...}]'
+    argsHint:
+      '[{characterId?, storyId?, locale?, segmentKeys?:["chapter:<id>","beat:<id>"], ...}]'
   },
   {
     channel: 'characters:swapCostume',
@@ -415,7 +419,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'costumes:aiFill',
     description: 'costumes: ai fill',
-    argsHint: '[{idea?, locale?, existingDraft?}]'
+    argsHint:
+      '[{idea?, locale?, existingDraft?, storyId?, suggestFromStory?, segmentKeys?:["chapter:<id>","beat:<id>"], promptTemplateId?}]'
   },
   {
     channel: 'costumes:generateDressed',
@@ -560,7 +565,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'props:aiFill',
     description: 'props: ai fill',
-    argsHint: '[{idea?, locale?, existingDraft?}]'
+    argsHint:
+      '[{idea?, locale?, existingDraft?, storyId?, suggestFromStory?, segmentKeys?:["chapter:<id>","beat:<id>"], promptTemplateId?}]'
   },
   {
     channel: 'props:commitPlate',
@@ -584,7 +590,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'actions:aiFill',
     description: 'actions: ai fill',
-    argsHint: '[{idea?, locale?, existingDraft?}]'
+    argsHint:
+      '[{idea?, locale?, existingDraft?, storyId?, suggestFromStory?, segmentKeys?:["chapter:<id>","beat:<id>"], promptTemplateId?}]'
   },
   {
     channel: 'actions:commitPlate',
@@ -634,7 +641,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'scenes:aiFill',
     description: 'scenes: ai fill',
-    argsHint: '[{idea?, locale?, existingDraft?}]'
+    argsHint:
+      '[{idea?, locale?, existingDraft?, storyId?, suggestFromStory?, segmentKeys?:["chapter:<id>","beat:<id>"], promptTemplateId?}]'
   },
   {
     channel: 'scenes:commitPlate',
@@ -705,7 +713,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'stories:aiFillScript',
     description: 'stories: ai fill script',
-    argsHint: '[{...}]'
+    argsHint:
+      '[{storyId, idea?, locale?, replace?, chapterIds?, promptTemplateId?}]'
   },
   {
     channel: 'stories:commitCover',

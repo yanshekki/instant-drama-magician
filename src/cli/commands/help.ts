@@ -44,13 +44,14 @@ COMMANDS
 
 DOMAIN SUGAR (all ~183 channels)
   instant-drama <namespace> <action> [jsonArgs…]
-  Namespaces: activity ai app characters comics keyArt costumes desktopNotify diagnostics gateway
-    generation media mediaGen project props scenes settings shell souls
-    stories support timeline updates videoPrep webServer
+  Namespaces: actions activity ai app chapters characters comics costumes desktopNotify
+    diagnostics gateway generation keyArt media mediaGen project props scenes settings
+    shell souls stories support timeline updates videoPrep webServer
   kebab-case actions map to camelCase (generate-sheet → generateSheet)
 
   instant-drama characters list --json
-  instant-drama characters generate-sheet --args '[{"characterId":"…"}]'
+  instant-drama chapters list --args '["STORY_ID"]' --json
+  instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
   instant-drama costumes append-try-on-still --args '[{…}]'
   instant-drama mediaGen extract --args '[{kind:"timeline-still",…}]'
   instant-drama generation run STORY_ID --json

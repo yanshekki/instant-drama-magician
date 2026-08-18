@@ -51,8 +51,9 @@ Shared `registerAllHandlers` powers Electron IPC, Web `/api/invoke`, and CLI `in
 5. Timeline  
 6. **Costumes** (shipped)  
 7. **Comics** (shipped)  
-8. **Activity** (shipped)  
-9. **Settings** (shipped)  
+8. **Key art** (shipped)  
+9. **Activity** (shipped)  
+10. **Settings** (shipped)  
 
 ## Related
 

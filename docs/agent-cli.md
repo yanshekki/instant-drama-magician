@@ -42,12 +42,16 @@ export IDM_JSON=1
 
 ## Discovery loop
 
-1. `instant-drama doctor --json` — connectivity + **~157 channels**
-2. `instant-drama channels list --json` — live capabilities
-3. `instant-drama tools schema --openai` — OpenAI-style tool definitions
-4. Mutate via `instant-drama invoke` / `instant-drama <namespace> <action>`
+1. `instant-drama doctor --json` — connectivity + **183 channels**
+2. `instant-drama channels list --json` — live capabilities (`chapters`, `keyArt`, `actions`, …)
+3. `instant-drama channels describe scenes:aiFill --json` — payload hints (`suggestFromStory`, `segmentKeys`)
+4. `instant-drama tools schema --openai` — OpenAI-style tool definitions
+5. Mutate via `instant-drama invoke` / `instant-drama <namespace> <action>`
 
 ```bash
+instant-drama chapters list --args '["STORY_ID"]' --json
+instant-drama scenes ai-fill --args '[{"storyId":"STORY_ID","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
+instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama characters list --json
 instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
@@ -78,6 +82,8 @@ instant-drama invoke stories:create '{"title":"Agent demo"}' --json
 instant-drama stories seed-demo zh-HK --json
 instant-drama stories list --json
 instant-drama settings set locale zh-HK --json
+instant-drama chapters ai-fill --args '[{"storyId":"STORY_ID","idea":"…"}]' --json
+instant-drama chapters generate-cast --args '[{"storyId":"STORY_ID","preview":true}]' --json
 instant-drama invoke ai:status --json
 instant-drama invoke media:checkFfmpeg --json
 ```
@@ -105,4 +111,4 @@ Also: `GET /api/channels`, `GET /api/health`. CLI preferred for agents (exit cod
 
 ## Related
 
-- [cli.md](./cli.md) · [self-host.md](./self-host.md) · Contact [email@ysk.hk](mailto:email@ysk.hk)
+- [cli.md](./cli.md) · [self-host.md](./self-host.md) · OpenClaw skill [`skills/idm/SKILL.md`](../skills/idm/SKILL.md) · plot payload [`skills/idm/plot-focus.md`](../skills/idm/plot-focus.md) · Contact [email@ysk.hk](mailto:email@ysk.hk)

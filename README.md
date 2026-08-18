@@ -238,8 +238,10 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 - **Import story backup** / **Export backup** (story-level `.idm.zip`)  
 - Edit tabs:  
   - **Basics**: cover, AI quick create, title, status, art style, style bible  
+  - **Chapters**: write narrative bodies (AI fill / polish); this is the plot source for later fills  
   - **Cast**: link **characters, scenes, props, and actions** (search + linked/unlinked filters)  
-  - **Script beats**: per-beat multi-bind of characters / scenes / props / **actions**, plus beat screenplay  
+  - **Script beats**: per-beat multi-bind of characters (max 4) / scenes (max 2) / props (max 4) / **actions** (max 4), plus beat screenplay  
+- **Suggest from story** (on Characters, Scenes, Props, Actions, Costumes): checkbox **chapters** (`chapter:<id>`) and **beats** (`beat:<id>`) → `segmentKeys`. Desktop default-checks beats that already bound this entity. Empty selection = whole story (chapters first).  
 
 ### Characters
 
@@ -247,7 +249,7 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 - Search and filters: gender, art style, has image, soul, language  
 - Multi-image cards; Edit / Delete  
 - Edit tabs:  
-  - **Profile**: name, description, age, gender, language, voice, etc.; **AI fill** from idea, draft, soul, or **uploaded still only** (vision)  
+  - **Profile**: name, description, age, gender, language, voice, etc.; **AI fill** from idea, draft, soul, **uploaded still only** (vision), or **Suggest from story**  
   - **References**: multi-angle bible (front / ¾ / close-up…), body/base/costume pipeline, external refs, identity lock, generate professional refs, Intro video  
   - **Costume**: bind wardrobe  
 - **SoulMD Hub** (soulmd-hub.ysk.hk): index suggestions, import soul.md as character soul  
@@ -256,7 +258,7 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 ### Costumes
 
 - Global wardrobe library (link 0…N characters)  
-- **AI fill from reference photo only** (no idea text required)  
+- **AI fill from reference photo only** (no idea text required), or **Suggest from story**  
 - Multi-still gallery, cover, intro video; **identity-lock multi-select** on thumbs  
 - Dress / try-on / swap onto a character with identity lock  
 - **Accept try-on draft** → still is committed to the **character gallery and this costume multi-gallery** so every linked user can browse it (`costumes:appendTryOnStill`)  
@@ -266,21 +268,21 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 - Scene description and script fields  
 - Scene plates, looks, atmosphere  
 - Scene gallery and variants  
-- **Vision AI fill** from a selected / cover plate still  
+- **Vision AI fill** from a selected / cover plate still, or **Suggest from story**  
 
 ### Props
 
 - Prop name and description  
 - Prop master prompt, plate variants  
 - Bound on timeline clips  
-- **Vision AI fill** from a reference still  
+- **Vision AI fill** from a reference still, or **Suggest from story**  
 
 ### Actions (motion direction)
 
 - **Global motion library** — reusable action / blocking guides (not tied to one story until cast-linked)  
 - **Multi-panel instruction boards**: 2 / 3 / 4 / 5 / 6 panels (strips or 2×2 / 2×3 grids); panel 1 = first beat, panel N = last  
 - Art style, external reference stills, cast refs from character / costume / scene / prop libraries  
-- **Vision AI fill** from a still; multi-gallery accumulate (append plates, reorder, cover)  
+- **Vision AI fill** from a still, or **Suggest from story**; multi-gallery accumulate (append plates, reorder, cover)  
 - Linked into story cast, script beats, and timeline clips; video gen injects motion notes / can use the instruction still as image ref  
 
 ### Comics
@@ -363,9 +365,10 @@ Best when you want continuity locked before video generation.
 
 ```text
 1) Settings → paste API key → Test Chat
-2) Stories → create / AI style note + beats
+2) Stories → chapters (narrative) → script beats
 3) Characters → multi-angle sheet → lock identity
    (or upload a still → AI fill profile with vision only)
+   (or Suggest from story → pick chapters / beats)
 4) Scenes / Props / Costumes / Actions → complete assets
    (Actions: generate multi-panel instruction boards)
 5) Story Cast → link characters, scenes, props, actions
@@ -529,7 +532,8 @@ instant-drama invoke generation:run '["storyId"]' --json
 instant-drama stories list --json
 instant-drama stories create --title "My drama" --json
 instant-drama characters list --json
-instant-drama characters generate-sheet --args '[{"characterId":"…"}]' --json
+instant-drama chapters list --args '["STORY_ID"]' --json
+instant-drama scenes ai-fill --args '[{"storyId":"…","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
 instant-drama costumes list --json
 instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path/to/still.png"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
@@ -558,7 +562,7 @@ instant-drama tools schema --openai > tools.json
 ```
 
 **Example namespaces:**  
-`activity` · `ai` · `app` · `characters` · `costumes` · `diagnostics` · `gateway` · `generation` · `media` · `project` · `props` · `scenes` · `settings` · `shell` · `souls` · `stories` · `support` · `timeline` · `updates` · `videoPrep` · `webServer`
+`actions` · `activity` · `ai` · `app` · `chapters` · `characters` · `comics` · `costumes` · `diagnostics` · `gateway` · `generation` · `keyArt` · `media` · `mediaGen` · `project` · `props` · `scenes` · `settings` · `shell` · `souls` · `stories` · `support` · `timeline` · `updates` · `videoPrep` · `webServer`
 
 Headless file-dialog substitutes: `IDM_PICK_FILE`, `IDM_SAVE_PATH`.
 

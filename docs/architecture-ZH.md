@@ -63,19 +63,26 @@ Channel 目錄：`src/runtime/channelManifest.ts`（**183** 個唯一 id）。
 
 | 路由 | 頁面 |
 |------|------|
-| `/` | Stories |
+| `/` | Stories（章節 + 劇情段落） |
 | `/characters` | Characters（+ SoulMD Hub、參考 sheet） |
 | `/costumes` | Costumes（試穿雙寫多圖庫） |
 | `/scenes` | Scenes |
 | `/props` | Props |
+| `/actions` | Actions（動作指導圖） |
+| `/comics` | 漫畫工作室 |
+| `/key-art` | 劇照桌 |
 | `/timeline` | Timeline + Advanced prep（連續性 + 精修） |
+| `/timeline-v2` | Timeline v2 工作室 |
 | `/audit` | 活動日誌 |
 | `/settings` | 設定 |
+
+資產 AI fill 可用 `suggestFromStory` + `segmentKeys` 注入劇情（`chapter:<id>`／`beat:<id>`；空 = 成個故事，章節優先）。CLI 同一 payload。
 
 ## 生成管線
 
 ```text
-Script → Character → Scene → Props → Timeline → Video（6|10s）→ Export
+章節 → Cast（generateCast）→ 劇情段落 → 角色／場景／道具／動作
+  → Timeline → Video（6|10s）→ Export
 ```
 
 - 全量：`generation:run`

@@ -42,12 +42,16 @@ export IDM_JSON=1
 
 ## 探索迴圈
 
-1. `instant-drama doctor --json` — 連線 + **約 157 channels**
-2. `instant-drama channels list --json` — 即時能力
-3. `instant-drama tools schema --openai` — OpenAI 風格 tool 定義
-4. 以 `instant-drama invoke`／`instant-drama <namespace> <action>` 變更狀態
+1. `instant-drama doctor --json` — 連線 + **183 channels**
+2. `instant-drama channels list --json` — 即時能力（`chapters`、`keyArt`、`actions`…）
+3. `instant-drama channels describe scenes:aiFill --json` — payload 提示（`suggestFromStory`、`segmentKeys`）
+4. `instant-drama tools schema --openai` — OpenAI 風格 tool 定義
+5. 以 `instant-drama invoke`／`instant-drama <namespace> <action>` 變更狀態
 
 ```bash
+instant-drama chapters list --args '["STORY_ID"]' --json
+instant-drama scenes ai-fill --args '[{"storyId":"STORY_ID","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
+instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama characters list --json
 instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
@@ -78,6 +82,8 @@ instant-drama invoke stories:create '{"title":"Agent demo"}' --json
 instant-drama stories seed-demo zh-HK --json
 instant-drama stories list --json
 instant-drama settings set locale zh-HK --json
+instant-drama chapters ai-fill --args '[{"storyId":"STORY_ID","idea":"…"}]' --json
+instant-drama chapters generate-cast --args '[{"storyId":"STORY_ID","preview":true}]' --json
 instant-drama invoke ai:status --json
 instant-drama invoke media:checkFfmpeg --json
 ```
@@ -105,4 +111,4 @@ Content-Type: application/json
 
 ## 相關
 
-- [cli-ZH.md](./cli-ZH.md) · [self-host-ZH.md](./self-host-ZH.md) · 聯絡 [email@ysk.hk](mailto:email@ysk.hk)
+- [cli-ZH.md](./cli-ZH.md) · [self-host-ZH.md](./self-host-ZH.md) · OpenClaw skill [`skills/idm/SKILL-ZH.md`](../skills/idm/SKILL-ZH.md) · 劇情 payload [`skills/idm/plot-focus.md`](../skills/idm/plot-focus.md) · 聯絡 [email@ysk.hk](mailto:email@ysk.hk)

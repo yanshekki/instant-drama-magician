@@ -124,12 +124,13 @@ instant-drama settings get|set
 instant-drama ai status|models|test-chat …
 instant-drama app info
 instant-drama characters list
-instant-drama characters generate-sheet --args '[{...}]' --json
+instant-drama chapters list --args '["S"]' --json
+instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
 instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces 包括：`activity` `ai` `app` `chapters` `characters` `comics` `keyArt` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
+Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
 
 ## 近期 API 表面（1.6.1）
 
@@ -159,6 +160,18 @@ Namespaces 包括：`activity` `ai` `app` `chapters` `characters` `comics` `keyA
 | `timeline:getAdvancedPrep` | 進階預備 snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
 | `timeline:setCastPrep` | 儲存 cast 鎖定 | `instant-drama timeline set-cast-prep --args '[{...}]' --json` |
 | `timeline:clearEntryStill` | 清除該段 continuity 靜圖 | `instant-drama timeline clear-entry-still --args '[{...}]' --json` |
+| `timeline:create`／`update` | 段落；多綁 `characterIds`（最多 4）、`sceneIds`（最多 2）、`propIds`（最多 4）、`actionIds`（最多 4） | `instant-drama timeline create --args '[{"storyId":"S","characterIds":["…"],"sceneIds":["…"]}]' --json` |
+| `*:aiFill` 劇情焦點 | characters／scenes／props／actions／costumes（＋wardrobe）的 `suggestFromStory` + `segmentKeys` | 見下方 **劇情焦點／AI fill** |
+
+### 劇情焦點／AI fill
+
+`suggestFromStory: true` 必須帶 `storyId`。省略 `segmentKeys` 或傳 `[]` = **成個故事**（先章節正文，再段落）。Key 格式：`chapter:<id>`、`beat:<id>`（`scene:<id>` 仍可解析；桌面選擇器已不再列出場次）。單數 `segmentKey` **已棄用**。桌面預勾（已綁此實體嘅段落）**只限 GUI** — CLI 要自己傳 keys。
+
+```bash
+instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:C1","beat:B1"]}]' --json
+instant-drama characters ai-fill --args '[{"storyId":"S","suggestFromStory":true}]' --json
+instant-drama channels describe scenes:aiFill --json
+```
 
 ```bash
 instant-drama channels list --filter mediaGen --json
@@ -176,6 +189,7 @@ npm run instant-drama -- doctor --json          # 預期 channelCount 183
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
+npm run instant-drama -- channels describe scenes:aiFill --json
 npm run instant-drama -- help
 ```
 

@@ -1,6 +1,11 @@
 ---
 name: instant-drama
-description: Control InstantDrama Magician (AI short-drama app) via the instant-drama CLI — stories, cast, timeline, generation, settings, backups. Use when the user wants to create or manage dramas, characters, scenes, exports, or app settings from the terminal.
+description: >-
+  Control InstantDrama Magician via the instant-drama CLI — 183 shared channels
+  for stories, chapters, plot beats (suggestFromStory/segmentKeys), characters,
+  costumes, scenes, props, actions, comics, key art, timeline, generation,
+  settings. Use when the user wants to create or manage dramas, fill assets from
+  story chapters/beats, run generation, or change app settings from the terminal.
 metadata:
   {
     "openclaw":
@@ -16,7 +21,7 @@ metadata:
 
 # InstantDrama Magician (`instant-drama`)
 
-You control the **InstantDrama Magician** app through the **`instant-drama`** CLI (not the GUI).
+You control **InstantDrama Magician** through the **`instant-drama` CLI** (not the GUI). Desktop, web, and CLI share **183** channels.
 
 ## Setup (once)
 
@@ -43,9 +48,10 @@ instant-drama --local doctor --json
 ```bash
 instant-drama doctor --json
 instant-drama channels list --json
+instant-drama channels describe scenes:aiFill --json
 ```
 
-Only call channels that appear in `channels list` (expect **~157**). Desktop, web, and CLI share one registry. If a channel is missing, the binary is likely outdated.
+Only call channels that appear in `channels list` (expect **183**). If a channel is missing, the binary is likely outdated.
 
 ## Output contract
 
@@ -65,13 +71,14 @@ instant-drama open --dev
 
 Supports **macOS, Ubuntu/Linux, Windows**. Build macOS targets on a Mac.
 
-## Full control (157 channels)
+## Full control (183 channels)
 
 ```bash
 instant-drama channels list --json
 instant-drama invoke <channel> --args '[...]' --json
-instant-drama characters list --json
-instant-drama characters generate-sheet --args '[{...}]' --json
+instant-drama chapters list --args '["STORY_ID"]' --json
+instant-drama scenes ai-fill --args '[{"storyId":"…","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
+instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path.png"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
 instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
@@ -79,6 +86,8 @@ instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…",
 instant-drama generation run STORY_ID --json
 instant-drama media check-ffmpeg --json
 ```
+
+Sheets / plates / intros go through **`mediaGen:extract` → `polish` → `generateImage`** (legacy `generate-sheet` / `generatePlate` channels are deprecated).
 
 ## High-frequency commands
 
@@ -99,11 +108,13 @@ Headless file dialogs: `IDM_PICK_FILE` / `IDM_SAVE_PATH`.
 
 ## Typical creative flow
 
-1. `instant-drama stories seed-demo zh-HK --json` or `stories create`
-2. Inspect with `stories get` / `characters list`
-3. Generate sheets / covers / prep via domain sugar
-4. `instant-drama generation run <storyId> --json`
-5. Export via media/export channels or project backup
+1. `stories seed-demo zh-HK` or `stories create`
+2. Write **chapters**: `chapters ai-fill` / `ai-polish`; extract cast with `chapters generate-cast`
+3. Fill assets from plot: `*:ai-fill` with `suggestFromStory` + `segmentKeys` (see [plot-focus.md](./plot-focus.md))
+4. Bind beats: `timeline create` with `characterIds` / `sceneIds` / `propIds` / `actionIds`
+5. Optional desks: `keyArt get` / `add-shot` + `mediaGen`; `comics get` / `add-page`
+6. `generation run <storyId>`
+7. Export via `media:exportFinal` or project backup
 
 ## Tool schema
 
@@ -126,4 +137,4 @@ Foreground — usually started by ops, not mid-agent-turn.
 - Confirm before delete / full backup import / bulk overwrites
 - Redact secrets in user-visible summaries
 
-Contact: email@ysk.hk · Docs: docs/cli.md · docs/agent-cli.md
+Contact: email@ysk.hk · Docs: docs/cli.md · docs/agent-cli.md · Plot payload: [plot-focus.md](./plot-focus.md)

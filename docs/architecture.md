@@ -63,19 +63,26 @@ Notable media surfaces:
 
 | Route | Page |
 |-------|------|
-| `/` | Stories |
+| `/` | Stories (chapters + plot beats) |
 | `/characters` | Characters (+ SoulMD Hub, reference sheets) |
 | `/costumes` | Costumes (try-on dual-write multi-gallery) |
 | `/scenes` | Scenes |
 | `/props` | Props |
+| `/actions` | Actions (motion-direction boards) |
+| `/comics` | Comics studio |
+| `/key-art` | Key art desk |
 | `/timeline` | Timeline + Advanced prep (continuity + refine) |
+| `/timeline-v2` | Timeline v2 studio |
 | `/audit` | Activity log |
 | `/settings` | Settings |
+
+Asset AI fill can inject plot via `suggestFromStory` + `segmentKeys` (`chapter:<id>` / `beat:<id>`; empty = entire story, chapters first). Same payload on CLI.
 
 ## Generation pipeline
 
 ```text
-Script → Character → Scene → Props → Timeline → Video (6|10s) → Export
+Chapters → Cast (generateCast) → Beats → Characters / Scenes / Props / Actions
+  → Timeline → Video (6|10s) → Export
 ```
 
 - Full run: `generation:run`

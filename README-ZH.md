@@ -238,8 +238,10 @@
 - **Import story backup**／**Export backup**（故事級 `.idm.zip`）  
 - 編輯分頁：  
   - **Basics**：封面、AI quick create、title、status、art style、style bible  
+  - **Chapters（章節）**：寫正文（AI 生成／潤飾）；之後填庫以章節為劇情來源  
   - **Cast（選角）**：連結**角色、場景、道具、動作**（搜尋 + 已加入／未加入篩選）  
-  - **Script beats（劇情段落）**：每段可多選角色／場景／道具／**動作**，並寫 beat screenplay  
+  - **Script beats（劇情段落）**：每段可多選角色（最多 4）／場景（最多 2）／道具（最多 4）／**動作**（最多 4），並寫 beat screenplay  
+- **由劇情建議**（角色、場景、道具、動作、戲服頁，喺「AI 填寫」旁邊）：勾選**章節**（`chapter:<id>`）同**段落**（`beat:<id>`）→ `segmentKeys`。桌面預設只勾已綁此實體嘅段落。唔勾 = 成個故事（章節優先）。  
 
 ### Characters（人物）
 
@@ -247,7 +249,7 @@
 - 搜尋、性別、藝術風格、有無圖片、Soul、語言等篩選  
 - 每卡多張參考圖；Edit／Delete  
 - 編輯分頁：  
-  - **Profile**：名稱、描述、年齡、性別、語言、聲音等；**AI 填充**可用構思、草稿、soul，或**只憑上載靜圖**（vision）  
+  - **Profile**：名稱、描述、年齡、性別、語言、聲音等；**AI 填充**可用構思、草稿、soul、**只憑上載靜圖**（vision），或**由劇情建議**  
   - **References**：多角度 bible（front／¾／close-up 等）、body／base／costume 管線、外部參考、身份鎖定、生成專業參考、Intro video  
   - **Costume**：綁定服裝  
 - **SoulMD Hub**（soulmd-hub.ysk.hk）：索引建議、匯入 soul.md 作為人物靈魂設定  
@@ -256,7 +258,7 @@
 ### Costumes（服裝）
 
 - 全域服裝庫（可連結 0…N 個角色）  
-- **只憑參考圖 AI 填充**（構思可留空）  
+- **只憑參考圖 AI 填充**（構思可留空），或**由劇情建議**  
 - 多圖 gallery、封面、介紹影片；縮圖支援**身份鎖定多選**  
 - 以角色參考圖試穿／換裝（身份鎖定）  
 - **接受試穿草稿**後，靜圖會寫入**角色圖庫及此戲服多圖庫**，已連結角色及其他使用者均可瀏覽（`costumes:appendTryOnStill`）  
@@ -266,21 +268,21 @@
 - 場景描述與腳本欄位  
 - 場景 plate、looks、atmosphere  
 - 場景圖庫與變體生成  
-- **vision AI 填充**（依選中／封面靜圖）  
+- **vision AI 填充**（依選中／封面靜圖），或**由劇情建議**  
 
 ### Props（道具）
 
 - 道具名稱與描述  
 - Prop master prompt、plate 變體  
 - 供時間軸 clip 綁定  
-- **vision AI 填充**（依參考靜圖）  
+- **vision AI 填充**（依參考靜圖），或**由劇情建議**  
 
 ### Actions（動作指導）
 
 - **全域動作庫** — 可重用的肢體／走位／場面調度指示（先建庫，再掛入故事）  
 - **多格指示圖**：2／3／4／5／6 格（橫向 strip 或 2×2／2×3）；第 1 格＝第一動作，第 N 格＝最後動作  
 - 藝術風格、外部參考圖、由角色／服裝／場景／道具引入 cast 參考  
-- **vision AI 填充**；多圖累積（append 指示板、排序、封面）  
+- **vision AI 填充**，或**由劇情建議**；多圖累積（append 指示板、排序、封面）  
 - 可掛入故事 cast、劇情段落與時間軸 clip；出片時注入節奏／意圖／鏡頭備註，並可使用指示圖作 image-to-video 參考  
 
 ### Comics（漫畫）
@@ -363,9 +365,10 @@
 
 ```text
 ① 設定 → 貼上 API Key → 測試 Chat
-② Stories → 新建／AI style note + beats
+② Stories → 先寫章節 → 再拆劇情段落
 ③ Characters → 生成多角度 sheet → 鎖定身份
    （或上載靜圖 → 只憑圖 AI 填充角色資料）
+   （或由劇情建議 → 勾選章節／段落）
 ④ Scenes / Props / Costumes / Actions → 補齊資產
    （Actions：生成多格指示圖）
 ⑤ 故事 Cast → 連結角色、場景、道具、動作
@@ -529,7 +532,8 @@ instant-drama invoke generation:run '["storyId"]' --json
 instant-drama stories list --json
 instant-drama stories create --title "我的短劇" --json
 instant-drama characters list --json
-instant-drama characters generate-sheet --args '[{"characterId":"…"}]' --json
+instant-drama chapters list --args '["STORY_ID"]' --json
+instant-drama scenes ai-fill --args '[{"storyId":"…","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
 instant-drama costumes list --json
 instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path/to/still.png"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
@@ -558,7 +562,7 @@ instant-drama tools schema --openai > tools.json
 ```
 
 **Namespaces 示例：**  
-`activity` · `ai` · `app` · `characters` · `costumes` · `diagnostics` · `gateway` · `generation` · `media` · `project` · `props` · `scenes` · `settings` · `shell` · `souls` · `stories` · `support` · `timeline` · `updates` · `videoPrep` · `webServer`
+`actions` · `activity` · `ai` · `app` · `chapters` · `characters` · `comics` · `costumes` · `diagnostics` · `gateway` · `generation` · `keyArt` · `media` · `mediaGen` · `project` · `props` · `scenes` · `settings` · `shell` · `souls` · `stories` · `support` · `timeline` · `updates` · `videoPrep` · `webServer`
 
 Headless 檔案對話框替代：`IDM_PICK_FILE`、`IDM_SAVE_PATH`。
 

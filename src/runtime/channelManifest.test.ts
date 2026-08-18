@@ -38,4 +38,12 @@ describe('channelManifest', () => {
     expect(s.description).toContain('totally:unknown:channel')
     expect(s.argsHint).toBe('[...args]')
   })
+
+  it('scenes:aiFill argsHint documents plot-suggest fields', () => {
+    const s = specFor('scenes:aiFill')
+    expect(s.argsHint).toContain('suggestFromStory')
+    expect(s.argsHint).toContain('segmentKeys')
+    expect(s.argsHint).toContain('chapter:<id>')
+    expect(s.argsHint).toContain('beat:<id>')
+  })
 })
