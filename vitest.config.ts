@@ -58,6 +58,8 @@ export default defineConfig({
         'src/presentation/components/RecipeCompareStars.tsx',
         'src/presentation/components/MediaGenPrepModal.tsx',
         'src/presentation/pages/SettingsPage.tsx',
+        'src/presentation/pages/CharactersPage.tsx',
+        'src/presentation/pages/StoriesPage.tsx',
         'src/presentation/pages/ComicsPage.tsx',
         'src/presentation/pages/KeyArtPage.tsx',
         'src/presentation/components/StoryChaptersTab.tsx',

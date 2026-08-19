@@ -5,7 +5,8 @@ import { PromptCatalog, resolvePromptContext } from '../prompts'
 import { assembleSystemPrompt } from './promptTemplates'
 import type { ChatCompletionRequest, ChatCompletionResponse } from '../types/domain'
 import { chatContentText } from '../types/domain'
-import { buildVisionUserContent } from './chatVision'
+import { buildMultiVisionUserContent } from './chatVision'
+import { allRefPaths } from './imageGenConfirm'
 import {
   coerceProfileString,
   coerceProfileStringFrom,
@@ -102,6 +103,7 @@ export async function fillMissingProfileFields<
   locale: string
   chat: ProfileChatFn
   referenceImagePath?: string | null
+  referenceImagePaths?: string[] | null
   maxTokens?: number
   promptTemplateId?: string | null
 }): Promise<{ profile: T; patchedKeys: string[]; raw?: string }> {
@@ -131,9 +133,12 @@ export async function fillMissingProfileFields<
         },
         {
           role: 'user',
-          content: buildVisionUserContent(
+          content: buildMultiVisionUserContent(
             textPrompt,
-            options.referenceImagePath ?? null
+            allRefPaths(
+              options.referenceImagePath ?? null,
+              options.referenceImagePaths ?? null
+            )
           )
         }
       ],

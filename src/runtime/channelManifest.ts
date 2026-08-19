@@ -246,7 +246,7 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'settings:set',
     description: 'Merge settings partial',
-    argsHint: '[{"locale":"zh-HK"}]'
+    argsHint: '[{"locale":"zh-HK","generateAudio":true,"grokVideoVoice":"ara"}]'
   },
   { channel: 'ai:status', description: 'AI provider status' },
   { channel: 'ai:listModels', description: 'List available models' },
@@ -357,7 +357,7 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     channel: 'characters:aiFill',
     description: 'characters: ai fill',
     argsHint:
-      '[{idea?, locale?, existingDraft?, storyId?, suggestFromStory?, segmentKeys?:["chapter:<id>","beat:<id>"], promptTemplateId?}]'
+      '[{idea?, locale?, existingDraft?, storyId?, suggestFromStory?, segmentKeys?:["chapter:<id>","beat:<id>"], referenceImagePath?, referenceImagePaths?, promptTemplateId?}]'
   },
   {
     channel: 'characters:commitSheet',
@@ -499,12 +499,14 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'generation:run',
     description: 'generation: run',
-    argsHint: '[{...}]'
+    argsHint:
+      '[storyId, {onlyFailedVideos?, interactiveVideo?, locale?, promptTemplateId?, continuityMode?}]'
   },
   {
     channel: 'generation:runClip',
     description: 'generation: run clip',
-    argsHint: '[{...}]'
+    argsHint:
+      '[storyId, entryId, {revisionPrompt?, continuityMode?, motionPriority?}]'
   },
   {
     channel: 'media:deleteExport',
@@ -615,7 +617,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'mediaGen:extract',
     description: 'mediaGen: extract material sections',
-    argsHint: '[{kind, actionId, ...}]'
+    argsHint:
+      '[{kind, actionId?, characterId?, storyId?, entryId?, galleryIdentityPaths?, preferIdentityEdit?, continuityMode?, motionPriority?, advancedIdentity?, identityCollage?, lookPackId?, ...}]'
   },
   {
     channel: 'mediaGen:polish',
@@ -625,7 +628,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'mediaGen:generateImage',
     description: 'mediaGen: generate one image from polished prompt',
-    argsHint: '[{kind, actionId, polishedPrompt, ...}]'
+    argsHint:
+      '[{kind, actionId?, polishedPrompt, editBasePath?, useIdentityEdit?, identityCollage?, lookPackId?, galleryIdentityPaths?, ...}]'
   },
   {
     channel: 'actions:linkStory',
@@ -808,7 +812,8 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'videoPrep:confirm',
     description: 'videoPrep: confirm',
-    argsHint: '[{...}]'
+    argsHint:
+      '[{kind:"timeline-clip",storyId,entryId,stillPath,professionalPrompt}]'
   },
   {
     channel: 'videoPrep:create',

@@ -44,6 +44,11 @@ type ExtractPayload = {
   shotType?: string | null
   pageFormat?: 'tall' | 'square' | 'wide'
   forcePureLayout?: boolean
+  continuityMode?: string | null
+  motionPriority?: string | null
+  advancedIdentity?: boolean
+  identityCollage?: boolean
+  lookPackId?: string | null
 }
 
 function sanitizeSections(
@@ -250,14 +255,36 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         variantDef.wardrobeLayer === 'nude' ||
         variantDef.wardrobeLayer === 'base' ||
         Boolean(variantDef.requiresUnclothedSupport)
-      const galleryPaths =
-        (payload.galleryIdentityPaths ?? []).filter(Boolean).length > 0
-          ? (payload.galleryIdentityPaths ?? []).filter(
-              (p): p is string => Boolean(p?.trim())
-            )
+      const { parseCharacterGallery } = await import(
+        '../../domain/characterGallery'
+      )
+      const { pickAdvancedIdentityRefs } = await import(
+        '../../domain/advancedIdentity'
+      )
+      const galleryItems = parseCharacterGallery(row.refGalleryJson, {
+        refImagePath: row.refImagePath,
+        refSheetPath: row.refSheetPath
+      })
+      const wantAdvanced =
+        payload.advancedIdentity === true ||
+        (payload.advancedIdentity !== false &&
+          ctx.settings.advancedIdentity === true)
+      const payloadGallery = (payload.galleryIdentityPaths ?? []).filter(
+        (p): p is string => Boolean(p?.trim())
+      )
+      const galleryPaths = wantAdvanced
+        ? pickAdvancedIdentityRefs(galleryItems, {
+            selectedPaths: payloadGallery,
+            pathExists: (p) => existsSync(p)
+          })
+        : payloadGallery.length > 0
+          ? payloadGallery
           : [row.refImagePath, row.refSheetPath]
               .map((p) => p?.trim())
               .filter((p): p is string => Boolean(p))
+      if (wantAdvanced && payload.preferIdentityEdit !== false) {
+        payload.preferIdentityEdit = true
+      }
       const spokenLanguages = parseSpokenLanguagesField(
         (row as { spokenLanguages?: string | null }).spokenLanguages
       )
@@ -982,11 +1009,21 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         hardRules?: string | null
         name?: string | null
       }> = []
+      const actionRefs: Array<{
+        id?: string
+        name: string
+        imagePath?: string | null
+      }> = []
       const actionTextParts: string[] = []
       for (const aid of actionIds) {
         try {
           const ac = await actions().get(aid)
           actionsBound.push(ac)
+          actionRefs.push({
+            id: ac.id,
+            name: ac.name,
+            imagePath: ac.refImagePath?.trim() || null
+          })
           actionTextParts.push(
             [
               `Action: ${ac.name}`,
@@ -1049,6 +1086,30 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
             locale: extractLocale
           })
         : null
+      if (prevEntry && !previousContinuityPath) {
+        const { auditMissingEndFrame } = await import(
+          '../../domain/generationAudit'
+        )
+        activity.append({
+          ...auditMissingEndFrame({
+            entryId,
+            previousBeatIndex
+          }),
+          storyId
+        })
+      }
+
+      const { resolveContinuityMode, resolveMotionPriority } = await import(
+        '../../domain/lookPacks'
+      )
+      const continuityMode = resolveContinuityMode(
+        payload.lookPackId ?? ctx.settings.lookPackId,
+        payload.continuityMode ?? ctx.settings.continuityMode
+      )
+      const motionPriority = resolveMotionPriority(
+        payload.lookPackId ?? ctx.settings.lookPackId,
+        payload.motionPriority ?? ctx.settings.motionPriority
+      )
 
       const hardRules = collectTimelineHardRules(
         {
@@ -1096,6 +1157,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         characters: charRefs,
         scenes: sceneRefs,
         props: propRefs,
+        actions: actionRefs,
+        continuityMode,
+        motionPriority,
         hardRules: hardRules || characterHard,
         artStyleId: getArtStyle(
           payload.artStyle ??
@@ -2112,6 +2176,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       pageFormat?: 'tall' | 'square' | 'wide'
       shotType?: string | null
       keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
+      identityCollage?: boolean
+      lookPackId?: string | null
     }) => {
       const promptIn = extractPolishedMediaPrompt(
         payload.polishedPrompt ?? ''
@@ -2446,6 +2512,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         throw new AppError('VALIDATION', 'errors.unsupportedMediaGenKind')
       }
 
+      const store = generation().getMediaStore()
+      store.ensureTmpDir()
       const refList = allRefPaths(
         payload.editBasePath,
         payload.galleryIdentityPaths
@@ -2464,19 +2532,56 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       if (refList.length > 1) {
         prompt = appendMultiRefNote(prompt, refList, 'en')
       }
-      const editBase =
+      let editBase =
         !forcePureLayout &&
         typeof payload.editBasePath === 'string' &&
         payload.editBasePath.trim() &&
         existsSync(payload.editBasePath.trim())
           ? payload.editBasePath.trim()
           : null
+      const wantCollage =
+        payload.identityCollage === true ||
+        (payload.identityCollage !== false &&
+          ctx.settings.identityCollage === true)
+      if (wantCollage && refList.length > 1 && !forcePureLayout) {
+        try {
+          const { stitchIdentityCollage } = await import(
+            '../../infrastructure/media/identityCollage'
+          )
+          const collageOut = store.tmpImagePath('identity_collage', '.png')
+          const stitched = stitchIdentityCollage({
+            imagePaths: refList,
+            outputPath: collageOut
+          })
+          if (stitched.stitched) {
+            editBase = stitched.path
+          }
+        } catch {
+          /* keep single edit base */
+        }
+      }
       const usedEdit =
         !forcePureLayout &&
         resolveSheetGenMode({
           useIdentityEdit: payload.useIdentityEdit === true,
           hasValidRef: Boolean(editBase)
         }) === 'edit'
+      if (payload.useIdentityEdit === true && !usedEdit) {
+        const { auditIdentityEditFallback } = await import(
+          '../../domain/generationAudit'
+        )
+        activity.append({
+          ...auditIdentityEditFallback({
+            kind,
+            reason: forcePureLayout
+              ? 'force-pure'
+              : editBase
+                ? 'generate'
+                : 'no-edit-base'
+          }),
+          storyId: payload.storyId
+        })
+      }
 
       const img = usedEdit
         ? await ctx.aiClient.editImage({
@@ -2487,7 +2592,6 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           })
         : await ctx.aiClient.generateImage({ prompt, size, aspectRatio })
 
-      const store = generation().getMediaStore()
       const persist =
         payload.persist === true ||
         kind === 'timeline-still' ||
@@ -2571,10 +2675,19 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       const { enhanceCharacterImage } = await import(
         '../../infrastructure/media/imageEnhance'
       )
+      const { getLookPack } = await import('../../domain/lookPacks')
+      const pack = getLookPack(
+        payload.lookPackId ?? ctx.settings.lookPackId
+      )
+      const hqKinds = kind === 'key-art' || kind === 'comic-page'
       const enhanced = enhanceCharacterImage(outPath, {
         enabled: ctx.settings.imageEnhance,
-        maxEdge: ctx.settings.imageEnhanceMaxEdge,
-        scale: ctx.settings.imageEnhanceScale
+        maxEdge: hqKinds
+          ? Math.max(ctx.settings.imageEnhanceMaxEdge, pack.imageEnhanceMaxEdge)
+          : ctx.settings.imageEnhanceMaxEdge,
+        scale: hqKinds
+          ? Math.max(ctx.settings.imageEnhanceScale, pack.imageEnhanceScale)
+          : ctx.settings.imageEnhanceScale
       })
       const finalPath = enhanced.path || outPath
       if (

@@ -300,4 +300,47 @@ describe('registerCharactersAiFill', () => {
     })) as { profile: { name: string } }
     expect(filled.profile.name).toBe('阿明')
   })
+
+  it('attaches multiple identity stills as multi-vision parts', async () => {
+    const { writeFileSync, mkdtempSync, rmSync } = await import('fs')
+    const { join } = await import('path')
+    const { tmpdir } = await import('os')
+    const dir = mkdtempSync(join(tmpdir(), 'idm-aifill-mv-'))
+    const img1 = join(dir, 'a.png')
+    const img2 = join(dir, 'b.png')
+    writeFileSync(img1, Buffer.from([137, 80, 78, 71]))
+    writeFileSync(img2, Buffer.from([137, 80, 78, 71]))
+    const chat = vi.fn(async () => ({
+      choices: [{ message: { content: PROFILE_JSON } }]
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { chat, generateImage: vi.fn() },
+      activity: {
+        append: vi.fn(),
+        readRecent: vi.fn(),
+        query: vi.fn(),
+        clear: vi.fn(),
+        kinds: vi.fn(),
+        path: '/l'
+      } as never
+    })
+    registerCharactersAiFill(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    try {
+      await invokeRegistered(h as never, 'characters:aiFill', {
+        idea: 'courier',
+        locale: 'zh-HK',
+        referenceImagePath: img1,
+        referenceImagePaths: [img2]
+      })
+      const user = chat.mock.calls[0][0].messages[1].content as unknown
+      expect(Array.isArray(user)).toBe(true)
+      expect(
+        (user as Array<{ type: string }>).filter((p) => p.type === 'image_url')
+          .length
+      ).toBeGreaterThanOrEqual(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

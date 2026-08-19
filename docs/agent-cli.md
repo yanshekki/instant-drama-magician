@@ -53,6 +53,8 @@ instant-drama chapters list --args '["STORY_ID"]' --json
 instant-drama scenes ai-fill --args '[{"storyId":"STORY_ID","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
 instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama characters list --json
+instant-drama characters ai-fill --args '[{"idea":"…","referenceImagePaths":["/a.png"]}]' --json
+instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json
 instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```

@@ -15,6 +15,8 @@ export interface CharacterGalleryItem {
   layer?: WardrobeLayer
   /** Self-intro video generated from this still (one video per image). */
   introVideoPath?: string | null
+  /** Preferred identity-lock still for advanced identity packs. */
+  identityLock?: boolean
 }
 
 /** User-imported stills used as optional AI identity / style references. */
@@ -96,6 +98,7 @@ export function parseCharacterGallery(
             typeof o.introVideoPath === 'string' && o.introVideoPath.trim()
               ? o.introVideoPath.trim()
               : undefined
+          const identityLock = o.identityLock === true
           items.push({
             id:
               typeof o.id === 'string' && o.id
@@ -109,7 +112,8 @@ export function parseCharacterGallery(
                 ? o.createdAt
                 : new Date().toISOString(),
             ...(layer ? { layer } : {}),
-            ...(introVideoPath ? { introVideoPath } : {})
+            ...(introVideoPath ? { introVideoPath } : {}),
+            ...(identityLock ? { identityLock: true } : {})
           })
         }
       }

@@ -139,4 +139,36 @@ describe('profileFillMissing', () => {
     })
     expect(r.profile.name).toBe('A')
   })
+
+  it('fillMissingProfileFields attaches multiple vision stills', async () => {
+    const { writeFileSync, mkdtempSync, rmSync } = await import('fs')
+    const { join } = await import('path')
+    const { tmpdir } = await import('os')
+    const dir = mkdtempSync(join(tmpdir(), 'idm-fill-mv-'))
+    const a = join(dir, 'a.png')
+    const b = join(dir, 'b.png')
+    writeFileSync(a, Buffer.from([137, 80, 78, 71]))
+    writeFileSync(b, Buffer.from([137, 80, 78, 71]))
+    const chat = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({ material: 'gold' }) } }]
+    })
+    try {
+      await fillMissingProfileFields({
+        profile: { name: 'A', material: '' },
+        requiredKeys: ['name', 'material'],
+        locale: 'zh-HK',
+        chat,
+        referenceImagePath: a,
+        referenceImagePaths: [b]
+      })
+      const user = chat.mock.calls[0][0].messages[1].content as unknown
+      expect(Array.isArray(user)).toBe(true)
+      expect(
+        (user as Array<{ type: string }>).filter((p) => p.type === 'image_url')
+          .length
+      ).toBeGreaterThanOrEqual(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

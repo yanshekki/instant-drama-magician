@@ -274,6 +274,7 @@ export interface ElectronApi {
       segmentKeys?: string[] | null
       /** Gallery / external still — vision fill allowed with image alone */
       referenceImagePath?: string | null
+      referenceImagePaths?: string[] | null
       promptTemplateId?: string | null
     }) => Promise<{
       profile: CharacterProfileFields
@@ -1082,6 +1083,11 @@ export interface ElectronApi {
       plateVariant?: string | null
       galleryIdentityPaths?: string[] | null
       preferIdentityEdit?: boolean
+      continuityMode?: string | null
+      motionPriority?: string | null
+      advancedIdentity?: boolean
+      identityCollage?: boolean
+      lookPackId?: string | null
       costumeDescription?: string
       atmosphereDescription?: string
       durationSeconds?: number
@@ -1161,6 +1167,8 @@ export interface ElectronApi {
       pageFormat?: 'tall' | 'square' | 'wide'
       shotType?: string | null
       keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
+      identityCollage?: boolean
+      lookPackId?: string | null
     }) => Promise<{
       path: string
       draft?: boolean
@@ -1348,6 +1356,7 @@ export interface ElectronApi {
         entryId?: string
         mediaStatus?: string
         jobId?: string
+        waitingPrevious?: boolean
       }) => void
     ) => () => void
   }

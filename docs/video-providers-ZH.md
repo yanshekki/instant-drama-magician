@@ -27,7 +27,7 @@
 2. 輪詢 `GET {baseUrl}/videos/{id}` 至 `completed`  
 3. 下載 `GET {baseUrl}/videos/{id}/content`  
 
-可選：`aspect_ratio`（預設 `16:9`）、上傳角色 ref 後的 `source_document_id`。見 [grok-gateway-ZH.md](./grok-gateway-ZH.md)。
+可選：`aspect_ratio`（預設 `16:9`）、上傳角色 ref 後的 `source_document_id`。設定啟用 `generateAudio` 時，**gctoac 1.7.4+** 會傳送 `voices[]`（最多 3 個：`ara` `eve` `leo` `rex` `sal` `mio`）並改為 **`reference_to_video`**——**不再使用片頭 `image_to_video` 鎖定**。嚴格連續的 `last_frame` 仍僅限 Seedance（Grok 忽略 `lastFramePath`）。舊閘道拒絕 `voices` 會再試一次不帶該欄（活動紀錄會記下已捨棄）。IDM **不接駁** `/v1/audio/speech`（仍然 mock）。見 [grok-gateway-ZH.md](./grok-gateway-ZH.md)。
 
 ### Seedance（火山方舟／BytePlus）
 
@@ -67,10 +67,16 @@
 | `videoPollMs` | 2000 | 輪詢間隔 |
 | `videoTimeoutSec` | 300 | 單 job 逾時 |
 | `videoMaxRetries` | 3 | 重試 |
-| `videoConcurrency` | 1 | 並行 |
+| `videoConcurrency` | 1 | 並行（`chain-end` 連續會強制為 1） |
 | `aspectRatio` | `16:9` | 比例 |
+| `continuityMode` | `storyboard` | `chain-end` 等待上一段片尾 |
+| `motionPriority` | `default` | `action` 提高已綁定動作板 |
+| `generateAudio` | false | 為 true 時 Seedance `--with_audio`／`generate_audio`；gctoac 1.7+ `voices[]` → `reference_to_video` |
+| `grokVideoVoice` | `ara` | 啟用原生音訊時 gctoac 預設聲線 |
+| `preserveClipAudio` | false | 匯出保留片段音訊，不以 `-an` 剝除 |
+| `lookPackId` | `follow-asset` | 內建配方快照 |
 
-另有：`burnSubtitles`、`ttsEnabled`、`bgmPath`、`duckRatio`、轉場 `cut`|`fade`。
+另有：`burnSubtitles`、`ttsEnabled`、`bgmPath`、`duckRatio`、轉場 `cut`|`fade`、`advancedIdentity`、`identityCollage`。
 
 ## 診斷
 

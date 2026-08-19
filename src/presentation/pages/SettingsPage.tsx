@@ -52,6 +52,12 @@ import {
   mergeSettings
 } from '../../types/settings'
 import {
+  LOOK_PACK_IDS,
+  lookPackSettingsPatch,
+  type LookPackId
+} from '../../domain/lookPacks'
+import { GROK_VIDEO_VOICES } from '../../domain/grokVideoVoices'
+import {
   applyColorScheme,
   coerceColorScheme,
   type ColorSchemePref
@@ -906,6 +912,46 @@ export function SettingsPage(): JSX.Element {
                   />
                   {t('settings.imageEnhance')}
                 </label>
+                <div>
+                  <Label>{t('settings.lookPack')}</Label>
+                  <Select
+                    value={settings.lookPackId || 'follow-asset'}
+                    onChange={(e) => {
+                      const id = e.target.value as LookPackId
+                      const p = lookPackSettingsPatch(id)
+                      setSettings((s) => (s ? { ...s, ...p } : s))
+                    }}
+                  >
+                    {LOOK_PACK_IDS.map((id) => (
+                      <option key={`look-pack-${id}`} value={id}>
+                        {t(`settings.lookPackIds.${id}`)}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="mt-1 text-[11px] text-ink-500">
+                    {t('settings.lookPackHint')}
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-ink-200">
+                  <input
+                    type="checkbox"
+                    checked={settings.advancedIdentity}
+                    onChange={(e) =>
+                      patch('advancedIdentity', e.target.checked)
+                    }
+                  />
+                  {t('settings.advancedIdentity')}
+                </label>
+                <label className="flex items-center gap-2 text-sm text-ink-200">
+                  <input
+                    type="checkbox"
+                    checked={settings.identityCollage}
+                    onChange={(e) =>
+                      patch('identityCollage', e.target.checked)
+                    }
+                  />
+                  {t('settings.identityCollage')}
+                </label>
               </Card>
             )}
 
@@ -1113,6 +1159,79 @@ export function SettingsPage(): JSX.Element {
                           )
                         }
                       />
+                    </div>
+                    <div>
+                      <Label>{t('settings.continuityMode')}</Label>
+                      <Select
+                        value={settings.continuityMode || 'storyboard'}
+                        onChange={(e) =>
+                          patch('continuityMode', e.target.value)
+                        }
+                      >
+                        <option value="storyboard">
+                          {t('settings.continuityStoryboard')}
+                        </option>
+                        <option value="chain-end">
+                          {t('settings.continuityChainEnd')}
+                        </option>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>{t('settings.motionPriority')}</Label>
+                      <Select
+                        value={settings.motionPriority || 'default'}
+                        onChange={(e) =>
+                          patch('motionPriority', e.target.value)
+                        }
+                      >
+                        <option value="default">
+                          {t('settings.motionPriorityDefault')}
+                        </option>
+                        <option value="action">
+                          {t('settings.motionPriorityAction')}
+                        </option>
+                      </Select>
+                    </div>
+                    <div className="space-y-3 rounded-md border border-ink-700/70 p-3 sm:col-span-2">
+                      <label className="flex items-center gap-2 text-sm text-ink-200">
+                        <input
+                          type="checkbox"
+                          checked={settings.generateAudio}
+                          onChange={(e) =>
+                            patch('generateAudio', e.target.checked)
+                          }
+                        />
+                        {t('settings.generateAudio')}
+                      </label>
+                      <div>
+                        <Label>{t('settings.grokVideoVoice')}</Label>
+                        <Select
+                          value={settings.grokVideoVoice || 'ara'}
+                          disabled={!settings.generateAudio}
+                          onChange={(e) =>
+                            patch('grokVideoVoice', e.target.value)
+                          }
+                        >
+                          {GROK_VIDEO_VOICES.map((id) => (
+                            <option key={id} value={id}>
+                              {t(`settings.grokVideoVoices.${id}`)}
+                            </option>
+                          ))}
+                        </Select>
+                        <p className="mt-1 text-xs text-ink-500">
+                          {t('settings.grokVideoVoiceHint')}
+                        </p>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm text-ink-200">
+                        <input
+                          type="checkbox"
+                          checked={settings.preserveClipAudio}
+                          onChange={(e) =>
+                            patch('preserveClipAudio', e.target.checked)
+                          }
+                        />
+                        {t('settings.preserveClipAudio')}
+                      </label>
                     </div>
                     <div>
                       <Label>{t('settings.videoTimeoutSec')}</Label>

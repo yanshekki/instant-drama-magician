@@ -77,6 +77,33 @@ describe('registerGenerationHandlers', () => {
     expect(save).toHaveBeenCalledWith({ lastGenerationDegraded: true })
     expect(result).toMatchObject({ success: true })
 
+    const runOpts = run.mock.calls[0][2] as {
+      onAudit?: (e: {
+        kind: string
+        message: string
+        level?: string
+        storyId?: string
+        meta?: unknown
+      }) => void
+    }
+    runOpts.onAudit?.({
+      kind: 'generation',
+      message: 'voices dropped',
+      level: 'warn',
+      meta: { voicesDropped: true }
+    })
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'voices dropped' })
+    )
+
+    const result2 = await invokeRegistered(h as never, 'generation:run', 's1', {
+      interactiveVideo: true
+    })
+    expect(result2).toMatchObject({ success: true })
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'run pipeline (interactive video)' })
+    )
+
     // progress callback invoked during run
     const progressCb = run.mock.calls[0][1] as (p: unknown) => void
     progressCb({ step: 'x' })
@@ -144,6 +171,23 @@ describe('registerGenerationHandlers', () => {
       revisionPrompt: 'darker'
     })
     expect(generateClip).toHaveBeenCalled()
+    const clipOpts = generateClip.mock.calls[0][3] as {
+      onAudit?: (e: {
+        kind: string
+        message: string
+        level?: string
+        storyId?: string
+        meta?: unknown
+      }) => void
+    }
+    clipOpts.onAudit?.({
+      kind: 'generation',
+      message: 'clip voices dropped',
+      level: 'warn'
+    })
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'clip voices dropped' })
+    )
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'run clip' })
     )

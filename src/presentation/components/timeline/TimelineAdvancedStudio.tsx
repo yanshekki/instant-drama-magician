@@ -128,6 +128,9 @@ export function TimelineAdvancedStudio({
   const batchCancelRef = useRef(false)
   const [cellBusyId, setCellBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [continuityMode, setContinuityMode] = useState<'storyboard' | 'chain-end'>(
+    'storyboard'
+  )
   const snapRef = useRef(snap)
   snapRef.current = snap
   const dirtyRef = useRef(false)
@@ -142,6 +145,13 @@ export function TimelineAdvancedStudio({
       )) as AdvancedPrepSnapshot
       setSnap(data)
       setCastPrep(data.castPrep ?? emptyStoryCastPrep())
+      try {
+        const s = await getApi().settings.get()
+        if (s?.continuityMode === 'chain-end') setContinuityMode('chain-end')
+        else setContinuityMode('storyboard')
+      } catch {
+        /* keep default */
+      }
     } catch (e) {
       setError(formatUserError(parseIpcError(e).message, t))
     } finally {
@@ -669,7 +679,15 @@ export function TimelineAdvancedStudio({
                         total: batchProgress.total
                       })
                     : '',
-                  t('common.generating')
+                  t('common.generating'),
+                  {
+                    waitingPrevious:
+                      continuityMode === 'chain-end' &&
+                      Boolean(
+                        batchProgress && batchProgress.current > 1
+                      ),
+                    waitLabel: t('timeline.advanced.chainEndWait')
+                  }
                 )}
               </p>
             </div>
@@ -895,6 +913,30 @@ export function TimelineAdvancedStudio({
               <p className="text-xs leading-relaxed text-ink-500">
                 {t('timeline.advanced.storyboardHint')}
               </p>
+              <label className="flex flex-wrap items-center gap-2 text-xs text-ink-300">
+                <span className="font-medium text-ink-200">
+                  {t('settings.continuityMode')}
+                </span>
+                <Select
+                  className="!h-8 !w-auto !text-xs"
+                  value={continuityMode}
+                  onChange={(e) => {
+                    const v =
+                      e.target.value === 'chain-end'
+                        ? 'chain-end'
+                        : 'storyboard'
+                    setContinuityMode(v)
+                    void getApi().settings.set({ continuityMode: v })
+                  }}
+                >
+                  <option value="storyboard">
+                    {t('settings.continuityStoryboard')}
+                  </option>
+                  <option value="chain-end">
+                    {t('settings.continuityChainEnd')}
+                  </option>
+                </Select>
+              </label>
               {snap.cells.length === 0 ? (
                 <EmptyPanel message={t('timeline.noEntries')} />
               ) : (

@@ -190,6 +190,8 @@ reg(
         '.mp4'
       )
       let comicVideoId: string | null = null
+      let lastFramePath: string | undefined
+      let clipRefPath = stillPath
       // Prefer library video paths by kind
       if (payload.kind === 'character-intro' && payload.characterId) {
         outPath = store.characterVideoPath(
@@ -239,6 +241,53 @@ reg(
           void 0
         /* v8 ignore next */
         }
+        try {
+          const { buildClipContinuityContext } = await import(
+            '../../../domain/clipContinuityContext'
+          )
+          const { getPreviousTimelineEntry } = await import(
+            '../../../domain/promptContinuity'
+          )
+          const { sortTimelineEntries } = await import(
+            '../../../domain/timeline'
+          )
+          const { hydrateTimelineBindings } = await import(
+            '../../../domain/timelineBindings'
+          )
+          const rows = await host.getPrisma().timelineEntry.findMany({
+            where: { storyId: payload.storyId }
+          })
+          const entries = sortTimelineEntries(
+            (Array.isArray(rows) ? rows : []).map((r) =>
+              hydrateTimelineBindings(r as never)
+            )
+          )
+          const prevEntry = getPreviousTimelineEntry(entries, payload.entryId)
+          let previousContinuityPath: string | null = null
+          if (prevEntry) {
+            const contPath = store.clipContinuityStillPath(
+              payload.storyId,
+              prevEntry.id
+            )
+            if (contPath && existsSync(contPath)) {
+              previousContinuityPath = contPath
+            }
+          }
+          const cont = buildClipContinuityContext({
+            entries,
+            currentId: payload.entryId,
+            previousContinuityPath,
+            ownStillPath: stillPath,
+            continuityMode: ctx.settings.continuityMode,
+            motionPriority: ctx.settings.motionPriority,
+            locale: payload.locale ?? 'zh-HK',
+            pathExists: (p) => existsSync(p)
+          })
+          lastFramePath = cont.lastFramePath ?? undefined
+          if (cont.editBase) clipRefPath = cont.editBase
+        } catch {
+          /* keep still as first frame */
+        }
       }
 
       let result: {
@@ -252,10 +301,34 @@ reg(
         const video = await ctx.aiClient.generateVideo!({
           prompt: finalPrompt,
           durationSeconds: seconds,
-          refImagePath: stillPath,
+          refImagePath: clipRefPath,
+          lastFramePath,
+          generateAudio: ctx.settings.generateAudio === true,
+          voices:
+            ctx.settings.generateAudio === true
+              ? [
+                  (
+                    await import('../../../domain/grokVideoVoices')
+                  ).coerceGrokVideoVoice(ctx.settings.grokVideoVoice)
+                ]
+              : undefined,
           outputPath: outPath,
           aspectRatio
         })
+        if (video.voicesDropped) {
+          const { auditGrokVoicesDropped } = await import(
+            '../../../domain/generationAudit'
+          )
+          activity.append({
+            kind: 'generation',
+            message: auditGrokVoicesDropped({
+              entryId: payload.entryId
+            }).message,
+            level: 'info',
+            storyId: payload.storyId,
+            meta: { reason: 'grok-voices-dropped', entryId: payload.entryId }
+          })
+        }
         result = {
           outputPath: video.outputPath,
           polished: false,

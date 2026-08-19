@@ -79,6 +79,8 @@ instant-drama scenes ai-fill --args '[{"storyId":"…","suggestFromStory":true,"
 instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path.png"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"character-sheet","characterId":"…","advancedIdentity":true,"identityCollage":true,"lookPackId":"identity-lock"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","continuityMode":"chain-end","motionPriority":"action"}]' --json
 instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
 instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
 instant-drama generation run STORY_ID --json
@@ -86,6 +88,26 @@ instant-drama media check-ffmpeg --json
 ```
 
 角色 sheet／道具 plate／介紹片走 **`mediaGen:extract` → `polish` → `generateImage`**（舊 `generate-sheet`／`generatePlate` 已棄用）。
+
+可選 payload 旗標（設定預設；**不要加新 channel**）：`continuityMode`（`storyboard`|`chain-end`）、`motionPriority`（`default`|`action`）、`advancedIdentity`、`identityCollage`、`lookPackId`（`follow-asset`|`identity-lock`|`continuous-clip`|`key-art`|`comic`）、`generateAudio`、`grokVideoVoice`（`ara`|`eve`|`leo`|`rex`|`sal`|`mio`）。用 `channels describe mediaGen:extract` 查看 argsHint。
+
+gctoac 原生片段配音為設定 + `POST /v1/videos` `voices[]`（gctoac 1.7.4+ → `reference_to_video`）。**不要**呼叫 `/v1/audio/speech`。例：
+
+```bash
+instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json
+instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillPath":"/path/still.png","professionalPrompt":"…"}]' --json
+```
+
+```json
+{
+  "prompt": "… Spoken dialogue uses preset voices <AUDIO_0> in character order (ara).",
+  "seconds": 6,
+  "aspect_ratio": "16:9",
+  "voices": ["ara"]
+}
+```
+
+有 `voices[]` 時 Grok 不再使用片頭 `image_to_video` 鎖定。嚴格連續的 `last_frame` 僅限 Seedance。
 
 ## 高頻指令
 

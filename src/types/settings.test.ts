@@ -36,6 +36,11 @@ describe('settings defaults', () => {
     expect(m.imageTimeoutMs).toBe(300_000)
     expect(m.videoPollMs).toBe(2000)
     expect(m.videoTimeoutSec).toBe(300)
+    expect(m.continuityMode).toBe('storyboard')
+    expect(m.lookPackId).toBe('follow-asset')
+    expect(m.advancedIdentity).toBe(false)
+    expect(m.generateAudio).toBe(false)
+    expect(m.grokVideoVoice).toBe('ara')
   })
 
   it('mergeSettings null/undefined and corrupt fields', () => {
@@ -110,6 +115,23 @@ describe('settings defaults', () => {
     expect(m.legalAcceptedVersion).toBeNull()
     expect(m.legalAcceptedAt).toBeNull()
     expect(DEFAULT_SETTINGS.desktopNotifyEnabled).toBe(true)
+    expect(mergeSettings({ grokVideoVoice: 'NOPE' as never }).grokVideoVoice).toBe(
+      'ara'
+    )
+    expect(mergeSettings({ grokVideoVoice: 'eve' }).grokVideoVoice).toBe('eve')
+    expect(
+      mergeSettings({
+        advancedIdentity: 'x' as never,
+        identityCollage: 1 as never,
+        generateAudio: 'yes' as never,
+        preserveClipAudio: 'no' as never
+      })
+    ).toMatchObject({
+      advancedIdentity: false,
+      identityCollage: false,
+      generateAudio: false,
+      preserveClipAudio: false
+    })
   })
 
   it('defaultMaxClipSeconds clamps 6/10 only', () => {

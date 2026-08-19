@@ -430,6 +430,12 @@ export interface VideoGenRequest {
   prompt: string
   durationSeconds: number
   refImagePath?: string | null
+  /** Optional Seedance last_frame (ignored by providers that lack the role). */
+  lastFramePath?: string | null
+  /** Ask the provider for native clip audio when supported. */
+  generateAudio?: boolean
+  /** Grok reference_to_video preset voices (max 3). */
+  voices?: string[] | null
   outputPath: string
   aspectRatio?: string
   sourceAssetId?: string
@@ -440,6 +446,8 @@ export interface VideoGenResult {
   outputPath: string
   degraded?: boolean
   jobId?: string
+  /** Grok dropped voices[] after a 400 (old gateway). */
+  voicesDropped?: boolean
 }
 
 /** OpenAI-compatible multimodal content parts (vision). */
@@ -617,8 +625,20 @@ export interface PipelineContext {
     total: number
     status: MediaStatus
     jobId?: string
+    waitingPrevious?: boolean
   }) => void
   aspectRatio?: string
   locale?: string
   promptTemplateId?: string | null
+  continuityMode?: string | null
+  motionPriority?: string | null
+  generateAudio?: boolean
+  grokVideoVoice?: string | null
+  onAudit?: (entry: {
+    kind: string
+    message: string
+    level?: 'info' | 'warn' | 'error'
+    storyId?: string
+    meta?: Record<string, unknown>
+  }) => void
 }

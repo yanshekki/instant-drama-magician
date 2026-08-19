@@ -540,6 +540,18 @@ reg(
             previousContinuityPath = contPath
           }
         }
+        if (prevEntry && !previousContinuityPath) {
+          const { auditMissingEndFrame } = await import(
+            '../../../domain/generationAudit'
+          )
+          activity.append({
+            ...auditMissingEndFrame({
+              entryId: payload.entryId,
+              previousBeatIndex: prevBeatIndex
+            }),
+            storyId: payload.storyId
+          })
+        }
         // Advanced cast prep (costume look / gallery pick)
         const {
           parseStoryCastPrep,
@@ -654,9 +666,14 @@ reg(
           action: action
             ? { refImagePath: (action.refImagePath as string | null) ?? null }
             : null,
+          extraActionPaths: actionsBound
+            .slice(1)
+            .map((a) => (a.refImagePath as string | null) ?? null),
           previousContinuityPath,
           castRefPath,
           payloadSourcePath: sourceImagePath,
+          motionPriority: ctx.settings.motionPriority,
+          continuityMode: ctx.settings.continuityMode,
           pathExists: (p) => existsSync(p)
         })
         const resolvedSource = timelineRefs.editBase

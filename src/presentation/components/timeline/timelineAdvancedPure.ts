@@ -68,11 +68,16 @@ export function genLockedExtra(
   batchProgress: { current: number; total: number } | null | undefined,
   cellBusyId: string | null | undefined,
   batchLabel: string,
-  generatingLabel: string
+  generatingLabel: string,
+  opts?: { waitingPrevious?: boolean; waitLabel?: string }
 ): string {
-  if (batchProgress) return ` · ${batchLabel}`
-  if (cellBusyId) return ` · ${generatingLabel}`
-  return ''
+  const wait =
+    opts?.waitingPrevious && opts.waitLabel?.trim()
+      ? ` · ${opts.waitLabel.trim()}`
+      : ''
+  if (batchProgress) return ` · ${batchLabel}${wait}`
+  if (cellBusyId) return ` · ${generatingLabel}${wait}`
+  return wait
 }
 
 export function readyVideoEntryIds(

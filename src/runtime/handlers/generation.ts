@@ -39,7 +39,18 @@ reg(
         (payload) => {
           host.emitGenerationProgress?.(payload)
         },
-        opts
+        {
+          ...opts,
+          onAudit: (entry) => {
+            activity.append({
+              kind: entry.kind,
+              message: entry.message,
+              level: entry.level,
+              storyId: entry.storyId ?? storyId,
+              meta: entry.meta
+            })
+          }
+        }
       )
       const degraded = result.steps.some((s) => s.degraded)
       settingsStore.save({ lastGenerationDegraded: degraded })
@@ -91,7 +102,18 @@ reg(
       (payload) => {
         host.emitGenerationProgress?.(payload)
       },
-      opts
+      {
+        ...opts,
+        onAudit: (entry) => {
+          activity.append({
+            kind: entry.kind,
+            message: entry.message,
+            level: entry.level,
+            storyId: entry.storyId ?? storyId,
+            meta: entry.meta
+          })
+        }
+      }
     )
     if (result.degraded) {
       settingsStore.save({ lastGenerationDegraded: true })

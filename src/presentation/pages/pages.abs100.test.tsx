@@ -87,6 +87,7 @@ import {
   charactersEnsureSoulIndex,
   charactersForcePureLayout,
   charactersGalleryPathsFromOpts,
+  charactersIdentityMarkPaths,
   charactersGuardAiNeed,
   charactersGuardBusy,
   charactersGuardEmptyName,
@@ -618,6 +619,7 @@ import {
   timelinePipelineSummary,
   timelinePlayheadAdvance,
   timelineProgressStepLabel,
+  timelineProgressLabelWithWait,
   timelineRafTickValue,
   timelineRefreshExports,
   timelineRunCancelJobs,
@@ -4943,6 +4945,10 @@ describe('abs100 Timeline pure + residual', () => {
       timelineProgressStepLabel('script', { script: 'pipeline.script' }, (k) => k)
     ).toBe('pipeline.script')
     expect(timelineProgressStepLabel('x', {}, (k) => k)).toBe('x')
+    expect(
+      timelineProgressLabelWithWait('Video', true, 'Wait end-frame')
+    ).toBe('Video · Wait end-frame')
+    expect(timelineProgressLabelWithWait('Video', false, 'Wait')).toBe('Video')
     expect(timelineShouldReloadOnProgress('e', 'READY')).toBe(true)
     expect(timelineShouldReloadOnProgress('e', 'GENERATING')).toBe(false)
 
@@ -8874,6 +8880,9 @@ describe('abs100 Characters pure residual helpers', () => {
     expect(charactersUseIdentityEdit(false, true)).toBe(true)
     expect(charactersGalleryPathsFromOpts('/p', ['a'])).toEqual(['/p'])
     expect(charactersGalleryPathsFromOpts(null, ['a'])).toEqual(['a'])
+    expect(charactersIdentityMarkPaths(['/a', ''], '/preview')).toEqual(['/a'])
+    expect(charactersIdentityMarkPaths([], '/preview')).toEqual(['/preview'])
+    expect(charactersIdentityMarkPaths([], null)).toEqual([])
     expect(
       charactersSheetModeLabel(true, false, {
         force: 'F',

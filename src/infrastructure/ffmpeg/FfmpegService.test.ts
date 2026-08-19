@@ -269,6 +269,18 @@ describe('FfmpegService', () => {
       bgmPath: '/nope',
       dialogueAudioPaths: null
     })
+
+    await ff.exportFinal({
+      outDir,
+      fileName: 'f3.mp4',
+      title: 'Keep clip audio',
+      clips: [{ startTime: 0, endTime: 2, label: 'A', mediaPath: media }],
+      transitionMode: 'cut',
+      profile: 'fast',
+      burnSubtitles: false,
+      includeSilentAudio: false,
+      preserveClipAudio: true
+    })
   })
 
   it('exportFinal throws when output missing', async () => {

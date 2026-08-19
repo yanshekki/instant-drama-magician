@@ -75,7 +75,27 @@ Grok Gateway locked presets **forbid** `temperature`/`top_p`/`stop` (HTTP 400). 
 | `GET` | `/v1/videos/:id` |
 | `GET` | `/v1/videos/:id/content` |
 
-Enable **videoApi** in gateway admin. Clip length snaps to **6 or 10** only.
+Enable **videoApi** in gateway admin. Clip length snaps to **6 or 10** only (gctoac 1.7+ allows 1–15; IDM still snaps Timeline clips to 6|10).
+
+Native clip voice (**gctoac 1.7.4+**, not mock TTS):
+
+```json
+POST /v1/videos
+{
+  "prompt": "… Spoken dialogue uses preset voices <AUDIO_0> in character order (ara).",
+  "model": "grok-4.5",
+  "seconds": 6,
+  "aspect_ratio": "16:9",
+  "source_document_id": "doc_…",
+  "voices": ["ara"]
+}
+```
+
+- `voices[]` present (max 3) → Grok **`reference_to_video`** (leaves first-frame `image_to_video` lock)
+- no `voices` / extra refs → **`image_to_video`** (first-frame lock)
+- IDM Timeline duration stays **6 / 10** (`snapVideoSeconds`); do not change globally
+- `/v1/audio/speech` is still mock/503 — InstantDrama **does not** wire TTS to it
+- Old gateway HTTP 400 on unknown `voices` → one retry without `voices`
 
 ## Related
 

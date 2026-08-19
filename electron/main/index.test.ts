@@ -21,6 +21,7 @@ let menuHandlers: any = null
 const webContents = {
   send: vi.fn(),
   openDevTools: vi.fn(),
+  on: vi.fn(),
   capturePage: vi.fn(async () => ({
     toPNG: () => Buffer.from('png')
   })),
@@ -289,6 +290,33 @@ describe('electron main index', () => {
     expect(whenReadyCbs.length).toBeGreaterThan(0)
     await whenReadyCbs[0]()
     expect(menuHandlers).toBeTruthy()
+
+    const failLoad = webContents.on.mock.calls.find(
+      (c) => c[0] === 'did-fail-load'
+    )
+    expect(failLoad).toBeTruthy()
+    ;(
+      failLoad![1] as (
+        e: unknown,
+        code: number,
+        desc: string,
+        url: string
+      ) => void
+    )({}, -6, 'ERR', 'http://x')
+    const cons = webContents.on.mock.calls.find(
+      (c) => c[0] === 'console-message'
+    )
+    expect(cons).toBeTruthy()
+    ;(cons![1] as (e: unknown, level: number, message: string) => void)(
+      {},
+      2,
+      'renderer boom'
+    )
+    ;(cons![1] as (e: unknown, level: number, message: string) => void)(
+      {},
+      0,
+      'debug'
+    )
 
     // protocol handler
     const protocolHandler = protocol.handle.mock.calls.find(

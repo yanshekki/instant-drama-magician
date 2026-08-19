@@ -230,6 +230,24 @@ describe('promptContinuity', () => {
     expect(r.editSource).toBe('cast')
   })
 
+  it('motionPriority action raises plate above scene/prop when no prev', () => {
+    const r = resolveTimelineStillRefs({
+      scene: {
+        id: 'sc',
+        storyId: 's',
+        sceneNumber: 1,
+        description: 'room',
+        refImagePath: '/scene.png'
+      } as never,
+      action: { refImagePath: '/act.png' },
+      motionPriority: 'action',
+      pathExists: () => true
+    })
+    expect(r.editSource).toBe('action')
+    expect(r.polishPaths[0]).toBe('/act.png')
+    expect(r.actionInPolish).toBe(true)
+  })
+
   it('finds previous timeline entry and builds continuity lock', () => {
     const entries = [
       baseEntry({ id: 'e0', order: 0, characterId: 'c1' }),

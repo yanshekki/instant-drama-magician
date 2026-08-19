@@ -48,6 +48,20 @@ export default defineConfig({
         '@lib': resolve('src/lib')
       }
     },
-    plugins: [react()]
+    plugins: [
+      react(),
+      {
+        name: 'idm-dev-csp',
+        transformIndexHtml(html) {
+          if (process.env.NODE_ENV === 'production') return html
+          // Vite injects an inline React Refresh preamble; Electron's
+          // script-src 'self' blocks it and the renderer stays blank.
+          return html.replace(
+            "default-src 'self'; script-src 'self';",
+            "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ws: wss: http://127.0.0.1:* http://localhost:*;"
+          )
+        }
+      }
+    ]
   }
 })

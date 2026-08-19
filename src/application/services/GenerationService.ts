@@ -6,6 +6,7 @@ import type { PrismaClient } from '../../types/prisma'
 import type {
   AIProvider,
   GenerationResult,
+  PipelineContext,
   PipelineStepResult,
   StoryDetail,
   TimelineEntry
@@ -18,17 +19,20 @@ import { canStartGeneration } from '../../domain/story'
 import { buildSrt } from '../../domain/subtitle'
 import {
   buildClipPrompt,
-  previousClipContext,
-  getPreviousTimelineEntry,
-  buildContinuityLockPrompt,
-  timelineBeatDisplayIndex,
-  resolveTimelineStillRefs
+  getPreviousTimelineEntry
 } from '../../domain/promptContinuity'
+import { buildClipContinuityContext } from '../../domain/clipContinuityContext'
+import {
+  auditContinuityWriteFailed,
+  auditGrokVoicesDropped,
+  auditMissingEndFrame
+} from '../../domain/generationAudit'
 import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
 import { GenerationPipeline } from '../GenerationPipeline'
 import { FfmpegService } from '../../infrastructure/ffmpeg/FfmpegService'
 import { MediaStore } from '../../infrastructure/media/MediaStore'
 import { hydrateTimelineBindings } from '../../domain/timelineBindings'
+import { mapGrokClipVoices } from '../../domain/grokVideoVoices'
 
 export type GenerationProgressHandler = (payload: {
   storyId: string
@@ -39,6 +43,7 @@ export type GenerationProgressHandler = (payload: {
   entryId?: string
   mediaStatus?: string
   jobId?: string
+  waitingPrevious?: boolean
 }) => void
 
 export class GenerationService {
@@ -84,7 +89,7 @@ export class GenerationService {
     storyId: string,
     entryId: string,
     onProgress?: GenerationProgressHandler,
-    opts?: { revisionPrompt?: string | null }
+    opts?: { revisionPrompt?: string | null; onAudit?: PipelineContext['onAudit'] }
   ): Promise<{ entryId: string; mediaPath: string; jobId?: string; degraded?: boolean }> {
     if (!this.ai.generateVideo) {
       throw new AppError('AI_UNAVAILABLE', 'errors.videoUnavailable')
@@ -141,11 +146,50 @@ export class GenerationService {
     const timelineDomain = story.timeline.map((e) =>
       hydrateTimelineBindings(e)
     ) as TimelineEntry[]
-    const prev = previousClipContext(timelineDomain, entryId, {
-      characters: charMap,
-      scenes: sceneMap,
-      props: propMap
+    const prevEntryForPath = getPreviousTimelineEntry(timelineDomain, entryId)
+    let previousContinuityPath: string | null = null
+    if (prevEntryForPath) {
+      const contPath = this.store.clipContinuityStillPath(
+        storyId,
+        prevEntryForPath.id
+      )
+      if (existsSync(contPath)) previousContinuityPath = contPath
+    }
+    let castRefPath: string | null = null
+    try {
+      const {
+        parseStoryCastPrep,
+        resolveCastRefFromPrep
+      } = await import('../../domain/advancedPrep')
+      const castPrep = parseStoryCastPrep(
+        this.store.readStoryCastPrepJson(storyId)
+      )
+      castRefPath = resolveCastRefFromPrep(char?.id ?? null, castPrep)
+    } catch {
+      castRefPath = null
+    }
+    const cont = buildClipContinuityContext({
+      entries: timelineDomain,
+      currentId: entryId,
+      character: char,
+      scene,
+      prop,
+      action: action ? { refImagePath: action.refImagePath ?? null } : null,
+      extraActionPaths: actionsBound.slice(1).map((a) => a.refImagePath ?? null),
+      maps: { characters: charMap, scenes: sceneMap, props: propMap },
+      previousContinuityPath,
+      castRefPath,
+      ownStillPath: existsSync(
+        this.store.clipContinuityStillPath(storyId, entryId)
+      )
+        ? this.store.clipContinuityStillPath(storyId, entryId)
+        : null,
+      continuityMode: this.settings.continuityMode,
+      motionPriority: this.settings.motionPriority,
+      locale: String(this.settings.uiLanguage || 'zh-HK'),
+      pathExists: (p) => existsSync(p)
     })
+    const prev = cont.prevWithLock || cont.previousContext
     const seconds = snapVideoSeconds(entry.endTime - entry.startTime)
     const outputPath = this.store.clipPath(storyId, entryId)
 
@@ -233,43 +277,16 @@ export class GenerationService {
       const { beatContentToClipPromptBlock, parseBeatContent } = await import(
         '../../domain/beatContent'
       )
-      // Chain from previous beat's continuity keyframe when available.
-      const timelineDomain = story.timeline.map((e) =>
-        hydrateTimelineBindings(e)
-      ) as TimelineEntry[]
-      const prevEntry = getPreviousTimelineEntry(timelineDomain, entryId)
-      let previousContinuityPath: string | null = null
-      let prevBeatIndex = 0
-      if (prevEntry) {
-        prevBeatIndex = timelineBeatDisplayIndex(timelineDomain, prevEntry.id)
-        const contPath = this.store.clipContinuityStillPath(
-          storyId,
-          prevEntry.id
-        )
-        if (existsSync(contPath)) {
-          previousContinuityPath = contPath
-        }
-      }
-      const sameCharacter = Boolean(
-        char &&
-          prevEntry?.characterId &&
-          char.id === prevEntry.characterId
-      )
-      const sameScene = Boolean(
-        scene && prevEntry?.sceneId && scene.id === prevEntry.sceneId
-      )
-      const genUiLocale = String(this.settings.uiLanguage || 'zh-HK')
-      const continuityLock = prevEntry
-        ? buildContinuityLockPrompt({
-            previousBeatIndex: prevBeatIndex,
-            previousDialogueSnippet: prev,
-            sameCharacter,
-            sameScene,
-            hasContinuityImage: Boolean(previousContinuityPath),
-            locale: genUiLocale
+      if (cont.missingEndFrame) {
+        opts?.onAudit?.(
+          auditMissingEndFrame({
+            entryId,
+            previousBeatIndex: cont.previousBeatIndex
           })
-        : null
-      const prevWithLock = [prev, continuityLock].filter(Boolean).join('\n')
+        )
+      }
+      const prevWithLock = cont.prevWithLock
+      const genUiLocale = String(this.settings.uiLanguage || 'zh-HK')
       const beatOrDialogue =
         beatContentToClipPromptBlock(
           parseBeatContent(
@@ -316,32 +333,84 @@ export class GenerationService {
         clipHardRules,
         genUiLocale
       )
-      let castRefPath: string | null = null
-      try {
-        const {
-          parseStoryCastPrep,
-          resolveCastRefFromPrep
-        } = await import('../../domain/advancedPrep')
-        const castPrep = parseStoryCastPrep(
-          this.store.readStoryCastPrepJson(storyId)
-        )
-        castRefPath = resolveCastRefFromPrep(char?.id ?? null, castPrep)
-      } catch {
-        castRefPath = null
-      }
-      const timelineRefs = resolveTimelineStillRefs({
-        character: char,
-        scene,
-        prop,
-        action: action
-          ? { refImagePath: action.refImagePath ?? null }
-          : null,
-        previousContinuityPath,
-        castRefPath,
-        pathExists: (p) => existsSync(p)
-      })
-      const refPath = timelineRefs.editBase
+      const refPath = cont.editBase
       const locale = String(this.settings.uiLanguage || 'zh-HK')
+      let videoRef = refPath
+      const stillOut = this.store.clipContinuityStillPath(storyId, entryId)
+      if (
+        stillOut &&
+        typeof (this.ai as { generateImage?: unknown }).generateImage ===
+          'function' &&
+        typeof (this.ai as { editImage?: unknown }).editImage === 'function'
+      ) {
+        try {
+          const { ensureTimelineClipStill } = await import(
+            '../video/ensureTimelineClipStill'
+          )
+          const { timelineBeatDisplayIndex } = await import(
+            '../../domain/promptContinuity'
+          )
+          const ensured = await ensureTimelineClipStill({
+            ai: this.ai,
+            outputPath: stillOut,
+            skipIfExists: true,
+            locale,
+            aspectRatio: this.settings.aspectRatio,
+            hardRules: clipHardRules,
+            signal,
+            sourceImagePath: refPath,
+            storyTitle: story.title,
+            displayIndex: timelineBeatDisplayIndex(timelineDomain, entryId),
+            dialogue: entry.dialogue,
+            beatBlock: beatOrDialogue,
+            previousContinuityPath: cont.previousContinuityPath,
+            previousBeatIndex: cont.previousBeatIndex,
+            continuityLockText: cont.continuityLock,
+            characters: chars.map((c) => ({
+              id: c.id,
+              name: c.name,
+              imagePath: c.refImagePath ?? null
+            })),
+            scenes: scenesBound.map((s) => ({
+              id: s.id,
+              name: s.title || s.description,
+              imagePath: s.refImagePath ?? null
+            })),
+            props: propsBound.map((p) => ({
+              id: p.id,
+              name: p.name,
+              imagePath: p.refImagePath ?? null
+            })),
+            actions: actionsBound.map((a) => ({
+              id: a.id,
+              name: a.name,
+              imagePath: a.refImagePath ?? null
+            })),
+            continuityMode: this.settings.continuityMode,
+            motionPriority: this.settings.motionPriority,
+            styleNote: story.styleNote,
+            durationSeconds: seconds,
+            fallbackPrompt
+          })
+          if (ensured.stillPath) {
+            videoRef =
+              this.settings.continuityMode === 'chain-end' && refPath
+                ? refPath
+                : ensured.stillPath
+          }
+        } catch {
+          /* keep editBase */
+        }
+      }
+      let lastFramePath = cont.lastFramePath ?? undefined
+      if (
+        this.settings.continuityMode === 'chain-end' &&
+        stillOut &&
+        existsSync(stillOut) &&
+        stillOut !== previousContinuityPath
+      ) {
+        lastFramePath = stillOut
+      }
       onProgress?.({
         storyId,
         step: 'video',
@@ -397,7 +466,19 @@ export class GenerationService {
         }),
         videoRequest: {
           durationSeconds: seconds,
-          refImagePath: refPath ?? undefined,
+          refImagePath: videoRef ?? undefined,
+          lastFramePath,
+          generateAudio: this.settings.generateAudio === true,
+          voices:
+            this.settings.generateAudio === true
+              ? mapGrokClipVoices(
+                  chars.map((c) => ({
+                    gender: c.gender,
+                    voiceDesc: c.voiceDesc
+                  })),
+                  this.settings.grokVideoVoice
+                )
+              : undefined,
           outputPath,
           aspectRatio: this.settings.aspectRatio
         },
@@ -416,6 +497,10 @@ export class GenerationService {
 
       if (signal.aborted) {
         throw new AppError('CANCELLED', 'errors.cancelled')
+      }
+
+      if (result.voicesDropped) {
+        opts?.onAudit?.(auditGrokVoicesDropped({ entryId }))
       }
 
       await this.prisma.timelineEntry.update({
@@ -439,6 +524,10 @@ export class GenerationService {
           entryId,
           videoPath: result.outputPath,
           skipIfUserCleared: true
+        }).then((written) => {
+          if (!written) {
+            opts?.onAudit?.(auditContinuityWriteFailed({ entryId }))
+          }
         })
       } catch {
         /* best-effort */
@@ -544,6 +633,7 @@ export class GenerationService {
       interactiveVideo?: boolean
       locale?: string
       promptTemplateId?: string | null
+      onAudit?: PipelineContext['onAudit']
     }
   ): Promise<GenerationResult> {
     const story = await this.loadStory(storyId)
@@ -573,6 +663,11 @@ export class GenerationService {
         aspectRatio: this.settings.aspectRatio,
         locale: opts?.locale,
         promptTemplateId: opts?.promptTemplateId,
+        continuityMode: this.settings.continuityMode,
+        motionPriority: this.settings.motionPriority,
+        generateAudio: this.settings.generateAudio,
+        grokVideoVoice: this.settings.grokVideoVoice,
+        onAudit: opts?.onAudit,
         onStepComplete: (stepResult, index, total) => {
           onProgress?.({
             storyId,
@@ -590,7 +685,8 @@ export class GenerationService {
             total: p.total,
             entryId: p.entryId,
             mediaStatus: p.status,
-            jobId: p.jobId
+            jobId: p.jobId,
+            waitingPrevious: p.waitingPrevious
           })
         },
         persistence: {
@@ -914,7 +1010,8 @@ export class GenerationService {
       dialogueAudioPaths,
       aspectRatio: this.settings.aspectRatio,
       transitionMode: this.settings.transitionMode,
-      transitionSec: this.settings.transitionSec
+      transitionSec: this.settings.transitionSec,
+      preserveClipAudio: this.settings.preserveClipAudio
     })
     const outputPath = publishExportToVideos(workPath, fileName)
     this.store.recordExportHistory(storyId, {

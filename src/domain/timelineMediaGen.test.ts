@@ -107,4 +107,19 @@ describe('buildTimelineBeatMaterialSections', () => {
     expect(imgs[0]?.entityType).not.toBe('gallery')
     expect(r.editBaseSectionId).toBe(imgs[0]?.id ?? null)
   })
+
+  it('chain-end prefers previous continuity over own storyboard still', () => {
+    const r = buildTimelineBeatMaterialSections({
+      kind: 'timeline-clip',
+      storyTitle: 'Rooftop',
+      displayIndex: 3,
+      previousContinuityPath: '/prev.png',
+      previousBeatIndex: 2,
+      ownStillPath: '/own.png',
+      continuityMode: 'chain-end',
+      actions: [{ name: 'Draw', imagePath: '/act.png' }]
+    })
+    expect(r.editBaseSectionId).toBe('prev_clip')
+    expect(r.sections.find((s) => s.id === 'action_ref_0')?.include).toBe(true)
+  })
 })

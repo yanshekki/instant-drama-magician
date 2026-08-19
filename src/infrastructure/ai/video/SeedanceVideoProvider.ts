@@ -174,8 +174,11 @@ export class SeedanceVideoProvider implements VideoProvider {
           `--resolution ${this.resolution}`,
           `--duration ${seconds}`,
           `--ratio ${ratio}`,
-          '--camerafixed false'
-        ].join(' ')
+          '--camerafixed false',
+          request.generateAudio ? '--with_audio true' : null
+        ]
+          .filter(Boolean)
+          .join(' ')
 
         const content: Array<Record<string, unknown>> = [
           { type: 'text', text: promptText }
@@ -196,6 +199,23 @@ export class SeedanceVideoProvider implements VideoProvider {
         /* v8 ignore next */
           }
         }
+        if (
+          request.lastFramePath &&
+          existsSync(request.lastFramePath) &&
+          request.lastFramePath !== request.refImagePath
+        ) {
+          try {
+            content.push({
+              type: 'image_url',
+              image_url: {
+                url: localImageDataUrl(request.lastFramePath)
+              },
+              role: 'last_frame'
+            })
+          } catch {
+            /* optional last_frame */
+          }
+        }
 
         const body: Record<string, unknown> = {
           model: this.model,
@@ -205,6 +225,9 @@ export class SeedanceVideoProvider implements VideoProvider {
           ratio,
           resolution: this.resolution,
           watermark: false
+        }
+        if (request.generateAudio) {
+          body.generate_audio = true
         }
 
         const createUrl = `${this.baseUrl}/contents/generations/tasks`

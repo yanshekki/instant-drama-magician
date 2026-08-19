@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { writeFileSync, mkdtempSync, rmSync } from 'fs'
+import { writeFileSync, mkdtempSync, rmSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import {
@@ -7,6 +7,15 @@ import {
   invokeRegistered
 } from '../../../test/handlerTestUtils'
 import { registerVideoPrepConfirm } from './confirm'
+
+const writeClipContinuityStillFromVideo = vi.hoisted(() =>
+  vi.fn(async () => 'ok.png' as string | null)
+)
+vi.mock('../../../application/video/writeClipContinuityStill', () => ({
+  writeClipContinuityStillFromVideo: (
+    ...a: Parameters<typeof writeClipContinuityStillFromVideo>
+  ) => writeClipContinuityStillFromVideo(...a)
+}))
 
 describe('registerVideoPrepConfirm', () => {
   let dir: string | undefined
@@ -16,6 +25,8 @@ describe('registerVideoPrepConfirm', () => {
       rmSync(dir, { recursive: true, force: true })
       dir = undefined
     }
+    writeClipContinuityStillFromVideo.mockReset()
+    writeClipContinuityStillFromVideo.mockResolvedValue('ok.png')
   })
 
   it('registers expected channels', () => {
@@ -315,6 +326,109 @@ describe('registerVideoPrepConfirm', () => {
         stillPath: still
       })
     ).rejects.toMatchObject({ message: 'errors.ideaOrDraftRequired' })
+  })
+
+  it('passes lastFramePath for timeline-clip chain-end', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vp-lf-'))
+    const still = join(dir, 'own.png')
+    const prevCont = join(dir, 'prev.png')
+    const out = join(dir, 'clip.mp4')
+    writeFileSync(still, 'png')
+    writeFileSync(prevCont, 'png')
+    const generateVideo = vi.fn(async (req: {
+      refImagePath?: string
+      lastFramePath?: string
+      outputPath: string
+    }) => ({ outputPath: req.outputPath, voicesDropped: true }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateVideo, chat: vi.fn() },
+      stories: () =>
+        ({
+          get: vi.fn(async () => ({ id: 's1', hardRules: null }))
+        }) as never,
+      timeline: () =>
+        ({ setMedia: vi.fn(async () => ({ ok: true })) }) as never,
+      host: {
+        ...(makeHandlerContext().host as object),
+        getPrisma: () =>
+          ({
+            timelineEntry: {
+              findUnique: vi.fn(async () => ({
+                id: 'e1',
+                characterId: null,
+                sceneId: null,
+                propId: null,
+                actionId: null,
+                characterIds: null,
+                sceneIds: null,
+                propIds: null,
+                actionIds: null
+              })),
+              findMany: vi.fn(async () => [
+                {
+                  id: 'e0',
+                  storyId: 's1',
+                  order: 0,
+                  startTime: 0,
+                  endTime: 6,
+                  characterId: null,
+                  sceneId: null,
+                  propId: null,
+                  dialogue: null,
+                  mediaStatus: 'READY'
+                },
+                {
+                  id: 'e1',
+                  storyId: 's1',
+                  order: 1,
+                  startTime: 6,
+                  endTime: 12,
+                  characterId: null,
+                  sceneId: null,
+                  propId: null,
+                  dialogue: null,
+                  mediaStatus: 'EMPTY'
+                }
+              ])
+            },
+            character: { findMany: vi.fn(async () => []) },
+            scene: { findMany: vi.fn(async () => []) },
+            prop: { findMany: vi.fn(async () => []) },
+            action: { findMany: vi.fn(async () => []) }
+          }) as never
+      } as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ...mediaStore(out),
+            clipContinuityStillPath: (_s: string, eid: string) =>
+              eid === 'e0' ? prevCont : still
+          })
+        }) as never
+    })
+    ctx.rebindAi({
+      ...(ctx.settings as object),
+      continuityMode: 'chain-end',
+      generateAudio: true,
+      grokVideoVoice: 'eve'
+    } as never)
+    registerVideoPrepConfirm(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'videoPrep:confirm', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      professionalPrompt: 'CLIP CHAIN END PROMPT',
+      stillPath: still
+    })
+    expect(generateVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        refImagePath: prevCont,
+        lastFramePath: still,
+        generateAudio: true,
+        voices: ['eve']
+      })
+    )
   })
 
   it('gallery append + source bind for character scene prop costume action', async () => {
@@ -704,5 +818,169 @@ describe('registerVideoPrepConfirm', () => {
     expect(gallery[1]!.path).toContain('old.mp4')
     expect(gallery[0]!.path).toBe(payload.videoPath)
     expect(gallery[0]!.path).not.toBe(gallery[1]!.path)
+  })
+
+  it('returns degraded comic-intro without rewriting gallery', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vp-comic-deg-'))
+    const still = join(dir, 'still.png')
+    writeFileSync(still, 'png')
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => ({
+      outputPath: req.outputPath,
+      degraded: true
+    }))
+    const updatePage = vi.fn(async (_id: string, data: unknown) => data)
+    const getPage = vi.fn(async () => ({
+      id: 'p1',
+      comicId: 'c1',
+      hardRules: null,
+      videoPath: null
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateVideo, chat: vi.fn() },
+      comics: () =>
+        ({
+          getPage,
+          getById: vi.fn(async () => ({ id: 'c1', hardRules: null })),
+          updatePage
+        }) as never,
+      generation: () =>
+        ({ getMediaStore: () => mediaStore(join(dir!, 'out.mp4')) }) as never
+    })
+    registerVideoPrepConfirm(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'videoPrep:confirm', {
+      kind: 'comic-intro',
+      pageId: 'p1',
+      storyId: 's1',
+      professionalPrompt: 'COMIC PAGE VIDEO PROMPT LONG ENOUGH',
+      stillPath: still
+    })) as { path: string; entity: { id: string } }
+    expect(r.entity.id).toBe('p1')
+    expect(updatePage).not.toHaveBeenCalled()
+    expect(getPage).toHaveBeenCalled()
+  })
+
+  it('copies still when timeline continuity write throws', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-copyfb-'))
+    const still = join(dir, 'still.png')
+    const out = join(dir, 'out.mp4')
+    writeFileSync(still, 's')
+    writeFileSync(out, 'v')
+    writeClipContinuityStillFromVideo.mockRejectedValueOnce(new Error('ff'))
+    const setMedia = vi.fn(async () => ({}))
+    const generateVideo = vi.fn(async () => ({
+      outputPath: out,
+      polished: false,
+      promptUsed: 'P',
+      degraded: false
+    }))
+    const contPath = join(dir, 'c.png')
+    const ctx = makeHandlerContext({
+      aiClient: { generateVideo },
+      timeline: () => ({ setMedia }) as never,
+      stories: () =>
+        ({ get: vi.fn(async () => ({ id: 's1', hardRules: null })) }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ...mediaStore(out),
+            ensureStoryDirs: vi.fn(),
+            clipContinuityStillPath: () => contPath
+          })
+        }) as never
+    })
+    registerVideoPrepConfirm(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'videoPrep:confirm', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      professionalPrompt: 'CLIP PROMPT LONG ENOUGH FOR CONFIRM',
+      stillPath: still
+    })
+    expect(setMedia).toHaveBeenCalled()
+    expect(existsSync(contPath)).toBe(true)
+  })
+
+  it('copies still then swallows when continuity dest is a directory', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vpc-copydir-'))
+    const still = join(dir, 'still.png')
+    const out = join(dir, 'out.mp4')
+    const contDir = join(dir, 'contdir')
+    writeFileSync(still, 's')
+    writeFileSync(out, 'v')
+    mkdirSync(contDir)
+    writeClipContinuityStillFromVideo.mockRejectedValueOnce(new Error('ff'))
+    const setMedia = vi.fn(async () => ({}))
+    const generateVideo = vi.fn(async () => ({
+      outputPath: out,
+      polished: false,
+      promptUsed: 'P',
+      degraded: false
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateVideo },
+      timeline: () => ({ setMedia }) as never,
+      stories: () =>
+        ({ get: vi.fn(async () => ({ id: 's1', hardRules: null })) }) as never,
+      generation: () =>
+        ({
+          getMediaStore: () => ({
+            ...mediaStore(out),
+            ensureStoryDirs: vi.fn(),
+            clipContinuityStillPath: () => contDir
+          })
+        }) as never
+    })
+    registerVideoPrepConfirm(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'videoPrep:confirm', {
+      kind: 'timeline-clip',
+      storyId: 's1',
+      entryId: 'e1',
+      professionalPrompt: 'CLIP PROMPT LONG ENOUGH FOR CONFIRM',
+      stillPath: still
+    })
+    expect(setMedia).toHaveBeenCalled()
+  })
+
+  it('comic-intro falls back when comicPageVideoPath is missing', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vp-comic-nopath-'))
+    const still = join(dir, 'still.png')
+    writeFileSync(still, 'png')
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => ({
+      outputPath: req.outputPath,
+      degraded: false
+    }))
+    const updatePage = vi.fn(async (_id: string, data: unknown) => data)
+    const store = mediaStore(join(dir, 'out.mp4')) as {
+      comicPageVideoPath?: unknown
+    }
+    delete store.comicPageVideoPath
+    const ctx = makeHandlerContext({
+      aiClient: { generateVideo, chat: vi.fn() },
+      comics: () =>
+        ({
+          getPage: vi.fn(async () => ({
+            id: 'p1',
+            comicId: 'c1',
+            hardRules: null,
+            videoPath: null
+          })),
+          getById: vi.fn(async () => ({ id: 'c1', hardRules: null })),
+          updatePage
+        }) as never,
+      generation: () => ({ getMediaStore: () => store }) as never
+    })
+    registerVideoPrepConfirm(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    await invokeRegistered(h as never, 'videoPrep:confirm', {
+      kind: 'comic-intro',
+      pageId: 'p1',
+      storyId: 's1',
+      professionalPrompt: 'COMIC PAGE VIDEO PROMPT LONG ENOUGH',
+      stillPath: still
+    })
+    expect(updatePage).toHaveBeenCalled()
   })
 })

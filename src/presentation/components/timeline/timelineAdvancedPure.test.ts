@@ -37,6 +37,12 @@ describe('timelineAdvancedPure', () => {
     expect(genLockedExtra({ current: 1, total: 2 }, null, 'B', 'G')).toBe(' · B')
     expect(genLockedExtra(null, 'e1', 'B', 'G')).toBe(' · G')
     expect(genLockedExtra(null, null, 'B', 'G')).toBe('')
+    expect(
+      genLockedExtra({ current: 2, total: 3 }, null, 'B', 'G', {
+        waitingPrevious: true,
+        waitLabel: 'Wait'
+      })
+    ).toBe(' · B · Wait')
 
     expect(readyVideoEntryIds(cells)).toEqual(['a', 'c'])
     expect(shouldSilentPersistOnGen(true)).toBe(true)

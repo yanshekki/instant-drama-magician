@@ -7,6 +7,7 @@ export interface GalleryThumbItem {
   id: string
   path: string
   label: string
+  identityLock?: boolean
 }
 
 interface GalleryThumbStripProps {
@@ -231,6 +232,17 @@ export function GalleryThumbStrip({
                     {t('common.coverBadge')}
                   </span>
                 )}
+                {g.identityLock ? (
+                  <span
+                    className={[
+                      'pointer-events-none absolute z-[6] rounded bg-brand-600/95 px-1 py-0.5 text-[8px] font-semibold text-white',
+                      isCover ? 'right-0.5 top-5' : 'right-0.5 top-0.5'
+                    ].join(' ')}
+                    title={t('common.isIdentityLock')}
+                  >
+                    {t('common.identityLockBadge')}
+                  </span>
+                ) : null}
 
                 {viewing ? (
                   <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-sky-600/90 px-0.5 py-0.5 text-center text-[8px] font-semibold text-white">

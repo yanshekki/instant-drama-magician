@@ -88,6 +88,21 @@ describe('LocalMediaImage', () => {
     expect(onRemove).toHaveBeenCalled()
   })
 
+  it('toggles identity lock from the action bar', async () => {
+    const onToggleIdentityLock = vi.fn()
+    render(
+      <LocalMediaImage
+        filePath="/still.png"
+        alt="still"
+        onToggleIdentityLock={onToggleIdentityLock}
+        isIdentityLock={false}
+      />
+    )
+    await waitFor(() => expect(screen.getByAltText('still')).toBeTruthy())
+    fireEvent.click(screen.getByText('common.setIdentityLock'))
+    expect(onToggleIdentityLock).toHaveBeenCalled()
+  })
+
   it('missing file NOT_FOUND path', async () => {
     api.media.toPreviewUrl = vi
       .fn()

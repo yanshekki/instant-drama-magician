@@ -85,6 +85,7 @@ import {
   timelinePersistSnap,
   timelinePipelineSummary,
   timelineProgressStepLabel,
+  timelineProgressLabelWithWait,
   timelineRefreshExports,
   timelineRunCancelJobs,
   timelineRunClip,
@@ -404,7 +405,13 @@ export function useTimelineV2Studio() {
       if (activeStoryId && payload.storyId !== activeStoryId) return
       setStepIndex(payload.index + 1)
       setStepTotal(Math.max(1, payload.total))
-      setCurrentStepLabel(timelineProgressStepLabel(payload.step, STEP_I18N, t))
+      setCurrentStepLabel(
+        timelineProgressLabelWithWait(
+          timelineProgressStepLabel(payload.step, STEP_I18N, t),
+          payload.waitingPrevious,
+          t('videoPrep.chainEndWait')
+        )
+      )
       if (payload.entryId && payload.mediaStatus) {
         setLiveClipStatus((prev) => ({
           ...prev,

@@ -46,4 +46,23 @@ describe('channelManifest', () => {
     expect(s.argsHint).toContain('chapter:<id>')
     expect(s.argsHint).toContain('beat:<id>')
   })
+
+  it('characters:aiFill argsHint documents multi-vision paths', () => {
+    const s = specFor('characters:aiFill')
+    expect(s.argsHint).toContain('referenceImagePath')
+    expect(s.argsHint).toContain('referenceImagePaths')
+  })
+
+  it('mediaGen:extract argsHint documents continuity and identity flags', () => {
+    const s = specFor('mediaGen:extract')
+    expect(s.argsHint).toContain('continuityMode')
+    expect(s.argsHint).toContain('advancedIdentity')
+    expect(s.argsHint).toContain('lookPackId')
+  })
+
+  it('settings:set argsHint documents gctoac clip voice', () => {
+    const s = specFor('settings:set')
+    expect(s.argsHint).toContain('generateAudio')
+    expect(s.argsHint).toContain('grokVideoVoice')
+  })
 })

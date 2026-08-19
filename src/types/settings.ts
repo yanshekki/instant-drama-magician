@@ -18,6 +18,17 @@ import {
 import { getSheetVariant } from '../domain/characterSheetVariants'
 import { getScenePlateVariant } from '../domain/scenePlateVariants'
 import { getPropPlateVariant } from '../domain/propPlateVariants'
+import {
+  coerceContinuityMode,
+  coerceMotionPriority,
+  type ContinuityMode,
+  type MotionPriority
+} from '../domain/generationModes'
+import {
+  coerceLookPackId,
+  type LookPackId
+} from '../domain/lookPacks'
+import { coerceGrokVideoVoice } from '../domain/grokVideoVoices'
 
 export type VideoMode = 'auto' | 'http' | 'stub'
 export type ExportProfile = 'fast' | 'balanced'
@@ -134,6 +145,27 @@ export interface AppSettings {
   /** Image gen / edit HTTP timeout (ms) */
   imageTimeoutMs: number
 
+  /**
+   * Timeline clip-to-clip lock.
+   * storyboard = current refine UX (own still may win edit base).
+   * chain-end = previous end-frame wins; Generate All is sequential.
+   */
+  continuityMode: ContinuityMode
+  /** Raise bound action plates in polish / I2V ref order. */
+  motionPriority: MotionPriority
+  /** Auto-pick gallery identity pack + force multi-vision polish. */
+  advancedIdentity: boolean
+  /** Stitch multi refs into one edits-API plate. */
+  identityCollage: boolean
+  /** Built-in look pack id (follow-asset is a no-op overlay). */
+  lookPackId: LookPackId
+  /** Ask video providers for native audio when they support it. */
+  generateAudio: boolean
+  /** Grok reference_to_video preset voice when generateAudio is on. */
+  grokVideoVoice: string
+  /** Keep clip audio on export instead of stripping with -an. */
+  preserveClipAudio: boolean
+
   // ── Embedded web server (browser remote control) ───────────
   /** When true, desktop app starts HTTP server for browser clients */
   webServerEnabled: boolean
@@ -215,6 +247,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   imageEnhanceMaxEdge: 1600,
   imageEnhanceScale: 2,
   imageTimeoutMs: 300_000,
+  continuityMode: 'storyboard',
+  motionPriority: 'default',
+  advancedIdentity: false,
+  identityCollage: false,
+  lookPackId: 'follow-asset',
+  generateAudio: false,
+  grokVideoVoice: 'ara',
+  preserveClipAudio: false,
   webServerEnabled: false,
   webServerPort: 8787,
   webServerHost: '0.0.0.0',
@@ -232,7 +272,12 @@ export const VIDEO_SETTING_KEYS = [
   'videoMaxRetries',
   'videoPollMs',
   'videoTimeoutSec',
-  'defaultMaxClipSeconds'
+  'defaultMaxClipSeconds',
+  'continuityMode',
+  'motionPriority',
+  'generateAudio',
+  'grokVideoVoice',
+  'preserveClipAudio'
 ] as const satisfies ReadonlyArray<keyof AppSettings>
 
 /** Keys that belong to the Photo settings card. */
@@ -243,7 +288,10 @@ export const PHOTO_SETTING_KEYS = [
   'imageEnhance',
   'imageEnhanceMaxEdge',
   'imageEnhanceScale',
-  'imageTimeoutMs'
+  'imageTimeoutMs',
+  'advancedIdentity',
+  'identityCollage',
+  'lookPackId'
 ] as const satisfies ReadonlyArray<keyof AppSettings>
 
 export function pickDefaults<K extends keyof AppSettings>(
@@ -367,6 +415,22 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
   } else if (merged.imageTimeoutMs === 180_000) {
     // Previous factory default — bump so existing installs match Gateway headroom.
     merged.imageTimeoutMs = DEFAULT_SETTINGS.imageTimeoutMs
+  }
+  merged.continuityMode = coerceContinuityMode(merged.continuityMode)
+  merged.motionPriority = coerceMotionPriority(merged.motionPriority)
+  merged.lookPackId = coerceLookPackId(merged.lookPackId)
+  if (typeof merged.advancedIdentity !== 'boolean') {
+    merged.advancedIdentity = DEFAULT_SETTINGS.advancedIdentity
+  }
+  if (typeof merged.identityCollage !== 'boolean') {
+    merged.identityCollage = DEFAULT_SETTINGS.identityCollage
+  }
+  if (typeof merged.generateAudio !== 'boolean') {
+    merged.generateAudio = DEFAULT_SETTINGS.generateAudio
+  }
+  merged.grokVideoVoice = coerceGrokVideoVoice(merged.grokVideoVoice)
+  if (typeof merged.preserveClipAudio !== 'boolean') {
+    merged.preserveClipAudio = DEFAULT_SETTINGS.preserveClipAudio
   }
   if (typeof merged.desktopNotifyEnabled !== 'boolean') {
     merged.desktopNotifyEnabled = DEFAULT_SETTINGS.desktopNotifyEnabled

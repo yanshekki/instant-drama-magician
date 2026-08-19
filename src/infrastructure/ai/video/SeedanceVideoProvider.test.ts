@@ -292,6 +292,64 @@ describe('SeedanceVideoProvider', () => {
     expect(r.jobId).toBe('t2')
     expect(existsSync(out)).toBe(true)
   })
+
+  it('includes last_frame when lastFramePath differs from ref', async () => {
+    const dir = join(tmpdir(), `seed-lf-${Date.now()}`)
+    const { mkdirSync, writeFileSync } = await import('fs')
+    mkdirSync(dir, { recursive: true })
+    const ref = join(dir, 'first.png')
+    const last = join(dir, 'last.png')
+    writeFileSync(ref, Buffer.from([1, 2, 3, 4]))
+    writeFileSync(last, Buffer.from([5, 6, 7, 8]))
+    const out = join(dir, 'o.mp4')
+    const roles: string[] = []
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (init?.method === 'POST') {
+        const body = JSON.parse(String(init.body)) as {
+          content: Array<{ type: string; role?: string }>
+        }
+        for (const c of body.content) {
+          if (c.role) roles.push(c.role)
+        }
+        return new Response(JSON.stringify({ id: 't3' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+      if (u.includes('/tasks/t3')) {
+        return new Response(
+          JSON.stringify({
+            id: 't3',
+            status: 'succeeded',
+            content: { video_url: 'https://cdn.example/v.mp4' }
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      if (u === 'https://cdn.example/v.mp4') {
+        return new Response(Buffer.from('fake-mp4-bytes-long-enough-xxxxx'), {
+          status: 200
+        })
+      }
+      return new Response('x', { status: 404 })
+    })
+    const p = new SeedanceVideoProvider({
+      baseUrl: 'https://ark.example/api/v3',
+      apiKey: 'ark',
+      pollMs: 5,
+      maxRetries: 0,
+      fetchImpl: fetchImpl as never
+    })
+    await p.generate({
+      prompt: 'cat',
+      durationSeconds: 6,
+      outputPath: out,
+      refImagePath: ref,
+      lastFramePath: last
+    })
+    expect(roles).toEqual(expect.arrayContaining(['first_frame', 'last_frame']))
+  })
 })
 
   it('force100 mimeFromPath and download fail', async () => {

@@ -425,7 +425,11 @@ export function TimelinePage(): JSX.Element {
       setStepIndex(payload.index + 1)
       setStepTotal(Math.max(1, payload.total))
       setCurrentStepLabel(
-        timelineProgressStepLabel(payload.step, STEP_I18N, t)
+        timelineProgressLabelWithWait(
+          timelineProgressStepLabel(payload.step, STEP_I18N, t),
+          payload.waitingPrevious,
+          t('videoPrep.chainEndWait')
+        )
       )
       if (payload.entryId && payload.mediaStatus) {
         setLiveClipStatus((prev) => ({
@@ -469,9 +473,14 @@ export function TimelinePage(): JSX.Element {
         return s ? sceneCastLabel(s) : undefined
       },
       prop: (id) => castProps.find((x) => x.id === id)?.name,
-      action: (id) => castActions.find((x) => x.id === id)?.name
+      action: (id) => {
+        const a = castActions.find((x) => x.id === id)
+        if (!a) return undefined
+        const hasPlate = Boolean(a.refImagePath?.trim())
+        return `${a.name} (${hasPlate ? t('timeline.actionBindPlate') : t('timeline.actionBindText')})`
+      }
     })
-  }, [selected, castCharacters, castScenes, castProps, castActions])
+  }, [selected, castCharacters, castScenes, castProps, castActions, t])
 
   const openStoryEditor = timelineBindNavigate(navigate, '/')
 
@@ -2866,6 +2875,17 @@ export function timelineProgressStepLabel(
 ): string {
   const stepKey = stepMap[step]
   return stepKey ? t(stepKey) : step
+}
+
+export function timelineProgressLabelWithWait(
+  base: string,
+  waitingPrevious: boolean | undefined,
+  waitLabel: string
+): string {
+  if (!waitingPrevious) return base
+  const wait = waitLabel.trim()
+  if (!wait) return base
+  return `${base} · ${wait}`
 }
 
 export function timelineShouldReloadOnProgress(

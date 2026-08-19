@@ -59,6 +59,16 @@ Channel 目錄：`src/runtime/channelManifest.ts`（**183** 個唯一 id）。
 | `costumes:appendTryOnStill` | 試穿 still 雙寫入戲服多圖庫 |
 | 時間軸進階 | 片尾 continuity 靜圖；上一段 keyframe 底圖；MediaGen 精修 |
 
+可選生成旗標（預設等於現有行為；**不加新 channel**）：
+
+- `continuityMode`：`storyboard`（預設）或 `chain-end`（上一段片尾勝出；整批順序出片）
+- `motionPriority`：`default` 或 `action`（已綁定動作板一定入 polish；action 模式提到場景／道具之上）
+- `advancedIdentity`／`identityCollage`：自動選取圖庫靜圖做多圖潤飾；可選 FFmpeg 拼貼以配合 edits API 單圖上限
+- `lookPackId`：`follow-asset` · `identity-lock` · `continuous-clip` · `key-art` · `comic`
+- `generateAudio`／`preserveClipAudio`／`grokVideoVoice`：供應商支援時請求原生片段音訊（Seedance `with_audio`；gctoac 1.7+ `voices[]` → `reference_to_video`，不再使用片頭鎖定）。匯出可保留片段音訊。Grok 忽略 `last_frame`；嚴格連續的片尾約束依賴 Seedance。
+
+同一欄位可放在 `mediaGen:extract`／`generateImage` payload 或設定。`channels describe` 會顯示 `argsHint`。
+
 ## 桌面頁面
 
 | 路由 | 頁面 |

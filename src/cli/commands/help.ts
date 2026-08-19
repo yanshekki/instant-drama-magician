@@ -87,6 +87,8 @@ EXAMPLES
   instant-drama --local stories list --json
   instant-drama invoke stories:create '{"title":"Demo"}' --json
   instant-drama --url http://127.0.0.1:8787 --token $IDM_TOKEN channels list
+  instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json
+  instant-drama mediaGen extract --args '[{kind:"timeline-clip",continuityMode:"chain-end"}]' --json
   instant-drama tools schema --openai > /tmp/idm-tools.json
   instant-drama build --json && instant-drama open --json
 

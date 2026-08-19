@@ -59,6 +59,16 @@ Notable media surfaces:
 | `costumes:appendTryOnStill` | Dual-write try-on still into costume multi-gallery |
 | Timeline advanced | End-frame continuity stills; prev keyframe edit base; refine via MediaGen |
 
+Opt-in generation flags (defaults = current behaviour; no new channels):
+
+- `continuityMode`: `storyboard` (default) or `chain-end` (previous end-frame wins; Generate All is sequential)
+- `motionPriority`: `default` or `action` (bound action plates always polish; action mode raises them above scene/prop)
+- `advancedIdentity` / `identityCollage`: auto-pick gallery stills for multi-vision polish; optional FFmpeg collage for the 1-image edits API
+- `lookPackId`: `follow-asset` · `identity-lock` · `continuous-clip` · `key-art` · `comic`
+- `generateAudio` / `preserveClipAudio` / `grokVideoVoice`: native clip audio when the provider supports it (Seedance `with_audio`; gctoac 1.7+ `voices[]` → `reference_to_video`, leaving first-frame lock). Export may keep clip audio. Grok ignores `last_frame`; chain-end last-frame lock is Seedance.
+
+Pass the same fields on `mediaGen:extract` / `generateImage` payloads or Settings. `channels describe` shows `argsHint`.
+
 ## Desktop pages
 
 | Route | Page |

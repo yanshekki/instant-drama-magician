@@ -38,6 +38,8 @@ export type EntityGalleryPanelProps = {
   onIntroVideo?: () => void | Promise<void>
   isCover?: boolean
   onSetAsCover?: () => void
+  isIdentityLock?: boolean
+  onToggleIdentityLock?: () => void
   onRemove?: () => void
 
   emptyIcon?: string
@@ -91,6 +93,8 @@ export function EntityGalleryPanel({
   onIntroVideo,
   isCover,
   onSetAsCover,
+  isIdentityLock,
+  onToggleIdentityLock,
   onRemove,
   emptyIcon = '🖼',
   emptyMessage,
@@ -148,6 +152,8 @@ export function EntityGalleryPanel({
             onIntroVideo={onIntroVideo}
             isCover={isCover}
             onSetAsCover={onSetAsCover}
+            isIdentityLock={isIdentityLock}
+            onToggleIdentityLock={onToggleIdentityLock}
             onRemove={onRemove}
           />
         ) : (

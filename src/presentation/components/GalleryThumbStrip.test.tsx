@@ -14,8 +14,8 @@ vi.mock('./LocalMediaImage', () => ({
 import { GalleryThumbStrip } from './GalleryThumbStrip'
 
 const items = [
-  { id: '1', path: '/a.png', label: 'A' },
-  { id: '2', path: '/b.png', label: 'B' },
+  { id: '1', path: '/a.png', label: 'A', identityLock: true },
+  { id: '2', path: '/b.png', label: 'B', identityLock: true },
   { id: '3', path: '/c.png', label: 'C' }
 ]
 
@@ -52,6 +52,7 @@ describe('GalleryThumbStrip', () => {
       />
     )
     expect(screen.getByText('common.coverBadge')).toBeTruthy()
+    expect(screen.getAllByText('common.identityLockBadge').length).toBe(2)
 
     // Preview click (thumb body) — first draggable cell is item 1
     const cells = document.querySelectorAll('[draggable="true"]')
@@ -117,6 +118,38 @@ describe('GalleryThumbStrip', () => {
     expect(onReorder).toHaveBeenCalledWith('1', '2')
     fireEvent.dragLeave(cellB!)
     fireEvent.dragEnd(cellA!)
+  })
+
+  it('ignores click after reorder drop and swallows setDragImage errors', () => {
+    const onSelect = vi.fn()
+    const onReorder = vi.fn()
+    render(
+      <GalleryThumbStrip
+        items={items}
+        selectedId="1"
+        onSelect={onSelect}
+        onReorder={onReorder}
+      />
+    )
+    const cells = document.querySelectorAll('[draggable="true"]')
+    fireEvent.dragStart(cells[0]!, {
+      dataTransfer: {
+        setData: vi.fn(),
+        setDragImage: () => {
+          throw new Error('no drag image')
+        },
+        effectAllowed: 'move'
+      }
+    })
+    fireEvent.drop(cells[1]!, {
+      dataTransfer: { getData: () => '1' },
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    })
+    expect(onReorder).toHaveBeenCalledWith('1', '2')
+    onSelect.mockClear()
+    fireEvent.click(cells[1]!)
+    expect(onSelect).not.toHaveBeenCalled()
   })
 
   it('single select without multi has no checkboxes', () => {

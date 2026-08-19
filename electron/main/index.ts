@@ -778,6 +778,17 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    // eslint-disable-next-line no-console
+    console.error('[did-fail-load]', code, desc, url)
+  })
+  mainWindow.webContents.on('console-message', (_e, level, message) => {
+    if (level >= 2) {
+      // eslint-disable-next-line no-console
+      console.warn('[renderer]', message)
+    }
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
   })

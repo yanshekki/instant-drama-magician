@@ -4,6 +4,22 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
+const writeClipContinuityStillFromVideo = vi.hoisted(() =>
+  vi.fn(async (opts: {
+    store: { clipContinuityStillPath: (sid: string, eid: string) => string }
+    storyId: string
+    entryId: string
+  }) => {
+    opts.store.clipContinuityStillPath(opts.storyId, opts.entryId)
+    return null as string | null
+  })
+)
+vi.mock('../video/writeClipContinuityStill', () => ({
+  writeClipContinuityStillFromVideo: (
+    ...a: Parameters<typeof writeClipContinuityStillFromVideo>
+  ) => writeClipContinuityStillFromVideo(...a)
+}))
+
 const baseStory = {
   id: 's1',
   title: 'T',
@@ -49,6 +65,15 @@ describe('VideoStep', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'idm-vidstep-'))
+    writeClipContinuityStillFromVideo.mockReset()
+    writeClipContinuityStillFromVideo.mockImplementation(async (opts: {
+      store: { clipContinuityStillPath: (sid: string, eid: string) => string }
+      storyId: string
+      entryId: string
+    }) => {
+      opts.store.clipContinuityStillPath(opts.storyId, opts.entryId)
+      return null
+    })
   })
 
   afterEach(() => {
@@ -134,6 +159,12 @@ describe('VideoStep', () => {
     const prevStill = join(contDir, 'e0.still.png')
     writeFileSync(prevStill, 'png')
 
+    const generateVideo = vi.fn().mockResolvedValue({
+      outputPath: join(dir, 'clip.mp4'),
+      jobId: 'job-1',
+      degraded: false
+    })
+
     const r = await step.run({
       story: {
         ...baseStory,
@@ -173,11 +204,7 @@ describe('VideoStep', () => {
         chat: vi.fn().mockResolvedValue({
           choices: [{ message: { content: 'polished video prompt' } }]
         }),
-        generateVideo: vi.fn().mockResolvedValue({
-          outputPath: join(dir, 'clip.mp4'),
-          jobId: 'job-1',
-          degraded: false
-        })
+        generateVideo
       },
       media: {
         clipOutputPath: (storyId: string, entryId: string) =>
@@ -189,6 +216,8 @@ describe('VideoStep', () => {
       onClipProgress,
       aspectRatio: '16:9',
       videoConcurrency: 2,
+      generateAudio: true,
+      grokVideoVoice: 'eve',
       artifacts: {}
     } as never)
 
@@ -197,6 +226,45 @@ describe('VideoStep', () => {
     expect(onClipProgress).toHaveBeenCalled()
     expect(listTimeline).toHaveBeenCalled()
     expect(r.output).toMatch(/ready/)
+    expect(generateVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generateAudio: true,
+        voices: expect.arrayContaining(['eve'])
+      })
+    )
+  })
+
+  it('chain-end forces sequential concurrency in output', async () => {
+    const step = new VideoStep()
+    const r = await step.run({
+      story: {
+        ...baseStory,
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 6,
+            characterId: 'c1',
+            mediaStatus: 'EMPTY'
+          }
+        ]
+      },
+      ai: {
+        chat: vi.fn().mockRejectedValue(new Error('no polish')),
+        generateVideo: vi.fn().mockResolvedValue({
+          outputPath: join(dir, 'c.mp4')
+        })
+      },
+      media: {
+        clipOutputPath: () => join(dir, 'out.mp4')
+      },
+      persistence: { updateEntryMedia: vi.fn() },
+      videoConcurrency: 4,
+      continuityMode: 'chain-end',
+      artifacts: {}
+    } as never)
+    expect(r.output).toMatch(/concurrency=1/)
   })
 
   it('marks FAILED on generate error and partial success', async () => {
@@ -440,5 +508,111 @@ describe('VideoStep', () => {
     ).rejects.toThrow(/pool exploded/)
     vi.doUnmock('../../infrastructure/ai/video/httpUtils')
     vi.resetModules()
+  })
+
+  it('audits voicesDropped, chain-end wait, and missing end-frame', async () => {
+    const step = new VideoStep()
+    const onAudit = vi.fn()
+    const onClipProgress = vi.fn()
+    const generateVideo = vi.fn().mockResolvedValue({
+      outputPath: join(dir, 'clip.mp4'),
+      jobId: 'j2',
+      voicesDropped: true
+    })
+    const r = await step.run({
+      story: {
+        ...baseStory,
+        timeline: [
+          {
+            id: 'e0',
+            order: 0,
+            startTime: 0,
+            endTime: 6,
+            characterId: 'c1',
+            dialogue: 'a',
+            mediaStatus: 'EMPTY'
+          },
+          {
+            id: 'e1',
+            order: 1,
+            startTime: 6,
+            endTime: 12,
+            characterId: 'c1',
+            dialogue: 'b',
+            mediaStatus: 'EMPTY'
+          }
+        ]
+      },
+      ai: {
+        chat: vi.fn().mockResolvedValue({
+          choices: [{ message: { content: 'p' } }]
+        }),
+        generateVideo,
+        generateImage: vi.fn(async () => ({
+          b64: Buffer.from('STILL').toString('base64')
+        })),
+        editImage: vi.fn()
+      },
+      media: {
+        clipOutputPath: () => join(dir, 'out.mp4'),
+        clipContinuityStillPath: (_s: string, entryId: string) =>
+          join(dir, `${entryId}.png`)
+      },
+      persistence: { updateEntryMedia: vi.fn() },
+      continuityMode: 'chain-end',
+      generateAudio: true,
+      grokVideoVoice: 'ara',
+      onAudit,
+      onClipProgress,
+      artifacts: {}
+    } as never)
+    expect(r.success).toBe(true)
+    expect(onAudit).toHaveBeenCalled()
+    expect(
+      onClipProgress.mock.calls.some(
+        (c) => (c[0] as { waitingPrevious?: boolean }).waitingPrevious === true
+      )
+    ).toBe(true)
+    expect(generateVideo).toHaveBeenCalledWith(
+      expect.objectContaining({ voices: expect.any(Array) })
+    )
+  })
+
+  it('continuity write throw is best-effort', async () => {
+    writeClipContinuityStillFromVideo.mockRejectedValueOnce(new Error('ff'))
+    const step = new VideoStep()
+    const generateVideo = vi.fn().mockResolvedValue({
+      outputPath: join(dir, 'clip.mp4')
+    })
+    const r = await step.run({
+      story: {
+        ...baseStory,
+        timeline: [
+          {
+            id: 'e1',
+            order: 0,
+            startTime: 0,
+            endTime: 6,
+            characterId: 'c1',
+            dialogue: 'hi',
+            mediaStatus: 'EMPTY'
+          }
+        ]
+      },
+      ai: {
+        chat: vi.fn().mockResolvedValue({
+          choices: [{ message: { content: 'p' } }]
+        }),
+        generateVideo
+      },
+      media: {
+        clipOutputPath: () => join(dir, 'out.mp4'),
+        clipContinuityStillPath: (_s: string, entryId: string) =>
+          join(dir, `${entryId}.png`)
+      },
+      persistence: { updateEntryMedia: vi.fn() },
+      artifacts: {}
+    } as never)
+    expect(r.success).toBe(true)
   })
 })

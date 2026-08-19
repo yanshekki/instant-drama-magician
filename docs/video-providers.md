@@ -27,7 +27,7 @@ Settings live in `settings.json` under userData / `IDM_DATA_DIR`. Types: `src/ty
 2. Poll `GET {baseUrl}/videos/{id}` until `completed`  
 3. Download `GET {baseUrl}/videos/{id}/content`  
 
-Optional: `aspect_ratio` (default `16:9`), `source_document_id` after uploading a character ref. See [grok-gateway.md](./grok-gateway.md).
+Optional: `aspect_ratio` (default `16:9`), `source_document_id` after uploading a character ref. With Settings `generateAudio`, **gctoac 1.7.4+** also sends `voices[]` (max 3: `ara` `eve` `leo` `rex` `sal` `mio`) and switches the job to **`reference_to_video`** — that **leaves first-frame `image_to_video` lock**. Chain-end `last_frame` remains Seedance-only (Grok ignores `lastFramePath`). Old gateways that reject `voices` get one retry without them (Activity Log: voices dropped). IDM does **not** call `/v1/audio/speech` (still mock). See [grok-gateway.md](./grok-gateway.md).
 
 ### Seedance (Volcengine Ark / BytePlus)
 
@@ -67,10 +67,16 @@ Default Seedream model example: `doubao-seedream-4-0`.
 | `videoPollMs` | 2000 | Job poll interval |
 | `videoTimeoutSec` | 300 | Per-job timeout |
 | `videoMaxRetries` | 3 | Retries |
-| `videoConcurrency` | 1 | Parallel video jobs |
+| `videoConcurrency` | 1 | Parallel video jobs (`chain-end` continuity forces 1) |
 | `aspectRatio` | `16:9` | Aspect |
+| `continuityMode` | `storyboard` | `chain-end` waits for previous end-frame |
+| `motionPriority` | `default` | `action` raises bound motion boards |
+| `generateAudio` | false | Seedance `--with_audio` / `generate_audio`; gctoac 1.7+ `voices[]` → `reference_to_video` |
+| `grokVideoVoice` | `ara` | Default Grok preset voice when native audio is on |
+| `preserveClipAudio` | false | Export keeps clip audio instead of `-an` |
+| `lookPackId` | `follow-asset` | Built-in recipe snapshot |
 
-Also: `burnSubtitles`, `ttsEnabled`, `bgmPath`, `duckRatio`, transition `cut`|`fade`.
+Also: `burnSubtitles`, `ttsEnabled`, `bgmPath`, `duckRatio`, transition `cut`|`fade`, `advancedIdentity`, `identityCollage`.
 
 ## Diagnostics
 

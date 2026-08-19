@@ -1,4 +1,10 @@
 import type { Action, Character, Prop, Scene, TimelineEntry } from '../types/domain'
+import {
+  coerceContinuityMode,
+  coerceMotionPriority,
+  type ContinuityMode,
+  type MotionPriority
+} from './generationModes'
 import { PromptCatalog } from '../prompts'
 import {
   beatContentToClipPromptBlock,
@@ -80,6 +86,10 @@ export function resolveTimelineStillRefs(options: {
    * merged into polish list — never overrides prev for timeline edit base.
    */
   payloadSourcePath?: string | null
+  /** Extra action plates (multi-bind) always merged into polish. */
+  extraActionPaths?: Array<string | null | undefined>
+  motionPriority?: MotionPriority | string | null
+  continuityMode?: ContinuityMode | string | null
   /** Max polish images (default 6). */
   maxPolishPaths?: number
   /** pathExists; default always true (caller filters). */
@@ -88,8 +98,13 @@ export function resolveTimelineStillRefs(options: {
   editBase: string | null
   editSource: ClipRefSource | 'payload' | null
   polishPaths: string[]
+  actionInPolish: boolean
+  motionPriority: MotionPriority
+  continuityMode: ContinuityMode
 } {
   const exists = options.pathExists ?? (() => true)
+  const motionPriority = coerceMotionPriority(options.motionPriority)
+  const continuityMode = coerceContinuityMode(options.continuityMode)
   const pick = (p: string | null | undefined): string | null => {
     const t = p?.trim() || null
     return t && exists(t) ? t : null
@@ -103,16 +118,23 @@ export function resolveTimelineStillRefs(options: {
   const scene = pick(options.scene?.refImagePath)
   const prop = pick(options.prop?.refImagePath)
   const action = pick(options.action?.refImagePath)
+  const extraActions = (options.extraActionPaths ?? [])
+    .map((p) => pick(p))
+    .filter((p): p is string => Boolean(p))
 
   // Timeline rule: prev continuity always wins as edit base when present.
   let editBase: string | null = null
   let editSource: ClipRefSource | 'payload' | null = null
+  const preferAction = motionPriority === 'action'
   if (prev) {
     editBase = prev
     editSource = 'prev-clip'
   } else if (cast) {
     editBase = cast
     editSource = 'cast'
+  } else if (preferAction && action) {
+    editBase = action
+    editSource = 'action'
   } else if (payload) {
     editBase = payload
     editSource = 'payload'
@@ -131,7 +153,9 @@ export function resolveTimelineStillRefs(options: {
   }
 
   const max = Math.max(1, options.maxPolishPaths ?? 6)
-  const polishOrdered = [prev, cast, payload, char, scene, prop, action, editBase]
+  const polishOrdered = preferAction
+    ? [prev, action, ...extraActions, cast, payload, char, scene, prop, editBase]
+    : [prev, cast, payload, char, scene, prop, action, ...extraActions, editBase]
   const polishPaths: string[] = []
   const seen = new Set<string>()
   for (const p of polishOrdered) {
@@ -140,7 +164,16 @@ export function resolveTimelineStillRefs(options: {
     polishPaths.push(p)
     if (polishPaths.length >= max) break
   }
-  return { editBase, editSource, polishPaths }
+  return {
+    editBase,
+    editSource,
+    polishPaths,
+    actionInPolish: Boolean(action || extraActions.length > 0) && polishPaths.some(
+      (p) => p === action || extraActions.includes(p)
+    ),
+    motionPriority,
+    continuityMode
+  }
 }
 
 /** Ordered previous entry (by order), or null if first clip. */

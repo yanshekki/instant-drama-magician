@@ -37,6 +37,9 @@ npm run test:ci          # CI 入口（coverage）
 | 分鏡連續靜圖標題 | `mediaGenSectionTitleI18n.test.ts`、`timelineMediaGen.test.ts`、`MediaGenPrepModal.test.tsx` |
 | 確認出片步驟 | `mediaGen.test.ts`、`videoPrep.test.ts` |
 | 配方已選卡片 | `PromptTemplateContext.test.tsx` |
+| 身份鎖定＋多圖填寫 | `advancedIdentity.test.ts`、`identityCollageLayout.test.ts`、`characters/aiFill.test.ts`、`profileFillMissing.test.ts` |
+| 嚴格連續片尾＋無介面靜圖 | `clipContinuityContext.test.ts`、`videoPrep/confirm.test.ts`、`ensureTimelineClipStill.test.ts`、`VideoStep.test.ts` |
+| gctoac 片段聲線 | `grokVideoVoices.test.ts`、`GrokHttpVideoProvider.test.ts`、`settings.test.ts` |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \

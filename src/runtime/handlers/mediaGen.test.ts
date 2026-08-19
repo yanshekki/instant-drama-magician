@@ -9,6 +9,18 @@ import {
 import { registerMediagenHandlers } from './mediaGen'
 import { AppError } from '../../types/errors'
 
+const stitchIdentityCollage = vi.hoisted(() =>
+  vi.fn((opts: { imagePaths: string[]; outputPath: string }) => ({
+    stitched: false as boolean,
+    path: opts.imagePaths[0] || opts.outputPath,
+    reason: 'need-two'
+  }))
+)
+vi.mock('../../infrastructure/media/identityCollage', () => ({
+  stitchIdentityCollage: (opts: { imagePaths: string[]; outputPath: string }) =>
+    stitchIdentityCollage(opts)
+}))
+
 describe('registerMediagenHandlers', () => {
   let dir: string | undefined
   afterEach(() => {
@@ -16,6 +28,15 @@ describe('registerMediagenHandlers', () => {
       rmSync(dir, { recursive: true, force: true })
       dir = undefined
     }
+    stitchIdentityCollage.mockReset()
+    stitchIdentityCollage.mockImplementation((opts: {
+      imagePaths: string[]
+      outputPath: string
+    }) => ({
+      stitched: false,
+      path: opts.imagePaths[0] || opts.outputPath,
+      reason: 'need-two'
+    }))
   })
 
   function mkImg(name = 'ref.png'): string {
@@ -2609,6 +2630,188 @@ describe('registerMediagenHandlers', () => {
       'pg1',
       expect.objectContaining({ panelLayout: 'yonkoma' })
     )
+  })
+
+  it('generateImage stitches identity collage then edits', async () => {
+    const imgA = mkImg('id-a.png')
+    const imgB = mkImg('id-b.png')
+    stitchIdentityCollage.mockImplementation((opts: {
+      imagePaths: string[]
+      outputPath: string
+    }) => {
+      writeFileSync(opts.outputPath, 'collage')
+      return { stitched: true, path: opts.outputPath }
+    })
+    const { h, editImage, generateImage } = baseCtx({
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Aria',
+            hardRules: null,
+            artStyle: 'photo_cinematic'
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
+          }))
+        }) as never
+    })
+    const prompt =
+      'Character reference sheet with exact layout and identity lock for drama.'
+    const r = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'character-sheet',
+      characterId: 'c1',
+      polishedPrompt: prompt,
+      identityCollage: true,
+      useIdentityEdit: true,
+      galleryIdentityPaths: [imgA, imgB]
+    })) as { usedEdit: boolean; path: string }
+    expect(stitchIdentityCollage).toHaveBeenCalled()
+    expect(r.usedEdit).toBe(true)
+    expect(editImage).toHaveBeenCalled()
+    expect(generateImage).not.toHaveBeenCalled()
+  })
+
+  it('generateImage collage stitch failure keeps single edit base', async () => {
+    const imgA = mkImg('id-a2.png')
+    const imgB = mkImg('id-b2.png')
+    stitchIdentityCollage.mockImplementation(() => {
+      throw new Error('ffmpeg collage fail')
+    })
+    const { h, editImage } = baseCtx({
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Aria',
+            hardRules: null,
+            artStyle: 'photo_cinematic'
+          })),
+          update: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
+          }))
+        }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'character-sheet',
+      characterId: 'c1',
+      polishedPrompt:
+        'Character reference sheet with exact layout and identity lock for drama.',
+      identityCollage: true,
+      useIdentityEdit: true,
+      editBasePath: imgA,
+      galleryIdentityPaths: [imgA, imgB]
+    })) as { usedEdit: boolean }
+    expect(r.usedEdit).toBe(true)
+    expect(editImage).toHaveBeenCalledWith(
+      expect.objectContaining({ imagePath: imgA })
+    )
+  })
+
+  it('generateImage key-art without storyId writes tmp; comic persist catch', async () => {
+    const updateShot = vi.fn(async () => ({ id: 'sh9' }))
+    const updatePage = vi.fn(async (_id: string, data: unknown) => {
+      if (data && typeof data === 'object' && 'imagePath' in data) {
+        throw new Error('persist fail')
+      }
+      return data
+    })
+    const { h, generateImage } = baseCtx({
+      keyArt: () =>
+        ({
+          getShot: vi.fn(async () => ({
+            id: 'sh9',
+            keyArtId: 'ka9',
+            shotType: 'still',
+            makeMethod: 'fresh',
+            pageFormat: 'wide',
+            artStyle: null,
+            hardRules: null
+          })),
+          getById: vi.fn(async () => ({
+            id: 'ka9',
+            storyId: '',
+            title: 'Untitled',
+            artStyle: null,
+            hardRules: null,
+            pageFormat: 'wide'
+          })),
+          updateShot
+        }) as never,
+      comics: () =>
+        ({
+          getPage: vi.fn(async () => ({
+            id: 'pg9',
+            comicId: 'cb9',
+            panelLayout: 'grid-2x2',
+            artStyle: null,
+            hardRules: null,
+            pageFormat: 'wide'
+          })),
+          getById: vi.fn(async () => ({
+            id: 'cb9',
+            storyId: 's1',
+            artStyle: null,
+            hardRules: null,
+            pageFormat: 'wide'
+          })),
+          updatePage
+        }) as never
+    })
+    const ka = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'key-art',
+      pageId: 'sh9',
+      lookPackId: 'key-art',
+      polishedPrompt: 'One finished wide production still, rain night alley.'
+    })) as { path: string }
+    expect(ka.path).toMatch(/keyart_/)
+    expect(generateImage).toHaveBeenCalled()
+    expect(updateShot).toHaveBeenCalled()
+
+    await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'comic-page',
+      pageId: 'pg9',
+      lookPackId: 'comic',
+      polishedPrompt: 'ONE finished comic PAGE with EXACTLY 4 panels in rain.'
+    })
+    expect(updatePage).toHaveBeenCalled()
+  })
+
+  it('generateImage comic-page without storyId uses tmp path', async () => {
+    const { h, generateImage } = baseCtx({
+      comics: () =>
+        ({
+          getPage: vi.fn(async () => ({
+            id: 'pg0',
+            comicId: 'cb0',
+            panelLayout: 'grid-2x2',
+            artStyle: null,
+            hardRules: null,
+            pageFormat: 'wide'
+          })),
+          getById: vi.fn(async () => ({
+            id: 'cb0',
+            storyId: '',
+            artStyle: null,
+            hardRules: null,
+            pageFormat: 'wide'
+          })),
+          updatePage: vi.fn(async (id: string, data: unknown) => ({
+            id,
+            ...(data as object)
+          }))
+        }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
+      kind: 'comic-page',
+      pageId: 'pg0',
+      persist: false,
+      polishedPrompt: 'ONE finished comic PAGE with EXACTLY 4 panels in rain.'
+    })) as { path: string }
+    expect(r.path).toMatch(/comic_/)
+    expect(generateImage).toHaveBeenCalled()
   })
 })
 

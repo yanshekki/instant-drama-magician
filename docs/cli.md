@@ -139,13 +139,16 @@ Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 | Channel | Purpose | Example |
 |---------|---------|---------|
 | generate / AI fill | Optional `promptTemplateId` (desktop recipe picker; no silent system defaults) | Desktop: pick a recipe before generate. CLI: pass `promptTemplateId` on generate / fill / MediaGen payloads |
-| `mediaGen:extract` | Build material sections (library + `timeline-still` / `timeline-clip`) | `instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"S","entryId":"E"}]' --json` |
+| `mediaGen:extract` | Build material sections (library + `timeline-still` / `timeline-clip`). Optional: `continuityMode`, `motionPriority`, `advancedIdentity`, `identityCollage`, `lookPackId` | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","continuityMode":"chain-end","motionPriority":"action"}]' --json` |
 | `mediaGen:polish` | Multi-vision prompt polish | `instant-drama mediaGen polish --args '[{...}]' --json` |
 | `mediaGen:generateImage` | One still; timeline kinds write continuity path | `instant-drama mediaGen generate-image --args '[{...}]' --json` |
 | `costumes:appendTryOnStill` | Append try-on still to costume multi-gallery | `instant-drama costumes append-try-on-still --args '[{"costumeId":"C","sourcePath":"/a.png"}]' --json` |
 | `costumes:generateDressed` | Generate dressed still | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
 | `videoPrep:create` | Prep still / open clip flow | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
-| `videoPrep:confirm` | Confirm video from still | `instant-drama videoPrep confirm --args '[{...}]' --json` |
+| `videoPrep:confirm` | Confirm video from still. Timeline-clip builds Seedance `lastFramePath` from chain-end continuity (Grok ignores it). Native audio follows Settings `generateAudio` / `grokVideoVoice`. | `instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillPath":"/still.png","professionalPrompt":"…"}]' --json` |
+| `settings:set` | Merge settings; `generateAudio` + `grokVideoVoice` (`ara` `eve` `leo` `rex` `sal` `mio`) | `instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json` |
+| `characters:aiFill` | Optional `referenceImagePaths` (merged with `referenceImagePath`; multi-vision cap) | `instant-drama characters ai-fill --args '[{"idea":"…","referenceImagePaths":["/a.png","/b.png"]}]' --json` |
+| `generation:run` | Headless story generate. Ensures timeline-clip stills then video. GUI **Start generate** is interactive (`videoPrep`) and does **not** run this path. | `instant-drama generation run STORY_ID --json` |
 | `comics:get` | Get or create the comic book for a story | `instant-drama comics get --args '["S"]' --json` |
 | `comics:addPage` / `updatePage` | Add or edit a page (layout, format, slots) | `instant-drama comics add-page --args '[{"storyId":"S","panelLayout":"grid-2x2"}]' --json` |
 | `comics:deletePageVideo` / `setPageVideoPrimary` | Versioned page videos | `instant-drama comics delete-page-video --args '["PAGE","VID"]' --json` |
@@ -190,6 +193,8 @@ npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
 npm run instant-drama -- channels describe scenes:aiFill --json
+npm run instant-drama -- channels describe characters:aiFill --json
+npm run instant-drama -- channels describe videoPrep:confirm --json
 npm run instant-drama -- help
 ```
 

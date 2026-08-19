@@ -237,6 +237,7 @@ export class FfmpegService {
     aspectRatio?: string
     transitionMode?: TransitionMode
     transitionSec?: number
+    preserveClipAudio?: boolean
   }): Promise<string> {
     await this.ensureAvailable()
     mkdirSync(options.outDir, { recursive: true })
@@ -263,7 +264,13 @@ export class FfmpegService {
       const duration = durations[i]
       if (clip.mediaPath && existsSync(clip.mediaPath)) {
         const norm = join(options.outDir, `_fnorm_${i}_${Date.now()}.mp4`)
-        await this.normalizeClip(clip.mediaPath, norm, size, duration)
+        await this.normalizeClip(
+          clip.mediaPath,
+          norm,
+          size,
+          duration,
+          options.preserveClipAudio === true
+        )
         segmentPaths.push(norm)
       } else {
         const seg = join(options.outDir, `_ffallback_${i}_${Date.now()}.mp4`)
@@ -304,7 +311,10 @@ export class FfmpegService {
     )
     const hasBgm = Boolean(options.bgmPath && existsSync(options.bgmPath))
     const needsAudio =
-      hasBgm || dialogue.length > 0 || options.includeSilentAudio !== false
+      hasBgm ||
+      dialogue.length > 0 ||
+      options.includeSilentAudio !== false ||
+      options.preserveClipAudio === true
     const vol = Math.min(1, Math.max(0, options.bgmVolume ?? 0.25))
     const dVol = Math.min(1, Math.max(0, options.dialogueVolume ?? 1))
     const duckRatio = Math.min(1, Math.max(0, options.duckRatio ?? 0.35))
@@ -343,26 +353,40 @@ export class FfmpegService {
     )
 
     if (needsAudio) {
-      const filter = buildAudioMixFilter({
-        bgmVolume: hasBgm ? vol : 0,
-        dialogueVolume: dVol,
-        dialogueStartsMs: dialogue.map((d) => secondsToMs(d.startSeconds)),
-        duckWindows: hasBgm && dialogue.length > 0 ? duckWindows : [],
-        duckRatio
-      })
-      args.push(
-        '-filter_complex',
-        filter,
-        '-map',
-        '0:v',
-        '-map',
-        '[a]',
-        '-c:a',
-        'aac',
-        '-b:a',
-        '192k',
-        '-shortest'
-      )
+      if (options.preserveClipAudio === true && !hasBgm && dialogue.length === 0) {
+        args.push(
+          '-map',
+          '0:v',
+          '-map',
+          '0:a?',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+          '-shortest'
+        )
+      } else {
+        const filter = buildAudioMixFilter({
+          bgmVolume: hasBgm ? vol : 0,
+          dialogueVolume: dVol,
+          dialogueStartsMs: dialogue.map((d) => secondsToMs(d.startSeconds)),
+          duckWindows: hasBgm && dialogue.length > 0 ? duckWindows : [],
+          duckRatio
+        })
+        args.push(
+          '-filter_complex',
+          filter,
+          '-map',
+          '0:v',
+          '-map',
+          '[a]',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+          '-shortest'
+        )
+      }
     } else {
       args.push('-an')
     }
@@ -381,9 +405,10 @@ export class FfmpegService {
     inputPath: string,
     outputPath: string,
     size: { width: number; height: number },
-    durationSeconds: number
+    durationSeconds: number,
+    keepAudio = false
   ): Promise<void> {
-    await this.run([
+    const args = [
       this.ffmpegBin,
       '-y',
       '-i',
@@ -395,10 +420,15 @@ export class FfmpegService {
       '-c:v',
       'libx264',
       '-pix_fmt',
-      'yuv420p',
-      '-an',
-      outputPath
-    ])
+      'yuv420p'
+    ]
+    if (keepAudio) {
+      args.push('-map', '0:v:0', '-map', '0:a?', '-c:a', 'aac', '-b:a', '192k')
+    } else {
+      args.push('-an')
+    }
+    args.push(outputPath)
+    await this.run(args)
     if (!existsSync(outputPath)) {
       throw new AppError('FFMPEG_FAILED', 'errors.ffmpegNormalizeFailed')
     }

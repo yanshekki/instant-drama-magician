@@ -103,6 +103,11 @@ import {
   resolveIdentityPaths,
   toggleGallerySelection
 } from '../../domain/imageGenConfirm'
+import {
+  galleryHasPersistedIdentityLock,
+  markGalleryIdentityLock,
+  toggleGalleryIdentityLock
+} from '../../domain/advancedIdentity'
 import type { ImageGenConfirmPayload } from '../components/ImageGenConfirmModal'
 import {
   buildCharacterSheetEditPrompt,
@@ -545,6 +550,8 @@ export function CharactersPage(): JSX.Element {
     setForm(emptyForm())
     setSelectedImageId(null)
     setAiIdea('')
+    setUseIdentityRef(false)
+    setUseAdvancedIdentity(false)
   }
 
   const openCreate = (): void => {
@@ -559,6 +566,8 @@ export function CharactersPage(): JSX.Element {
     setNewCostumeName('')
     setEditorPanel('profile')
     setEditorOpen(true)
+    setUseIdentityRef(false)
+    setUseAdvancedIdentity(false)
   }
 
   const loadSoulPreview = useCallback(
@@ -632,6 +641,9 @@ export function CharactersPage(): JSX.Element {
     setNewCostumeName('')
     setEditorPanel(gallery.length > 0 ? 'refs' : 'profile')
     setEditorOpen(true)
+    const persistIdentity = galleryHasPersistedIdentityLock(gallery)
+    setUseAdvancedIdentity(persistIdentity)
+    if (persistIdentity) setUseIdentityRef(true)
     // Load full soul.md for user to read
     void loadSoulPreview({
       soulMdPath: c.soulMdPath,
@@ -853,13 +865,31 @@ export function CharactersPage(): JSX.Element {
             }
             if (signal.cancelled) return
             setProgress(35, 'merge')
+            const { pickAdvancedIdentityRefs } = await import(
+              '../../domain/advancedIdentity'
+            )
+            const fillPaths =
+              useAdvancedIdentity || selectedPathsForIdentity.length > 1
+                ? pickAdvancedIdentityRefs(form.gallery, {
+                    selectedPaths:
+                      selectedPathsForIdentity.length > 0
+                        ? selectedPathsForIdentity
+                        : ref
+                          ? [ref]
+                          : []
+                  })
+                : hasImage && ref
+                  ? [ref]
+                  : []
             const r = await getApi().characters.aiFill({
               idea: idea || undefined,
               storyId: (opts?.storyId || activeStoryId) ?? undefined,
               locale,
               existingDraft: hasDraft ? (snap as never) : undefined,
               soulContent: soul || undefined,
-              referenceImagePath: hasImage ? ref : null,
+              referenceImagePath: fillPaths[0] ?? null,
+              referenceImagePaths:
+                fillPaths.length > 1 ? fillPaths : undefined,
               promptTemplateId,
               suggestFromStory: Boolean(opts?.suggestFromStory),
               segmentKeys: opts?.suggestFromStory ? opts.segmentKeys : undefined
@@ -1049,6 +1079,7 @@ export function CharactersPage(): JSX.Element {
 
   /** Identity lock on selected gallery still(s). */
   const [useIdentityRef, setUseIdentityRef] = useState(false)
+  const [useAdvancedIdentity, setUseAdvancedIdentity] = useState(false)
 
   const selectedPathsForIdentity = useMemo(() => {
     const ids = charactersSelectedIds(selectedImageIds, selectedImageId)
@@ -1077,12 +1108,19 @@ export function CharactersPage(): JSX.Element {
       }
       const wantIdentity = charactersResolveWantIdentity(
         opts?.useIdentityEdit,
-        useIdentityRef
+        useIdentityRef || useAdvancedIdentity
       )
-      const paths = charactersGalleryPathsFromOpts(
+      const selected = charactersGalleryPathsFromOpts(
         opts?.referenceImagePath,
         selectedPathsForIdentity
       )
+      const { pickAdvancedIdentityRefs } = await import(
+        '../../domain/advancedIdentity'
+      )
+      const paths =
+        useAdvancedIdentity || wantIdentity
+          ? pickAdvancedIdentityRefs(form.gallery, { selectedPaths: selected })
+          : selected
       startMediaGen({
         kind: 'character-sheet',
         characterId: id,
@@ -1090,7 +1128,9 @@ export function CharactersPage(): JSX.Element {
         artStyle: opts?.artStyle ?? form.artStyle,
         sheetVariant: sheetVariant,
         galleryIdentityPaths: paths,
-        preferIdentityEdit: wantIdentity
+        preferIdentityEdit: wantIdentity,
+        advancedIdentity: useAdvancedIdentity || wantIdentity,
+        identityCollage: useAdvancedIdentity
       })
     } catch (e) {
       const msg = formatUserError(e, t)
@@ -1208,6 +1248,18 @@ export function CharactersPage(): JSX.Element {
   const handleSetCover = (path: string): void => {
     setForm((f) => ({ ...f, coverPath: path }))
     toast.success(t('common.coverSet'))
+  }
+
+  const handleToggleIdentityLock = (path: string): void => {
+    const next = toggleGalleryIdentityLock(form.gallery, path)
+    setForm((f) => ({
+      ...f,
+      gallery: toggleGalleryIdentityLock(f.gallery, path)
+    }))
+    if (galleryHasPersistedIdentityLock(next)) {
+      setUseAdvancedIdentity(true)
+      setUseIdentityRef(true)
+    }
   }
 
   const loadHubPage = useCallback(
@@ -1760,6 +1812,12 @@ export function CharactersPage(): JSX.Element {
                 onSetAsCover={
                   selectedImage
                     ? () => handleSetCover(selectedImage.path)
+                    : undefined
+                }
+                isIdentityLock={Boolean(selectedImage?.identityLock)}
+                onToggleIdentityLock={
+                  selectedImage
+                    ? () => handleToggleIdentityLock(selectedImage.path)
                     : undefined
                 }
                 onRemove={
@@ -2351,6 +2409,39 @@ export function CharactersPage(): JSX.Element {
                     </span>
                     <span className="mt-0.5 block text-[11px] text-ink-500">
                       {t('common.useIdentityRefHint')}
+                    </span>
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-ink-800 bg-ink-900/40 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 rounded border-ink-600"
+                    checked={useAdvancedIdentity}
+                    onChange={(e) => {
+                      const on = e.target.checked
+                      setUseAdvancedIdentity(on)
+                      if (on) {
+                        setUseIdentityRef(true)
+                        setForm((f) => ({
+                          ...f,
+                          gallery: markGalleryIdentityLock(
+                            f.gallery,
+                            charactersIdentityMarkPaths(
+                              selectedPathsForIdentity,
+                              selectedImage?.path
+                            )
+                          )
+                        }))
+                      }
+                    }}
+                  />
+                  <span className="text-[12px] leading-snug text-ink-300">
+                    <span className="font-medium text-ink-100">
+                      {t('common.advancedIdentity')}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-ink-500">
+                      {t('common.advancedIdentityHint')}
                     </span>
                   </span>
                 </label>
@@ -2991,6 +3082,17 @@ export function charactersResolveWantIdentity(
   useIdentityRef: boolean
 ): boolean {
   return opts !== undefined ? opts === true : useIdentityRef
+}
+
+/** Paths to pin when enabling advanced identity: selection, else current preview. */
+export function charactersIdentityMarkPaths(
+  selectedPaths: string[],
+  previewPath?: string | null
+): string[] {
+  const picked = selectedPaths.map((p) => p.trim()).filter(Boolean)
+  if (picked.length > 0) return picked
+  const one = previewPath?.trim()
+  return one ? [one] : []
 }
 
 export function charactersForcePureLayout(variantDef: {

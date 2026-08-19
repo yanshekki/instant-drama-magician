@@ -2,6 +2,25 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
+const writeClipContinuityStillFromVideo = vi.hoisted(() =>
+  vi.fn(async () => 'ok.png' as string | null)
+)
+const ensureTimelineClipStill = vi.hoisted(() =>
+  vi.fn(async (opts: { outputPath: string }) => {
+    writeFileSync(opts.outputPath, 'png')
+    return { stillPath: opts.outputPath, skipped: false, polished: true }
+  })
+)
+vi.mock('../video/writeClipContinuityStill', () => ({
+  writeClipContinuityStillFromVideo: (
+    ...a: Parameters<typeof writeClipContinuityStillFromVideo>
+  ) => writeClipContinuityStillFromVideo(...a)
+}))
+vi.mock('../video/ensureTimelineClipStill', () => ({
+  ensureTimelineClipStill: (...a: Parameters<typeof ensureTimelineClipStill>) =>
+    ensureTimelineClipStill(...a)
+}))
+
 import {
   GenerationService,
   safeAsciiExportName,
@@ -113,6 +132,14 @@ describe('GenerationService', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'idm-gen-'))
+    writeClipContinuityStillFromVideo.mockReset()
+    writeClipContinuityStillFromVideo.mockResolvedValue('ok.png')
+    ensureTimelineClipStill.mockReset()
+    ensureTimelineClipStill.mockImplementation(async (opts: { outputPath: string }) => {
+      mkdirSync(join(opts.outputPath, '..'), { recursive: true })
+      writeFileSync(opts.outputPath, 'png')
+      return { stillPath: opts.outputPath, skipped: false, polished: true }
+    })
   })
 
   afterEach(() => {
@@ -123,6 +150,7 @@ describe('GenerationService', () => {
     prisma?: ReturnType<typeof createMockPrisma>
     ai?: Record<string, unknown>
     ffmpeg?: { ensureAvailable: ReturnType<typeof vi.fn> }
+    settings?: Record<string, unknown>
   }) {
     const prisma = opts?.prisma ?? createMockPrisma()
     const ai = {
@@ -145,7 +173,8 @@ describe('GenerationService', () => {
       settings: {
         aspectRatio: '16:9',
         imageSizeWide: '1792x1024',
-        videoConcurrency: 1
+        videoConcurrency: 1,
+        ...opts?.settings
       } as never,
       ffmpeg: ffmpeg as never
     })
@@ -2108,6 +2137,157 @@ describe('GenerationService', () => {
     } catch {
       /* polish may vary */
     }
+  })
+
+  it('generateClip audits voicesDropped, missing end-frame, and continuity miss', async () => {
+    const prisma = createMockPrisma()
+    mkdirSync(join(dir, 'stories', 's1'), { recursive: true })
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({
+        timeline: [
+          {
+            id: 'e0',
+            order: 0,
+            startTime: 0,
+            endTime: 6,
+            characterId: 'c1',
+            sceneId: 'sc1',
+            dialogue: 'first',
+            mediaStatus: 'READY'
+          },
+          {
+            id: 'e1',
+            order: 1,
+            startTime: 6,
+            endTime: 12,
+            characterId: 'c1',
+            sceneId: 'sc1',
+            characterIds: JSON.stringify(['c1']),
+            sceneIds: JSON.stringify(['sc1']),
+            dialogue: 'second',
+            mediaStatus: 'EMPTY'
+          }
+        ]
+      })
+    )
+    ;(prisma.timelineEntry.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {}
+    )
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => {
+      writeFileSync(req.outputPath, 'mp4')
+      return { outputPath: req.outputPath, voicesDropped: true, jobId: 'jv' }
+    })
+    const generateImage = vi.fn(async () => ({
+      b64: Buffer.from('STILL').toString('base64')
+    }))
+    const editImage = vi.fn(async () => ({
+      b64: Buffer.from('EDIT').toString('base64')
+    }))
+    writeClipContinuityStillFromVideo.mockResolvedValueOnce(null)
+    const onAudit = vi.fn()
+    const { svc } = makeSvc({
+      prisma,
+      ai: {
+        generateVideo,
+        generateImage,
+        editImage,
+        chat: vi.fn(async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  'POLISHED CLIP PROMPT WITH ENOUGH LENGTH TO BE ACCEPTED AS POLISHED TEXT'
+              }
+            }
+          ]
+        }))
+      },
+      settings: {
+        generateAudio: true,
+        grokVideoVoice: 'ara',
+        continuityMode: 'chain-end',
+        uiLanguage: 'en'
+      }
+    })
+    const r = await svc.generateClip('s1', 'e1', undefined, { onAudit })
+    expect(r.jobId).toBe('jv')
+    expect(generateVideo).toHaveBeenCalledWith(
+      expect.objectContaining({ generateAudio: true, voices: expect.any(Array) })
+    )
+    expect(onAudit).toHaveBeenCalled()
+    expect(ensureTimelineClipStill).toHaveBeenCalled()
+    expect(writeClipContinuityStillFromVideo).toHaveBeenCalled()
+  })
+
+  it('generateClip keeps editBase when still ensure throws', async () => {
+    const prisma = createMockPrisma()
+    mkdirSync(join(dir, 'stories', 's1'), { recursive: true })
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({})
+    )
+    ;(prisma.timelineEntry.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {}
+    )
+    ensureTimelineClipStill.mockRejectedValueOnce(new Error('still boom'))
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => {
+      writeFileSync(req.outputPath, 'mp4')
+      return { outputPath: req.outputPath }
+    })
+    const { svc } = makeSvc({
+      prisma,
+      ai: {
+        generateVideo,
+        generateImage: vi.fn(),
+        editImage: vi.fn(),
+        chat: vi.fn(async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  'POLISHED CLIP PROMPT WITH ENOUGH LENGTH TO BE ACCEPTED AS POLISHED TEXT'
+              }
+            }
+          ]
+        }))
+      }
+    })
+    const r = await svc.generateClip('s1', 'e1')
+    expect(r.mediaPath).toBeTruthy()
+    expect(generateVideo).toHaveBeenCalled()
+  })
+
+  it('generateClip continuity write catch is best-effort', async () => {
+    const prisma = createMockPrisma()
+    mkdirSync(join(dir, 'stories', 's1'), { recursive: true })
+    ;(prisma.story.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      storyIncludeShape({})
+    )
+    ;(prisma.timelineEntry.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {}
+    )
+    writeClipContinuityStillFromVideo.mockRejectedValueOnce(new Error('ff'))
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => {
+      writeFileSync(req.outputPath, 'mp4')
+      return { outputPath: req.outputPath }
+    })
+    const { svc } = makeSvc({
+      prisma,
+      ai: {
+        generateVideo,
+        chat: vi.fn(async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  'POLISHED CLIP PROMPT WITH ENOUGH LENGTH TO BE ACCEPTED AS POLISHED TEXT'
+              }
+            }
+          ]
+        }))
+      }
+    })
+    const r = await svc.generateClip('s1', 'e1')
+    expect(r.mediaPath).toBeTruthy()
   })
 
 })

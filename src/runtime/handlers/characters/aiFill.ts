@@ -32,6 +32,8 @@ reg(
         segmentKeys?: string[] | null
         /** Gallery / external still — vision fill from image alone is allowed */
         referenceImagePath?: string | null
+        /** Extra identity stills (advanced lock / multi-select). */
+        referenceImagePaths?: string[] | null
         promptTemplateId?: string | null
       }
     ) => {
@@ -48,14 +50,22 @@ reg(
       )
       const hasSoul = soulContent.length > 0
       const {
-        buildVisionUserContent,
+        buildMultiVisionUserContent,
         resolveReadableImagePath,
         visionFillUserPreamble
       } = await import('../../../domain/chatVision')
+      const { allRefPaths } = await import('../../../domain/imageGenConfirm')
       const { templateFlags } = await import('../../../domain/promptTemplates')
       const tplFlags = templateFlags(payload.promptTemplateId, 'copy')
-      const refPath = resolveReadableImagePath(payload.referenceImagePath)
-      const hasImage = Boolean(refPath)
+      const rawRefPaths = allRefPaths(
+        payload.referenceImagePath,
+        payload.referenceImagePaths
+      )
+      const readableRefs = rawRefPaths.filter((p) =>
+        Boolean(resolveReadableImagePath(p))
+      )
+      const refPath = readableRefs[0] ?? null
+      const hasImage = readableRefs.length > 0
       if (!idea && !hasDraft && !hasSoul && !hasImage && !payload.suggestFromStory) {
         throw new AppError(
           'VALIDATION',
@@ -170,7 +180,10 @@ reg(
           },
           {
             role: 'user',
-            content: buildVisionUserContent(textPrompt, refPath)
+            content:
+              readableRefs.length > 0
+                ? buildMultiVisionUserContent(textPrompt, readableRefs)
+                : textPrompt
           }
         ],
         max_tokens: 3000,
@@ -191,6 +204,7 @@ reg(
           locale,
           chat: (req) => ctx.aiClient.chat(req),
           referenceImagePath: refPath,
+          referenceImagePaths: readableRefs,
           maxTokens: 1200,
           promptTemplateId: payload.promptTemplateId
         })

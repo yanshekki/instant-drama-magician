@@ -75,7 +75,27 @@ Grok Gateway locked preset **禁止** `temperature`／`top_p`／`stop`（HTTP 40
 | `GET` | `/v1/videos/:id` |
 | `GET` | `/v1/videos/:id/content` |
 
-Admin 需開 **videoApi**。Clip 時長僅 **6 或 10** 秒。
+Admin 需開 **videoApi**。Clip 時長僅 **6 或 10** 秒（gctoac 1.7+ 允許 1–15；IDM Timeline 仍然 snap 做 6｜10）。
+
+原生片段配音（**gctoac 1.7.4+**，並非 mock TTS）：
+
+```json
+POST /v1/videos
+{
+  "prompt": "… Spoken dialogue uses preset voices <AUDIO_0> in character order (ara).",
+  "model": "grok-4.5",
+  "seconds": 6,
+  "aspect_ratio": "16:9",
+  "source_document_id": "doc_…",
+  "voices": ["ara"]
+}
+```
+
+- 有 `voices[]`（最多 3 個）→ Grok **`reference_to_video`**（不再使用片頭 `image_to_video` 鎖定）
+- 無 `voices`／額外 refs → **`image_to_video`**（鎖定片頭）
+- IDM Timeline 時長維持 **6／10**（`snapVideoSeconds`），不改全域
+- `/v1/audio/speech` 仍然 mock／503 — InstantDrama **不接駁** TTS
+- 舊閘道因未知 `voices` 欄回傳 HTTP 400 → 再試一次不帶 `voices`
 
 ## 相關
 

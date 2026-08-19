@@ -161,6 +161,11 @@ export interface MediaGenPrepOpenRequest {
    * Key = timeline entryId.
    */
   queueDurationSecondsByEntryId?: Record<string, number>
+  continuityMode?: 'storyboard' | 'chain-end'
+  motionPriority?: 'default' | 'action'
+  advancedIdentity?: boolean
+  identityCollage?: boolean
+  lookPackId?: string
   /**
    * Resume saved draft (still + prompts ready) — skip to keyframe/confirm-video.
    * Same storage as VideoPrep drafts (continue video button).
@@ -391,7 +396,12 @@ export function MediaGenPrepModal({
         pageFormat: request.pageFormat,
         shotType: request.shotType,
         keyArtMakeMethod: request.keyArtMakeMethod,
-        forcePureLayout: request.preferIdentityEdit === false
+        forcePureLayout: request.preferIdentityEdit === false,
+        continuityMode: request.continuityMode,
+        motionPriority: request.motionPriority,
+        advancedIdentity: request.advancedIdentity,
+        identityCollage: request.identityCollage,
+        lookPackId: request.lookPackId
       } as never)
       setSections(r.sections as MediaGenMaterialSection[])
       setEditBaseSectionId(r.editBaseSectionId ?? null)

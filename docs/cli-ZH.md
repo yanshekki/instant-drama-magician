@@ -139,13 +139,16 @@ Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `com
 | Channel | 用途 | 示例 |
 |---------|------|------|
 | generate／AI fill | 可選 `promptTemplateId`（桌面配方選擇器；不再暗中套系統預設） | 桌面：生成前選擇配方。CLI：在 generate／fill／MediaGen payload 傳 `promptTemplateId` |
-| `mediaGen:extract` | 建立材料 sections（庫頁 + `timeline-still`／`timeline-clip`） | `instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"S","entryId":"E"}]' --json` |
+| `mediaGen:extract` | 建立材料 sections（庫頁 + `timeline-still`／`timeline-clip`）。可選：`continuityMode`、`motionPriority`、`advancedIdentity`、`identityCollage`、`lookPackId` | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","continuityMode":"chain-end","motionPriority":"action"}]' --json` |
 | `mediaGen:polish` | 多圖 vision 潤飾 prompt | `instant-drama mediaGen polish --args '[{...}]' --json` |
 | `mediaGen:generateImage` | 單張靜圖；timeline 會寫入 continuity 路徑 | `instant-drama mediaGen generate-image --args '[{...}]' --json` |
 | `costumes:appendTryOnStill` | 試穿 still 追加至戲服多圖庫 | `instant-drama costumes append-try-on-still --args '[{"costumeId":"C","sourcePath":"/a.png"}]' --json` |
 | `costumes:generateDressed` | 生成試穿靜圖 | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
 | `videoPrep:create` | 準備靜圖／開 clip 流程 | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
-| `videoPrep:confirm` | 由靜圖確認出片 | `instant-drama videoPrep confirm --args '[{...}]' --json` |
+| `videoPrep:confirm` | 由靜圖確認出片。timeline-clip 會由嚴格連續文脈組出 Seedance `lastFramePath`（Grok 會忽略）。原生音訊跟設定 `generateAudio`／`grokVideoVoice`。 | `instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillPath":"/still.png","professionalPrompt":"…"}]' --json` |
+| `settings:set` | 合併設定；`generateAudio` + `grokVideoVoice`（`ara` `eve` `leo` `rex` `sal` `mio`） | `instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json` |
+| `characters:aiFill` | 可選 `referenceImagePaths`（與 `referenceImagePath` 合併；多圖上限） | `instant-drama characters ai-fill --args '[{"idea":"…","referenceImagePaths":["/a.png","/b.png"]}]' --json` |
+| `generation:run` | 無介面整劇生成。會先補時間軸靜圖再出片。桌面「開始生成」是互動 `videoPrep`，**不會**走這條路徑。 | `instant-drama generation run STORY_ID --json` |
 | `comics:get` | 取得或建立該故事的漫畫書 | `instant-drama comics get --args '["S"]' --json` |
 | `comics:addPage`／`updatePage` | 新增或編輯頁（排板、開本、分格） | `instant-drama comics add-page --args '[{"storyId":"S","panelLayout":"grid-2x2"}]' --json` |
 | `comics:deletePageVideo`／`setPageVideoPrimary` | 多版本本頁影片 | `instant-drama comics delete-page-video --args '["PAGE","VID"]' --json` |
@@ -190,6 +193,8 @@ npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
 npm run instant-drama -- channels describe scenes:aiFill --json
+npm run instant-drama -- channels describe characters:aiFill --json
+npm run instant-drama -- channels describe videoPrep:confirm --json
 npm run instant-drama -- help
 ```
 

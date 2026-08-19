@@ -32,6 +32,11 @@ export interface PipelineRunOptions {
   onClipProgress?: PipelineContext['onClipProgress']
   locale?: string
   promptTemplateId?: string | null
+  continuityMode?: string | null
+  motionPriority?: string | null
+  generateAudio?: boolean
+  grokVideoVoice?: string | null
+  onAudit?: PipelineContext['onAudit']
 }
 
 /**
@@ -74,7 +79,12 @@ export class GenerationPipeline {
       aspectRatio: options?.aspectRatio,
       onClipProgress: options?.onClipProgress,
       locale: options?.locale,
-      promptTemplateId: options?.promptTemplateId
+      promptTemplateId: options?.promptTemplateId,
+      continuityMode: options?.continuityMode,
+      motionPriority: options?.motionPriority,
+      generateAudio: options?.generateAudio,
+      grokVideoVoice: options?.grokVideoVoice,
+      onAudit: options?.onAudit
     }
 
     // Retry-failed path: only re-run video (skip script/export noise).

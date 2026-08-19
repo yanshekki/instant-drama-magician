@@ -24,6 +24,13 @@ import {
   coerceComicPageFormat
 } from './comicPageFormat'
 import type { ComicPanelSlot } from './comicPanelScript'
+import {
+  coerceContinuityMode,
+  coerceMotionPriority,
+  timelineOwnStillEditPriority,
+  type ContinuityMode,
+  type MotionPriority
+} from './generationModes'
 
 export type MediaGenKind =
   // images
@@ -926,6 +933,10 @@ export function buildTimelineBeatMaterialSections(opts: {
   characters?: TimelineBoundEntityRef[]
   scenes?: TimelineBoundEntityRef[]
   props?: TimelineBoundEntityRef[]
+  /** Bound action plates — always attached to polish when present. */
+  actions?: TimelineBoundEntityRef[]
+  continuityMode?: ContinuityMode | string | null
+  motionPriority?: MotionPriority | string | null
   hardRules?: string | null
   artStyleId?: string | null
   durationSeconds?: number
@@ -955,6 +966,8 @@ export function buildTimelineBeatMaterialSections(opts: {
     sections.push(s)
   }
 
+  const continuityMode = coerceContinuityMode(opts.continuityMode)
+  const motionPriority = coerceMotionPriority(opts.motionPriority)
   const prev = opts.previousContinuityPath?.trim() || null
   if (prev) {
     pushRef({
@@ -994,7 +1007,7 @@ export function buildTimelineBeatMaterialSections(opts: {
       ].join(' '),
       include: true,
       canBeEditBase: true,
-      editBasePriority: 220,
+      editBasePriority: timelineOwnStillEditPriority(continuityMode),
       group: 'refs'
     })
   }
@@ -1098,6 +1111,31 @@ export function buildTimelineBeatMaterialSections(opts: {
       include: true,
       canBeEditBase: false,
       editBasePriority: 40 - i,
+      group: 'refs'
+    })
+  })
+
+  const actionList: TimelineBoundEntityRef[] = opts.actions ?? []
+  const actionEditPriority = motionPriority === 'action' ? 190 : 50
+  actionList.forEach((ac, i) => {
+    const img = ac.imagePath?.trim() || null
+    if (!img) return
+    pushRef({
+      id: `action_ref_${ac.id || i}`,
+      kind: 'ref-image',
+      title: ac.name || `Action ${i + 1}`,
+      entityType: 'action',
+      imagePath: img,
+      text: [
+        `MOTION BOARD for "${ac.name || 'action'}".`,
+        'Match body direction, blocking, and camera implied by this plate.',
+        motionPriority === 'action'
+          ? 'Motion-priority: treat this board as a strong action constraint (still below previous-clip continuity).'
+          : 'Always attached when bound — not last-resort.'
+      ].join(' '),
+      include: true,
+      canBeEditBase: motionPriority === 'action',
+      editBasePriority: actionEditPriority - i,
       group: 'refs'
     })
   })

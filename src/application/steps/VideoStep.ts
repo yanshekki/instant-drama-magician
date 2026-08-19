@@ -1,14 +1,19 @@
 import type { PipelineContext, PipelineStep, PipelineStepResult } from '../../types/domain'
 import { DEFAULT_MAX_CLIP_SECONDS } from '../../domain/timeline'
 import { snapVideoSeconds } from '../../domain/videoDuration'
+import { buildClipPrompt, getPreviousTimelineEntry } from '../../domain/promptContinuity'
+import { buildClipContinuityContext } from '../../domain/clipContinuityContext'
 import {
-  buildClipPrompt,
-  previousClipContext,
-  resolveTimelineStillRefs,
-  getPreviousTimelineEntry,
-  buildContinuityLockPrompt,
-  timelineBeatDisplayIndex
-} from '../../domain/promptContinuity'
+  coerceContinuityMode,
+  coerceMotionPriority,
+  effectiveVideoConcurrency
+} from '../../domain/generationModes'
+import {
+  auditChainEndWait,
+  auditContinuityWriteFailed,
+  auditGrokVoicesDropped,
+  auditMissingEndFrame
+} from '../../domain/generationAudit'
 import { AppError } from '../../types/errors'
 import { existsSync } from 'fs'
 import { characterVideoPromptBlock } from '../../domain/characterMasterPrompt'
@@ -18,6 +23,7 @@ import {
 } from '../../domain/beatContent'
 import { buildClipVideoPolishUserPrompt } from '../../domain/videoPromptPolish'
 import { polishThenGenerateVideo } from '../video/polishVideoPrompt'
+import { mapGrokClipVoices } from '../../domain/grokVideoVoices'
 import { mapPool } from '../../infrastructure/ai/video/httpUtils'
 
 export class VideoStep implements PipelineStep {
@@ -67,7 +73,12 @@ export class VideoStep implements PipelineStep {
     const lines: string[] = []
     let degraded = false
     let failures = 0
-    const concurrency = Math.max(1, context.videoConcurrency ?? 1)
+    const continuityMode = coerceContinuityMode(context.continuityMode)
+    const motionPriority = coerceMotionPriority(context.motionPriority)
+    const concurrency = effectiveVideoConcurrency(
+      context.videoConcurrency,
+      continuityMode
+    )
 
     const results = await mapPool(
       targets,
@@ -112,41 +123,50 @@ export class VideoStep implements PipelineStep {
         const scene = scenesBound[0]
         const prop = propsBound[0]
         const action = actionsBound[0]
-        const prev = previousClipContext(entries, entry.id, {
-          characters: charMap,
-          scenes: sceneMap,
-          props: propMap
-        })
         const prevEntry = getPreviousTimelineEntry(entries, entry.id)
         let previousContinuityPath: string | null = null
-        let prevBeatIndex = 0
         if (prevEntry) {
-          prevBeatIndex = timelineBeatDisplayIndex(entries, prevEntry.id)
           const contPath =
             media?.clipContinuityStillPath?.(story.id, prevEntry.id) ?? null
           if (contPath && existsSync(contPath)) {
             previousContinuityPath = contPath
           }
         }
-        const sameCharacter = Boolean(
-          character &&
-            prevEntry?.characterId &&
-            character.id === prevEntry.characterId
-        )
-        const sameScene = Boolean(
-          scene && prevEntry?.sceneId && scene.id === prevEntry.sceneId
-        )
-        const continuityLock = prevEntry
-          ? buildContinuityLockPrompt({
-              previousBeatIndex: prevBeatIndex,
-              previousDialogueSnippet: prev,
-              sameCharacter,
-              sameScene,
-              hasContinuityImage: Boolean(previousContinuityPath),
-              locale: context.locale || 'zh-HK'
+        const cont = buildClipContinuityContext({
+          entries,
+          currentId: entry.id,
+          character,
+          scene,
+          prop,
+          action: action
+            ? { refImagePath: action.refImagePath ?? null }
+            : null,
+          extraActionPaths: actionsBound
+            .slice(1)
+            .map((a) => a.refImagePath ?? null),
+          maps: {
+            characters: charMap,
+            scenes: sceneMap,
+            props: propMap
+          },
+          previousContinuityPath,
+          continuityMode,
+          motionPriority,
+          locale: context.locale || 'zh-HK',
+          pathExists: (p) => existsSync(p),
+          ownStillPath: media?.clipContinuityStillPath?.(story.id, entry.id)
+        })
+        if (cont.missingEndFrame) {
+          context.onAudit?.(
+            auditMissingEndFrame({
+              entryId: entry.id,
+              previousBeatIndex: cont.previousBeatIndex
             })
-          : null
-        const prevWithLock = [prev, continuityLock].filter(Boolean).join('\n')
+          )
+        }
+        if (cont.sequentialRequired && i > 0) {
+          context.onAudit?.(auditChainEndWait({ entryId: entry.id }))
+        }
         const parseLangs = (c: NonNullable<typeof character>): string[] | undefined => {
           try {
             const raw = (c as { spokenLanguages?: string | null }).spokenLanguages
@@ -220,7 +240,7 @@ export class VideoStep implements PipelineStep {
               beatContentJson: (entry as { beatContentJson?: string | null })
                 .beatContentJson,
               seconds,
-              previousContext: prevWithLock || prev,
+              previousContext: cont.prevWithLock || cont.previousContext,
               locale: genLocale
             }),
             charBlock
@@ -243,19 +263,90 @@ export class VideoStep implements PipelineStep {
           entryId: entry.id,
           index: i,
           total: targets.length,
-          status: 'GENERATING'
+          status: 'GENERATING',
+          waitingPrevious: Boolean(cont.sequentialRequired && i > 0)
         })
 
         try {
-          const timelineRefs = resolveTimelineStillRefs({
-            character,
-            scene,
-            prop,
-            previousContinuityPath,
-            pathExists: (p) => existsSync(p)
-          })
-          const refPath = timelineRefs.editBase
+          const refPath = cont.editBase
           const locale = genLocale
+          let videoRef = refPath
+          const stillOut = media?.clipContinuityStillPath?.(story.id, entry.id)
+          if (
+            stillOut &&
+            typeof (ai as { generateImage?: unknown }).generateImage ===
+              'function' &&
+            typeof (ai as { editImage?: unknown }).editImage === 'function'
+          ) {
+            try {
+              const { ensureTimelineClipStill } = await import(
+                '../video/ensureTimelineClipStill'
+              )
+              const { timelineBeatDisplayIndex } = await import(
+                '../../domain/promptContinuity'
+              )
+              const ensured = await ensureTimelineClipStill({
+                ai,
+                outputPath: stillOut,
+                skipIfExists: true,
+                locale,
+                aspectRatio: context.aspectRatio,
+                hardRules: clipHardRules,
+                promptTemplateId: context.promptTemplateId,
+                signal,
+                sourceImagePath: refPath,
+                storyTitle: story.title,
+                displayIndex: timelineBeatDisplayIndex(entries, entry.id),
+                dialogue: entry.dialogue,
+                beatBlock: beatOrDialogue,
+                previousContinuityPath: cont.previousContinuityPath,
+                previousBeatIndex: cont.previousBeatIndex,
+                continuityLockText: cont.continuityLock,
+                characters: charsBound.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  imagePath: c.refImagePath ?? null
+                })),
+                scenes: scenesBound.map((s) => ({
+                  id: s.id,
+                  name: s.title || s.description,
+                  imagePath: s.refImagePath ?? null
+                })),
+                props: propsBound.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  imagePath: p.refImagePath ?? null
+                })),
+                actions: actionsBound.map((a) => ({
+                  id: a.id,
+                  name: a.name,
+                  imagePath: a.refImagePath ?? null
+                })),
+                continuityMode,
+                motionPriority,
+                styleNote: story.styleNote,
+                durationSeconds: seconds,
+                fallbackPrompt
+              })
+              if (ensured.stillPath) {
+                videoRef =
+                  continuityMode === 'chain-end' && refPath
+                    ? refPath
+                    : ensured.stillPath
+              }
+            } catch {
+              /* keep editBase */
+            }
+          }
+          let lastFramePath = cont.lastFramePath ?? undefined
+          if (
+            continuityMode === 'chain-end' &&
+            stillOut &&
+            existsSync(stillOut) &&
+            stillOut !== previousContinuityPath
+          ) {
+            lastFramePath = stillOut
+          }
           const result = await polishThenGenerateVideo({
             ai,
             locale,
@@ -286,16 +377,31 @@ export class VideoStep implements PipelineStep {
                 : null,
               hardRules: clipHardRules,
               beatOrDialogue,
-              previousContext: prevWithLock || prev
+              previousContext: cont.prevWithLock || cont.previousContext
             }),
             videoRequest: {
               durationSeconds: seconds,
-              refImagePath: refPath ?? undefined,
+              refImagePath: videoRef ?? undefined,
+              lastFramePath,
+              generateAudio: context.generateAudio === true,
+              voices:
+                context.generateAudio === true
+                  ? mapGrokClipVoices(
+                      charsBound.map((c) => ({
+                        gender: c.gender,
+                        voiceDesc: c.voiceDesc
+                      })),
+                      context.grokVideoVoice
+                    )
+                  : undefined,
               outputPath,
               aspectRatio: context.aspectRatio
             },
             signal
           })
+          if (result.voicesDropped) {
+            context.onAudit?.(auditGrokVoicesDropped({ entryId: entry.id }))
+          }
           await persistence?.updateEntryMedia?.(entry.id, {
             mediaPath: result.outputPath,
             mediaStatus: 'READY',
@@ -324,6 +430,10 @@ export class VideoStep implements PipelineStep {
                 entryId: entry.id,
                 videoPath: result.outputPath,
                 skipIfUserCleared: false
+              }).then((written) => {
+                if (!written) {
+                  context.onAudit?.(auditContinuityWriteFailed({ entryId: entry.id }))
+                }
               })
             }
           } catch {

@@ -60,6 +60,9 @@ interface LocalMediaImageProps {
   onSetAsCover?: () => void
   /** True when this still is already the cover. */
   isCover?: boolean
+  /** Pin / unpin this still as a persisted identity-lock ref. */
+  onToggleIdentityLock?: () => void
+  isIdentityLock?: boolean
   /** Remove this still from the gallery (left action bar). */
   onRemove?: () => void
   /** Override intro-video action labels (comics page film, etc.). */
@@ -98,6 +101,8 @@ export function LocalMediaImage({
   hoverZoom,
   onSetAsCover,
   isCover = false,
+  onToggleIdentityLock,
+  isIdentityLock = false,
   onRemove,
   videoLabels
 }: LocalMediaImageProps): JSX.Element | null {
@@ -479,6 +484,32 @@ export function LocalMediaImage({
         >
           {t('common.isCover')}
         </span>
+      ) : null}
+      {onToggleIdentityLock ? (
+        <button
+          type="button"
+          disabled={busy}
+          title={
+            isIdentityLock
+              ? t('common.clearIdentityLock')
+              : t('common.setIdentityLock')
+          }
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onToggleIdentityLock()
+          }}
+          className={[
+            actionBtnClass(actionsLayout, false),
+            isIdentityLock
+              ? 'border-brand-600/60 bg-brand-950/40 text-brand-100'
+              : ''
+          ].join(' ')}
+        >
+          {isIdentityLock
+            ? t('common.isIdentityLock')
+            : t('common.setIdentityLock')}
+        </button>
       ) : null}
       {onRemove ? (
         <button

@@ -13,6 +13,10 @@ import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
 import type { VideoGenRequest, VideoGenResult } from '../../../types/domain'
 import { snapVideoSeconds } from '../../../domain/videoDuration'
+import {
+  appendGrokVoicePromptHints,
+  sanitizeGrokVoices
+} from '../../../domain/grokVideoVoices'
 import { AppError, mapHttpStatusToVideoError } from '../../../types/errors'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { isRetryableError, sleep, withRetries } from './httpUtils'
@@ -221,29 +225,56 @@ export class GrokHttpVideoProvider implements VideoProvider {
           }
         }
 
-        const body: Record<string, unknown> = {
-          prompt: request.prompt,
-          model: this.model,
-          seconds,
-          aspect_ratio: request.aspectRatio ?? this.aspectRatio
-        }
-        if (sourceAssetId) body.source_asset_id = sourceAssetId
-        if (sourceDocumentId) body.source_document_id = sourceDocumentId
+        const requestedVoices =
+          request.generateAudio === true
+            ? sanitizeGrokVoices(
+                request.voices?.length ? request.voices : ['ara']
+              )
+            : []
+        const voices =
+          request.generateAudio === true && requestedVoices.length === 0
+            ? (['ara'] as const).slice()
+            : requestedVoices
+        const promptWithVoices = voices.length
+          ? appendGrokVoicePromptHints(request.prompt, voices)
+          : request.prompt
 
-        const res = await this.fetchFn(this.createUrl, {
-          method: 'POST',
-          headers: {
-            ...this.headers(),
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(60_000)
-        })
+        const postCreate = (opts: { prompt: string; voices: string[] }) => {
+          const body: Record<string, unknown> = {
+            prompt: opts.prompt,
+            model: this.model,
+            seconds,
+            aspect_ratio: request.aspectRatio ?? this.aspectRatio
+          }
+          if (sourceAssetId) body.source_asset_id = sourceAssetId
+          if (sourceDocumentId) body.source_document_id = sourceDocumentId
+          if (opts.voices.length) body.voices = opts.voices
+          return this.fetchFn(this.createUrl, {
+            method: 'POST',
+            headers: {
+              ...this.headers(),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(60_000)
+          })
+        }
+
+        let voicesDropped = false
+        let res = await postCreate({ prompt: promptWithVoices, voices })
+        if (!res.ok && res.status === 400 && voices.length > 0) {
+          await res.text().catch(() => '')
+          voicesDropped = true
+          res = await postCreate({ prompt: request.prompt, voices: [] })
+        }
+
+        const finish = (result: VideoGenResult): VideoGenResult =>
+          voicesDropped ? { ...result, voicesDropped: true } : result
 
         if (!res.ok) {
           // Legacy fallback endpoint
           if (res.status === 404) {
-            return this.legacyGenerate(request, seconds)
+            return finish(await this.legacyGenerate(request, seconds))
           }
           const text = await res.text()
           throw mapHttpStatusToVideoError(res.status, text)
@@ -267,7 +298,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
             )
           }
           writeFileSync(request.outputPath, buf)
-          return { outputPath: request.outputPath }
+          return finish({ outputPath: request.outputPath })
         }
 
         const json = (await res.json()) as JobPublic
@@ -276,14 +307,14 @@ export class GrokHttpVideoProvider implements VideoProvider {
 
         // Immediate file paths (legacy)
         if (json.output_path && existsSync(json.output_path)) {
-          return { outputPath: json.output_path }
+          return finish({ outputPath: json.output_path })
         }
         if (json.path && existsSync(json.path)) {
-          return { outputPath: json.path }
+          return finish({ outputPath: json.path })
         }
         if (json.url || json.output_url) {
           await this.downloadTo(json.url ?? json.output_url!, request.outputPath)
-          return { outputPath: request.outputPath }
+          return finish({ outputPath: request.outputPath })
         }
 
         const jobId = json.id ?? json.job_id
@@ -294,7 +325,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
 
         await this.pollUntilDone(jobId)
         await this.downloadContent(jobId, request.outputPath)
-        return { outputPath: request.outputPath, jobId }
+        return finish({ outputPath: request.outputPath, jobId })
       },
       {
         maxRetries: this.maxRetries,

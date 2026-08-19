@@ -18,6 +18,9 @@ import { tmpdir } from 'os'
 import { extname, join } from 'path'
 import type { ChatContentPart } from '../types/domain'
 import { AppError } from '../types/errors'
+import { MULTI_VISION_MAX_IMAGES } from './visionLimits'
+
+export { MULTI_VISION_MAX_IMAGES } from './visionLimits'
 
 function tryResolveFfmpeg(): string | null {
   try {
@@ -196,9 +199,6 @@ export function imagePathToDataUrl(filePath: string): string | null {
  * data URL, throws (never silently drops the image — that made image-only fill
  * look broken).
  */
-/** Max stills attached to one chat vision request (polish / multi-ref). */
-export const MULTI_VISION_MAX_IMAGES = 8
-
 /**
  * OpenAI-compatible user content with **multiple** reference stills.
  * Chat/vision supports N image_url parts; final image export is still one frame.

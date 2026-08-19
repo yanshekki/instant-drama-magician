@@ -25,6 +25,9 @@
 | Continuity still titles | `mediaGenSectionTitleI18n.test.ts`, `timelineMediaGen.test.ts`, `MediaGenPrepModal.test.tsx` |
 | Video confirm step | `mediaGen.test.ts`, `videoPrep.test.ts` |
 | Recipe picker selected card | `PromptTemplateContext.test.tsx` |
+| Identity lock + multi-vision fill | `advancedIdentity.test.ts`, `identityCollageLayout.test.ts`, `characters/aiFill.test.ts`, `profileFillMissing.test.ts` |
+| Chain-end last frame + headless still | `clipContinuityContext.test.ts`, `videoPrep/confirm.test.ts`, `ensureTimelineClipStill.test.ts`, `VideoStep.test.ts` |
+| gctoac clip voices | `grokVideoVoices.test.ts`, `GrokHttpVideoProvider.test.ts`, `settings.test.ts` |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \

@@ -247,6 +247,7 @@ export type GenerationProgressPayload = {
   entryId?: string
   mediaStatus?: string
   jobId?: string
+  waitingPrevious?: boolean
 }
 
 type JobRunner = (ctx: {
@@ -645,7 +646,9 @@ export function AiJobsProvider({ children }: { children: ReactNode }): JSX.Eleme
             return {
               ...j,
               progress: Math.min(99, j.progress + 10),
-              message: payload.mediaStatus || payload.step
+              message: payload.waitingPrevious
+                ? `${payload.mediaStatus || payload.step} · wait-end-frame`
+                : payload.mediaStatus || payload.step
             }
           }
           return j

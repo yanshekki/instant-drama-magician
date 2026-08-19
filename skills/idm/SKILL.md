@@ -81,6 +81,8 @@ instant-drama scenes ai-fill --args '[{"storyId":"…","suggestFromStory":true,"
 instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path.png"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"character-sheet","characterId":"…","advancedIdentity":true,"identityCollage":true,"lookPackId":"identity-lock"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","continuityMode":"chain-end","motionPriority":"action"}]' --json
 instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
 instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
 instant-drama generation run STORY_ID --json
@@ -88,6 +90,26 @@ instant-drama media check-ffmpeg --json
 ```
 
 Sheets / plates / intros go through **`mediaGen:extract` → `polish` → `generateImage`** (legacy `generate-sheet` / `generatePlate` channels are deprecated).
+
+Opt-in payload flags (Settings defaults; **do not add channels**): `continuityMode` (`storyboard`|`chain-end`), `motionPriority` (`default`|`action`), `advancedIdentity`, `identityCollage`, `lookPackId` (`follow-asset`|`identity-lock`|`continuous-clip`|`key-art`|`comic`), `generateAudio`, `grokVideoVoice` (`ara`|`eve`|`leo`|`rex`|`sal`|`mio`). Describe with `channels describe mediaGen:extract`.
+
+Grok native clip voice is Settings + `POST /v1/videos` `voices[]` (gctoac 1.7.4+ → `reference_to_video`). Do **not** call `/v1/audio/speech`. Example:
+
+```bash
+instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json
+instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillPath":"/path/still.png","professionalPrompt":"…"}]' --json
+```
+
+```json
+{
+  "prompt": "… Spoken dialogue uses preset voices <AUDIO_0> in character order (ara).",
+  "seconds": 6,
+  "aspect_ratio": "16:9",
+  "voices": ["ara"]
+}
+```
+
+With `voices[]`, Grok leaves first-frame `image_to_video` lock. Chain-end `last_frame` is Seedance-only.
 
 ## High-frequency commands
 

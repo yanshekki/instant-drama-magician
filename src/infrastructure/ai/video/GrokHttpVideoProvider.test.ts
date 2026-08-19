@@ -53,8 +53,12 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
     const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST' && url.endsWith('/videos')) {
-        const body = JSON.parse(String(init.body)) as { seconds: number }
+        const body = JSON.parse(String(init.body)) as {
+          seconds: number
+          voices?: string[]
+        }
         expect([6, 10]).toContain(body.seconds)
+        expect(body.voices).toBeUndefined()
         return new Response(
           JSON.stringify({
             id: 'job-1',
@@ -108,6 +112,120 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
     expect(result.jobId).toBe('job-1')
     expect(readFileSync(out).length).toBe(128)
     expect(polls).toBeGreaterThanOrEqual(2)
+  })
+
+  it('sends voices[] and AUDIO tags when generateAudio is on', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-v1-voice-'))
+    const out = join(dir, 'clip.mp4')
+    const bytes = Buffer.alloc(128, 7)
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.endsWith('/videos')) {
+        const body = JSON.parse(String(init.body)) as {
+          seconds: number
+          voices?: string[]
+          prompt: string
+        }
+        expect(body.seconds).toBe(6)
+        expect(body.voices).toEqual(['eve'])
+        expect(body.prompt).toMatch(/AUDIO_0/)
+        return new Response(
+          JSON.stringify({ id: 'job-v', status: 'completed' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-v') && !url.endsWith('/content')) {
+        return new Response(
+          JSON.stringify({ id: 'job-v', status: 'completed' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-v/content')) {
+        return new Response(bytes, {
+          status: 200,
+          headers: { 'content-type': 'video/mp4' }
+        })
+      }
+      return new Response('nope', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://example.test/v1',
+      apiKey: 'k',
+      model: 'm',
+      pollMs: 5,
+      timeoutSec: 10,
+      maxRetries: 0,
+      fetchImpl
+    })
+    await p.generate({
+      prompt: 'hello',
+      durationSeconds: 6,
+      outputPath: out,
+      generateAudio: true,
+      voices: ['eve']
+    })
+  })
+
+  it('retries without voices on HTTP 400', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'idm-v1-drop-'))
+    const out = join(dir, 'clip.mp4')
+    const bytes = Buffer.alloc(128, 7)
+    let posts = 0
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.endsWith('/videos')) {
+        posts++
+        const body = JSON.parse(String(init.body)) as {
+          voices?: string[]
+          prompt: string
+        }
+        if (posts === 1) {
+          expect(body.voices).toEqual(['ara'])
+          expect(body.prompt).toMatch(/AUDIO_0/)
+          return new Response(JSON.stringify({ error: 'unknown field voices' }), {
+            status: 400,
+            headers: { 'content-type': 'application/json' }
+          })
+        }
+        expect(body.voices).toBeUndefined()
+        expect(body.prompt).toBe('hello')
+        return new Response(
+          JSON.stringify({ id: 'job-d', status: 'completed' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-d') && !url.endsWith('/content')) {
+        return new Response(
+          JSON.stringify({ id: 'job-d', status: 'completed' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-d/content')) {
+        return new Response(bytes, {
+          status: 200,
+          headers: { 'content-type': 'video/mp4' }
+        })
+      }
+      return new Response('nope', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://example.test/v1',
+      apiKey: 'k',
+      model: 'm',
+      pollMs: 5,
+      timeoutSec: 10,
+      maxRetries: 0,
+      fetchImpl
+    })
+    const result = await p.generate({
+      prompt: 'hello',
+      durationSeconds: 6,
+      outputPath: out,
+      generateAudio: true
+    })
+    expect(posts).toBe(2)
+    expect(result.voicesDropped).toBe(true)
+    expect(result.jobId).toBe('job-d')
   })
 
   it('rejects smoke stub from /content as empty video', async () => {
