@@ -63,7 +63,7 @@ Desktop app updates use GitHub Releases (in-app Settings), not this command.
 Examples:
   instant-drama update
   instant-drama update install --yes
-  instant-drama update install 1.6.1 --yes
+  instant-drama update install 1.7.0 --yes
 
 Env: IDM_SKIP_UPDATE=1  skip automatic hints elsewhere`)
     return
