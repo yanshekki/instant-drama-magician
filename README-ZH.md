@@ -3,7 +3,7 @@
 <p align="center">
   <strong>由一個構想，到完整短劇——在你的工作檯上完成。</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
-  · <strong>v1.7.0</strong> · MIT
+  · <strong>v1.7.1</strong> · MIT
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
 </p>
@@ -70,7 +70,7 @@
 
 ## 介面預覽
 
-截圖來自實際應用（`src/assets/screen/`，v1.7.0）。上方主圖是 **時間軸**、**漫畫** 與 **劇照** 三張工作檯。
+截圖來自實際應用（`src/assets/screen/`，v1.7.1）。上方主圖是 **時間軸**、**漫畫** 與 **劇照** 三張工作檯。
 
 ### 1. 故事管理
 
@@ -407,7 +407,7 @@ instant-drama doctor --json
 
 ```bash
 # Linux 範例
-sudo dpkg -i release/instant-drama-magician_1.7.0_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.7.1_amd64.deb
 # 或
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -473,7 +473,7 @@ instant-drama version
 ```bash
 instant-drama update              # 檢查 npm registry 是否有新版
 instant-drama update install --yes   # 全域安裝 latest（會驗證版本）
-instant-drama update install 1.7.0 --yes   # 釘選版本
+instant-drama update install 1.7.1 --yes   # 釘選版本
 ```
 
 `instant-drama doctor` 亦會報告 npm 更新狀態（可用 `IDM_SKIP_UPDATE=1` 略過）。

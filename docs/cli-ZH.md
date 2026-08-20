@@ -132,7 +132,7 @@ instant-drama media check-ffmpeg --json
 
 Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
 
-## 近期 API 表面（1.7.0）
+## 近期 API 表面（1.7.1）
 
 桌面、Web、CLI 共用同一 registry。優先用 **domain sugar** 或 `invoke`。
 

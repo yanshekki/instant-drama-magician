@@ -11,7 +11,7 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.7.0)
+## Recent focus areas (1.7.1)
 
 | Area | Tests (examples) |
 |------|------------------|
@@ -28,6 +28,7 @@
 | Identity lock + multi-vision fill | `advancedIdentity.test.ts`, `identityCollageLayout.test.ts`, `characters/aiFill.test.ts`, `profileFillMissing.test.ts` |
 | Chain-end last frame + headless still | `clipContinuityContext.test.ts`, `videoPrep/confirm.test.ts`, `ensureTimelineClipStill.test.ts`, `VideoStep.test.ts` |
 | gctoac clip voices | `grokVideoVoices.test.ts`, `GrokHttpVideoProvider.test.ts`, `settings.test.ts` |
+| Written Chinese + beat i18n | `PromptCatalog.test.ts` (no HK colloquial; non-en `beat.*` ≠ English) |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \
