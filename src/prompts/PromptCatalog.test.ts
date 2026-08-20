@@ -84,4 +84,25 @@ describe('PromptCatalog', () => {
     expect(PromptCatalog.t('en', 'speechLock.named')).toMatch(/Dialogue lock/)
     expect(PromptCatalog.t('ja', 'clip.task')).toMatch(/画像から動画/)
   })
+
+  it('zh-HK prompt copy is written Chinese, not Cantonese colloquial', () => {
+    const hk = PROMPT_COPY['zh-HK']
+    const colloquial = /唔好|唔准|唔多過|裝唔落|為咗|嘅實體|仲喺|又係落雨/
+    for (const key of PROMPT_COPY_KEYS) {
+      expect(hk[key], `zh-HK ${key}`).not.toMatch(colloquial)
+      expect(hk[key], `zh-HK ${key} simplified 标志`).not.toContain('标志')
+    }
+  })
+
+  it('non-English locales translate beat templates instead of leaving English', () => {
+    const beatKeys = PROMPT_COPY_KEYS.filter((k) => k.startsWith('beat.'))
+    expect(beatKeys.length).toBeGreaterThan(8)
+    const en = PROMPT_COPY.en
+    for (const { id } of UI_LANGUAGES) {
+      if (id === 'en') continue
+      const table = PROMPT_COPY[id]
+      const same = beatKeys.filter((k) => table[k] === en[k])
+      expect(same, `${id} beat prompt leftover`).toEqual([])
+    }
+  })
 })
