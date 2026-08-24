@@ -109,6 +109,19 @@ import {
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
+import { FieldKitBuilder } from '../components/FieldKitBuilder'
+import {
+  CAMERA_KIT,
+  HARDRULES_KIT,
+  LOCATION_KIT,
+  SETDRESSING_KIT
+} from '../../domain/kits'
+import {
+  emptyFieldKit,
+  mergeFieldKitsIntoProfileJson,
+  parseFieldKit,
+  type FieldKitSelection
+} from '../../domain/fieldKit'
 import { translateSceneGalleryLabel } from '../../domain/galleryLabelI18n'
 import { tSceneLocationType } from '../lib/statusLabels'
 
@@ -141,6 +154,11 @@ interface FormState {
   visualTags: string
   seedPrompt: string
   hardRules: string
+  locationKit: FieldKitSelection
+  setDressingKit: FieldKitSelection
+  cameraKit: FieldKitSelection
+  hardRulesKit: FieldKitSelection
+  profileJsonRaw: string
   artStyle: ArtStyleId
   gallery: SceneGalleryItem[]
   /** Cover path — stored as Scene.refImagePath */
@@ -167,6 +185,11 @@ const emptyForm = (n = 1): FormState => ({
   visualTags: '',
   seedPrompt: '',
   hardRules: '',
+  locationKit: emptyFieldKit(),
+  setDressingKit: emptyFieldKit(),
+  cameraKit: emptyFieldKit(),
+  hardRulesKit: emptyFieldKit(),
+  profileJsonRaw: '',
   artStyle: DEFAULT_ART_STYLE,
   gallery: [],
   coverPath: null,
@@ -421,6 +444,11 @@ export function ScenesPage(): JSX.Element {
       visualTags: s.visualTags ?? '',
       seedPrompt: s.seedPrompt ?? '',
       hardRules: s.hardRules ?? '',
+      locationKit: parseFieldKit(LOCATION_KIT, s.profileJson),
+      setDressingKit: parseFieldKit(SETDRESSING_KIT, s.profileJson),
+      cameraKit: parseFieldKit(CAMERA_KIT, s.profileJson),
+      hardRulesKit: parseFieldKit(HARDRULES_KIT, s.profileJson),
+      profileJsonRaw: s.profileJson ?? '',
       artStyle: style,
       gallery,
       coverPath: primarySceneGalleryPath(gallery, s.refImagePath),
@@ -476,6 +504,12 @@ export function ScenesPage(): JSX.Element {
       looksJson: looks.length ? serializeSceneLooks(looks) : null,
       seedPrompt: form.seedPrompt || null,
       hardRules: form.hardRules || null,
+      profileJson: mergeFieldKitsIntoProfileJson(form.profileJsonRaw, [
+        { spec: LOCATION_KIT, kit: form.locationKit },
+        { spec: SETDRESSING_KIT, kit: form.setDressingKit },
+        { spec: CAMERA_KIT, kit: form.cameraKit },
+        { spec: HARDRULES_KIT, kit: form.hardRulesKit }
+      ]),
       locationKey:
         form.locationKey.trim() || form.title.trim() || null
     }
@@ -1299,26 +1333,54 @@ export function ScenesPage(): JSX.Element {
                 </div>
                 <div>
                   <Label>{t('scenes.description')}</Label>
-                  <Textarea
-                    size="lg"
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value }))
+                  <FieldKitBuilder
+                    spec={LOCATION_KIT}
+                    kit={form.locationKit}
+                    onChange={(kit) =>
+                      setForm((f) => ({ ...f, locationKit: kit }))
                     }
-                    placeholder={t('scenes.descriptionPlaceholder')}
-                  />
+                    onApply={(text) =>
+                      setForm((f) => ({ ...f, description: text }))
+                    }
+                    applyLabel={t('common.fieldKitApply', {
+                      field: t('scenes.description')
+                    })}
+                  >
+                    <Textarea
+                      size="lg"
+                      value={form.description}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, description: e.target.value }))
+                      }
+                      placeholder={t('scenes.descriptionPlaceholder')}
+                    />
+                  </FieldKitBuilder>
                 </div>
                 <div>
                   <Label>{t('common.hardRules')}</Label>
                   <p className="mb-1.5 text-[11px] leading-relaxed text-ink-500">
                     {t('common.hardRulesHint')}
                   </p>
-                  <Textarea
-                    size="md"
-                    value={form.hardRules}
-                    onChange={scenesMakeHardRulesChange(setForm)}
-                    placeholder={t('common.hardRulesPh')}
-                  />
+                  <FieldKitBuilder
+                    spec={HARDRULES_KIT}
+                    kit={form.hardRulesKit}
+                    onChange={(kit) =>
+                      setForm((f) => ({ ...f, hardRulesKit: kit }))
+                    }
+                    onApply={(text) =>
+                      setForm((f) => ({ ...f, hardRules: text }))
+                    }
+                    applyLabel={t('common.fieldKitApply', {
+                      field: t('common.hardRules')
+                    })}
+                  >
+                    <Textarea
+                      size="md"
+                      value={form.hardRules}
+                      onChange={scenesMakeHardRulesChange(setForm)}
+                      placeholder={t('common.hardRulesPh')}
+                    />
+                  </FieldKitBuilder>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -1369,13 +1431,27 @@ export function ScenesPage(): JSX.Element {
                 </div>
                 <div>
                   <Label>{t('scenes.setDressing')}</Label>
-                  <Textarea
-                    size="md"
-                    value={form.setDressing}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, setDressing: e.target.value }))
+                  <FieldKitBuilder
+                    spec={SETDRESSING_KIT}
+                    kit={form.setDressingKit}
+                    onChange={(kit) =>
+                      setForm((f) => ({ ...f, setDressingKit: kit }))
                     }
-                  />
+                    onApply={(text) =>
+                      setForm((f) => ({ ...f, setDressing: text }))
+                    }
+                    applyLabel={t('common.fieldKitApply', {
+                      field: t('scenes.setDressing')
+                    })}
+                  >
+                    <Textarea
+                      size="md"
+                      value={form.setDressing}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, setDressing: e.target.value }))
+                      }
+                    />
+                  </FieldKitBuilder>
                 </div>
                 <div>
                   <Label>{t('scenes.script')}</Label>
@@ -1390,13 +1466,27 @@ export function ScenesPage(): JSX.Element {
                 </div>
                 <div>
                   <Label>{t('scenes.cameraNotes')}</Label>
-                  <Textarea
-                    size="md"
-                    value={form.cameraNotes}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, cameraNotes: e.target.value }))
+                  <FieldKitBuilder
+                    spec={CAMERA_KIT}
+                    kit={form.cameraKit}
+                    onChange={(kit) =>
+                      setForm((f) => ({ ...f, cameraKit: kit }))
                     }
-                  />
+                    onApply={(text) =>
+                      setForm((f) => ({ ...f, cameraNotes: text }))
+                    }
+                    applyLabel={t('common.fieldKitApply', {
+                      field: t('scenes.cameraNotes')
+                    })}
+                  >
+                    <Textarea
+                      size="md"
+                      value={form.cameraNotes}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, cameraNotes: e.target.value }))
+                      }
+                    />
+                  </FieldKitBuilder>
                 </div>
               </section>
             </div>
@@ -2705,6 +2795,14 @@ export function scenesHandleProfileApply(
       typeof p.hardRules === 'string' && p.hardRules.trim()
         ? p.hardRules.trim()
         : f.hardRules,
+    locationKit:
+      typeof p.description === 'string' ? emptyFieldKit() : f.locationKit,
+    setDressingKit:
+      typeof p.setDressing === 'string' ? emptyFieldKit() : f.setDressingKit,
+    cameraKit:
+      typeof p.cameraNotes === 'string' ? emptyFieldKit() : f.cameraKit,
+    hardRulesKit:
+      typeof p.hardRules === 'string' ? emptyFieldKit() : f.hardRulesKit,
     artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle,
     seedPrompt: p.seedPrompt || f.seedPrompt || p.description || f.description
   }))

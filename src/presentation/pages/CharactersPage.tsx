@@ -38,6 +38,26 @@ import {
 import { useLibraryBrowse } from '../hooks/useLibraryBrowse'
 import { compareUpdatedAtDesc } from '../lib/librarySort'
 import { LanguageMultiPick } from '../components/LanguageMultiPick'
+import { AppearanceKitBuilder } from '../components/AppearanceKitBuilder'
+import { FieldKitBuilder } from '../components/FieldKitBuilder'
+import {
+  APPEARANCE_KIT,
+  emptyAppearanceKit,
+  parseAppearanceKit,
+  type AppearanceKitSelection
+} from '../../domain/characterAppearanceKit'
+import {
+  COSTUME_KIT,
+  HARDRULES_KIT,
+  MANNERISM_KIT,
+  VOICE_KIT
+} from '../../domain/kits'
+import {
+  emptyFieldKit,
+  mergeFieldKitsIntoProfileJson,
+  parseFieldKit,
+  type FieldKitSelection
+} from '../../domain/fieldKit'
 import {
   appendGalleryItem,
   filterGalleryByLayer,
@@ -138,6 +158,12 @@ interface FormState {
   name: string
   description: string
   appearance: string
+  appearanceKit: AppearanceKitSelection
+  costumeKit: FieldKitSelection
+  voiceKit: FieldKitSelection
+  mannerismKit: FieldKitSelection
+  hardRulesKit: FieldKitSelection
+  profileJsonRaw: string
   personality: string
   backstory: string
   costume: string
@@ -165,6 +191,12 @@ const emptyForm = (): FormState => ({
   name: '',
   description: '',
   appearance: '',
+  appearanceKit: emptyAppearanceKit(),
+  costumeKit: emptyFieldKit(),
+  voiceKit: emptyFieldKit(),
+  mannerismKit: emptyFieldKit(),
+  hardRulesKit: emptyFieldKit(),
+  profileJsonRaw: '',
   personality: '',
   backstory: '',
   costume: '',
@@ -185,6 +217,16 @@ const emptyForm = (): FormState => ({
   artStyle: DEFAULT_ART_STYLE,
   costumes: []
 })
+
+function mergeCharacterProfileJson(form: FormState): string | null {
+  return mergeFieldKitsIntoProfileJson(form.profileJsonRaw, [
+    { spec: APPEARANCE_KIT, kit: form.appearanceKit },
+    { spec: COSTUME_KIT, kit: form.costumeKit },
+    { spec: VOICE_KIT, kit: form.voiceKit },
+    { spec: MANNERISM_KIT, kit: form.mannerismKit },
+    { spec: HARDRULES_KIT, kit: form.hardRulesKit }
+  ])
+}
 
 function galleryFromCharacter(c: Character): CharacterGalleryItem[] {
   return parseCharacterGallery(c.refGalleryJson, {
@@ -608,6 +650,12 @@ export function CharactersPage(): JSX.Element {
       name: c.name,
       description: c.description,
       appearance: c.appearance ?? '',
+      appearanceKit: parseAppearanceKit(c.profileJson),
+      costumeKit: parseFieldKit(COSTUME_KIT, c.profileJson),
+      voiceKit: parseFieldKit(VOICE_KIT, c.profileJson),
+      mannerismKit: parseFieldKit(MANNERISM_KIT, c.profileJson),
+      hardRulesKit: parseFieldKit(HARDRULES_KIT, c.profileJson),
+      profileJsonRaw: c.profileJson ?? '',
       personality: c.personality ?? '',
       backstory: c.backstory ?? '',
       costume: c.costume ?? '',
@@ -666,6 +714,7 @@ export function CharactersPage(): JSX.Element {
         form.gallery.find((g) => g.kind === 'sheet')?.path ?? primary,
       refGalleryJson: serializeCharacterGallery(form.gallery),
       appearance: form.appearance || null,
+      profileJson: mergeCharacterProfileJson(form),
       personality: form.personality || null,
       backstory: form.backstory || null,
       costume: form.costume || null,
@@ -750,6 +799,7 @@ export function CharactersPage(): JSX.Element {
             nextForm.gallery.find((g) => g.kind === 'sheet')?.path ?? primary,
           refGalleryJson: serializeCharacterGallery(nextForm.gallery),
           appearance: nextForm.appearance || null,
+          profileJson: mergeCharacterProfileJson(nextForm),
           personality: nextForm.personality || null,
           backstory: nextForm.backstory || null,
           costume: nextForm.costume || null,
@@ -1961,12 +2011,22 @@ export function CharactersPage(): JSX.Element {
                     label={t('common.hardRules')}
                     hint={t('common.hardRulesHint')}
                   >
-                    <Textarea
-                      size="md"
-                      value={form.hardRules}
-                      onChange={(e) => patch('hardRules', e.target.value)}
-                      placeholder={t('common.hardRulesPh')}
-                    />
+                    <FieldKitBuilder
+                      spec={HARDRULES_KIT}
+                      kit={form.hardRulesKit}
+                      onChange={(kit) => patch('hardRulesKit', kit)}
+                      onApply={(text) => patch('hardRules', text)}
+                      applyLabel={t('common.fieldKitApply', {
+                        field: t('common.hardRules')
+                      })}
+                    >
+                      <Textarea
+                        size="md"
+                        value={form.hardRules}
+                        onChange={(e) => patch('hardRules', e.target.value)}
+                        placeholder={t('common.hardRulesPh')}
+                      />
+                    </FieldKitBuilder>
                   </CharactersField>
                   <CharactersField label={t('characters.description')}>
                     <Textarea
@@ -1976,19 +2036,35 @@ export function CharactersPage(): JSX.Element {
                     />
                   </CharactersField>
                   <CharactersField label={t('characters.appearance')}>
-                    <Textarea
-                      size="lg"
-                      value={form.appearance}
-                      onChange={(e) => patch('appearance', e.target.value)}
-                      placeholder={t('characters.appearancePlaceholder')}
-                    />
+                    <AppearanceKitBuilder
+                      kit={form.appearanceKit}
+                      onChange={(kit) => patch('appearanceKit', kit)}
+                      onApply={(text) => patch('appearance', text)}
+                    >
+                      <Textarea
+                        size="lg"
+                        value={form.appearance}
+                        onChange={(e) => patch('appearance', e.target.value)}
+                        placeholder={t('characters.appearancePlaceholder')}
+                      />
+                    </AppearanceKitBuilder>
                   </CharactersField>
                   <CharactersField label={t('characters.costume')}>
-                    <Textarea
-                      size="lg"
-                      value={form.costume}
-                      onChange={(e) => patch('costume', e.target.value)}
-                    />
+                    <FieldKitBuilder
+                      spec={COSTUME_KIT}
+                      kit={form.costumeKit}
+                      onChange={(kit) => patch('costumeKit', kit)}
+                      onApply={(text) => patch('costume', text)}
+                      applyLabel={t('common.fieldKitApply', {
+                        field: t('characters.costume')
+                      })}
+                    >
+                      <Textarea
+                        size="lg"
+                        value={form.costume}
+                        onChange={(e) => patch('costume', e.target.value)}
+                      />
+                    </FieldKitBuilder>
                   </CharactersField>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <CharactersField label={t('characters.personality')}>
@@ -2007,12 +2083,22 @@ export function CharactersPage(): JSX.Element {
                     </CharactersField>
                   </div>
                   <CharactersField label={t('characters.voiceDesc')}>
-                    <Textarea
-                      size="md"
-                      value={form.voiceDesc}
-                      onChange={(e) => patch('voiceDesc', e.target.value)}
-                      placeholder={t('characters.voicePlaceholder')}
-                    />
+                    <FieldKitBuilder
+                      spec={VOICE_KIT}
+                      kit={form.voiceKit}
+                      onChange={(kit) => patch('voiceKit', kit)}
+                      onApply={(text) => patch('voiceDesc', text)}
+                      applyLabel={t('common.fieldKitApply', {
+                        field: t('characters.voiceDesc')
+                      })}
+                    >
+                      <Textarea
+                        size="md"
+                        value={form.voiceDesc}
+                        onChange={(e) => patch('voiceDesc', e.target.value)}
+                        placeholder={t('characters.voicePlaceholder')}
+                      />
+                    </FieldKitBuilder>
                   </CharactersField>
                   <CharactersField label={t('characters.spokenLanguages')}>
                     <LanguageMultiPick
@@ -2023,12 +2109,22 @@ export function CharactersPage(): JSX.Element {
                     />
                   </CharactersField>
                   <CharactersField label={t('characters.mannerisms')}>
-                    <Textarea
-                      size="md"
-                      value={form.mannerisms}
-                      onChange={(e) => patch('mannerisms', e.target.value)}
-                      placeholder={t('characters.mannerismsPlaceholder')}
-                    />
+                    <FieldKitBuilder
+                      spec={MANNERISM_KIT}
+                      kit={form.mannerismKit}
+                      onChange={(kit) => patch('mannerismKit', kit)}
+                      onApply={(text) => patch('mannerisms', text)}
+                      applyLabel={t('common.fieldKitApply', {
+                        field: t('characters.mannerisms')
+                      })}
+                    >
+                      <Textarea
+                        size="md"
+                        value={form.mannerisms}
+                        onChange={(e) => patch('mannerisms', e.target.value)}
+                        placeholder={t('characters.mannerismsPlaceholder')}
+                      />
+                    </FieldKitBuilder>
                   </CharactersField>
                   <CharactersField label={t('characters.relationships')}>
                     <Textarea
@@ -3357,6 +3453,12 @@ export function charactersHandleProfileApply(
     name: p.name || f.name,
     description: p.description || f.description,
     appearance: p.appearance ?? f.appearance,
+    appearanceKit:
+      p.appearance !== undefined ? emptyAppearanceKit() : f.appearanceKit,
+    costumeKit: p.costume !== undefined ? emptyFieldKit() : f.costumeKit,
+    voiceKit: p.voiceDesc !== undefined ? emptyFieldKit() : f.voiceKit,
+    mannerismKit: p.mannerisms !== undefined ? emptyFieldKit() : f.mannerismKit,
+    hardRulesKit: p.hardRules !== undefined ? emptyFieldKit() : f.hardRulesKit,
     personality: p.personality ?? f.personality,
     backstory: p.backstory ?? f.backstory,
     costume: p.costume ?? f.costume,

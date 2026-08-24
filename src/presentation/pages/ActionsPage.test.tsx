@@ -350,4 +350,64 @@ describe('ActionsPage', () => {
       expect(document.querySelector('[role="dialog"]')).toBeTruthy()
     )
   })
+
+  it('applies motion field kit and persists selection ids', async () => {
+    await renderWithProviders(<ActionsPage />)
+    await waitFor(() => expect(screen.getByText('Draw gun')).toBeTruthy())
+    const news = screen.getAllByRole('button').find((b) =>
+      /^New action$/i.test((b.textContent || '').trim())
+    )
+    expect(news).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(news as HTMLElement)
+    })
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('button')
+          .some((b) => /Advanced builder/i.test(b.textContent || ''))
+      ).toBe(true)
+    )
+    const toggles = screen
+      .getAllByRole('button')
+      .filter((b) => /Advanced builder/i.test(b.textContent || ''))
+    expect(toggles.length).toBeGreaterThan(1)
+    await act(async () => {
+      fireEvent.click(toggles[1] as HTMLElement)
+    })
+    const card = screen
+      .getAllByRole('button')
+      .find((b) => /01\s*·/i.test(b.textContent || ''))
+    expect(card).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(card as HTMLElement)
+    })
+    const apply = screen
+      .getAllByRole('button')
+      .find((b) => /Apply to Tempo/i.test(b.textContent || ''))
+    expect(apply).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(apply as HTMLElement)
+    })
+    const nameInput = Array.from(document.querySelectorAll('input')).find(
+      (el) => el.type !== 'search' && el.type !== 'checkbox' && el.type !== 'file'
+    )
+    expect(nameInput).toBeTruthy()
+    await act(async () => {
+      fireEvent.change(nameInput as HTMLInputElement, {
+        target: { value: 'Kit action' }
+      })
+    })
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      fireEvent.click(save as HTMLElement)
+    })
+    await waitFor(() => expect(api.actions.create).toHaveBeenCalled())
+    const payload = api.actions.create.mock.calls.at(-1)?.[0] as {
+      profileJson?: string
+    }
+    expect(payload.profileJson).toMatch(/motionKit/)
+  })
 })

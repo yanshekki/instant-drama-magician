@@ -668,4 +668,71 @@ describe('CharactersPage', () => {
       expect(document.querySelector('[role="dialog"]')).toBeTruthy()
     )
   })
+
+  it('applies appearance kit and persists selection ids', async () => {
+    api.characters.list = vi.fn().mockImplementation(async () => [
+      makeCharacter({
+        profileJson: JSON.stringify({ appearanceKit: { eyes: 'phoenix' } })
+      })
+    ])
+    await renderWithProviders(<CharactersPage />)
+    await openFirstEdit()
+    await clickRe(/^Profile$/i)
+    const toggle = btns().find((b) =>
+      /Advanced appearance builder/i.test(b.textContent || '')
+    )
+    expect(toggle).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(toggle as HTMLElement)
+    })
+    const apply = btns().find((b) =>
+      /Apply to appearance/i.test(b.textContent || '')
+    )
+    expect(apply).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(apply as HTMLElement)
+    })
+    await clickRe(/^Save$/i)
+    await waitFor(() => expect(api.characters.update).toHaveBeenCalled())
+    const payload = api.characters.update.mock.calls.at(-1)?.[1] as {
+      appearance?: string
+      profileJson?: string
+    }
+    expect(payload.appearance).toMatch(/Phoenix eyes|phoenix eyes/i)
+    expect(payload.profileJson).toMatch(/appearanceKit/)
+    expect(payload.profileJson).toMatch(/"eyes":"phoenix"/)
+  })
+
+  it('applies costume field kit and persists selection ids', async () => {
+    await renderWithProviders(<CharactersPage />)
+    await openFirstEdit()
+    await clickRe(/^Profile$/i)
+    const toggles = btns().filter((b) =>
+      /Advanced builder/i.test(b.textContent || '')
+    )
+    expect(toggles.length).toBeGreaterThan(1)
+    await act(async () => {
+      fireEvent.click(toggles[1] as HTMLElement)
+    })
+    const card = btns().find((b) =>
+      /01\s*·\s*court slim sheath/i.test(b.textContent || '')
+    )
+    expect(card).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(card as HTMLElement)
+    })
+    const apply = btns().find((b) => /Apply to Costume/i.test(b.textContent || ''))
+    expect(apply).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(apply as HTMLElement)
+    })
+    await clickRe(/^Save$/i)
+    await waitFor(() => expect(api.characters.update).toHaveBeenCalled())
+    const payload = api.characters.update.mock.calls.at(-1)?.[1] as {
+      costume?: string
+      profileJson?: string
+    }
+    expect(payload.costume).toMatch(/slim sheath/i)
+    expect(payload.profileJson).toMatch(/costumeKit/)
+  })
 })

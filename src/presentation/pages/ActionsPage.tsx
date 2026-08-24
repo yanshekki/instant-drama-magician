@@ -81,6 +81,14 @@ import { PlotSuggestModal } from '../components/PlotContextPicker'
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Textarea } from '../components/ui'
+import { FieldKitBuilder } from '../components/FieldKitBuilder'
+import { CAMERA_KIT, HARDRULES_KIT, MOTION_KIT } from '../../domain/kits'
+import {
+  emptyFieldKit,
+  mergeFieldKitsIntoProfileJson,
+  parseFieldKit,
+  type FieldKitSelection
+} from '../../domain/fieldKit'
 
 type EditorPanel = 'profile' | 'refs'
 
@@ -88,6 +96,10 @@ interface FormState {
   name: string
   description: string
   hardRules: string
+  motionKit: FieldKitSelection
+  cameraKit: FieldKitSelection
+  hardRulesKit: FieldKitSelection
+  profileJsonRaw: string
   motionNotes: string
   intention: string
   cameraNotes: string
@@ -103,6 +115,10 @@ const emptyForm = (): FormState => ({
   name: '',
   description: '',
   hardRules: '',
+  motionKit: emptyFieldKit(),
+  cameraKit: emptyFieldKit(),
+  hardRulesKit: emptyFieldKit(),
+  profileJsonRaw: '',
   motionNotes: '',
   intention: '',
   cameraNotes: '',
@@ -122,6 +138,10 @@ function formFromAction(a: Action): FormState {
     name: a.name,
     description: a.description || '',
     hardRules: a.hardRules || '',
+    motionKit: parseFieldKit(MOTION_KIT, a.profileJson),
+    cameraKit: parseFieldKit(CAMERA_KIT, a.profileJson),
+    hardRulesKit: parseFieldKit(HARDRULES_KIT, a.profileJson),
+    profileJsonRaw: a.profileJson ?? '',
     motionNotes: a.motionNotes || '',
     intention: a.intention || '',
     cameraNotes: a.cameraNotes || '',
@@ -283,6 +303,11 @@ export function ActionsPage(): JSX.Element {
     cameraNotes: form.cameraNotes.trim() || null,
     visualTags: form.visualTags.trim() || null,
     hardRules: form.hardRules.trim() || null,
+    profileJson: mergeFieldKitsIntoProfileJson(form.profileJsonRaw, [
+      { spec: MOTION_KIT, kit: form.motionKit },
+      { spec: CAMERA_KIT, kit: form.cameraKit },
+      { spec: HARDRULES_KIT, kit: form.hardRulesKit }
+    ]),
     panelLayout: form.panelLayout,
     artStyle: form.artStyle,
     refImagePath: form.coverPath,
@@ -851,23 +876,45 @@ export function ActionsPage(): JSX.Element {
               label={t('common.hardRules')}
               hint={t('common.hardRulesHint')}
             >
-              <Textarea
-                value={form.hardRules}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, hardRules: e.target.value }))
-                }
-                rows={4}
-                placeholder={t('common.hardRulesPh')}
-              />
+              <FieldKitBuilder
+                spec={HARDRULES_KIT}
+                kit={form.hardRulesKit}
+                onChange={(kit) => setForm((f) => ({ ...f, hardRulesKit: kit }))}
+                onApply={(text) => setForm((f) => ({ ...f, hardRules: text }))}
+                applyLabel={t('common.fieldKitApply', {
+                  field: t('common.hardRules')
+                })}
+              >
+                <Textarea
+                  value={form.hardRules}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, hardRules: e.target.value }))
+                  }
+                  rows={4}
+                  placeholder={t('common.hardRulesPh')}
+                />
+              </FieldKitBuilder>
             </EditorField>
             <EditorField label={t('actions.motionNotes')}>
-              <Textarea
-                value={form.motionNotes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, motionNotes: e.target.value }))
+              <FieldKitBuilder
+                spec={MOTION_KIT}
+                kit={form.motionKit}
+                onChange={(kit) => setForm((f) => ({ ...f, motionKit: kit }))}
+                onApply={(text) =>
+                  setForm((f) => ({ ...f, motionNotes: text }))
                 }
-                rows={2}
-              />
+                applyLabel={t('common.fieldKitApply', {
+                  field: t('actions.motionNotes')
+                })}
+              >
+                <Textarea
+                  value={form.motionNotes}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, motionNotes: e.target.value }))
+                  }
+                  rows={2}
+                />
+              </FieldKitBuilder>
             </EditorField>
             <EditorField label={t('actions.intention')}>
               <Textarea
@@ -879,13 +926,25 @@ export function ActionsPage(): JSX.Element {
               />
             </EditorField>
             <EditorField label={t('actions.cameraNotes')}>
-              <Textarea
-                value={form.cameraNotes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, cameraNotes: e.target.value }))
+              <FieldKitBuilder
+                spec={CAMERA_KIT}
+                kit={form.cameraKit}
+                onChange={(kit) => setForm((f) => ({ ...f, cameraKit: kit }))}
+                onApply={(text) =>
+                  setForm((f) => ({ ...f, cameraNotes: text }))
                 }
-                rows={2}
-              />
+                applyLabel={t('common.fieldKitApply', {
+                  field: t('actions.cameraNotes')
+                })}
+              >
+                <Textarea
+                  value={form.cameraNotes}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, cameraNotes: e.target.value }))
+                  }
+                  rows={2}
+                />
+              </FieldKitBuilder>
             </EditorField>
             <EditorField label={t('actions.visualTags')}>
               <Input
@@ -1109,6 +1168,12 @@ export function actionsHandleProfileApply(
       typeof p.hardRules === 'string' && p.hardRules.trim()
         ? p.hardRules.trim()
         : f.hardRules,
+    motionKit:
+      typeof p.motionNotes === 'string' ? emptyFieldKit() : f.motionKit,
+    cameraKit:
+      typeof p.cameraNotes === 'string' ? emptyFieldKit() : f.cameraKit,
+    hardRulesKit:
+      typeof p.hardRules === 'string' ? emptyFieldKit() : f.hardRulesKit,
     artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle
   }))
   if (draft.actionId) ops.setEditingId(draft.actionId)

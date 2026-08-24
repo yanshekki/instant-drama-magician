@@ -97,6 +97,9 @@ import {
   parseBeatContent
 } from '../../domain/beatContent'
 import { Button, EmptyState, Input, Textarea } from '../components/ui'
+import { FieldKitBuilder } from '../components/FieldKitBuilder'
+import { HARDRULES_KIT, STYLENOTE_KIT } from '../../domain/kits'
+import { emptyFieldKit, type FieldKitSelection } from '../../domain/fieldKit'
 import {
   MENU_IMPORT_STORY_EVENT,
   MENU_NEW_STORY_EVENT
@@ -242,6 +245,10 @@ export function StoriesPage(): JSX.Element {
   const [editStatus, setEditStatus] = useState<StoryStatus>('DRAFT')
   const [styleNote, setStyleNote] = useState('')
   const [hardRules, setHardRules] = useState('')
+  const [styleKit, setStyleKit] = useState<FieldKitSelection>(emptyFieldKit)
+  const [storyRulesKit, setStoryRulesKit] = useState<FieldKitSelection>(
+    emptyFieldKit
+  )
   const [storyArtStyle, setStoryArtStyle] =
     useState<ArtStyleId>(DEFAULT_ART_STYLE)
   const [coverPath, setCoverPath] = useState<string | null>(null)
@@ -339,6 +346,8 @@ export function StoriesPage(): JSX.Element {
         ) as StoryStatus
       )
       setStyleNote(d.styleNote ?? '')
+      setStyleKit(emptyFieldKit())
+      setStoryRulesKit(emptyFieldKit())
       setHardRules(
         storiesHardRulesFromDetail(
           (d as { hardRules?: string | null }).hardRules
@@ -433,6 +442,8 @@ export function StoriesPage(): JSX.Element {
     setEditStatus('DRAFT')
     setStyleNote('')
     setHardRules('')
+    setStyleKit(emptyFieldKit())
+    setStoryRulesKit(emptyFieldKit())
     setStoryArtStyle(DEFAULT_ART_STYLE)
     setCoverPath(null)
     setCoverGallery([])
@@ -1488,23 +1499,43 @@ export function StoriesPage(): JSX.Element {
               label={t('common.hardRules')}
               hint={`${t('common.hardRulesHint')} · ${t('stories.aiFillMeta')}`}
             >
-              <Textarea
-                size="md"
-                value={hardRules}
-                onChange={(e) => setHardRules(e.target.value)}
-                placeholder={t('common.hardRulesPh')}
-              />
+              <FieldKitBuilder
+                spec={HARDRULES_KIT}
+                kit={storyRulesKit}
+                onChange={setStoryRulesKit}
+                onApply={setHardRules}
+                applyLabel={t('common.fieldKitApply', {
+                  field: t('common.hardRules')
+                })}
+              >
+                <Textarea
+                  size="md"
+                  value={hardRules}
+                  onChange={(e) => setHardRules(e.target.value)}
+                  placeholder={t('common.hardRulesPh')}
+                />
+              </FieldKitBuilder>
             </EditorField>
             <EditorField
               label={t('stories.styleNote')}
               hint={t('stories.styleNoteHint')}
             >
-              <Textarea
-                size="fill"
-                value={styleNote}
-                onChange={(e) => setStyleNote(e.target.value)}
-                placeholder={t('stories.styleNotePlaceholder')}
-              />
+              <FieldKitBuilder
+                spec={STYLENOTE_KIT}
+                kit={styleKit}
+                onChange={setStyleKit}
+                onApply={setStyleNote}
+                applyLabel={t('common.fieldKitApply', {
+                  field: t('stories.styleNote')
+                })}
+              >
+                <Textarea
+                  size="fill"
+                  value={styleNote}
+                  onChange={(e) => setStyleNote(e.target.value)}
+                  placeholder={t('stories.styleNotePlaceholder')}
+                />
+              </FieldKitBuilder>
             </EditorField>
             <p className="text-[11px] text-ink-500">{t('stories.metaHint')}</p>
           </div>

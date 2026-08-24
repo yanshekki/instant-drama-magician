@@ -75,6 +75,9 @@ import {
 } from '../components/EditorShell'
 import { PlotSuggestModal } from '../components/PlotContextPicker'
 import { Button, EmptyState, Input, Textarea } from '../components/ui'
+import { FieldKitBuilder } from '../components/FieldKitBuilder'
+import { COSTUME_KIT, HARDRULES_KIT } from '../../domain/kits'
+import { emptyFieldKit, type FieldKitSelection } from '../../domain/fieldKit'
 
 type CostumeEditorTab = 'profile' | 'links' | 'dress'
 
@@ -133,6 +136,8 @@ export function CostumesPage(): JSX.Element {
   const [lookName, setLookName] = useState('')
   const [lookDesc, setLookDesc] = useState('')
   const [lookHardRules, setLookHardRules] = useState('')
+  const [lookKit, setLookKit] = useState<FieldKitSelection>(emptyFieldKit)
+  const [lookRulesKit, setLookRulesKit] = useState<FieldKitSelection>(emptyFieldKit)
   const [lookStyle, setLookStyle] = useState<ArtStyleId>(DEFAULT_ART_STYLE)
   const [lookImagePath, setLookImagePath] = useState<string | null>(null)
   const [linkedCharIds, setLinkedCharIds] = useState<string[]>([])
@@ -242,6 +247,8 @@ export function CostumesPage(): JSX.Element {
     setLookName('')
     setLookDesc('')
     setLookHardRules('')
+    setLookKit(emptyFieldKit())
+    setLookRulesKit(emptyFieldKit())
     setLookStyle(DEFAULT_ART_STYLE)
     setLookImagePath(null)
     setLinkedCharIds([])
@@ -261,6 +268,8 @@ export function CostumesPage(): JSX.Element {
     setLookName(c.name)
     setLookDesc(c.description)
     setLookHardRules(c.hardRules ?? '')
+    setLookKit(emptyFieldKit())
+    setLookRulesKit(emptyFieldKit())
     setLookStyle(
       isArtStyleId(c.artStyle) ? c.artStyle : DEFAULT_ART_STYLE
     )
@@ -1011,23 +1020,43 @@ export function CostumesPage(): JSX.Element {
                 />
               </EditorField>
               <EditorField label={t('characters.swapCostumeDesc')}>
-                <Textarea
-                  size="lg"
-                  value={lookDesc}
-                  onChange={(e) => setLookDesc(e.target.value)}
-                  placeholder={t('characters.swapCostumePlaceholder')}
-                />
+                <FieldKitBuilder
+                  spec={COSTUME_KIT}
+                  kit={lookKit}
+                  onChange={setLookKit}
+                  onApply={setLookDesc}
+                  applyLabel={t('common.fieldKitApply', {
+                    field: t('characters.swapCostumeDesc')
+                  })}
+                >
+                  <Textarea
+                    size="lg"
+                    value={lookDesc}
+                    onChange={(e) => setLookDesc(e.target.value)}
+                    placeholder={t('characters.swapCostumePlaceholder')}
+                  />
+                </FieldKitBuilder>
               </EditorField>
               <EditorField
                 label={t('common.hardRules')}
                 hint={t('common.hardRulesHint')}
               >
-                <Textarea
-                  size="md"
-                  value={lookHardRules}
-                  onChange={(e) => setLookHardRules(e.target.value)}
-                  placeholder={t('common.hardRulesPh')}
-                />
+                <FieldKitBuilder
+                  spec={HARDRULES_KIT}
+                  kit={lookRulesKit}
+                  onChange={setLookRulesKit}
+                  onApply={setLookHardRules}
+                  applyLabel={t('common.fieldKitApply', {
+                    field: t('common.hardRules')
+                  })}
+                >
+                  <Textarea
+                    size="md"
+                    value={lookHardRules}
+                    onChange={(e) => setLookHardRules(e.target.value)}
+                    placeholder={t('common.hardRulesPh')}
+                  />
+                </FieldKitBuilder>
               </EditorField>
               <EditorField label={t('characters.artStyle')}>
                 <EditorSelect

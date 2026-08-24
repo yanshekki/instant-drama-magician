@@ -459,4 +459,59 @@ describe('PropsPage', () => {
     })
     expect(api.props.list).toHaveBeenCalled()
   })
+
+  it('applies prop look field kit and persists selection ids', async () => {
+    await renderWithProviders(<PropsPage />)
+    await waitFor(() => expect(screen.getByText('Badge')).toBeTruthy())
+    const news = screen.getAllByRole('button').find((b) =>
+      /^New prop$/i.test((b.textContent || '').trim())
+    )
+    expect(news).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(news as HTMLElement)
+    })
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('button')
+          .some((b) => /Advanced builder/i.test(b.textContent || ''))
+      ).toBe(true)
+    )
+    const toggle = screen
+      .getAllByRole('button')
+      .find((b) => /Advanced builder/i.test(b.textContent || ''))
+    expect(toggle).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(toggle as HTMLElement)
+    })
+    const card = screen
+      .getAllByRole('button')
+      .find((b) => /01\s*·/i.test(b.textContent || ''))
+    expect(card).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(card as HTMLElement)
+    })
+    const apply = screen
+      .getAllByRole('button')
+      .find((b) => /Apply to Description/i.test(b.textContent || ''))
+    expect(apply).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(apply as HTMLElement)
+    })
+    const nameInput = screen.getByPlaceholderText('e.g. pocket watch')
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: 'Kit prop' } })
+    })
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      fireEvent.click(save as HTMLElement)
+    })
+    await waitFor(() => expect(api.props.create).toHaveBeenCalled())
+    const payload = api.props.create.mock.calls.at(-1)?.[0] as {
+      profileJson?: string
+    }
+    expect(payload.profileJson).toMatch(/propLookKit/)
+  })
 })

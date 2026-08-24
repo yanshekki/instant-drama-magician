@@ -389,4 +389,58 @@ describe('ScenesPage', () => {
     })
     expect(api.scenes.list).toHaveBeenCalled()
   })
+
+  it('applies location field kit and persists selection ids', async () => {
+    await renderWithProviders(<ScenesPage />)
+    await waitFor(() => expect(screen.getByText('Rooftop')).toBeTruthy())
+    const news = screen.getAllByRole('button').find((b) =>
+      /^New scene$/i.test((b.textContent || '').trim())
+    )
+    expect(news).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(news as HTMLElement)
+    })
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('button')
+          .some((b) => /Advanced builder/i.test(b.textContent || ''))
+      ).toBe(true)
+    )
+    const toggle = screen
+      .getAllByRole('button')
+      .find((b) => /Advanced builder/i.test(b.textContent || ''))
+    expect(toggle).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(toggle as HTMLElement)
+    })
+    const card = screen
+      .getAllByRole('button')
+      .find((b) => /01\s*·/i.test(b.textContent || ''))
+    expect(card).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(card as HTMLElement)
+    })
+    const apply = screen
+      .getAllByRole('button')
+      .find((b) => /Apply to Space description/i.test(b.textContent || ''))
+    expect(apply).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(apply as HTMLElement)
+    })
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    expect(save).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(save as HTMLElement)
+    })
+    await waitFor(() => expect(api.scenes.create).toHaveBeenCalled())
+    const payload = api.scenes.create.mock.calls.at(-1)?.[0] as {
+      profileJson?: string
+      description?: string
+    }
+    expect(payload.description).toMatch(/courtyard|siheyuan/i)
+    expect(payload.profileJson).toMatch(/locationKit/)
+  })
 })

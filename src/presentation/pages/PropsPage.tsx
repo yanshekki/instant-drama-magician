@@ -80,6 +80,14 @@ import {
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
+import { FieldKitBuilder } from '../components/FieldKitBuilder'
+import { HARDRULES_KIT, PROPLOOK_KIT } from '../../domain/kits'
+import {
+  emptyFieldKit,
+  mergeFieldKitsIntoProfileJson,
+  parseFieldKit,
+  type FieldKitSelection
+} from '../../domain/fieldKit'
 import { translatePropGalleryLabel } from '../../domain/galleryLabelI18n'
 
 type EditorPanel = 'profile' | 'refs'
@@ -88,6 +96,9 @@ interface FormState {
   name: string
   description: string
   hardRules: string
+  lookKit: FieldKitSelection
+  hardRulesKit: FieldKitSelection
+  profileJsonRaw: string
   material: string
   sizeNotes: string
   condition: string
@@ -101,6 +112,9 @@ const emptyForm = (): FormState => ({
   name: '',
   description: '',
   hardRules: '',
+  lookKit: emptyFieldKit(),
+  hardRulesKit: emptyFieldKit(),
+  profileJsonRaw: '',
   material: '',
   sizeNotes: '',
   condition: '',
@@ -297,6 +311,9 @@ export function PropsPage(): JSX.Element {
       name: p.name,
       description: p.description,
       hardRules: p.hardRules ?? '',
+      lookKit: parseFieldKit(PROPLOOK_KIT, p.profileJson),
+      hardRulesKit: parseFieldKit(HARDRULES_KIT, p.profileJson),
+      profileJsonRaw: p.profileJson ?? '',
       material: p.material ?? '',
       sizeNotes: p.sizeNotes ?? '',
       condition: p.condition ?? '',
@@ -330,7 +347,11 @@ export function PropsPage(): JSX.Element {
         ? serializeSceneGallery(form.gallery)
         : null,
       seedPrompt: form.description || null,
-      hardRules: form.hardRules || null
+      hardRules: form.hardRules || null,
+      profileJson: mergeFieldKitsIntoProfileJson(form.profileJsonRaw, [
+        { spec: PROPLOOK_KIT, kit: form.lookKit },
+        { spec: HARDRULES_KIT, kit: form.hardRulesKit }
+      ])
     }
   }
 
@@ -944,28 +965,54 @@ export function PropsPage(): JSX.Element {
                 </div>
                 <div>
                   <Label>{t('props.description')}</Label>
-                  <Textarea
-                    size="lg"
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value }))
+                  <FieldKitBuilder
+                    spec={PROPLOOK_KIT}
+                    kit={form.lookKit}
+                    onChange={(kit) => setForm((f) => ({ ...f, lookKit: kit }))}
+                    onApply={(text) =>
+                      setForm((f) => ({ ...f, description: text }))
                     }
-                    placeholder={t('props.descriptionPlaceholder')}
-                  />
+                    applyLabel={t('common.fieldKitApply', {
+                      field: t('props.description')
+                    })}
+                  >
+                    <Textarea
+                      size="lg"
+                      value={form.description}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, description: e.target.value }))
+                      }
+                      placeholder={t('props.descriptionPlaceholder')}
+                    />
+                  </FieldKitBuilder>
                 </div>
                 <div>
                   <Label>{t('common.hardRules')}</Label>
                   <p className="mb-1.5 text-[11px] leading-relaxed text-ink-500">
                     {t('common.hardRulesHint')}
                   </p>
-                  <Textarea
-                    size="md"
-                    value={form.hardRules}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, hardRules: e.target.value }))
+                  <FieldKitBuilder
+                    spec={HARDRULES_KIT}
+                    kit={form.hardRulesKit}
+                    onChange={(kit) =>
+                      setForm((f) => ({ ...f, hardRulesKit: kit }))
                     }
-                    placeholder={t('common.hardRulesPh')}
-                  />
+                    onApply={(text) =>
+                      setForm((f) => ({ ...f, hardRules: text }))
+                    }
+                    applyLabel={t('common.fieldKitApply', {
+                      field: t('common.hardRules')
+                    })}
+                  >
+                    <Textarea
+                      size="md"
+                      value={form.hardRules}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, hardRules: e.target.value }))
+                      }
+                      placeholder={t('common.hardRulesPh')}
+                    />
+                  </FieldKitBuilder>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -1485,6 +1532,9 @@ export function propsHandleProfileApply(
     condition: propsPickField(p.condition, f.condition),
     visualTags: propsPickField(p.visualTags, f.visualTags),
     hardRules: propsPickField(p.hardRules, f.hardRules),
+    lookKit: typeof p.description === 'string' ? emptyFieldKit() : f.lookKit,
+    hardRulesKit:
+      typeof p.hardRules === 'string' ? emptyFieldKit() : f.hardRulesKit,
     artStyle: isArtStyleId(p.artStyle) ? p.artStyle : f.artStyle
   }))
   ops.setEditorOpen(true)

@@ -690,4 +690,61 @@ describe('StoriesPage', () => {
     )
     expect(api.stories.aiFillScript).not.toHaveBeenCalled()
   })
+
+  it('applies style note field kit into story meta', async () => {
+    await renderWithProviders(<StoriesPage />)
+    await waitFor(() => expect(screen.getByText('Demo Story')).toBeTruthy())
+    const news = screen.getAllByRole('button').find((b) =>
+      /^New story$/i.test((b.textContent || '').trim())
+    )
+    expect(news).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(news as HTMLElement)
+    })
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('button')
+          .some((b) => /Advanced builder/i.test(b.textContent || ''))
+      ).toBe(true)
+    )
+    const toggles = screen
+      .getAllByRole('button')
+      .filter((b) => /Advanced builder/i.test(b.textContent || ''))
+    expect(toggles.length).toBeGreaterThan(1)
+    await act(async () => {
+      fireEvent.click(toggles[1] as HTMLElement)
+    })
+    const card = screen
+      .getAllByRole('button')
+      .find((b) => /01\s*·/i.test(b.textContent || ''))
+    expect(card).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(card as HTMLElement)
+    })
+    const apply = screen
+      .getAllByRole('button')
+      .find((b) => /Apply to Style bible/i.test(b.textContent || ''))
+    expect(apply).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(apply as HTMLElement)
+    })
+    const titleInput = screen.getByPlaceholderText(/Café Reunion/i)
+    await act(async () => {
+      fireEvent.change(titleInput, { target: { value: 'Kit Story' } })
+    })
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    expect(save).toBeTruthy()
+    expect((save as HTMLButtonElement).disabled).toBe(false)
+    await act(async () => {
+      fireEvent.click(save as HTMLElement)
+    })
+    await waitFor(() => expect(api.stories.update).toHaveBeenCalled())
+    const payload = api.stories.update.mock.calls.at(-1)?.[1] as {
+      styleNote?: string | null
+    }
+    expect(payload.styleNote).toMatch(/teal-orange|palette/i)
+  })
 })

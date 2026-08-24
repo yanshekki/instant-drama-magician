@@ -355,5 +355,55 @@ describe('CostumesPage', () => {
       expect(document.querySelector('[role="dialog"]')).toBeTruthy()
     )
   })
+
+  it('applies costume field kit into look description', async () => {
+    await renderWithProviders(<CostumesPage />)
+    await waitFor(() => expect(screen.getByText('Rain coat')).toBeTruthy())
+    const news = screen.getAllByRole('button').find((b) =>
+      /^New look$/i.test((b.textContent || '').trim())
+    )
+    expect(news).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(news as HTMLElement)
+    })
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('button')
+          .some((b) => /Advanced builder/i.test(b.textContent || ''))
+      ).toBe(true)
+    )
+    const toggle = screen
+      .getAllByRole('button')
+      .find((b) => /Advanced builder/i.test(b.textContent || ''))
+    await act(async () => {
+      fireEvent.click(toggle as HTMLElement)
+    })
+    const card = screen
+      .getAllByRole('button')
+      .find((b) => /01\s*·\s*court slim sheath/i.test(b.textContent || ''))
+    expect(card).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(card as HTMLElement)
+    })
+    const apply = screen
+      .getAllByRole('button')
+      .find((b) => /Apply to New costume description/i.test(b.textContent || ''))
+    expect(apply).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(apply as HTMLElement)
+    })
+    const save = screen
+      .getAllByRole('button')
+      .find((b) => /^Save$/i.test((b.textContent || '').trim()))
+    await act(async () => {
+      fireEvent.click(save as HTMLElement)
+    })
+    await waitFor(() => expect(api.costumes.create).toHaveBeenCalled())
+    const payload = api.costumes.create.mock.calls.at(-1)?.[0] as {
+      description?: string
+    }
+    expect(payload.description).toMatch(/slim sheath/i)
+  })
 })
 
