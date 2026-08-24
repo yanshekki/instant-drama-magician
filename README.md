@@ -4,6 +4,7 @@
   <strong>From one idea to a finished short drama — on your desk.</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
   · <strong>v1.7.1</strong> · MIT
+  · <a href="https://ysk.hk/products/instant-drama">Product page</a>
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
 </p>
@@ -733,7 +734,7 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 
 **Ki (yanshekki)** — Full-stack developer, quant trader, founder of [YSK Limited](https://ysk.hk/).
 
-🌐 [linktr.ee/yanshekki](https://linktr.ee/yanshekki) · 🏢 [ysk.hk](https://ysk.hk/)
+🌐 [linktr.ee/yanshekki](https://linktr.ee/yanshekki) · 📄 [Product page](https://ysk.hk/products/instant-drama) · 🏢 [ysk.hk](https://ysk.hk/)
 
 ### ☕ Support / Donate
 

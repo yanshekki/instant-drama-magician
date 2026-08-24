@@ -4,6 +4,7 @@
   <strong>由一個構想，到完整短劇——在你的工作檯上完成。</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
   · <strong>v1.7.1</strong> · MIT
+  · <a href="https://ysk.hk/products/instant-drama">產品頁</a>
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
 </p>
@@ -733,7 +734,7 @@ rm -rf ~/.config/instant-drama-magician
 
 **Ki (yanshekki)** — 全端開發者、量化交易者、[YSK Limited](https://ysk.hk/) 創辦人。
 
-🌐 [linktr.ee/yanshekki](https://linktr.ee/yanshekki) · 🏢 [ysk.hk](https://ysk.hk/)
+🌐 [linktr.ee/yanshekki](https://linktr.ee/yanshekki) · 📄 [產品頁](https://ysk.hk/products/instant-drama) · 🏢 [ysk.hk](https://ysk.hk/)
 
 ### ☕ Support / Donate
 
