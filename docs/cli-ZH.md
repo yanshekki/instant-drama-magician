@@ -132,9 +132,11 @@ instant-drama media check-ffmpeg --json
 
 Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
 
-## 近期 API 表面（1.7.1）
+## 近期 API 表面（1.8.0）
 
 桌面、Web、CLI 共用同一 registry。優先用 **domain sugar** 或 `invoke`。
+
+**1.8.0 進階碼板** **不加新 channel**（仍為 **183**）。桌面「進階」把 template 砌入現有文字欄。角色／場景／道具／動作的 create／update 可把選擇 ID 寫入 `profileJson`（`appearanceKit`、`costumeKit`、`voiceKit`、`mannerismKit`、`locationKit`、`setDressingKit`、`cameraKit`、`propLookKit`、`motionKit`、`hardRulesKit`）。服裝館造型與故事風格／鐵則只套用文字（無 kit 袋）。圖像／影片 handler 仍只食砌好的字。合約以 `channels describe characters:update` 為準。
 
 | Channel | 用途 | 示例 |
 |---------|------|------|

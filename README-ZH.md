@@ -3,7 +3,7 @@
 <p align="center">
   <strong>由一個構想，到完整短劇——在你的工作檯上完成。</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
-  · <strong>v1.7.1</strong> · MIT
+  · <strong>v1.8.0</strong> · MIT
   · <a href="https://ysk.hk/products/instant-drama">產品頁</a>
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
@@ -71,7 +71,7 @@
 
 ## 介面預覽
 
-截圖來自實際應用（`src/assets/screen/`，v1.7.1）。上方主圖是 **時間軸**、**漫畫** 與 **劇照** 三張工作檯。
+截圖來自實際應用（`src/assets/screen/`，v1.8.0）。上方主圖是 **時間軸**、**漫畫** 與 **劇照** 三張工作檯。
 
 ### 1. 故事管理
 
@@ -205,12 +205,12 @@
 
 | 領域 | 你能做什麼 |
 |------|------------|
-| **故事 Stories** | 多故事管理、封面 AI、風格聖經、**章節**、多選**劇情段落**、cast 綁定（角色／場景／道具／**動作**）、`.idm.zip` 備份匯入匯出 |
-| **人物 Characters** | 全域角色庫、soul.md／SoulMD Hub、多角度 sheet、身份鎖定、外部 ref、intro video、**僅憑靜圖 AI 填充**（vision） |
-| **服裝 Costumes** | 服裝庫、換裝、wardrobe 建議、**僅憑參考圖 AI 填充**、多圖 gallery；**試穿雙寫**角色及戲服多圖庫（`costumes:appendTryOnStill`） |
-| **場景 Scenes** | 場景文案、plate／looks／atmosphere、場景圖庫、**vision AI 填充** |
-| **道具 Props** | 道具描述、master prompt、plate 變體、**vision AI 填充** |
-| **動作 Actions** | 全域**動作指導**庫：多格指示圖（2–6 格）、藝術風格、外部參考、cast 參考、**vision AI 填充**、多圖累積 |
+| **故事 Stories** | 多故事管理、封面 AI、風格聖經（**進階風格／鐵則碼板**，只套用文字）、**章節**、多選**劇情段落**、cast 綁定（角色／場景／道具／**動作**）、`.idm.zip` 備份匯入匯出 |
+| **人物 Characters** | 全域角色庫、soul.md／SoulMD Hub、多角度 sheet、身份鎖定、**進階碼板**（外貌／服裝／聲線／習慣／鐵則）、外部 ref、intro video、**僅憑靜圖 AI 填充**（vision） |
+| **服裝 Costumes** | 服裝庫、換裝、wardrobe 建議、**進階造型／鐵則碼板**（只套用文字）、**僅憑參考圖 AI 填充**、多圖 gallery；**試穿雙寫**角色及戲服多圖庫（`costumes:appendTryOnStill`） |
+| **場景 Scenes** | 場景文案、plate／looks／atmosphere、**進階空間／班底／攝影／鐵則碼板**、場景圖庫、**vision AI 填充** |
+| **道具 Props** | 道具描述、**進階造型／鐵則碼板**、master prompt、plate 變體、**vision AI 填充** |
+| **動作 Actions** | 全域**動作指導**庫：多格指示圖（2–6 格）、**進階動勢／攝影／鐵則碼板**、藝術風格、外部參考、cast 參考、**vision AI 填充**、多圖累積 |
 | **MediaGen 生成殼** | 統一材料 → 多圖 vision 潤飾 → 出圖／出片（`mediaGen:extract` · `polish` · `generateImage`）；庫頁與時間軸精修共用 |
 | **圖庫 UI** | 共用 **EntityGalleryPanel**：大圖預覽、放大／另存／封面／移除／介紹片、縮圖列（預覽 vs 身份鎖定多選） |
 | **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、綁定角色／場景／道具／**動作**、6s／10s 時長、對白與鏡頭標記；**流程圖**按視窗高度向下換欄 |
@@ -238,7 +238,7 @@
 - 封面：Zoom／Regenerate／Save As  
 - **Import story backup**／**Export backup**（故事級 `.idm.zip`）  
 - 編輯分頁：  
-  - **Basics**：封面、AI quick create、title、status、art style、style bible  
+  - **Basics**：封面、AI quick create、title、status、art style、style bible（**進階碼板**寫入現有風格／鐵則欄；只套用文字，無 `profileJson` 袋）  
   - **Chapters（章節）**：寫正文（AI 生成／潤飾）；之後填庫以章節為劇情來源  
   - **Cast（選角）**：連結**角色、場景、道具、動作**（搜尋 + 已加入／未加入篩選）  
   - **Script beats（劇情段落）**：每段可多選角色（最多 4）／場景（最多 2）／道具（最多 4）／**動作**（最多 4），並寫 beat screenplay  
@@ -250,7 +250,7 @@
 - 搜尋、性別、藝術風格、有無圖片、Soul、語言等篩選  
 - 每卡多張參考圖；Edit／Delete  
 - 編輯分頁：  
-  - **Profile**：名稱、描述、年齡、性別、語言、聲音等；**AI 填充**可用構思、草稿、soul、**只憑上載靜圖**（vision），或**由劇情建議**  
+  - **Profile**：名稱、描述、年齡、性別、語言、聲音等；外貌／服裝／聲線／習慣／鐵則可用**進階碼板**（選擇 ID 存入 `profileJson`）；**AI 填充**可用構思、草稿、soul、**只憑上載靜圖**（vision），或**由劇情建議**  
   - **References**：多角度 bible（front／¾／close-up 等）、body／base／costume 管線、外部參考、身份鎖定、生成專業參考、Intro video  
   - **Costume**：綁定服裝  
 - **SoulMD Hub**（soulmd-hub.ysk.hk）：索引建議、匯入 soul.md 作為人物靈魂設定  
@@ -259,6 +259,7 @@
 ### Costumes（服裝）
 
 - 全域服裝庫（可連結 0…N 個角色）  
+- **進階造型／鐵則碼板**寫入描述欄（重開不還原卡位）  
 - **只憑參考圖 AI 填充**（構思可留空），或**由劇情建議**  
 - 多圖 gallery、封面、介紹影片；縮圖支援**身份鎖定多選**  
 - 以角色參考圖試穿／換裝（身份鎖定）  
@@ -266,14 +267,14 @@
 
 ### Scenes（場景）
 
-- 場景描述與腳本欄位  
+- 場景描述與腳本欄位；空間／班底／攝影／鐵則可用**進階碼板**（`profileJson`）  
 - 場景 plate、looks、atmosphere  
 - 場景圖庫與變體生成  
 - **vision AI 填充**（依選中／封面靜圖），或**由劇情建議**  
 
 ### Props（道具）
 
-- 道具名稱與描述  
+- 道具名稱與描述；造型／鐵則可用**進階碼板**（`profileJson`）  
 - Prop master prompt、plate 變體  
 - 供時間軸 clip 綁定  
 - **vision AI 填充**（依參考靜圖），或**由劇情建議**  
@@ -281,6 +282,7 @@
 ### Actions（動作指導）
 
 - **全域動作庫** — 可重用的肢體／走位／場面調度指示（先建庫，再掛入故事）  
+- 節奏與肢體／攝影／鐵則可用**進階碼板**（`profileJson`）  
 - **多格指示圖**：2／3／4／5／6 格（橫向 strip 或 2×2／2×3）；第 1 格＝第一動作，第 N 格＝最後動作  
 - 藝術風格、外部參考圖、由角色／服裝／場景／道具引入 cast 參考  
 - **vision AI 填充**，或**由劇情建議**；多圖累積（append 指示板、排序、封面）  
@@ -408,7 +410,7 @@ instant-drama doctor --json
 
 ```bash
 # Linux 範例
-sudo dpkg -i release/instant-drama-magician_1.7.1_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.8.0_amd64.deb
 # 或
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -474,7 +476,7 @@ instant-drama version
 ```bash
 instant-drama update              # 檢查 npm registry 是否有新版
 instant-drama update install --yes   # 全域安裝 latest（會驗證版本）
-instant-drama update install 1.7.1 --yes   # 釘選版本
+instant-drama update install 1.8.0 --yes   # 釘選版本
 ```
 
 `instant-drama doctor` 亦會報告 npm 更新狀態（可用 `IDM_SKIP_UPDATE=1` 略過）。

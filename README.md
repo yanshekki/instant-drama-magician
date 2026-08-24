@@ -3,7 +3,7 @@
 <p align="center">
   <strong>From one idea to a finished short drama — on your desk.</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
-  · <strong>v1.7.1</strong> · MIT
+  · <strong>v1.8.0</strong> · MIT
   · <a href="https://ysk.hk/products/instant-drama">Product page</a>
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
@@ -71,7 +71,7 @@ Lock a cast. Board every beat. Then work the **same story** three ways: a **time
 
 ## UI screenshots
 
-From the running app (`src/assets/screen/`, v1.7.1). The heroes above are the **timeline**, **comics**, and **key-art** desks.
+From the running app (`src/assets/screen/`, v1.8.0). The heroes above are the **timeline**, **comics**, and **key-art** desks.
 
 ### 1. Story management
 
@@ -205,12 +205,12 @@ Local Grok Gateway by default, plus cloud and local LLM / image / video cards.
 
 | Area | What you can do |
 |------|-----------------|
-| **Stories** | Multi-story management, cover AI, style bible, **chapters**, multi-select **plot beats**, cast binding (characters / scenes / props / **actions**), `.idm.zip` backup import/export |
-| **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle sheets, identity lock, external refs, intro video, **vision AI fill** from a still |
-| **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, **AI fill from reference photo only**, multi-still gallery; **try-on dual-write** to character **and** costume multi-gallery (`costumes:appendTryOnStill`) |
-| **Scenes** | Scene copy, plates / looks / atmosphere, scene gallery, **vision AI fill** from a plate still |
-| **Props** | Prop descriptions, master prompts, plate variants, **vision AI fill** from a still |
-| **Actions** | Global **motion-direction** library: multi-panel instruction boards (2–6 panels), art styles, external refs, cast refs, **vision AI fill**, multi-gallery |
+| **Stories** | Multi-story management, cover AI, style bible (**advanced style / hard-rule kits**, apply-only), **chapters**, multi-select **plot beats**, cast binding (characters / scenes / props / **actions**), `.idm.zip` backup import/export |
+| **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle sheets, identity lock, **advanced field kits** (appearance / costume / voice / mannerisms / hard rules), external refs, intro video, **vision AI fill** from a still |
+| **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, **advanced look / hard-rule kits** (apply-only), **AI fill from reference photo only**, multi-still gallery; **try-on dual-write** to character **and** costume multi-gallery (`costumes:appendTryOnStill`) |
+| **Scenes** | Scene copy, plates / looks / atmosphere, **advanced location / set-dressing / camera / hard-rule kits**, scene gallery, **vision AI fill** from a plate still |
+| **Props** | Prop descriptions, **advanced look / hard-rule kits**, master prompts, plate variants, **vision AI fill** from a still |
+| **Actions** | Global **motion-direction** library: multi-panel instruction boards (2–6 panels), **advanced motion / camera / hard-rule kits**, art styles, external refs, cast refs, **vision AI fill**, multi-gallery |
 | **MediaGen shell** | Unified materials → multi-vision polish → still / video (`mediaGen:extract` · `polish` · `generateImage`); used by library pages and timeline refine |
 | **Gallery UI** | Shared **EntityGalleryPanel**: large preview, zoom/save/cover/remove/intro, multi-thumb strip (preview vs identity-lock multi-select) |
 | **Timeline** | Linear layout, snap/pack, per-clip generate, bind character / scene / prop / **action**, 6s/10s duration, dialogue & camera tags; **pipeline board** stacks to the live window height |
@@ -238,7 +238,7 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 - Cover: Zoom / Regenerate / Save As  
 - **Import story backup** / **Export backup** (story-level `.idm.zip`)  
 - Edit tabs:  
-  - **Basics**: cover, AI quick create, title, status, art style, style bible  
+  - **Basics**: cover, AI quick create, title, status, art style, style bible (**advanced builder** compiles into the existing style / hard-rules fields; apply-only, no `profileJson` bag)  
   - **Chapters**: write narrative bodies (AI fill / polish); this is the plot source for later fills  
   - **Cast**: link **characters, scenes, props, and actions** (search + linked/unlinked filters)  
   - **Script beats**: per-beat multi-bind of characters (max 4) / scenes (max 2) / props (max 4) / **actions** (max 4), plus beat screenplay  
@@ -250,7 +250,7 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 - Search and filters: gender, art style, has image, soul, language  
 - Multi-image cards; Edit / Delete  
 - Edit tabs:  
-  - **Profile**: name, description, age, gender, language, voice, etc.; **AI fill** from idea, draft, soul, **uploaded still only** (vision), or **Suggest from story**  
+  - **Profile**: name, description, age, gender, language, voice, etc.; **advanced builders** on appearance / costume / voice / mannerisms / hard rules (IDs persist in `profileJson`); **AI fill** from idea, draft, soul, **uploaded still only** (vision), or **Suggest from story**  
   - **References**: multi-angle bible (front / ¾ / close-up…), body/base/costume pipeline, external refs, identity lock, generate professional refs, Intro video  
   - **Costume**: bind wardrobe  
 - **SoulMD Hub** (soulmd-hub.ysk.hk): index suggestions, import soul.md as character soul  
@@ -259,6 +259,7 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 ### Costumes
 
 - Global wardrobe library (link 0…N characters)  
+- **Advanced look / hard-rule kits** apply into the description fields (no kit bag on reopen)  
 - **AI fill from reference photo only** (no idea text required), or **Suggest from story**  
 - Multi-still gallery, cover, intro video; **identity-lock multi-select** on thumbs  
 - Dress / try-on / swap onto a character with identity lock  
@@ -266,14 +267,14 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 
 ### Scenes
 
-- Scene description and script fields  
+- Scene description and script fields; **advanced kits** on space / set dressing / camera / hard rules (`profileJson`)  
 - Scene plates, looks, atmosphere  
 - Scene gallery and variants  
 - **Vision AI fill** from a selected / cover plate still, or **Suggest from story**  
 
 ### Props
 
-- Prop name and description  
+- Prop name and description; **advanced look / hard-rule kits** (`profileJson`)  
 - Prop master prompt, plate variants  
 - Bound on timeline clips  
 - **Vision AI fill** from a reference still, or **Suggest from story**  
@@ -281,6 +282,7 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 ### Actions (motion direction)
 
 - **Global motion library** — reusable action / blocking guides (not tied to one story until cast-linked)  
+- **Advanced kits** on tempo & body / camera / hard rules (`profileJson`)  
 - **Multi-panel instruction boards**: 2 / 3 / 4 / 5 / 6 panels (strips or 2×2 / 2×3 grids); panel 1 = first beat, panel N = last  
 - Art style, external reference stills, cast refs from character / costume / scene / prop libraries  
 - **Vision AI fill** from a still, or **Suggest from story**; multi-gallery accumulate (append plates, reorder, cover)  
@@ -408,7 +410,7 @@ Local builds land in `release/`; or download from GitHub Releases.
 
 ```bash
 # Linux example
-sudo dpkg -i release/instant-drama-magician_1.7.1_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.8.0_amd64.deb
 # or
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -474,7 +476,7 @@ instant-drama version
 ```bash
 instant-drama update              # check npm registry for a newer version
 instant-drama update install --yes   # global install latest (with post-verify)
-instant-drama update install 1.7.1 --yes   # pin a version
+instant-drama update install 1.8.0 --yes   # pin a version
 ```
 
 `instant-drama doctor` also reports npm update status (skip with `IDM_SKIP_UPDATE=1`).

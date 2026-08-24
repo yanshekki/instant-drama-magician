@@ -11,7 +11,7 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.7.1)
+## Recent focus areas (1.8.0)
 
 | Area | Tests (examples) |
 |------|------------------|
@@ -29,6 +29,7 @@
 | Chain-end last frame + headless still | `clipContinuityContext.test.ts`, `videoPrep/confirm.test.ts`, `ensureTimelineClipStill.test.ts`, `VideoStep.test.ts` |
 | gctoac clip voices | `grokVideoVoices.test.ts`, `GrokHttpVideoProvider.test.ts`, `settings.test.ts` |
 | Written Chinese + beat i18n | `PromptCatalog.test.ts` (no HK colloquial; non-en `beat.*` ≠ English) |
+| Visual field kits | `fieldKit.test.ts`, `characterAppearanceKit.test.ts`, `FieldKitBuilder.test.tsx`, `AppearanceKitBuilder.test.tsx`, library page smokes on Characters / Scenes / Props / Actions / Costumes / Stories |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \

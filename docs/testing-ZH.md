@@ -23,7 +23,7 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
-## 近期焦點（1.7.1）
+## 近期焦點（1.8.0）
 
 | 區域 | 測試（示例） |
 |------|----------------|
@@ -41,6 +41,7 @@ npm run test:ci          # CI 入口（coverage）
 | 嚴格連續片尾＋無介面靜圖 | `clipContinuityContext.test.ts`、`videoPrep/confirm.test.ts`、`ensureTimelineClipStill.test.ts`、`VideoStep.test.ts` |
 | gctoac 片段聲線 | `grokVideoVoices.test.ts`、`GrokHttpVideoProvider.test.ts`、`settings.test.ts` |
 | 香港書面語＋beat 十語 | `PromptCatalog.test.ts`（禁粵語口語；非英文 `beat.*` 不得等於英文） |
+| 視覺欄進階碼板 | `fieldKit.test.ts`、`characterAppearanceKit.test.ts`、`FieldKitBuilder.test.tsx`、`AppearanceKitBuilder.test.tsx`，以及角色／場景／道具／動作／服裝館／故事頁 smoke |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \

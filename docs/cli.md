@@ -132,9 +132,11 @@ instant-drama media check-ffmpeg --json
 
 Namespaces include: `actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
 
-## Recent API surface (1.7.1)
+## Recent API surface (1.8.0)
 
 Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
+
+**1.8.0 field kits** add **no new channel** (still **183**). The desktop advanced builder compiles into existing text columns. Selection IDs persist under `profileJson` on character / scene / prop / action create-or-update (`appearanceKit`, `costumeKit`, `voiceKit`, `mannerismKit`, `locationKit`, `setDressingKit`, `cameraKit`, `propLookKit`, `motionKit`, `hardRulesKit`). Costume-library look + story style / hard rules are apply-only (no kit bag). Image / video handlers still consume the assembled text. `channels describe characters:update` stays the contract.
 
 | Channel | Purpose | Example |
 |---------|---------|---------|
