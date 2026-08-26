@@ -168,7 +168,7 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   {
     channel: 'keyArt:updateShot',
     description: 'Update key-art shot',
-    argsHint: '["shotId", {...}]'
+    argsHint: '["shotId", {shotType?, cameraTemplateId?, brief?, ...}]'
   },
   {
     channel: 'keyArt:deleteShot',
@@ -223,13 +223,13 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     channel: 'timeline:create',
     description: 'Create timeline beat',
     argsHint:
-      '[{storyId, dialogue?, characterIds? (max 4), sceneIds? (max 2), propIds? (max 4), actionIds? (max 4), ...}]'
+      '[{storyId, dialogue?, cameraTemplateId?, characterIds? (max 4), sceneIds? (max 2), propIds? (max 4), actionIds? (max 4), ...}]'
   },
   {
     channel: 'timeline:update',
     description: 'Update timeline entry',
     argsHint:
-      '["id", {characterIds? (max 4), sceneIds? (max 2), propIds? (max 4), actionIds? (max 4), ...}]'
+      '["id", {characterIds? (max 4), sceneIds? (max 2), propIds? (max 4), actionIds? (max 4), cameraTemplateId?, ...}]'
   },
   {
     channel: 'timeline:delete',
@@ -397,6 +397,13 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     channel: 'characters:readSoulContent',
     description: 'characters: read soul content',
     argsHint: '[{...}]'
+  },
+  {
+    channel: 'characters:renderPhotoBook',
+    description:
+      'Stitch a character photo-book album: slideshow (ffmpeg), AI clip per still then concat (CLI), or concatOnly after GUI MediaGen clips. Stills stay in profileJson.photoBook.albums.',
+    argsHint:
+      '[{characterId, mode:"slideshow"|"ai-clips", albumId?, shotIds?, durationSeconds?, locale?, introTemplateId?, concatOnly?}]'
   },
   {
     channel: 'characters:suggestWardrobe',
@@ -618,7 +625,7 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     channel: 'mediaGen:extract',
     description: 'mediaGen: extract material sections',
     argsHint:
-      '[{kind, actionId?, characterId?, storyId?, entryId?, galleryIdentityPaths?, preferIdentityEdit?, continuityMode?, motionPriority?, advancedIdentity?, identityCollage?, lookPackId?, ...}]'
+      '[{kind, actionId?, characterId?, storyId?, entryId?, galleryIdentityPaths?, preferIdentityEdit?, continuityMode?, motionPriority?, advancedIdentity?, identityCollage?, lookPackId?, shotId?, sourceImagePath?, skipStillIfExists?, introTemplateId?, ...}]'
   },
   {
     channel: 'mediaGen:polish',
@@ -813,7 +820,7 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     channel: 'videoPrep:confirm',
     description: 'videoPrep: confirm',
     argsHint:
-      '[{kind:"timeline-clip",storyId,entryId,stillPath,professionalPrompt}]'
+      '[{kind:"timeline-clip"|"character-photoshoot-clip",storyId?,entryId?,characterId?,shotId?,stillPath,professionalPrompt}]'
   },
   {
     channel: 'videoPrep:create',
@@ -889,6 +896,7 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'characters:importSoulMdUrl',
   'characters:list',
   'characters:readSoulContent',
+  'characters:renderPhotoBook',
   'characters:suggestWardrobe',
   'characters:swapCostume',
   'characters:update',

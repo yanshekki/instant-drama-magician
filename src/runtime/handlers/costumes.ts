@@ -397,7 +397,8 @@ reg(
         gender: row.gender,
         visualTags: row.visualTags,
         mannerisms: row.mannerisms,
-        hardRules: cos.hardRules ?? row.hardRules
+        hardRules: cos.hardRules ?? row.hardRules,
+        locale: 'zh-HK'
       })
       prompt = ensureHardRules(prompt, cos.hardRules ?? row.hardRules)
       const size =

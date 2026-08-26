@@ -101,8 +101,8 @@ reg(
       let prompt =
         override ??
         (usedEdit
-          ? buildScenePlateEditPrompt(profile, variant, artStyle)
-          : buildScenePlateImagePrompt(profile, variant, artStyle))
+          ? buildScenePlateEditPrompt(profile, variant, artStyle, 'zh-HK')
+          : buildScenePlateImagePrompt(profile, variant, artStyle, 'zh-HK'))
       if (!override && refList.length > 1) {
         prompt = appendMultiRefNote(prompt, refList, 'en')
       }

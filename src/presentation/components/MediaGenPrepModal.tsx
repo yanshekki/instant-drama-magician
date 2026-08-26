@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
   groupMaterialSections,
+  imageRefNumberById,
   isMediaGenPrepPhaseLocked,
   mediaGenMode,
   shellPhaseToStepIndex,
@@ -33,6 +34,15 @@ import { notifyJobSettledSafe } from '../lib/notifyDesktop'
 import { useOptionalPromptTemplate } from '../context/PromptTemplateContext'
 import { Button, Label, Textarea } from './ui'
 import { LocalMediaImage } from './LocalMediaImage'
+import { IntroTemplatePicker } from './IntroTemplatePicker'
+import { ImageOptionPicker } from './ImageOptionPicker'
+import {
+  DEFAULT_INTRO_VIDEO_TEMPLATE,
+  mediaGenKindUsesCameraTemplate,
+  mergeIntroTemplateUserExtra,
+  parseIntroVideoTemplateId,
+  type IntroVideoTemplateId
+} from '../../domain/introVideoTemplates'
 
 function SectionThumb({
   filePath,
@@ -81,6 +91,38 @@ function SectionThumb({
   )
 }
 
+function IntroTemplateField({
+  value,
+  onChange,
+  disabled,
+  boxed
+}: {
+  value: IntroVideoTemplateId
+  onChange: (id: IntroVideoTemplateId) => void
+  disabled?: boolean
+  boxed?: boolean
+}): JSX.Element {
+  const { t } = useTranslation()
+  const body = (
+    <>
+      <IntroTemplatePicker
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
+      <p className="mt-1.5 text-[11px] leading-relaxed text-ink-500">
+        {t('introTemplates.hint')}
+      </p>
+    </>
+  )
+  if (!boxed) return <div>{body}</div>
+  return (
+    <div className="rounded-xl border border-ink-700 bg-ink-900/50 p-3">
+      {body}
+    </div>
+  )
+}
+
 export type MediaGenPrepKind =
   | 'action-plate'
   | 'character-sheet'
@@ -91,6 +133,7 @@ export type MediaGenPrepKind =
   | 'costume-swap'
   | 'atmosphere-swap'
   | 'timeline-still'
+  | 'character-photoshoot'
   | 'comic-page'
   | 'key-art'
   | 'comic-intro'
@@ -100,6 +143,7 @@ export type MediaGenPrepKind =
   | 'costume-intro'
   | 'action-intro'
   | 'timeline-clip'
+  | 'character-photoshoot-clip'
 
 export interface MediaGenPrepOpenRequest {
   kind: MediaGenPrepKind
@@ -124,6 +168,10 @@ export interface MediaGenPrepOpenRequest {
   /** Atmosphere swap text */
   atmosphereDescription?: string
   durationSeconds?: number
+  /** Photo-book shot id (persist stillPath on the bag, not identity gallery). */
+  shotId?: string
+  /** Photo-book extra prop library ids. */
+  propIds?: string[]
   /**
    * Intro / clip: use existing gallery still as keyframe (skip generateImage).
    * Source = sourceImagePath || galleryIdentityPaths[0]
@@ -142,6 +190,11 @@ export interface MediaGenPrepOpenRequest {
    * Merged into still generate and video confirm like typed userExtra.
    */
   userExtraPrompt?: string | null
+  /**
+   * Camera / performance template for still + video kinds that use a single shot.
+   * Not a MediaGen LLM recipe. Applied at extract (still) and director polish.
+   */
+  introTemplateId?: string | null
   /** Sequential timeline clip queue (after current finishes, open next). */
   queueIndex?: number
   queueTotal?: number
@@ -152,6 +205,10 @@ export interface MediaGenPrepOpenRequest {
    */
   queueSkipStillIfExists?: boolean
   /**
+   * Per-entry camera templates for auto-advanced timeline clips.
+   */
+  queueIntroTemplateIdByEntryId?: Record<string, string | null | undefined>
+  /**
    * Per-entry revision / user-extra for remaining (and current) queue clips (B1).
    * Key = timeline entryId.
    */
@@ -161,6 +218,23 @@ export interface MediaGenPrepOpenRequest {
    * Key = timeline entryId.
    */
   queueDurationSecondsByEntryId?: Record<string, number>
+  /**
+   * Photo-book clip queue: remaining shot ids + per-shot scene/still/props.
+   */
+  queueShotById?: Record<
+    string,
+    {
+      stillPath: string
+      sceneId: string
+      actionId?: string
+      propIds: string[]
+      notes?: string
+    }
+  >
+  queueIntroTemplateId?: string | null
+  queueIdentityPaths?: string[]
+  queueArtStyle?: string | null
+  queueLocale?: string
   continuityMode?: 'storyboard' | 'chain-end'
   motionPriority?: 'default' | 'action'
   advancedIdentity?: boolean
@@ -214,6 +288,17 @@ function sectionHeading(
   )
 }
 
+function numberedSectionHeading(
+  t: (k: string, o?: Record<string, unknown>) => string,
+  s: MediaGenMaterialSection,
+  refNos: Map<string, number>
+): string {
+  const heading = sectionHeading(t, s)
+  const n = refNos.get(s.id)
+  if (n == null) return heading
+  return `${t('mediaGen.refIndex', { n })} · ${heading}`
+}
+
 export function MediaGenPrepModal({
   open,
   request,
@@ -249,6 +334,7 @@ export function MediaGenPrepModal({
     queueRemaining?: string[]
     queueIndex?: number
     queueTotal?: number
+    introTemplateId?: string | null
   }) => void
 }): JSX.Element | null {
   const { t, i18n } = useTranslation()
@@ -300,6 +386,9 @@ export function MediaGenPrepModal({
   /** Video director prompt (second polish after keyframe). */
   const [videoPrompt, setVideoPrompt] = useState('')
   const [userExtra, setUserExtra] = useState('')
+  const [introTemplateId, setIntroTemplateId] = useState<IntroVideoTemplateId>(
+    DEFAULT_INTRO_VIDEO_TEMPLATE
+  )
   const [durationSeconds, setDurationSeconds] = useState(10)
   const [polishedFlag, setPolishedFlag] = useState(false)
   const [imageCount, setImageCount] = useState(0)
@@ -342,6 +431,12 @@ export function MediaGenPrepModal({
     ]
   )
 
+  const videoUserExtra = mergeIntroTemplateUserExtra(
+    introTemplateId,
+    userExtra.trim() || null,
+    i18n.language
+  )
+
   useEffect(() => {
     if (phase !== 'confirm-video') return
     const current = videoPrompt.trim() || polishedPrompt.trim()
@@ -363,12 +458,19 @@ export function MediaGenPrepModal({
     videoDirectorFallback
   ])
 
-  const loadExtract = useCallback(async (): Promise<void> => {
+  const loadExtract = useCallback(async (
+    templateOverride?: IntroVideoTemplateId
+  ): Promise<void> => {
     if (!request) return
     setMediaTemplateId(null)
     setPhase('loading-extract')
     setErrorMessage(null)
     beginWait()
+    const cameraId =
+      templateOverride ??
+      parseIntroVideoTemplateId(request.introTemplateId) ??
+      parseIntroVideoTemplateId(request.queueIntroTemplateId) ??
+      introTemplateId
     try {
       const r = await getApi().mediaGen.extract({
         kind: request.kind,
@@ -391,7 +493,10 @@ export function MediaGenPrepModal({
         durationSeconds: request.durationSeconds,
         skipStillIfExists:
           request.skipStillIfExists || Boolean(request.resumeDraft?.stillPath),
+        sourceImagePath: request.sourceImagePath,
         locale: i18n.language,
+        shotId: request.shotId,
+        propIds: request.propIds,
         comicVideoScheme: request.comicVideoScheme,
         pageFormat: request.pageFormat,
         shotType: request.shotType,
@@ -401,7 +506,10 @@ export function MediaGenPrepModal({
         motionPriority: request.motionPriority,
         advancedIdentity: request.advancedIdentity,
         identityCollage: request.identityCollage,
-        lookPackId: request.lookPackId
+        lookPackId: request.lookPackId,
+        introTemplateId: mediaGenKindUsesCameraTemplate(request.kind)
+          ? cameraId
+          : undefined
       } as never)
       setSections(r.sections as MediaGenMaterialSection[])
       setEditBaseSectionId(r.editBaseSectionId ?? null)
@@ -434,6 +542,7 @@ export function MediaGenPrepModal({
             : '') ||
           ''
       )
+      setIntroTemplateId(cameraId)
       setVideoPath(null)
       if (resume?.stillPath?.trim() && resume.polishedPrompt?.trim()) {
         // Resume draft: land on keyframe / confirm-video with prompts ready
@@ -519,6 +628,8 @@ export function MediaGenPrepModal({
   ])
 
   const groups = useMemo(() => groupMaterialSections(sections), [sections])
+
+  const imageRefNos = useMemo(() => imageRefNumberById(sections), [sections])
 
   const editBaseCandidates = useMemo(
     () =>
@@ -636,7 +747,7 @@ export function MediaGenPrepModal({
         fallbackPrompt: videoFallback,
         hardRules,
         includedSections: [...included, keyframeSection],
-        revisionPrompt: userExtra.trim() || request.userExtraPrompt || null,
+        revisionPrompt: videoUserExtra,
         promptTemplateId: mediaTemplateId,
         comicVideoScheme:
           request.comicVideoScheme ||
@@ -674,12 +785,21 @@ export function MediaGenPrepModal({
 
   const resolveSourceStill = (): string | null => {
     if (!request) return null
+    const baseSec = sections.find((s) => s.id === editBaseSectionId)
+    const fromEdit =
+      baseSec?.include &&
+      baseSec.canBeEditBase &&
+      baseSec.imagePath?.trim()
+        ? baseSec.imagePath.trim()
+        : null
+    if (fromEdit) return fromEdit
     if (existingStillPath?.trim()) return existingStillPath.trim()
-    const fromReq =
-      request.sourceImagePath?.trim() ||
-      request.galleryIdentityPaths?.find((p) => p?.trim())?.trim() ||
-      null
+    const fromReq = request.sourceImagePath?.trim() || null
     if (fromReq) return fromReq
+    if (request.kind === 'character-photoshoot-clip') return null
+    const fromGallery =
+      request.galleryIdentityPaths?.find((p) => p?.trim())?.trim() || null
+    if (fromGallery) return fromGallery
     const fromSections = sections
       .filter((s) => s.include && s.imagePath?.trim())
       .map((s) => s.imagePath!.trim())
@@ -724,7 +844,10 @@ export function MediaGenPrepModal({
       const isTimeline =
         request.kind === 'timeline-still' || request.kind === 'timeline-clip'
       const persistNow =
-        isTimeline || request.kind === 'comic-page' || request.kind === 'key-art'
+        isTimeline ||
+        request.kind === 'comic-page' ||
+        request.kind === 'key-art' ||
+        request.kind === 'character-photoshoot'
       const includedPaths = sections
         .filter((s) => s.include && s.imagePath?.trim())
         .map((s) => s.imagePath!.trim())
@@ -757,6 +880,8 @@ export function MediaGenPrepModal({
             .pageFormat,
         shotType: request.shotType,
         keyArtMakeMethod: request.keyArtMakeMethod,
+        shotId: request.shotId,
+        propIds: request.propIds,
         // Timeline refine writes continuity still immediately
         persist: persistNow
       } as never)
@@ -809,13 +934,16 @@ export function MediaGenPrepModal({
         actionId: request.actionId,
         storyId: request.storyId,
         entryId: request.entryId,
-        pageId: request.pageId
+        pageId: request.pageId,
+        shotId: request.shotId
       }
       // Prefer generated keyframe as video ref; keep original gallery path as source
       const sourceStill =
-        request.sourceImagePath?.trim() ||
-        request.galleryIdentityPaths?.[0]?.trim() ||
-        resultPath
+        request.kind === 'character-photoshoot-clip'
+          ? resultPath
+          : request.sourceImagePath?.trim() ||
+            request.galleryIdentityPaths?.[0]?.trim() ||
+            resultPath
       const ar =
         request.aspectRatio ||
         genOptions.aspectRatio ||
@@ -830,9 +958,10 @@ export function MediaGenPrepModal({
           | 'costume-intro'
           | 'action-intro'
           | 'comic-intro'
-          | 'timeline-clip',
+          | 'timeline-clip'
+          | 'character-photoshoot-clip',
         professionalPrompt: pro,
-        userExtraPrompt: userExtra.trim() || null,
+        userExtraPrompt: videoUserExtra,
         stillPath: resultPath,
         sourceImagePath: sourceStill,
         ...entityIds,
@@ -859,14 +988,19 @@ export function MediaGenPrepModal({
           detail: {
             kind: request.kind,
             entityIds,
+            shotId: request.shotId,
+            queueRemaining: request.queueRemaining ?? [],
             degraded: Boolean((r as { degraded?: boolean }).degraded),
             path: r.path,
             gallery: r.gallery,
+            photoBook: (r as { photoBook?: unknown }).photoBook,
             stillPath: resultPath,
             sourceImagePath:
-              request.sourceImagePath ||
-              request.galleryIdentityPaths?.[0] ||
-              resultPath
+              request.kind === 'character-photoshoot-clip'
+                ? resultPath
+                : request.sourceImagePath ||
+                  request.galleryIdentityPaths?.[0] ||
+                  resultPath
           }
         })
       )
@@ -876,7 +1010,8 @@ export function MediaGenPrepModal({
         stillPath: resultPath,
         queueRemaining: request.queueRemaining,
         queueIndex: request.queueIndex,
-        queueTotal: request.queueTotal
+        queueTotal: request.queueTotal,
+        introTemplateId
       })
     } catch (e) {
       setErrorMessage(formatUserError(formatIpcError(e), t))
@@ -910,9 +1045,11 @@ export function MediaGenPrepModal({
       durationSeconds: durationSeconds || request.durationSeconds || 10,
       aspectRatio: ar,
       sourceImagePath:
-        request.sourceImagePath ||
-        request.galleryIdentityPaths?.[0] ||
-        resultPath,
+        request.kind === 'character-photoshoot-clip'
+          ? resultPath
+          : request.sourceImagePath ||
+            request.galleryIdentityPaths?.[0] ||
+            resultPath,
       queueIndex: request.queueIndex,
       queueTotal: request.queueTotal,
       queueRemaining: request.queueRemaining
@@ -964,7 +1101,7 @@ export function MediaGenPrepModal({
           className="mt-1 h-4 w-4 shrink-0 accent-brand-500"
           checked={s.include}
           onChange={() => toggleInclude(s.id)}
-          aria-label={sectionHeading(t, s)}
+          aria-label={numberedSectionHeading(t, s, imageRefNos)}
         />
         {s.imagePath?.trim() ? (
           <SectionThumb filePath={s.imagePath.trim()} />
@@ -976,7 +1113,7 @@ export function MediaGenPrepModal({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-ink-50">
-              {sectionHeading(t, s)}
+              {numberedSectionHeading(t, s, imageRefNos)}
             </span>
             {s.entityType ? (
               <span className="rounded-full border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
@@ -1152,6 +1289,18 @@ export function MediaGenPrepModal({
                 <p className="text-[12px] text-rose-300">{errorMessage}</p>
               ) : null}
 
+              {request && mediaGenKindUsesCameraTemplate(request.kind) ? (
+                <IntroTemplateField
+                  value={introTemplateId}
+                  onChange={(id) => {
+                    setIntroTemplateId(id)
+                    if (phase === 'materials') void loadExtract(id)
+                  }}
+                  disabled={locked}
+                  boxed
+                />
+              ) : null}
+
               {/* Mode callout — multi vs single edit base */}
               <div className="rounded-xl border border-ink-700 bg-ink-900/50 p-3">
                 <h3 className="text-xs font-semibold text-ink-200">
@@ -1178,50 +1327,54 @@ export function MediaGenPrepModal({
                       </span>
                     </span>
                   </label>
-                  <label
-                    className={`flex items-start gap-2 rounded-lg border border-ink-800 p-2 ${
+                  <div
+                    className={`rounded-lg border border-ink-800 p-2 ${
                       editBaseCandidates.length === 0
-                        ? 'cursor-not-allowed opacity-50'
-                        : 'cursor-pointer hover:bg-ink-900'
+                        ? 'opacity-50'
+                        : ''
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="genMode"
-                      className="mt-0.5 accent-brand-500"
-                      disabled={editBaseCandidates.length === 0}
-                      checked={Boolean(editBaseSectionId)}
-                      onChange={() => {
-                        if (editBaseCandidates[0]) {
-                          setEditBaseSectionId(editBaseCandidates[0].id)
-                        }
-                      }}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[12px] font-medium text-ink-100">
-                        {t('mediaGen.modeEdit')}
-                      </span>
-                      <span className="block text-[11px] text-ink-500">
-                        {t('mediaGen.modeEditHint')}
-                      </span>
-                      {editBaseSectionId ? (
-                        <select
-                          className="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-2 py-1.5 text-[12px] text-ink-100"
-                          value={editBaseSectionId}
-                          onChange={(e) =>
-                            setEditBaseSectionId(e.target.value || null)
+                    <label
+                      className={`flex items-start gap-2 ${
+                        editBaseCandidates.length === 0
+                          ? 'cursor-not-allowed'
+                          : 'cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="genMode"
+                        className="mt-0.5 accent-brand-500"
+                        disabled={editBaseCandidates.length === 0}
+                        checked={Boolean(editBaseSectionId)}
+                        onChange={() => {
+                          if (editBaseCandidates[0]) {
+                            setEditBaseSectionId(editBaseCandidates[0].id)
                           }
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {editBaseCandidates.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {sectionHeading(t, s)}
-                            </option>
-                          ))}
-                        </select>
-                      ) : null}
-                    </span>
-                  </label>
+                        }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[12px] font-medium text-ink-100">
+                          {t('mediaGen.modeEdit')}
+                        </span>
+                        <span className="block text-[11px] text-ink-500">
+                          {t('mediaGen.modeEditHint')}
+                        </span>
+                      </span>
+                    </label>
+                    {editBaseSectionId ? (
+                      <ImageOptionPicker
+                        value={editBaseSectionId}
+                        ariaLabel={t('mediaGen.editBasePicker')}
+                        options={editBaseCandidates.map((s) => ({
+                          id: s.id,
+                          filePath: s.imagePath!.trim(),
+                          label: numberedSectionHeading(t, s, imageRefNos)
+                        }))}
+                        onChange={(id) => setEditBaseSectionId(id)}
+                      />
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
@@ -1271,9 +1424,10 @@ export function MediaGenPrepModal({
                 </p>
                 {includedImageSections.length > 0 ? (
                   <ul className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    {includedImageSections.map((s, i) => {
+                    {includedImageSections.map((s) => {
                       const isBase = editBaseSectionId === s.id
                       const heading = sectionHeading(t, s)
+                      const refN = imageRefNos.get(s.id)
                       return (
                         <li
                           key={s.id}
@@ -1290,9 +1444,11 @@ export function MediaGenPrepModal({
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] font-medium text-ink-200">
-                                Ref#{i + 1}
-                              </span>
+                              {refN != null ? (
+                                <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] font-medium text-ink-200">
+                                  {t('mediaGen.refIndex', { n: refN })}
+                                </span>
+                              ) : null}
                               {isBase ? (
                                 <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
                                   {t('mediaGen.reviewEditBaseBadge')}
@@ -1387,6 +1543,14 @@ export function MediaGenPrepModal({
                 objectFit="contain"
                 showActions={false}
               />
+              {mode === 'video' ? (
+                <IntroTemplateField
+                  value={introTemplateId}
+                  onChange={setIntroTemplateId}
+                  disabled={locked}
+                  boxed
+                />
+              ) : null}
             </div>
           ) : null}
 
@@ -1437,6 +1601,11 @@ export function MediaGenPrepModal({
                     spellCheck={false}
                   />
                 </div>
+                <IntroTemplateField
+                  value={introTemplateId}
+                  onChange={setIntroTemplateId}
+                  disabled={locked}
+                />
                 <div>
                   <Label>{t('mediaGen.userExtra')}</Label>
                   <p className="mb-1 text-[10px] text-ink-500">

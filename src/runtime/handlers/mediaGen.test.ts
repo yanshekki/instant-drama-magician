@@ -527,11 +527,14 @@ describe('registerMediagenHandlers', () => {
     const r = (await invokeRegistered(h as never, 'mediaGen:extract', {
       kind: 'timeline-still',
       storyId: 's1',
-      entryId: 'e1'
+      entryId: 'e1',
+      introTemplateId: 'pov',
+      locale: 'en'
     })) as {
-      sections: Array<{ id: string; include: boolean; entityType?: string }>
+      sections: Array<{ id: string; include: boolean; entityType?: string; text?: string }>
       editBaseSectionId: string | null
       entityIds: { storyId?: string; entryId?: string }
+      fallbackPrompt?: string
     }
 
     expect(r.entityIds.storyId).toBe('s1')
@@ -543,6 +546,9 @@ describe('registerMediagenHandlers', () => {
       r.sections.find((s) => s.id === 'prev_clip')?.entityType
     ).toBe('continuity')
     expect(r.editBaseSectionId).toBe('prev_clip')
+    const cam = r.sections.find((s) => s.id === 'camera_template')
+    expect(cam?.text).toMatch(/pov/)
+    expect(r.fallbackPrompt).toMatch(/pov/)
   })
 
   it('extract timeline-clip includes own still and prefers it over prev', async () => {
@@ -750,6 +756,166 @@ describe('registerMediagenHandlers', () => {
       )) as { kind: string }
       expect(r.kind).toBe(payload.kind)
     }
+  })
+
+  it('extract character-photoshoot-clip returns existingStillPath', async () => {
+    const img = mkImg('id.png')
+    const still = mkImg('shot.png')
+    const still2 = mkImg('shot2.png')
+    const { h } = baseCtx({
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Aria',
+            description: 'lead',
+            hardRules: null,
+            artStyle: 'anime',
+            refImagePath: img,
+            refSheetPath: null,
+            refGalleryJson: null,
+            profileJson: JSON.stringify({
+              photoBook: {
+                shots: [
+                  { id: 'pb1', sceneId: 'sc1', stillPath: still },
+                  { id: 'pb2', sceneId: 'sc2', stillPath: still2 }
+                ]
+              }
+            })
+          }))
+        }) as never,
+      scenes: () =>
+        ({
+          get: vi.fn(async (id: string) => ({
+            id,
+            title: id === 'sc2' ? 'Alley' : 'Roof',
+            description: 'night',
+            hardRules: null,
+            refImagePath: img,
+            refGalleryJson: null
+          }))
+        }) as never,
+      props: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'p1',
+            name: 'Lantern',
+            description: 'glow',
+            hardRules: null,
+            refImagePath: img
+          }))
+        }) as never,
+      actions: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'a1',
+            name: 'Chant',
+            description: 'incantation',
+            motionNotes: 'hands',
+            hardRules: null
+          }))
+        }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'character-photoshoot-clip',
+      characterId: 'c1',
+      sceneId: 'sc1',
+      actionId: 'a1',
+      propIds: ['p1'],
+      shotId: 'pb1',
+      sourceImagePath: still,
+      skipStillIfExists: true,
+      galleryIdentityPaths: [img]
+    })) as {
+      kind: string
+      existingStillPath?: string | null
+      editBaseSectionId: string | null
+      sections: Array<{
+        id: string
+        canBeEditBase?: boolean
+        entityType?: string
+      }>
+    }
+    expect(r.kind).toBe('character-photoshoot-clip')
+    expect(r.existingStillPath).toBe(still)
+    expect(r.editBaseSectionId).toBe('photoshoot_still_pb1')
+    expect(
+      r.sections
+        .filter((s) => s.id.startsWith('photoshoot_still_'))
+        .map((s) => s.id)
+    ).toEqual(['photoshoot_still_pb1', 'photoshoot_still_pb2'])
+    expect(
+      r.sections
+        .filter((s) => s.entityType === 'character')
+        .every((s) => s.canBeEditBase !== true)
+    ).toBe(true)
+  })
+
+  it('extract photoshoot uses sys: action and camera still block', async () => {
+    const img = mkImg('id.png')
+    const getAction = vi.fn()
+    const { h } = baseCtx({
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            name: 'Aria',
+            description: 'lead',
+            hardRules: null,
+            artStyle: 'anime',
+            refImagePath: img,
+            refSheetPath: null,
+            refGalleryJson: null,
+            profileJson: JSON.stringify({
+              photoBook: {
+                shots: [
+                  {
+                    id: 'pb1',
+                    sceneId: 'sc1',
+                    stillPath: img,
+                    cameraTemplateId: 'low-angle-hero',
+                    actionId: 'sys:walk-in'
+                  }
+                ]
+              }
+            })
+          }))
+        }) as never,
+      scenes: () =>
+        ({
+          get: vi.fn(async (id: string) => ({
+            id,
+            title: 'Roof',
+            description: 'night',
+            hardRules: null,
+            refImagePath: img,
+            refGalleryJson: null
+          }))
+        }) as never,
+      actions: () => ({ get: getAction }) as never
+    })
+    const r = (await invokeRegistered(h as never, 'mediaGen:extract', {
+      kind: 'character-photoshoot',
+      characterId: 'c1',
+      sceneId: 'sc1',
+      actionId: 'sys:walk-in',
+      shotId: 'pb1',
+      locale: 'en',
+      galleryIdentityPaths: [img]
+    })) as {
+      sections: Array<{ id: string; text?: string; entityType?: string }>
+      fallbackPrompt?: string
+    }
+    expect(getAction).not.toHaveBeenCalled()
+    const cam = r.sections.find((s) => s.id === 'camera_template')
+    expect(cam?.text).toMatch(/low-angle-hero/)
+    expect(r.fallbackPrompt).toMatch(/System action \(walk-in\)|walk-in/)
+    expect(
+      r.sections.some(
+        (s) =>
+          (s.text || '').includes('walk-in') || s.entityType === 'action'
+      )
+    ).toBe(true)
   })
 
   it('extract rejects unsupported kind', async () => {
@@ -1221,9 +1387,14 @@ describe('registerMediagenHandlers', () => {
     })
     const bare = (await invokeRegistered(hBare as never, 'mediaGen:extract', {
       kind: 'story-cover',
-      storyId: 's2'
-    })) as { kind: string }
+      storyId: 's2',
+      introTemplateId: 'close-up',
+      locale: 'en'
+    })) as { kind: string; sections: Array<{ id: string; text?: string }> }
     expect(bare.kind).toBe('story-cover')
+    expect(
+      bare.sections.find((s) => s.id === 'camera_template')?.text
+    ).toMatch(/close-up/)
   })
 
   it('polish accepts missing includedSections array', async () => {
@@ -1877,7 +2048,7 @@ describe('registerMediagenHandlers', () => {
       plateVariant: 'detail'
     })) as { genOptions: { plateVariant?: string }; fallbackPrompt: string }
     expect(pr.genOptions.plateVariant).toBe('detail')
-    expect(pr.fallbackPrompt).toMatch(/LAYOUT|detail/i)
+    expect(pr.fallbackPrompt).toMatch(/LAYOUT|detail|細節|特寫/i)
 
     const cos = (await invokeRegistered(h as never, 'mediaGen:extract', {
       kind: 'costume-swap',
@@ -2251,20 +2422,25 @@ describe('registerMediagenHandlers', () => {
       pageId: 'sh1',
       locale: 'zh-HK',
       shotType: 'cover',
-      keyArtMakeMethod: 'fresh'
+      keyArtMakeMethod: 'fresh',
+      introTemplateId: 'silhouette'
     })) as {
       kind: string
       fallbackPrompt: string
       genOptions: { aspectRatio?: string; galleryLabel?: string }
-      sections: Array<{ id: string; entityType?: string }>
+      sections: Array<{ id: string; entityType?: string; text?: string }>
     }
     expect(extracted.kind).toBe('key-art')
     expect(extracted.fallbackPrompt).toMatch(/夜巴|劇照|封面/)
     expect(extracted.fallbackPrompt).not.toMatch(/GEOMETRY LOCK|LAYOUT LOCK/)
+    expect(extracted.fallbackPrompt).toMatch(/silhouette/)
     expect(extracted.genOptions.aspectRatio).toBe('16:9')
     expect(extracted.sections.some((s) => s.entityType === 'character')).toBe(
       true
     )
+    expect(
+      extracted.sections.find((s) => s.id === 'camera_template')?.text
+    ).toMatch(/silhouette/)
     const out = (await invokeRegistered(h as never, 'mediaGen:generateImage', {
       kind: 'key-art',
       pageId: 'sh1',

@@ -14,6 +14,7 @@ export type MediaGenOpenFromVideoPrep = {
     | 'costume-intro'
     | 'action-intro'
     | 'timeline-clip'
+    | 'character-photoshoot-clip'
   characterId?: string
   sceneId?: string
   propId?: string
@@ -21,6 +22,7 @@ export type MediaGenOpenFromVideoPrep = {
   actionId?: string
   storyId?: string
   entryId?: string
+  shotId?: string
   galleryIdentityPaths?: string[]
   sourceImagePath?: string
   preferIdentityEdit?: boolean
@@ -59,6 +61,7 @@ export function videoPrepInputToMediaGenOpen(
     actionId: input.entityIds.actionId,
     storyId: input.entityIds.storyId,
     entryId: input.entityIds.entryId,
+    shotId: input.entityIds.shotId,
     galleryIdentityPaths: src ? [src] : [],
     sourceImagePath: src || undefined,
     preferIdentityEdit: Boolean(src),
@@ -97,6 +100,7 @@ export function videoPrepDraftToMediaGenResume(
     actionId: draft.entityIds.actionId,
     storyId: draft.entityIds.storyId,
     entryId: draft.entityIds.entryId,
+    shotId: draft.entityIds.shotId,
     galleryIdentityPaths: src ? [src] : [],
     sourceImagePath: src || undefined,
     preferIdentityEdit: Boolean(src),
@@ -128,6 +132,7 @@ export function mediaGenDraftStorageKey(opts: {
   actionId?: string
   storyId?: string
   entryId?: string
+  shotId?: string
   sourceImagePath?: string | null
 }): string {
   return buildVideoPrepDraftKey(
@@ -139,7 +144,8 @@ export function mediaGenDraftStorageKey(opts: {
       costumeId: opts.costumeId,
       actionId: opts.actionId,
       storyId: opts.storyId,
-      entryId: opts.entryId
+      entryId: opts.entryId,
+      shotId: opts.shotId
     },
     opts.sourceImagePath
   )

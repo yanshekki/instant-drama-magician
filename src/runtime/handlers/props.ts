@@ -340,8 +340,8 @@ reg(
       let prompt =
         override ??
         (usedEdit
-          ? buildPropPlateEditPrompt(profile, variant, artStyle)
-          : buildPropPlateImagePrompt(profile, variant, artStyle))
+          ? buildPropPlateEditPrompt(profile, variant, artStyle, 'zh-HK')
+          : buildPropPlateImagePrompt(profile, variant, artStyle, 'zh-HK'))
       if (!override) {
         prompt = maybeAppendMultiRef(prompt, refList, 'en', appendMultiRefNote)
       }

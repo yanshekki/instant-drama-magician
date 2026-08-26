@@ -180,16 +180,22 @@ export function GalleryThumbStrip({
                 title={t('common.galleryPreviewTitle', { label })}
               >
                 <div className="pointer-events-none absolute inset-0">
-                  <LocalMediaImage
-                    filePath={g.path}
-                    alt={label}
-                    variant="thumb"
-                    objectFit="cover"
-                    className="border-0"
-                    showActions={false}
-                    enableZoom={false}
-                    hoverZoom={false}
-                  />
+                  {g.path?.trim() ? (
+                    <LocalMediaImage
+                      filePath={g.path}
+                      alt={label}
+                      variant="thumb"
+                      objectFit="cover"
+                      className="border-0"
+                      showActions={false}
+                      enableZoom={false}
+                      hoverZoom={false}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-ink-900 text-[10px] text-ink-600">
+                      …
+                    </div>
+                  )}
                 </div>
 
                 {/* Dedicated multi-select control — separate from preview click */}

@@ -74,7 +74,12 @@ export function createMockApi(
       writeSoulContent: vi.fn().mockResolvedValue({}),
       suggestWardrobe: vi.fn().mockResolvedValue([]),
       swapCostume: vi.fn().mockResolvedValue({}),
-      generateIntroVideo: vi.fn().mockResolvedValue({})
+      generateIntroVideo: vi.fn().mockResolvedValue({}),
+      renderPhotoBook: vi.fn().mockResolvedValue({
+        path: '/tmp/photobook.mp4',
+        videoMode: 'ai-clips',
+        photoBook: { albums: [] }
+      })
     },
     scenes: {
       list: vi.fn().mockResolvedValue([]),

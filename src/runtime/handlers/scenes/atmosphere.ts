@@ -78,7 +78,8 @@ reg(
         pose: pose.id,
         setDressing: row.setDressing,
         visualTags: row.visualTags,
-        hardRules: row.hardRules
+        hardRules: row.hardRules,
+        locale: 'zh-HK'
       })
       prompt = ensureHardRules(prompt, row.hardRules)
       const size =

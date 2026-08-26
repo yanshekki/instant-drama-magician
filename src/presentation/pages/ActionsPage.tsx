@@ -548,7 +548,8 @@ export function ActionsPage(): JSX.Element {
             actionId: id,
             storyId: activeStoryId ?? undefined,
             artStyle: form.artStyle,
-            durationSeconds: 10
+            durationSeconds: 10,
+            locale: i18n.language
           })
           startMediaGen(req)
         })()

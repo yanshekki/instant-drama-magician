@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="#安裝與啟動"><img src="https://img.shields.io/badge/桌面-Linux%20%7C%20Windows%20%7C%20macOS-1f6feb?style=flat-square" alt="桌面"></a>
-  <a href="#命令列-cliidm"><img src="https://img.shields.io/badge/命令列-183%20channels-238636?style=flat-square" alt="命令列"></a>
+  <a href="#命令列-cliidm"><img src="https://img.shields.io/badge/命令列-184%20channels-238636?style=flat-square" alt="命令列"></a>
   <a href="#多語系"><img src="https://img.shields.io/badge/介面-10%20種語言-6e40c9?style=flat-square" alt="語言"></a>
   <img src="https://img.shields.io/badge/授權-MIT-8b949e?style=flat-square" alt="MIT">
 </p>
@@ -38,15 +38,16 @@
 
 | 桌面 | 遠控 | 命令列 |
 |---|---|---|
-| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**183** 個 channel，與應用相同 |
+| Linux · Windows · macOS（Electron） | 瀏覽器操作同一專案 | `instant-drama`——**184** 個 channel，與應用相同 |
 
 - **身份鎖定** — 多角度角色聖經、戲服、場景、道具與動作板  
+- **攝影集** — 場景／道具／動作靜圖相冊，再幻燈或 AI 短片（`characters:renderPhotoBook`）  
 - **先寫章節** — 先寫正文，之後填角色／場景／道具時可勾選章節與劇情段落  
 - **漫畫工作室** — 規則格或漫畫不規則格、9:16／1:1／16:9、本頁動畫或短劇分鏡、多版本本頁影片  
 - **劇照檯** — 八種題材、四種出圖方式（全新／改圖／鎖臉重畫／延續上一張）、多版本靜圖、可設為故事封面  
 - **畫面連續** — 上一段靜圖與片尾，餵給下一段  
 - **先選材料** — 勾選靜圖與文字，優化導演詞，再出靜圖與影片  
-- **你仍主控** — 配方選擇器、完成後作業系統通知、十種介面語言  
+- **你仍主控** — 配方選擇器、完成後作業系統通知、十種介面語言、系統提示詞十語正文  
 
 ---
 
@@ -206,23 +207,23 @@
 | 領域 | 你能做什麼 |
 |------|------------|
 | **故事 Stories** | 多故事管理、封面 AI、風格聖經（**進階風格／鐵則碼板**，只套用文字）、**章節**、多選**劇情段落**、cast 綁定（角色／場景／道具／**動作**）、`.idm.zip` 備份匯入匯出 |
-| **人物 Characters** | 全域角色庫、soul.md／SoulMD Hub、多角度 sheet、身份鎖定、**進階碼板**（外貌／服裝／聲線／習慣／鐵則）、外部 ref、intro video、**僅憑靜圖 AI 填充**（vision） |
+| **人物 Characters** | 全域角色庫、soul.md／SoulMD Hub、多角度角色表、身份鎖定、**進階碼板**（外貌／服裝／聲線／習慣／鐵則）、**攝影集**（場景／道具／動作靜圖寫入 `profileJson.photoBook`；桌面出片依 MediaGen 影片步驟 `character-photoshoot-clip` 再 `concatOnly`；CLI 仍可 `ai-clips`／`slideshow`——無新 generate 頻道）、外部參考、介紹片 **鏡頭範本**、**僅憑靜圖人工智能填充**（視覺參考） |
 | **服裝 Costumes** | 服裝庫、換裝、wardrobe 建議、**進階造型／鐵則碼板**（只套用文字）、**僅憑參考圖 AI 填充**、多圖 gallery；**試穿雙寫**角色及戲服多圖庫（`costumes:appendTryOnStill`） |
-| **場景 Scenes** | 場景文案、plate／looks／atmosphere、**進階空間／班底／攝影／鐵則碼板**、場景圖庫、**vision AI 填充** |
-| **道具 Props** | 道具描述、**進階造型／鐵則碼板**、master prompt、plate 變體、**vision AI 填充** |
-| **動作 Actions** | 全域**動作指導**庫：多格指示圖（2–6 格）、**進階動勢／攝影／鐵則碼板**、藝術風格、外部參考、cast 參考、**vision AI 填充**、多圖累積 |
-| **MediaGen 生成殼** | 統一材料 → 多圖 vision 潤飾 → 出圖／出片（`mediaGen:extract` · `polish` · `generateImage`）；庫頁與時間軸精修共用 |
+| **場景 Scenes** | 場景文案、場景板／造型／氣氛、**進階空間／班底／攝影／鐵則碼板**、場景圖庫、**憑靜圖人工智能填充** |
+| **道具 Props** | 道具描述、**進階造型／鐵則碼板**、主提示詞、道具板變體、**憑靜圖人工智能填充** |
+| **動作 Actions** | 全域**動作指導**庫：多格指示圖（2–6 格）、**進階動勢／攝影／鐵則碼板**、藝術風格、外部參考、選角參考、**憑靜圖人工智能填充**、多圖累積 |
+| **MediaGen 生成殼** | 統一材料 → 多圖視覺潤飾 → 出圖／出片（`mediaGen:extract` · `polish` · `generateImage`）；庫頁與時間軸精修共用 |
 | **圖庫 UI** | 共用 **EntityGalleryPanel**：大圖預覽、放大／另存／封面／移除／介紹片、縮圖列（預覽 vs 身份鎖定多選） |
 | **時間軸 Timeline** | 線性編排、snap／pack、單 clip 生成、綁定角色／場景／道具／**動作**、6s／10s 時長、對白與鏡頭標記；**流程圖**按視窗高度向下換欄 |
 | **漫畫 Comics** | 將分鏡排成完整頁（規則格＋漫畫格）、9:16／1:1／16:9、本頁動畫或短劇分鏡方案、多版本本頁影片、只串已有片的頁匯出成片 |
 | **劇照 Key art** | 故事宣傳靜圖：封面／海報／劇照／宣傳／社交／大頭／半身／群像；四種出圖方式；多版本 PNG；可選 **設為故事封面** |
-| **進階預備** | Cast 鎖定 → 分鏡 stills（**片尾連續**、強制上一段 keyframe、多 ref 潤飾）→ 出片；單格**精修靜圖／精修出片**（MediaGen） |
+| **進階預備** | 選角鎖定 → 分鏡靜圖（**片尾連續**、強制上一段關鍵幀、多參考潤飾）→ 出片；單格**精修靜圖／精修出片**（MediaGen） |
 | **音訊／字幕** | 可選 TTS 混音、燒錄對白字幕、xfade／ducking、比例感知匯出 |
 | **活動日誌** | 生成／匯出／更新等事件（JSONL），便於除錯 |
-| **設定** | LLM／影像／影片供應商、**完成後作業系統通知**、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
-| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**183** 個 IPC channel） |
+| **設定** | 語言模型／影像／影片供應商、**完成後作業系統通知**、診斷、FFmpeg、網頁伺服器、自動更新、支援報告、法律條款 |
+| **CLI `instant-drama`** | 本地 headless 或遠端 invoke；建置／開啟桌面 App；OpenClaw／Hermes agent（**184** 個 IPC channel） |
 | **網頁遠控** | 桌面內建 Web Server 或獨立 `instant-drama server`，瀏覽器操作同一份資料 |
-| **多語系** | 10 種介面語言（香港書面語、中國大陸書面語、阿語 RTL 等）；LLM 改善／生成前的**配方選擇器**；MediaGen 介面已本地化 |
+| **多語系** | 10 種介面語言（香港書面語、中國大陸書面語、阿語 RTL 等）；語言模型改善／生成前的**配方選擇器**；MediaGen 介面已本地化；**PromptCatalog 與 packs 十語正文**（不得整句複製英文） |
 | **自動更新** | 打包版經 GitHub Releases（electron-updater） |
 
 ---
@@ -242,7 +243,7 @@
   - **Chapters（章節）**：寫正文（AI 生成／潤飾）；之後填庫以章節為劇情來源  
   - **Cast（選角）**：連結**角色、場景、道具、動作**（搜尋 + 已加入／未加入篩選）  
   - **Script beats（劇情段落）**：每段可多選角色（最多 4）／場景（最多 2）／道具（最多 4）／**動作**（最多 4），並寫 beat screenplay  
-- **由劇情建議**（角色、場景、道具、動作、戲服頁，喺「AI 填寫」旁邊）：勾選**章節**（`chapter:<id>`）同**段落**（`beat:<id>`）→ `segmentKeys`。桌面預設只勾已綁此實體嘅段落。唔勾 = 成個故事（章節優先）。  
+- **由劇情建議**（角色、場景、道具、動作、戲服頁，在「AI 填寫」旁邊）：勾選**章節**（`chapter:<id>`）與**段落**（`beat:<id>`）→ `segmentKeys`。桌面預設只勾已綁此實體的段落。不勾選 = 整個故事（章節優先）。  
 
 ### Characters（人物）
 
@@ -250,8 +251,9 @@
 - 搜尋、性別、藝術風格、有無圖片、Soul、語言等篩選  
 - 每卡多張參考圖；Edit／Delete  
 - 編輯分頁：  
-  - **Profile**：名稱、描述、年齡、性別、語言、聲音等；外貌／服裝／聲線／習慣／鐵則可用**進階碼板**（選擇 ID 存入 `profileJson`）；**AI 填充**可用構思、草稿、soul、**只憑上載靜圖**（vision），或**由劇情建議**  
-  - **References**：多角度 bible（front／¾／close-up 等）、body／base／costume 管線、外部參考、身份鎖定、生成專業參考、Intro video  
+  - **Profile**：名稱、描述、年齡、性別、語言、聲音等；外貌／服裝／聲線／習慣／鐵則可用**進階碼板**（選擇 ID 存入 `profileJson`）；**人工智能填充**可用構思、草稿、soul、**只憑上載靜圖**（視覺參考），或**由劇情建議**  
+  - **References**：多角度 bible（front／¾／close-up 等）、body／base／costume 管線、外部參考、身份鎖定、生成專業參考、Intro video **鏡頭範本**  
+  - **攝影集**：相冊在 `profileJson.photoBook`（場景／道具／動作靜圖）；桌面出片走 `character-photoshoot-clip` 再 `concatOnly`；CLI `ai-clips`／`slideshow` 經 `characters:renderPhotoBook`  
   - **Costume**：綁定服裝  
 - **SoulMD Hub**（soulmd-hub.ysk.hk）：索引建議、匯入 soul.md 作為人物靈魂設定  
 - 詳見 [docs/soulmd-hub-ZH.md](./docs/soulmd-hub-ZH.md) · [docs/soulmd-hub.md](./docs/soulmd-hub.md)
@@ -270,14 +272,14 @@
 - 場景描述與腳本欄位；空間／班底／攝影／鐵則可用**進階碼板**（`profileJson`）  
 - 場景 plate、looks、atmosphere  
 - 場景圖庫與變體生成  
-- **vision AI 填充**（依選中／封面靜圖），或**由劇情建議**  
+- **憑靜圖人工智能填充**（依選中／封面靜圖），或**由劇情建議**  
 
 ### Props（道具）
 
 - 道具名稱與描述；造型／鐵則可用**進階碼板**（`profileJson`）  
-- Prop master prompt、plate 變體  
+- 道具主提示詞、道具板變體  
 - 供時間軸 clip 綁定  
-- **vision AI 填充**（依參考靜圖），或**由劇情建議**  
+- **憑靜圖人工智能填充**（依參考靜圖），或**由劇情建議**  
 
 ### Actions（動作指導）
 
@@ -285,7 +287,7 @@
 - 節奏與肢體／攝影／鐵則可用**進階碼板**（`profileJson`）  
 - **多格指示圖**：2／3／4／5／6 格（橫向 strip 或 2×2／2×3）；第 1 格＝第一動作，第 N 格＝最後動作  
 - 藝術風格、外部參考圖、由角色／服裝／場景／道具引入 cast 參考  
-- **vision AI 填充**，或**由劇情建議**；多圖累積（append 指示板、排序、封面）  
+- **憑靜圖人工智能填充**，或**由劇情建議**；多圖累積（追加指示板、排序、封面）  
 - 可掛入故事 cast、劇情段落與時間軸 clip；出片時注入節奏／意圖／鏡頭備註，並可使用指示圖作 image-to-video 參考  
 
 ### Comics（漫畫）
@@ -369,7 +371,7 @@
 ```text
 ① 設定 → 貼上 API Key → 測試 Chat
 ② Stories → 先寫章節 → 再拆劇情段落
-③ Characters → 生成多角度 sheet → 鎖定身份
+③ Characters → 生成多角度角色表 → 鎖定身份
    （或上載靜圖 → 只憑圖 AI 填充角色資料）
    （或由劇情建議 → 勾選章節／段落）
 ④ Scenes / Props / Costumes / Actions → 補齊資產
@@ -378,7 +380,7 @@
 ⑥ 劇情段落 → 每段綁定資產（含動作）
 ⑦ Timeline → 排 clip、寫 beat screenplay
    或 Comics → 選模板 → 寫分格 → 生成漫畫頁 → 本頁影片
-   或 劇照 → 選題材 → 綁角色 → 揀出圖方式 → 生成靜圖／設為封面
+   或 劇照 → 選題材 → 綁角色 → 選擇出圖方式 → 生成靜圖／設為封面
 ⑧ Advanced prep → stills（連貫）→ 出片
 ⑨ Export → 成片（可選 TTS／字幕）；漫畫亦可只串已有片的頁自行匯出成片
 ```
@@ -497,7 +499,7 @@ instant-drama update install 1.8.0 --yes   # 釘選版本
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # 約 183 個 channel
+instant-drama channels list --json          # 約 184 個 channel
 ```
 
 > **說明：** 全域安裝提供 **CLI／headless／網頁伺服器** 控制面（故事、角色、生成、匯出輔助、agent 工具）。若要 **建置或開啟 Electron 桌面 GUI**（`instant-drama build`／`instant-drama open`），仍需完整 git clone、`npm install`（含 Electron 等 devDependencies）以及本機 `release/` 產物。
@@ -523,7 +525,7 @@ npm run instant-drama -- doctor --json
 ### 常用指令
 
 ```bash
-# 診斷（channel 數應約 183）
+# 診斷（channel 數應約 184）
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -713,7 +715,7 @@ rm -rf ~/.config/instant-drama-magician
 |------|------|------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | 文件總覽 + 準則 |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | 產品規格 |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（183 channels） |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI（184 channels） |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agent／OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | 網頁遠控 |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

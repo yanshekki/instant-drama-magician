@@ -242,7 +242,7 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
         'Keyframe still then short-drama video for story "受戒下山" beat #1. Continuity-lock previous frame when attached.',
       beatText: 'Story: 受戒下山\nBeat #1 · 10s clip\nDialogue: 走！'
     })
-    expect(fb).toMatch(/圖生影片|關鍵幀/)
+    expect(fb).toMatch(/圖生影片|靜圖/)
     expect(fb).toMatch(/受戒下山/)
     expect(fb).toMatch(/故事：/)
     expect(fb).toMatch(/第 1 段/)
@@ -335,6 +335,26 @@ describe('buildMediaGenVideoPolishUserOverride', () => {
     expect(out).toContain('第 1／4 格')
     expect(out).toContain('沈執一：先淨手。')
     expect(out).not.toMatch(/GEOMETRY LOCK|EXACTLY 4|Layout:|PANEL COUNT|Panel 1\/4/)
+  })
+
+  it('rewrites leftover English sheet / action / swap image locks', () => {
+    const raw = [
+      'CRITICAL IDENTITY LOCK: same face across panels.',
+      'GEOMETRY LOCK (mandatory): 2 rows × 3 columns. FORBIDDEN: 2×2.',
+      'PANEL COUNT IS NON-NEGOTIABLE: EXACTLY 6 panels.',
+      'IMAGE EDIT / COSTUME SWAP TASK: replace wardrobe.',
+      'EMPTY LOCATION PLATE. No hero faces.',
+      'MANDATORY MEDIUM: photoreal cinematic still.'
+    ].join('\n')
+    const out = rewriteDirectorSealWording(raw, 'zh-HK')
+    expect(out).toMatch(/身份鎖定/)
+    expect(out).toMatch(/排版鎖定|六格/)
+    expect(out).toMatch(/換裝/)
+    expect(out).toMatch(/空鏡場地板/)
+    expect(out).toMatch(/必須媒介/)
+    expect(out).not.toMatch(
+      /GEOMETRY LOCK|PANEL COUNT IS NON-NEGOTIABLE|IMAGE EDIT \/ COSTUME SWAP|MANDATORY MEDIUM|CRITICAL IDENTITY LOCK|EMPTY LOCATION PLATE/
+    )
   })
 
   it('rewrites leftover English seals for ja and fr', () => {

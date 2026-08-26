@@ -19,9 +19,10 @@ describe('scenePlateVariants', () => {
       'establishing',
       'photo_cinematic'
     )
-    expect(p).toMatch(/EMPTY LOCATION|NO hero/i)
+    expect(p).toMatch(/空鏡場地板|不要主角臉/)
     expect(p).toMatch(/neon alley/i)
-    expect(p).toMatch(/MANDATORY MEDIUM|photo/i)
+    expect(p).toMatch(/必須媒介|photo_cinematic/)
+    expect(p).not.toMatch(/EMPTY LOCATION PLATE|MANDATORY MEDIUM|GEOMETRY LOCK/)
   })
 
   it('defaults unknown variant', () => {
@@ -50,6 +51,7 @@ describe('scenePlateVariants', () => {
       'anime_modern'
     )
     expect(p).toContain('Pier')
+    expect(p).not.toMatch(/\{\{/)
     expect(p).toContain('rain')
     expect(p).toMatch(/禁止|水印|anime/)
   })
@@ -60,7 +62,7 @@ describe('scenePlateVariants', () => {
       'hero_plate',
       'photo_cinematic'
     )
-    expect(edit).toMatch(/EDIT|LAYOUT|hero|NO logo/i)
+    expect(edit).toMatch(/圖像編輯|場地改風格|hero|NO logo/i)
   })
 
   it('scenePlatesByGroup groups all variants', () => {

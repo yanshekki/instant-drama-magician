@@ -1,5 +1,5 @@
 /**
- * Characters IPC handlers (CRUD, wardrobe, AI fill, soul, sheet, intro video, costume swap).
+ * Characters IPC handlers (CRUD, wardrobe, AI fill, soul, sheet, intro video, costume swap, photo book).
  */
 import type { HandlerContext } from './context'
 import { registerCharactersCrud } from './characters/crud'
@@ -9,6 +9,7 @@ import { registerCharactersSoul } from './characters/soul'
 import { registerCharactersSheet } from './characters/sheet'
 import { registerCharactersIntroVideo } from './characters/introVideo'
 import { registerCharactersCostumeSwap } from './characters/costumeSwap'
+import { registerCharactersPhotoBook } from './characters/photoBook'
 
 export function registerCharactersHandlers(ctx: HandlerContext): void {
   registerCharactersCrud(ctx)
@@ -18,4 +19,5 @@ export function registerCharactersHandlers(ctx: HandlerContext): void {
   registerCharactersSheet(ctx)
   registerCharactersIntroVideo(ctx)
   registerCharactersCostumeSwap(ctx)
+  registerCharactersPhotoBook(ctx)
 }

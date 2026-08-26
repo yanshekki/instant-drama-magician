@@ -7,9 +7,9 @@ import {
 } from './channelManifest'
 
 describe('channelManifest', () => {
-  it('has 183 desktop channels unique', () => {
-    expect(DESKTOP_CHANNEL_NAMES.length).toBe(183)
-    expect(new Set(DESKTOP_CHANNEL_NAMES).size).toBe(183)
+  it('has 184 desktop channels unique', () => {
+    expect(DESKTOP_CHANNEL_NAMES.length).toBe(184)
+    expect(new Set(DESKTOP_CHANNEL_NAMES).size).toBe(184)
   })
 
   it('specFor returns description', () => {
@@ -60,9 +60,12 @@ describe('channelManifest', () => {
     expect(s.argsHint).toContain('lookPackId')
   })
 
-  it('settings:set argsHint documents gctoac clip voice', () => {
-    const s = specFor('settings:set')
-    expect(s.argsHint).toContain('generateAudio')
-    expect(s.argsHint).toContain('grokVideoVoice')
+  it('characters:renderPhotoBook argsHint documents introTemplateId', () => {
+    const s = specFor('characters:renderPhotoBook')
+    expect(s.argsHint).toContain('introTemplateId')
+    expect(s.argsHint).toContain('slideshow')
+    expect(s.argsHint).toContain('ai-clips')
+    expect(s.argsHint).toContain('concatOnly')
+    expect(s.argsHint).toContain('albumId')
   })
 })

@@ -16,7 +16,7 @@ Trial-deepening layer on top of Beta: **controllable generation, dialogue audio,
 | Character refs | Characters page; live warns if missing |
 | Style bible | Story `styleNote` injected into clip prompts |
 | Continuity | Previous beat **end-frame** continuity still + prompt lock; multi-ref polish; batch fills earlier missing stills |
-| MediaGen shell | Materials → polish → still/video for library pages and timeline **refine** |
+| MediaGen shell | Materials → polish → still/video for library pages and timeline **refine**. Video steps include the camera/shot template picker |
 | Costume try-on dual-write | Accept dressed still → character gallery **and** costume multi-gallery |
 | Reveal export | `openExportFolder` after save |
 | Pack | `npm run pack` → `release/linux-unpacked` |
@@ -35,6 +35,6 @@ Trial-deepening layer on top of Beta: **controllable generation, dialogue audio,
 - Multi-track NLE  
 - Studio-grade TTS / auto scoring  
 
-> **After v1.0.0:** multi-platform GitHub Release, electron-updater, activity log + support report, full CLI/Web **157** channels. See [commercial.md](./commercial.md).
+> **After v1.0.0:** multi-platform GitHub Release, electron-updater, activity log + support report, full CLI/Web runtime (now **184** channels). See [commercial.md](./commercial.md).
 
 RC transitions/aspect: [rc.md](./rc.md). Release: [release.md](./release.md).

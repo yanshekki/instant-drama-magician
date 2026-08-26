@@ -7,12 +7,13 @@ import {
   type ActionCastRef
 } from './actionCastRefs'
 import {
+  actionLayoutPrompt,
   buildPanelBeatInstructions,
   getActionPanelLayout,
   type ActionPanelLayoutId
 } from './actionPlateVariants'
 import { PromptCatalog, resolvePromptContext } from '../prompts'
-import { getArtStyle } from './characterArtStyles'
+import { artStylePrompt, getArtStyle } from './characterArtStyles'
 import {
   coerceProfileString,
   coerceProfileStringFrom,
@@ -240,6 +241,7 @@ export interface BuildActionPlatePromptOpts {
   castRefs: ActionCastRef[]
   mode: 'generate' | 'edit'
   identityLock?: boolean
+  locale?: string | null
 }
 
 /**
@@ -251,6 +253,7 @@ export function buildActionPlatePrompt(opts: BuildActionPlatePromptOpts): string
   const art = getArtStyle(opts.artStyleId ?? undefined)
   const n = layout.panelCount
   const profile = opts.profile
+  const locale = opts.locale ?? 'zh-HK'
   const castRefs = opts.castRefs ?? []
   const hasCast = castRefs.length > 0
   const identityLock = opts.identityLock ?? opts.mode === 'edit'
@@ -301,17 +304,22 @@ export function buildActionPlatePrompt(opts: BuildActionPlatePromptOpts): string
 
   const panelBlock = [
     '## 3. PANEL GEOMETRY (hard constraint — structure only, not story identity)',
-    `LAYOUT CONSTRAINT: the board must contain EXACTLY ${n} storyboard panels (${layout.id}).`,
-    layout.promptLayout + '.',
-    buildPanelBeatInstructions(layout),
-    `Single composite file only — still EXACTLY ${n} panels inside that one image. Numbered panels 1…${n} only — never fewer.`
+    PromptCatalog.t(locale, 'action.geometry.panelCount', {
+      n,
+      list: Array.from({ length: n }, (_, i) => i + 1).join(', ')
+    }),
+    actionLayoutPrompt(layout, locale) + '.',
+    buildPanelBeatInstructions(layout, locale),
+    PromptCatalog.t(locale, 'action.geometry.order', { n })
   ].join('\n')
 
   const artBlock = [
     '## 4. ART + OUTPUT',
-    `Art medium: ${art.promptBlock || art.labelKey || art.id}`,
-    'Clean thick gutters, readable silhouettes, cinematic short-drama look.',
-    'No watermark, no app UI chrome, no extra logos, no title banner that replaces a panel.'
+    PromptCatalog.t(locale, 'comic.artMedium', {
+      art: artStylePrompt(art.id, locale)
+    }),
+    PromptCatalog.t(locale, 'action.geometry.identity'),
+    PromptCatalog.t(locale, 'comic.finished')
   ].join('\n')
 
   const body = [task, binding, actionBlock, panelBlock, artBlock].join('\n\n')

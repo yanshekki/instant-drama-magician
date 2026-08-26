@@ -11,6 +11,7 @@ import {
   pickKeyArtShotPrimary,
   serializeKeyArtShotImages
 } from '../../domain/keyArtShotImages'
+import { parseIntroVideoTemplateId } from '../../domain/introVideoTemplates'
 
 function trimOrNull(v: string | null | undefined): string | null {
   if (v === undefined || v === null) return null
@@ -42,6 +43,7 @@ export type KeyArtShotUpdate = {
   pageFormat?: string | null
   artStyle?: string | null
   brief?: string | null
+  cameraTemplateId?: string | null
   characterIds?: string[] | null
   characterIdsJson?: string | null
   sceneId?: string | null
@@ -58,10 +60,29 @@ export type KeyArtShotUpdate = {
 
 let keyArtSchemaReady = false
 
+async function ensureKeyArtCameraTemplateColumn(
+  prisma: PrismaClient
+): Promise<void> {
+  try {
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "KeyArtShot" ADD COLUMN "cameraTemplateId" TEXT`
+    )
+  } catch {
+    /* column already exists */
+  }
+}
+
+function cameraTemplateOrNull(
+  raw: string | null | undefined
+): string | null {
+  return parseIntroVideoTemplateId(raw) ?? null
+}
+
 export async function ensureKeyArtSchema(prisma: PrismaClient): Promise<void> {
   if (keyArtSchemaReady) return
   try {
     await prisma.keyArt.findFirst({ select: { id: true } })
+    await ensureKeyArtCameraTemplateColumn(prisma)
     keyArtSchemaReady = true
     return
   } catch {
@@ -93,6 +114,7 @@ export async function ensureKeyArtSchema(prisma: PrismaClient): Promise<void> {
       "pageFormat" TEXT,
       "artStyle" TEXT,
       "brief" TEXT,
+      "cameraTemplateId" TEXT,
       "characterIdsJson" TEXT,
       "sceneId" TEXT,
       "timelineEntryId" TEXT,
@@ -111,6 +133,7 @@ export async function ensureKeyArtSchema(prisma: PrismaClient): Promise<void> {
   await prisma.$executeRawUnsafe(
     `CREATE INDEX IF NOT EXISTS "KeyArtShot_keyArtId_order_idx" ON "KeyArtShot"("keyArtId", "order")`
   )
+  await ensureKeyArtCameraTemplateColumn(prisma)
   keyArtSchemaReady = true
 }
 
@@ -268,6 +291,9 @@ export class KeyArtService {
           ? { artStyle: trimOrNull(data.artStyle) }
           : {}),
         ...(data.brief !== undefined ? { brief: trimOrNull(data.brief) } : {}),
+        ...(data.cameraTemplateId !== undefined
+          ? { cameraTemplateId: cameraTemplateOrNull(data.cameraTemplateId) }
+          : {}),
         characterIdsJson,
         ...(data.sceneId !== undefined
           ? { sceneId: trimOrNull(data.sceneId) }

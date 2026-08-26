@@ -103,7 +103,7 @@ instant-drama app open|build
 
 ## 探索與 invoke
 
-Electron、Web、CLI 共用 **`registerAllHandlers`** — **183** 個 channel。
+Electron、Web、CLI 共用 **`registerAllHandlers`** — **184** 個 channel。
 
 ```bash
 instant-drama doctor --json
@@ -124,6 +124,7 @@ instant-drama settings get|set
 instant-drama ai status|models|test-chat …
 instant-drama app info
 instant-drama characters list
+instant-drama characters render-photo-book --args '[{"characterId":"C","mode":"slideshow"}]' --json
 instant-drama chapters list --args '["S"]' --json
 instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
 instant-drama generation run <storyId> --json
@@ -136,26 +137,31 @@ Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `com
 
 桌面、Web、CLI 共用同一 registry。優先用 **domain sugar** 或 `invoke`。
 
-**1.8.0 進階碼板** **不加新 channel**（仍為 **183**）。桌面「進階」把 template 砌入現有文字欄。角色／場景／道具／動作的 create／update 可把選擇 ID 寫入 `profileJson`（`appearanceKit`、`costumeKit`、`voiceKit`、`mannerismKit`、`locationKit`、`setDressingKit`、`cameraKit`、`propLookKit`、`motionKit`、`hardRulesKit`）。服裝館造型與故事風格／鐵則只套用文字（無 kit 袋）。圖像／影片 handler 仍只食砌好的字。合約以 `channels describe characters:update` 為準。
+**1.8.0 進階碼板** **不加新 channel**。桌面「進階」把範本編入現有文字欄。角色／場景／道具／動作的 create／update 可把選擇 ID 寫入 `profileJson`（`appearanceKit`、`costumeKit`、`voiceKit`、`mannerismKit`、`locationKit`、`setDressingKit`、`cameraKit`、`propLookKit`、`motionKit`、`hardRulesKit`）。服裝館造型與故事風格／鐵則只套用文字（無 kit 袋）。圖像／影片處理程式仍只使用組裝後的文字。合約以 `channels describe characters:update` 為準。
+
+**角色攝影集**只加 **一條** channel（`characters:renderPhotoBook`）——合計 **184**。靜圖沿用現有 `mediaGen:*`（`kind=character-photoshoot`）。桌面出片走 `kind=character-photoshoot-clip`（與介紹片 MediaGen 步驟相同：提取 → 潤飾導演提示 → 跳過靜圖 → `videoPrep:confirm`），再以 `concatOnly` 串 **當前相冊**。短片提取以該相冊靜圖做像素底圖（人設參考只作視覺參考）。永久相冊記在 `profileJson.photoBook.albums`（舊頂層 `shots` 會遷入 `album_default`；不寫入身分 `refGalleryJson`）。桌面鏡頭範本在攝影集編輯欄選擇，出影片彈窗可再改。時間軸節拍與主視覺鏡頭同樣以 `cameraTemplateId` 記住（`timeline:update`／`keyArt:updateShot`）。MediaGen 靜圖（`timeline-still`、`key-art`、`story-cover`、`character-photoshoot`）與視頻 kind 可在 `mediaGen:extract` 傳 `introTemplateId`。CLI `ai-clips` 仍然使用 `introTemplateId`；可選 `albumId` 指定要串的相冊。
+
+**十語 PromptCatalog**——角色表／場地板／換裝／幾何／畫質鎖與 packs 均為該語正文（準則為香港書面語）。`mediaGen:extract` 傳 `payload.locale`。不加 channel。
 
 | Channel | 用途 | 示例 |
 |---------|------|------|
 | generate／AI fill | 可選 `promptTemplateId`（桌面配方選擇器；不再暗中套系統預設） | 桌面：生成前選擇配方。CLI：在 generate／fill／MediaGen payload 傳 `promptTemplateId` |
-| `mediaGen:extract` | 建立材料 sections（庫頁 + `timeline-still`／`timeline-clip`）。可選：`continuityMode`、`motionPriority`、`advancedIdentity`、`identityCollage`、`lookPackId` | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","continuityMode":"chain-end","motionPriority":"action"}]' --json` |
-| `mediaGen:polish` | 多圖 vision 潤飾 prompt | `instant-drama mediaGen polish --args '[{...}]' --json` |
+| `mediaGen:extract` | 建立材料 sections（庫頁 + `timeline-still`／`timeline-clip`／`key-art`／`story-cover`）。可選：`continuityMode`、`motionPriority`、`advancedIdentity`、`identityCollage`、`lookPackId`、`introTemplateId`（單鏡頭目錄） | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","introTemplateId":"pov"}]' --json` |
+| `mediaGen:polish` | 多圖視覺潤飾提示 | `instant-drama mediaGen polish --args '[{...}]' --json` |
 | `mediaGen:generateImage` | 單張靜圖；timeline 會寫入 continuity 路徑 | `instant-drama mediaGen generate-image --args '[{...}]' --json` |
 | `costumes:appendTryOnStill` | 試穿 still 追加至戲服多圖庫 | `instant-drama costumes append-try-on-still --args '[{"costumeId":"C","sourcePath":"/a.png"}]' --json` |
 | `costumes:generateDressed` | 生成試穿靜圖 | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
 | `videoPrep:create` | 準備靜圖／開 clip 流程 | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
-| `videoPrep:confirm` | 由靜圖確認出片。timeline-clip 會由嚴格連續文脈組出 Seedance `lastFramePath`（Grok 會忽略）。原生音訊跟設定 `generateAudio`／`grokVideoVoice`。 | `instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillPath":"/still.png","professionalPrompt":"…"}]' --json` |
+| `videoPrep:confirm` | 由靜圖確認出片。timeline-clip 會由嚴格連續文脈組出 Seedance `lastFramePath`（Grok 會忽略）。攝影集短片（`character-photoshoot-clip`）把 `clipPath` 寫入 `profileJson.photoBook`（不寫入身分 gallery）。原生音訊跟設定 `generateAudio`／`grokVideoVoice`。 | `instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillPath":"/still.png","professionalPrompt":"…"}]' --json` |
 | `settings:set` | 合併設定；`generateAudio` + `grokVideoVoice`（`ara` `eve` `leo` `rex` `sal` `mio`） | `instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json` |
+| `characters:renderPhotoBook` | 串一本攝影集**相冊**：`slideshow`（ffmpeg，CLI）、`ai-clips`（每張靜圖一條介紹式短片再串接——CLI）、或 `concatOnly:true`（桌面 MediaGen 出短片後只串現有 `clipPath`）。可選 `albumId`（缺省＝第一本，或含 `shotIds` 的那本）。可選 `introTemplateId` 會把鏡頭範本注入 CLI 短片潤飾（鏡頭亦可存 `cameraTemplateId`）。路徑在 `profileJson.photoBook.albums` | `instant-drama characters render-photo-book --args '[{"characterId":"C","mode":"ai-clips","albumId":"album_default","introTemplateId":"hero-walkin"}]' --json` |
 | `characters:aiFill` | 可選 `referenceImagePaths`（與 `referenceImagePath` 合併；多圖上限） | `instant-drama characters ai-fill --args '[{"idea":"…","referenceImagePaths":["/a.png","/b.png"]}]' --json` |
 | `generation:run` | 無介面整劇生成。會先補時間軸靜圖再出片。桌面「開始生成」是互動 `videoPrep`，**不會**走這條路徑。 | `instant-drama generation run STORY_ID --json` |
 | `comics:get` | 取得或建立該故事的漫畫書 | `instant-drama comics get --args '["S"]' --json` |
 | `comics:addPage`／`updatePage` | 新增或編輯頁（排板、開本、分格） | `instant-drama comics add-page --args '[{"storyId":"S","panelLayout":"grid-2x2"}]' --json` |
 | `comics:deletePageVideo`／`setPageVideoPrimary` | 多版本本頁影片 | `instant-drama comics delete-page-video --args '["PAGE","VID"]' --json` |
 | `keyArt:get` | 取得或建立該故事的劇照冊 | `instant-drama keyArt get --args '["S"]' --json` |
-| `keyArt:addShot`／`updateShot` | 新增或編輯宣傳靜圖（題材、開本、出圖方式） | `instant-drama keyArt add-shot --args '[{"storyId":"S","shotType":"cover"}]' --json` |
+| `keyArt:addShot`／`updateShot` | 新增或編輯宣傳靜圖（題材、開本、出圖方式、`cameraTemplateId`） | `instant-drama keyArt update-shot --args '["SHOT",{"cameraTemplateId":"low-angle-hero"}]' --json` |
 | `keyArt:setAsStoryCover` | 用成圖寫入 `Story.coverPath` | `instant-drama keyArt set-as-story-cover --args '["SHOT"]' --json` |
 | `chapters:list`／`create`／`update`／`delete`／`reorder` | 故事章節正文 | `instant-drama chapters list --args '["S"]' --json` |
 | `chapters:aiFill`／`aiPolish` | 生成或潤飾章節 | `instant-drama chapters ai-fill --args '[{"storyId":"S","idea":"…"}]' --json` |
@@ -165,12 +171,12 @@ Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `com
 | `timeline:getAdvancedPrep` | 進階預備 snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
 | `timeline:setCastPrep` | 儲存 cast 鎖定 | `instant-drama timeline set-cast-prep --args '[{...}]' --json` |
 | `timeline:clearEntryStill` | 清除該段 continuity 靜圖 | `instant-drama timeline clear-entry-still --args '[{...}]' --json` |
-| `timeline:create`／`update` | 段落；多綁 `characterIds`（最多 4）、`sceneIds`（最多 2）、`propIds`（最多 4）、`actionIds`（最多 4） | `instant-drama timeline create --args '[{"storyId":"S","characterIds":["…"],"sceneIds":["…"]}]' --json` |
+| `timeline:create`／`update` | 段落；多綁 `characterIds`（最多 4）、`sceneIds`（最多 2）、`propIds`（最多 4）、`actionIds`（最多 4）；可選 `cameraTemplateId` | `instant-drama timeline update --args '["E",{"cameraTemplateId":"pov"}]' --json` |
 | `*:aiFill` 劇情焦點 | characters／scenes／props／actions／costumes（＋wardrobe）的 `suggestFromStory` + `segmentKeys` | 見下方 **劇情焦點／AI fill** |
 
 ### 劇情焦點／AI fill
 
-`suggestFromStory: true` 必須帶 `storyId`。省略 `segmentKeys` 或傳 `[]` = **成個故事**（先章節正文，再段落）。Key 格式：`chapter:<id>`、`beat:<id>`（`scene:<id>` 仍可解析；桌面選擇器已不再列出場次）。單數 `segmentKey` **已棄用**。桌面預勾（已綁此實體嘅段落）**只限 GUI** — CLI 要自己傳 keys。
+`suggestFromStory: true` 必須帶 `storyId`。省略 `segmentKeys` 或傳 `[]` = **整個故事**（先章節正文，再段落）。Key 格式：`chapter:<id>`、`beat:<id>`（`scene:<id>` 仍可解析；桌面選擇器已不再列出場次）。單數 `segmentKey` **已棄用**。桌面預勾（已綁此實體的段落）**只限桌面** — CLI 須自行傳 keys。
 
 ```bash
 instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:C1","beat:B1"]}]' --json
@@ -190,7 +196,7 @@ instant-drama channels describe costumes:appendTryOnStill --json
 bash scripts/cli-smoke.sh
 # 或手動：
 npm run instant-drama -- version
-npm run instant-drama -- doctor --json          # 預期 channelCount 183
+npm run instant-drama -- doctor --json          # 預期 channelCount 184
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
@@ -236,7 +242,7 @@ instant-drama server start --port 8787 --host 0.0.0.0
 | 能力 | 狀態 |
 |------|------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel 數 | **183** |
+| Channel 數 | **184** |
 | `instant-drama invoke` | ✅ 任意 channel |
 | Domain sugar | ✅ 全部 namespace |
 | OpenAI tool schema | ✅ |

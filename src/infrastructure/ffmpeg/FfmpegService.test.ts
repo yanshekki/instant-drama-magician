@@ -221,6 +221,27 @@ describe('FfmpegService', () => {
     })
   })
 
+  it('stitchStillsSlideshow holds stills then concats', async () => {
+    installSpawnSuccess()
+    const ff = new FfmpegService()
+    const a = join(dir, 'a.png')
+    const b = join(dir, 'b.png')
+    writeFileSync(a, 'png')
+    writeFileSync(b, 'png')
+    const out = join(dir, 'album.mp4')
+    const path = await ff.stitchStillsSlideshow({
+      stillPaths: [a, b, join(dir, 'missing.png')],
+      outputPath: out,
+      secondsPerStill: 2,
+      aspectRatio: '16:9'
+    })
+    expect(path).toBe(out)
+    expect(existsSync(out)).toBe(true)
+    await expect(
+      ff.stitchStillsSlideshow({ stillPaths: [], outputPath: out })
+    ).rejects.toMatchObject({ code: 'VALIDATION' })
+  })
+
   it('exportFinal covers fade, cut, audio, subs, profiles', async () => {
     installSpawnSuccess()
     const ff = new FfmpegService()
@@ -332,6 +353,30 @@ describe('FfmpegService', () => {
         outputPath: join(dir, 'fail.png')
       })
     ).rejects.toMatchObject({ code: 'FFMPEG_FAILED' })
+  })
+
+  it('extractStillFrame end seek falls back to a positive near-end grab', async () => {
+    const video = join(dir, 'v.mp4')
+    writeFileSync(video, 'v')
+    let n = 0
+    spawnMock.mockImplementation((_b: string, args: string[]) => {
+      if (args.includes('-version')) return makeChild({ code: 0 })
+      n++
+      const out = args[args.length - 1] as string
+      if (n === 1) return makeChild({ code: 1 })
+      writeFileSync(out, 'png')
+      return makeChild({ code: 0 })
+    })
+    const ff = new FfmpegService('/mock/ffmpeg')
+    const out = join(dir, 'end.png')
+    await expect(
+      ff.extractStillFrame({
+        videoPath: video,
+        outputPath: out,
+        atSeconds: 'end'
+      })
+    ).resolves.toBe(out)
+    expect(n).toBeGreaterThanOrEqual(2)
   })
 
   it('concatFiles re-encodes when copy fails and spawn error', async () => {

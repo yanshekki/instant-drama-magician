@@ -70,9 +70,15 @@ export function inventRulesForTemplate(
 ): string[] {
   const flags = flagsForTemplate(resolvePromptTemplate(templateId, 'copy'))
   if (flags.inventWorld) return inventFromProvidedSourcesRules(locale)
+  if (flags.fillOnlyEmpty) {
+    return [
+      PromptCatalog.t(locale, 'invent.sources'),
+      PromptCatalog.t(locale, 'invent.improve'),
+      PromptCatalog.t(locale, 'invent.noImport')
+    ]
+  }
   return [
     PromptCatalog.t(locale, 'invent.sources'),
-    PromptCatalog.t(locale, 'invent.improve'),
     PromptCatalog.t(locale, 'invent.noImport')
   ]
 }

@@ -3,9 +3,11 @@
  */
 import type { SceneGalleryItem } from './sceneGallery'
 import { inferSceneGalleryLayer } from './sceneGallery'
-import { getArtStyle } from './characterArtStyles'
+import { artStylePrompt, getArtStyle } from './characterArtStyles'
 import { appendHardRules } from './promptHardRules'
 import { AppError } from '../types/errors'
+import { PromptCatalog } from '../prompts'
+import type { PromptCopyKey } from '../prompts/copy/keys'
 
 export type AtmospherePose = 'wide' | 'hero' | 'detail'
 
@@ -60,6 +62,17 @@ export function pickBestSceneBaseImage(
   return { item: gallery[0], reason: 'any' }
 }
 
+export function atmosphereLayoutPrompt(
+  id?: AtmospherePose | string | null,
+  locale?: string | null
+): string {
+  const pose = getAtmospherePose(id)
+  return PromptCatalog.t(
+    locale,
+    `swap.atmosphere.layout.${pose.id}` as PromptCopyKey
+  )
+}
+
 export function buildAtmosphereSwapPrompt(input: {
   title?: string
   description: string
@@ -69,26 +82,45 @@ export function buildAtmosphereSwapPrompt(input: {
   setDressing?: string | null
   visualTags?: string | null
   hardRules?: string | null
+  locale?: string | null
 }): string {
+  const locale = input.locale ?? 'zh-HK'
   const style = getArtStyle(input.artStyle ?? undefined)
   const pose = getAtmospherePose(input.pose)
   const atmo = input.atmosphereDescription.trim()
   if (!atmo) throw new AppError('VALIDATION', 'errors.atmosphereRequired')
 
   const body = [
-    'IMAGE EDIT / ATMOSPHERE SWAP TASK (highest priority):',
-    style.promptBlock,
-    `Repeat: medium MUST be style id "${style.id}" (${style.family}).`,
-    'Keep LOCATION IDENTITY from the source: building massing, walls, floor plan cues, signage, furniture layout, camera angle.',
-    'REPLACE completely: time of day, weather, sky, practical lighting color, wetness, fog, neon intensity as described.',
-    `NEW ATMOSPHERE (must match exactly): ${atmo}`,
-    'FORBIDDEN: changing architecture into a different place, adding hero faces, watermarks, text captions.',
-    input.title ? `Location: ${input.title}` : '',
-    `Base place: ${input.description}`,
-    input.setDressing ? `Set dressing lock: ${input.setDressing}` : '',
-    input.visualTags ? `Tags: ${input.visualTags}` : '',
-    `LAYOUT: ${pose.layout}`,
-    `Final checklist: same place geometry; only atmosphere changed; medium ${style.id}; no hero faces.`
+    PromptCatalog.t(locale, 'swap.atmosphere.task'),
+    artStylePrompt(style.id, locale),
+    PromptCatalog.t(locale, 'swap.atmosphere.repeatMedium', {
+      id: style.id,
+      family: style.family
+    }),
+    PromptCatalog.t(locale, 'swap.atmosphere.keep'),
+    PromptCatalog.t(locale, 'swap.atmosphere.replace'),
+    PromptCatalog.t(locale, 'swap.atmosphere.new', { atmo }),
+    PromptCatalog.t(locale, 'swap.atmosphere.forbidden'),
+    input.title
+      ? PromptCatalog.t(locale, 'swap.atmosphere.location', {
+          title: input.title
+        })
+      : '',
+    PromptCatalog.t(locale, 'swap.atmosphere.place', {
+      place: input.description
+    }),
+    input.setDressing
+      ? PromptCatalog.t(locale, 'swap.atmosphere.set', { set: input.setDressing })
+      : '',
+    input.visualTags
+      ? PromptCatalog.t(locale, 'swap.atmosphere.tags', {
+          tags: input.visualTags
+        })
+      : '',
+    PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+      layout: atmosphereLayoutPrompt(pose.id, locale)
+    }),
+    PromptCatalog.t(locale, 'swap.atmosphere.checklist', { style: style.id })
   ]
     .filter(Boolean)
     .join(' ')

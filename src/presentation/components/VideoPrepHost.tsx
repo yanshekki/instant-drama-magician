@@ -166,6 +166,7 @@ export function VideoPrepHost(): JSX.Element | null {
             actionId: req.entityIds.actionId,
             storyId: req.entityIds.storyId,
             entryId: req.entityIds.entryId,
+            shotId: req.entityIds.shotId,
             sourceImagePath: req.sourceImagePath,
             durationSeconds: req.durationSeconds,
             locale: req.locale ?? i18n.language,

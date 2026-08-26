@@ -9,6 +9,7 @@ import {
   type ActionProfileFields
 } from './actionMasterPrompt'
 import {
+  actionLayoutPrompt,
   getActionPanelLayout,
   type ActionPanelLayoutId
 } from './actionPlateVariants'
@@ -43,6 +44,7 @@ export type MediaGenKind =
   | 'costume-swap'
   | 'atmosphere-swap'
   | 'timeline-still'
+  | 'character-photoshoot'
   | 'comic-page'
   | 'key-art'
   // videos
@@ -53,12 +55,14 @@ export type MediaGenKind =
   | 'costume-intro'
   | 'action-intro'
   | 'timeline-clip'
+  | 'character-photoshoot-clip'
 
 /** Image export vs video (still + generateVideo) pipeline. */
 export function mediaGenMode(kind: MediaGenKind): 'image' | 'video' {
   if (
     kind.endsWith('-intro') ||
-    kind === 'timeline-clip'
+    kind === 'timeline-clip' ||
+    kind === 'character-photoshoot-clip'
   ) {
     return 'video'
   }
@@ -75,6 +79,7 @@ export const ALL_MEDIA_GEN_KINDS: MediaGenKind[] = [
   'costume-swap',
   'atmosphere-swap',
   'timeline-still',
+  'character-photoshoot',
   'comic-page',
   'key-art',
   'comic-intro',
@@ -83,7 +88,8 @@ export const ALL_MEDIA_GEN_KINDS: MediaGenKind[] = [
   'prop-intro',
   'costume-intro',
   'action-intro',
-  'timeline-clip'
+  'timeline-clip',
+  'character-photoshoot-clip'
 ]
 
 export type MaterialSectionKind =
@@ -154,6 +160,23 @@ export function groupMaterialSections(sections: MediaGenMaterialSection[]): {
     else task.push(s)
   }
   return { refs, task, rules }
+}
+
+/**
+ * Stable 1-based index for every section that has an image path.
+ * Order follows `sections` (not include / edit-base filters).
+ */
+export function imageRefNumberById(
+  sections: Pick<MediaGenMaterialSection, 'id' | 'imagePath'>[]
+): Map<string, number> {
+  const map = new Map<string, number>()
+  let n = 0
+  for (const s of sections) {
+    if (!s.imagePath?.trim()) continue
+    n += 1
+    map.set(s.id, n)
+  }
+  return map
 }
 
 export interface MediaGenGenOptions {
@@ -364,12 +387,13 @@ export interface BuildActionPlateMaterialsInput {
   actionId: string
   profile: ActionProfileFields
   castRefs: ActionCastRef[]
-  /** Selected identity / gallery stills (指示圖庫). Default: not edit-base. */
+  /** Selected identity / gallery stills (靜圖庫). Default: not edit-base. */
   galleryIdentityPaths?: string[]
   panelLayout?: ActionPanelLayoutId | string | null
   artStyleId?: string | null
   /** When true, allow identity edit; default edit base = character if present. */
   preferIdentityEdit?: boolean
+  locale?: string | null
 }
 
 /**
@@ -386,6 +410,7 @@ export function buildActionPlateMaterialSections(
   genOptions: MediaGenGenOptions
 } {
   const sections: MediaGenMaterialSection[] = []
+  const locale = input.locale ?? 'zh-HK'
   const layout = getActionPanelLayout(input.panelLayout)
   const art = getArtStyle(input.artStyleId ?? undefined)
   const profile = input.profile
@@ -397,12 +422,12 @@ export function buildActionPlateMaterialSections(
     const type = r.entityType
     const lockLine =
       type === 'character'
-        ? 'IDENTITY LOCK: same person (face, age, hair, body). NEVER replace with a different actor.'
+        ? PromptCatalog.t(locale, 'continuity.identity')
         : type === 'costume'
-          ? 'WARDROBE LOCK: match fabric, color, pattern, silhouette.'
+          ? PromptCatalog.t(locale, 'costumeIntro.wardrobeLock')
           : type === 'scene'
-            ? 'SPACE LOCK: same location architecture, lighting, set dressing — not a different shop/salon.'
-            : 'PROP LOCK: match this prop when the action involves it.'
+            ? PromptCatalog.t(locale, 'continuity.space')
+            : PromptCatalog.t(locale, 'propIntro.objectLock')
     sections.push({
       id: `cast_${type}_${r.entityId || castIdx}`,
       kind: 'ref-image',
@@ -466,8 +491,13 @@ export function buildActionPlateMaterialSections(
     title: `${layout.id} · ${layout.panelCount}`,
     entityType: 'layout',
     text: [
-      `EXACTLY ${layout.panelCount} panels (${layout.id}).`,
-      layout.promptLayout + '.',
+      PromptCatalog.t(locale, 'action.geometry.panelCount', {
+        n: layout.panelCount,
+        list: Array.from({ length: layout.panelCount }, (_, i) => i + 1).join(
+          ', '
+        )
+      }),
+      actionLayoutPrompt(layout, locale) + '.',
       `Beat labels: ${layout.beatLabels.join(' → ')}.`
     ].join(' '),
     include: true,
@@ -479,7 +509,9 @@ export function buildActionPlateMaterialSections(
     kind: 'prompt-block',
     title: art.id,
     entityType: 'art',
-    text: `Art medium: ${art.promptBlock || art.labelKey || art.id}`,
+    text: PromptCatalog.t(locale, 'comic.artMedium', {
+      art: artStylePrompt(art.id, locale)
+    }),
     include: true,
     group: 'task'
   })
@@ -520,7 +552,8 @@ export function buildActionPlateMaterialSections(
     artStyleId: art.id,
     castRefs: input.castRefs,
     mode: 'generate',
-    identityLock: false
+    identityLock: false,
+    locale
   })
 
   return {
@@ -624,6 +657,7 @@ export function buildMediaGenPolishSystemPrompt(
             ? [PromptCatalog.t(locale, 'mediaGen.videoNoSwap')]
             : noRef),
           PromptCatalog.t(locale, 'mediaGen.videoHardRules'),
+          PromptCatalog.t(locale, 'mediaGen.honorCameraTemplate'),
           lock
         ].join('\n')
       : [
@@ -642,6 +676,7 @@ export function buildMediaGenPolishSystemPrompt(
           PromptCatalog.t(locale, 'mediaGen.imageLayout'),
           PromptCatalog.t(locale, 'mediaGen.imagePackage'),
           PromptCatalog.t(locale, 'mediaGen.imageHardRules'),
+          PromptCatalog.t(locale, 'mediaGen.honorCameraTemplate'),
           lock
         ].join('\n')
   return assembleSystemPrompt({
@@ -746,6 +781,7 @@ export function buildGenericEntityMaterialSections(opts: {
   forcePureLayout?: boolean
   /** Extra genOptions merged into return (variant ids, labels, …). */
   genOptionsExtra?: Partial<MediaGenGenOptions>
+  locale?: string | null
 }): {
   sections: MediaGenMaterialSection[]
   editBaseSectionId: string | null
@@ -753,6 +789,7 @@ export function buildGenericEntityMaterialSections(opts: {
   genOptions: MediaGenGenOptions
 } {
   const sections: MediaGenMaterialSection[] = []
+  const locale = opts.locale ?? 'zh-HK'
   const art = getArtStyle(opts.artStyleId ?? undefined)
   const paths = (opts.galleryPaths ?? [])
     .map((p) => p?.trim())
@@ -832,7 +869,9 @@ export function buildGenericEntityMaterialSections(opts: {
     kind: 'prompt-block',
     title: art.id,
     entityType: 'art',
-    text: `Art medium: ${art.promptBlock || art.labelKey || art.id}`,
+    text: PromptCatalog.t(locale, 'comic.artMedium', {
+      art: artStylePrompt(art.id, locale)
+    }),
     include: true,
     group: 'task'
   })
@@ -895,12 +934,12 @@ export function timelineBeatTaskHint(opts: {
   const n = opts.beatN
   if (opts.forVideo) {
     return zh
-      ? `故事「${title}」第 ${n} 段：由關鍵幀做短劇圖生影片。有上一段畫面時須連續鎖定。含鏡頭運動與對白表演。`
-      : `Keyframe still then short-drama video for story "${title}" beat #${n}. Continuity-lock previous frame when attached. Include camera motion and dialogue performance.`
+      ? `故事「${title}」第 ${n} 段：由靜圖做短劇圖生影片。有上一段畫面時須連續鎖定。含鏡頭運動與對白表演。`
+      : `Still then short-drama video for story "${title}" beat #${n}. Continuity-lock previous frame when attached. Include camera motion and dialogue performance.`
   }
   return zh
-    ? `故事「${title}」第 ${n} 段短劇關鍵幀靜圖（單一電影感畫面）。有上一段畫面時須連續鎖定。無浮水印。`
-    : `One cinematic short-drama KEYFRAME still for story "${title}" beat #${n}. Continuity-lock previous frame when attached. No watermark.`
+    ? `故事「${title}」第 ${n} 段短劇靜圖（單一電影感畫面）。有上一段畫面時須連續鎖定。無浮水印。`
+    : `One cinematic short-drama still for story "${title}" beat #${n}. Continuity-lock previous frame when attached. No watermark.`
 }
 
 export type TimelineBoundEntityRef = {
@@ -952,6 +991,7 @@ export function buildTimelineBeatMaterialSections(opts: {
   taskHint: string
 } {
   const sections: MediaGenMaterialSection[] = []
+  const locale = opts.locale ?? 'zh-HK'
   const art = getArtStyle(opts.artStyleId ?? undefined)
   const beatN = opts.displayIndex || 1
   const isVideo = opts.kind === 'timeline-clip'
@@ -1219,7 +1259,9 @@ export function buildTimelineBeatMaterialSections(opts: {
     kind: 'prompt-block',
     title: art.id,
     entityType: 'art',
-    text: `Art medium: ${art.promptBlock || art.labelKey || art.id}`,
+    text: PromptCatalog.t(locale, 'comic.artMedium', {
+      art: artStylePrompt(art.id, locale)
+    }),
     include: true,
     group: 'task'
   })

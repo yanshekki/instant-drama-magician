@@ -97,4 +97,20 @@ describe('locales contract', () => {
       expect(same, `${f} keyArt leftover ${same.join(',')}`).toEqual([])
     }
   })
+
+  it('zh-HK UI copy is written Chinese, not colloquial or mixed English', () => {
+    const hk = flatten(
+      JSON.parse(readFileSync(join(dir, 'zh-HK.json'), 'utf8')) as Record<
+        string,
+        unknown
+      >
+    )
+    const colloquial =
+      /唔好|唔准|唔多過|唔會|為咗|嘅|仲喺|喺|撳|揀|跟住|呢啲|冇|睇/
+    const mixed = /鏡頭 template|vision 參考|本機 GUI|由 LLM /
+    for (const [k, v] of Object.entries(hk)) {
+      expect(v, `zh-HK ${k}`).not.toMatch(colloquial)
+      expect(v, `zh-HK ${k} mixed English`).not.toMatch(mixed)
+    }
+  })
 })

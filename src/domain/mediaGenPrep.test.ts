@@ -12,6 +12,7 @@ import {
   extractPolishedMediaPrompt,
   stripMediaGenPreamble,
   includedMaterialImagePaths,
+  imageRefNumberById,
   isMediaGenPrepPhaseLocked,
   mediaGenMode,
   pickDefaultEditBaseSectionId,
@@ -92,6 +93,23 @@ describe('mediaGenPrep', () => {
       '/scene.png',
       '/prop.png'
     ])
+  })
+
+  it('imageRefNumberById numbers every image path in array order', () => {
+    const map = imageRefNumberById([
+      { id: 'a', imagePath: '/a.png' },
+      { id: 'text' },
+      { id: 'blank', imagePath: '  ' },
+      { id: 'b', imagePath: '/b.png' },
+      { id: 'unchecked', imagePath: '/c.png' }
+    ])
+    expect([...map.entries()]).toEqual([
+      ['a', 1],
+      ['b', 2],
+      ['unchecked', 3]
+    ])
+    expect(map.get('text')).toBeUndefined()
+    expect(map.get('blank')).toBeUndefined()
   })
 
   it('pickDefaultEditBase prefers character over costume', () => {
@@ -202,6 +220,8 @@ describe('mediaGenPrep', () => {
   it('shell steps differ for image vs video tracks', () => {
     expect(mediaGenMode('character-sheet')).toBe('image')
     expect(mediaGenMode('character-intro')).toBe('video')
+    expect(mediaGenMode('character-photoshoot-clip')).toBe('video')
+    expect(mediaGenMode('character-photoshoot')).toBe('image')
     expect(shellStepsForMode('image')).toEqual([
       'materials',
       'polish',
@@ -274,9 +294,11 @@ describe('mediaGenPrep', () => {
     const v = buildMediaGenPolishSystemPrompt('en', { mode: 'video' })
     expect(v).toMatch(/video|camera/i)
     expect(v).toMatch(/materials and seed|Demo story|fixed sample/i)
+    expect(v).toMatch(/camera-template|honor/i)
     const i = buildMediaGenPolishSystemPrompt('zh-HK')
-    expect(i).toMatch(/LAYOUT|出圖方案|layout/i)
+    expect(i).toMatch(/LAYOUT|出圖方案|layout|多格板/i)
     expect(i).toMatch(/固定樣本|Demo|材料/)
+    expect(i).toMatch(/鏡頭範本/)
   })
 
   it('buildComicPageMaterialSections locks panel count', () => {

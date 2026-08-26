@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { createMockApi, reseedMockApi } from '../../test/mockApi'
 import { makeStory } from '../../test/pageFixtures'
 import { renderWithProviders } from '../../test/renderWithProviders'
@@ -62,5 +62,20 @@ describe('KeyArtPage', () => {
     expect(
       screen.getAllByText(/Cover poster|封面海報|カバーポスター/i).length
     ).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Shot template/i).length).toBeGreaterThan(0)
+    const camSel = Array.from(document.querySelectorAll('select')).find((el) =>
+      Array.from((el as HTMLSelectElement).options).some((o) => o.value === 'pov')
+    )
+    if (camSel) {
+      await act(async () => {
+        fireEvent.change(camSel, { target: { value: 'pov' } })
+      })
+      await waitFor(() =>
+        expect(api.keyArt.updateShot).toHaveBeenCalledWith(
+          'shot-1',
+          expect.objectContaining({ cameraTemplateId: 'pov' })
+        )
+      )
+    }
   })
 })

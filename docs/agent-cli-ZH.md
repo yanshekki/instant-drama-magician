@@ -42,7 +42,7 @@ export IDM_JSON=1
 
 ## 探索迴圈
 
-1. `instant-drama doctor --json` — 連線 + **183 channels**
+1. `instant-drama doctor --json` — 連線 + **184 channels**
 2. `instant-drama channels list --json` — 即時能力（`chapters`、`keyArt`、`actions`…）
 3. `instant-drama channels describe scenes:aiFill --json` — payload 提示（`suggestFromStory`、`segmentKeys`）
 4. `instant-drama tools schema --openai` — OpenAI 風格 tool 定義
@@ -55,6 +55,7 @@ instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama characters list --json
 instant-drama characters ai-fill --args '[{"idea":"…","referenceImagePaths":["/a.png"]}]' --json
 instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json
+instant-drama characters render-photo-book --args '[{"characterId":"C","mode":"ai-clips","albumId":"album_default"}]' --json
 instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```

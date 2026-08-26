@@ -42,7 +42,7 @@ COMMANDS
   app info            Runtime info via API
   app open|build      Same as open / build
 
-DOMAIN SUGAR (all ~183 channels)
+DOMAIN SUGAR (all ~184 channels)
   instant-drama <namespace> <action> [jsonArgs…]
   Namespaces: actions activity ai app chapters characters comics costumes desktopNotify
     diagnostics gateway generation keyArt media mediaGen project props scenes settings
@@ -50,6 +50,7 @@ DOMAIN SUGAR (all ~183 channels)
   kebab-case actions map to camelCase (generate-sheet → generateSheet)
 
   instant-drama characters list --json
+  instant-drama characters render-photo-book --args '[{"characterId":"C","mode":"slideshow"}]' --json
   instant-drama chapters list --args '["STORY_ID"]' --json
   instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
   instant-drama costumes append-try-on-still --args '[{…}]'

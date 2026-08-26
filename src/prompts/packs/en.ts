@@ -8,7 +8,7 @@ export const enPromptPack: PromptPack = {
   languageName: 'English',
   tags: { must, mustNot },
   outputLock: [
-    'Write EVERY user-visible string value (hardRules, descriptions, style notes, beat scripts, and the final image/video prompt body) in English.',
+    'Write EVERY user-visible string value (generation hard-rules, descriptions, style notes, beat scripts, and the final image/video prompt body) in English.',
     'Do not mix languages. Do not translate proper names the user already typed.',
     `Prefix hard-rule lines with ${must} and ${mustNot} only.`,
     'JSON object keys stay in English.'
@@ -36,7 +36,7 @@ export const enPromptPack: PromptPack = {
   hardRulesFallback: {
     story: `${must} readable silhouette; coherent lighting\n${mustNot} watermarks; UI chrome; unreadable text captions; extra limbs on humans`,
     character: `${must} exactly two hands, two arms, two legs (unless non-human design)\n${mustNot} extra limbs; third face; watermarks; brand logos`,
-    scene: `${must} empty-set location identity; consistent architecture\n${mustNot} new hero faces; watermarks; random props that break the location`,
+    scene: `${must} location identity; consistent architecture\n${mustNot} new hero faces; watermarks; random props that break the location`,
     prop: `${must} single clear prop identity; clean silhouette\n${mustNot} unrelated wires/cables; extra objects; watermarks; celebrity faces`,
     action: `${must} same identity across all panels; readable motion beats\n${mustNot} extra limbs; panel count wrong; watermarks; title replacing a panel`,
     costume: `${must} full readable outer costume; correct silhouette on body\n${mustNot} ghost old outfit; fused limbs; watermarks; brand logos`

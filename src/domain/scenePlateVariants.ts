@@ -3,7 +3,9 @@
  * Empty-set friendly: lock architecture & lighting, avoid hero faces.
  */
 
-import { getArtStyle } from './characterArtStyles'
+import { artStylePrompt, getArtStyle } from './characterArtStyles'
+import { PromptCatalog } from '../prompts'
+import type { PromptCopyKey } from '../prompts/copy/keys'
 import { appendHardRules } from './promptHardRules'
 
 export type SceneSizeClass = 'wide' | 'square' | 'tall'
@@ -275,33 +277,83 @@ export function scenePlatesByGroup(): Record<
   return out
 }
 
-export function buildSceneIdentityLock(profile: {
-  title?: string
-  description: string
-  locationType?: string
-  timeOfDay?: string
-  weather?: string
-  mood?: string
-  lighting?: string
-  colorPalette?: string
-  setDressing?: string
-  visualTags?: string
-}): string {
+export function scenePlateLayoutPrompt(
+  id: ScenePlateVariantId | string,
+  locale?: string | null
+): string {
+  const def = getScenePlateVariant(id)
   return [
-    'Create a LOCATION REFERENCE still for AI short-drama video continuity.',
-    'CRITICAL SPACE IDENTITY LOCK: same architecture, materials, signage, and layout language across all panels.',
-    'FORBIDDEN: recognizable celebrity faces, named cast portraits, crowded hero close-ups, watermarks, UI text overlays.',
-    'Quality: sharp materials, stable verticals, professional production design photography / concept art fidelity.',
-    profile.title ? `Location name: ${profile.title}` : '',
-    `Place description: ${profile.description}`,
-    profile.locationType ? `Space type: ${profile.locationType}` : '',
-    profile.timeOfDay ? `Time of day: ${profile.timeOfDay}` : '',
-    profile.weather ? `Weather: ${profile.weather}` : '',
-    profile.mood ? `Mood: ${profile.mood}` : '',
-    profile.lighting ? `Lighting design: ${profile.lighting}` : '',
-    profile.colorPalette ? `Color palette: ${profile.colorPalette}` : '',
-    profile.setDressing ? `Set dressing: ${profile.setDressing}` : '',
-    profile.visualTags ? `Visual tags: ${profile.visualTags}` : ''
+    PromptCatalog.t(locale, 'plate.scene.emptySet'),
+    PromptCatalog.t(locale, `plate.scene.layout.${def.id}` as PromptCopyKey)
+  ].join(' ')
+}
+
+export function buildSceneIdentityLock(
+  profile: {
+    title?: string
+    description: string
+    locationType?: string
+    timeOfDay?: string
+    weather?: string
+    mood?: string
+    lighting?: string
+    colorPalette?: string
+    setDressing?: string
+    visualTags?: string
+  },
+  locale: string = 'zh-HK'
+): string {
+  return [
+    PromptCatalog.t(locale, 'plate.scene.lock.lead'),
+    PromptCatalog.t(locale, 'plate.scene.lock.identity'),
+    PromptCatalog.t(locale, 'plate.scene.lock.forbidden'),
+    PromptCatalog.t(locale, 'plate.scene.lock.quality'),
+    profile.title
+      ? PromptCatalog.t(locale, 'plate.scene.lock.name', {
+          name: profile.title
+        })
+      : '',
+    PromptCatalog.t(locale, 'plate.scene.lock.place', {
+      place: profile.description
+    }),
+    profile.locationType
+      ? PromptCatalog.t(locale, 'plate.scene.lock.type', {
+          type: profile.locationType
+        })
+      : '',
+    profile.timeOfDay
+      ? PromptCatalog.t(locale, 'plate.scene.lock.time', {
+          time: profile.timeOfDay
+        })
+      : '',
+    profile.weather
+      ? PromptCatalog.t(locale, 'plate.scene.lock.weather', {
+          weather: profile.weather
+        })
+      : '',
+    profile.mood
+      ? PromptCatalog.t(locale, 'plate.scene.lock.mood', { mood: profile.mood })
+      : '',
+    profile.lighting
+      ? PromptCatalog.t(locale, 'plate.scene.lock.lighting', {
+          lighting: profile.lighting
+        })
+      : '',
+    profile.colorPalette
+      ? PromptCatalog.t(locale, 'plate.scene.lock.palette', {
+          palette: profile.colorPalette
+        })
+      : '',
+    profile.setDressing
+      ? PromptCatalog.t(locale, 'plate.scene.lock.set', {
+          set: profile.setDressing
+        })
+      : '',
+    profile.visualTags
+      ? PromptCatalog.t(locale, 'plate.scene.lock.tags', {
+          tags: profile.visualTags
+        })
+      : ''
   ]
     .filter(Boolean)
     .join(' ')
@@ -322,17 +374,27 @@ export function buildScenePlateImagePrompt(
     hardRules?: string
   },
   variant: string = 'establishing',
-  artStyle: string = 'photo_cinematic'
+  artStyle: string = 'photo_cinematic',
+  locale: string = 'zh-HK'
 ): string {
   const style = getArtStyle(artStyle)
   const def = getScenePlateVariant(variant)
   const body = [
-    style.promptBlock,
-    `Repeat: medium MUST be style id "${style.id}" (${style.family}).`,
-    buildSceneIdentityLock(profile),
-    `Plate layer: ${def.plateLayer}.`,
-    `LAYOUT: ${def.layout}`,
-    `Final check: correct medium ${style.id}; empty of hero faces; location identity locked.`
+    artStylePrompt(style.id, locale),
+    PromptCatalog.t(locale, 'plate.scene.scaffold.repeatMedium', {
+      id: style.id,
+      family: style.family
+    }),
+    buildSceneIdentityLock(profile, locale),
+    PromptCatalog.t(locale, 'plate.scene.scaffold.layer', {
+      layer: def.plateLayer
+    }),
+    PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+      layout: scenePlateLayoutPrompt(def.id, locale)
+    }),
+    PromptCatalog.t(locale, 'plate.scene.scaffold.finalCheck', {
+      style: style.id
+    })
   ].join(' ')
   return appendHardRules(body, profile.hardRules)
 }
@@ -352,16 +414,17 @@ export function buildScenePlateEditPrompt(
     hardRules?: string
   },
   variant: string = 'establishing',
-  artStyle: string = 'photo_cinematic'
+  artStyle: string = 'photo_cinematic',
+  locale: string = 'zh-HK'
 ): string {
   const style = getArtStyle(artStyle)
-  const body = buildScenePlateImagePrompt(profile, variant, artStyle)
+  const body = buildScenePlateImagePrompt(profile, variant, artStyle, locale)
   return [
-    'IMAGE EDIT / LOCATION RESTYLE TASK (highest priority):',
-    style.promptBlock,
-    'Keep LOCATION IDENTITY from the source: architecture massing, materials, signage, key set dressing layout.',
-    'Change medium and/or camera layout as required by the plate package below.',
-    'DO NOT invent a different place. DO NOT add hero character faces.',
+    PromptCatalog.t(locale, 'plate.scene.edit.task'),
+    artStylePrompt(style.id, locale),
+    PromptCatalog.t(locale, 'plate.scene.edit.keep'),
+    PromptCatalog.t(locale, 'plate.scene.edit.change'),
+    PromptCatalog.t(locale, 'plate.scene.edit.forbid'),
     body
   ].join(' ')
 }

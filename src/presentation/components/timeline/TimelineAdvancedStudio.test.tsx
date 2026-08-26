@@ -369,6 +369,19 @@ describe('TimelineAdvancedStudio', () => {
         /genStill|regenStill|stillMissing|storyboard/i
       )
     )
+    expect(document.body.textContent || '').toMatch(/introTemplates\.label/)
+    const camSel = Array.from(document.querySelectorAll('select')).find((el) =>
+      Array.from((el as HTMLSelectElement).options).some((o) => o.value === 'pov')
+    )
+    if (camSel) {
+      fireEvent.change(camSel, { target: { value: 'pov' } })
+      await waitFor(() =>
+        expect(api.timeline.update).toHaveBeenCalledWith(
+          'e1',
+          expect.objectContaining({ cameraTemplateId: 'pov' })
+        )
+      )
+    }
 
     // gen still for missing
     const genStill = Array.from(document.querySelectorAll('button')).find((b) =>

@@ -31,7 +31,20 @@ const ALLOWLIST = new Set([
   'src/cli/bin.ts',
   'electron/main/index.ts',
   'electron/preload/index.ts',
-  'server/index.ts'
+  'server/index.ts',
+  // Visual field-kit tables — catalogued in fieldKit.test.ts / characterAppearanceKit.test.ts
+  'src/domain/characterAppearanceKitExtras.ts',
+  'src/domain/kits/index.ts',
+  'src/domain/kits/cameraKit.ts',
+  'src/domain/kits/costumeKit.ts',
+  'src/domain/kits/hardRulesKit.ts',
+  'src/domain/kits/locationKit.ts',
+  'src/domain/kits/mannerismKit.ts',
+  'src/domain/kits/motionKit.ts',
+  'src/domain/kits/propLookKit.ts',
+  'src/domain/kits/setDressingKit.ts',
+  'src/domain/kits/styleNoteKit.ts',
+  'src/domain/kits/voiceKit.ts'
 ])
 
 const SCAN_DIRS = [

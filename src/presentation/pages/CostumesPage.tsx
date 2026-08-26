@@ -567,7 +567,8 @@ export function CostumesPage(): JSX.Element {
           sourceImagePath: args.sourcePath,
           costumeId: args.costumeId,
           artStyle: lookStyle,
-          durationSeconds: 10
+          durationSeconds: 10,
+          locale: i18n.language
         })
         startMediaGen(req)
       })()

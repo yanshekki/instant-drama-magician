@@ -103,7 +103,7 @@ Cross-build: mac installers need a Mac. Use `--force` only when you know the too
 
 ## Discovery & invoke
 
-Electron, Web, and CLI share **`registerAllHandlers`** — **183** channels.
+Electron, Web, and CLI share **`registerAllHandlers`** — **184** channels.
 
 ```bash
 instant-drama doctor --json
@@ -124,6 +124,7 @@ instant-drama settings get|set
 instant-drama ai status|models|test-chat …
 instant-drama app info
 instant-drama characters list
+instant-drama characters render-photo-book --args '[{"characterId":"C","mode":"slideshow"}]' --json
 instant-drama chapters list --args '["S"]' --json
 instant-drama scenes ai-fill --args '[{"storyId":"S","suggestFromStory":true,"segmentKeys":["chapter:…","beat:…"]}]' --json
 instant-drama generation run <storyId> --json
@@ -136,26 +137,31 @@ Namespaces include: `actions` `activity` `ai` `app` `chapters` `characters` `com
 
 Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 
-**1.8.0 field kits** add **no new channel** (still **183**). The desktop advanced builder compiles into existing text columns. Selection IDs persist under `profileJson` on character / scene / prop / action create-or-update (`appearanceKit`, `costumeKit`, `voiceKit`, `mannerismKit`, `locationKit`, `setDressingKit`, `cameraKit`, `propLookKit`, `motionKit`, `hardRulesKit`). Costume-library look + story style / hard rules are apply-only (no kit bag). Image / video handlers still consume the assembled text. `channels describe characters:update` stays the contract.
+**1.8.0 field kits** add **no new channel**. The desktop advanced builder compiles into existing text columns. Selection IDs persist under `profileJson` on character / scene / prop / action create-or-update (`appearanceKit`, `costumeKit`, `voiceKit`, `mannerismKit`, `locationKit`, `setDressingKit`, `cameraKit`, `propLookKit`, `motionKit`, `hardRulesKit`). Costume-library look + story style / hard rules are apply-only (no kit bag). Image / video handlers still consume the assembled text. `channels describe characters:update` stays the contract.
+
+**Character photo book** adds **one** channel (`characters:renderPhotoBook`) — **184** total. Stills use existing `mediaGen:*` (`kind=character-photoshoot`). GUI film uses `kind=character-photoshoot-clip` (same MediaGen video steps as intros: extract → polish director prompt → skip still → `videoPrep:confirm`), then `concatOnly` to stitch **the current album**. Clip extract uses that album’s stills as the pixel edit base (identity refs stay vision-only). Permanent albums live in `profileJson.photoBook.albums` (legacy top-level `shots` migrate into `album_default`; not identity `refGalleryJson`). GUI picks the camera template on the photo-book editor and can change it again in the MediaGen video shell. Timeline beats and key-art shots store `cameraTemplateId` the same way (`timeline:update` / `keyArt:updateShot`). MediaGen stills (`timeline-still`, `key-art`, `story-cover`, `character-photoshoot`) and video kinds accept payload `introTemplateId` on `mediaGen:extract`. CLI `ai-clips` still takes `introTemplateId`; optional `albumId` selects which album to stitch.
+
+**Ten-locale PromptCatalog** — sheet / plate / swap / geometry / quality locks and packs are native in all UI languages (Hong Kong written Chinese is the source register). `mediaGen:extract` passes `payload.locale`. No extra channel.
 
 | Channel | Purpose | Example |
 |---------|---------|---------|
 | generate / AI fill | Optional `promptTemplateId` (desktop recipe picker; no silent system defaults) | Desktop: pick a recipe before generate. CLI: pass `promptTemplateId` on generate / fill / MediaGen payloads |
-| `mediaGen:extract` | Build material sections (library + `timeline-still` / `timeline-clip`). Optional: `continuityMode`, `motionPriority`, `advancedIdentity`, `identityCollage`, `lookPackId` | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","continuityMode":"chain-end","motionPriority":"action"}]' --json` |
+| `mediaGen:extract` | Build material sections (library + `timeline-still` / `timeline-clip` / `key-art` / `story-cover`). Optional: `continuityMode`, `motionPriority`, `advancedIdentity`, `identityCollage`, `lookPackId`, `introTemplateId` (camera catalog for single-shot kinds) | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","introTemplateId":"pov"}]' --json` |
 | `mediaGen:polish` | Multi-vision prompt polish | `instant-drama mediaGen polish --args '[{...}]' --json` |
 | `mediaGen:generateImage` | One still; timeline kinds write continuity path | `instant-drama mediaGen generate-image --args '[{...}]' --json` |
 | `costumes:appendTryOnStill` | Append try-on still to costume multi-gallery | `instant-drama costumes append-try-on-still --args '[{"costumeId":"C","sourcePath":"/a.png"}]' --json` |
 | `costumes:generateDressed` | Generate dressed still | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
 | `videoPrep:create` | Prep still / open clip flow | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
-| `videoPrep:confirm` | Confirm video from still. Timeline-clip builds Seedance `lastFramePath` from chain-end continuity (Grok ignores it). Native audio follows Settings `generateAudio` / `grokVideoVoice`. | `instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillPath":"/still.png","professionalPrompt":"…"}]' --json` |
+| `videoPrep:confirm` | Confirm video from still. Timeline-clip builds Seedance `lastFramePath` from chain-end continuity (Grok ignores it). Photo-book clips (`character-photoshoot-clip`) write `clipPath` on `profileJson.photoBook` (not identity gallery). Native audio follows Settings `generateAudio` / `grokVideoVoice`. | `instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillPath":"/still.png","professionalPrompt":"…"}]' --json` |
 | `settings:set` | Merge settings; `generateAudio` + `grokVideoVoice` (`ara` `eve` `leo` `rex` `sal` `mio`) | `instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json` |
+| `characters:renderPhotoBook` | Stitch one photo-book **album**: `slideshow` (ffmpeg, CLI), `ai-clips` (headless intro-style clip per still, then concat — CLI), or `concatOnly:true` (stitch existing `clipPath` files after GUI MediaGen). Optional `albumId` (default: first album, or the album that owns `shotIds`). Optional `introTemplateId` injects a camera template into CLI clip polish (shots may also store `cameraTemplateId`). Paths in `profileJson.photoBook.albums` | `instant-drama characters render-photo-book --args '[{"characterId":"C","mode":"ai-clips","albumId":"album_default","introTemplateId":"hero-walkin"}]' --json` |
 | `characters:aiFill` | Optional `referenceImagePaths` (merged with `referenceImagePath`; multi-vision cap) | `instant-drama characters ai-fill --args '[{"idea":"…","referenceImagePaths":["/a.png","/b.png"]}]' --json` |
 | `generation:run` | Headless story generate. Ensures timeline-clip stills then video. GUI **Start generate** is interactive (`videoPrep`) and does **not** run this path. | `instant-drama generation run STORY_ID --json` |
 | `comics:get` | Get or create the comic book for a story | `instant-drama comics get --args '["S"]' --json` |
 | `comics:addPage` / `updatePage` | Add or edit a page (layout, format, slots) | `instant-drama comics add-page --args '[{"storyId":"S","panelLayout":"grid-2x2"}]' --json` |
 | `comics:deletePageVideo` / `setPageVideoPrimary` | Versioned page videos | `instant-drama comics delete-page-video --args '["PAGE","VID"]' --json` |
 | `keyArt:get` | Get or create the key-art book for a story | `instant-drama keyArt get --args '["S"]' --json` |
-| `keyArt:addShot` / `updateShot` | Add or edit a publicity still (type, format, method) | `instant-drama keyArt add-shot --args '[{"storyId":"S","shotType":"cover"}]' --json` |
+| `keyArt:addShot` / `updateShot` | Add or edit a publicity still (type, format, method, `cameraTemplateId`) | `instant-drama keyArt update-shot --args '["SHOT",{"cameraTemplateId":"low-angle-hero"}]' --json` |
 | `keyArt:setAsStoryCover` | Write `Story.coverPath` from a still | `instant-drama keyArt set-as-story-cover --args '["SHOT"]' --json` |
 | `chapters:list` / `create` / `update` / `delete` / `reorder` | Story chapter bodies | `instant-drama chapters list --args '["S"]' --json` |
 | `chapters:aiFill` / `aiPolish` | Generate or polish chapter text | `instant-drama chapters ai-fill --args '[{"storyId":"S","idea":"…"}]' --json` |
@@ -165,7 +171,7 @@ Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 | `timeline:getAdvancedPrep` | Advanced studio snapshot | `instant-drama timeline get-advanced-prep --args '["S"]' --json` |
 | `timeline:setCastPrep` | Persist cast lock prep | `instant-drama timeline set-cast-prep --args '[{...}]' --json` |
 | `timeline:clearEntryStill` | Clear beat continuity still | `instant-drama timeline clear-entry-still --args '[{...}]' --json` |
-| `timeline:create` / `update` | Beats; multi-bind `characterIds` (max 4), `sceneIds` (max 2), `propIds` (max 4), `actionIds` (max 4) | `instant-drama timeline create --args '[{"storyId":"S","characterIds":["…"],"sceneIds":["…"]}]' --json` |
+| `timeline:create` / `update` | Beats; multi-bind `characterIds` (max 4), `sceneIds` (max 2), `propIds` (max 4), `actionIds` (max 4); optional `cameraTemplateId` | `instant-drama timeline update --args '["E",{"cameraTemplateId":"pov"}]' --json` |
 | `*:aiFill` plot focus | `suggestFromStory` + `segmentKeys` on characters / scenes / props / actions / costumes (+ wardrobe) | See **Plot focus / AI fill** below |
 
 ### Plot focus / AI fill
@@ -190,7 +196,7 @@ instant-drama channels describe costumes:appendTryOnStill --json
 bash scripts/cli-smoke.sh
 # or manually:
 npm run instant-drama -- version
-npm run instant-drama -- doctor --json          # expect channelCount 183
+npm run instant-drama -- doctor --json          # expect channelCount 184
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
@@ -236,7 +242,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 | Capability | Status |
 |------------|--------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel count | **183** |
+| Channel count | **184** |
 | `instant-drama invoke` | ✅ any channel |
 | Domain sugar | ✅ all namespaces |
 | OpenAI tool schema | ✅ |

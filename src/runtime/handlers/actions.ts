@@ -350,7 +350,8 @@ reg(
           artStyleId: artStyle,
           castRefs,
           mode: usedEdit ? 'edit' : 'generate',
-          identityLock: usedEdit
+          identityLock: usedEdit,
+          locale: 'zh-HK'
         })
       // Multi-ref text note only when no structured cast (binding already lists them).
       if (!override && refList.length > 1 && castRefs.length === 0) {

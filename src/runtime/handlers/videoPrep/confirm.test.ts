@@ -178,6 +178,77 @@ describe('registerVideoPrepConfirm', () => {
     expect(append).toHaveBeenCalled()
   })
 
+  it('confirms character-photoshoot-clip writes clipPath not gallery', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-vp-pb-'))
+    const still = join(dir, 'still.png')
+    const out = join(dir, 'out.mp4')
+    writeFileSync(still, 'png')
+    const generateVideo = vi.fn(async (req: { outputPath: string }) => ({
+      outputPath: req.outputPath,
+      degraded: false
+    }))
+    const update = vi.fn(async (id: string, data: unknown) => ({
+      id,
+      ...(data as object)
+    }))
+    const ctx = makeHandlerContext({
+      aiClient: { generateVideo, chat: vi.fn() },
+      characters: () =>
+        ({
+          get: vi.fn(async () => ({
+            id: 'c1',
+            hardRules: '【禁止】水印',
+            profileJson: JSON.stringify({
+              photoBook: {
+                shots: [
+                  {
+                    id: 'pb1',
+                    sceneId: 'sc1',
+                    propIds: [],
+                    stillPath: still
+                  }
+                ]
+              }
+            }),
+            refGalleryJson: JSON.stringify([
+              {
+                id: 'g1',
+                path: still,
+                kind: 'sheet',
+                label: 'Sheet',
+                createdAt: '2020-01-01'
+              }
+            ]),
+            refImagePath: still
+          })),
+          update
+        }) as never,
+      generation: () => ({ getMediaStore: () => mediaStore(out) }) as never
+    })
+    registerVideoPrepConfirm(ctx)
+    const h = (ctx as { handlers: Map<string, unknown> }).handlers
+    const r = (await invokeRegistered(h as never, 'videoPrep:confirm', {
+      kind: 'character-photoshoot-clip',
+      characterId: 'c1',
+      shotId: 'pb1',
+      professionalPrompt: 'PROFESSIONAL PHOTO BOOK CLIP DIRECTOR PROMPT HERE',
+      stillPath: still,
+      sourceImagePath: still,
+      durationSeconds: 10,
+      aspectRatio: '16:9'
+    })) as {
+      path: string
+      photoBook: { albums: Array<{ shots: Array<{ clipPath?: string }> }> }
+    }
+    expect(r.path).toBe(out)
+    expect(r.photoBook.albums[0]?.shots[0]?.clipPath).toBe(out)
+    const saved = update.mock.calls[0]![1] as { profileJson?: string; refGalleryJson?: string }
+    expect(saved.refGalleryJson).toBeUndefined()
+    expect(
+      JSON.parse(saved.profileJson!).photoBook.albums[0].shots[0].clipPath
+    ).toBe(out)
+  })
+
   it('confirms scene/prop/costume/action intro kinds', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-vp3-'))
     const still = join(dir, 'still.png')

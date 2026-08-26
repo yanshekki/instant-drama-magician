@@ -3,12 +3,24 @@
  */
 import { PromptCatalog } from '../prompts'
 import type { PromptCopyKey } from '../prompts/copy/keys'
-import { ART_STYLES, artStylePrompt } from './characterArtStyles'
+import { ART_STYLES, artStylePrompt, QUALITY_BLOCK_ENGLISH, qualityBlockForFamily } from './characterArtStyles'
 import {
   COMIC_PAGE_LAYOUTS,
   comicLayoutPrompt,
   getComicPageLayout
 } from './comicPageLayouts'
+import { SHEET_VARIANTS, sheetLayoutPrompt } from './characterSheetVariants'
+import {
+  SCENE_PLATE_VARIANTS,
+  scenePlateLayoutPrompt
+} from './scenePlateVariants'
+import { PROP_PLATE_VARIANTS, propPlateLayoutPrompt } from './propPlateVariants'
+import {
+  ACTION_PANEL_LAYOUTS,
+  actionLayoutPrompt
+} from './actionPlateVariants'
+import { COSTUME_SWAP_POSES, costumeSwapLayoutPrompt } from './costumeSwap'
+import { ATMOSPHERE_POSES, atmosphereLayoutPrompt } from './sceneAtmosphere'
 import { UI_LANGUAGES } from './uiLanguages'
 import type { MediaGenKind, MediaGenMaterialSection } from './mediaGenPrep'
 import {
@@ -203,6 +215,7 @@ export function rewriteDirectorSealWording(
   s = s.split(HARD_RULES_FOOTER).join(hardRulesSealFooter(loc))
   s = s.replace(/HARD RULES/g, hard)
   s = rewriteLeftoverEnglishComicPrompt(s, loc)
+  s = rewriteLeftoverEnglishImageLocks(s, loc)
   return localizeBeatDirectorText(s, loc)
 }
 
@@ -294,6 +307,114 @@ export function rewriteLeftoverEnglishComicPrompt(
       comicLayoutPrompt(grid, loc)
     )
   }
+  return s
+}
+
+/** Rewrite leftover English sheet / plate / action / swap locks into the UI language. */
+export function rewriteLeftoverEnglishImageLocks(
+  text: string,
+  locale: string
+): string {
+  const raw = text || ''
+  if (!raw) return raw
+  const loc = locale || 'zh-HK'
+  let s = raw
+  for (const v of SHEET_VARIANTS) {
+    if (v.layout) s = s.split(v.layout).join(sheetLayoutPrompt(v.id, loc))
+  }
+  for (const v of SCENE_PLATE_VARIANTS) {
+    if (v.layout) s = s.split(v.layout).join(scenePlateLayoutPrompt(v.id, loc))
+  }
+  for (const v of PROP_PLATE_VARIANTS) {
+    if (v.layout) s = s.split(v.layout).join(propPlateLayoutPrompt(v.id, loc))
+  }
+  for (const layout of ACTION_PANEL_LAYOUTS) {
+    if (layout.promptLayout) {
+      s = s.split(layout.promptLayout).join(actionLayoutPrompt(layout, loc))
+    }
+  }
+  for (const pose of COSTUME_SWAP_POSES) {
+    if (pose.layout) {
+      s = s.split(pose.layout).join(costumeSwapLayoutPrompt(pose.id, loc))
+    }
+  }
+  for (const pose of ATMOSPHERE_POSES) {
+    if (pose.layout) {
+      s = s.split(pose.layout).join(atmosphereLayoutPrompt(pose.id, loc))
+    }
+  }
+  for (const family of ['photo', 'cgi', 'anime', 'illust'] as const) {
+    s = s.split(QUALITY_BLOCK_ENGLISH[family]).join(
+      qualityBlockForFamily(family, loc)
+    )
+  }
+  s = s.replace(
+    /IMAGE EDIT \/ COSTUME SWAP(?: TASK)?[^.!]*/gi,
+    PromptCatalog.t(loc, 'swap.costume.task').replace(/[:：]\s*$/u, '')
+  )
+  s = s.replace(
+    /IMAGE EDIT \/ ATMOSPHERE SWAP TASK[^.!]*/gi,
+    PromptCatalog.t(loc, 'swap.atmosphere.task').replace(/[:：]\s*$/u, '')
+  )
+  s = s.replace(
+    /IMAGE EDIT \/ LAYOUT CHANGE TASK[^.!]*/gi,
+    PromptCatalog.t(loc, 'sheet.edit.task').replace(/[:：]\s*$/u, '')
+  )
+  s = s.replace(
+    /IMAGE EDIT \/ LOCATION RESTYLE TASK[^.!]*/gi,
+    PromptCatalog.t(loc, 'plate.scene.edit.task').replace(/[:：]\s*$/u, '')
+  )
+  s = s.replace(
+    /IMAGE EDIT \/ PROP RESTYLE:?/gi,
+    PromptCatalog.t(loc, 'plate.prop.edit.task')
+  )
+  s = s.replace(
+    /PANEL COUNT IS NON-NEGOTIABLE:\s*EXACTLY\s+(\d+)\s+panels?[^\n]*/gi,
+    (_, n) =>
+      PromptCatalog.t(loc, 'action.geometry.panelCount', {
+        n,
+        list: Array.from({ length: Number(n) }, (__, i) => i + 1).join(', ')
+      })
+  )
+  s = s.replace(
+    /GEOMETRY LOCK \(mandatory\):\s*2 rows\s*[×x]\s*3 columns[^\n]*/gi,
+    PromptCatalog.t(loc, 'action.geometry.lockGrid2x3')
+  )
+  s = s.replace(
+    /GEOMETRY LOCK \(mandatory\):\s*2 rows\s*[×x]\s*2 columns[^\n]*/gi,
+    PromptCatalog.t(loc, 'action.geometry.lockGrid2x2')
+  )
+  s = s.replace(
+    /GEOMETRY LOCK \(mandatory\):\s*ONE horizontal row with EXACTLY\s+(\d+)[^\n]*/gi,
+    (_, n) => PromptCatalog.t(loc, 'action.geometry.lockStrip', { n })
+  )
+  s = s.replace(/GEOMETRY LOCK \(mandatory\):[^\n]*/gi, '')
+  s = s.replace(
+    /CRITICAL IDENTITY LOCK:[^\n]*/gi,
+    PromptCatalog.t(loc, 'sheet.lock.identity')
+  )
+  s = s.replace(
+    /(?:CRITICAL )?SPACE IDENTITY LOCK:[^\n]*/gi,
+    PromptCatalog.t(loc, 'plate.scene.lock.identity')
+  )
+  s = s.replace(
+    /EMPTY LOCATION PLATE[^\n]*/gi,
+    PromptCatalog.t(loc, 'plate.scene.emptySet')
+  )
+  const identityLead = PromptCatalog.t(loc, 'sheet.lock.identity').match(
+    /^[^:：]+[:：]/
+  )?.[0]
+  if (identityLead) {
+    s = s.replace(/(?<!SPACE )IDENTITY LOCK:/gi, identityLead)
+  }
+  const spaceLead = PromptCatalog.t(loc, 'plate.scene.lock.identity').match(
+    /^[^:：]+[:：]/
+  )?.[0]
+  if (spaceLead) s = s.replace(/\bSPACE LOCK:/gi, spaceLead)
+  const mediumLead = PromptCatalog.t(loc, 'art.photoCinematic').match(
+    /^[^:：]+[:：]/
+  )?.[0]
+  if (mediumLead) s = s.replace(/\bMANDATORY MEDIUM:/gi, mediumLead)
   return s
 }
 

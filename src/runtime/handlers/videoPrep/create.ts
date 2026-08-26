@@ -31,7 +31,9 @@ reg(
           | 'prop-intro'
           | 'costume-intro'
           | 'action-intro'
+          | 'comic-intro'
           | 'timeline-clip'
+          | 'character-photoshoot-clip'
         sourceImagePath?: string | null
         characterId?: string
         sceneId?: string
@@ -656,6 +658,14 @@ reg(
             .filter(Boolean)
             .join('\n'),
           clipHardRules
+        )
+        const { mergeCameraTemplateIntoStillPrompt } = await import(
+          '../../../domain/introVideoTemplates'
+        )
+        fallbackPrompt = mergeCameraTemplateIntoStillPrompt(
+          fallbackPrompt,
+          (entry as { cameraTemplateId?: string | null }).cameraTemplateId,
+          locale
         )
 
         // Timeline: prev continuity always wins edit base (never skip for weak payload).

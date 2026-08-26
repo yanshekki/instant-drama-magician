@@ -52,6 +52,7 @@ export function registerKeyArtHandlers(ctx: HandlerContext): void {
         pageFormat?: string | null
         artStyle?: string | null
         brief?: string | null
+        cameraTemplateId?: string | null
         characterIds?: string[] | null
         sceneId?: string | null
         timelineEntryId?: string | null

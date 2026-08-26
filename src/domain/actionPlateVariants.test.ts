@@ -34,11 +34,17 @@ describe('actionPlateVariants', () => {
 
   it('buildPanelBeatInstructions geometry locks per layout', () => {
     const g23 = buildPanelBeatInstructions(getActionPanelLayout('grid-2x3'))
-    expect(g23).toMatch(/SIX|2 rows|FORBIDDEN/i)
+    expect(g23).toMatch(/六格|兩行三列|排版鎖定/)
+    expect(g23).not.toMatch(/GEOMETRY LOCK|PANEL COUNT IS NON-NEGOTIABLE/)
     const g22 = buildPanelBeatInstructions(getActionPanelLayout('grid-2x2'))
-    expect(g22).toMatch(/FOUR|2 rows × 2/i)
+    expect(g22).toMatch(/四格|兩行兩列/)
     const strip = buildPanelBeatInstructions(getActionPanelLayout('strip-3'))
-    expect(strip).toMatch(/horizontal|EXACTLY 3|Panel 1\/3/i)
+    expect(strip).toMatch(/橫向|3 格|第 1/)
+    const en = buildPanelBeatInstructions(
+      getActionPanelLayout('grid-2x3'),
+      'en'
+    )
+    expect(en).toMatch(/six panels|2 rows/i)
   })
 })
 

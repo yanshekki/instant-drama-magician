@@ -251,6 +251,8 @@ export interface TimelineEntry {
   dialogue: string | null
   /** Structured beat screenplay (BeatContent JSON) */
   beatContentJson: string | null
+  /** Camera catalog id from introVideoTemplates; not BeatContent.camera notes. */
+  cameraTemplateId?: string | null
   order: number
   mediaPath: string | null
   mediaStatus: MediaStatus
@@ -403,6 +405,7 @@ export interface CreateTimelineEntryInput {
   actionIds?: string[] | null
   dialogue?: string | null
   beatContentJson?: string | null
+  cameraTemplateId?: string | null
   order: number
 }
 
@@ -419,6 +422,7 @@ export interface UpdateTimelineEntryInput {
   actionIds?: string[] | null
   dialogue?: string | null
   beatContentJson?: string | null
+  cameraTemplateId?: string | null
   order?: number
   mediaPath?: string | null
   mediaStatus?: MediaStatus

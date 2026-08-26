@@ -10,6 +10,7 @@ import { AppError } from '../../types/errors'
 import type { HandlerContext } from './context'
 import {
   extractPolishedMediaPrompt,
+  pickDefaultEditBaseSectionId,
   type MediaGenKind,
   type MediaGenMaterialSection
 } from '../../domain/mediaGenPrep'
@@ -49,6 +50,13 @@ type ExtractPayload = {
   advancedIdentity?: boolean
   identityCollage?: boolean
   lookPackId?: string | null
+  introTemplateId?: string | null
+  /** Photo-book shot id — persist still on profileJson.photoBook, not gallery. */
+  shotId?: string
+  /** Photo-book extra props (in addition to singular propId). */
+  propIds?: string[]
+  /** Intro / clip skip-still source (photo-book clip uses the shot still). */
+  sourceImagePath?: string | null
 }
 
 function sanitizeSections(
@@ -143,6 +151,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
 
   reg('mediaGen:extract', async (payload: ExtractPayload) => {
     const kind = payload.kind || 'action-plate'
+    const locale = PromptCatalog.locale(payload.locale)
 
     if (kind === 'action-plate') {
       if (!payload.actionId?.trim()) {
@@ -201,7 +210,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         galleryIdentityPaths: galleryPaths,
         panelLayout: layout.id,
         artStyleId: artStyle,
-        preferIdentityEdit: payload.preferIdentityEdit
+        preferIdentityEdit: payload.preferIdentityEdit,
+        locale
       })
       const sections = sanitizeSections(built.sections)
 
@@ -236,14 +246,14 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
     const { buildGenericEntityMaterialSections } = await import(
       '../../domain/mediaGenPrep'
     )
-    const { getArtStyle } = await import('../../domain/characterArtStyles')
+    const { getArtStyle, artStylePrompt } = await import('../../domain/characterArtStyles')
 
     if (kind === 'character-sheet') {
       if (!payload.characterId?.trim()) {
         throw new AppError('VALIDATION', 'errors.characterIdRequired')
       }
       const row = await characters().get(payload.characterId)
-      const { getSheetVariant } = await import(
+      const { getSheetVariant, sheetLayoutPrompt } = await import(
         '../../domain/characterSheetVariants'
       )
       const {
@@ -338,11 +348,12 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       const preferIdentity =
         !forcePureLayout && payload.preferIdentityEdit === true
       const fallbackPrompt = preferIdentity
-        ? buildCharacterSheetEditPrompt(profile, variantDef.id, artStyle)
-        : buildCharacterSheetImagePrompt(profile, variantDef.id, artStyle)
+        ? buildCharacterSheetEditPrompt(profile, variantDef.id, artStyle, locale)
+        : buildCharacterSheetImagePrompt(profile, variantDef.id, artStyle, locale)
       const layerTag =
         variantDef.wardrobeLayer === 'nude' ? 'body' : variantDef.wardrobeLayer
       const built = buildGenericEntityMaterialSections({
+        locale,
         kind,
         name: row.name,
         profileText,
@@ -357,7 +368,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           text: [
             `Character sheet package id: "${variantDef.id}" (${variantDef.galleryLabel}).`,
             `Wardrobe layer: ${layerTag}.`,
-            `LAYOUT: ${variantDef.layout}`,
+            PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+              layout: sheetLayoutPrompt(variantDef.id, locale)
+            }),
             forcePureLayout
               ? 'FORCE PURE LAYOUT: do not image_edit from clothed references; generate a new package composition.'
               : 'When editing from a ref, keep identity only; change layout to this package completely.'
@@ -391,7 +404,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       const {
         buildScenePlateEditPrompt,
         buildScenePlateImagePrompt,
-        getScenePlateVariant
+        getScenePlateVariant,
+        scenePlateLayoutPrompt
       } = await import('../../domain/scenePlateVariants')
       const variantDef = getScenePlateVariant(payload.plateVariant)
       const galleryPaths =
@@ -435,9 +449,10 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       ).id
       const preferIdentity = payload.preferIdentityEdit === true
       const fallbackPrompt = preferIdentity
-        ? buildScenePlateEditPrompt(profile, variantDef.id, artStyle)
-        : buildScenePlateImagePrompt(profile, variantDef.id, artStyle)
+        ? buildScenePlateEditPrompt(profile, variantDef.id, artStyle, locale)
+        : buildScenePlateImagePrompt(profile, variantDef.id, artStyle, locale)
       const built = buildGenericEntityMaterialSections({
+        locale,
         kind,
         name: sceneTitle,
         profileText,
@@ -451,7 +466,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           text: [
             `Scene plate package "${variantDef.id}" (${variantDef.galleryLabel}).`,
             `Plate layer: ${variantDef.plateLayer}.`,
-            `LAYOUT: ${variantDef.layout}`,
+            PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+              layout: scenePlateLayoutPrompt(variantDef.id, locale)
+            }),
             'Empty of hero faces; SPACE LOCK architecture and set dressing.'
           ].join(' ')
         },
@@ -482,7 +499,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       const {
         buildPropPlateEditPrompt,
         buildPropPlateImagePrompt,
-        getPropPlateVariant
+        getPropPlateVariant,
+        propPlateLayoutPrompt
       } = await import('../../domain/propPlateVariants')
       const variantDef = getPropPlateVariant(payload.plateVariant)
       const galleryPaths =
@@ -517,9 +535,10 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       ).id
       const preferIdentity = payload.preferIdentityEdit === true
       const fallbackPrompt = preferIdentity
-        ? buildPropPlateEditPrompt(profile, variantDef.id, artStyle)
-        : buildPropPlateImagePrompt(profile, variantDef.id, artStyle)
+        ? buildPropPlateEditPrompt(profile, variantDef.id, artStyle, locale)
+        : buildPropPlateImagePrompt(profile, variantDef.id, artStyle, locale)
       const built = buildGenericEntityMaterialSections({
+        locale,
         kind,
         name: row.name,
         profileText,
@@ -532,7 +551,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           title: `${variantDef.id} · ${variantDef.galleryLabel}`,
           text: [
             `Prop plate package "${variantDef.id}" (${variantDef.galleryLabel}).`,
-            `LAYOUT: ${variantDef.layout}`,
+            PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+              layout: propPlateLayoutPrompt(variantDef.id, locale)
+            }),
             'PROP LOCK identity; no celebrity faces.'
           ].join(' ')
         },
@@ -581,6 +602,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         .join('\n')
       const artStyle = getArtStyle(payload.artStyle ?? undefined).id
       const built = buildGenericEntityMaterialSections({
+        locale,
         kind,
         name: row.title,
         profileText,
@@ -589,12 +611,21 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         galleryPaths,
         preferIdentityEdit: payload.preferIdentityEdit
       })
+      const { applyCameraTemplateStillMaterials } = await import(
+        '../../domain/introVideoTemplates'
+      )
+      const applied = applyCameraTemplateStillMaterials(
+        sanitizeSections(built.sections),
+        built.fallbackPrompt,
+        payload.introTemplateId,
+        PromptCatalog.locale(payload.locale)
+      )
       return {
         kind,
         entityIds: { storyId: row.id },
-        sections: sanitizeSections(built.sections),
+        sections: applied.sections,
         editBaseSectionId: built.editBaseSectionId,
-        fallbackPrompt: built.fallbackPrompt,
+        fallbackPrompt: applied.fallbackPrompt,
         taskHint: `Story cover key art for "${row.title}".`,
         genOptions: { ...built.genOptions, artStyle },
         hardRules: null
@@ -666,7 +697,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         `New wardrobe (must match): ${costumeDesc}`,
         'KEEP face, hair, body proportions, age, species from the base still.',
         'REPLACE outer clothing completely with the new wardrobe. No half-merge of old outfit.',
-        `Art: ${getArtStyle(artStyle).promptBlock || artStyle}`,
+        `Art: ${artStylePrompt(artStyle, locale) || artStyle}`,
         'Single full-body or hero still; no multi-panel board; no watermark.'
       ]
         .filter(Boolean)
@@ -684,12 +715,14 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           gender: row.gender,
           visualTags: row.visualTags,
           mannerisms: row.mannerisms,
-          hardRules: costumeHard || row.hardRules
+          hardRules: costumeHard || row.hardRules,
+          locale
         })
       } catch {
         /* keep inline fallback */
       }
       const built = buildGenericEntityMaterialSections({
+        locale,
         kind: 'character-sheet',
         name: `${row.name} · ${costumeName}`,
         profileText,
@@ -751,44 +784,45 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         row.mood ||
         row.lighting ||
         'atmosphere change'
-      const {
-        buildScenePlateEditPrompt,
-        getScenePlateVariant
-      } = await import('../../domain/scenePlateVariants')
-      const variantDef = getScenePlateVariant(
-        payload.plateVariant || 'establishing'
+      const { buildAtmosphereSwapPrompt } = await import(
+        '../../domain/sceneAtmosphere'
       )
-      const profile = {
-        title: row.title ?? undefined,
-        description: row.description || row.title || 'Scene',
-        locationType: row.locationType ?? undefined,
-        timeOfDay: row.timeOfDay ?? undefined,
-        weather: row.weather ?? undefined,
-        mood: atmo,
-        lighting: atmo,
-        colorPalette: row.colorPalette ?? undefined,
-        setDressing: row.setDressing ?? undefined,
-        visualTags: row.visualTags ?? undefined,
-        hardRules: row.hardRules ?? undefined
-      }
+      const sceneTitle = row.title || 'Scene'
       const profileText = [
-        `Scene: ${row.title || 'Scene'}`,
-        row.description ? `Base: ${row.description}` : '',
-        row.locationType ? `Location type: ${row.locationType}` : '',
-        row.setDressing ? `Set dressing: ${row.setDressing}` : '',
-        `Atmosphere change (APPLY): ${atmo}`,
-        'SPACE LOCK architecture, materials, camera geometry; only lighting/mood/weather/time shift.'
+        PromptCatalog.t(locale, 'swap.atmosphere.location', {
+          title: sceneTitle
+        }),
+        row.description
+          ? PromptCatalog.t(locale, 'swap.atmosphere.place', {
+              place: row.description
+            })
+          : '',
+        row.setDressing
+          ? PromptCatalog.t(locale, 'swap.atmosphere.set', {
+              set: row.setDressing
+            })
+          : '',
+        PromptCatalog.t(locale, 'swap.atmosphere.new', { atmo }),
+        PromptCatalog.t(locale, 'swap.atmosphere.keep')
       ]
         .filter(Boolean)
         .join('\n')
       const artStyle = getArtStyle(
         payload.artStyle ?? (row as { artStyle?: string }).artStyle ?? undefined
       ).id
-      const fallbackPrompt = [
-        buildScenePlateEditPrompt(profile, variantDef.id, artStyle),
-        `ATMOSPHERE SWAP TASK: keep set identity; change only lighting/mood/weather/time to: ${atmo}.`
-      ].join(' ')
+      const fallbackPrompt = buildAtmosphereSwapPrompt({
+        title: row.title ?? undefined,
+        description: row.description || row.title || 'Scene',
+        atmosphereDescription: atmo,
+        artStyle,
+        pose: 'wide',
+        setDressing: row.setDressing,
+        visualTags: row.visualTags,
+        hardRules: row.hardRules,
+        locale
+      })
       const built = buildGenericEntityMaterialSections({
+        locale,
         kind: 'scene-plate',
         name: row.title || 'Scene',
         profileText,
@@ -800,9 +834,10 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           id: 'atmosphere_task',
           title: 'atmosphere_swap',
           text: [
-            'ATMOSPHERE SWAP: SPACE LOCK architecture and set dressing from base still.',
-            `New atmosphere only: ${atmo}`,
-            'Do not redesign the location or invent a different shop/street.'
+            PromptCatalog.t(locale, 'swap.atmosphere.task'),
+            PromptCatalog.t(locale, 'swap.atmosphere.keep'),
+            PromptCatalog.t(locale, 'swap.atmosphere.new', { atmo }),
+            PromptCatalog.t(locale, 'swap.atmosphere.forbidden')
           ].join(' ')
         },
         fallbackPrompt,
@@ -824,6 +859,266 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           artStyle,
           useIdentityEdit: true
         },
+        hardRules: row.hardRules ?? null
+      }
+    }
+
+    if (kind === 'character-photoshoot' || kind === 'character-photoshoot-clip') {
+      if (!payload.characterId?.trim()) {
+        throw new AppError('VALIDATION', 'errors.characterIdRequired')
+      }
+      if (!payload.sceneId?.trim()) {
+        throw new AppError('VALIDATION', 'errors.sceneIdRequired')
+      }
+      const row = await characters().get(payload.characterId)
+      const { parseCharacterGallery } = await import(
+        '../../domain/characterGallery'
+      )
+      const { pickAdvancedIdentityRefs } = await import(
+        '../../domain/advancedIdentity'
+      )
+      const { parseSceneGallery } = await import('../../domain/sceneGallery')
+      const {
+        buildPhotoBookMaterialSections,
+        collectPhotoBookStillRefs,
+        findPhotoBookShot,
+        parsePhotoBook,
+        photoBookClipTaskHint
+      } = await import('../../domain/characterPhotoBook')
+      const { getArtStyle } = await import('../../domain/characterArtStyles')
+      const galleryItems = parseCharacterGallery(row.refGalleryJson, {
+        refImagePath: row.refImagePath,
+        refSheetPath: row.refSheetPath
+      })
+      const wantAdvanced =
+        payload.advancedIdentity === true ||
+        (payload.advancedIdentity !== false &&
+          ctx.settings.advancedIdentity === true)
+      const payloadGallery = (payload.galleryIdentityPaths ?? []).filter(
+        (p): p is string => Boolean(p?.trim())
+      )
+      const identityPaths = wantAdvanced
+        ? pickAdvancedIdentityRefs(galleryItems, {
+            selectedPaths: payloadGallery,
+            pathExists: (p) => existsSync(p)
+          })
+        : payloadGallery.length > 0
+          ? payloadGallery
+          : [row.refImagePath, row.refSheetPath]
+              .map((p) => p?.trim())
+              .filter((p): p is string => Boolean(p))
+      const identityRefs = identityPaths.map((imagePath, i) => ({
+        id: `${row.id}_${i}`,
+        name: row.name,
+        imagePath
+      }))
+      const sc = await scenes().get(payload.sceneId)
+      const sceneGallery = parseSceneGallery(sc.refGalleryJson, {
+        refImagePath: sc.refImagePath
+      })
+      const scenePath =
+        sc.refImagePath?.trim() ||
+        sceneGallery.find((g) => g.layer === 'establishing' || g.layer === 'hero')
+          ?.path ||
+        sceneGallery[0]?.path ||
+        null
+      const sceneRefs = [
+        {
+          id: sc.id,
+          name: sc.title || String(sc.description || '').slice(0, 40),
+          imagePath: scenePath
+        }
+      ]
+      const propIds = [
+        ...(Array.isArray(payload.propIds) ? payload.propIds : []),
+        ...(payload.propId?.trim() ? [payload.propId.trim()] : [])
+      ]
+      const uniquePropIds = [...new Set(propIds.map((x) => x.trim()).filter(Boolean))]
+      const propRefs: Array<{
+        id?: string
+        name: string
+        imagePath?: string | null
+      }> = []
+      for (const pid of uniquePropIds) {
+        try {
+          const pr = await props().get(pid)
+          propRefs.push({
+            id: pr.id,
+            name: pr.name,
+            imagePath: pr.refImagePath?.trim() || null
+          })
+        } catch {
+          /* optional */
+        }
+      }
+      const actionRefs: Array<{
+        id?: string
+        name: string
+        imagePath?: string | null
+      }> = []
+      const actionTextParts: string[] = []
+      const actionIdRaw = payload.actionId?.trim() || ''
+      if (actionIdRaw) {
+        const { getSystemPhotoAction, systemPhotoActionNotes } = await import(
+          '../../domain/systemPhotoActions'
+        )
+        const sys = getSystemPhotoAction(actionIdRaw)
+        if (sys) {
+          const locale = PromptCatalog.locale(payload.locale)
+          const notes = systemPhotoActionNotes(
+            actionIdRaw,
+            locale,
+            kind === 'character-photoshoot-clip' ? 'video' : 'still'
+          )
+          actionRefs.push({
+            id: actionIdRaw,
+            name: sys.id,
+            imagePath: null
+          })
+          if (notes) actionTextParts.push(notes)
+        } else {
+          try {
+            const ac = await actions().get(actionIdRaw)
+            actionRefs.push({
+              id: ac.id,
+              name: ac.name,
+              imagePath: ac.refImagePath?.trim() || null
+            })
+            actionTextParts.push(
+              [
+                `Action: ${ac.name}`,
+                ac.description ? `Seq: ${ac.description}` : '',
+                ac.motionNotes ? `Motion: ${ac.motionNotes}` : '',
+                ac.cameraNotes ? `Camera: ${ac.cameraNotes}` : ''
+              ]
+                .filter(Boolean)
+                .join('. ')
+            )
+          } catch {
+            /* optional */
+          }
+        }
+      }
+      const artStyle = getArtStyle(
+        payload.artStyle ?? row.artStyle ?? undefined
+      ).id
+      const book = parsePhotoBook(
+        (row as { profileJson?: string | null }).profileJson
+      )
+      const storedShot = findPhotoBookShot(book, payload.shotId)
+      const { introTemplateStillBlock, resolveCameraTemplateId } =
+        await import('../../domain/introVideoTemplates')
+      const cameraId = resolveCameraTemplateId(
+        payload.introTemplateId,
+        storedShot?.cameraTemplateId
+      )
+      const cameraStillPrompt = cameraId
+        ? introTemplateStillBlock(
+            cameraId,
+            PromptCatalog.locale(payload.locale)
+          )
+        : null
+      const photoStills =
+        kind === 'character-photoshoot-clip'
+          ? await (async () => {
+              const sceneNameById: Record<string, string> = {}
+              if (sc.title?.trim()) {
+                sceneNameById[sc.id] = String(sc.title).trim()
+              }
+              const extraSceneIds = [
+                ...new Set(
+                  book.albums
+                    .flatMap((a) => a.shots)
+                    .map((s) => s.sceneId.trim())
+                    .filter(Boolean)
+                )
+              ].filter((id) => !sceneNameById[id])
+              for (const sid of extraSceneIds) {
+                try {
+                  const extra = await scenes().get(sid)
+                  const title =
+                    extra.title || String(extra.description || '').slice(0, 40)
+                  if (title.trim()) sceneNameById[sid] = title.trim()
+                } catch {
+                  /* optional */
+                }
+              }
+              return collectPhotoBookStillRefs(book, {
+                currentShotId: payload.shotId,
+                sourceImagePath: payload.sourceImagePath,
+                sceneNameById
+              })
+            })()
+          : undefined
+      const currentShotId = payload.shotId?.trim() || ''
+      const currentStillIndex = photoStills?.find(
+        (s) => s.shotId === currentShotId
+      )?.index
+      const built = buildPhotoBookMaterialSections({
+        characterName: row.name,
+        identityRefs,
+        scenes: sceneRefs,
+        props: propRefs,
+        actions: actionRefs,
+        notes: payload.atmosphereDescription ?? payload.costumeDescription,
+        actionNotes: actionTextParts.join('\n') || null,
+        hardRules: row.hardRules,
+        artStyleId: artStyle,
+        locale: PromptCatalog.locale(payload.locale),
+        shotIndex: currentStillIndex,
+        cameraStillPrompt,
+        ...(kind === 'character-photoshoot-clip'
+          ? { photoStills: photoStills ?? [], currentShotId }
+          : {})
+      })
+      const sourceStill = payload.sourceImagePath?.trim() || ''
+      const currentBookStill =
+        photoStills?.find((s) => s.shotId === currentShotId)?.stillPath?.trim() ||
+        ''
+      const existingCandidate = sourceStill || currentBookStill
+      const existingStillPath =
+        kind === 'character-photoshoot-clip' &&
+        payload.skipStillIfExists === true &&
+        existingCandidate &&
+        existsSync(existingCandidate)
+          ? existingCandidate
+          : null
+      const taskHint =
+        kind === 'character-photoshoot-clip'
+          ? photoBookClipTaskHint({
+              locale: payload.locale,
+              characterName: row.name
+            })
+          : built.taskHint
+      const sections = sanitizeSections(built.sections)
+      const editBaseSectionId =
+        kind === 'character-photoshoot-clip'
+          ? pickDefaultEditBaseSectionId(sections)
+          : built.editBaseSectionId
+      return {
+        kind,
+        entityIds: {
+          characterId: row.id,
+          sceneId: sc.id,
+          actionId: payload.actionId?.trim() || undefined,
+          shotId: payload.shotId?.trim() || undefined
+        },
+        sections,
+        editBaseSectionId,
+        fallbackPrompt:
+          kind === 'character-photoshoot-clip'
+            ? [taskHint, built.fallbackPrompt].filter(Boolean).join('\n')
+            : built.fallbackPrompt,
+        taskHint,
+        genOptions: {
+          ...built.genOptions,
+          artStyle,
+          useIdentityEdit: payload.preferIdentityEdit !== false,
+          ...(kind === 'character-photoshoot-clip'
+            ? { durationSeconds: payload.durationSeconds }
+            : {})
+        },
+        existingStillPath,
         hardRules: row.hardRules ?? null
       }
     }
@@ -1172,6 +1467,18 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         locale: PromptCatalog.locale(payload.locale)
       })
 
+      const { applyCameraTemplateStillMaterials, resolveCameraTemplateId } =
+        await import('../../domain/introVideoTemplates')
+      const applied = applyCameraTemplateStillMaterials(
+        sanitizeSections(built.sections),
+        built.fallbackPrompt,
+        resolveCameraTemplateId(
+          payload.introTemplateId,
+          (entry as { cameraTemplateId?: string | null }).cameraTemplateId
+        ),
+        extractLocale
+      )
+
       return {
         kind,
         entityIds: {
@@ -1181,9 +1488,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           sceneId: primarySceneId ?? undefined,
           propId: primaryPropId ?? undefined
         },
-        sections: sanitizeSections(built.sections),
+        sections: applied.sections,
         editBaseSectionId: built.editBaseSectionId,
-        fallbackPrompt: built.fallbackPrompt,
+        fallbackPrompt: applied.fallbackPrompt,
         taskHint: built.taskHint,
         genOptions: built.genOptions,
         existingStillPath:
@@ -1201,6 +1508,12 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       kind === 'costume-intro'
     ) {
       const locale = PromptCatalog.locale(payload.locale)
+      const { parseIntroVideoTemplateId } = await import(
+        '../../domain/introVideoTemplates'
+      )
+      const skipDefaultCamera = Boolean(
+        parseIntroVideoTemplateId(payload.introTemplateId)
+      )
       const galleryPaths = (payload.galleryIdentityPaths ?? [])
         .map((p) => p?.trim())
         .filter((p): p is string => Boolean(p))
@@ -1272,7 +1585,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
             artStyle,
             hardRules
           },
-          locale
+          locale,
+          skipDefaultCamera
         )
       } else if (kind === 'character-intro') {
         if (!payload.characterId?.trim()) {
@@ -1338,7 +1652,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
             spokenLanguages
           },
           locale,
-          { soulExcerpt }
+          { soulExcerpt, skipDefaultCamera }
         )
       } else if (kind === 'scene-intro') {
         if (!payload.sceneId?.trim()) {
@@ -1380,7 +1694,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
             setDressing: row.setDressing ?? undefined,
             artStyle
           },
-          locale
+          locale,
+          skipDefaultCamera
         )
       } else if (kind === 'prop-intro') {
         if (!payload.propId?.trim()) {
@@ -1412,7 +1727,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
             material: row.material ?? undefined,
             artStyle
           },
-          locale
+          locale,
+          skipDefaultCamera
         )
       } else if (kind === 'action-intro') {
         if (!payload.actionId?.trim()) {
@@ -1449,6 +1765,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         )
       }
       const built = buildGenericEntityMaterialSections({
+        locale,
         kind,
         name,
         profileText,
@@ -1593,6 +1910,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         '../../domain/mediaGenPrep'
       )
       const built = buildGenericEntityMaterialSections({
+        locale,
         kind,
         name: storyTitle,
         profileText: fallbackPrompt,
@@ -2059,17 +2377,28 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
           group: 'refs'
         })
       }
+      const { applyCameraTemplateStillMaterials, resolveCameraTemplateId } =
+        await import('../../domain/introVideoTemplates')
+      const applied = applyCameraTemplateStillMaterials(
+        sanitizeSections(sections),
+        fallbackPrompt,
+        resolveCameraTemplateId(
+          payload.introTemplateId,
+          (shot as { cameraTemplateId?: string | null }).cameraTemplateId
+        ),
+        locale
+      )
       return {
         kind,
         entityIds: { storyId: book.storyId, pageId: shot.id },
-        sections: sanitizeSections(sections),
+        sections: applied.sections,
         editBaseSectionId: allowOwn
           ? 'keyart_own'
           : method.id === 'continue' && prevPath
             ? 'keyart_prev'
             : null,
-        fallbackPrompt,
-        taskHint: fallbackPrompt,
+        fallbackPrompt: applied.fallbackPrompt,
+        taskHint: applied.fallbackPrompt,
         genOptions: {
           artStyle,
           pageFormat,
@@ -2178,6 +2507,8 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
       keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
       identityCollage?: boolean
       lookPackId?: string | null
+      shotId?: string
+      propIds?: string[]
     }) => {
       const promptIn = extractPolishedMediaPrompt(
         payload.polishedPrompt ?? ''
@@ -2273,7 +2604,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         kind === 'character-sheet' ||
         kind === 'costume-dress' ||
         kind === 'costume-swap' ||
-        kind === 'character-intro'
+        kind === 'character-intro' ||
+        kind === 'character-photoshoot' ||
+        kind === 'character-photoshoot-clip'
       ) {
         if (!payload.characterId?.trim()) {
           throw new AppError('VALIDATION', 'errors.characterIdRequired')
@@ -2324,6 +2657,12 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
               kind === 'costume-swap' ? 'Costume swap' : 'Costume dress'
           }
           size = ctx.settings.imageSizeTall || '1024x1792'
+        } else if (
+          kind === 'character-photoshoot' ||
+          kind === 'character-photoshoot-clip'
+        ) {
+          galleryLabel = galleryLabel || 'Photo book'
+          size = ctx.settings.imageSizeWide || '1792x1024'
         } else {
           size = ctx.settings.imageSizeTall || '1024x1792'
         }
@@ -2596,6 +2935,7 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         payload.persist === true ||
         kind === 'timeline-still' ||
         kind === 'timeline-clip' ||
+        kind === 'character-photoshoot' ||
         kind === 'comic-page' ||
         kind === 'key-art'
       store.ensureTmpDir()
@@ -2614,6 +2954,18 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         outPath = persist
           ? store.characterImagePath(entityKey, `sheet_${v}`, '.png')
           : store.tmpImagePath(`sheet_${v}`, '.png')
+      } else if (
+        kind === 'character-photoshoot' ||
+        kind === 'character-photoshoot-clip'
+      ) {
+        const tag = payload.shotId?.trim()
+          ? `photoshoot_${payload.shotId.trim().slice(0, 24)}`
+          : 'photoshoot'
+        const persistStill =
+          persist && kind === 'character-photoshoot'
+        outPath = persistStill
+          ? store.characterImagePath(entityKey, tag, '.png')
+          : store.tmpImagePath(tag, '.png')
       } else if (kind === 'costume-dress' || kind === 'costume-swap') {
         outPath = persist
           ? store.characterImagePath(entityKey, 'sheet_costume_swap', '.png')

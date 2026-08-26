@@ -123,8 +123,8 @@ reg(
       let prompt =
         override ??
         (usedEdit
-          ? buildCharacterSheetEditPrompt(profile, variant, artStyle)
-          : buildCharacterSheetImagePrompt(profile, variant, artStyle))
+          ? buildCharacterSheetEditPrompt(profile, variant, artStyle, 'zh-HK')
+          : buildCharacterSheetImagePrompt(profile, variant, artStyle, 'zh-HK'))
       if (!override && refList.length > 1) {
         prompt = appendMultiRefNote(prompt, refList, 'en')
       }

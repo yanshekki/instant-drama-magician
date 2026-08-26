@@ -290,6 +290,8 @@ model TimelineEntry {
   dialogue    String?
   /** Structured beat screenplay JSON (BeatContent v1). */
   beatContentJson String?
+  /** Camera / performance catalog id (introVideoTemplates). Not BeatContent.camera. */
+  cameraTemplateId String?
   order       Int
   mediaPath   String?
   mediaStatus MediaStatus @default(EMPTY)
@@ -366,6 +368,8 @@ model KeyArtShot {
   pageFormat       String?
   artStyle         String?
   brief            String?
+  /** Camera / performance catalog id (introVideoTemplates). */
+  cameraTemplateId String?
   characterIdsJson String?
   sceneId          String?
   timelineEntryId  String?

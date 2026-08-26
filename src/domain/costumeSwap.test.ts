@@ -94,12 +94,13 @@ describe('costumeSwap', () => {
       appearance: 'black bob hair',
       pose: 'hero_front'
     })
-    expect(p).toMatch(/COSTUME SWAP|REPLACE/i)
+    expect(p).toMatch(/換裝|服裝替換/)
     expect(p).toMatch(/red qipao/i)
-    expect(p).toMatch(/IDENTITY LOCK|identity/i)
-    expect(p).toMatch(/MANDATORY MEDIUM|anime/i)
-    expect(p).toMatch(/COMPLETELY REPLACE|strip away/i)
+    expect(p).toMatch(/身份鎖定/)
+    expect(p).toMatch(/anime|必須媒介/)
+    expect(p).toMatch(/徹底換掉|去掉原圖所有外層/)
     expect(p).toMatch(/Aiko/)
+    expect(p).not.toMatch(/IMAGE EDIT \/ COSTUME SWAP|MANDATORY MEDIUM|IDENTITY LOCK/)
   })
 
   it('throws when costume empty', () => {

@@ -7,13 +7,15 @@ import type { CharacterProfileFields } from '../types/domain'
 import { buildImproveUserPrompt } from './aiImprovePrompt'
 import { AppError } from '../types/errors'
 import {
+  artStylePrompt,
   getArtStyle,
   qualityBlockForFamily,
   type ArtStyleId
 } from './characterArtStyles'
 import {
   buildSheetIdentityLock,
-  getSheetVariant
+  getSheetVariant,
+  sheetLayoutPrompt
 } from './characterSheetVariants'
 import { speechLanguageLockLine } from './speechLanguageLock'
 import {
@@ -154,15 +156,16 @@ export function extractCharacterProfileJson(text: string): CharacterProfileField
 export function buildCharacterSheetImagePrompt(
   profile: Partial<CharacterProfileFields> & { name: string },
   variant: string = 'bible',
-  artStyle: string = 'photo_cinematic'
+  artStyle: string = 'photo_cinematic',
+  locale: string = 'zh-HK'
 ): string {
   const def = getSheetVariant(variant)
   const style = getArtStyle(artStyle)
   const skipOuterCostume =
     def.wardrobeLayer === 'nude' || def.wardrobeLayer === 'base'
-  // "nude" as a word trips Grok Imagine filters — prompt uses "body" for that layer
   const layerTag =
     def.wardrobeLayer === 'nude' ? 'body' : def.wardrobeLayer
+  const medium = artStylePrompt(style.id, locale)
   const identity = buildSheetIdentityLock(
     {
       name: profile.name,
@@ -173,17 +176,21 @@ export function buildCharacterSheetImagePrompt(
       visualTags: profile.visualTags,
       mannerisms: profile.mannerisms
     },
-    qualityBlockForFamily(style.family),
-    { skipOuterCostume }
+    qualityBlockForFamily(style.family, locale),
+    { skipOuterCostume, locale }
   )
-  // Order: STYLE (×2) → identity → layout → style reminder → HARD RULES last
   const body = [
-    style.promptBlock,
-    `Repeat: the final image medium MUST be exactly style id "${style.id}" (${style.family}).`,
+    medium,
+    PromptCatalog.t(locale, 'sheet.scaffold.repeatMedium', {
+      id: style.id,
+      family: style.family
+    }),
     identity,
-    `Wardrobe layer tag: ${layerTag}.`,
-    `LAYOUT: ${def.layout}`,
-    `Final check: if the image looks like the wrong medium, regenerate in the correct medium: ${style.promptBlock}`
+    PromptCatalog.t(locale, 'sheet.scaffold.wardrobeTag', { tag: layerTag }),
+    PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+      layout: sheetLayoutPrompt(def.id, locale)
+    }),
+    PromptCatalog.t(locale, 'sheet.scaffold.finalCheck', { medium })
   ].join(' ')
   return appendHardRules(body, profile.hardRules)
 }
@@ -208,7 +215,8 @@ export function resolveSheetGenMode(opts: {
 export function buildCharacterSheetEditPrompt(
   profile: Partial<CharacterProfileFields> & { name: string },
   variant: string = 'bible',
-  artStyle: string = 'photo_cinematic'
+  artStyle: string = 'photo_cinematic',
+  locale: string = 'zh-HK'
 ): string {
   const def = getSheetVariant(variant)
   const style = getArtStyle(artStyle)
@@ -216,21 +224,33 @@ export function buildCharacterSheetEditPrompt(
     def.wardrobeLayer === 'nude' || def.wardrobeLayer === 'base'
   const layerTag =
     def.wardrobeLayer === 'nude' ? 'body' : def.wardrobeLayer
-  const body = buildCharacterSheetImagePrompt(profile, variant, artStyle)
+  const body = buildCharacterSheetImagePrompt(
+    profile,
+    variant,
+    artStyle,
+    locale
+  )
   return [
-    'IMAGE EDIT / LAYOUT CHANGE TASK (highest priority — read fully):',
-    style.promptBlock,
-    `Target sheet package id: "${def.id}". Wardrobe layer: ${layerTag}.`,
-    'IGNORE the source image LAYOUT completely: panel count, gutters, camera angles, crop, and framing from the source must NOT be copied.',
-    'IGNORE the source wardrobe/clothing if it conflicts with the target wardrobe layer below.',
-    'KEEP only CHARACTER IDENTITY from the source: face/head design, hair, body proportions, species/body plan, skin or surface markings, age presentation.',
+    PromptCatalog.t(locale, 'sheet.edit.task'),
+    artStylePrompt(style.id, locale),
+    PromptCatalog.t(locale, 'sheet.edit.target', {
+      id: def.id,
+      tag: layerTag
+    }),
+    PromptCatalog.t(locale, 'sheet.edit.ignoreLayout'),
+    PromptCatalog.t(locale, 'sheet.edit.ignoreWardrobe'),
+    PromptCatalog.t(locale, 'sheet.edit.keepIdentity'),
     skipOuterCostume
-      ? 'STRIP all outer clothing/armor from the source. For body plates: skin-tone unitard only. For base layer: simple undergarments only. Do not preserve the source outfit.'
-      : 'You may apply the PROFILE costume description in the body prompt; do not merely recolor or crop the source costume panels.',
-    'Completely CHANGE the rendering medium if needed to match the mandatory art style.',
-    'DO NOT invent a different character. DO NOT only crop, zoom, or recolor the source.',
-    'Produce an entirely NEW reference-sheet composition that matches the LAYOUT block exactly (panel count and poses).',
-    `Final checklist: (1) identity matches source face/body (2) layout matches package "${def.id}" not the source sheet (3) wardrobe layer ${layerTag} (4) medium = ${style.id}.`,
+      ? PromptCatalog.t(locale, 'sheet.edit.stripOuter')
+      : PromptCatalog.t(locale, 'sheet.edit.applyProfileCostume'),
+    PromptCatalog.t(locale, 'sheet.edit.changeMedium'),
+    PromptCatalog.t(locale, 'sheet.edit.noNewPerson'),
+    PromptCatalog.t(locale, 'sheet.edit.newComposition'),
+    PromptCatalog.t(locale, 'sheet.edit.checklist', {
+      id: def.id,
+      tag: layerTag,
+      style: style.id
+    }),
     body
   ].join(' ')
 }
@@ -285,7 +305,7 @@ export function buildCharacterIntroVideoPrompt(
     artStyle?: string
   },
   locale: string = 'zh-HK',
-  options?: { soulExcerpt?: string | null }
+  options?: { soulExcerpt?: string | null; skipDefaultCamera?: boolean }
 ): string {
   const identity = characterVideoPromptBlock(profile)
   const personality =
@@ -311,7 +331,12 @@ export function buildCharacterIntroVideoPrompt(
         ? PromptCatalog.t(locale, 'charIntro.relationships', { relationships })
         : null,
       soul ? PromptCatalog.t(locale, 'charIntro.soul', { soul }) : null,
-      PromptCatalog.t(locale, 'charIntro.performance', { manner }),
+      manner
+        ? PromptCatalog.t(locale, 'charIntro.manner', { manner })
+        : null,
+      options?.skipDefaultCamera
+        ? null
+        : PromptCatalog.t(locale, 'charIntro.cameraDefault'),
       PromptCatalog.t(locale, 'charIntro.speech', { voice }),
       speechLanguageLockLine({
         name: profile.name,

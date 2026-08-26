@@ -14,6 +14,7 @@ export type VideoPrepKind =
   | 'action-intro'
   | 'comic-intro'
   | 'timeline-clip'
+  | 'character-photoshoot-clip'
 
 export interface VideoPrepEntityIds {
   characterId?: string
@@ -24,6 +25,8 @@ export interface VideoPrepEntityIds {
   storyId?: string
   entryId?: string
   pageId?: string
+  /** Photo-book shot id (character-photoshoot-clip). */
+  shotId?: string
 }
 
 /** Wizard step index 0..4 for stepper UI. */
@@ -100,6 +103,11 @@ export function buildVideoPrepDraftKey(
     const story = entityIds.storyId?.trim() || '_'
     const entry = entityIds.entryId?.trim() || '_'
     return `timeline-clip:${story}:${entry}`
+  }
+  if (kind === 'character-photoshoot-clip') {
+    const character = entityIds.characterId?.trim() || '_'
+    const shot = entityIds.shotId?.trim() || '_'
+    return `character-photoshoot-clip:${character}:${shot}`
   }
   const primary =
     entityIds.characterId ||

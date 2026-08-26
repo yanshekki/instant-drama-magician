@@ -1,7 +1,7 @@
 ---
 name: instant-drama
 description: >-
-  Control InstantDrama Magician via the instant-drama CLI — 183 shared channels
+  Control InstantDrama Magician via the instant-drama CLI — 184 shared channels
   for stories, chapters, plot beats (suggestFromStory/segmentKeys), characters,
   costumes, scenes, props, actions, comics, key art, timeline, generation,
   settings. Use when the user wants to create or manage dramas, fill assets from
@@ -21,7 +21,7 @@ metadata:
 
 # InstantDrama Magician (`instant-drama`)
 
-You control **InstantDrama Magician** through the **`instant-drama` CLI** (not the GUI). Desktop, web, and CLI share **183** channels.
+You control **InstantDrama Magician** through the **`instant-drama` CLI** (not the GUI). Desktop, web, and CLI share **184** channels.
 
 ## Setup (once)
 
@@ -51,7 +51,7 @@ instant-drama channels list --json
 instant-drama channels describe scenes:aiFill --json
 ```
 
-Only call channels that appear in `channels list` (expect **183**). If a channel is missing, the binary is likely outdated.
+Only call channels that appear in `channels list` (expect **184**). If a channel is missing, the binary is likely outdated.
 
 ## Output contract
 
@@ -71,7 +71,7 @@ instant-drama open --dev
 
 Supports **macOS, Ubuntu/Linux, Windows**. Build macOS targets on a Mac.
 
-## Full control (183 channels)
+## Full control (184 channels)
 
 ```bash
 instant-drama channels list --json
@@ -82,6 +82,12 @@ instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path.png"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"character-sheet","characterId":"…","advancedIdentity":true,"identityCollage":true,"lookPackId":"identity-lock"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"character-photoshoot","characterId":"…","sceneId":"…","propIds":["…"],"actionId":"…","shotId":"…"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"character-photoshoot-clip","characterId":"…","sceneId":"…","shotId":"…","sourceImagePath":"/still.png","skipStillIfExists":true}]' --json
+instant-drama videoPrep confirm --args '[{"kind":"character-photoshoot-clip","characterId":"…","shotId":"…","stillPath":"/still.png","professionalPrompt":"…"}]' --json
+instant-drama characters render-photo-book --args '[{"characterId":"…","mode":"ai-clips","albumId":"album_default","introTemplateId":"hero-walkin"}]' --json
+instant-drama characters render-photo-book --args '[{"characterId":"…","mode":"ai-clips","albumId":"album_default","concatOnly":true}]' --json
+instant-drama characters render-photo-book --args '[{"characterId":"…","mode":"slideshow"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","continuityMode":"chain-end","motionPriority":"action"}]' --json
 instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
 instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
@@ -89,7 +95,7 @@ instant-drama generation run STORY_ID --json
 instant-drama media check-ffmpeg --json
 ```
 
-Sheets / plates / intros go through **`mediaGen:extract` → `polish` → `generateImage`** (legacy `generate-sheet` / `generatePlate` channels are deprecated).
+Sheets / plates / intros go through **`mediaGen:extract` → `polish` → `generateImage`** (legacy `generate-sheet` / `generatePlate` channels are deprecated). Photo-book clip extract (`character-photoshoot-clip`) uses the current album’s stills in `profileJson.photoBook.albums` as the pixel edit base; identity refs stay vision-only. GUI camera template is chosen on the photo-book editor, timeline beat, and key-art shot (and can be changed in the MediaGen popup for stills and video). Payload `introTemplateId` on `mediaGen:extract` overrides stored `cameraTemplateId`. CLI `ai-clips` still takes `introTemplateId`; `characters:renderPhotoBook` accepts optional `albumId`.
 
 Opt-in payload flags (Settings defaults; **do not add channels**): `continuityMode` (`storyboard`|`chain-end`), `motionPriority` (`default`|`action`), `advancedIdentity`, `identityCollage`, `lookPackId` (`follow-asset`|`identity-lock`|`continuous-clip`|`key-art`|`comic`), `generateAudio`, `grokVideoVoice` (`ara`|`eve`|`leo`|`rex`|`sal`|`mio`). Describe with `channels describe mediaGen:extract`.
 

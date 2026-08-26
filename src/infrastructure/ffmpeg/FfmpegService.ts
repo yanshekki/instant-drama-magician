@@ -213,6 +213,90 @@ export class FfmpegService {
   }
 
   /**
+   * Hold each still for a few seconds (mild push-in) then concat.
+   * Missing stills become a color placeholder so the album still finishes.
+   */
+  async stitchStillsSlideshow(options: {
+    stillPaths: string[]
+    outputPath: string
+    secondsPerStill?: number
+    aspectRatio?: string
+  }): Promise<string> {
+    await this.ensureAvailable()
+    const paths = options.stillPaths.map((p) => p?.trim()).filter(Boolean)
+    if (paths.length === 0) {
+      throw new AppError('VALIDATION', 'errors.photoBookNeedStill')
+    }
+    const outPath = options.outputPath
+    mkdirSync(dirname(outPath), { recursive: true })
+    const size = resolutionForAspect(options.aspectRatio ?? '16:9')
+    const duration = Math.max(1.5, options.secondsPerStill ?? 3)
+    const workDir = join(dirname(outPath), `_slideshow_${Date.now()}`)
+    mkdirSync(workDir, { recursive: true })
+    const segmentPaths: string[] = []
+    for (let i = 0; i < paths.length; i++) {
+      const still = paths[i]!
+      const seg = join(workDir, `hold_${i}.mp4`)
+      if (existsSync(still)) {
+        try {
+          await this.stillToHoldClip(still, seg, size, duration, true)
+        } catch {
+          await this.stillToHoldClip(still, seg, size, duration, false)
+        }
+      } else {
+        await this.makeColorClip({
+          outputPath: seg,
+          durationSeconds: duration,
+          label: `Still ${i + 1}`,
+          width: size.width,
+          height: size.height
+        })
+      }
+      segmentPaths.push(seg)
+    }
+    return this.concatFiles(segmentPaths, outPath)
+  }
+
+  private async stillToHoldClip(
+    imagePath: string,
+    outputPath: string,
+    size: { width: number; height: number },
+    durationSeconds: number,
+    pushIn: boolean
+  ): Promise<void> {
+    const frames = Math.max(24, Math.round(durationSeconds * 24))
+    const vf = pushIn
+      ? [
+          `scale=${size.width}:${size.height}:force_original_aspect_ratio=increase`,
+          `crop=${size.width}:${size.height}`,
+          `zoompan=z='min(zoom+0.0012,1.08)':d=${frames}:s=${size.width}x${size.height}:fps=24`,
+          'format=yuv420p'
+        ].join(',')
+      : scalePadFilter(size)
+    await this.run([
+      this.ffmpegBin,
+      '-y',
+      '-loop',
+      '1',
+      '-i',
+      imagePath,
+      '-vf',
+      vf,
+      '-t',
+      durationSeconds.toFixed(2),
+      '-c:v',
+      'libx264',
+      '-pix_fmt',
+      'yuv420p',
+      '-an',
+      outputPath
+    ])
+    if (!existsSync(outputPath)) {
+      throw new AppError('FFMPEG_FAILED', 'errors.ffmpegNormalizeFailed')
+    }
+  }
+
+  /**
    * High-quality final export: aspect-aware frame, optional xfade,
    * burn-in SRT, BGM ducking + timed dialogue TTS.
    */

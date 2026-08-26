@@ -34,6 +34,7 @@ reg(
           | 'action-intro'
           | 'comic-intro'
           | 'timeline-clip'
+          | 'character-photoshoot-clip'
         professionalPrompt: string
         userExtraPrompt?: string | null
         stillPath: string
@@ -46,6 +47,7 @@ reg(
         storyId?: string
         entryId?: string
         pageId?: string
+        shotId?: string
         durationSeconds?: number
         aspectRatio?: string
         locale?: string
@@ -58,6 +60,12 @@ reg(
       const stillPath = payload.stillPath?.trim()
       if (!stillPath || !existsSync(stillPath)) {
         throw new AppError('VALIDATION', 'errors.sourceImageRequired')
+      }
+      if (
+        payload.kind === 'character-photoshoot-clip' &&
+        !payload.shotId?.trim()
+      ) {
+        throw new AppError('VALIDATION', 'errors.photoBookShotIdRequired')
       }
       const {
         mergeFinalVideoPrompt
@@ -75,7 +83,11 @@ reg(
       // Entity hardRules (生成鐵則) always re-applied after user edit of pro prompt
       let videoHardRules: string | null = null
       try {
-        if (payload.kind === 'character-intro' && payload.characterId) {
+        if (
+          (payload.kind === 'character-intro' ||
+            payload.kind === 'character-photoshoot-clip') &&
+          payload.characterId
+        ) {
           const c = await characters().get(payload.characterId)
           videoHardRules = c?.hardRules ?? null
         } else if (payload.kind === 'scene-intro' && payload.sceneId) {
@@ -197,6 +209,15 @@ reg(
         outPath = store.characterVideoPath(
           payload.characterId,
           'intro',
+          '.mp4'
+        )
+      } else if (
+        payload.kind === 'character-photoshoot-clip' &&
+        payload.characterId
+      ) {
+        outPath = store.characterVideoPath(
+          payload.characterId,
+          'photoshoot-clip',
           '.mp4'
         )
       } else if (payload.kind === 'scene-intro' && payload.sceneId) {
@@ -396,6 +417,55 @@ reg(
         return {
           path: result.outputPath,
           gallery: next,
+          entity: updated,
+          polished: result.polished,
+          promptUsed: result.promptUsed
+        }
+      }
+
+      if (
+        payload.kind === 'character-photoshoot-clip' &&
+        payload.characterId
+      ) {
+        const shotId = payload.shotId?.trim()
+        if (!shotId) {
+          throw new AppError('VALIDATION', 'errors.photoBookShotIdRequired')
+        }
+        const {
+          mergePhotoBookIntoProfileJson,
+          parsePhotoBook,
+          setPhotoBookShotClip
+        } = await import('../../../domain/characterPhotoBook')
+        const row = await characters().get(payload.characterId)
+        const book = parsePhotoBook(
+          (row as { profileJson?: string | null }).profileJson
+        )
+        const nextBook = setPhotoBookShotClip(
+          book,
+          shotId,
+          result.outputPath
+        )
+        const profileJson = mergePhotoBookIntoProfileJson(
+          (row as { profileJson?: string | null }).profileJson,
+          nextBook
+        )
+        const updated = await characters().update(payload.characterId, {
+          profileJson
+        })
+        activity.append({
+          kind: 'character',
+          message: 'videoPrepConfirm',
+          meta: {
+            characterId: payload.characterId,
+            shotId,
+            path: result.outputPath,
+            stillPath,
+            kind: payload.kind
+          }
+        })
+        return {
+          path: result.outputPath,
+          photoBook: nextBook,
           entity: updated,
           polished: result.polished,
           promptUsed: result.promptUsed

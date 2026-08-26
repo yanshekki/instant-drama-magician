@@ -213,7 +213,8 @@ export function buildSceneIntroVideoPrompt(
     description: string
     artStyle?: string
   },
-  locale: string = 'zh-HK'
+  locale: string = 'zh-HK',
+  skipDefaultCamera: boolean = false
 ): string {
   const name =
     profile.title?.trim() ||
@@ -264,8 +265,11 @@ export function buildSceneIntroVideoPrompt(
         ? PromptCatalog.t(locale, 'sceneIntro.scriptCue', { cue: scriptCue })
         : null,
       camera
-        ? PromptCatalog.t(locale, 'sceneIntro.camera', { camera })
+        ? PromptCatalog.t(locale, 'sceneIntro.cameraNotes', { camera })
         : null,
+      skipDefaultCamera
+        ? null
+        : PromptCatalog.t(locale, 'sceneIntro.cameraDefault'),
       PromptCatalog.t(locale, 'sceneIntro.beat')
     ]
       .filter(Boolean)

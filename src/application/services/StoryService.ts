@@ -3,6 +3,7 @@ import type { CreateStoryInput, UpdateStoryInput } from '../../types/domain'
 import { AppError } from '../../types/errors'
 import { isStoryStatus, normalizeStoryTitle, validateStoryTitle } from '../../domain/story'
 import { ensureChapterSchema } from './ChapterService'
+import { ensureTimelineCameraTemplateColumn } from './TimelinePersistenceService'
 
 export class StoryService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -28,6 +29,7 @@ export class StoryService {
 
   async get(id: string) {
     await ensureChapterSchema(this.prisma)
+    await ensureTimelineCameraTemplateColumn(this.prisma)
     const story = await this.prisma.story.findUnique({
       where: { id },
       include: {

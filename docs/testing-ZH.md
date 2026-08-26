@@ -23,7 +23,7 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
-## 近期焦點（1.8.0）
+## 近期焦點（1.8.0 → 1.9.0）
 
 | 區域 | 測試（示例） |
 |------|----------------|
@@ -40,8 +40,10 @@ npm run test:ci          # CI 入口（coverage）
 | 身份鎖定＋多圖填寫 | `advancedIdentity.test.ts`、`identityCollageLayout.test.ts`、`characters/aiFill.test.ts`、`profileFillMissing.test.ts` |
 | 嚴格連續片尾＋無介面靜圖 | `clipContinuityContext.test.ts`、`videoPrep/confirm.test.ts`、`ensureTimelineClipStill.test.ts`、`VideoStep.test.ts` |
 | gctoac 片段聲線 | `grokVideoVoices.test.ts`、`GrokHttpVideoProvider.test.ts`、`settings.test.ts` |
-| 香港書面語＋beat 十語 | `PromptCatalog.test.ts`（禁粵語口語；非英文 `beat.*` 不得等於英文） |
+| 十語 PromptCatalog | `PromptCatalog.test.ts`（非英文鍵不得等於英文；抽樣 ja／fr 身份鎖、幾何鎖、換裝；禁粵語口語） |
 | 視覺欄進階碼板 | `fieldKit.test.ts`、`characterAppearanceKit.test.ts`、`FieldKitBuilder.test.tsx`、`AppearanceKitBuilder.test.tsx`，以及角色／場景／道具／動作／服裝館／故事頁 smoke |
+| 角色攝影集 | `characterPhotoBook.test.ts`、`photoBook.test.ts`、`PhotoBookAlbumBar.test.tsx`、`CharactersPage.test.tsx`、`LocalMediaVideo.test.tsx` |
+| 鏡頭範本 | `introVideoTemplates.test.ts`、`IntroTemplatePicker.test.tsx`、`startIntroMediaGen.test.ts`、`ImageOptionPicker.test.tsx` |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \
@@ -63,11 +65,11 @@ npx vitest run src/runtime/handlers/mediaGen.test.ts \
 |------|------|
 | 模組 companion 測試 | 生產模組 **100%**（+ electron／server 入口） |
 | 行覆蓋（整體） | 漸進（整體約 22%；UI／handlers 為 smoke） |
-| Channel 註冊數 | **183/183** 契約 + 安全 invoke 矩陣 |
+| Channel 註冊數 | **184/184** 契約 + 安全 invoke 矩陣 |
 
 ## Channel 對齊
 
-`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **183** 個 IPC channel。  
+`src/contract/channels.contract.test.ts` + `channelParity.test.ts` 確保 headless runtime 維持 **184** 個 IPC channel。  
 `channelInvoke.matrix.test.ts` 對安全無參 channel 做 invoke，不應 `NOT_FOUND`。
 
 ## 相關

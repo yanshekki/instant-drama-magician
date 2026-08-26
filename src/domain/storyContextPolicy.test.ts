@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   antiDefaultIdentityRules,
   inventFromProvidedSourcesRules,
+  inventRulesForTemplate,
   shouldInjectStoryContext,
   shouldInjectStoryContextForCharacter
 } from './storyContextPolicy'
@@ -44,6 +45,16 @@ describe('storyContextPolicy', () => {
 
   it('never injects story context into character invent', () => {
     expect(shouldInjectStoryContextForCharacter()).toBe(false)
+  })
+
+  it('polish-only omits invent.improve; fill-blanks keeps it', () => {
+    const polish = inventRulesForTemplate('en', 'polish-only').join('\n')
+    const fill = inventRulesForTemplate('en', 'fill-blanks').join('\n')
+    const invent = inventRulesForTemplate('zh-HK', 'invent').join('\n')
+    expect(polish).toMatch(/Sources of truth/)
+    expect(polish).not.toMatch(/Improve mode|complete missing/)
+    expect(fill).toMatch(/Improve mode/)
+    expect(invent).toMatch(/創作模式|構想/)
   })
 
   it('antiDefaultIdentityRules aliases invent rules', () => {

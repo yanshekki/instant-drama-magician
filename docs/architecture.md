@@ -13,7 +13,7 @@ Presentation (React pages / CLI / browser UI)
   IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
-  registerAllHandlers + HandlerHost   ← single source of truth (~183 channels)
+  registerAllHandlers + HandlerHost   ← single source of truth (~184 channels)
         │
         ▼
   Application services (Generation, Timeline, Export, Backup, …)
@@ -48,14 +48,15 @@ Same runtime, three desks — timeline board, comic page, key-art still:
 | CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR` (default `OS app data root (same as desktop)`) |
 | Web / server | `server/index.ts` + `EmbeddedWebServer` | Same handlers; SPA from `out/renderer` |
 
-Channel catalog: `src/runtime/channelManifest.ts` (**183** unique ids).
+Channel catalog: `src/runtime/channelManifest.ts` (**184** unique ids).
 
 Notable media surfaces:
 
 | Surface | Role |
 |---------|------|
-| `mediaGen:*` | Unified materials → multi-vision polish → still (library + timeline refine) |
-| `videoPrep:*` | Still/keyframe → confirm video (incl. timeline-clip) |
+| `mediaGen:*` | Unified materials → multi-vision polish → still (library + timeline refine). Payload `introTemplateId` / stored `cameraTemplateId` for single-shot kinds |
+| `videoPrep:*` | Still → confirm video (timeline-clip, character-photoshoot-clip) |
+| `characters:renderPhotoBook` | Stitch one photo-book album (`slideshow` / `ai-clips` / `concatOnly`) |
 | `costumes:appendTryOnStill` | Dual-write try-on still into costume multi-gallery |
 | Timeline advanced | End-frame continuity stills; prev keyframe edit base; refine via MediaGen |
 
@@ -74,7 +75,7 @@ Pass the same fields on `mediaGen:extract` / `generateImage` payloads or Setting
 | Route | Page |
 |-------|------|
 | `/` | Stories (chapters + plot beats) |
-| `/characters` | Characters (+ SoulMD Hub, reference sheets) |
+| `/characters` | Characters (+ SoulMD Hub, reference sheets, photo-book albums) |
 | `/costumes` | Costumes (try-on dual-write multi-gallery) |
 | `/scenes` | Scenes |
 | `/props` | Props |
@@ -99,6 +100,10 @@ Chapters → Cast (generateCast) → Beats → Characters / Scenes / Props / Act
 - Retry failures only: video step
 - Cancel: `generation:cancel`
 - Advanced prep: cast lock → stills → video queue
+
+## Image prompt locks (PromptCatalog)
+
+Character sheets, location plates, prop plates, action boards, costume swap, and atmosphere swap assemble lock and layout sentences from **PromptCatalog** in the UI language — the same policy as comic pages (`comic.*`) and art-medium lines (`art.*`). **Every catalog key is native in all ten locales** (non-English tables must not equal English). Packs (`outputLock`, sex locks, hard-rule fallbacks) follow the same locale; Hong Kong written Chinese is the source register. Geometry (panel counts, variant ids, `galleryLabel`) stays in TypeScript. Builders such as `buildCharacterSheetImagePrompt(..., locale?)` default to `zh-HK`. Production UI goes through `mediaGen:extract` and passes `payload.locale` (no extra IPC channel; catalog stays **184**). English `ArtStyleDef.promptBlock` and variant `layout` strings remain only so leftover queued prompts can be rewritten into the UI language. Camera still/director templates in `introVideoTemplates.ts` stay zh-HK / en until a later catalog move.
 
 ## Data paths (Linux)
 

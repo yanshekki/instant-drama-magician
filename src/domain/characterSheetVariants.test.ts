@@ -74,20 +74,20 @@ describe('characterSheetVariants', () => {
       'body_nude_front',
       'photo_cinematic'
     )
-    expect(p).toMatch(/IGNORE for this sheet|body or base-layer only/i)
-    expect(p).toMatch(/unitard|body proportion|NO outer costume|body plate/i)
+    expect(p).toMatch(/忽略|體型或底衫|連身底衣/)
+    expect(p).toMatch(/體型比例|連身底衣|不要外層/)
     expect(p).not.toMatch(/heavy winter coat with gold trim/)
     // Must not use hard "nude/bare body" words that trip Grok Imagine filters
     // (layer id stays "nude" in data model; prompts must say "body" / unitard)
     expect(p.toLowerCase()).not.toMatch(/\bnude\b|\bbare body\b/)
-    expect(p).toMatch(/Wardrobe layer tag: body/i)
+    expect(p).toMatch(/服裝層標記：body|Wardrobe layer tag: body/)
 
     const base = buildCharacterSheetImagePrompt(
       { name: 'Ming', costume: 'armor set' },
       'base_layer_turnaround',
       'anime_modern'
     )
-    expect(base).toMatch(/BASE-LAYER|undergarment|base clothing/i)
+    expect(base).toMatch(/底衫|底衣/)
     expect(base).not.toMatch(/armor set/)
   })
 
@@ -100,7 +100,7 @@ describe('characterSheetVariants', () => {
       undefined,
       { skipOuterCostume: true }
     )
-    expect(lock).toMatch(/IGNORE/)
+    expect(lock).toMatch(/忽略/)
   })
 
   it('sheetRequiresUnclothedSupport and minor group filter', () => {
@@ -144,6 +144,6 @@ describe('characterSheetVariants', () => {
       'Quality: sharp',
       { skipOuterCostume: true }
     )
-    expect(skip).toMatch(/STRIP|IGNORE|Quality: sharp/)
+    expect(skip).toMatch(/忽略|衣服|Quality: sharp/)
   })
 })

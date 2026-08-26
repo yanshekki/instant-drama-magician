@@ -260,6 +260,22 @@ describe('TimelinePage', () => {
       () => undefined
     )
 
+    expect(screen.getAllByText(/Shot template/i).length).toBeGreaterThan(0)
+    const camSel = Array.from(document.querySelectorAll('select')).find((el) =>
+      Array.from((el as HTMLSelectElement).options).some((o) => o.value === 'pov')
+    )
+    if (camSel) {
+      await act(async () => {
+        fireEvent.change(camSel, { target: { value: 'pov' } })
+      })
+      await waitFor(() =>
+        expect(api.timeline.update).toHaveBeenCalledWith(
+          'entry-1',
+          expect.objectContaining({ cameraTemplateId: 'pov' })
+        )
+      )
+    }
+
     // Clip duration buttons (6 / 10)
     for (const re of [/^6$/, /^10$/, /6s|10s|seconds/i]) {
       await clickBtn(re)

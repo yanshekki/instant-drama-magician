@@ -10,11 +10,8 @@ import {
 import { getAiLocale } from '../../lib/aiLocale'
 import { suggestedClipExportName } from '../../domain/clipExportName'
 import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
-import {
-  snapClipRange,
-  snapVideoSeconds,
-  type GrokVideoSeconds
-} from '../../domain/videoDuration'
+import { snapClipRange, snapVideoSeconds, type GrokVideoSeconds } from '../../domain/videoDuration'
+import { parseIntroVideoTemplateId } from '../../domain/introVideoTemplates'
 import { getApi } from '../../lib/api'
 import { formatUserError } from '../lib/formatUserError'
 import type {
@@ -640,6 +637,7 @@ export function useTimelineV2Studio() {
             const batchIds = [args.entryId, ...(args.queueRemaining ?? [])].filter(
               Boolean
             )
+            const queueIntroTemplateIdByEntryId: Record<string, string> = {}
             const queueUserExtraByEntryId: Record<string, string> = {}
             const queueDurationSecondsByEntryId: Record<string, number> = {}
             for (const id of batchIds) {
@@ -650,6 +648,10 @@ export function useTimelineV2Studio() {
                 queueDurationSecondsByEntryId[id] = snapVideoSeconds(
                   Number(ent.endTime) - Number(ent.startTime)
                 )
+                const cam = parseIntroVideoTemplateId(
+                  (ent as { cameraTemplateId?: string | null }).cameraTemplateId
+                )
+                if (cam) queueIntroTemplateIdByEntryId[id] = cam
               }
             }
             if (
@@ -658,6 +660,13 @@ export function useTimelineV2Studio() {
             ) {
               queueDurationSecondsByEntryId[args.entryId] = args.durationSeconds
             }
+            const currentCam = parseIntroVideoTemplateId(
+              (
+                entriesRef.current.find((e) => e.id === args.entryId) as
+                  | { cameraTemplateId?: string | null }
+                  | undefined
+              )?.cameraTemplateId
+            )
             const req = await buildIntroMediaGenRequest({
               kind: 'timeline-clip',
               sourceImagePath: '',
@@ -665,7 +674,8 @@ export function useTimelineV2Studio() {
               entryId: args.entryId,
               durationSeconds: args.durationSeconds,
               skipStillIfExists: wantSkip,
-              userExtraPrompt: args.revisionPrompt?.trim() || null
+              userExtraPrompt: args.revisionPrompt?.trim() || null,
+              introTemplateId: currentCam
             })
             startMediaGen({
               ...req,
@@ -674,7 +684,8 @@ export function useTimelineV2Studio() {
               queueRemaining: args.queueRemaining ?? [],
               queueSkipStillIfExists: wantSkip,
               queueUserExtraByEntryId,
-              queueDurationSecondsByEntryId
+              queueDurationSecondsByEntryId,
+              queueIntroTemplateIdByEntryId
             })
           })()
         }
@@ -1033,7 +1044,8 @@ export function useTimelineV2Studio() {
         durationSeconds: snapVideoSeconds(entry.endTime - entry.startTime),
         preferIdentityEdit: true,
         aspectRatio,
-        sourceImagePath: cell?.stillPath || undefined
+        sourceImagePath: cell?.stillPath || undefined,
+        introTemplateId: parseIntroVideoTemplateId(entry.cameraTemplateId)
       })
     })()
   }

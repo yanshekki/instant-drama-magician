@@ -44,6 +44,12 @@ import { PageHeader } from '../components/PageHeader'
 import { LocalMediaImage } from '../components/LocalMediaImage'
 import { KeyArtImageLibrary } from '../components/KeyArtImageLibrary'
 import { Button, EmptyState, Select, Textarea } from '../components/ui'
+import { IntroTemplatePicker } from '../components/IntroTemplatePicker'
+import {
+  DEFAULT_INTRO_VIDEO_TEMPLATE,
+  parseIntroVideoTemplateId,
+  type IntroVideoTemplateId
+} from '../../domain/introVideoTemplates'
 
 type StudioTab = 'type' | 'materials' | 'image'
 
@@ -60,6 +66,7 @@ type ShotRow = {
   sceneId?: string | null
   timelineEntryId?: string | null
   comicPageId?: string | null
+  cameraTemplateId?: string | null
   imagePath?: string | null
   imageGalleryJson?: string | null
   mediaStatus?: string
@@ -107,6 +114,8 @@ export function KeyArtPage(): JSX.Element {
   const [sceneId, setSceneId] = useState('')
   const [timelineEntryId, setTimelineEntryId] = useState('')
   const [comicPageId, setComicPageId] = useState('')
+  const [cameraTemplateId, setCameraTemplateId] =
+    useState<IntroVideoTemplateId>(DEFAULT_INTRO_VIDEO_TEMPLATE)
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState<StudioTab>('type')
   const [bookOpen, setBookOpen] = useState(false)
@@ -199,6 +208,10 @@ export function KeyArtPage(): JSX.Element {
     setSceneId(selected.sceneId || '')
     setTimelineEntryId(selected.timelineEntryId || '')
     setComicPageId(selected.comicPageId || '')
+    setCameraTemplateId(
+      parseIntroVideoTemplateId(selected.cameraTemplateId) ??
+        DEFAULT_INTRO_VIDEO_TEMPLATE
+    )
     setMethod(coerceKeyArtMakeMethod(selected.makeMethod || readKeyArtMakeMethod()))
     if (!userChoseTab.current && !tabPrimed.current) {
       tabPrimed.current = true
@@ -307,7 +320,8 @@ export function KeyArtPage(): JSX.Element {
       characterIds,
       sceneId: sceneId || null,
       timelineEntryId: timelineEntryId || null,
-      comicPageId: comicPageId || null
+      comicPageId: comicPageId || null,
+      cameraTemplateId
     })
     const own = selected.imagePath?.trim() || ''
     const allowOwn = method === 'edit' && Boolean(own)
@@ -321,7 +335,8 @@ export function KeyArtPage(): JSX.Element {
       artStyle: shotArtStyle || bookArtStyle,
       preferIdentityEdit: allowOwn && lastStillFormat.current === pageFormat,
       aspectRatio: aspectForComicFormat(pageFormat),
-      galleryIdentityPaths: allowOwn ? [own] : []
+      galleryIdentityPaths: allowOwn ? [own] : [],
+      introTemplateId: cameraTemplateId
     })
   }
 
@@ -635,6 +650,20 @@ export function KeyArtPage(): JSX.Element {
                           </div>
                         </button>
                       ))}
+                    </div>
+                    <div className="max-w-xl">
+                      <IntroTemplatePicker
+                        value={cameraTemplateId}
+                        onChange={(id) => {
+                          setCameraTemplateId(id)
+                          void persistShot(selected.id, {
+                            cameraTemplateId: id
+                          })
+                        }}
+                      />
+                      <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
+                        {t('introTemplates.hint')}
+                      </p>
                     </div>
                   </div>
                 ) : null}

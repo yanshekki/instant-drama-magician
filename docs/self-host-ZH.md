@@ -3,7 +3,7 @@
 > **語言：** [English](./self-host.md) · [中文](./self-host-ZH.md)
 
 把 InstantDrama Magician 裝成 **server**，用瀏覽器操作。  
-桌面 Electron 版繼續可用；Web 與桌面共用同一套業務 handlers（**183** channels）。
+桌面 Electron 版繼續可用；Web 與桌面共用同一套業務 handlers（**184** channels）。
 
 ## 需求
 
@@ -26,10 +26,10 @@
 
 ### 手機／細屏瀏覽器
 
-- **導覽：** 寬度低於 `md`（768px）時左側欄改為 **漢堡抽屜** — 撳 ☰ 開啟，撳遮罩或導覽連結關閉。
-- **列表頁：** 單一垂直 scroll（頂部標題固定；搜尋＋卡片可滾到底）。窄屏卡片全寬。
-- **新增／編輯：** 全屏 sheet；**圖庫預設收起**（撳先展開），表單永遠可 scroll 到底；**Save／Cancel 固定底部**。
-- **上傳：** 參考圖用瀏覽器檔案選擇 + `POST /api/upload`（唔係系統原生對話框）。
+- **導覽：** 寬度低於 `md`（768px）時左側欄改為 **漢堡抽屜** — 按 ☰ 開啟，按遮罩或導覽連結關閉。
+- **列表頁：** 單一垂直捲動（頂部標題固定；搜尋＋卡片可滾到底）。窄屏卡片全寬。
+- **新增／編輯：** 全屏表單；**圖庫預設收起**（按一下才展開），表單永遠可捲動到底；**儲存／取消固定底部**。
+- **上傳：** 參考圖用瀏覽器檔案選擇 + `POST /api/upload`（並非系統原生對話框）。
 - **時間軸：** 單欄堆疊 + 底部 **Generate／Export** 操作列；Konva 闊度跟容器。
 - **開啟匯出資料夾** 只限桌面；Web 匯出會以瀏覽器下載（API 有 download URL 時）。
 
@@ -87,7 +87,7 @@ npm run dev:web
 | GET | `/api/media?p=` | 媒體預覽（需 auth；server 絕對路徑） |
 | GET | `/api/download?p=` | 附件下載 |
 | POST | `/api/upload?name=` | 原始 body 上載 → `media/uploads/` |
-| GET | `/api/channels` | 已註冊 channel 列表（**183**） |
+| GET | `/api/channels` | 已註冊 channel 列表（**184**） |
 
 瀏覽器 UI 經 `HttpAppClient` 把 API 轉成 channel invoke。
 
@@ -135,7 +135,7 @@ $IDM_DATA_DIR/
 
 - **503 SPA not built** → `npm run build:web`  
 - **401** → token／`IDM_AUTH_TOKEN` 不對  
-- **NOT_FOUND channel** → 升級 server；應 **183** channels  
+- **NOT_FOUND channel** → 升級 server；應 **184** channels  
 - **FFmpeg** → `ffmpeg-static` 或 `FFMPEG_PATH`  
 
 ## 相關

@@ -228,29 +228,38 @@ export function artStylesByGroup(): Record<
   return out
 }
 
+const QUALITY_FAMILY_KEY: Record<ArtStyleFamily, PromptCopyKey> = {
+  photo: 'quality.family.photo',
+  cgi: 'quality.family.cgi',
+  anime: 'quality.family.anime',
+  illust: 'quality.family.illust'
+}
+
+/** English quality sentences kept for leftover rewrite of old queued prompts. */
+export const QUALITY_BLOCK_ENGLISH: Record<ArtStyleFamily, string> = {
+  photo: [
+    'Quality: tack-sharp focus on eyes or primary face/head features, high micro-detail appropriate to photoreal media (skin pores or fur strands or metal micro-scratches as fits the species),',
+    'professional three-point studio lighting unless the style says otherwise, prime-lens look (50–85mm), no motion blur, no heavy face-softening beauty filter, no watermark or text.'
+  ].join(' '),
+  cgi: [
+    'Quality: clean 3D character presentation, readable materials (PBR), consistent topology silhouette, sharp primary forms,',
+    'studio HDRI or three-point CG light, no noise grain unless clay style, no watermark or text, not a real photograph.'
+  ].join(' '),
+  anime: [
+    'Quality: clean 2D character design sheet craft, consistent line weight, stable face model across panels, controlled cel or soft-shade color,',
+    'avoid photoreal photography, avoid live-action look, avoid 3D SSS photo shading, no watermark or text labels.'
+  ].join(' '),
+  illust: [
+    'Quality: professional illustration design-sheet clarity, consistent character design, readable silhouette and costume/materials,',
+    'studio-neutral backdrop, no watermark, no UI text captions.'
+  ].join(' ')
+}
+
 /** Quality / medium language that matches the art family (avoid photo+anime clash). */
-export function qualityBlockForFamily(family: ArtStyleFamily): string {
-  switch (family) {
-    case 'photo':
-      return [
-        'Quality: tack-sharp focus on eyes or primary face/head features, high micro-detail appropriate to photoreal media (skin pores or fur strands or metal micro-scratches as fits the species),',
-        'professional three-point studio lighting unless the style says otherwise, prime-lens look (50–85mm), no motion blur, no heavy face-softening beauty filter, no watermark or text.'
-      ].join(' ')
-    case 'cgi':
-      return [
-        'Quality: clean 3D character presentation, readable materials (PBR), consistent topology silhouette, sharp primary forms,',
-        'studio HDRI or three-point CG light, no noise grain unless clay style, no watermark or text, not a real photograph.'
-      ].join(' ')
-    case 'anime':
-      return [
-        'Quality: clean 2D character design sheet craft, consistent line weight, stable face model across panels, controlled cel or soft-shade color,',
-        'avoid photoreal photography, avoid live-action look, avoid 3D SSS photo shading, no watermark or text labels.'
-      ].join(' ')
-    case 'illust':
-    default:
-      return [
-        'Quality: professional illustration design-sheet clarity, consistent character design, readable silhouette and costume/materials,',
-        'studio-neutral backdrop, no watermark, no UI text captions.'
-      ].join(' ')
-  }
+export function qualityBlockForFamily(
+  family: ArtStyleFamily,
+  locale?: string | null
+): string {
+  const key = QUALITY_FAMILY_KEY[family] ?? QUALITY_FAMILY_KEY.illust
+  return PromptCatalog.t(locale, key)
 }

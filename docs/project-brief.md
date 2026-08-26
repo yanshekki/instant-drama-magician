@@ -12,8 +12,8 @@
 > |------|---------|
 > | Version | **1.8.0** |
 > | Pages | Stories (chapters + multi-select plot beats) · Characters · **Costumes** · Scenes · Props · **Comics** · **Key art** · Timeline (track + pipeline board) · Activity · Settings |
-> | i18n | **10** locales; OS completion notifications; localized system / director seals; HK / Mainland written Chinese; native beat templates; **advanced field-kit chrome** |
-> | CLI / Web | Full **183**-channel shared runtime |
+> | i18n | **10** locales; OS completion notifications; native system / director prompts (PromptCatalog + packs); HK / Mainland written Chinese; **photo book** + camera templates; **advanced field-kit chrome** |
+> | CLI / Web | Full **184**-channel shared runtime |
 > | Contact | **email@ysk.hk** · YSK Limited |
 > | User guides | [../README.md](../README.md) · [../README-ZH.md](../README-ZH.md) |
 > | Docs index | [README.md](./README.md) |

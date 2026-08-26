@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { UI_LANGUAGES } from '../domain/uiLanguages'
 import {
+  generationLanguageName,
   hardRuleTags,
+  imagePolishDirective,
+  noRefPolishDirective,
   outputLanguageLock,
   promptTemplateId,
-  resolvePromptContext
+  resolvePromptContext,
+  videoPolishDirective
 } from './resolve'
 
 describe('resolvePromptContext', () => {
@@ -62,5 +66,24 @@ describe('resolvePromptContext', () => {
     expect(lock).not.toMatch(/【必須】/)
     expect(outputLanguageLock('fr')).toContain('français')
     expect(outputLanguageLock('ar')).toContain('العربية')
+  })
+
+  it('exposes pack language name and polish directives', () => {
+    expect(generationLanguageName('ja')).toBe('日本語')
+    expect(imagePolishDirective('zh-HK')).toMatch(/繁體/)
+    expect(noRefPolishDirective('en')).toMatch(/reference/i)
+    expect(videoPolishDirective('fr')).toMatch(/français|prompt/i)
+  })
+
+  it('outputLock names generation hard-rules in the UI language; scene fallback is not empty-set', () => {
+    const hk = resolvePromptContext('zh-HK')
+    expect(hk.outputLock).toMatch(/生成鐵則/)
+    expect(hk.outputLock).not.toMatch(/\(hardRules/)
+    expect(hk.pack.hardRulesFallback.scene).toMatch(/場地身份/)
+    expect(hk.pack.hardRulesFallback.scene).not.toMatch(/空鏡場地身份/)
+    const en = resolvePromptContext('en')
+    expect(en.outputLock).toMatch(/generation hard-rules/i)
+    expect(en.pack.hardRulesFallback.scene).not.toMatch(/empty-set/)
+    expect(en.pack.hardRulesFallback.scene).toMatch(/location identity/)
   })
 })

@@ -175,6 +175,16 @@ const api: ElectronApi & {
       persist?: boolean
       updateCostumeField?: boolean
     }) => ipcRenderer.invoke('characters:swapCostume', payload),
+    renderPhotoBook: (payload: {
+      characterId: string
+      mode: 'slideshow' | 'ai-clips'
+      albumId?: string
+      shotIds?: string[]
+      durationSeconds?: number
+      locale?: string
+      introTemplateId?: string
+      concatOnly?: boolean
+    }) => ipcRenderer.invoke('characters:renderPhotoBook', payload),
     suggestWardrobe: (payload: {
       characterId?: string
       storyId?: string

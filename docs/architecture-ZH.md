@@ -13,7 +13,7 @@ Presentation（React 頁面／CLI／瀏覽器 UI）
   IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
-  registerAllHandlers + HandlerHost   ← 單一真相來源（約 183 channels）
+  registerAllHandlers + HandlerHost   ← 單一真相來源（約 184 channels）
         │
         ▼
   Application 服務（Generation、Timeline、Export、Backup…）
@@ -48,14 +48,15 @@ Presentation（React 頁面／CLI／瀏覽器 UI）
 | CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR`（預設 `OS app data 根（與桌面相同）`） |
 | Web／server | `server/index.ts` + `EmbeddedWebServer` | 同一 handlers；SPA 自 `out/renderer` |
 
-Channel 目錄：`src/runtime/channelManifest.ts`（**183** 個唯一 id）。
+Channel 目錄：`src/runtime/channelManifest.ts`（**184** 個唯一 id）。
 
 主要媒體介面：
 
 | 介面 | 角色 |
 |------|------|
-| `mediaGen:*` | 統一材料 → 多圖 vision 潤飾 → 靜圖（庫頁 + 時間軸精修） |
-| `videoPrep:*` | 靜圖／關鍵幀 → 確認出片（含 timeline-clip） |
+| `mediaGen:*` | 統一材料 → 多圖 vision 潤飾 → 靜圖（庫頁 + 時間軸精修）。單鏡頭 kind 可傳 `introTemplateId` 或沿用已存 `cameraTemplateId` |
+| `videoPrep:*` | 靜圖 → 確認出片（timeline-clip、character-photoshoot-clip） |
+| `characters:renderPhotoBook` | 串一本攝影集相冊（`slideshow`／`ai-clips`／`concatOnly`） |
 | `costumes:appendTryOnStill` | 試穿 still 雙寫入戲服多圖庫 |
 | 時間軸進階 | 片尾 continuity 靜圖；上一段 keyframe 底圖；MediaGen 精修 |
 
@@ -74,7 +75,7 @@ Channel 目錄：`src/runtime/channelManifest.ts`（**183** 個唯一 id）。
 | 路由 | 頁面 |
 |------|------|
 | `/` | Stories（章節 + 劇情段落） |
-| `/characters` | Characters（+ SoulMD Hub、參考 sheet） |
+| `/characters` | Characters（+ SoulMD Hub、參考 sheet、攝影集相冊） |
 | `/costumes` | Costumes（試穿雙寫多圖庫） |
 | `/scenes` | Scenes |
 | `/props` | Props |
@@ -86,7 +87,7 @@ Channel 目錄：`src/runtime/channelManifest.ts`（**183** 個唯一 id）。
 | `/audit` | 活動日誌 |
 | `/settings` | 設定 |
 
-資產 AI fill 可用 `suggestFromStory` + `segmentKeys` 注入劇情（`chapter:<id>`／`beat:<id>`；空 = 成個故事，章節優先）。CLI 同一 payload。
+資產人工智能填充可用 `suggestFromStory` + `segmentKeys` 注入劇情（`chapter:<id>`／`beat:<id>`；空 = 整個故事，章節優先）。CLI 使用同一 payload。
 
 ## 生成管線
 
@@ -99,6 +100,10 @@ Channel 目錄：`src/runtime/channelManifest.ts`（**183** 個唯一 id）。
 - 只重試失敗：video step
 - 取消：`generation:cancel`
 - 進階預備：cast lock → stills → video 佇列
+
+## 出圖鎖走 PromptCatalog
+
+角色表、場地板、道具板、動作板、換裝與換氣氛的鎖定／版式句由 **PromptCatalog** 按介面語言組裝，政策與漫畫頁（`comic.*`）及藝術媒介句（`art.*`）相同。**十語每一鍵都是該語正文**（非英文表不得與英文全等）。Packs（`outputLock`、性別鎖定、鐵則 fallback）跟同一語系；準則為香港書面語。格數、變體 id、`galleryLabel` 等幾何資料留在 TypeScript。`buildCharacterSheetImagePrompt(..., locale?)` 這類組裝函式預設 `zh-HK`。正式介面經 `mediaGen:extract` 傳入 `payload.locale`（不加新 IPC；頻道仍為 **184**）。英文 `ArtStyleDef.promptBlock` 與變體 `layout` 字串只供舊佇列提示詞覆寫成介面語言。`introVideoTemplates.ts` 的鏡頭靜圖／導演句暫仍只有 zh-HK／en，未搬進十語目錄。
 
 ## 資料路徑（Linux）
 

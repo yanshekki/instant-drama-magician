@@ -59,10 +59,11 @@ describe('buildPropPlateImagePrompt', () => {
     expect(prompt).toContain('hand-held')
     expect(prompt).toContain('worn edges')
     expect(prompt).toContain('wet, rain')
-    expect(prompt).toMatch(/LAYOUT/i)
-    expect(prompt).toMatch(/close-up|detail/i)
+    expect(prompt).toMatch(/版式/)
+    expect(prompt).toMatch(/特寫|細節/)
     expect(prompt).toMatch(/禁止|品牌|logo/)
-    expect(prompt).toMatch(/photo_cinematic|cinematic/i)
+    expect(prompt).toMatch(/photo_cinematic/)
+    expect(prompt).not.toMatch(/MANDATORY MEDIUM|GEOMETRY LOCK/)
   })
 
   it('omits optional empty fields and uses defaults', () => {
@@ -72,9 +73,9 @@ describe('buildPropPlateImagePrompt', () => {
     })
     expect(prompt).toContain('Cup')
     expect(prompt).toContain('white mug')
-    expect(prompt).not.toMatch(/Material:/)
-    expect(prompt).not.toMatch(/Size notes:/)
-    expect(prompt).toMatch(/LAYOUT/i)
+    expect(prompt).not.toMatch(/材質：/)
+    expect(prompt).not.toMatch(/尺寸筆記：/)
+    expect(prompt).toMatch(/版式/)
   })
 
   it('uses variant layout for scale plate', () => {
@@ -82,16 +83,16 @@ describe('buildPropPlateImagePrompt', () => {
       { name: 'Sword', description: 'katana' },
       'in_hand_scale'
     )
-    expect(prompt).toMatch(/scale|hand|silhouette/i)
+    expect(prompt).toMatch(/比例|手|剪影/)
   })
 })
 
 describe('buildPropPlateEditPrompt', () => {
   it('prefixes image-edit restyle instructions', () => {
     const edit = buildPropPlateEditPrompt(profile, 'hero', 'anime')
-    expect(edit).toMatch(/IMAGE EDIT|PROP RESTYLE/i)
-    expect(edit).toContain('SAME prop identity')
+    expect(edit).toMatch(/圖像編輯|道具改風格/)
+    expect(edit).toMatch(/同一道具身份|道具身份/)
     expect(edit).toContain('Red umbrella')
-    expect(edit).toMatch(/anime|medium/i)
+    expect(edit).toMatch(/anime|媒介/)
   })
 })

@@ -16,6 +16,12 @@ import {
   type StoryCastPrep
 } from '../../../domain/advancedPrep'
 import { LocalMediaImage } from '../LocalMediaImage'
+import { IntroTemplatePicker } from '../IntroTemplatePicker'
+import {
+  DEFAULT_INTRO_VIDEO_TEMPLATE,
+  parseIntroVideoTemplateId,
+  type IntroVideoTemplateId
+} from '../../../domain/introVideoTemplates'
 import { Button, Select } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAiJobs } from '../../context/AiJobsContext'
@@ -77,6 +83,7 @@ export interface AdvancedPrepSnapshot {
     durationSeconds: number
     mediaPath?: string | null
     stillFromVideo?: boolean
+    cameraTemplateId?: string | null
   }>
   summary: {
     castReady: number
@@ -330,7 +337,7 @@ export function TimelineAdvancedStudio({
       } catch {
         /* default */
       }
-      startMediaGen({
+        startMediaGen({
         kind: mode === 'clip' ? 'timeline-clip' : 'timeline-still',
         storyId,
         entryId,
@@ -344,7 +351,8 @@ export function TimelineAdvancedStudio({
         galleryIdentityPaths:
           mode === 'clip' && stillReady && cell?.stillPath
             ? [cell.stillPath]
-            : undefined
+            : undefined,
+        introTemplateId: parseIntroVideoTemplateId(cell?.cameraTemplateId)
       })
     })()
   }
@@ -1033,6 +1041,41 @@ export function TimelineAdvancedStudio({
                           <p className="line-clamp-2 min-h-[2.25rem] text-[12px] leading-snug text-ink-200">
                             {cell.beatSnippet || t('timeline.none')}
                           </p>
+                          <IntroTemplatePicker
+                            value={
+                              parseIntroVideoTemplateId(cell.cameraTemplateId) ??
+                              DEFAULT_INTRO_VIDEO_TEMPLATE
+                            }
+                            onChange={(id: IntroVideoTemplateId) => {
+                              void (async () => {
+                                try {
+                                  await getApi().timeline.update(cell.entryId, {
+                                    cameraTemplateId: id
+                                  })
+                                  setSnap((prev) => {
+                                    if (!prev) return prev
+                                    return {
+                                      ...prev,
+                                      cells: prev.cells.map((c) =>
+                                        c.entryId === cell.entryId
+                                          ? { ...c, cameraTemplateId: id }
+                                          : c
+                                      )
+                                    }
+                                  })
+                                  onRefreshTimeline?.()
+                                } catch (e) {
+                                  toast.error(
+                                    formatUserError(
+                                      e instanceof Error ? e.message : String(e),
+                                      t
+                                    )
+                                  )
+                                }
+                              })()
+                            }}
+                            disabled={genLocked}
+                          />
                           <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
                             {!hasStill ? (
                               <>

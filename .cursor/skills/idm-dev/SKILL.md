@@ -1,7 +1,7 @@
 ---
 name: idm-dev
 description: >-
-  InstantDrama Magician repo conventions: shared 183-channel runtime (Electron,
+  InstantDrama Magician repo conventions: shared 184-channel runtime (Electron,
   Web, CLI), channelManifest argsHints, plot-focus segmentKeys, bilingual docs,
   OpenClaw skill, Electron main-process restart. Use when editing handlers,
   CLI, preload, electron-api, plot suggest, chapters, key art, or docs/skills
@@ -10,11 +10,11 @@ description: >-
 
 # InstantDrama Magician — repo agent
 
-Reply to the user in **Cantonese / zh-HK**. Keep product docs as **EN + ZH pairs**.
+Reply to the user in **Hong Kong written Chinese (書面語繁體)**. Do not use Cantonese colloquial particles (唔、嘅、喺、揀、撳、睇、冇、跟住). Do not mix English into UI copy when a Chinese term exists (template → 範本, vision → 視覺參考, GUI → 桌面／圖形介面, LLM → 語言模型). Keep API identifiers in backticks. Keep product docs as **EN + ZH pairs**; ZH docs use the same written register.
 
 ## Shared runtime (do not fork)
 
-Electron, Web (`POST /api/invoke`), and CLI (`instant-drama invoke`) share **`registerAllHandlers`** — **183** channels in `src/runtime/channelManifest.ts`.
+Electron, Web (`POST /api/invoke`), and CLI (`instant-drama invoke`) share **`registerAllHandlers`** — **184** channels in `src/runtime/channelManifest.ts`.
 
 Adding or changing an API:
 
@@ -27,7 +27,7 @@ Adding or changing an API:
 
 Do **not** add a new IPC channel for plot suggest — it is payload flags on `*:aiFill`. Do **not** add CLI-only sugar that duplicates `--args` JSON.
 
-Hardcoded channel counts (`157`, `158`) are stale. Tests and `scripts/cli-smoke.sh` expect **183**.
+Hardcoded channel counts (`157`, `158`) are stale. Tests and `scripts/cli-smoke.sh` expect **184**.
 
 ## Plot suggest
 
@@ -48,4 +48,4 @@ Main-process handler changes need a **full Electron restart**. See [electron.md]
 - Commit leftover helpers such as `scripts/to_written_zh.py` or `src/prompts/copy/_*.mjs`
 - Force-push `main`
 - Skip git hooks
-- Dump all 183 methods into markdown; `channels list` / `channels describe` stay the catalog
+- Dump all 184 methods into markdown; `channels list` / `channels describe` stay the catalog

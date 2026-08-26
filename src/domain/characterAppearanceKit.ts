@@ -51,6 +51,7 @@ export interface AppearanceKitSelection {
   body?: string
   mark?: string
   notes?: string
+  [key: string]: string | undefined
 }
 
 export interface AppearanceTemplateDef {

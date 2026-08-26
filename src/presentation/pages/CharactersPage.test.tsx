@@ -2,8 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { createMockApi, reseedMockApi } from '../../test/mockApi'
 import {
+  makeAction,
   makeCharacter,
   makeCostume,
+  makeProp,
+  makeScene,
   makeStory,
   makeTimelineEntry
 } from '../../test/pageFixtures'
@@ -124,6 +127,9 @@ function seed() {
   api.costumes.linkCharacter = vi.fn().mockResolvedValue({})
   api.costumes.unlinkCharacter = vi.fn().mockResolvedValue({})
   api.timeline.list = vi.fn().mockResolvedValue([makeTimelineEntry()])
+  api.scenes.list = vi.fn().mockResolvedValue([makeScene()])
+  api.props.list = vi.fn().mockResolvedValue([makeProp()])
+  api.actions.list = vi.fn().mockResolvedValue([makeAction()])
   api.souls.list = vi.fn().mockResolvedValue({
     data: [
       { id: 1, title: 'Hero', description: 'h', role: 'lead', domain: 'noir' },
@@ -397,6 +403,26 @@ describe('CharactersPage', () => {
     // Close
     await clickRe(/^Cancel$/i)
     expect(api.characters.list).toHaveBeenCalled()
+  })
+
+  it('photo book tab: add a shot and show generate still', async () => {
+    await renderWithProviders(<CharactersPage />)
+    await openFirstEdit()
+    await clickRe(/^Photo book$/i)
+    const addShot = screen.getByRole('button', { name: /Add shot/i })
+    await act(async () => {
+      fireEvent.click(addShot)
+    })
+    await waitFor(() => {
+      expect(document.body.textContent || '').toMatch(/Generate still/i)
+    })
+    const sceneSel = Array.from(document.querySelectorAll('select')).find((s) =>
+      Array.from((s as HTMLSelectElement).options).some((o) =>
+        /Rooftop/i.test(o.textContent || '')
+      )
+    ) as HTMLSelectElement | undefined
+    expect(sceneSel).toBeTruthy()
+    await clickRe(/^Generate still$/i)
   })
 
   it('filters library and deletes character', async () => {
@@ -734,5 +760,133 @@ describe('CharactersPage', () => {
     }
     expect(payload.costume).toMatch(/slim sheath/i)
     expect(payload.profileJson).toMatch(/costumeKit/)
+  })
+
+  it('photoshoot: clip extract does not auto-concat', async () => {
+    const stillPath = '/media/pb-still.png'
+    api.characters.list = vi.fn().mockImplementation(async () => [
+      makeCharacter({
+        refGalleryJson: galleryJson,
+        profileJson: JSON.stringify({
+          photoBook: {
+            shots: [
+              {
+                id: 'pb1',
+                sceneId: 'scene-1',
+                propIds: [],
+                stillPath
+              }
+            ]
+          }
+        })
+      })
+    ])
+    api.characters.renderPhotoBook = vi.fn()
+    await renderWithProviders(<CharactersPage />, { withAiShell: true })
+    await openFirstEdit()
+    await clickRe(/Photo book/i)
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Generate still/i })
+      ).toBeTruthy()
+    )
+    expect(screen.getByRole('button', { name: /Add album/i })).toBeTruthy()
+    const clip = screen.getByRole('button', { name: /Generate this shot's video/i })
+    await act(async () => {
+      fireEvent.click(clip)
+    })
+    await waitFor(() =>
+      expect(api.mediaGen.extract).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'character-photoshoot-clip',
+          shotId: 'pb1',
+          skipStillIfExists: true,
+          sourceImagePath: stillPath
+        })
+      )
+    )
+    expect(api.characters.renderPhotoBook).not.toHaveBeenCalled()
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('idm:video-prep-done', {
+          detail: {
+            kind: 'character-photoshoot-clip',
+            entityIds: { characterId: 'char-1', shotId: 'pb1' },
+            shotId: 'pb1',
+            path: '/tmp/clip.mp4',
+            queueRemaining: []
+          }
+        })
+      )
+    })
+    await waitFor(() =>
+      expect(api.characters.renderPhotoBook).not.toHaveBeenCalled()
+    )
+  })
+
+  it('photoshoot: concatenate button stitches the current album', async () => {
+    const stillPath = '/media/pb-still.png'
+    api.characters.list = vi.fn().mockImplementation(async () => [
+      makeCharacter({
+        refGalleryJson: galleryJson,
+        profileJson: JSON.stringify({
+          photoBook: {
+            shots: [
+              {
+                id: 'pb1',
+                sceneId: 'scene-1',
+                propIds: [],
+                stillPath,
+                clipPath: '/tmp/clip.mp4'
+              }
+            ]
+          }
+        })
+      })
+    ])
+    api.characters.renderPhotoBook = vi.fn().mockResolvedValue({
+      path: '/tmp/photobook.mp4',
+      videoMode: 'ai-clips',
+      photoBook: {
+        albums: [
+          {
+            id: 'album_default',
+            name: '',
+            shots: [
+              {
+                id: 'pb1',
+                sceneId: 'scene-1',
+                propIds: [],
+                stillPath,
+                clipPath: '/tmp/clip.mp4'
+              }
+            ],
+            videoPath: '/tmp/photobook.mp4',
+            videoMode: 'ai-clips'
+          }
+        ]
+      }
+    })
+    await renderWithProviders(<CharactersPage />)
+    await openFirstEdit()
+    await clickRe(/Photo book/i)
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Concatenate output/i })
+      ).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Concatenate output/i }))
+    })
+    await waitFor(() =>
+      expect(api.characters.renderPhotoBook).toHaveBeenCalledWith(
+        expect.objectContaining({
+          characterId: 'char-1',
+          mode: 'ai-clips',
+          concatOnly: true,
+          albumId: 'album_default'
+        })
+      )
+    )
   })
 })

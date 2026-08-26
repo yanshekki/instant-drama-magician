@@ -23,6 +23,7 @@ function entryRow(partial: Record<string, unknown> = {}) {
     mediaStatus: 'EMPTY',
     mediaError: null,
     videoJobId: null,
+    cameraTemplateId: null,
     ...partial
   }
 }
@@ -269,6 +270,32 @@ describe('TimelinePersistenceService', () => {
     expect(prisma.timelineEntry.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ dialogue: 'new' })
+      })
+    )
+  })
+
+  it('update persists cameraTemplateId and drops invalid ids', async () => {
+    const prisma = prismaWithStory()
+    ;(prisma.timelineEntry.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
+      entryRow()
+    )
+    ;(prisma.timelineEntry.update as ReturnType<typeof vi.fn>).mockResolvedValue(
+      entryRow({ cameraTemplateId: 'pov' })
+    )
+    ;(prisma.timelineEntry.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(
+      []
+    )
+    const svc = new TimelinePersistenceService(prisma as never)
+    await svc.update('t1', { cameraTemplateId: 'pov' })
+    expect(prisma.timelineEntry.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ cameraTemplateId: 'pov' })
+      })
+    )
+    await svc.update('t1', { cameraTemplateId: 'not-a-template' })
+    expect(prisma.timelineEntry.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ cameraTemplateId: null })
       })
     )
   })

@@ -19,7 +19,7 @@ describe('KeyArtService', () => {
     await ensureKeyArtSchema(prisma as never)
     expect(prisma.$executeRawUnsafe).toHaveBeenCalled()
     await ensureKeyArtSchema(prisma as never)
-    expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(4)
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(5)
   })
 
   it('getOrCreate requires story and recovers unique race', async () => {
@@ -223,6 +223,7 @@ describe('KeyArtService', () => {
       pageFormat: 'square',
       artStyle: '  manhwa  ',
       brief: '  look  ',
+      cameraTemplateId: 'low-angle-hero',
       characterIds: null,
       characterIdsJson: '["c9"]',
       sceneId: '  sc1  ',
@@ -237,6 +238,9 @@ describe('KeyArtService', () => {
       order: 3
     })
     expect((row as { shotType: string }).shotType).toBe('promo')
+    expect((row as { cameraTemplateId: string }).cameraTemplateId).toBe(
+      'low-angle-hero'
+    )
     expect((row as { makeMethod: string }).makeMethod).toBe('identity')
     expect((row as { order: number }).order).toBe(3)
     await svc.updateShot('sh1', { characterIdsJson: '  ["z"]  ' })

@@ -83,7 +83,8 @@ export function buildPropIntroVideoPrompt(
     description: string
     artStyle?: string
   },
-  locale: string = 'zh-HK'
+  locale: string = 'zh-HK',
+  skipDefaultCamera: boolean = false
 ): string {
   const name =
     profile.name.trim() || PromptCatalog.t(locale, 'prop.fallbackName')
@@ -109,7 +110,9 @@ export function buildPropIntroVideoPrompt(
         : null,
       tags ? PromptCatalog.t(locale, 'propIntro.tags', { tags }) : null,
       art ? PromptCatalog.t(locale, 'propIntro.art', { art }) : null,
-      PromptCatalog.t(locale, 'propIntro.camera'),
+      skipDefaultCamera
+        ? null
+        : PromptCatalog.t(locale, 'propIntro.camera'),
       PromptCatalog.t(locale, 'propIntro.beat'),
       PromptCatalog.t(locale, 'propIntro.noHands')
     ]

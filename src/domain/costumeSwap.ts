@@ -3,13 +3,14 @@
  * via image_edit, keeping face/body identity locked.
  */
 import type { CharacterGalleryItem } from './characterGallery'
-import { getArtStyle, type ArtStyleId } from './characterArtStyles'
+import { artStylePrompt, getArtStyle, type ArtStyleId } from './characterArtStyles'
 import { AppError } from '../types/errors'
 import {
   isLikelyMinorAge,
   type WardrobeLayer
 } from './characterSheetVariants'
 import { PromptCatalog } from '../prompts'
+import type { PromptCopyKey } from '../prompts/copy/keys'
 import { appendHardRules } from './promptHardRules'
 
 export type CostumeSwapPose =
@@ -222,6 +223,17 @@ export function pickBestBaseImage(
   return { item: gallery[0], reason: 'any' }
 }
 
+export function costumeSwapLayoutPrompt(
+  id?: CostumeSwapPose | string | null,
+  locale?: string | null
+): string {
+  const pose = getCostumeSwapPose(id)
+  return PromptCatalog.t(
+    locale,
+    `swap.costume.layout.${pose.id}` as PromptCopyKey
+  )
+}
+
 export function buildCostumeSwapPrompt(input: {
   name: string
   newCostume: string
@@ -233,7 +245,9 @@ export function buildCostumeSwapPrompt(input: {
   visualTags?: string | null
   mannerisms?: string | null
   hardRules?: string | null
+  locale?: string | null
 }): string {
+  const locale = input.locale ?? 'zh-HK'
   const style = getArtStyle(input.artStyle ?? undefined)
   const pose = getCostumeSwapPose(input.pose)
   const costume = input.newCostume.trim()
@@ -242,30 +256,47 @@ export function buildCostumeSwapPrompt(input: {
   }
 
   const body = [
-    'IMAGE EDIT / COSTUME SWAP TASK (highest priority — read fully before painting):',
-    style.promptBlock,
-    `Repeat: output medium MUST be style id "${style.id}" (${style.family}).`,
-    'You are dressing the SAME character from the source image in a NEW outer wardrobe only.',
-    'IDENTITY LOCK (never change): face/head shape, eyes, hair color and cut, body proportions, species/body plan, skin or surface markings, age presentation.',
-    'POSE LOCK: keep the same body pose and camera framing from the source unless the layout below requires a multi-view sheet.',
-    'WARDROBE REPLACE (always): strip away ALL previous outer clothing, armor, coats, dresses, uniforms, outer gear, and mismatched shoes from the source.',
-    'Then paint ONLY the new outer costume described below — full coverage, correct silhouette, readable materials, matching footwear and outer accessories.',
-    `NEW OUTER COSTUME (must match exactly, high priority): ${costume}`,
-    'If the source is nude or base-layer undergarments only: ADD the full outer costume on top while preserving anatomy and underlayer logic.',
-    'If the source already wears a costume: COMPLETELY REPLACE it — do not blend, layer, or ghost the old outfit under the new one.',
-    'Edges of clothing must sit correctly on shoulders, waist, wrists, ankles; no floating fabric, no fused limbs.',
-    'FORBIDDEN: changing species, age, face identity, body shape, second character, erotic posing, watermarks, text captions, UI chrome.',
-    'Non-human subjects: species-appropriate outer covering / gear matching the costume description.',
-    `Subject: ${input.name}`,
-    input.ageRange ? `Age / maturity: ${input.ageRange}` : '',
-    input.gender ? `Gender / presentation: ${input.gender}` : '',
-    input.appearance ? `Appearance lock: ${input.appearance}` : '',
-    input.visualTags ? `Visual tags: ${input.visualTags}` : '',
-    input.mannerisms
-      ? `Mannerism hints only: ${input.mannerisms.slice(0, 160)}`
+    PromptCatalog.t(locale, 'swap.costume.task'),
+    artStylePrompt(style.id, locale),
+    PromptCatalog.t(locale, 'sheet.scaffold.repeatMedium', {
+      id: style.id,
+      family: style.family
+    }),
+    PromptCatalog.t(locale, 'swap.costume.sameCharacter'),
+    PromptCatalog.t(locale, 'swap.costume.identity'),
+    PromptCatalog.t(locale, 'swap.costume.pose'),
+    PromptCatalog.t(locale, 'swap.costume.replace'),
+    PromptCatalog.t(locale, 'swap.costume.paint'),
+    PromptCatalog.t(locale, 'swap.costume.new', { costume }),
+    PromptCatalog.t(locale, 'swap.costume.add'),
+    PromptCatalog.t(locale, 'swap.costume.complete'),
+    PromptCatalog.t(locale, 'swap.costume.edges'),
+    PromptCatalog.t(locale, 'swap.costume.forbidden'),
+    PromptCatalog.t(locale, 'swap.costume.nonHuman'),
+    PromptCatalog.t(locale, 'swap.costume.subject', { name: input.name }),
+    input.ageRange
+      ? PromptCatalog.t(locale, 'swap.costume.age', { age: input.ageRange })
       : '',
-    `LAYOUT: ${pose.layout}`,
-    `Final checklist: (1) same face/body as source (2) ONLY the new costume visible (3) medium = ${style.id} (4) clean studio or neutral backdrop.`
+    input.gender
+      ? PromptCatalog.t(locale, 'swap.costume.gender', { gender: input.gender })
+      : '',
+    input.appearance
+      ? PromptCatalog.t(locale, 'swap.costume.appearance', {
+          appearance: input.appearance
+        })
+      : '',
+    input.visualTags
+      ? PromptCatalog.t(locale, 'swap.costume.tags', { tags: input.visualTags })
+      : '',
+    input.mannerisms
+      ? PromptCatalog.t(locale, 'swap.costume.manner', {
+          manner: input.mannerisms.slice(0, 160)
+        })
+      : '',
+    PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+      layout: costumeSwapLayoutPrompt(pose.id, locale)
+    }),
+    PromptCatalog.t(locale, 'swap.costume.checklist', { style: style.id })
   ]
     .filter(Boolean)
     .join(' ')
@@ -288,7 +319,8 @@ export function buildCostumeIntroVideoPrompt(
     artStyle?: string | null
     hardRules?: string | null
   },
-  locale: string = 'zh-HK'
+  locale: string = 'zh-HK',
+  skipDefaultCamera: boolean = false
 ): string {
   const name =
     profile.name.trim() ||
@@ -305,7 +337,9 @@ export function buildCostumeIntroVideoPrompt(
       PromptCatalog.t(locale, 'costumeIntro.name', { name }),
       PromptCatalog.t(locale, 'costumeIntro.desc', { look }),
       art ? PromptCatalog.t(locale, 'costumeIntro.art', { art }) : null,
-      PromptCatalog.t(locale, 'costumeIntro.camera'),
+      skipDefaultCamera
+        ? null
+        : PromptCatalog.t(locale, 'costumeIntro.camera'),
       PromptCatalog.t(locale, 'costumeIntro.beat'),
       PromptCatalog.t(locale, 'costumeIntro.forbid')
     ]

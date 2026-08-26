@@ -54,6 +54,12 @@ import { TimelineViewSwitch } from '../components/timeline/TimelineViewNav'
 import { writeTimelinePagePref } from '../lib/timelinePagePref'
 import { useTimelineHistory } from '../hooks/useTimelineHistory'
 import { Button, EmptyState, Label, Select, Textarea } from '../components/ui'
+import { IntroTemplatePicker } from '../components/IntroTemplatePicker'
+import {
+  DEFAULT_INTRO_VIDEO_TEMPLATE,
+  parseIntroVideoTemplateId,
+  type IntroVideoTemplateId
+} from '../../domain/introVideoTemplates'
 import { ExportFinalDialog } from '../components/ExportFinalDialog'
 import {
   defaultExportFinalOptions,
@@ -638,6 +644,7 @@ export function TimelinePage(): JSX.Element {
               args.entryId,
               ...(args.queueRemaining ?? [])
             ].filter(Boolean)
+            const queueIntroTemplateIdByEntryId: Record<string, string> = {}
             const queueUserExtraByEntryId: Record<string, string> = {}
             const queueDurationSecondsByEntryId: Record<string, number> = {}
             for (const id of batchIds) {
@@ -648,6 +655,8 @@ export function TimelinePage(): JSX.Element {
                 queueDurationSecondsByEntryId[id] = snapVideoSeconds(
                   Number(ent.endTime) - Number(ent.startTime)
                 )
+                const cam = parseIntroVideoTemplateId(ent.cameraTemplateId)
+                if (cam) queueIntroTemplateIdByEntryId[id] = cam
               }
             }
             // Current clip duration already snapped in timelineStartClipPrep
@@ -657,6 +666,10 @@ export function TimelinePage(): JSX.Element {
             ) {
               queueDurationSecondsByEntryId[args.entryId] = args.durationSeconds
             }
+            const currentCam = parseIntroVideoTemplateId(
+              entriesRef.current.find((e) => e.id === args.entryId)
+                ?.cameraTemplateId
+            )
             const req = await buildIntroMediaGenRequest({
               kind: 'timeline-clip',
               sourceImagePath: '',
@@ -664,7 +677,8 @@ export function TimelinePage(): JSX.Element {
               entryId: args.entryId,
               durationSeconds: args.durationSeconds,
               skipStillIfExists: wantSkip,
-              userExtraPrompt: args.revisionPrompt?.trim() || null
+              userExtraPrompt: args.revisionPrompt?.trim() || null,
+              introTemplateId: currentCam
             })
             startMediaGen({
               ...req,
@@ -674,7 +688,8 @@ export function TimelinePage(): JSX.Element {
               // B4: Host reuses this for auto-advanced clips
               queueSkipStillIfExists: wantSkip,
               queueUserExtraByEntryId,
-              queueDurationSecondsByEntryId
+              queueDurationSecondsByEntryId,
+              queueIntroTemplateIdByEntryId
             })
           })()
         }
@@ -1295,6 +1310,23 @@ export function TimelinePage(): JSX.Element {
                       </div>
                       <p className="mt-1 text-[10px] leading-relaxed text-ink-500">
                         {t('timeline.clipDurationHint')}
+                      </p>
+                    </div>
+
+                    <div className="mb-3">
+                      <IntroTemplatePicker
+                        value={
+                          parseIntroVideoTemplateId(
+                            selected.cameraTemplateId
+                          ) ?? DEFAULT_INTRO_VIDEO_TEMPLATE
+                        }
+                        onChange={(id: IntroVideoTemplateId) => {
+                          void update(selected.id, { cameraTemplateId: id })
+                        }}
+                        disabled={busy}
+                      />
+                      <p className="mt-1 text-[10px] leading-relaxed text-ink-500">
+                        {t('introTemplates.hint')}
                       </p>
                     </div>
 

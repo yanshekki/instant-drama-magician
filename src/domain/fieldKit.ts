@@ -115,8 +115,7 @@ function byPart(spec: FieldKitSpec): Record<string, FieldKitTemplate[]> {
 
 function copyFor(
   spec: FieldKitSpec,
-  part: string,
-  locale?: string | null
+  part: string
 ): FieldKitPartCopy | undefined {
   return (
     spec.partLabels[part as keyof typeof spec.partLabels] ??
@@ -129,7 +128,7 @@ export function fieldKitPartLabel(
   part: string,
   locale?: string | null
 ): string {
-  const copy = copyFor(spec, part, locale)
+  const copy = copyFor(spec, part)
   if (!copy) return part
   const id = coerceUiLanguage(locale)
   if (id === 'zh-CN') return copy.zhCN
@@ -366,7 +365,7 @@ export function assembleFieldKitPrompt(
   const notes = clean.notes?.trim()
   if (notes) {
     const label = fieldKitPartLabel(spec, 'notes', loc)
-    const header = copyFor(spec, 'notes', loc)
+    const header = copyFor(spec, 'notes')
       ? label
       : isChineseLocale(loc)
         ? '備註'

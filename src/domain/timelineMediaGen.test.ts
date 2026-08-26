@@ -31,7 +31,7 @@ describe('buildTimelineBeatMaterialSections', () => {
     expect(lock?.entityType).toBe('continuity')
     expect(lock?.entityType).not.toBe('other')
     expect(r.fallbackPrompt).toMatch(/Rooftop/)
-    expect(r.taskHint).toMatch(/KEYFRAME|beat #2|關鍵幀|第 2 段/)
+    expect(r.taskHint).toMatch(/still|beat #2|靜圖|第 2 段/i)
   })
 
   it('does not use character still as pixel base when there is no prev clip', () => {
@@ -49,7 +49,7 @@ describe('buildTimelineBeatMaterialSections', () => {
     expect(r.sections.find((s) => s.id === 'cast_ref')?.canBeEditBase).toBe(
       false
     )
-    expect(r.taskHint).toMatch(/KEYFRAME|關鍵幀|第 1 段/)
+    expect(r.taskHint).toMatch(/still|靜圖|beat #1|第 1 段/i)
   })
 
   it('writes Chinese task hint when locale is zh-HK', () => {
@@ -60,7 +60,7 @@ describe('buildTimelineBeatMaterialSections', () => {
       locale: 'zh-HK'
     })
     expect(r.taskHint).toMatch(/受戒下山/)
-    expect(r.taskHint).toMatch(/關鍵幀|第 1 段/)
+    expect(r.taskHint).toMatch(/靜圖|第 1 段/)
     expect(r.taskHint).not.toMatch(/Keyframe still then/)
     const beat = r.sections.find((s) => s.id === 'beat_profile')
     expect(beat?.title).toMatch(/第 1 段/)

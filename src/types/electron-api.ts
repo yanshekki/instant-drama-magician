@@ -413,6 +413,38 @@ export interface ElectronApi {
       artStyle?: string
       pose?: string
     }>
+    renderPhotoBook: (payload: {
+      characterId: string
+      mode: 'slideshow' | 'ai-clips'
+      albumId?: string
+      shotIds?: string[]
+      durationSeconds?: number
+      locale?: string
+      introTemplateId?: string
+      concatOnly?: boolean
+    }) => Promise<{
+      character: unknown
+      path: string
+      videoMode: 'slideshow' | 'ai-clips'
+      photoBook: {
+        albums: Array<{
+          id: string
+          name: string
+          shots: Array<{
+            id: string
+            sceneId: string
+            propIds: string[]
+            actionId?: string
+            notes?: string
+            stillPath?: string
+            clipPath?: string
+            cameraTemplateId?: string
+          }>
+          videoPath?: string
+          videoMode?: 'slideshow' | 'ai-clips'
+        }>
+      }
+    }>
     suggestWardrobe: (payload: {
       characterId?: string
       storyId?: string
@@ -1016,6 +1048,7 @@ export interface ElectronApi {
         sceneId?: string | null
         timelineEntryId?: string | null
         comicPageId?: string | null
+        cameraTemplateId?: string | null
         imagePath?: string | null
         imageGalleryJson?: string | null
         mediaStatus?: string
@@ -1088,14 +1121,19 @@ export interface ElectronApi {
       advancedIdentity?: boolean
       identityCollage?: boolean
       lookPackId?: string | null
+      shotId?: string
+      propIds?: string[]
       costumeDescription?: string
       atmosphereDescription?: string
       durationSeconds?: number
       locale?: string
+      skipStillIfExists?: boolean
+      sourceImagePath?: string | null
       comicVideoScheme?: 'page' | 'drama'
       keyArtMakeMethod?: 'fresh' | 'edit' | 'identity' | 'continue'
       shotType?: string | null
       pageFormat?: 'tall' | 'square' | 'wide'
+      introTemplateId?: string | null
     }) => Promise<{
       kind: string
       entityIds: Record<string, string | undefined>
@@ -1196,6 +1234,7 @@ export interface ElectronApi {
         | 'action-intro'
         | 'comic-intro'
         | 'timeline-clip'
+        | 'character-photoshoot-clip'
       sourceImagePath?: string | null
       characterId?: string
       sceneId?: string
@@ -1205,6 +1244,7 @@ export interface ElectronApi {
       storyId?: string
       entryId?: string
       pageId?: string
+      shotId?: string
       durationSeconds?: number
       locale?: string
       skipStillIfExists?: boolean
@@ -1270,6 +1310,7 @@ export interface ElectronApi {
         | 'action-intro'
         | 'comic-intro'
         | 'timeline-clip'
+        | 'character-photoshoot-clip'
       professionalPrompt: string
       userExtraPrompt?: string | null
       stillPath: string
@@ -1282,6 +1323,7 @@ export interface ElectronApi {
       storyId?: string
       entryId?: string
       pageId?: string
+      shotId?: string
       durationSeconds?: number
       aspectRatio?: string
       locale?: string
@@ -1289,6 +1331,7 @@ export interface ElectronApi {
     }) => Promise<{
       path: string
       gallery?: unknown
+      photoBook?: unknown
       entity?: unknown
       polished?: boolean
       promptUsed?: string

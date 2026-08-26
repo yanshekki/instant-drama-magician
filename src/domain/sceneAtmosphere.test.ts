@@ -73,11 +73,12 @@ describe('sceneAtmosphere', () => {
       visualTags: 'wet',
       hardRules: 'NO logo'
     })
-    expect(p).toMatch(/ATMOSPHERE SWAP/i)
+    expect(p).toMatch(/換氣氛|氣氛/)
     expect(p).toMatch(/heavy rain/i)
-    expect(p).toMatch(/LOCATION IDENTITY/i)
+    expect(p).toMatch(/場地身份/)
     expect(p).toContain('Alley')
     expect(p).toMatch(/NO logo|logo/)
+    expect(p).not.toMatch(/IMAGE EDIT \/ ATMOSPHERE SWAP|MANDATORY MEDIUM/)
   })
 
   it('throws when atmosphere empty', () => {

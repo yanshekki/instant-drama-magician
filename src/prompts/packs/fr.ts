@@ -8,7 +8,7 @@ export const frPromptPack: PromptPack = {
   languageName: 'français',
   tags: { must, mustNot },
   outputLock: [
-    'Rédige TOUTES les chaînes visibles (hardRules, descriptions, bible de style, script des beats et le prompt image/vidéo final) en français.',
+    'Rédige TOUTES les chaînes visibles (règles fermes de génération, descriptions, bible de style, script des beats et le prompt image/vidéo final) en français.',
     'Ne mélange pas les langues. Ne traduis pas les noms propres déjà saisis par l’utilisateur.',
     `Préfixe les lignes de règles uniquement avec ${must} et ${mustNot}.`,
     'Les clés JSON restent en anglais.'
@@ -36,7 +36,7 @@ export const frPromptPack: PromptPack = {
   hardRulesFallback: {
     story: `${must} silhouette lisible ; lumière cohérente\n${mustNot} filigranes ; chrome d’UI ; sous-titres illisibles ; membres en trop sur les humains`,
     character: `${must} exactement deux mains, deux bras, deux jambes (sauf design non humain)\n${mustNot} membres en trop ; troisième visage ; filigranes ; logos de marque`,
-    scene: `${must} identité du lieu en plan vide ; architecture cohérente\n${mustNot} nouveaux visages de héros ; filigranes ; accessoires qui cassent le lieu`,
+    scene: `${must} identité du lieu ; architecture cohérente\n${mustNot} nouveaux visages de héros ; filigranes ; accessoires qui cassent le lieu`,
     prop: `${must} un seul accessoire clair ; silhouette nette\n${mustNot} câbles hors sujet ; objets en trop ; filigranes ; visages de célébrités`,
     action: `${must} même identité sur tous les panneaux ; beats de mouvement lisibles\n${mustNot} membres en trop ; mauvais nombre de cases ; filigranes ; titre qui remplace une case`,
     costume: `${must} costume extérieur entier et lisible ; silhouette correcte\n${mustNot} fantôme de l’ancien habit ; membres fusionnés ; filigranes ; logos de marque`

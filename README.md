@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="#install--run"><img src="https://img.shields.io/badge/desktop-Linux%20%7C%20Windows%20%7C%20macOS-1f6feb?style=flat-square" alt="Desktop"></a>
-  <a href="#cli-instant-drama"><img src="https://img.shields.io/badge/CLI-183%20channels-238636?style=flat-square" alt="CLI"></a>
+  <a href="#cli-instant-drama"><img src="https://img.shields.io/badge/CLI-184%20channels-238636?style=flat-square" alt="CLI"></a>
   <a href="#ui-languages"><img src="https://img.shields.io/badge/UI-10%20languages-6e40c9?style=flat-square" alt="Languages"></a>
   <img src="https://img.shields.io/badge/license-MIT-8b949e?style=flat-square" alt="MIT">
 </p>
@@ -38,15 +38,16 @@ Lock a cast. Board every beat. Then work the **same story** three ways: a **time
 
 | Desktop | Remote | CLI |
 |---|---|---|
-| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **183** channels, same as the app |
+| Linux · Windows · macOS (Electron) | Same project in the browser | `instant-drama` — **184** channels, same as the app |
 
 - **Identity lock** — multi-angle character bibles, costumes, scenes, props, and motion boards  
+- **Photo book** — albums of scene / prop / action stills, then slideshow or AI clips (`characters:renderPhotoBook`)  
 - **Chapters first** — write the story, then pick chapters and beats when you fill cast, scenes, or props  
 - **Comics studio** — even grids or manga panels, 9:16 / 1:1 / 16:9, page vs short-drama video, versioned takes  
 - **Key art desk** — eight publicity types, four make methods (new / edit / lock face / continue), versioned stills, set as story cover  
 - **Continuity** — previous-beat stills and end frames feed the next clip  
 - **Materials first** — pick stills and notes, polish the director prompt, then still and video  
-- **You stay in control** — recipe picker, OS completion notifications, ten UI languages  
+- **You stay in control** — recipe picker, OS completion notifications, ten UI languages, native system prompts  
 
 ---
 
@@ -206,7 +207,7 @@ Local Grok Gateway by default, plus cloud and local LLM / image / video cards.
 | Area | What you can do |
 |------|-----------------|
 | **Stories** | Multi-story management, cover AI, style bible (**advanced style / hard-rule kits**, apply-only), **chapters**, multi-select **plot beats**, cast binding (characters / scenes / props / **actions**), `.idm.zip` backup import/export |
-| **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle sheets, identity lock, **advanced field kits** (appearance / costume / voice / mannerisms / hard rules), external refs, intro video, **vision AI fill** from a still |
+| **Characters** | Global cast library, soul.md / SoulMD Hub, multi-angle sheets, identity lock, **advanced field kits** (appearance / costume / voice / mannerisms / hard rules), **photo book** (scene / prop / action stills in `profileJson.photoBook`; GUI film follows MediaGen video steps `character-photoshoot-clip` then `concatOnly`; CLI can still `ai-clips` / `slideshow` — no extra generate channel), external refs, intro video with **shot templates**, **vision AI fill** from a still |
 | **Costumes** | Wardrobe library, costume swap, wardrobe suggestions, **advanced look / hard-rule kits** (apply-only), **AI fill from reference photo only**, multi-still gallery; **try-on dual-write** to character **and** costume multi-gallery (`costumes:appendTryOnStill`) |
 | **Scenes** | Scene copy, plates / looks / atmosphere, **advanced location / set-dressing / camera / hard-rule kits**, scene gallery, **vision AI fill** from a plate still |
 | **Props** | Prop descriptions, **advanced look / hard-rule kits**, master prompts, plate variants, **vision AI fill** from a still |
@@ -220,9 +221,9 @@ Local Grok Gateway by default, plus cloud and local LLM / image / video cards.
 | **Audio / subtitles** | Optional TTS mix, burn-in dialogue subs, xfade / ducking, aspect-aware export |
 | **Activity log** | Generation / export / update events (JSONL) for debugging |
 | **Settings** | LLM / image / video providers, **OS completion notifications**, diagnostics, FFmpeg, web server, auto-update, support report, legal terms |
-| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**183** IPC channels) |
+| **CLI `instant-drama`** | Local headless or remote invoke; build/open desktop app; OpenClaw / Hermes agents (**184** IPC channels) |
 | **Web remote** | In-app web server or standalone `instant-drama server`; browser uses the same data |
-| **i18n** | 10 UI languages (incl. zh-HK written Chinese, zh-CN Mainland written Chinese, Arabic RTL); **recipe picker** before LLM improve/generate; MediaGen chrome localized |
+| **i18n** | 10 UI languages (incl. zh-HK written Chinese, zh-CN Mainland written Chinese, Arabic RTL); **recipe picker** before LLM improve/generate; MediaGen chrome localized; **PromptCatalog + packs native** (no English paste) |
 | **Auto-update** | Packaged builds via GitHub Releases (electron-updater) |
 
 ---
@@ -251,7 +252,8 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 - Multi-image cards; Edit / Delete  
 - Edit tabs:  
   - **Profile**: name, description, age, gender, language, voice, etc.; **advanced builders** on appearance / costume / voice / mannerisms / hard rules (IDs persist in `profileJson`); **AI fill** from idea, draft, soul, **uploaded still only** (vision), or **Suggest from story**  
-  - **References**: multi-angle bible (front / ¾ / close-up…), body/base/costume pipeline, external refs, identity lock, generate professional refs, Intro video  
+  - **References**: multi-angle bible (front / ¾ / close-up…), body/base/costume pipeline, external refs, identity lock, generate professional refs, Intro video with **shot templates**  
+  - **Photo book**: albums in `profileJson.photoBook` (scene / prop / action stills); GUI film uses `character-photoshoot-clip` then `concatOnly`; CLI `ai-clips` / `slideshow` via `characters:renderPhotoBook`  
   - **Costume**: bind wardrobe  
 - **SoulMD Hub** (soulmd-hub.ysk.hk): index suggestions, import soul.md as character soul  
 - Details: [docs/soulmd-hub.md](./docs/soulmd-hub.md) · [docs/soulmd-hub-ZH.md](./docs/soulmd-hub-ZH.md)
@@ -497,7 +499,7 @@ Typical usage after global install:
 ```bash
 instant-drama --local stories list --json
 instant-drama server start --port 8787
-instant-drama channels list --json          # ~183 channels
+instant-drama channels list --json          # ~184 channels
 ```
 
 > **Note:** Global install provides the **CLI / headless / web-server** control plane (stories, cast, generation, export helpers, agent tools). Building or opening the **Electron desktop GUI** (`instant-drama build` / `instant-drama open`) still needs a full git clone with `npm install` (devDependencies such as Electron) and a local `release/` tree.
@@ -523,7 +525,7 @@ npm run instant-drama -- doctor --json
 ### Common commands
 
 ```bash
-# Diagnostics (channel count should be ~183)
+# Diagnostics (channel count should be ~184)
 instant-drama doctor --json
 instant-drama channels list --json
 
@@ -713,7 +715,7 @@ Full index + canonical facts: **[docs/README.md](./docs/README.md)** · **[docs/
 |---------|---------|--------|
 | [docs/README.md](./docs/README.md) | [docs/README-ZH.md](./docs/README-ZH.md) | Docs index + facts |
 | [docs/project-brief.md](./docs/project-brief.md) | [docs/project-brief-ZH.md](./docs/project-brief-ZH.md) | Product spec |
-| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (183 channels) |
+| [docs/cli.md](./docs/cli.md) | [docs/cli-ZH.md](./docs/cli-ZH.md) | CLI (184 channels) |
 | [docs/agent-cli.md](./docs/agent-cli.md) | [docs/agent-cli-ZH.md](./docs/agent-cli-ZH.md) | Agents / OpenClaw |
 | [docs/self-host.md](./docs/self-host.md) | [docs/self-host-ZH.md](./docs/self-host-ZH.md) | Web remote |
 | [docs/grok-gateway.md](./docs/grok-gateway.md) | [docs/grok-gateway-ZH.md](./docs/grok-gateway-ZH.md) | Grok Gateway |

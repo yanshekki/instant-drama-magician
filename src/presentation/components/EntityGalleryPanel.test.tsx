@@ -108,6 +108,7 @@ describe('EntityGalleryPanel', () => {
           checked: true,
           onChange: onIdentity
         }}
+        headerExtra={<span data-testid="header-extra">tpl</span>}
         footerActions={[
           { label: 'Gen cover', onClick: onFooter, variant: 'primary' }
         ]}
@@ -121,6 +122,7 @@ describe('EntityGalleryPanel', () => {
       />
     )
     expect(screen.getByText('Looks')).toBeTruthy()
+    expect(screen.getByTestId('header-extra').textContent).toBe('tpl')
     expect(screen.getByText('2')).toBeTruthy()
     expect(screen.getByTestId('preview')).toBeTruthy()
     expect(screen.getByTestId('strip')).toBeTruthy()

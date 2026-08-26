@@ -11,7 +11,7 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.8.0)
+## Recent focus areas (1.8.0 → 1.9.0)
 
 | Area | Tests (examples) |
 |------|------------------|
@@ -28,8 +28,10 @@
 | Identity lock + multi-vision fill | `advancedIdentity.test.ts`, `identityCollageLayout.test.ts`, `characters/aiFill.test.ts`, `profileFillMissing.test.ts` |
 | Chain-end last frame + headless still | `clipContinuityContext.test.ts`, `videoPrep/confirm.test.ts`, `ensureTimelineClipStill.test.ts`, `VideoStep.test.ts` |
 | gctoac clip voices | `grokVideoVoices.test.ts`, `GrokHttpVideoProvider.test.ts`, `settings.test.ts` |
-| Written Chinese + beat i18n | `PromptCatalog.test.ts` (no HK colloquial; non-en `beat.*` ≠ English) |
+| Ten-locale PromptCatalog | `PromptCatalog.test.ts` (every non-en key ≠ English; ja/fr sheet, geometry, costume-swap samples; no HK colloquial) |
 | Visual field kits | `fieldKit.test.ts`, `characterAppearanceKit.test.ts`, `FieldKitBuilder.test.tsx`, `AppearanceKitBuilder.test.tsx`, library page smokes on Characters / Scenes / Props / Actions / Costumes / Stories |
+| Character photo book | `characterPhotoBook.test.ts`, `photoBook.test.ts`, `PhotoBookAlbumBar.test.tsx`, `CharactersPage.test.tsx`, `LocalMediaVideo.test.tsx` |
+| Camera / shot templates | `introVideoTemplates.test.ts`, `IntroTemplatePicker.test.tsx`, `startIntroMediaGen.test.ts`, `ImageOptionPicker.test.tsx` |
 
 ```bash
 npx vitest run src/runtime/handlers/mediaGen.test.ts \

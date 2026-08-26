@@ -28,7 +28,7 @@ describe('generateVideoStillKeyframe', () => {
       expect(ai.generateImage).toHaveBeenCalled()
       expect(ai.editImage).not.toHaveBeenCalled()
       expect(r.stillPath).toBe(out)
-      expect(r.stillPromptUsed).toMatch(/KEYFRAME|IDENTITY|HARD|watermark/i)
+      expect(r.stillPromptUsed).toMatch(/STILL|IDENTITY|HARD|watermark/i)
       expect(existsSync(out)).toBe(true)
       expect(readFileSync(out).toString()).toBe('PNGDATA')
     } finally {
@@ -65,7 +65,7 @@ describe('generateVideoStillKeyframe', () => {
           size: '720x1280'
         })
       )
-      expect(r.stillPromptUsed).toMatch(/warmer|KEYFRAME/i)
+      expect(r.stillPromptUsed).toMatch(/warmer|STILL|靜圖/i)
       expect(readFileSync(out).toString()).toBe('EDIT')
     } finally {
       rmSync(dir, { recursive: true, force: true })

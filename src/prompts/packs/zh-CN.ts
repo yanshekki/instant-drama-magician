@@ -9,7 +9,7 @@ export const zhCnPromptPack: PromptPack = {
   languageName: '简体中文',
   tags: { must, mustNot },
   outputLock: [
-    '所有用户可见字符串（hardRules、描述、风格圣经、段落剧本、以及最终出图／出片提示词 正文）必须用简体中文。',
+    '所有用户可见字符串（生成铁则、描述、风格圣经、段落剧本、以及最终出图／出片提示词正文）必须用简体中文。',
     '不要中英夹杂。用户已写的专有名词不要翻译走。',
     `铁则行只可用 ${must} 与 ${mustNot} 作前缀。`,
     'JSON 对象键名维持英文。'
@@ -35,9 +35,9 @@ export const zhCnPromptPack: PromptPack = {
     '禁止用空泛画质词充数（不可只写 high quality／杰作／4k）。'
   ].join(' '),
   hardRulesFallback: {
-    story: `${must}剪影可读；光线连贯\n${mustNot}水印；UI 边框；难读字幕；人类多余肢体`,
+    story: `${must}剪影可读；光线连贯\n${mustNot}水印；界面边框；难读字幕；人类多余肢体`,
     character: `${must}恰好两只手、两臂、两腿（非人设定除外）\n${mustNot}多余肢体；第三人脸；水印；品牌标志`,
-    scene: `${must}空镜场地身份；建筑一致\n${mustNot}新增主角脸；水印；破坏场地的乱入道具`,
+    scene: `${must}场地身份一致；建筑连贯\n${mustNot}新增主角脸；水印；破坏场地的乱入道具`,
     prop: `${must}单一清晰道具身份；轮廓干净\n${mustNot}无关电线／缆线；多余杂物；水印；名人脸`,
     action: `${must}各格身份一致；动作节拍可读\n${mustNot}多余肢体；格数错误；水印；标题取代分镜格`,
     costume: `${must}外层戏服完整可读；轮廓正确\n${mustNot}旧装残影；肢体融合；水印；品牌标志`

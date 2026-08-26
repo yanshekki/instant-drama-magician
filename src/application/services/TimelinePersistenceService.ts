@@ -16,6 +16,25 @@ import {
   normalizeBindings
 } from '../../domain/timelineBindings'
 import { StoryCastService } from './StoryCastService'
+import { parseIntroVideoTemplateId } from '../../domain/introVideoTemplates'
+
+export async function ensureTimelineCameraTemplateColumn(
+  prisma: PrismaClient
+): Promise<void> {
+  try {
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "TimelineEntry" ADD COLUMN "cameraTemplateId" TEXT`
+    )
+  } catch {
+    /* column already exists */
+  }
+}
+
+function cameraTemplateOrNull(
+  raw: string | null | undefined
+): string | null {
+  return parseIntroVideoTemplateId(raw) ?? null
+}
 
 export class TimelinePersistenceService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -39,6 +58,7 @@ export class TimelinePersistenceService {
     actionIds?: string | null
     dialogue: string | null
     beatContentJson?: string | null
+    cameraTemplateId?: string | null
     order: number
     mediaPath: string | null
     mediaStatus: TimelineEntry['mediaStatus']
@@ -62,6 +82,9 @@ export class TimelinePersistenceService {
       dialogue: h.dialogue,
       beatContentJson:
         (row as { beatContentJson?: string | null }).beatContentJson ?? null,
+      cameraTemplateId: cameraTemplateOrNull(
+        (row as { cameraTemplateId?: string | null }).cameraTemplateId
+      ),
       order: h.order,
       mediaPath: h.mediaPath,
       mediaStatus: h.mediaStatus,
@@ -71,6 +94,7 @@ export class TimelinePersistenceService {
   }
 
   async list(storyId: string): Promise<TimelineEntry[]> {
+    await ensureTimelineCameraTemplateColumn(this.prisma)
     const rows = await this.prisma.timelineEntry.findMany({
       where: { storyId },
       orderBy: [{ startTime: 'asc' }, { order: 'asc' }]
@@ -121,6 +145,7 @@ export class TimelinePersistenceService {
 
   async create(input: CreateTimelineEntryInput): Promise<TimelineEntry> {
     await this.ensureStory(input.storyId)
+    await ensureTimelineCameraTemplateColumn(this.prisma)
     const rangeErr = validateTimeRange(
       input.startTime,
       input.endTime,
@@ -161,6 +186,7 @@ export class TimelinePersistenceService {
         actionIds: binds.actionIds,
         dialogue: input.dialogue ?? null,
         beatContentJson: input.beatContentJson ?? null,
+        cameraTemplateId: cameraTemplateOrNull(input.cameraTemplateId),
         order: input.order
       }
     })
@@ -170,6 +196,7 @@ export class TimelinePersistenceService {
   }
 
   async update(id: string, data: UpdateTimelineEntryInput): Promise<TimelineEntry> {
+    await ensureTimelineCameraTemplateColumn(this.prisma)
     const existing = await this.prisma.timelineEntry.findUnique({ where: { id } })
     if (!existing) throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound', String(id))
 
@@ -269,6 +296,9 @@ export class TimelinePersistenceService {
         ...(data.dialogue !== undefined ? { dialogue: data.dialogue } : {}),
         ...(data.beatContentJson !== undefined
           ? { beatContentJson: data.beatContentJson }
+          : {}),
+        ...(data.cameraTemplateId !== undefined
+          ? { cameraTemplateId: cameraTemplateOrNull(data.cameraTemplateId) }
           : {}),
         ...(data.order !== undefined ? { order: data.order } : {}),
         ...(data.mediaPath !== undefined ? { mediaPath: data.mediaPath } : {}),

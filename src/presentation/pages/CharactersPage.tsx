@@ -80,7 +80,37 @@ import { buildVideoPrepDraftKey } from '../../domain/videoPrep'
 import { getApi } from '../../lib/api'
 import { parseIpcError } from '../../lib/ipc'
 import { formatUserError } from '../lib/formatUserError'
-import type { Character, CreateCharacterInput } from '../../types/domain'
+import type {
+  Action,
+  Character,
+  CreateCharacterInput,
+  Prop,
+  Scene
+} from '../../types/domain'
+import {
+  emptyPhotoBook,
+  mergePhotoBookIntoProfileJson,
+  newPhotoBookShot,
+  parsePhotoBook,
+  removePhotoBookShot,
+  setPhotoBookShotClip,
+  setPhotoBookShotStill,
+  shotsWithStills,
+  shotsWithClips,
+  upsertPhotoBookShot,
+  activeAlbum,
+  albumShots,
+  clearPhotoBookShotStill,
+  reorderPhotoBookShots,
+  upsertAlbum,
+  removeAlbum,
+  renameAlbum,
+  newPhotoBookAlbumId,
+  emptyPhotoBookAlbum,
+  sanitizePhotoBook,
+  type PhotoBook,
+  type PhotoBookShot
+} from '../../domain/characterPhotoBook'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { useDialog } from '../context/DialogContext'
@@ -126,6 +156,7 @@ import {
 import {
   galleryHasPersistedIdentityLock,
   markGalleryIdentityLock,
+  pickAdvancedIdentityRefs,
   toggleGalleryIdentityLock
 } from '../../domain/advancedIdentity'
 import type { ImageGenConfirmPayload } from '../components/ImageGenConfirmModal'
@@ -139,6 +170,9 @@ import {
   EntityGalleryPanel,
   EntityGalleryLayerChip
 } from '../components/EntityGalleryPanel'
+import { PhotoBookAlbumBar } from '../components/PhotoBookAlbumBar'
+import { LocalMediaVideo } from '../components/LocalMediaVideo'
+import { IntroTemplatePicker } from '../components/IntroTemplatePicker'
 import {
   EditorField,
   EditorSelect,
@@ -150,8 +184,17 @@ import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, EmptyState, Input, Label, Textarea } from '../components/ui'
 import { translateCharacterGalleryLabel } from '../../domain/galleryLabelI18n'
+import {
+  DEFAULT_INTRO_VIDEO_TEMPLATE,
+  parseIntroVideoTemplateId
+} from '../../domain/introVideoTemplates'
+import {
+  SYSTEM_PHOTO_ACTIONS,
+  systemPhotoActionLabelKey,
+  systemPhotoActionStorageId
+} from '../../domain/systemPhotoActions'
 
-type EditorPanel = 'profile' | 'refs' | 'costume'
+type EditorPanel = 'profile' | 'refs' | 'costume' | 'photoshoot'
 type GalleryLayerFilter = 'all' | WardrobeLayer
 
 interface FormState {
@@ -185,6 +228,7 @@ interface FormState {
   coverPath: string | null
   artStyle: ArtStyleId
   costumes: CharacterCostumeEntry[]
+  photoBook: PhotoBook
 }
 
 const emptyForm = (): FormState => ({
@@ -215,17 +259,19 @@ const emptyForm = (): FormState => ({
   gallery: [],
   coverPath: null,
   artStyle: DEFAULT_ART_STYLE,
-  costumes: []
+  costumes: [],
+  photoBook: emptyPhotoBook()
 })
 
 function mergeCharacterProfileJson(form: FormState): string | null {
-  return mergeFieldKitsIntoProfileJson(form.profileJsonRaw, [
+  const kits = mergeFieldKitsIntoProfileJson(form.profileJsonRaw, [
     { spec: APPEARANCE_KIT, kit: form.appearanceKit },
     { spec: COSTUME_KIT, kit: form.costumeKit },
     { spec: VOICE_KIT, kit: form.voiceKit },
     { spec: MANNERISM_KIT, kit: form.mannerismKit },
     { spec: HARDRULES_KIT, kit: form.hardRulesKit }
   ])
+  return mergePhotoBookIntoProfileJson(kits, form.photoBook)
 }
 
 function galleryFromCharacter(c: Character): CharacterGalleryItem[] {
@@ -413,6 +459,11 @@ export function CharactersPage(): JSX.Element {
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorPanel, setEditorPanel] = useState<EditorPanel>('refs')
+  const [libScenes, setLibScenes] = useState<Scene[]>([])
+  const [libProps, setLibProps] = useState<Prop[]>([])
+  const [libActions, setLibActions] = useState<Action[]>([])
+  const [selectedShotId, setSelectedShotId] = useState<string | null>(null)
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
@@ -486,6 +537,45 @@ export function CharactersPage(): JSX.Element {
       })
     })
   }, [onWardrobeApply, editingId, form.artStyle, t])
+
+  useEffect(() => {
+    if (!editorOpen) return
+    void Promise.all([
+      getApi().scenes.list() as Promise<Scene[]>,
+      getApi().props.list() as Promise<Prop[]>,
+      getApi().actions.list() as Promise<Action[]>
+    ])
+      .then(([scenes, props, actions]) => {
+        setLibScenes(Array.isArray(scenes) ? scenes : [])
+        setLibProps(Array.isArray(props) ? props : [])
+        setLibActions(Array.isArray(actions) ? actions : [])
+      })
+      .catch(() => {
+        /* optional libraries */
+      })
+  }, [editorOpen])
+
+  useEffect(() => {
+    const onStill = (ev: Event): void => {
+      const detail = (ev as CustomEvent<{
+        characterId?: string
+        shotId?: string
+        path?: string
+      }>).detail
+      if (!detail?.path || !detail.shotId) return
+      if (editingId && detail.characterId && detail.characterId !== editingId) {
+        return
+      }
+      setForm((f) => ({
+        ...f,
+        photoBook: setPhotoBookShotStill(f.photoBook, detail.shotId!, detail.path!)
+      }))
+      setSelectedShotId(detail.shotId)
+    }
+    window.addEventListener('idm:character-photoshoot-done', onStill)
+    return () =>
+      window.removeEventListener('idm:character-photoshoot-done', onStill)
+  }, [editingId])
 
   const [aiIdea, setAiIdea] = useState('')
   const [sheetVariant, setSheetVariant] =
@@ -674,7 +764,8 @@ export function CharactersPage(): JSX.Element {
       gallery,
       coverPath: primaryGalleryPath(gallery, c.refImagePath),
       artStyle: style,
-      costumes
+      costumes,
+      photoBook: parsePhotoBook(c.profileJson)
     })
     // Prefill improve box with seed / short brief for instant refine
     setAiIdea(c.seedPrompt?.trim() || '')
@@ -688,6 +779,8 @@ export function CharactersPage(): JSX.Element {
     setGalleryLayerFilter('all')
     setNewCostumeName('')
     setEditorPanel(gallery.length > 0 ? 'refs' : 'profile')
+    setSelectedShotId(albumShots(parsePhotoBook(c.profileJson))[0]?.id ?? null)
+    setSelectedAlbumId(parsePhotoBook(c.profileJson).albums[0]?.id ?? null)
     setEditorOpen(true)
     const persistIdentity = galleryHasPersistedIdentityLock(gallery)
     setUseAdvancedIdentity(persistIdentity)
@@ -1228,12 +1321,183 @@ export function CharactersPage(): JSX.Element {
             characterId: characterId!,
             storyId: activeStoryId ?? undefined,
             artStyle: form.artStyle,
-            durationSeconds: 10
+            durationSeconds: 10,
+            locale: i18n.language
           })
           startMediaGen(req)
         })()
       }
     })
+  }
+
+  const persistPhotoBook = (book: PhotoBook): Promise<void> => {
+    setForm((f) => ({ ...f, photoBook: book }))
+    if (!editingId) return Promise.resolve()
+    const profileJson = mergePhotoBookIntoProfileJson(
+      mergeCharacterProfileJson({ ...form, photoBook: book }),
+      book
+    )
+    return getApi()
+      .characters.update(editingId, { profileJson })
+      .then(() => undefined)
+      .catch(() => undefined)
+  }
+
+  const handleAddPhotoShot = (): void => {
+    const shot = newPhotoBookShot({
+      sceneId: libScenes[0]?.id || '',
+      cameraTemplateId: DEFAULT_INTRO_VIDEO_TEMPLATE
+    })
+    void persistPhotoBook(upsertPhotoBookShot(form.photoBook, shot, selectedAlbumId))
+    setSelectedShotId(shot.id)
+  }
+
+  const currentAlbum = activeAlbum(form.photoBook, selectedAlbumId)
+  const selectedShot: PhotoBookShot | undefined =
+    currentAlbum.shots.find((s) => s.id === selectedShotId) ??
+    currentAlbum.shots[0]
+
+  const handleGeneratePhotoShot = async (): Promise<void> => {
+    setActionError(null)
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('characters.photoBookNeedSave'))
+        return
+      }
+      const shot = selectedShot
+      if (!shot?.sceneId) {
+        setActionError(t('characters.photoBookNeedScene'))
+        return
+      }
+      if (characterAiBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      await persistPhotoBook(form.photoBook)
+      const paths = pickAdvancedIdentityRefs(form.gallery, {
+        selectedPaths: selectedPathsForIdentity
+      })
+      startMediaGen({
+        kind: 'character-photoshoot',
+        characterId: id,
+        sceneId: shot.sceneId,
+        actionId: shot.actionId,
+        propIds: shot.propIds,
+        shotId: shot.id,
+        artStyle: form.artStyle,
+        galleryIdentityPaths: paths,
+        preferIdentityEdit: true,
+        advancedIdentity: useAdvancedIdentity || true,
+        identityCollage: useAdvancedIdentity,
+        atmosphereDescription: shot.notes
+      })
+    } catch (e) {
+      const msg = formatUserError(e, t)
+      setActionError(msg)
+      toast.error(msg)
+    }
+  }
+
+  const handleGeneratePhotoShotClip = async (): Promise<void> => {
+    setActionError(null)
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('characters.photoBookNeedSave'))
+        return
+      }
+      const shot = selectedShot
+      if (!shot?.sceneId) {
+        setActionError(t('characters.photoBookNeedScene'))
+        return
+      }
+      if (!shot.stillPath?.trim()) {
+        setActionError(t('characters.photoBookNeedStill'))
+        return
+      }
+      if (characterAiBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      await persistPhotoBook(form.photoBook)
+      const { buildPhotoBookClipMediaGenRequest } = await import(
+        '../lib/startIntroMediaGen'
+      )
+      const identity = pickAdvancedIdentityRefs(form.gallery, {
+        selectedPaths: selectedPathsForIdentity
+      })
+      const req = await buildPhotoBookClipMediaGenRequest({
+        characterId: id,
+        shotId: shot.id,
+        shot: {
+          stillPath: shot.stillPath.trim(),
+          sceneId: shot.sceneId,
+          actionId: shot.actionId,
+          propIds: shot.propIds,
+          notes: shot.notes
+        },
+        identityPaths: identity,
+        artStyle: form.artStyle,
+        introTemplateId: shot.cameraTemplateId,
+        locale: i18n.language,
+        durationSeconds: 10,
+        advancedIdentity: useAdvancedIdentity || true,
+        identityCollage: useAdvancedIdentity
+      })
+      startMediaGen(req)
+    } catch (e) {
+      const msg = formatUserError(e, t)
+      setActionError(msg)
+      toast.error(msg)
+    }
+  }
+
+  const handleConcatPhotoBook = async (): Promise<void> => {
+    setActionError(null)
+    try {
+      const id = await ensureSavedId()
+      if (!id) {
+        setActionError(t('characters.photoBookNeedSave'))
+        return
+      }
+      const albumId = currentAlbum.id
+      const ready = shotsWithStills(form.photoBook, null, albumId)
+      if (ready.length === 0) {
+        setActionError(t('characters.photoBookNeedStill'))
+        return
+      }
+      const clips = shotsWithClips(form.photoBook, null, albumId)
+      if (clips.length !== ready.length) {
+        setActionError(t('errors.photoBookNeedClip'))
+        return
+      }
+      if (characterAiBusy(id)) {
+        toast.info(t('common.loading'))
+        return
+      }
+      await persistPhotoBook(form.photoBook)
+      toast.info(t('aiJobs.startedBackground'))
+      const r = await getApi().characters.renderPhotoBook({
+        characterId: id,
+        mode: 'ai-clips',
+        concatOnly: true,
+        albumId,
+        durationSeconds: 10,
+        locale: i18n.language
+      })
+      if (r?.photoBook) {
+        setForm((f) => ({
+          ...f,
+          photoBook: sanitizePhotoBook(r.photoBook)
+        }))
+      }
+      toast.success(t('characters.photoBookFilmOk'))
+    } catch (e) {
+      const msg = formatUserError(e, t)
+      setActionError(msg)
+      toast.error(msg)
+    }
   }
 
   // After video confirm, reload gallery introVideoPath on the source still
@@ -1246,13 +1510,14 @@ export function CharactersPage(): JSX.Element {
           setForm,
           setSelectedImageId,
           reload,
-          getCharacter: (id) => getApi().characters.get(id) as Promise<Character>
+          getCharacter: (id) =>
+            getApi().characters.get(id) as Promise<Character>
         }
       )
     }
     window.addEventListener('idm:video-prep-done', onDone)
     return () => window.removeEventListener('idm:video-prep-done', onDone)
-  }, [editingId, reload])
+  }, [editingId, reload, t, i18n.language, toast])
 
   /** Import a still from disk into the unified gallery list. */
   const handlePickExternalRef = async (): Promise<void> => {
@@ -1790,11 +2055,145 @@ export function CharactersPage(): JSX.Element {
             tabs={[
               { id: 'profile', label: t('characters.tabProfile') },
               { id: 'refs', label: t('characters.tabRefs') },
-              { id: 'costume', label: t('characters.tabCostume') }
+              { id: 'costume', label: t('characters.tabCostume') },
+              { id: 'photoshoot', label: t('characters.tabPhotoBook') }
             ]}
             activeTab={editorPanel}
             onTabChange={(id) => setEditorPanel(id as EditorPanel)}
             preview={
+              editorPanel === 'photoshoot' ? (
+                <div className="flex h-full flex-col gap-3">
+                  <EntityGalleryPanel
+                    title={t('characters.tabPhotoBook')}
+                    countLabel={`${currentAlbum.shots.filter((s) => s.stillPath).length}/${currentAlbum.shots.length}`}
+                    headerExtra={
+                      <PhotoBookAlbumBar
+                        albums={form.photoBook.albums}
+                        selectedId={currentAlbum.id}
+                        canDelete={form.photoBook.albums.length > 1}
+                        onSelect={(id) => {
+                          setSelectedAlbumId(id)
+                          const first = albumShots(form.photoBook, id)[0]
+                          setSelectedShotId(first?.id ?? null)
+                        }}
+                        onAdd={() => {
+                          const album = emptyPhotoBookAlbum({
+                            id: newPhotoBookAlbumId(),
+                            name: t('characters.photoBookAlbumN', {
+                              n: form.photoBook.albums.length + 1
+                            })
+                          })
+                          persistPhotoBook(
+                            upsertAlbum(form.photoBook, album)
+                          )
+                          setSelectedAlbumId(album.id)
+                          setSelectedShotId(null)
+                        }}
+                        onRename={(id, name) => {
+                          void persistPhotoBook(
+                            renameAlbum(form.photoBook, id, name)
+                          )
+                        }}
+                        onDelete={(id) => {
+                          void dialog
+                            .confirm({
+                              message: t(
+                                'characters.photoBookDeleteAlbumConfirm'
+                              )
+                            })
+                            .then((ok) => {
+                              if (!ok) return
+                              const next = removeAlbum(form.photoBook, id)
+                              persistPhotoBook(next)
+                              const fallback = next.albums[0]
+                              setSelectedAlbumId(fallback?.id ?? null)
+                              setSelectedShotId(
+                                fallback?.shots[0]?.id ?? null
+                              )
+                            })
+                        }}
+                      />
+                    }
+                    previewPath={selectedShot?.stillPath}
+                    previewAlt={
+                      selectedShot
+                        ? `${t('characters.photoBookShot')} ${
+                            currentAlbum.shots.findIndex(
+                              (s) => s.id === selectedShot.id
+                            ) + 1
+                          }`
+                        : ''
+                    }
+                    maxHeightClass="max-h-[min(36vh,420px)] lg:max-h-[min(40vh,440px)]"
+                    showMeta
+                    introVideoBusy={editorAiBusy}
+                    introVideoPath={selectedShot?.clipPath}
+                    introVideoHasDraft={
+                      Boolean(editingId) &&
+                      Boolean(selectedShot?.id) &&
+                      hasVideoPrepDraft(
+                        buildVideoPrepDraftKey(
+                          'character-photoshoot-clip',
+                          {
+                            characterId: editingId!,
+                            shotId: selectedShot?.id
+                          }
+                        )
+                      )
+                    }
+                    onIntroVideo={
+                      selectedShot?.stillPath
+                        ? () => void handleGeneratePhotoShotClip()
+                        : undefined
+                    }
+                    onRemove={
+                      selectedShot?.stillPath
+                        ? () =>
+                            persistPhotoBook(
+                              clearPhotoBookShotStill(
+                                form.photoBook,
+                                selectedShot.id
+                              )
+                            )
+                        : undefined
+                    }
+                    videoLabels={{
+                      generate: t('characters.photoBookClipGenerate'),
+                      regen: t('characters.photoBookClipRegen'),
+                      play: t('characters.photoBookClipPlay'),
+                      open: t('characters.photoBookClipOpen')
+                    }}
+                    emptyMessage={t('characters.photoBookNoStill')}
+                    emptyHint={t('characters.photoBookHint')}
+                    items={currentAlbum.shots.map((shot, i) => ({
+                      id: shot.id,
+                      path: shot.stillPath?.trim() || '',
+                      label: `${i + 1}`
+                    }))}
+                    selectedId={selectedShot?.id ?? null}
+                    multiSelect={false}
+                    onSelect={(id) => setSelectedShotId(id)}
+                    onReorder={(fromId, toId) =>
+                      persistPhotoBook(
+                        reorderPhotoBookShots(
+                          form.photoBook,
+                          fromId,
+                          toId
+                        )
+                      )
+                    }
+                    footerHint={t('characters.photoBookHint')}
+                  />
+                  {currentAlbum.videoPath?.trim() ? (
+                    <div className="space-y-1">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                        {t('characters.photoBookVideo')}
+                      </h3>
+                      <LocalMediaVideo filePath={currentAlbum.videoPath} />
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
               <EntityGalleryPanel
                 title={t('characters.gallery')}
                 countLabel={`${filteredGallery.length}/${form.gallery.length}`}
@@ -1908,6 +2307,7 @@ export function CharactersPage(): JSX.Element {
                 onReorder={handleReorderGallery}
                 labelOf={(g) => translateCharacterGalleryLabel(g.label, t)}
               />
+              )
             }
           >
             {/* ── Profile ── */}
@@ -2977,6 +3377,235 @@ export function CharactersPage(): JSX.Element {
                 </section>
               </div>
             )}
+
+            {editorPanel === 'photoshoot' && (
+              <div className={`${editorFormClass} !space-y-3`}>
+                <div>
+                  <h3 className="text-sm font-semibold text-ink-100">
+                    {t('characters.tabPhotoBook')}
+                  </h3>
+                  <p className="mt-1 text-[11px] text-ink-500">
+                    {t('characters.photoBookHint')}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="!h-8 !min-h-8 !text-xs"
+                    aria-label={t('characters.photoBookAddShot')}
+                    onClick={handleAddPhotoShot}
+                  >
+                    {t('characters.photoBookAddShot')}
+                  </Button>
+                  {selectedShot ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="!h-8 !min-h-8 !text-xs text-rose-300"
+                      onClick={() => {
+                        const next = removePhotoBookShot(
+                          form.photoBook,
+                          selectedShot.id
+                        )
+                        persistPhotoBook(next)
+                        const shots = albumShots(next, currentAlbum.id)
+                        setSelectedShotId(shots[0]?.id ?? null)
+                      }}
+                    >
+                      {t('common.delete')}
+                    </Button>
+                  ) : null}
+                </div>
+
+                {currentAlbum.shots.length === 0 ? (
+                  <p className="text-[11px] text-ink-500">
+                    {t('characters.photoBookEmpty')}
+                  </p>
+                ) : null}
+
+                {selectedShot ? (
+                  <section className="space-y-3">
+                    <EditorField
+                      label={t('introTemplates.label')}
+                      hint={t('introTemplates.hint')}
+                    >
+                      <IntroTemplatePicker
+                        hideLabel
+                        value={
+                          parseIntroVideoTemplateId(
+                            selectedShot.cameraTemplateId
+                          ) ?? DEFAULT_INTRO_VIDEO_TEMPLATE
+                        }
+                        onChange={(id) =>
+                          persistPhotoBook(
+                            upsertPhotoBookShot(form.photoBook, {
+                              ...selectedShot,
+                              cameraTemplateId: id
+                            })
+                          )
+                        }
+                      />
+                    </EditorField>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <EditorField label={t('characters.photoBookScene')}>
+                        <EditorSelect
+                          value={selectedShot.sceneId}
+                          onChange={(e) =>
+                            persistPhotoBook(
+                              upsertPhotoBookShot(form.photoBook, {
+                                ...selectedShot,
+                                sceneId: e.target.value
+                              })
+                            )
+                          }
+                        >
+                          <option value="">
+                            {t('characters.photoBookNoScene')}
+                          </option>
+                          {libScenes.map((sc) => (
+                            <option key={sc.id} value={sc.id}>
+                              {sc.title || sc.description || sc.id}
+                            </option>
+                          ))}
+                        </EditorSelect>
+                      </EditorField>
+                      <EditorField label={t('characters.photoBookAction')}>
+                        <EditorSelect
+                          value={selectedShot.actionId ?? ''}
+                          onChange={(e) =>
+                            persistPhotoBook(
+                              upsertPhotoBookShot(form.photoBook, {
+                                ...selectedShot,
+                                actionId: e.target.value || undefined
+                              })
+                            )
+                          }
+                        >
+                          <option value="">
+                            {t('characters.photoBookOptional')}
+                          </option>
+                          <optgroup
+                            label={t('characters.photoBookActionSystem')}
+                          >
+                            {SYSTEM_PHOTO_ACTIONS.map((ac) => (
+                              <option
+                                key={ac.id}
+                                value={systemPhotoActionStorageId(ac.id)}
+                              >
+                                {t(systemPhotoActionLabelKey(ac.id))}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {libActions.length > 0 ? (
+                            <optgroup
+                              label={t('characters.photoBookActionLibrary')}
+                            >
+                              {libActions.map((ac) => (
+                                <option key={ac.id} value={ac.id}>
+                                  {ac.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ) : null}
+                        </EditorSelect>
+                      </EditorField>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs font-medium text-ink-400">
+                        {t('characters.photoBookProps')}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {libProps.length === 0 ? (
+                          <p className="text-[11px] text-ink-500">
+                            {t('characters.photoBookOptional')}
+                          </p>
+                        ) : (
+                          libProps.map((pr) => {
+                            const on = selectedShot.propIds.includes(pr.id)
+                            return (
+                              <button
+                                key={pr.id}
+                                type="button"
+                                className={[
+                                  'rounded-full px-2 py-0.5 text-[10px] font-medium transition',
+                                  on
+                                    ? 'bg-brand-600 text-white'
+                                    : 'bg-ink-800 text-ink-400 hover:bg-ink-700 hover:text-ink-200'
+                                ].join(' ')}
+                                onClick={() => {
+                                  const propIds = on
+                                    ? selectedShot.propIds.filter(
+                                        (x) => x !== pr.id
+                                      )
+                                    : [...selectedShot.propIds, pr.id]
+                                  persistPhotoBook(
+                                    upsertPhotoBookShot(form.photoBook, {
+                                      ...selectedShot,
+                                      propIds
+                                    })
+                                  )
+                                }}
+                              >
+                                {pr.name}
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+                    <EditorField label={t('characters.photoBookNotes')}>
+                      <Input
+                        value={selectedShot.notes ?? ''}
+                        onChange={(e) =>
+                          persistPhotoBook(
+                            upsertPhotoBookShot(form.photoBook, {
+                              ...selectedShot,
+                              notes: e.target.value
+                            })
+                          )
+                        }
+                      />
+                    </EditorField>
+                    <Button
+                      type="button"
+                      className="w-full"
+                      disabled={editorAiBusy || !selectedShot.sceneId}
+                      onClick={() => void handleGeneratePhotoShot()}
+                    >
+                      {t('characters.photoBookGenerateStill')}
+                    </Button>
+                    <Button
+                      type="button"
+                      className="w-full"
+                      disabled={
+                        editorAiBusy ||
+                        !selectedShot.sceneId ||
+                        !selectedShot.stillPath
+                      }
+                      onClick={() => void handleGeneratePhotoShotClip()}
+                    >
+                      {t('characters.photoBookGenerateClip')}
+                    </Button>
+                  </section>
+                ) : null}
+
+                <div className="sticky bottom-0 z-10 space-y-2 border-t border-ink-800 bg-ink-950/95 py-3">
+                  <Button
+                    type="button"
+                    className="w-full"
+                    disabled={
+                      editorAiBusy ||
+                      shotsWithClips(form.photoBook, null, currentAlbum.id)
+                        .length === 0
+                    }
+                    onClick={() => void handleConcatPhotoBook()}
+                  >
+                    {t('characters.photoBookConcat')}
+                  </Button>
+                </div>
+              </div>
+            )}
           </EditorShell>
         )}
 
@@ -3607,7 +4236,11 @@ export function charactersHandleSheetCommitted(
 export function charactersHandleVideoPrepDone(
   d: {
     kind?: string
-    entityIds?: { characterId?: string }
+    entityIds?: { characterId?: string; shotId?: string }
+    shotId?: string
+    path?: string
+    queueRemaining?: string[]
+    queueTotal?: number
     gallery?: Array<{
       id: string
       path: string
@@ -3625,8 +4258,29 @@ export function charactersHandleVideoPrepDone(
     setSelectedImageId: Dispatch<SetStateAction<string | null>>
     reload: () => void
     getCharacter: (id: string) => Promise<Character>
+    concatPhotoBookFilm?: () => void | Promise<void>
   }
 ): void {
+  if (d?.kind === 'character-photoshoot-clip') {
+    if (!editingId || d.entityIds?.characterId !== editingId) return
+    const shotId = d.shotId?.trim() || d.entityIds?.shotId?.trim() || ''
+    const clipPath = d.path?.trim() || ''
+    if (shotId && clipPath) {
+      ops.setForm((f) => ({
+        ...f,
+        photoBook: setPhotoBookShotClip(f.photoBook, shotId, clipPath)
+      }))
+    }
+    const remaining = d.queueRemaining ?? []
+    if (
+      remaining.length === 0 &&
+      (d.queueTotal ?? 1) > 1 &&
+      ops.concatPhotoBookFilm
+    ) {
+      void ops.concatPhotoBookFilm()
+    }
+    return
+  }
   if (d?.kind !== 'character-intro') return
   if (!editingId || d.entityIds?.characterId !== editingId) return
   const applyGallery = (

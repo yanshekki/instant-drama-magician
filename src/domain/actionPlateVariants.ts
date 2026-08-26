@@ -3,6 +3,9 @@
  * Panel 1 = first action beat … Panel N = last action beat.
  */
 
+import { PromptCatalog } from '../prompts'
+import type { PromptCopyKey } from '../prompts/copy/keys'
+
 export type ActionPanelLayoutId =
   | 'strip-2'
   | 'strip-3'
@@ -113,43 +116,56 @@ export function coerceActionPanelLayout(
   return getActionPanelLayout(id).id
 }
 
-/** Prompt block: which panel is action beat 1…N */
-export function buildPanelBeatInstructions(
-  layout: ActionPanelLayoutDef
+export function actionLayoutPrompt(
+  layout: ActionPanelLayoutDef,
+  locale?: string | null
+): string {
+  return PromptCatalog.t(
+    locale,
+    `action.geometry.layout.${layout.id}` as PromptCopyKey
+  )
+}
+
+function actionGeometryLock(
+  layout: ActionPanelLayoutDef,
+  locale?: string | null
 ): string {
   const n = layout.panelCount
-  const lines = layout.beatLabels.map(
-    (label, i) =>
-      `Panel ${i + 1}/${n} (${label}): a DISTINCT sequential moment — different pose/phase from every other panel; do NOT copy/repeat poses.`
+  if (layout.id === 'grid-2x3') {
+    return PromptCatalog.t(locale, 'action.geometry.lockGrid2x3')
+  }
+  if (layout.id === 'grid-2x2') {
+    return PromptCatalog.t(locale, 'action.geometry.lockGrid2x2')
+  }
+  return PromptCatalog.t(locale, 'action.geometry.lockStrip', { n })
+}
+
+/** Prompt block: which panel is action beat 1…N */
+export function buildPanelBeatInstructions(
+  layout: ActionPanelLayoutDef,
+  locale: string = 'zh-HK'
+): string {
+  const n = layout.panelCount
+  const list = Array.from({ length: n }, (_, i) => i + 1).join(', ')
+  const lines = layout.beatLabels.map((label, i) =>
+    PromptCatalog.t(locale, 'action.geometry.panelLine', {
+      i: i + 1,
+      n,
+      label
+    })
   )
 
-  const geometryLock =
-    layout.id === 'grid-2x3'
-      ? [
-          'GEOMETRY LOCK (mandatory): 2 rows × 3 columns = SIX panels total.',
-          'Top row MUST contain panels 1, 2, 3. Bottom row MUST contain panels 4, 5, 6.',
-          'FORBIDDEN: 2×2 grid, 4 panels, 3×2 mis-count, single hero frame, collage of fewer panels.',
-          'If you are tempted to draw only four panels — STOP and draw all six.'
-        ]
-      : layout.id === 'grid-2x2'
-        ? [
-            'GEOMETRY LOCK (mandatory): 2 rows × 2 columns = FOUR panels total.',
-            'FORBIDDEN: 2×3 six-panel grid, horizontal strips, single frame.'
-          ]
-        : [
-            `GEOMETRY LOCK (mandatory): ONE horizontal row with EXACTLY ${n} panels (1 row × ${n} columns).`,
-            `FORBIDDEN: 2×2 grid, fewer than ${n} panels, stacked multi-row unless specified.`
-          ]
-
   return [
-    `PANEL COUNT IS NON-NEGOTIABLE: EXACTLY ${n} panels. Count them: ${Array.from({ length: n }, (_, i) => i + 1).join(', ')}.`,
-    `Layout: ${layout.promptLayout}.`,
-    ...geometryLock,
-    `Panel order is the action timeline: Panel 1 = FIRST action beat, Panel ${n} = LAST action beat.`,
-    'Reading order: left → right, then top → bottom (if multi-row).',
-    `Large bold corner numbers 1 through ${n} on each panel (top-left of that panel). Every integer from 1 to ${n} must appear once.`,
+    PromptCatalog.t(locale, 'action.geometry.panelCount', { n, list }),
+    PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+      layout: actionLayoutPrompt(layout, locale)
+    }),
+    actionGeometryLock(layout, locale),
+    PromptCatalog.t(locale, 'action.geometry.order', { n }),
+    PromptCatalog.t(locale, 'action.geometry.reading'),
+    PromptCatalog.t(locale, 'action.geometry.numbers', { n }),
     ...lines,
-    'Small Traditional Chinese (Hong Kong) caption under each panel matching the beat label.',
-    'Same character identity / wardrobe / prop continuity across ALL panels.'
+    PromptCatalog.t(locale, 'action.geometry.caption'),
+    PromptCatalog.t(locale, 'action.geometry.identity')
   ].join('\n')
 }

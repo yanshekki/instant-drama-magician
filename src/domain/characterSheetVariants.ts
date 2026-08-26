@@ -3,6 +3,8 @@
  * Includes wardrobe layers (nude body / base undergarments / full costume)
  * for future costume-swap pipelines.
  */
+import { PromptCatalog } from '../prompts'
+import type { PromptCopyKey } from '../prompts/copy/keys'
 import { sexPromptLock } from './sexLock'
 
 export type SheetSizeClass = 'wide' | 'square' | 'tall'
@@ -660,6 +662,37 @@ export function sheetVariantsByGroupForProfile(opts?: {
   return out
 }
 
+function sheetWardrobeAddonKey(id: SheetVariantId): PromptCopyKey | null {
+  if (id.startsWith('body_nude_')) return 'sheet.wardrobe.nude'
+  if (id.startsWith('body_half_bare_lower_')) return 'sheet.wardrobe.halfBareLower'
+  if (id.startsWith('body_half_bare_')) return 'sheet.wardrobe.halfBareUpper'
+  if (id.startsWith('body_bare_')) return 'sheet.wardrobe.bare'
+  if (id.startsWith('base_layer_')) return 'sheet.wardrobe.base'
+  if (
+    id === 'costume_hero' ||
+    id === 'costume_turnaround' ||
+    id === 'costume_detail_board'
+  ) {
+    return 'sheet.wardrobe.costume'
+  }
+  return null
+}
+
+/** Locale-aware wardrobe addon + layout (English `def.layout` stays for leftover rewrite). */
+export function sheetLayoutPrompt(
+  id: SheetVariantId | string,
+  locale?: string | null
+): string {
+  const def = getSheetVariant(id)
+  const addonKey = sheetWardrobeAddonKey(def.id)
+  const addon = addonKey ? PromptCatalog.t(locale, addonKey) : ''
+  const layout = PromptCatalog.t(
+    locale,
+    `sheet.layout.${def.id}` as PromptCopyKey
+  )
+  return [addon, layout].filter(Boolean).join(' ')
+}
+
 /** Shared identity lock (entity may be human, animal, spirit, robot, virtual, etc.). */
 export function buildSheetIdentityLock(
   profile: {
@@ -672,46 +705,57 @@ export function buildSheetIdentityLock(
     mannerisms?: string
   },
   qualityBlock?: string,
-  options?: { skipOuterCostume?: boolean }
+  options?: { skipOuterCostume?: boolean; locale?: string | null }
 ): string {
-  const quality =
-    qualityBlock ??
-    'Quality: tack-sharp focus on primary face/head features, high micro-detail appropriate to the medium, professional studio lighting, no motion blur, no watermark or text.'
-
-  const sexLock = sexPromptLock(profile.gender)
+  const loc = options?.locale
+  const quality = qualityBlock ?? PromptCatalog.t(loc, 'quality.family.illust')
+  const sexLock = sexPromptLock(profile.gender, loc)
   const identity = [
-    `Create a character reference still for AI video continuity.`,
+    PromptCatalog.t(loc, 'sheet.lock.lead'),
     sexLock
-      ? `SEX LOCK (highest priority — bun, oval face, pale skin, slim build, or robes must NOT flip sex): ${sexLock}`
+      ? PromptCatalog.t(loc, 'sheet.lock.sexPrefix', { lock: sexLock })
       : '',
-    `CRITICAL IDENTITY LOCK: exactly ONE character subject in every panel (may be human, animal, creature, spirit, robot, or other designed entity — but never swap species or design mid-sheet).`,
-    `Do not invent a second character; keep the same body plan, markings, colors, and head design across all panels.`,
-    `Head/face (or equivalent) must stay consistent: same eyes or sensors, same silhouette of head, same surface colors and key identifiers.`,
+    PromptCatalog.t(loc, 'sheet.lock.identity'),
+    PromptCatalog.t(loc, 'sheet.lock.noSecond'),
+    PromptCatalog.t(loc, 'sheet.lock.head'),
     quality,
-    `Camera: stable reference framing, straight verticals, no fish-eye unless layout requires a special angle.`,
-    `Background: clean seamless light-gray or off-white studio cyclorama, empty, even; no clutter unless the layout asks for a small costume/prop detail.`,
-    `Forbidden: watermarks, logos, captions, text, UI chrome, random extra limbs, deformed extremities (unless the shot is intentionally hands/detail-only).`,
-    `Subject name/concept: ${profile.name}`,
-    profile.ageRange ? `Age or maturity presentation: ${profile.ageRange}` : '',
-    profile.gender ? `Gender / presentation: ${profile.gender}` : '',
+    PromptCatalog.t(loc, 'sheet.lock.camera'),
+    PromptCatalog.t(loc, 'sheet.lock.background'),
+    PromptCatalog.t(loc, 'sheet.lock.forbidden'),
+    PromptCatalog.t(loc, 'sheet.lock.subject', { name: profile.name }),
+    profile.ageRange
+      ? PromptCatalog.t(loc, 'sheet.lock.age', { age: profile.ageRange })
+      : '',
+    profile.gender
+      ? PromptCatalog.t(loc, 'sheet.lock.gender', { gender: profile.gender })
+      : '',
     profile.appearance
       ? options?.skipOuterCostume
-        ? `Appearance — FACE / HAIR / BODY PROPORTIONS ONLY (must match): ${profile.appearance}. ` +
-          'STRIP from this description any clothing, coats, umbrellas, bags, shoes, jewelry, or props — they must NOT appear.'
-        : `Appearance (must match exactly): ${profile.appearance}`
+        ? PromptCatalog.t(loc, 'sheet.lock.appearanceFaceOnly', {
+            appearance: profile.appearance
+          })
+        : PromptCatalog.t(loc, 'sheet.lock.appearance', {
+            appearance: profile.appearance
+          })
       : '',
     options?.skipOuterCostume
-      ? 'Outer costume / props: COMPLETELY IGNORE for this sheet. No umbrella, bag, coat, or fashion items. Body or base-layer plate only.'
+      ? PromptCatalog.t(loc, 'sheet.lock.ignoreCostume')
       : profile.costume
-        ? `Costume / exterior design (must match exactly): ${profile.costume}`
+        ? PromptCatalog.t(loc, 'sheet.lock.costume', {
+            costume: profile.costume
+          })
         : '',
     profile.visualTags
       ? options?.skipOuterCostume
-        ? `Visual tags (identity only; drop clothing/prop tags): ${profile.visualTags}`
-        : `Visual tags: ${profile.visualTags}`
+        ? PromptCatalog.t(loc, 'sheet.lock.tagsIdentity', {
+            tags: profile.visualTags
+          })
+        : PromptCatalog.t(loc, 'sheet.lock.tags', { tags: profile.visualTags })
       : '',
     profile.mannerisms
-      ? `Subtle pose/mannerism hints only (do not change identity): ${profile.mannerisms.slice(0, 180)}`
+      ? PromptCatalog.t(loc, 'sheet.lock.manner', {
+          manner: profile.mannerisms.slice(0, 180)
+        })
       : ''
   ]
     .filter(Boolean)

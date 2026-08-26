@@ -30,8 +30,8 @@ vi.mock('react-i18next', () => ({
   })
 }))
 vi.mock('./LocalMediaImage', () => ({
-  LocalMediaImage: (p: { path?: string }) => (
-    <div data-testid="local-media">{p.path}</div>
+  LocalMediaImage: (p: { path?: string; filePath?: string }) => (
+    <div data-testid="local-media">{p.filePath || p.path}</div>
   )
 }))
 
@@ -335,17 +335,200 @@ describe('MediaGenPrepModal', () => {
     )
     await waitFor(() => expect(api.mediaGen.extract).toHaveBeenCalled())
     await waitFor(() =>
-      expect(screen.getAllByText('mediaGen.continuityOwn').length).toBeGreaterThan(
+      expect(screen.getAllByText(/mediaGen\.continuityOwn/).length).toBeGreaterThan(
         0
       )
     )
-    expect(screen.getAllByText('mediaGen.continuityPrev').length).toBeGreaterThan(
+    expect(screen.getAllByText(/mediaGen\.continuityPrev/).length).toBeGreaterThan(
       0
     )
     expect(
       screen.getAllByText('mediaGen.reviewEditBaseBadge').length
     ).toBeGreaterThan(0)
     expect(document.body.textContent || '').not.toMatch(/mediaGen\.galleryBoard/)
+  })
+
+  it('photoshoot clip materials only list photo-book stills as edit base', async () => {
+    api.mediaGen.extract = vi.fn().mockResolvedValue({
+      kind: 'character-photoshoot-clip',
+      entityIds: { characterId: 'c1', sceneId: 'sc1', shotId: 'pb2' },
+      sections: [
+        {
+          id: 'photoshoot_still_pb1',
+          kind: 'ref-image',
+          title: '1 · Alley',
+          entityType: 'continuity',
+          imagePath: '/pb1.png',
+          text: 'still 1',
+          include: true,
+          canBeEditBase: true,
+          editBasePriority: 209,
+          group: 'refs'
+        },
+        {
+          id: 'photoshoot_still_pb2',
+          kind: 'ref-image',
+          title: '2 · Roof',
+          entityType: 'continuity',
+          imagePath: '/pb2.png',
+          text: 'still 2',
+          include: true,
+          canBeEditBase: true,
+          editBasePriority: 230,
+          group: 'refs'
+        },
+        {
+          id: 'character_ref_c1',
+          kind: 'ref-image',
+          title: 'Xiaoyu',
+          entityType: 'character',
+          imagePath: '/id.png',
+          text: 'identity',
+          include: true,
+          canBeEditBase: false,
+          editBasePriority: 120,
+          group: 'refs'
+        }
+      ],
+      editBaseSectionId: 'photoshoot_still_pb2',
+      fallbackPrompt: 'FALLBACK PROMPT LONG ENOUGH',
+      taskHint: 'clip',
+      genOptions: {
+        useIdentityEdit: true,
+        durationSeconds: 10,
+        galleryLabel: 'Photo book'
+      },
+      existingStillPath: '/pb2.png',
+      hardRules: null
+    })
+    render(
+      <MediaGenPrepModal
+        open
+        request={{
+          kind: 'character-photoshoot-clip',
+          characterId: 'c1',
+          sceneId: 'sc1',
+          shotId: 'pb2',
+          sourceImagePath: '/pb2.png',
+          skipStillIfExists: true,
+          galleryIdentityPaths: ['/id.png'],
+          durationSeconds: 10
+        }}
+        onClose={vi.fn()}
+        onGenerated={vi.fn()}
+      />
+    )
+    await waitFor(() => expect(api.mediaGen.extract).toHaveBeenCalled())
+    await waitFor(() => {
+      expect(screen.getByTestId('image-option-picker')).toBeTruthy()
+    })
+    const trigger = screen.getByRole('button', {
+      name: 'mediaGen.editBasePicker'
+    })
+    await act(async () => {
+      fireEvent.click(trigger)
+    })
+    const optPb1 = document.querySelector(
+      '[data-option-id="photoshoot_still_pb1"]'
+    ) as HTMLButtonElement | null
+    expect(optPb1).toBeTruthy()
+    const optIds = [...document.querySelectorAll('[data-option-id]')].map((el) =>
+      el.getAttribute('data-option-id')
+    )
+    expect(optIds).toEqual(['photoshoot_still_pb1', 'photoshoot_still_pb2'])
+    await act(async () => {
+      fireEvent.mouseDown(optPb1!)
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.continuePolish'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.useStillAsKeyframe')).toBeTruthy()
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.useStillAsKeyframe'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.nextConfirmVideo')).toBeTruthy()
+    )
+    expect(api.mediaGen.generateImage).not.toHaveBeenCalled()
+    expect(screen.getAllByTestId('local-media').some((n) => n.textContent === '/pb1.png')).toBe(
+      true
+    )
+  })
+
+  it('edit-base picker shows numbered labels when titles collide', async () => {
+    const sameTitle = {
+      kind: 'ref-image' as const,
+      title: 'Xiaoyu',
+      entityType: 'character' as const,
+      text: '',
+      include: true,
+      canBeEditBase: true,
+      editBasePriority: 10,
+      group: 'refs' as const
+    }
+    api.mediaGen.extract = vi.fn().mockResolvedValue({
+      kind: 'character-photoshoot',
+      entityIds: { characterId: 'c1' },
+      sections: [
+        { ...sameTitle, id: 'gallery_0', imagePath: '/xiaoyu-a.png' },
+        { ...sameTitle, id: 'gallery_1', imagePath: '/xiaoyu-b.png' },
+        layoutSection,
+        hardRulesSection
+      ],
+      editBaseSectionId: 'gallery_0',
+      fallbackPrompt: 'FALLBACK PROMPT LONG ENOUGH',
+      taskHint: 'photoshoot',
+      genOptions: { useIdentityEdit: true },
+      hardRules: 'no logos'
+    })
+    render(
+      <MediaGenPrepModal
+        open
+        request={{
+          kind: 'character-photoshoot',
+          characterId: 'c1',
+          galleryIdentityPaths: ['/xiaoyu-a.png', '/xiaoyu-b.png']
+        }}
+        onClose={vi.fn()}
+        onGenerated={vi.fn()}
+      />
+    )
+    await waitFor(() => expect(api.mediaGen.extract).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.continuePolish')).toBeTruthy()
+    )
+    expect(screen.getAllByText(/mediaGen\.refIndex:1/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/mediaGen\.refIndex:2/).length).toBeGreaterThan(0)
+    const trigger = screen.getByRole('button', {
+      name: 'mediaGen.editBasePicker'
+    })
+    expect(trigger.textContent).toMatch(/mediaGen\.refIndex:1/)
+    await act(async () => {
+      fireEvent.click(trigger)
+    })
+    const opts = screen
+      .getAllByRole('option')
+      .filter((el) => /mediaGen\.refIndex/.test(el.textContent || ''))
+    expect(opts).toHaveLength(2)
+    expect(opts[0]?.textContent).toMatch(/mediaGen\.refIndex:1/)
+    expect(opts[1]?.textContent).toMatch(/mediaGen\.refIndex:2/)
+    expect(opts[0]?.textContent).not.toBe(opts[1]?.textContent)
+    await act(async () => {
+      fireEvent.mouseDown(opts[1]!)
+    })
+    expect(
+      screen.getByRole('button', { name: 'mediaGen.editBasePicker' }).textContent
+    ).toMatch(/mediaGen\.refIndex:2/)
+    await act(async () => {
+      fireEvent.click(screen.getByText('mediaGen.continuePolish'))
+    })
+    await waitFor(() =>
+      expect(screen.getByText('mediaGen.generateImage')).toBeTruthy()
+    )
+    expect(screen.getByText('mediaGen.refIndex:2')).toBeTruthy()
+    expect(document.body.textContent || '').not.toMatch(/Ref#/)
   })
 
   it('extract error shows error phase', async () => {
@@ -445,6 +628,7 @@ describe('MediaGenPrepModal', () => {
     await waitFor(() =>
       expect(screen.getByText('mediaGen.continuePolish')).toBeTruthy()
     )
+    expect(screen.getAllByText('introTemplates.label').length).toBeGreaterThan(0)
     await act(async () => {
       fireEvent.click(screen.getByText('mediaGen.continuePolish'))
     })
@@ -491,6 +675,7 @@ describe('MediaGenPrepModal', () => {
     await waitFor(() =>
       expect(screen.getByText('mediaGen.confirmGenerateVideo')).toBeTruthy()
     )
+    expect(screen.getAllByText('introTemplates.label').length).toBeGreaterThan(0)
     expect(document.body.textContent || '').not.toMatch(
       /mediaGen\.phase\.polish/
     )
@@ -780,6 +965,13 @@ describe('MediaGenPrepModal', () => {
       />
     )
     await waitFor(() => expect(screen.getByText('common.cancel')).toBeTruthy())
+    expect(screen.getAllByText('introTemplates.label').length).toBeGreaterThan(0)
+    expect(api.mediaGen.extract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'story-cover',
+        introTemplateId: 'hero-walkin'
+      })
+    )
     await act(async () => {
       fireEvent.click(screen.getByText('common.cancel'))
     })
@@ -833,5 +1025,6 @@ describe('MediaGenPrepModal', () => {
     await waitFor(() =>
       expect(screen.getByText('mediaGen.continuePolish')).toBeTruthy()
     )
+    expect(screen.queryByText('introTemplates.label')).toBeNull()
   })
 })

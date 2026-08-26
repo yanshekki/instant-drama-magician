@@ -69,6 +69,15 @@ export type EntityGalleryPanelProps = {
   footerActions?: EntityGalleryAction[]
   /** Optional extra line under footer (strip already shows reorder hint). */
   footerHint?: string | null
+  /** Intro shot-template chips (or other tools) under the title. */
+  headerExtra?: ReactNode
+  /** Override intro-video action labels (photo-book clip, comics film). */
+  videoLabels?: {
+    generate?: string
+    regen?: string
+    play?: string
+    open?: string
+  }
 }
 
 /**
@@ -113,7 +122,9 @@ export function EntityGalleryPanel({
   reorderHintKey,
   identityRef,
   footerActions,
-  footerHint
+  footerHint,
+  headerExtra,
+  videoLabels
 }: EntityGalleryPanelProps): JSX.Element {
   const { t } = useTranslation()
   const hasPreview = Boolean(previewPath?.trim())
@@ -125,12 +136,15 @@ export function EntityGalleryPanel({
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+      <div className="flex min-w-0 items-center gap-2">
+        <h3 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-400">
           {title}
         </h3>
+        {headerExtra ? (
+          <div className="min-w-0 flex-1">{headerExtra}</div>
+        ) : null}
         {countLabel != null && countLabel !== '' ? (
-          <span className="text-[11px] text-ink-500">{countLabel}</span>
+          <span className="shrink-0 text-[11px] text-ink-500">{countLabel}</span>
         ) : null}
       </div>
 
@@ -155,6 +169,7 @@ export function EntityGalleryPanel({
             isIdentityLock={isIdentityLock}
             onToggleIdentityLock={onToggleIdentityLock}
             onRemove={onRemove}
+            videoLabels={videoLabels}
           />
         ) : (
           <div className="flex h-40 flex-col items-center justify-center gap-2 px-3 text-center text-xs text-ink-500">

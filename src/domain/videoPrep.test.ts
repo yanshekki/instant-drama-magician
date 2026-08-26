@@ -37,7 +37,7 @@ describe('buildStillKeyframePrompt', () => {
       improvementNotes: 'warmer light',
       locale: 'en'
     })
-    expect(out).toMatch(/KEYFRAME STILL/i)
+    expect(out).toMatch(/PRODUCTION STILL|單格靜圖|靜圖/i)
     expect(out).toContain('warmer light')
     expect(out).toContain('IDENTITY LOCK')
   })
@@ -68,6 +68,12 @@ describe('videoPrep wizard helpers', () => {
         '/a.png'
       )
     ).toBe('character-intro:c1:/a.png')
+    expect(
+      buildVideoPrepDraftKey(
+        'character-photoshoot-clip',
+        { characterId: 'c1', shotId: 'pb1' }
+      )
+    ).toBe('character-photoshoot-clip:c1:pb1')
     expect(
       buildVideoPrepDraftKey('timeline-clip', {
         storyId: 's1',
@@ -169,7 +175,9 @@ describe('videoPrep wizard helpers', () => {
     })
     expect(zh).toContain('更暖')
     expect(zh).toContain('BASE')
-    expect(buildStillKeyframePrompt('', { locale: 'en' })).toMatch(/KEYFRAME/)
+    expect(buildStillKeyframePrompt('', { locale: 'en' })).toMatch(
+      /PRODUCTION STILL|still/i
+    )
   })
 
   it('buildStillRegenPolishUserPrompt en/zh with hard rules', () => {

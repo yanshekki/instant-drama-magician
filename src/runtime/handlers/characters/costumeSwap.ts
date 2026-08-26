@@ -83,7 +83,8 @@ reg(
         ageRange: row.ageRange,
         gender: row.gender,
         visualTags: row.visualTags,
-        mannerisms: row.mannerisms
+        mannerisms: row.mannerisms,
+        locale: 'zh-HK'
       })
 
       // Pose → image size class

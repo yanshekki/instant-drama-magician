@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildIntroMediaGenRequest,
+  buildPhotoBookClipMediaGenRequest,
   introLocaleFromI18n,
   resolveVideoAspectRatio
 } from './startIntroMediaGen'
@@ -107,5 +108,55 @@ describe('startIntroMediaGen', () => {
     })
     expect(r.skipStillIfExists).toBe(true)
     expect(r.userExtraPrompt).toBe('more neon')
+  })
+
+  it('forwards introTemplateId without baking it into userExtraPrompt', async () => {
+    const r = await buildIntroMediaGenRequest({
+      kind: 'character-intro',
+      sourceImagePath: '/tmp/c.png',
+      characterId: 'c1',
+      introTemplateId: 'close-up',
+      locale: 'en',
+      userExtraPrompt: 'keep the rain'
+    })
+    expect(r.introTemplateId).toBe('close-up')
+    expect(r.userExtraPrompt).toBe('keep the rain')
+  })
+
+  it('buildPhotoBookClipMediaGenRequest skips still and queues shots', async () => {
+    const r = await buildPhotoBookClipMediaGenRequest({
+      characterId: 'c1',
+      shotId: 'pb1',
+      shot: {
+        stillPath: '/tmp/pb.png',
+        sceneId: 'sc1',
+        actionId: 'a1',
+        propIds: ['p1'],
+        notes: 'lantern'
+      },
+      identityPaths: ['/tmp/id.png'],
+      introTemplateId: 'hero-walkin',
+      locale: 'en',
+      queueIndex: 0,
+      queueTotal: 2,
+      queueRemaining: ['pb2'],
+      queueShotById: {
+        pb1: {
+          stillPath: '/tmp/pb.png',
+          sceneId: 'sc1',
+          propIds: ['p1']
+        }
+      }
+    })
+    expect(r.kind).toBe('character-photoshoot-clip')
+    expect(r.shotId).toBe('pb1')
+    expect(r.sceneId).toBe('sc1')
+    expect(r.sourceImagePath).toBe('/tmp/pb.png')
+    expect(r.skipStillIfExists).toBe(true)
+    expect(r.galleryIdentityPaths).toEqual(['/tmp/id.png'])
+    expect(r.introTemplateId).toBe('hero-walkin')
+    expect(r.queueIntroTemplateId).toBe('hero-walkin')
+    expect(r.userExtraPrompt).toBe('lantern')
+    expect(r.queueRemaining).toEqual(['pb2'])
   })
 })

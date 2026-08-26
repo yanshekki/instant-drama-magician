@@ -29,7 +29,9 @@ function t(key: string, opts?: Record<string, unknown>): string {
     'characters.photoFallback': '參考圖',
     'keyArt.typeCover': '封面海報',
     'mediaGen.keyArtOwn': '本張成圖',
-    'mediaGen.keyArtPrev': '上一張劇照'
+    'mediaGen.keyArtPrev': '上一張劇照',
+    'mediaGen.photoBookStill': `攝影集第 ${opts?.n ?? ''} 張`,
+    'mediaGen.photoBookStillScene': `攝影集第 ${opts?.n ?? ''} 張 · ${opts?.scene ?? ''}`
   }
   return map[key] ?? key
 }
@@ -137,6 +139,22 @@ describe('mediaGenSectionTitleI18n', () => {
         t
       )
     ).toBe('畫面連續鎖定')
+    expect(
+      translateMediaGenSectionTitle(
+        {
+          id: 'photoshoot_still_pb2',
+          entityType: 'continuity',
+          title: '2 · Rooftop'
+        },
+        t
+      )
+    ).toBe('攝影集第 2 張 · Rooftop')
+    expect(
+      translateMediaGenSectionTitle(
+        { id: 'photoshoot_still_pb1', entityType: 'continuity', title: '1' },
+        t
+      )
+    ).toBe('攝影集第 1 張')
   })
 
   it('localizes key-art type and own/prev stills', () => {

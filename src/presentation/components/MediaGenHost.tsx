@@ -18,7 +18,7 @@ import {
   resolveMediaGenQueueHandoff
 } from '../../domain/mediaGenFromVideoPrep'
 import type { VideoPrepDraftPayload } from '../../domain/videoPrep'
-import { buildIntroMediaGenRequest } from '../lib/startIntroMediaGen'
+import { buildIntroMediaGenRequest, buildPhotoBookClipMediaGenRequest } from '../lib/startIntroMediaGen'
 
 export function MediaGenHost(): JSX.Element | null {
   const { t } = useTranslation()
@@ -37,7 +37,9 @@ export function MediaGenHost(): JSX.Element | null {
   const requestRef = useRef(mediaGenRequest)
   requestRef.current = mediaGenRequest
   const pendingQueueRef = useRef<{
-    storyId: string
+    kind: 'timeline-clip' | 'character-photoshoot-clip'
+    storyId?: string
+    characterId?: string
     remaining: string[]
     queueIndex: number
     queueTotal: number
@@ -47,6 +49,24 @@ export function MediaGenHost(): JSX.Element | null {
     userExtraByEntryId: Record<string, string>
     /** R1: entryId → snap'd duration seconds */
     durationSecondsByEntryId: Record<string, number>
+    introTemplateId?: string | null
+    introTemplateByEntryId?: Record<string, string | null | undefined>
+    artStyle?: string | null
+    locale?: string
+    durationSeconds?: number
+    shotById?: Record<
+      string,
+      {
+        stillPath: string
+        sceneId: string
+        actionId?: string
+        propIds: string[]
+        notes?: string
+      }
+    >
+    identityPaths?: string[]
+    advancedIdentity?: boolean
+    identityCollage?: boolean
   } | null>(null)
 
   useEffect(() => {
@@ -58,11 +78,40 @@ export function MediaGenHost(): JSX.Element | null {
 
   const close = useCallback((): void => {
     setMediaGenRequest(null)
-    // Start next timeline clip in queue after modal unmounts
+    // Start next queued clip after modal unmounts
     const pending = pendingQueueRef.current
     pendingQueueRef.current = null
-    if (!pending?.remaining.length || !pending.storyId) return
+    if (!pending?.remaining.length) return
     const [nextId, ...rest] = pending.remaining
+    if (
+      pending.kind === 'character-photoshoot-clip' &&
+      pending.characterId &&
+      nextId
+    ) {
+      const shot = pending.shotById?.[nextId]
+      if (!shot?.stillPath?.trim() || !shot.sceneId) return
+      void (async () => {
+        const req = await buildPhotoBookClipMediaGenRequest({
+          characterId: pending.characterId!,
+          shotId: nextId,
+          shot,
+          identityPaths: pending.identityPaths,
+          introTemplateId: pending.introTemplateId,
+          artStyle: pending.artStyle,
+          locale: pending.locale,
+          durationSeconds: pending.durationSeconds,
+          advancedIdentity: pending.advancedIdentity,
+          identityCollage: pending.identityCollage,
+          queueIndex: pending.queueIndex + 1,
+          queueTotal: pending.queueTotal,
+          queueRemaining: rest,
+          queueShotById: pending.shotById
+        })
+        startMediaGen(req)
+      })()
+      return
+    }
+    if (!pending.storyId || pending.kind !== 'timeline-clip') return
     const handoff = resolveMediaGenQueueHandoff({
       nextEntryId: nextId,
       skipStillIfExists: pending.skipStillIfExists,
@@ -77,7 +126,9 @@ export function MediaGenHost(): JSX.Element | null {
         entryId: nextId,
         skipStillIfExists: handoff.skipStillIfExists,
         userExtraPrompt: handoff.userExtraPrompt,
-        durationSeconds: handoff.durationSeconds
+        durationSeconds: handoff.durationSeconds,
+        introTemplateId:
+          pending.introTemplateByEntryId?.[nextId] ?? pending.introTemplateId
       })
       startMediaGen({
         ...req,
@@ -87,7 +138,10 @@ export function MediaGenHost(): JSX.Element | null {
         queueRemaining: rest,
         queueSkipStillIfExists: pending.skipStillIfExists,
         queueUserExtraByEntryId: pending.userExtraByEntryId,
-        queueDurationSecondsByEntryId: pending.durationSecondsByEntryId
+        queueDurationSecondsByEntryId: pending.durationSecondsByEntryId,
+        queueIntroTemplateId:
+          pending.introTemplateByEntryId?.[nextId] ?? pending.introTemplateId,
+        queueIntroTemplateIdByEntryId: pending.introTemplateByEntryId
       })
     })()
   }, [setMediaGenRequest, startMediaGen])
@@ -117,6 +171,7 @@ export function MediaGenHost(): JSX.Element | null {
         actionId: req.actionId,
         storyId: req.storyId,
         entryId: req.entryId,
+        shotId: req.shotId,
         sourceImagePath: payload.sourceImagePath
       })
       const draft: VideoPrepDraftPayload = {
@@ -128,7 +183,8 @@ export function MediaGenHost(): JSX.Element | null {
           costumeId: req.costumeId,
           actionId: req.actionId,
           storyId: req.storyId,
-          entryId: req.entryId
+          entryId: req.entryId,
+          shotId: req.shotId
         },
         professionalPrompt: payload.videoPrompt || payload.polishedPrompt,
         userExtraPrompt: payload.userExtraPrompt,
@@ -163,6 +219,7 @@ export function MediaGenHost(): JSX.Element | null {
       queueRemaining?: string[]
       queueIndex?: number
       queueTotal?: number
+      introTemplateId?: string | null
     }): void => {
       const req = requestRef.current
       if (!req) return
@@ -177,6 +234,7 @@ export function MediaGenHost(): JSX.Element | null {
           actionId: req.actionId,
           storyId: req.storyId,
           entryId: req.entryId,
+          shotId: req.shotId,
           sourceImagePath: req.sourceImagePath || req.galleryIdentityPaths?.[0]
         })
         removeSavedVideoPrepDraft(key)
@@ -190,6 +248,7 @@ export function MediaGenHost(): JSX.Element | null {
         remaining.length > 0
       ) {
         pendingQueueRef.current = {
+          kind: 'timeline-clip',
           storyId: req.storyId,
           remaining: [...remaining],
           queueIndex: detail.queueIndex ?? req.queueIndex ?? 1,
@@ -202,7 +261,47 @@ export function MediaGenHost(): JSX.Element | null {
           // R1: per-entry durations for auto-advanced clips
           durationSecondsByEntryId: {
             ...(req.queueDurationSecondsByEntryId ?? {})
+          },
+          introTemplateId:
+            req.queueIntroTemplateIdByEntryId?.[remaining[0] ?? ''] ??
+            detail.introTemplateId ??
+            req.introTemplateId ??
+            req.queueIntroTemplateId,
+          introTemplateByEntryId: {
+            ...(req.queueIntroTemplateIdByEntryId ?? {})
           }
+        }
+        toast.info(
+          t('videoPrep.queueProgress', {
+            current: (detail.queueIndex ?? 1) + 1,
+            total: detail.queueTotal ?? remaining.length + 1
+          })
+        )
+      } else if (
+        detail.kind === 'character-photoshoot-clip' &&
+        req.characterId &&
+        remaining.length > 0
+      ) {
+        pendingQueueRef.current = {
+          kind: 'character-photoshoot-clip',
+          characterId: req.characterId,
+          remaining: [...remaining],
+          queueIndex: detail.queueIndex ?? req.queueIndex ?? 1,
+          queueTotal: detail.queueTotal ?? req.queueTotal ?? remaining.length + 1,
+          skipStillIfExists: true,
+          userExtraByEntryId: {},
+          durationSecondsByEntryId: {},
+          introTemplateId:
+            detail.introTemplateId ??
+            req.introTemplateId ??
+            req.queueIntroTemplateId,
+          artStyle: req.queueArtStyle ?? req.artStyle,
+          locale: req.queueLocale,
+          durationSeconds: req.durationSeconds,
+          shotById: req.queueShotById,
+          identityPaths: req.queueIdentityPaths ?? req.galleryIdentityPaths,
+          advancedIdentity: req.advancedIdentity,
+          identityCollage: req.identityCollage
         }
         toast.info(
           t('videoPrep.queueProgress', {
@@ -258,6 +357,21 @@ export function MediaGenHost(): JSX.Element | null {
           })
         )
         toast.success(t('keyArt.generateOk'))
+        return
+      }
+
+      if (req.kind === 'character-photoshoot' && result.path) {
+        window.dispatchEvent(
+          new CustomEvent('idm:character-photoshoot-done', {
+            detail: {
+              characterId: req.characterId,
+              shotId: req.shotId,
+              path: result.path,
+              kind: req.kind
+            }
+          })
+        )
+        toast.success(t('characters.photoBookStillOk'))
         return
       }
 

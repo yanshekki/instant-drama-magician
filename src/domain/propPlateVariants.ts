@@ -1,7 +1,9 @@
 /**
  * Prop reference plates for short-drama continuity.
  */
-import { getArtStyle } from './characterArtStyles'
+import { artStylePrompt, getArtStyle } from './characterArtStyles'
+import { PromptCatalog } from '../prompts'
+import type { PromptCopyKey } from '../prompts/copy/keys'
 import { appendHardRules } from './promptHardRules'
 
 export type PropPlateVariantId =
@@ -74,6 +76,14 @@ export function getPropPlateVariant(
   return BY_ID.get(DEFAULT_PROP_PLATE)!
 }
 
+export function propPlateLayoutPrompt(
+  id: PropPlateVariantId | string,
+  locale?: string | null
+): string {
+  const def = getPropPlateVariant(id)
+  return PromptCatalog.t(locale, `plate.prop.layout.${def.id}` as PromptCopyKey)
+}
+
 export function buildPropPlateImagePrompt(
   profile: {
     name: string
@@ -85,23 +95,46 @@ export function buildPropPlateImagePrompt(
     hardRules?: string
   },
   variant: string = 'hero',
-  artStyle: string = 'photo_cinematic'
+  artStyle: string = 'photo_cinematic',
+  locale: string = 'zh-HK'
 ): string {
   const style = getArtStyle(artStyle)
   const def = getPropPlateVariant(variant)
   const body = [
-    style.promptBlock,
-    `Repeat: medium MUST be style id "${style.id}".`,
-    'Create a PROP reference still for AI short-drama continuity.',
-    `Prop name: ${profile.name}`,
-    `Description (must match): ${profile.description}`,
-    profile.material ? `Material: ${profile.material}` : '',
-    profile.sizeNotes ? `Size notes: ${profile.sizeNotes}` : '',
-    profile.condition ? `Condition/wear: ${profile.condition}` : '',
-    profile.visualTags ? `Tags: ${profile.visualTags}` : '',
-    'FORBIDDEN: celebrity faces, watermarks, extra unrelated props cluttering identity.',
-    `LAYOUT: ${def.layout}`,
-    `Final check: same prop identity; medium ${style.id}.`
+    artStylePrompt(style.id, locale),
+    PromptCatalog.t(locale, 'plate.prop.scaffold.repeatMedium', {
+      id: style.id
+    }),
+    PromptCatalog.t(locale, 'plate.prop.lock.lead'),
+    PromptCatalog.t(locale, 'plate.prop.lock.name', { name: profile.name }),
+    PromptCatalog.t(locale, 'plate.prop.lock.desc', { desc: profile.description }),
+    profile.material
+      ? PromptCatalog.t(locale, 'plate.prop.lock.material', {
+          material: profile.material
+        })
+      : '',
+    profile.sizeNotes
+      ? PromptCatalog.t(locale, 'plate.prop.lock.size', {
+          size: profile.sizeNotes
+        })
+      : '',
+    profile.condition
+      ? PromptCatalog.t(locale, 'plate.prop.lock.condition', {
+          condition: profile.condition
+        })
+      : '',
+    profile.visualTags
+      ? PromptCatalog.t(locale, 'plate.prop.lock.tags', {
+          tags: profile.visualTags
+        })
+      : '',
+    PromptCatalog.t(locale, 'plate.prop.lock.forbidden'),
+    PromptCatalog.t(locale, 'sheet.scaffold.layoutLead', {
+      layout: propPlateLayoutPrompt(def.id, locale)
+    }),
+    PromptCatalog.t(locale, 'plate.prop.scaffold.finalCheck', {
+      style: style.id
+    })
   ]
     .filter(Boolean)
     .join(' ')
@@ -119,15 +152,16 @@ export function buildPropPlateEditPrompt(
     hardRules?: string
   },
   variant: string = 'hero',
-  artStyle: string = 'photo_cinematic'
+  artStyle: string = 'photo_cinematic',
+  locale: string = 'zh-HK'
 ): string {
   const style = getArtStyle(artStyle)
-  const body = buildPropPlateImagePrompt(profile, variant, artStyle)
+  const body = buildPropPlateImagePrompt(profile, variant, artStyle, locale)
   return [
-    'IMAGE EDIT / PROP RESTYLE:',
-    style.promptBlock,
-    'Keep the SAME prop identity from the source image (silhouette, materials, markings).',
-    'Change medium/camera as required. Do not invent a different object.',
+    PromptCatalog.t(locale, 'plate.prop.edit.task'),
+    artStylePrompt(style.id, locale),
+    PromptCatalog.t(locale, 'plate.prop.edit.keep'),
+    PromptCatalog.t(locale, 'plate.prop.edit.change'),
     body
   ].join(' ')
 }

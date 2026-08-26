@@ -87,11 +87,29 @@ describe('PromptCatalog', () => {
 
   it('zh-HK prompt copy is written Chinese, not Cantonese colloquial', () => {
     const hk = PROMPT_COPY['zh-HK']
-    const colloquial = /唔好|唔准|唔多過|裝唔落|為咗|嘅實體|仲喺|又係落雨/
+    const colloquial =
+      /唔好|唔准|唔多過|唔會|裝唔落|為咗|嘅|仲喺|又係落雨|喺|撳|揀|跟住|呢啲|冇|睇|左便|右便|跟手/
     for (const key of PROMPT_COPY_KEYS) {
       expect(hk[key], `zh-HK ${key}`).not.toMatch(colloquial)
       expect(hk[key], `zh-HK ${key} simplified 标志`).not.toContain('标志')
     }
+  })
+
+  it('zh-HK forbids salon leak and leftover English jargon in copy', () => {
+    const blob = Object.values(PROMPT_COPY['zh-HK']).join('\n')
+    expect(blob).not.toMatch(/沙龍店員/)
+    expect(blob).not.toMatch(/關鍵幀/)
+    expect(blob).not.toMatch(/模板草稿/)
+    expect(blob).not.toMatch(/(^|[\s「（(])Profile([\s」）):：]|$)/)
+    expect(blob).not.toMatch(/本 clip/)
+    expect(PromptCatalog.t('zh-HK', 'mediaGen.honorCameraTemplate')).toMatch(
+      /鏡頭範本/
+    )
+    expect(PromptCatalog.t('zh-HK', 'sheet.lock.identity')).toMatch(/身份鎖定/)
+    expect(PromptCatalog.t('en', 'sheet.lock.identity')).toMatch(/Identity lock/)
+    expect(PromptCatalog.t('zh-HK', 'action.geometry.lockGrid2x3')).not.toMatch(
+      /GEOMETRY LOCK/
+    )
   })
 
   it('non-English locales translate beat templates instead of leaving English', () => {
@@ -104,5 +122,51 @@ describe('PromptCatalog', () => {
       const same = beatKeys.filter((k) => table[k] === en[k])
       expect(same, `${id} beat prompt leftover`).toEqual([])
     }
+  })
+
+  it('no non-English PromptCatalog string is copied from English', () => {
+    const en = PROMPT_COPY.en
+    for (const { id } of UI_LANGUAGES) {
+      if (id === 'en') continue
+      const table = PROMPT_COPY[id]
+      const same = PROMPT_COPY_KEYS.filter((k) => table[k] === en[k])
+      expect(same, `${id} leftover English catalog copy`).toEqual([])
+    }
+  })
+
+  it('ja / fr sheet, action geometry, and costume swap are native', () => {
+    expect(PromptCatalog.t('ja', 'sheet.lock.identity')).toMatch(/身元/)
+    expect(PromptCatalog.t('ja', 'sheet.lock.identity')).not.toMatch(
+      /Identity lock:/
+    )
+    expect(PromptCatalog.t('fr', 'sheet.lock.identity')).toMatch(/identité/i)
+    expect(PromptCatalog.t('fr', 'sheet.lock.identity')).not.toMatch(
+      /Identity lock:/
+    )
+    expect(PromptCatalog.t('ja', 'action.geometry.lockGrid2x3')).toMatch(
+      /レイアウト/
+    )
+    expect(PromptCatalog.t('ja', 'action.geometry.lockGrid2x3')).not.toMatch(
+      /Layout lock \(mandatory\)/
+    )
+    expect(PromptCatalog.t('fr', 'action.geometry.lockGrid2x3')).toMatch(
+      /mise en page|Verrouillage/i
+    )
+    expect(PromptCatalog.t('fr', 'action.geometry.lockGrid2x3')).not.toMatch(
+      /Layout lock \(mandatory\)/
+    )
+    expect(PromptCatalog.t('ja', 'swap.costume.task')).toMatch(/衣装/)
+    expect(PromptCatalog.t('ja', 'swap.costume.task')).not.toMatch(
+      /Identity lock:/
+    )
+    expect(PromptCatalog.t('fr', 'swap.costume.task')).toMatch(/costume/i)
+    expect(PromptCatalog.t('fr', 'swap.costume.task')).not.toMatch(
+      /Layout lock \(mandatory\)/
+    )
+  })
+
+  it('lists every catalog key', () => {
+    expect(PromptCatalog.keys().length).toBe(PROMPT_COPY_KEYS.length)
+    expect(PromptCatalog.context('ja').pack.id).toBe('ja')
   })
 })

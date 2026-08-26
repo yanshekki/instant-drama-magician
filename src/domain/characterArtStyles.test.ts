@@ -19,15 +19,16 @@ describe('characterArtStyles', () => {
   })
 
   it('anime quality block avoids photoreal pores', () => {
-    const q = qualityBlockForFamily('anime')
+    const q = qualityBlockForFamily('anime', 'en')
     expect(q).toMatch(/2D|cel|anime/i)
     expect(q).not.toMatch(/skin pores/)
+    expect(qualityBlockForFamily('anime', 'zh-HK')).toMatch(/平面設定稿|賽璐璐/)
   })
 
   it('qualityBlockForFamily covers all families', () => {
-    expect(qualityBlockForFamily('photo')).toMatch(/photoreal|studio/i)
-    expect(qualityBlockForFamily('cgi')).toMatch(/3D|PBR|CG/i)
-    expect(qualityBlockForFamily('illust')).toMatch(/illustration|silhouette/i)
+    expect(qualityBlockForFamily('photo', 'en')).toMatch(/photoreal|studio/i)
+    expect(qualityBlockForFamily('cgi', 'en')).toMatch(/3D|PBR|CG/i)
+    expect(qualityBlockForFamily('illust', 'en')).toMatch(/illustration|silhouette/i)
     expect(qualityBlockForFamily('illust' as never)).toBeTruthy()
   })
 
@@ -46,20 +47,18 @@ describe('characterArtStyles', () => {
       'face_id',
       'photo_cinematic'
     )
-    expect(photo.indexOf('MANDATORY MEDIUM')).toBeLessThan(
-      photo.indexOf('IDENTITY LOCK')
-    )
+    expect(photo.indexOf('必須媒介')).toBeLessThan(photo.indexOf('身份鎖定'))
     expect(photo).toMatch(/photo_cinematic/)
-    expect(photo).toMatch(/LIVE-ACTION PHOTOREAL|PHOTOREAL/i)
+    expect(photo).not.toMatch(/MANDATORY MEDIUM|IDENTITY LOCK/)
 
     const anime = buildCharacterSheetImagePrompt(
       { name: 'Miko', appearance: 'fox spirit' },
       'face_id',
       'anime_modern'
     )
-    expect(anime.startsWith('MANDATORY MEDIUM')).toBe(true)
+    expect(anime).toMatch(/^必須媒介/)
     expect(anime).toMatch(/anime_modern/)
-    expect(anime).toMatch(/2D MODERN JAPANESE TV ANIME/i)
-    expect(anime).toMatch(/FORBIDDEN:[\s\S]*photoreal/i)
+    expect(anime).toMatch(/現代日系電視動畫|2D/)
+    expect(anime).not.toMatch(/MANDATORY MEDIUM/)
   })
 })

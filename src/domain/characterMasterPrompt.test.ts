@@ -106,12 +106,24 @@ describe('characterMasterPrompt', () => {
       appearance: 'short hair',
       costume: 'delivery jacket'
     })
-    expect(p).toMatch(/front/i)
-    expect(p).toMatch(/three-quarter|close-up|head-and-shoulders/i)
     expect(p).toContain('Ming')
-    expect(p).toMatch(/IDENTITY LOCK|exactly one human/i)
-    expect(p).toMatch(/THREE equal|EXACTLY THREE/i)
-    expect(p).toMatch(/tack-sharp|micro-detail/i)
+    expect(p).toMatch(/身份鎖定|全身正面|三格/)
+    expect(p).toMatch(/畫質|銳利/)
+    expect(p).not.toMatch(
+      /GEOMETRY LOCK|PANEL COUNT IS NON-NEGOTIABLE|MANDATORY MEDIUM|CRITICAL IDENTITY LOCK/
+    )
+    const en = buildCharacterSheetImagePrompt(
+      {
+        name: 'Ming',
+        appearance: 'short hair',
+        costume: 'delivery jacket'
+      },
+      'bible',
+      'photo_cinematic',
+      'en'
+    )
+    expect(en).toMatch(/Identity lock|exactly one/i)
+    expect(en).toMatch(/three equal|three vertical/i)
   })
 
   it('edit prompt forces restyle medium while locking identity', () => {
@@ -120,9 +132,10 @@ describe('characterMasterPrompt', () => {
       'bible',
       'anime_modern'
     )
-    expect(p).toMatch(/LAYOUT CHANGE|IGNORE the source image LAYOUT/i)
-    expect(p).toMatch(/MANDATORY MEDIUM|anime_modern/i)
+    expect(p).toMatch(/圖像編輯|改版式|忽略原圖版式/)
+    expect(p).toMatch(/anime_modern/)
     expect(p).toContain('Ming')
+    expect(p).not.toMatch(/MANDATORY MEDIUM|IMAGE EDIT \/ LAYOUT CHANGE/)
   })
 
   it('edit prompt for nude package strips source costume and forces new layout', () => {
@@ -131,9 +144,9 @@ describe('characterMasterPrompt', () => {
       'body_nude_turnaround',
       'photo_cinematic'
     )
-    expect(p).toMatch(/STRIP all outer clothing|IGNORE.*costume/i)
-    expect(p).toMatch(/body_nude_turnaround|FOUR full-body/i)
-    expect(p).toMatch(/IGNORE the source image LAYOUT/i)
+    expect(p).toMatch(/去掉原圖所有外層|忽略原圖服裝/)
+    expect(p).toMatch(/body_nude_turnaround|四面轉/)
+    expect(p).toMatch(/忽略原圖版式/)
   })
 
   it('resolveSheetGenMode only edits when explicitly requested with ref', () => {

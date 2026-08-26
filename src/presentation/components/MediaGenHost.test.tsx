@@ -70,6 +70,7 @@ let lastOnVideoDone:
       queueRemaining?: string[]
       queueIndex?: number
       queueTotal?: number
+      introTemplateId?: string | null
     }) => void)
   | null = null
 
@@ -96,8 +97,33 @@ vi.mock('../lib/startIntroMediaGen', () => ({
     entryId: opts.entryId,
     skipStillIfExists: opts.skipStillIfExists,
     userExtraPrompt: opts.userExtraPrompt,
-    durationSeconds: opts.durationSeconds
-  }))
+    durationSeconds: opts.durationSeconds,
+    introTemplateId: opts.introTemplateId
+  })),
+  buildPhotoBookClipMediaGenRequest: vi.fn(
+    async (opts: {
+      characterId: string
+      shotId: string
+      shot: { stillPath: string; sceneId: string }
+      introTemplateId?: string | null
+      queueIndex?: number
+      queueTotal?: number
+      queueRemaining?: string[]
+      queueShotById?: Record<string, unknown>
+    }) => ({
+      kind: 'character-photoshoot-clip',
+      characterId: opts.characterId,
+      shotId: opts.shotId,
+      sceneId: opts.shot.sceneId,
+      sourceImagePath: opts.shot.stillPath,
+      skipStillIfExists: true,
+      introTemplateId: opts.introTemplateId,
+      queueIndex: opts.queueIndex,
+      queueTotal: opts.queueTotal,
+      queueRemaining: opts.queueRemaining,
+      queueShotById: opts.queueShotById
+    })
+  )
 }))
 
 import { MediaGenHost } from './MediaGenHost'
@@ -497,7 +523,8 @@ describe('MediaGenHost', () => {
         stillPath: '/s1.png',
         queueRemaining: ['e2'],
         queueIndex: 0,
-        queueTotal: 2
+        queueTotal: 2,
+        introTemplateId: 'close-up'
       })
     })
     startMediaGen.mockClear()
@@ -513,7 +540,59 @@ describe('MediaGenHost', () => {
           queueIndex: 1,
           queueTotal: 2,
           durationSeconds: 8,
-          userExtraPrompt: 'cinematic'
+          userExtraPrompt: 'cinematic',
+          introTemplateId: 'close-up'
+        })
+      )
+    )
+  })
+
+  it('close after photoshoot clip queues next shot via startMediaGen', async () => {
+    mediaGenRequest = {
+      kind: 'character-photoshoot-clip',
+      characterId: 'c1',
+      shotId: 'pb1',
+      queueRemaining: ['pb2'],
+      queueIndex: 0,
+      queueTotal: 2,
+      queueShotById: {
+        pb2: {
+          stillPath: '/s2.png',
+          sceneId: 'sc2',
+          propIds: []
+        }
+      },
+      queueIntroTemplateId: 'hero-walkin',
+      queueIdentityPaths: ['/id.png']
+    }
+    render(<MediaGenHost />)
+    await waitFor(() => expect(lastOnVideoDone).toBeTruthy())
+    await act(async () => {
+      lastOnVideoDone!({
+        kind: 'character-photoshoot-clip',
+        path: '/v1.mp4',
+        stillPath: '/s1.png',
+        queueRemaining: ['pb2'],
+        queueIndex: 0,
+        queueTotal: 2,
+        introTemplateId: 'close-up'
+      })
+    })
+    expect(toast.info).toHaveBeenCalled()
+    startMediaGen.mockClear()
+    await act(async () => {
+      lastOnClose!()
+    })
+    await waitFor(() =>
+      expect(startMediaGen).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'character-photoshoot-clip',
+          characterId: 'c1',
+          shotId: 'pb2',
+          sceneId: 'sc2',
+          queueIndex: 1,
+          queueTotal: 2,
+          introTemplateId: 'close-up'
         })
       )
     )

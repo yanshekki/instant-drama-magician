@@ -115,6 +115,16 @@ export function translateMediaGenSectionTitle(
   if (section.id === 'keyart_own') return t('mediaGen.keyArtOwn')
   if (section.id === 'keyart_prev') return t('mediaGen.keyArtPrev')
 
+  if (section.id?.startsWith('photoshoot_still_')) {
+    const raw = title.replace(/^#/, '').trim()
+    const parts = raw.split(/\s*[·•|]\s*/).map((x) => x.trim())
+    const n = parts[0] || ''
+    const scene = parts.slice(1).filter(Boolean).join(' · ')
+    return scene
+      ? t('mediaGen.photoBookStillScene', { n, scene })
+      : t('mediaGen.photoBookStill', { n })
+  }
+
   if (
     section.entityType === 'continuity' ||
     section.id === 'prev_clip' ||

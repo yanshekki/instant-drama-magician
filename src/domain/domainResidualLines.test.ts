@@ -756,7 +756,7 @@ describe('residual: wardrobeSuggest + sceneAtmosphere + costumeSwap', () => {
       newCostume: 'coat',
       mannerisms: 'touches helmet often when nervous in rain'
     })
-    expect(p).toMatch(/Mannerism/)
+    expect(p).toMatch(/習慣提示|Mannerism/)
 
     expect(
       buildCostumeIntroVideoPrompt(

@@ -8,7 +8,7 @@ export const esPromptPack: PromptPack = {
   languageName: 'español',
   tags: { must, mustNot },
   outputLock: [
-    'Escribe TODOS los textos visibles (hardRules, descripciones, biblia de estilo, guion de beats y el prompt final de imagen/vídeo) en español.',
+    'Escribe TODOS los textos visibles (reglas de generación, descripciones, biblia de estilo, guion de beats y el prompt final de imagen/vídeo) en español.',
     'No mezcles idiomas. No traduzcas los nombres propios que el usuario ya escribió.',
     `Prefija las líneas de reglas duras solo con ${must} y ${mustNot}.`,
     'Las claves JSON siguen en inglés.'
@@ -36,7 +36,7 @@ export const esPromptPack: PromptPack = {
   hardRulesFallback: {
     story: `${must} silueta legible; iluminación coherente\n${mustNot} marcas de agua; cromo de UI; subtítulos ilegibles; extremidades extra en humanos`,
     character: `${must} exactamente dos manos, dos brazos, dos piernas (salvo diseño no humano)\n${mustNot} extremidades extra; tercera cara; marcas de agua; logos de marca`,
-    scene: `${must} identidad del lugar en plano vacío; arquitectura coherente\n${mustNot} caras nuevas de protagonistas; marcas de agua; atrezzo que rompa el lugar`,
+    scene: `${must} identidad del lugar; arquitectura coherente\n${mustNot} caras nuevas de protagonistas; marcas de agua; atrezzo que rompa el lugar`,
     prop: `${must} un solo atrezzo claro; silueta limpia\n${mustNot} cables ajenos; objetos de más; marcas de agua; caras de famosos`,
     action: `${must} misma identidad en todos los paneles; beats de movimiento legibles\n${mustNot} extremidades extra; número de paneles mal; marcas de agua; título que sustituya un panel`,
     costume: `${must} vestuario exterior completo y legible; silueta correcta\n${mustNot} residuo del traje anterior; miembros fusionados; marcas de agua; logos de marca`

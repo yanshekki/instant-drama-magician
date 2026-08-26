@@ -66,8 +66,8 @@ instant-drama timeline create --args '[{
 
 ## 中文摘要
 
-- 唔存在獨立「由劇情建議」channel；喺 `*:aiFill` payload 傳 `suggestFromStory` + `segmentKeys`。
-- 空／唔傳 `segmentKeys` = 成個故事（先章節正文）。
+- 不存在獨立「由劇情建議」channel；在 `*:aiFill` payload 傳 `suggestFromStory` + `segmentKeys`。
+- 空／不傳 `segmentKeys` = 整個故事（先章節正文）。
 - Key：`chapter:<id>`、`beat:<id>`。單數 `segmentKey` 已棄用。
-- 桌面預勾只限 GUI；CLI 要自己傳 keys。
+- 桌面預勾只限桌面；CLI 須自行傳 keys。
 - 時間軸多綁上限：角色 4／場景 2／道具 4／動作 4。

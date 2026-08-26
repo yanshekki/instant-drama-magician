@@ -246,7 +246,8 @@ export function createMockPrisma(seed?: {
     }),
     $disconnect: vi.fn().mockResolvedValue(undefined),
     $connect: vi.fn().mockResolvedValue(undefined),
-    $queryRaw: vi.fn().mockResolvedValue([{ '1': 1 }])
+    $queryRaw: vi.fn().mockResolvedValue([{ '1': 1 }]),
+    $executeRawUnsafe: vi.fn().mockResolvedValue(undefined)
   }
 }
 

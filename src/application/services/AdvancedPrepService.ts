@@ -49,6 +49,7 @@ export interface AdvancedPrepSnapshot {
     professionalPrompt: string | null
     durationSeconds: number
     mediaPath: string | null
+    cameraTemplateId?: string | null
     /** Still was healed from existing clip video on this load */
     stillFromVideo?: boolean
   }>
@@ -279,6 +280,8 @@ export class AdvancedPrepService {
         professionalPrompt: cache?.professionalPrompt ?? null,
         durationSeconds: seconds,
         mediaPath,
+        cameraTemplateId:
+          (e as { cameraTemplateId?: string | null }).cameraTemplateId ?? null,
         stillFromVideo: stillFileExists && !cache
       }
     })

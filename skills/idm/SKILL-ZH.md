@@ -1,9 +1,9 @@
 ---
 name: instant-drama
 description: >-
-  用 instant-drama CLI 控制 InstantDrama Magician——183 個共用 channel：故事、章節、劇情焦點
+  用 instant-drama CLI 控制 InstantDrama Magician——184 個共用 channel：故事、章節、劇情焦點
  （suggestFromStory/segmentKeys）、角色、戲服、場景、道具、動作、漫畫、劇照、時間軸、生成、設定。
-  當用戶要喺終端機建短劇、由章節／段落填資產、出片或改設定時使用。
+  當用戶要在終端機建立短劇、由章節／段落填資產、出片或改設定時使用。
 metadata:
   {
     "openclaw":
@@ -19,7 +19,7 @@ metadata:
 
 # InstantDrama Magician（`instant-drama`）
 
-透過 **`instant-drama` CLI**（非 GUI）控制 **InstantDrama Magician**。桌面／web／CLI 共用 **183** 個 channel。
+透過 **`instant-drama` CLI**（非 GUI）控制 **InstantDrama Magician**。桌面／web／CLI 共用 **184** 個 channel。
 
 ## 一次性設定
 
@@ -49,7 +49,7 @@ instant-drama channels list --json
 instant-drama channels describe scenes:aiFill --json
 ```
 
-只呼叫 `channels list` 出現的 channel（應 **183**）。若缺少 channel，多半是二進位過舊。
+只呼叫 `channels list` 出現的 channel（應 **184**）。若缺少 channel，多半是二進位過舊。
 
 ## 輸出契約
 
@@ -69,7 +69,7 @@ instant-drama open --dev
 
 支援 **macOS、Ubuntu/Linux、Windows**。macOS 目標在 Mac 上建。
 
-## 全控制（183 channels）
+## 全控制（184 channels）
 
 ```bash
 instant-drama channels list --json
@@ -80,6 +80,12 @@ instant-drama keyArt get --args '["STORY_ID"]' --json
 instant-drama costumes append-try-on-still --args '[{"costumeId":"…","sourcePath":"/path.png"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-still","storyId":"…","entryId":"…"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"character-sheet","characterId":"…","advancedIdentity":true,"identityCollage":true,"lookPackId":"identity-lock"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"character-photoshoot","characterId":"…","sceneId":"…","propIds":["…"],"actionId":"…","shotId":"…"}]' --json
+instant-drama mediaGen extract --args '[{"kind":"character-photoshoot-clip","characterId":"…","sceneId":"…","shotId":"…","sourceImagePath":"/still.png","skipStillIfExists":true}]' --json
+instant-drama videoPrep confirm --args '[{"kind":"character-photoshoot-clip","characterId":"…","shotId":"…","stillPath":"/still.png","professionalPrompt":"…"}]' --json
+instant-drama characters render-photo-book --args '[{"characterId":"…","mode":"ai-clips","albumId":"album_default","introTemplateId":"hero-walkin"}]' --json
+instant-drama characters render-photo-book --args '[{"characterId":"…","mode":"ai-clips","albumId":"album_default","concatOnly":true}]' --json
+instant-drama characters render-photo-book --args '[{"characterId":"…","mode":"slideshow"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","continuityMode":"chain-end","motionPriority":"action"}]' --json
 instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
 instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
@@ -87,7 +93,7 @@ instant-drama generation run STORY_ID --json
 instant-drama media check-ffmpeg --json
 ```
 
-角色 sheet／道具 plate／介紹片走 **`mediaGen:extract` → `polish` → `generateImage`**（舊 `generate-sheet`／`generatePlate` 已棄用）。
+角色表／道具板／介紹片走 **`mediaGen:extract` → `polish` → `generateImage`**（舊 `generate-sheet`／`generatePlate` 已棄用）。攝影集短片提取（`character-photoshoot-clip`）以 `profileJson.photoBook.albums` 當前相冊靜圖做像素底圖，人設參考只作視覺參考。桌面鏡頭範本在攝影集編輯欄、時間軸節拍、主視覺鏡頭選擇（靜圖與視頻 MediaGen 彈窗可再改）。`mediaGen:extract` 的 `introTemplateId` 可覆寫已存的 `cameraTemplateId`。CLI `ai-clips` 仍然使用 `introTemplateId`；`characters:renderPhotoBook` 可傳 `albumId`。
 
 可選 payload 旗標（設定預設；**不要加新 channel**）：`continuityMode`（`storyboard`|`chain-end`）、`motionPriority`（`default`|`action`）、`advancedIdentity`、`identityCollage`、`lookPackId`（`follow-asset`|`identity-lock`|`continuous-clip`|`key-art`|`comic`）、`generateAudio`、`grokVideoVoice`（`ara`|`eve`|`leo`|`rex`|`sal`|`mio`）。用 `channels describe mediaGen:extract` 查看 argsHint。
 
