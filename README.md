@@ -3,7 +3,7 @@
 <p align="center">
   <strong>From one idea to a finished short drama — on your desk.</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
-  · <strong>v1.8.0</strong> · MIT
+  · <strong>v1.9.0</strong> · MIT
   · <a href="https://ysk.hk/products/instant-drama">Product page</a>
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>
@@ -72,7 +72,7 @@ Lock a cast. Board every beat. Then work the **same story** three ways: a **time
 
 ## UI screenshots
 
-From the running app (`src/assets/screen/`, v1.8.0). The heroes above are the **timeline**, **comics**, and **key-art** desks.
+From the running app (`src/assets/screen/`, v1.9.0). The heroes above are the **timeline**, **comics**, and **key-art** desks.
 
 ### 1. Story management
 
@@ -412,7 +412,7 @@ Local builds land in `release/`; or download from GitHub Releases.
 
 ```bash
 # Linux example
-sudo dpkg -i release/instant-drama-magician_1.8.0_amd64.deb
+sudo dpkg -i release/instant-drama-magician_1.9.0_amd64.deb
 # or
 ./release/InstantDrama\ Magician-1.0.0.AppImage
 ```
@@ -478,7 +478,7 @@ instant-drama version
 ```bash
 instant-drama update              # check npm registry for a newer version
 instant-drama update install --yes   # global install latest (with post-verify)
-instant-drama update install 1.8.0 --yes   # pin a version
+instant-drama update install 1.9.0 --yes   # pin a version
 ```
 
 `instant-drama doctor` also reports npm update status (skip with `IDM_SKIP_UPDATE=1`).
