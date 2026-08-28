@@ -214,7 +214,7 @@ Local Grok Gateway by default, plus cloud and local LLM / image / video cards.
 | **Actions** | Global **motion-direction** library: multi-panel instruction boards (2–6 panels), **advanced motion / camera / hard-rule kits**, art styles, external refs, cast refs, **vision AI fill**, multi-gallery |
 | **MediaGen shell** | Unified materials → multi-vision polish → still / video (`mediaGen:extract` · `polish` · `generateImage`); used by library pages and timeline refine |
 | **Gallery UI** | Shared **EntityGalleryPanel**: large preview, zoom/save/cover/remove/intro, multi-thumb strip (preview vs identity-lock multi-select) |
-| **Timeline** | Linear layout, snap/pack, per-clip generate, bind character / scene / prop / **action**, 6s/10s duration, dialogue & camera tags; **pipeline board** stacks to the live window height |
+| **Timeline** | Condition lanes (shot + refs), snap/pack, work area, live compiled prompt, bind character / scene / prop / **action**, 6s/10s duration; **pipeline board** shows load → prompt → still → video |
 | **Comics** | Turn beats into full pages (even grids + manga layouts), 9:16 / 1:1 / 16:9, page vs short-drama video schemes, versioned page videos, export a film of pages that already have video |
 | **Key art** | Story publicity stills: cover / poster / still / promo / social / headshot / bust / lineup; four make methods; versioned PNGs; optional **set as story cover** |
 | **Advanced prep** | Cast lock → storyboard stills (**end-frame continuity**, prev keyframe edit base, multi-ref polish) → video; per-cell **Refine still / Refine to video** (MediaGen) |
@@ -321,7 +321,8 @@ Sidebar: **Stories · Characters · Costumes · Scenes · Props · Actions · Co
 - Select current story; **Play** / **Undo** / **Redo**  
 - **Generate** batch; **Export** final; **Export history**  
 - Total duration, ready count, video mode, AI clips **6s or 10s only**  
-- Zoom, **Timeline snap**, snap grid, **Pack clips**  
+- Zoom, **Timeline snap**, snap grid, **Pack clips**, condition lanes and generation work area
+- Board view: **compiled prompt**, staged pipeline (load refs → prompt → still → video)  
 - **Clip editor**: bind character / scene / prop / **action**, duration, beat screenplay (`[MOOD]` / `[ATMO]` / `[DIALOGUE]`, etc.)  
 - Per clip: **Generate this clip** / **Regenerate** / **Continue video**  
 - Retry failures; cancel generation; retry-failed-only  

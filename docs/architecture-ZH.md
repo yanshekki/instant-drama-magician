@@ -82,8 +82,8 @@ Channel 目錄：`src/runtime/channelManifest.ts`（**184** 個唯一 id）。
 | `/actions` | Actions（動作指導圖） |
 | `/comics` | 漫畫工作室 |
 | `/key-art` | 劇照桌 |
-| `/timeline` | Timeline + Advanced prep（連續性 + 精修） |
-| `/timeline-v2` | Timeline v2 工作室 |
+| `/timeline` | 時間軸軌道（條件軌 + 進階預備） |
+| `/timeline-v2` | 導演臺：媒體庫、已編譯提示、分階段流程圖、多列軌道 |
 | `/audit` | 活動日誌 |
 | `/settings` | 設定 |
 

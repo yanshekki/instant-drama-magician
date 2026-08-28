@@ -32,7 +32,7 @@
 ## 仍未做／邊界
 
 - 代碼簽章、商店上架（需自備憑證）  
-- 多軌 NLE  
+- 後期合成式多軌（時間軸條件軌不是疊圖層）  
 - 商用級 TTS／自動配樂  
 
 > **v1.0.0 之後已補：** 多平台 GitHub Release、electron-updater、活動日誌與支援報告、完整 CLI／Web runtime（現為 **184** channels）。見 [commercial-ZH.md](./commercial-ZH.md)。

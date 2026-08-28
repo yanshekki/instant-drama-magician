@@ -32,7 +32,7 @@ Trial-deepening layer on top of Beta: **controllable generation, dialogue audio,
 ## Still not done / boundaries
 
 - Code signing, store listing (need your certs)  
-- Multi-track NLE  
+- Compositing multi-track NLE (condition lanes on the timeline are not overlay layers)  
 - Studio-grade TTS / auto scoring  
 
 > **After v1.0.0:** multi-platform GitHub Release, electron-updater, activity log + support report, full CLI/Web runtime (now **184** channels). See [commercial.md](./commercial.md).

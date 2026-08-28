@@ -5,9 +5,11 @@ import { writeTimelinePagePref } from '../lib/timelinePagePref'
 import { TimelineViewSwitch } from '../components/timeline/TimelineViewNav'
 import { PageHeader } from '../components/PageHeader'
 import { Button, EmptyState, Select } from '../components/ui'
+import { AssetLibrary } from '../components/timeline/AssetLibrary'
 import { KonvaTimeline } from '../components/timeline/KonvaTimeline'
 import { PreviewPlayer } from '../components/timeline/PreviewPlayer'
 import { TimelineAdvancedStudio } from '../components/timeline/TimelineAdvancedStudio'
+import { TimelineDirectorInspector } from '../components/timeline/TimelineDirectorInspector'
 import { TimelineGraphCanvas } from '../components/timeline/TimelineGraphCanvas'
 import { TimelineSetupPicker } from '../components/timeline/TimelineSetupPicker'
 import { ExportFinalDialog } from '../components/ExportFinalDialog'
@@ -102,6 +104,13 @@ export function TimelineV2Page(): JSX.Element {
             {s.exportHistory.length}
           </span>
         ) : null}
+      </Button>
+      <Button
+        variant="ghost"
+        onClick={() => s.handleExportWorkflow()}
+        disabled={!s.activeStoryId || s.entries.length === 0}
+      >
+        {t('timeline.desk.exportPlan')}
       </Button>
       <Button
         variant="secondary"
@@ -235,139 +244,217 @@ export function TimelineV2Page(): JSX.Element {
             s.formatUserError(m, t)
           )}
 
-          <TimelineGraphCanvas
-            layout={s.graphLayout}
-            selectedNodeId={s.graphNodeId}
-            onViewportHeight={s.setGraphViewportFromCanvas}
-            onSelectNode={(id) => {
-              s.setGraphNodeId(id)
-              const node = s.graphLayout.nodes.find((n) => n.id === id)
-              if (node?.entryId && node.entryId !== s.selectedId) {
-                s.selectClip(node.entryId)
-              }
-            }}
-            handlers={{
-              promptValue: s.dialogue,
-              revisionValue: selected ? s.revisionByEntry[selected.id] ?? '' : '',
-              onPromptChange: s.setDialogue,
-              onRevisionChange: (v) => {
-                if (!selected) return
-                s.setRevisionByEntry((prev) => ({ ...prev, [selected.id]: v }))
-              },
-              onSavePrompt: () => void s.handleSaveDialogue(),
-              onGenStill: () => s.genStill(false),
-              onRegenStill: () => s.genStill(true),
-              onRefineStill: s.refineStill,
-              onGenStillFor: (entryId) => s.genStill(false, entryId),
-              onRegenStillFor: (entryId) => s.genStill(true, entryId),
-              onRefineStillFor: (entryId) => s.refineStill(entryId),
-              onOpenSetup: () => s.setSetupOpen(true),
-              onOpenStoryEditor: s.openStoryEditor,
-              onOpenEntity: s.openEntity,
-              stillBusy: s.stillBusy,
-              videoSlotFor: (entryId) => {
-                const entry = s.entries.find((e) => e.id === entryId) ?? null
-                const active = entry?.id === s.selectedId
-                return (
-                  <PreviewPlayer
-                    className="h-full min-h-[10rem] border-0 shadow-none"
-                    entry={entry}
-                    playhead={active ? s.playhead : entry?.startTime ?? 0}
-                    isPlaying={Boolean(active && s.isPlaying)}
-                    onMediaClock={active ? s.handleMediaClock : undefined}
-                    onClipEnded={active ? s.handleClipEnded : undefined}
-                    onTogglePlay={() => s.playOrSelectClip(entryId)}
-                    onGenerate={
-                      entry ? () => void s.handleRunClip(entry.id) : undefined
-                    }
-                    generateDisabled={s.busy}
-                    generateLabel={
-                      entry
-                        ? s.clipGenerateLabel(entry.id, entry.mediaStatus)
-                        : t('timeline.generateClip')
-                    }
-                  />
-                )
-              },
-              generateVideoSlotFor: (entryId) => {
-                const entry = s.entries.find((e) => e.id === entryId)
-                if (!entry) return null
-                return (
-                  <>
-                    <div className="flex flex-wrap items-center gap-1">
-                      <Button
-                        variant="secondary"
-                        className="!h-7 !px-2 !py-0 !text-[10px]"
-                        disabled={s.busy}
-                        onClick={() => void s.handleRunClip(entry.id)}
-                      >
-                        {s.timelineGeneratingLabel(
-                          s.clipBusyId === entry.id,
-                          t('common.generating'),
-                          s.clipGenerateLabel(entry.id, entry.mediaStatus)
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="!h-7 !px-2 !py-0 !text-[10px]"
-                        onClick={() => void s.handleImportClip(entry.id)}
-                      >
-                        {t('timeline.importClip')}
-                      </Button>
-                      {entry.mediaPath ? (
-                        <>
-                          <Button
-                            variant="ghost"
-                            className="!h-7 !px-2 !py-0 !text-[10px]"
-                            onClick={() => void s.handleOpenClip(entry.id)}
-                          >
-                            {t('timeline.openClip')}
-                          </Button>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row lg:overflow-hidden">
+            <aside className="hidden h-full w-56 shrink-0 overflow-y-auto rounded-2xl border border-ink-800/80 bg-ink-900/30 p-3 xl:block">
+              <AssetLibrary
+                characters={s.castCharacters}
+                scenes={s.castScenes}
+                props={s.castProps}
+                actions={s.castActions}
+                pictureByKey={s.pictureByKey}
+                onAdd={(payload) => void s.addAsset(payload)}
+                onOpenStoryEditor={s.openStoryEditor}
+                compact
+              />
+            </aside>
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+              <TimelineGraphCanvas
+                layout={s.graphLayout}
+                selectedNodeId={s.graphNodeId}
+                onViewportHeight={s.setGraphViewportFromCanvas}
+                onSelectNode={(id) => {
+                  s.setGraphNodeId(id)
+                  const node = s.graphLayout.nodes.find((n) => n.id === id)
+                  if (node?.entryId && node.entryId !== s.selectedId) {
+                    s.selectClip(node.entryId)
+                  }
+                }}
+                handlers={{
+                  promptValue: s.dialogue,
+                  revisionValue: selected ? s.revisionByEntry[selected.id] ?? '' : '',
+                  onPromptChange: s.setDialogue,
+                  onRevisionChange: (v) => {
+                    if (!selected) return
+                    s.setRevisionByEntry((prev) => ({ ...prev, [selected.id]: v }))
+                  },
+                  onSavePrompt: () => void s.handleSaveDialogue(),
+                  onGenStill: () => s.genStill(false),
+                  onRegenStill: () => s.genStill(true),
+                  onRefineStill: s.refineStill,
+                  onGenStillFor: (entryId) => s.genStill(false, entryId),
+                  onRegenStillFor: (entryId) => s.genStill(true, entryId),
+                  onRefineStillFor: (entryId) => s.refineStill(entryId),
+                  onOpenSetup: () => s.setSetupOpen(true),
+                  onOpenStoryEditor: s.openStoryEditor,
+                  onOpenEntity: s.openEntity,
+                  stillBusy: s.stillBusy,
+                  videoSlotFor: (entryId) => {
+                    const entry = s.entries.find((e) => e.id === entryId) ?? null
+                    const active = entry?.id === s.selectedId
+                    return (
+                      <PreviewPlayer
+                        className="h-full min-h-[10rem] border-0 shadow-none"
+                        entry={entry}
+                        playhead={active ? s.playhead : entry?.startTime ?? 0}
+                        isPlaying={Boolean(active && s.isPlaying)}
+                        onMediaClock={active ? s.handleMediaClock : undefined}
+                        onClipEnded={active ? s.handleClipEnded : undefined}
+                        onTogglePlay={() => s.playOrSelectClip(entryId)}
+                        onGenerate={
+                          entry ? () => void s.handleRunClip(entry.id) : undefined
+                        }
+                        generateDisabled={s.busy}
+                        generateLabel={
+                          entry
+                            ? s.clipGenerateLabel(entry.id, entry.mediaStatus)
+                            : t('timeline.generateClip')
+                        }
+                      />
+                    )
+                  },
+                  generateVideoSlotFor: (entryId) => {
+                    const entry = s.entries.find((e) => e.id === entryId)
+                    if (!entry) return null
+                    return (
+                      <>
+                        <div className="flex flex-wrap items-center gap-1">
                           <Button
                             variant="secondary"
                             className="!h-7 !px-2 !py-0 !text-[10px]"
-                            onClick={() => void s.handleExportClip(entry.id)}
+                            disabled={s.busy}
+                            onClick={() => void s.handleRunClip(entry.id)}
                           >
-                            {t('timeline.exportClip')}
+                            {s.timelineGeneratingLabel(
+                              s.clipBusyId === entry.id,
+                              t('common.generating'),
+                              s.clipGenerateLabel(entry.id, entry.mediaStatus)
+                            )}
                           </Button>
-                        </>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="inline-flex overflow-hidden rounded-md border border-ink-700">
-                        {([6, 10] as const).map((sec) => {
-                          const active =
-                            snapVideoSeconds(entry.endTime - entry.startTime) ===
-                            sec
-                          return (
-                            <button
-                              key={sec}
-                              type="button"
-                              className={`h-7 px-2 text-[10px] ${
-                                active
-                                  ? 'bg-ink-700 text-ink-50'
-                                  : 'text-ink-400 hover:bg-ink-800 hover:text-ink-200'
-                              }`}
-                              onClick={() => void s.handleClipDuration(sec, entry)}
-                            >
-                              {sec}s
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <Button
-                        variant="danger"
-                        className="!h-7 !px-2 !py-0 !text-[10px]"
-                        onClick={() => void s.handleDeleteClip(entry)}
-                      >
-                        {t('common.delete')}
-                      </Button>
-                    </div>
-                  </>
-                )
-              }
-            }}
-          />
+                          <Button
+                            variant="ghost"
+                            className="!h-7 !px-2 !py-0 !text-[10px]"
+                            onClick={() => void s.handleImportClip(entry.id)}
+                          >
+                            {t('timeline.importClip')}
+                          </Button>
+                          {entry.mediaPath ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                className="!h-7 !px-2 !py-0 !text-[10px]"
+                                onClick={() => void s.handleOpenClip(entry.id)}
+                              >
+                                {t('timeline.openClip')}
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                className="!h-7 !px-2 !py-0 !text-[10px]"
+                                onClick={() => void s.handleExportClip(entry.id)}
+                              >
+                                {t('timeline.exportClip')}
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="inline-flex overflow-hidden rounded-md border border-ink-700">
+                            {([6, 10] as const).map((sec) => {
+                              const active =
+                                snapVideoSeconds(entry.endTime - entry.startTime) ===
+                                sec
+                              return (
+                                <button
+                                  key={sec}
+                                  type="button"
+                                  className={`h-7 px-2 text-[10px] ${
+                                    active
+                                      ? 'bg-ink-700 text-ink-50'
+                                      : 'text-ink-400 hover:bg-ink-800 hover:text-ink-200'
+                                  }`}
+                                  onClick={() => void s.handleClipDuration(sec, entry)}
+                                >
+                                  {sec}s
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <Button
+                            variant="danger"
+                            className="!h-7 !px-2 !py-0 !text-[10px]"
+                            onClick={() => void s.handleDeleteClip(entry)}
+                          >
+                            {t('common.delete')}
+                          </Button>
+                        </div>
+                      </>
+                    )
+                  }
+                }}
+              />
+            </div>
+
+            <aside className="flex h-full w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-ink-800/80 bg-ink-900/30 lg:w-80">
+              <div className="shrink-0 border-b border-ink-800/80 p-2">
+                <p className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wide text-ink-500">
+                  {t('timeline.desk.monitor')}
+                </p>
+                <PreviewPlayer
+                  className="h-36 border-0 shadow-none"
+                  entry={selected}
+                  playhead={s.playhead}
+                  isPlaying={s.isPlaying}
+                  onMediaClock={s.handleMediaClock}
+                  onClipEnded={s.handleClipEnded}
+                  onTogglePlay={() =>
+                    selected
+                      ? s.playOrSelectClip(selected.id)
+                      : s.handleTogglePlay()
+                  }
+                  onGenerate={
+                    selected ? () => void s.handleRunClip(selected.id) : undefined
+                  }
+                  generateDisabled={s.busy}
+                  generateLabel={
+                    selected
+                      ? s.clipGenerateLabel(selected.id, selected.mediaStatus)
+                      : t('timeline.generateClip')
+                  }
+                />
+              </div>
+              <TimelineDirectorInspector
+                entry={selected}
+                compiledText={s.compiledText}
+                compiledLocked={s.compiledLocked}
+                compiledDraft={s.compiledText}
+                onCompiledDraftChange={s.setCompiledDraft}
+                onLockCompiled={s.lockCompiledPrompt}
+                onRevertCompiled={s.revertCompiledPrompt}
+                onDuration={(sec) => void s.handleClipDuration(sec)}
+                onGenerate={
+                  selected ? () => void s.handleRunClip(selected.id) : undefined
+                }
+                onImport={
+                  selected ? () => void s.handleImportClip(selected.id) : undefined
+                }
+                onExport={
+                  selected ? () => void s.handleExportClip(selected.id) : undefined
+                }
+                onOpen={
+                  selected ? () => void s.handleOpenClip(selected.id) : undefined
+                }
+                onDelete={
+                  selected ? () => void s.handleDeleteClip(selected) : undefined
+                }
+                generateDisabled={s.busy}
+                generateLabel={
+                  selected
+                    ? s.clipGenerateLabel(selected.id, selected.mediaStatus)
+                    : undefined
+                }
+              />
+            </aside>
+          </div>
 
           <div
             ref={konvaHostRef}
@@ -402,6 +489,15 @@ export function TimelineV2Page(): JSX.Element {
               onSnapGridSecChange={(v) =>
                 void s.persistSnapSettings({ snapGridSec: v })
               }
+              workStart={s.workStart}
+              workEnd={s.workEnd}
+              onWorkAreaChange={s.persistWorkArea}
+              stillByEntryId={s.stillByEntryId}
+              characters={s.castCharacters}
+              scenes={s.castScenes}
+              props={s.castProps}
+              actions={s.castActions}
+              pictureByKey={s.pictureByKey}
               width={Math.max(konvaWidth - 8, 280)}
             />
           </div>

@@ -29,7 +29,7 @@ Sidebar shows `Video: stub|http|auto`.
 
 - Non-store-signed packages  
 - TTS / BGM quality limited (Round 8 added mix path)  
-- Single-track timeline  
+- Condition-lane timeline (shot + refs; not a compositing NLE)  
 - Real film quality depends on gateway `MEDIA_PROVIDER`  
 
 Production UX: [production-ux.md](./production-ux.md). Current shipping: [commercial.md](./commercial.md).

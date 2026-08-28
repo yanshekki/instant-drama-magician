@@ -1110,6 +1110,30 @@
     "snapEnabled": "Timeline snap",
     "snapGridSec": "Snap grid (seconds)",
     "snapHint": "Snap clip edges to the grid and neighbouring clips while dragging",
+    "desk": {
+      "mediaPool": "Project media",
+      "monitor": "Program monitor",
+      "inspector": "Inspector",
+      "compiledPrompt": "Compiled prompt",
+      "compiledHint": "This is the text the model will receive. Lock to edit by hand; revert to compile again from the timeline.",
+      "lockPrompt": "Edit",
+      "revertPrompt": "Revert",
+      "handWritten": "Prompt (hand-written)",
+      "exportPlan": "Export plan",
+      "exportPlanOk": "Saved the generation plan JSON",
+      "workArea": "Work area",
+      "workAreaHint": "Generate only clips that overlap this range",
+      "start": "In",
+      "end": "Out",
+      "noClip": "Select a clip on the timeline."
+    },
+    "lanes": {
+      "shot": "Shot",
+      "character": "Cast",
+      "scene": "Scene",
+      "asset": "Prop / action",
+      "keyframe": "First / last"
+    },
     "advanced": {
       "open": "Advanced",
       "openHint": "Set cast reference images / costumes and batch-generate keyframe stills",
@@ -1184,7 +1208,7 @@
     "mergedHardRulesHint": "Merged from this story + linked characters / scenes / props / actions. Applied at highest priority on clip generate (revision cannot cancel these).",
     "graph": {
       "title": "Timeline",
-      "subtitle": "The same timeline, shown as a storyboard flow of refs, stills, and clips.",
+      "subtitle": "The same timeline: condition tracks compile a prompt, and the board shows the generation stages.",
       "useClassic": "Track view",
       "useV2": "Board view",
       "cinematic": "Style / continuity",
@@ -1202,7 +1226,13 @@
       "clipFirst": "First clip",
       "clipLinked": "Continues previous",
       "clipUnlinked": "No previous lock",
-      "clipEmpty": "No video yet"
+      "clipEmpty": "No video yet",
+      "stage": {
+        "refs": "Load refs",
+        "prompt": "Prompt / condition",
+        "still": "Still sample",
+        "video": "Video sample"
+      }
     }
   },
   "pipeline": {

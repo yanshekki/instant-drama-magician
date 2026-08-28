@@ -4,6 +4,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'en' } })
 }))
+vi.mock('../LocalMediaImage', () => ({
+  LocalMediaImage: () => <span data-testid="thumb" />
+}))
 
 import { AssetLibrary } from './AssetLibrary'
 

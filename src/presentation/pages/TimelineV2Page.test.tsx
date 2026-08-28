@@ -61,6 +61,9 @@ vi.mock('../components/ExportFinalDialog', () => ({
       </div>
     ) : null
 }))
+vi.mock('../components/LocalMediaImage', () => ({
+  LocalMediaImage: () => <span data-testid="thumb" />
+}))
 
 function seed() {
   api.stories.list = vi.fn().mockResolvedValue([makeStory()])
@@ -127,7 +130,7 @@ describe('TimelineV2Page', () => {
         screen.getByText(/Choose a story above to edit its timeline/i)
       ).toBeTruthy()
     )
-    expect(screen.getByText(/Track view|Track/i)).toBeTruthy()
+    expect(screen.getAllByText(/^Track$/i).length).toBeGreaterThan(0)
   })
 
   it('renders pipeline graph and can save the prompt', async () => {
@@ -139,6 +142,8 @@ describe('TimelineV2Page', () => {
     expect(screen.getAllByText(/^Timeline$/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Track view|Track/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Board view|Board/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('director-inspector').length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('compiled-prompt').length).toBeGreaterThan(0)
 
     const areas = Array.from(document.querySelectorAll('textarea'))
     expect(areas.length).toBeGreaterThan(0)

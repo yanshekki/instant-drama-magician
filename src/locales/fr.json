@@ -1110,6 +1110,30 @@
     "snapEnabled": "Instantané de la chronologie",
     "snapGridSec": "Grille d'accrochage (secondes)",
     "snapHint": "Alignez les bords des clips sur la grille et les clips voisins tout en les faisant glisser",
+    "desk": {
+      "mediaPool": "Médias du projet",
+      "monitor": "Moniteur programme",
+      "inspector": "Inspecteur",
+      "compiledPrompt": "Invite compilée",
+      "compiledHint": "Texte que le modèle recevra. Verrouillez pour l’éditer à la main ; rétablissez pour recompiler depuis la timeline.",
+      "lockPrompt": "Éditer",
+      "revertPrompt": "Rétablir",
+      "handWritten": "Invite (manuscrite)",
+      "exportPlan": "Exporter le plan",
+      "exportPlanOk": "Plan de génération JSON enregistré",
+      "workArea": "Zone de génération",
+      "workAreaHint": "Ne générer que les clips qui recoupent cette plage",
+      "start": "Entrée",
+      "end": "Sortie",
+      "noClip": "Sélectionnez un clip sur la timeline."
+    },
+    "lanes": {
+      "shot": "Plan",
+      "character": "Distribution",
+      "scene": "Lieu",
+      "asset": "Accessoire / action",
+      "keyframe": "Premier / dernier"
+    },
     "advanced": {
       "open": "Avancé",
       "openHint": "Définir des images/costumes de référence et générer des images fixes par lots",
@@ -1184,7 +1208,7 @@
     "mergedHardRulesHint": "Fusionné à partir de cette histoire + personnages/scènes/accessoires/actions liés. Appliqué avec la priorité la plus élevée lors de la génération du clip (la révision ne peut pas les annuler).",
     "graph": {
       "title": "Chronologie",
-      "subtitle": "La même timeline, affichée en flux storyboard (réfs, images, clips).",
+      "subtitle": "La même timeline : les pistes de condition compilent l’invite, le tableau montre les étapes de génération.",
       "useClassic": "Vue piste",
       "useV2": "Vue flux",
       "cinematic": "Style / continuité",
@@ -1202,7 +1226,13 @@
       "clipFirst": "Premier plan",
       "clipLinked": "Suite du précédent",
       "clipUnlinked": "Pas de verrouillage",
-      "clipEmpty": "Pas encore de vidéo"
+      "clipEmpty": "Pas encore de vidéo",
+      "stage": {
+        "refs": "Charger les refs",
+        "prompt": "Invite / condition",
+        "still": "Échantillonnage image",
+        "video": "Échantillonnage vidéo"
+      }
     }
   },
   "pipeline": {

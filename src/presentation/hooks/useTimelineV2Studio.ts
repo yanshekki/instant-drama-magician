@@ -3,6 +3,18 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { TimelineService } from '../../application/TimelineService'
 import { charactersMissingRef } from '../../domain/promptContinuity'
+import { compileTimelinePrompt } from '../../domain/compiledTimelinePrompt'
+import {
+  clampWorkArea,
+  entriesIntersectingRange,
+  numberMediaPool,
+  pictureKey,
+  workAreaCoversAll
+} from '../../domain/timelineLanes'
+import {
+  buildTimelineWorkflowPlan,
+  timelineWorkflowFileName
+} from '../../domain/timelineWorkflowExport'
 import {
   beatContentForEditor,
   commitBeatScriptEdit
@@ -187,6 +199,11 @@ export function useTimelineV2Studio() {
       windowH: typeof window !== 'undefined' ? window.innerHeight : 0
     })
   )
+  const [workStart, setWorkStart] = useState(0)
+  const [workEnd, setWorkEnd] = useState(12)
+  const [compiledLockByEntry, setCompiledLockByEntry] = useState<
+    Record<string, string>
+  >({})
   const setGraphViewportFromCanvas = useCallback((h: number, top?: number) => {
     const next = timelineGraphWrapLimit({
       canvasH: h,
@@ -279,6 +296,29 @@ export function useTimelineV2Studio() {
   const readyCount = useMemo(
     () => entries.filter((e) => e.mediaStatus === 'READY').length,
     [entries]
+  )
+  const workTouchedRef = useRef(false)
+
+  useEffect(() => {
+    workTouchedRef.current = false
+    setWorkStart(0)
+    setWorkEnd(12)
+    setCompiledLockByEntry({})
+  }, [activeStoryId])
+
+  useEffect(() => {
+    if (workTouchedRef.current) return
+    setWorkEnd(Math.max(totalDuration, 12))
+  }, [totalDuration])
+
+  const persistWorkArea = useCallback(
+    (start: number, end: number): void => {
+      workTouchedRef.current = true
+      const next = clampWorkArea(start, end, Math.max(totalDuration, 12))
+      setWorkStart(next.start)
+      setWorkEnd(next.end)
+    },
+    [totalDuration]
   )
 
   useEffect(() => {
@@ -439,6 +479,137 @@ export function useTimelineV2Studio() {
     }
     return map
   }, [entries, castCharacters, castScenes, castProps, castActions])
+
+  const pictureByKey = useMemo(
+    () =>
+      numberMediaPool([
+        ...castCharacters.map((c) => ({ key: pictureKey('character', c.id) })),
+        ...castScenes.map((s) => ({ key: pictureKey('scene', s.id) })),
+        ...castProps.map((p) => ({ key: pictureKey('prop', p.id) })),
+        ...castActions.map((a) => ({ key: pictureKey('action', a.id) }))
+      ]),
+    [castCharacters, castScenes, castProps, castActions]
+  )
+
+  const stillByEntryId = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const cell of prep?.cells ?? []) {
+      const p = cell.stillPath?.trim()
+      if (cell.entryId && p) map[cell.entryId] = p
+    }
+    return map
+  }, [prep])
+
+  const workEntries = useMemo(
+    () => entriesIntersectingRange(entries, workStart, workEnd),
+    [entries, workStart, workEnd]
+  )
+  const workCoversAll = workAreaCoversAll(
+    workStart,
+    workEnd,
+    Math.max(totalDuration, 12)
+  )
+
+  const compiledPrompt = useMemo(() => {
+    if (!selected || !activeStory) return null
+    const shotIndex =
+      [...entries]
+        .sort((a, b) => a.startTime - b.startTime)
+        .findIndex((e) => e.id === selected.id) + 1
+    return compileTimelinePrompt({
+      entry: selected,
+      storyTitle: activeStory.title,
+      styleNote: activeStory.styleNote,
+      characters: castCharacters,
+      scenes: castScenes,
+      props: castProps,
+      actions: castActions,
+      locale: getAiLocale(i18n.language),
+      shotIndex: Math.max(1, shotIndex),
+      storyHardRules: undefined
+    })
+  }, [
+    selected,
+    activeStory,
+    entries,
+    castCharacters,
+    castScenes,
+    castProps,
+    castActions,
+    i18n.language
+  ])
+
+  const compiledLocked = Boolean(
+    selected && compiledLockByEntry[selected.id] != null
+  )
+  const compiledText = compiledLocked
+    ? compiledLockByEntry[selected.id] ?? ''
+    : compiledPrompt?.text ?? ''
+
+  const lockCompiledPrompt = useCallback((): void => {
+    if (!selected || !compiledPrompt?.text) return
+    setCompiledLockByEntry((prev) => ({
+      ...prev,
+      [selected.id]: compiledPrompt.text
+    }))
+  }, [selected, compiledPrompt])
+
+  const revertCompiledPrompt = useCallback((): void => {
+    if (!selected) return
+    setCompiledLockByEntry((prev) => {
+      const next = { ...prev }
+      delete next[selected.id]
+      return next
+    })
+  }, [selected])
+
+  const setCompiledDraft = useCallback(
+    (v: string): void => {
+      if (!selected) return
+      setCompiledLockByEntry((prev) => ({ ...prev, [selected.id]: v }))
+    },
+    [selected]
+  )
+
+  const handleExportWorkflow = useCallback((): void => {
+    if (!activeStoryId || !activeStory) return
+    const plan = buildTimelineWorkflowPlan({
+      storyId: activeStoryId,
+      storyTitle: activeStory.title,
+      entries,
+      workStart,
+      workEnd,
+      compiledByEntryId: selected
+        ? {
+            [selected.id]: compiledLocked
+              ? compiledText
+              : compiledPrompt?.text
+          }
+        : undefined
+    })
+    const blob = new Blob([JSON.stringify(plan, null, 2)], {
+      type: 'application/json'
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = timelineWorkflowFileName(activeStory.title)
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(t('timeline.desk.exportPlanOk'))
+  }, [
+    activeStoryId,
+    activeStory,
+    entries,
+    workStart,
+    workEnd,
+    selected,
+    compiledLocked,
+    compiledText,
+    compiledPrompt,
+    toast,
+    t
+  ])
 
   const graphLayout = useMemo(() => {
     const cell = findTimelineGraphPrepCell(prep?.cells, selected?.id)
@@ -695,11 +866,12 @@ export function useTimelineV2Studio() {
   )
 
   const handleGenerate = async (onlyFailed = false): Promise<void> => {
+    const scoped = workCoversAll ? entries : workEntries
     const gate = await timelineConfirmGenerate({
       onlyFailed,
       busy,
       hasStory: Boolean(activeStoryId),
-      entries,
+      entries: scoped,
       missingRefs,
       videoMode,
       noFailedMsg: t('pipeline.noFailedClips'),
@@ -718,7 +890,7 @@ export function useTimelineV2Studio() {
     setStepIndex(0)
 
     if (gate === 'retry') {
-      const need = timelineFailedOrEmptyIds(entries)
+      const need = timelineFailedOrEmptyIds(scoped)
       setCurrentStepLabel(t('common.retryFailed'))
       startClipPrepQueue(storyId, need)
       return
@@ -728,6 +900,7 @@ export function useTimelineV2Studio() {
     if (!promptTemplateId) return
     setCurrentStepLabel(t('common.generate'))
     toast.info(t('aiJobs.startedBackground'))
+    const scopedIds = new Set(scoped.map((e) => e.id))
     startJob({
       kind: 'pipeline',
       label: t('common.generate'),
@@ -757,13 +930,15 @@ export function useTimelineV2Studio() {
             degraded: anyDegraded
           }
         }
-        const entryIds = await timelineCollectEntryIds({
-          list: () =>
-            getApi().timeline.list(storyId) as Promise<
-              Array<{ id: string; order: number }>
-            >,
-          fallback: entriesRef.current
-        })
+        const entryIds = (
+          await timelineCollectEntryIds({
+            list: () =>
+              getApi().timeline.list(storyId) as Promise<
+                Array<{ id: string; order: number; startTime?: number; endTime?: number }>
+              >,
+            fallback: entriesRef.current
+          })
+        ).filter((id) => workCoversAll || scopedIds.has(id))
         setProgress(100, 'done')
         toast.success(anyDegraded ? t('pipeline.degraded') : t('aiJobs.pipelineOk'))
         queueMicrotask(() => {
@@ -1145,6 +1320,24 @@ export function useTimelineV2Studio() {
     missingRefs,
     failedCount,
     readyCount,
+    workStart,
+    workEnd,
+    persistWorkArea,
+    workEntries,
+    workCoversAll,
+    pictureByKey,
+    stillByEntryId,
+    compiledText,
+    compiledLocked,
+    compiledPrompt,
+    lockCompiledPrompt,
+    revertCompiledPrompt,
+    setCompiledDraft,
+    handleExportWorkflow,
+    castCharacters,
+    castScenes,
+    castProps,
+    castActions,
     busy,
     clipBusyId,
     history,

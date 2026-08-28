@@ -1199,6 +1199,10 @@ export function TimelinePage(): JSX.Element {
                 onSnapGridSecChange={(v) =>
                   void persistSnapSettings({ snapGridSec: v })
                 }
+                characters={castCharacters}
+                scenes={castScenes}
+                props={castProps}
+                actions={castActions}
                 width={Math.max(konvaWidth - 8, 280)}
               />
             </div>

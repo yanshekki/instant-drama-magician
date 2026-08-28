@@ -82,8 +82,8 @@ Pass the same fields on `mediaGen:extract` / `generateImage` payloads or Setting
 | `/actions` | Actions (motion-direction boards) |
 | `/comics` | Comics studio |
 | `/key-art` | Key art desk |
-| `/timeline` | Timeline + Advanced prep (continuity + refine) |
-| `/timeline-v2` | Timeline v2 studio |
+| `/timeline` | Timeline track (condition lanes + Advanced prep) |
+| `/timeline-v2` | Director desk: media pool, compiled prompt, staged board, multi-lane track |
 | `/audit` | Activity log |
 | `/settings` | Settings |
 

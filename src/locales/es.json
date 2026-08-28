@@ -1110,6 +1110,30 @@
     "snapEnabled": "Ajuste de la línea de tiempo",
     "snapGridSec": "Ajustar cuadrícula (segundos)",
     "snapHint": "Ajuste los bordes del clip a la cuadrícula y a los clips vecinos mientras arrastra",
+    "desk": {
+      "mediaPool": "Medios del proyecto",
+      "monitor": "Monitor de programa",
+      "inspector": "Inspector",
+      "compiledPrompt": "Indicación compilada",
+      "compiledHint": "Texto que recibirá el modelo. Bloquee para editar a mano; revierta para volver a compilar desde la línea de tiempo.",
+      "lockPrompt": "Editar",
+      "revertPrompt": "Revertir",
+      "handWritten": "Indicación (a mano)",
+      "exportPlan": "Exportar plan",
+      "exportPlanOk": "Se guardó el JSON del plan de generación",
+      "workArea": "Zona de generación",
+      "workAreaHint": "Generar solo los clips que crucen este intervalo",
+      "start": "Entrada",
+      "end": "Salida",
+      "noClip": "Seleccione un clip en la línea de tiempo."
+    },
+    "lanes": {
+      "shot": "Plano",
+      "character": "Elenco",
+      "scene": "Escena",
+      "asset": "Atrezo / acción",
+      "keyframe": "Primero / último"
+    },
     "advanced": {
       "open": "Avanzado",
       "openHint": "Establezca imágenes/vestuarios de referencia del elenco y genere imágenes fijas de fotogramas clave por lotes",
@@ -1184,7 +1208,7 @@
     "mergedHardRulesHint": "Fusionado de esta historia + personajes/escenas/accesorios/acciones vinculados. Se aplica con la máxima prioridad al generar clips (la revisión no puede cancelarlos).",
     "graph": {
       "title": "Línea de tiempo",
-      "subtitle": "La misma línea de tiempo, como flujo de storyboard (refs, stills y clips).",
+      "subtitle": "La misma línea de tiempo: las pistas de condición compilan la indicación y el tablero muestra las etapas.",
       "useClassic": "Vista pista",
       "useV2": "Vista flujo",
       "cinematic": "Estilo / continuidad",
@@ -1202,7 +1226,13 @@
       "clipFirst": "Primer clip",
       "clipLinked": "Continúa el anterior",
       "clipUnlinked": "Sin bloqueo previo",
-      "clipEmpty": "Aún no hay vídeo"
+      "clipEmpty": "Aún no hay vídeo",
+      "stage": {
+        "refs": "Cargar refs",
+        "prompt": "Indicación / condición",
+        "still": "Muestreo de fotograma",
+        "video": "Muestreo de vídeo"
+      }
     }
   },
   "pipeline": {

@@ -1,5 +1,8 @@
 import type { TimelineGraphEdge, TimelineGraphLayout } from '../../../domain/timelineGraph'
-import { timelineGraphEdgePath } from '../../../domain/timelineGraph'
+import {
+  TIMELINE_GRAPH_WIRE_COLOR,
+  timelineGraphEdgePath
+} from '../../../domain/timelineGraph'
 
 interface TimelineGraphWiresProps {
   layout: TimelineGraphLayout
@@ -27,6 +30,11 @@ export function TimelineGraphWires({
             d={d}
             fill="none"
             className="stroke-ink-600"
+            style={
+              edge.kind
+                ? { stroke: TIMELINE_GRAPH_WIRE_COLOR[edge.kind] }
+                : undefined
+            }
             strokeWidth={1.75}
             strokeLinecap="round"
           />

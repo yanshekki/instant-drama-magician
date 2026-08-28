@@ -1110,6 +1110,30 @@
     "snapEnabled": "时间轴吸附",
     "snapGridSec": "吸附间距（秒）",
     "snapHint": "拖曳片段时对齐网格与相邻边缘，方便头尾相接",
+    "desk": {
+      "mediaPool": "项目媒体",
+      "monitor": "节目监视器",
+      "inspector": "检查器",
+      "compiledPrompt": "已编译提示",
+      "compiledHint": "此为模型将收到的文案。锁定后可手改；还原则按时间轴重新编译。",
+      "lockPrompt": "手改",
+      "revertPrompt": "还原",
+      "handWritten": "提示（手改）",
+      "exportPlan": "导出计划",
+      "exportPlanOk": "已导出生成计划 JSON",
+      "workArea": "生成工作区",
+      "workAreaHint": "只生成与此范围相交的镜头",
+      "start": "入点",
+      "end": "出点",
+      "noClip": "请在时间轴选取镜头。"
+    },
+    "lanes": {
+      "shot": "镜头",
+      "character": "角色",
+      "scene": "场景",
+      "asset": "道具／动作",
+      "keyframe": "首末帧"
+    },
     "advanced": {
       "open": "进阶",
       "openHint": "设定角色参考图／戏服，并批量生成各段关键静图",
@@ -1184,7 +1208,7 @@
     "mergedHardRulesHint": "已合并本故事与本段连结的角色／场景／道具／动作铁则。出片时最高优先（导演修订不能取消铁则）。",
     "graph": {
       "title": "时间轴",
-      "subtitle": "同一条时间轴，用流程图显示分镜、静图与片段。",
+      "subtitle": "同一条时间轴：条件轨编译提示，流程图显示生成阶段。",
       "useClassic": "轨道显示",
       "useV2": "流程显示",
       "cinematic": "风格／连贯",
@@ -1202,7 +1226,13 @@
       "clipFirst": "首段",
       "clipLinked": "接上一段",
       "clipUnlinked": "未锁连续",
-      "clipEmpty": "尚未出片"
+      "clipEmpty": "尚未出片",
+      "stage": {
+        "refs": "载入参考",
+        "prompt": "提示／条件",
+        "still": "静帧采样",
+        "video": "影片采样"
+      }
     }
   },
   "pipeline": {

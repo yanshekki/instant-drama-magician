@@ -1110,6 +1110,30 @@
     "snapEnabled": "Instantâneo da linha do tempo",
     "snapGridSec": "Grade instantânea (segundos)",
     "snapHint": "Encaixe as bordas do clipe na grade e nos clipes vizinhos enquanto arrasta",
+    "desk": {
+      "mediaPool": "Mídia do projeto",
+      "monitor": "Monitor de programa",
+      "inspector": "Inspetor",
+      "compiledPrompt": "Prompt compilado",
+      "compiledHint": "Texto que o modelo receberá. Trave para editar à mão; reverta para recompilar a partir da timeline.",
+      "lockPrompt": "Editar",
+      "revertPrompt": "Reverter",
+      "handWritten": "Prompt (à mão)",
+      "exportPlan": "Exportar plano",
+      "exportPlanOk": "JSON do plano de geração salvo",
+      "workArea": "Área de geração",
+      "workAreaHint": "Gerar só os clipes que cruzam este intervalo",
+      "start": "Entrada",
+      "end": "Saída",
+      "noClip": "Selecione um clipe na timeline."
+    },
+    "lanes": {
+      "shot": "Plano",
+      "character": "Elenco",
+      "scene": "Cena",
+      "asset": "Objeto / ação",
+      "keyframe": "Primeiro / último"
+    },
     "advanced": {
       "open": "Avançado",
       "openHint": "Defina imagens/fantasias de referência do elenco e imagens estáticas de quadros-chave geradas em lote",
@@ -1184,7 +1208,7 @@
     "mergedHardRulesHint": "Mesclado desta história + personagens/cenas/adereços/ações vinculados. Aplicado com prioridade mais alta na geração do clipe (a revisão não pode cancelá-los).",
     "graph": {
       "title": "Linha do tempo",
-      "subtitle": "A mesma timeline, em fluxo de storyboard (refs, stills e clips).",
+      "subtitle": "A mesma timeline: faixas de condição compilam o prompt e o quadro mostra as etapas.",
       "useClassic": "Visão trilha",
       "useV2": "Visão fluxo",
       "cinematic": "Estilo / continuidade",
@@ -1202,7 +1226,13 @@
       "clipFirst": "Primeiro clipe",
       "clipLinked": "Continua o anterior",
       "clipUnlinked": "Sem trava anterior",
-      "clipEmpty": "Ainda sem vídeo"
+      "clipEmpty": "Ainda sem vídeo",
+      "stage": {
+        "refs": "Carregar refs",
+        "prompt": "Prompt / condição",
+        "still": "Amostragem de still",
+        "video": "Amostragem de vídeo"
+      }
     }
   },
   "pipeline": {

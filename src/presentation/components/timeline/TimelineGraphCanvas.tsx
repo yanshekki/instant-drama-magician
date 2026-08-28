@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TimelineGraphLayout } from '../../../domain/timelineGraph'
+import { TIMELINE_GRAPH_STAGES } from '../../../domain/timelineGraph'
 import { Button } from '../ui'
 import { TimelineGraphNode, type TimelineGraphNodeHandlers } from './TimelineGraphNode'
 import { TimelineGraphWires } from './TimelineGraphWires'
@@ -123,7 +124,17 @@ export function TimelineGraphCanvas({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-2 hidden justify-end lg:flex">
+      <div className="mb-2 hidden items-center justify-between gap-2 lg:flex">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+          {TIMELINE_GRAPH_STAGES.map((stage) => (
+            <span
+              key={stage}
+              className="rounded-full border border-ink-700/80 bg-ink-900/60 px-2 py-0.5 text-[10px] text-ink-400"
+            >
+              {t(`timeline.graph.stage.${stage}`)}
+            </span>
+          ))}
+        </div>
         <Button
           variant="ghost"
           className="!px-2 !py-1 !text-[11px]"

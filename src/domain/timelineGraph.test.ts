@@ -13,6 +13,8 @@ import {
   timelineGraphEstimateTextHeight,
   timelineGraphNodeSize,
   timelineGraphSnippet,
+  timelineGraphStageForKind,
+  timelineGraphWireKindForNode,
   timelineGraphWrapLimit
 } from './timelineGraph'
 
@@ -115,13 +117,27 @@ describe('buildTimelineGraph', () => {
       'Lead detective'
     )
     expect(g.nodes.find((n) => n.id === 'still')?.missing).toBe(false)
+    expect(g.nodes.find((n) => n.id === 'prompt')?.stage).toBe('prompt')
+    expect(g.nodes.find((n) => n.id === 'video')?.stage).toBe('video')
+    expect(g.nodes.find((n) => n.id === 'character:c1')?.dimmed).toBe(false)
     expect(g.edges).toContainEqual({
-      id: 'character:c1->character:c2',
+      id: 'character:c1->prompt',
       from: 'character:c1',
-      to: 'character:c2'
+      to: 'prompt',
+      kind: 'character'
     })
-    expect(g.edges).toContainEqual({ id: 'prompt->still', from: 'prompt', to: 'still' })
-    expect(g.edges).toContainEqual({ id: 'still->video', from: 'still', to: 'video' })
+    expect(g.edges).toContainEqual({
+      id: 'prompt->still',
+      from: 'prompt',
+      to: 'still',
+      kind: 'prompt'
+    })
+    expect(g.edges).toContainEqual({
+      id: 'still->video',
+      from: 'still',
+      to: 'video',
+      kind: 'still'
+    })
   })
 
   it('chains later clips after the selected video', () => {
@@ -263,5 +279,16 @@ describe('layoutTimelineGraph', () => {
       imagePath: '/a.png'
     })
     expect(withDesc.h).toBeGreaterThan(noDesc.h)
+  })
+})
+
+describe('timelineGraph stages', () => {
+  it('maps kinds to stages and wire kinds', () => {
+    expect(timelineGraphStageForKind('character')).toBe('refs')
+    expect(timelineGraphStageForKind('prompt')).toBe('prompt')
+    expect(timelineGraphStageForKind('still')).toBe('still')
+    expect(timelineGraphStageForKind('video')).toBe('video')
+    expect(timelineGraphWireKindForNode('ghost-character')).toBe('character')
+    expect(timelineGraphWireKindForNode('clip')).toBe('video')
   })
 })

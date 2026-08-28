@@ -29,7 +29,7 @@
 
 - 非商店簽章安裝包  
 - TTS／BGM 品質有限（Round 8 已接混音路徑）  
-- 單軌時間軸  
+- 條件軌時間軸（鏡頭 + 參考；並非後期合成多軌）  
 - 真片品質取決於 gateway `MEDIA_PROVIDER`  
 
 Production UX：[production-ux-ZH.md](./production-ux-ZH.md)。現行出貨：[commercial-ZH.md](./commercial-ZH.md)。

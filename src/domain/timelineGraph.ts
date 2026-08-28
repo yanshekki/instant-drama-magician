@@ -17,6 +17,34 @@ export type TimelineGraphNodeKind =
   | 'ghost-character'
   | 'ghost-scene'
 
+/** Compiled pipeline stage (Comfy-style columns; still derived, not editable). */
+export type TimelineGraphStage = 'refs' | 'prompt' | 'still' | 'video'
+
+export type TimelineGraphWireKind =
+  | 'character'
+  | 'scene'
+  | 'prop'
+  | 'action'
+  | 'cinematic'
+  | 'prompt'
+  | 'still'
+  | 'video'
+  | 'continuity'
+
+export const TIMELINE_GRAPH_STAGES: TimelineGraphStage[] = [
+  'refs',
+  'prompt',
+  'still',
+  'video'
+]
+
+export const TIMELINE_GRAPH_STAGE_COL: Record<TimelineGraphStage, number> = {
+  refs: 0,
+  prompt: 1,
+  still: 2,
+  video: 3
+}
+
 export type TimelineGraphColumn = number
 
 export type TimelineGraphPrepCell = {
@@ -47,12 +75,16 @@ export type TimelineGraphNode = {
   entryId: string
   /** 1-based clip index when this node is part of the story sequence. */
   seq?: number
+  stage?: TimelineGraphStage
+  /** True when this node belongs to a clip that is not the selected one. */
+  dimmed?: boolean
 }
 
 export type TimelineGraphEdge = {
   id: string
   from: string
   to: string
+  kind?: TimelineGraphWireKind
 }
 
 export type TimelineGraphPoint = { x: number; y: number }
@@ -150,7 +182,7 @@ export function timelineGraphSortEntries(
 export const TIMELINE_GRAPH_PAD = 20
 export const TIMELINE_GRAPH_GAP_Y = 28
 export const TIMELINE_GRAPH_GAP_X = 28
-export const TIMELINE_GRAPH_COL_X = [20, 316, 668] as const
+export const TIMELINE_GRAPH_COL_X = [20, 360, 720, 1140] as const
 /** Last-resort wrap height when the window / canvas has not been measured. */
 export const TIMELINE_GRAPH_COL_MAX_H = 720
 /** Header + badges + track, used when only `window.innerHeight` is known. */
@@ -277,6 +309,62 @@ function channelSubtitle(
   const m = (model || '').trim()
   if (p && m) return `${p} · ${m}`
   return p || m || ''
+}
+
+export function timelineGraphStageForKind(
+  kind: TimelineGraphNodeKind
+): TimelineGraphStage {
+  if (kind === 'prompt') return 'prompt'
+  if (kind === 'still') return 'still'
+  if (kind === 'video' || kind === 'clip') return 'video'
+  return 'refs'
+}
+
+export function timelineGraphWireKindForNode(
+  kind: TimelineGraphNodeKind
+): TimelineGraphWireKind {
+  if (kind === 'ghost-character') return 'character'
+  if (kind === 'ghost-scene') return 'scene'
+  if (kind === 'clip') return 'video'
+  if (
+    kind === 'character' ||
+    kind === 'scene' ||
+    kind === 'prop' ||
+    kind === 'action' ||
+    kind === 'cinematic' ||
+    kind === 'prompt' ||
+    kind === 'still' ||
+    kind === 'video'
+  ) {
+    return kind
+  }
+  return 'cinematic'
+}
+
+export const TIMELINE_GRAPH_WIRE_COLOR: Record<TimelineGraphWireKind, string> = {
+  character: '#a78bfa',
+  scene: '#22d3ee',
+  prop: '#fbbf24',
+  action: '#f472b6',
+  cinematic: '#94a3b8',
+  prompt: '#fb923c',
+  still: '#34d399',
+  video: '#60a5fa',
+  continuity: '#64748b'
+}
+
+function pushEdge(
+  edges: TimelineGraphEdge[],
+  from: string,
+  to: string,
+  kind?: TimelineGraphWireKind
+): void {
+  edges.push({
+    id: `${from}->${to}`,
+    from,
+    to,
+    ...(kind ? { kind } : {})
+  })
 }
 
 export function buildTimelineGraph(
@@ -493,13 +581,45 @@ export function buildTimelineGraph(
     })
   }
 
-  nodes.forEach((n, i) => {
-    n.column = i
-  })
-  for (let i = 0; i < nodes.length - 1; i++) {
-    const from = nodes[i].id
-    const to = nodes[i + 1].id
-    edges.push({ id: `${from}->${to}`, from, to })
+  const selectedId = entry.id
+  for (const n of nodes) {
+    n.stage = timelineGraphStageForKind(n.kind)
+    n.column = TIMELINE_GRAPH_STAGE_COL[n.stage]
+    n.dimmed = n.entryId !== selectedId
+  }
+
+  const byEntry = new Map<string, TimelineGraphNode[]>()
+  for (const n of nodes) {
+    const list = byEntry.get(n.entryId) ?? []
+    list.push(n)
+    byEntry.set(n.entryId, list)
+  }
+
+  let prevVideoId: string | null = null
+  for (const item of seq) {
+    const group = byEntry.get(item.id) ?? []
+    const refs = group.filter((n) => n.stage === 'refs')
+    const prompt = group.find((n) => n.kind === 'prompt')
+    const still = group.find((n) => n.kind === 'still')
+    const video = group.find((n) => n.kind === 'video' || n.kind === 'clip')
+    if (prompt) {
+      for (const ref of refs) {
+        pushEdge(
+          edges,
+          ref.id,
+          prompt.id,
+          timelineGraphWireKindForNode(ref.kind)
+        )
+      }
+    }
+    if (prompt && still) pushEdge(edges, prompt.id, still.id, 'prompt')
+    if (still && video) pushEdge(edges, still.id, video.id, 'still')
+    if (prevVideoId && still) {
+      pushEdge(edges, prevVideoId, still.id, 'continuity')
+    } else if (prevVideoId && prompt) {
+      pushEdge(edges, prevVideoId, prompt.id, 'continuity')
+    }
+    prevVideoId = video?.id ?? prevVideoId
   }
 
   return { nodes, edges }
@@ -544,34 +664,61 @@ export function layoutTimelineGraph(
   model: TimelineGraphModel,
   opts?: LayoutTimelineGraphOpts
 ): TimelineGraphLayout {
-  const ordered = [...model.nodes].sort((a, b) => a.column - b.column)
   const limit = Math.max(
     TIMELINE_GRAPH_PAD + 80,
     opts?.maxColumnHeight ?? TIMELINE_GRAPH_COL_MAX_H
   )
   const laid: TimelineGraphLaidOutNode[] = []
-  let colX = TIMELINE_GRAPH_PAD
-  let y = TIMELINE_GRAPH_PAD
-  let colW = 0
+  const columns = [...new Set(model.nodes.map((n) => n.column))].sort(
+    (a, b) => a - b
+  )
+  const kindRank: Record<string, number> = {
+    'ghost-character': 0,
+    character: 1,
+    'ghost-scene': 2,
+    scene: 3,
+    prop: 4,
+    action: 5,
+    cinematic: 6,
+    prompt: 7,
+    still: 8,
+    video: 9,
+    clip: 10
+  }
 
-  for (const n of ordered) {
-    const { w, h } = timelineGraphNodeSize(n.kind, n)
-    if (y > TIMELINE_GRAPH_PAD && y + h > limit) {
-      colX += colW + TIMELINE_GRAPH_GAP_X
-      y = TIMELINE_GRAPH_PAD
-      colW = 0
+  let cursorX = TIMELINE_GRAPH_PAD
+  for (const col of columns) {
+    const group = model.nodes
+      .filter((n) => n.column === col)
+      .sort((a, b) => {
+        const seq = (a.seq ?? 0) - (b.seq ?? 0)
+        if (seq !== 0) return seq
+        return (kindRank[a.kind] ?? 50) - (kindRank[b.kind] ?? 50)
+      })
+    const stageX = (TIMELINE_GRAPH_COL_X as readonly number[])[col] ?? cursorX
+    let colX = Math.max(cursorX, stageX)
+    let y = TIMELINE_GRAPH_PAD
+    let colW = 0
+    for (const n of group) {
+      const { w, h } = timelineGraphNodeSize(n.kind, n)
+      if (y > TIMELINE_GRAPH_PAD && y + h > limit) {
+        colX += colW + TIMELINE_GRAPH_GAP_X
+        y = TIMELINE_GRAPH_PAD
+        colW = 0
+      }
+      laid.push({
+        ...n,
+        x: colX,
+        y,
+        w,
+        h,
+        inPort: { x: colX, y: y + h / 2 },
+        outPort: { x: colX + w, y: y + h / 2 }
+      })
+      y += h + TIMELINE_GRAPH_GAP_Y
+      colW = Math.max(colW, w)
     }
-    laid.push({
-      ...n,
-      x: colX,
-      y,
-      w,
-      h,
-      inPort: { x: colX, y: y + h / 2 },
-      outPort: { x: colX + w, y: y + h / 2 }
-    })
-    y += h + TIMELINE_GRAPH_GAP_Y
-    colW = Math.max(colW, w)
+    cursorX = colX + colW + TIMELINE_GRAPH_GAP_X
   }
 
   for (let i = 0; i < laid.length; i++) {

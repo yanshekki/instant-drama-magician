@@ -258,6 +258,30 @@ describe('KonvaTimeline', () => {
     expect(screen.getByText('timeline.zoom')).toBeTruthy()
   })
 
+  it('shows work area when handlers are provided', () => {
+    const onWork = vi.fn()
+    render(
+      <KonvaTimeline
+        entries={entries}
+        labels={{ t1: 'Hero' }}
+        selectedId="t1"
+        playhead={1}
+        pxPerSec={40}
+        onPxPerSecChange={() => undefined}
+        onPlayheadChange={() => undefined}
+        onSelect={() => undefined}
+        onMove={() => undefined}
+        onDropAsset={() => undefined}
+        width={700}
+        workStart={0}
+        workEnd={6}
+        onWorkAreaChange={onWork}
+      />
+    )
+    expect(screen.getByTestId('work-area-label')).toBeTruthy()
+    expect(screen.getByTestId('director-lanes')).toBeTruthy()
+  })
+
   it('renders multi-entry labels without crashing', () => {
     render(
       <KonvaTimeline

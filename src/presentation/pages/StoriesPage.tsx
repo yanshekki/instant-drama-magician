@@ -802,6 +802,20 @@ export function StoriesPage(): JSX.Element {
     })
   }
 
+  const handleLoadDemo = async (): Promise<void> => {
+    setActionError(null)
+    try {
+      const r = (await getApi().stories.seedDemo(
+        getAiLocale(i18n.language)
+      )) as { storyId?: string; title?: string }
+      await refreshStories()
+      if (r?.storyId) setActiveStoryId(r.storyId)
+      toast.success(r?.title || t('stories.loadDemo'))
+    } catch (e) {
+      storiesApplyIpc(e, setActionError, toast.error)
+    }
+  }
+
   // Native File menu → New Story / Import story backup
   useEffect(() => {
     const onNew = (): void => {
@@ -1116,6 +1130,12 @@ export function StoriesPage(): JSX.Element {
             >
               {t('stories.importBackup')}
             </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void handleLoadDemo()}
+            >
+              {t('stories.loadDemo')}
+            </Button>
             <Button onClick={openCreate}>{t('stories.new')}</Button>
           </>
         }
@@ -1147,7 +1167,13 @@ export function StoriesPage(): JSX.Element {
               <p className="mt-2 text-xs text-ink-500">
                 {t('stories.prototypeNote')}
               </p>
-              <div className="mt-6 flex justify-center">
+              <div className="mt-6 flex justify-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => void handleLoadDemo()}
+                >
+                  {t('stories.loadDemo')}
+                </Button>
                 <Button onClick={openCreate}>{t('stories.new')}</Button>
               </div>
             </div>

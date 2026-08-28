@@ -64,6 +64,7 @@ export function TimelineGraphNode({
     positioned ? 'absolute h-full' : 'relative w-full',
     CARD,
     active ? CARD_ACTIVE : '',
+    node.dimmed ? 'opacity-40' : '',
     node.kind.startsWith('ghost-') ? CARD_GHOST : ''
   ]
     .filter(Boolean)
