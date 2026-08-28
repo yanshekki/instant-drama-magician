@@ -542,9 +542,10 @@ export function useTimelineV2Studio() {
   const compiledLocked = Boolean(
     selected && compiledLockByEntry[selected.id] != null
   )
-  const compiledText = compiledLocked
-    ? compiledLockByEntry[selected.id] ?? ''
-    : compiledPrompt?.text ?? ''
+  const compiledText =
+    selected && compiledLocked
+      ? compiledLockByEntry[selected.id] ?? ''
+      : compiledPrompt?.text ?? ''
 
   const lockCompiledPrompt = useCallback((): void => {
     if (!selected || !compiledPrompt?.text) return
