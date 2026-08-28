@@ -11,10 +11,11 @@
 | **CLI** | Commands | Mock `runProcess` / fs |
 | **UI pages** | Large React pages | Smoke only; logic in hooks/domain |
 
-## Recent focus areas (1.9.0)
+## Recent focus areas (1.10.0)
 
 | Area | Tests (examples) |
 |------|------------------|
+| Director desk (condition tracks) | `timelineLanes.test.ts`, `compiledTimelinePrompt.test.ts`, `timelineWorkflowExport.test.ts`, `timelineGraph.test.ts`, `useTimelineV2Studio.test.tsx`, `TimelineV2Page.test.tsx`, `KonvaTimeline.test.tsx` |
 | Story chapters + plot focus | `ChapterService.test.ts`, `ChapterCastService.test.ts`, `chapters.test.ts`, `plotFocus.test.ts`, `storyChapterPrompt.test.ts`, `StoryChaptersTab.test.tsx`, `PlotContextPicker.test.tsx`, `StoriesPage.test.tsx` |
 | Key art desk | `KeyArtPage.test.tsx`, `KeyArtService.test.ts`, `keyArt.test.ts`, `keyArtShotTypes.test.ts`, `keyArtMakeMethods.test.ts`, `keyArtShotImages.test.ts` |
 | Comics studio | `ComicsPage.test.tsx`, `ComicService.test.ts`, `comics.test.ts`, `comicPageLayouts.test.ts`, `comicPageFormat.test.ts`, `comicPageVideos.test.ts` |
