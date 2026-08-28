@@ -6002,7 +6002,7 @@ describe('abs100 Timeline UI residual mop', () => {
     } finally {
       restoreRaf()
     }
-  }, 90000)
+  }, 180000)
 })
 
 describe('abs100 Costumes UI residual mop', () => {

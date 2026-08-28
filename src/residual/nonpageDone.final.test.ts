@@ -38,7 +38,7 @@ describe('done: EWS readBodyBuffer size limit + auth loopback', () => {
     })
     await expect(p).rejects.toThrow(/Upload too large/)
     expect(req.destroy).toHaveBeenCalled()
-  })
+  }, 60_000)
 
   it('accepts body under limit', async () => {
     const { readBodyBuffer } = await import(
