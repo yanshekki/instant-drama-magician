@@ -13,6 +13,7 @@ import {
   timelineGraphEstimateTextHeight,
   timelineGraphNodeSize,
   timelineGraphSnippet,
+  timelineGraphSortEntries,
   timelineGraphStageForKind,
   timelineGraphWireKindForNode,
   timelineGraphWrapLimit
@@ -289,6 +290,20 @@ describe('timelineGraph stages', () => {
     expect(timelineGraphStageForKind('still')).toBe('still')
     expect(timelineGraphStageForKind('video')).toBe('video')
     expect(timelineGraphWireKindForNode('ghost-character')).toBe('character')
+    expect(timelineGraphWireKindForNode('ghost-scene')).toBe('scene')
     expect(timelineGraphWireKindForNode('clip')).toBe('video')
+    expect(timelineGraphWireKindForNode('prompt')).toBe('prompt')
+    expect(timelineGraphWireKindForNode('still')).toBe('still')
+    expect(timelineGraphWireKindForNode('video')).toBe('video')
+    expect(timelineGraphWireKindForNode('nope' as never)).toBe('cinematic')
+  })
+
+  it('sorts equal start times by id', () => {
+    expect(
+      timelineGraphSortEntries([
+        { id: 'b', startTime: 1 },
+        { id: 'a', startTime: 1 }
+      ]).map((e) => e.id)
+    ).toEqual(['a', 'b'])
   })
 })

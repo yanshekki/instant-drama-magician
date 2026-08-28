@@ -36,6 +36,7 @@ describe('AssetLibrary', () => {
         scenes={scenes}
         props={props}
         actions={actions}
+        pictureByKey={{}}
         onAdd={onAdd}
         onOpenStoryEditor={onOpen}
       />
@@ -78,6 +79,30 @@ describe('AssetLibrary', () => {
     )
     fireEvent.click(screen.getByText('timeline.openStoryEditor'))
     expect(onOpen).toHaveBeenCalled()
+  })
+
+  it('shows picture numbers, thumbs and a compact heading', () => {
+    const chars = [
+      {
+        id: 'c1',
+        name: 'Alice',
+        description: 'hero',
+        refImagePath: '/a.png'
+      }
+    ] as never[]
+    render(
+      <AssetLibrary
+        compact
+        characters={chars}
+        scenes={[]}
+        props={[]}
+        pictureByKey={{ 'character:c1': 4 }}
+        onAdd={() => undefined}
+      />
+    )
+    expect(screen.getByText('P4')).toBeTruthy()
+    expect(screen.getByTestId('thumb')).toBeTruthy()
+    expect(screen.queryByText('timeline.libraryHint')).toBeNull()
   })
 
   it('drag start sets data', () => {

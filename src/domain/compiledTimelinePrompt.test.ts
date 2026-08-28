@@ -102,4 +102,74 @@ describe('compileTimelinePrompt', () => {
     expect(compiled.text).toContain('主體定義')
     expect(compiled.text).toContain('［鏡頭 1］')
   })
+
+  it('formats invalid timestamps as zero and later zh shots with a clock', () => {
+    expect(formatShotTimestamp(Number.NaN)).toBe('00:00.000')
+    expect(formatShotTimestamp(-3)).toBe('00:00.000')
+    const compiled = compileTimelinePrompt({
+      entry: {
+        ...entry,
+        dialogue: 'fallback line',
+        beatContentJson: null,
+        characterId: null,
+        characterIds: [],
+        actionId: 'a1',
+        actionIds: ['a1']
+      },
+      storyTitle: '試片',
+      locale: 'zh-HK',
+      shotIndex: 3,
+      storyHardRules: '不可露臉',
+      scenes: [
+        {
+          id: 'sc1',
+          title: '',
+          description: '網球場',
+          script: null,
+          status: 'COMPLETED',
+          refImagePath: null
+        } as never
+      ],
+      props: [{ id: 'p1', name: '球袋', description: '' } as never],
+      actions: [
+        {
+          id: 'a1',
+          name: '發球',
+          description: '',
+          refImagePath: '/a.png'
+        } as never
+      ]
+    })
+    expect(compiled.pictures.map((p) => p.kind)).toEqual(['scene', 'prop', 'action'])
+    expect(compiled.text).toContain('所示場景')
+    expect(compiled.text).toContain('所示道具')
+    expect(compiled.text).toContain('所示動作參考')
+    expect(compiled.text).toContain('［鏡頭 3］')
+    expect(compiled.text).toContain('00:01.500')
+    expect(compiled.text).toContain('fallback line')
+    expect(compiled.text).toContain('不可露臉')
+  })
+
+  it('skips missing binds and uses English action copy', () => {
+    const compiled = compileTimelinePrompt({
+      entry: {
+        ...entry,
+        characterId: null,
+        characterIds: ['missing'],
+        sceneId: null,
+        sceneIds: [],
+        propId: null,
+        propIds: [],
+        actionId: 'a1',
+        actionIds: ['a1']
+      },
+      storyTitle: 'Demo',
+      locale: 'en-US',
+      characters: [],
+      actions: [{ id: 'a1', name: 'Serve', description: '' } as never]
+    })
+    expect(compiled.pictures).toHaveLength(1)
+    expect(compiled.text).toContain('action reference')
+    expect(compiled.text).toContain('[Shot 2]')
+  })
 })

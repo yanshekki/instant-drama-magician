@@ -127,5 +127,69 @@ describe('timelineLanes', () => {
     expect(timelineLaneOffsetY('shot')).toBe(0)
     expect(timelineLaneOffsetY('character')).toBeGreaterThan(0)
     expect(timelineLaneStackHeight()).toBeGreaterThan(timelineLaneOffsetY('keyframe'))
+    expect(timelineLaneOffsetY('nope' as never)).toBe(timelineLaneStackHeight() + 4)
+  })
+
+  it('paints shot fills from bind lists and status', () => {
+    const fills = buildTimelineLanes({
+      entries: [
+        entry({
+          id: 'ids-only',
+          characterId: null,
+          characterIds: ['c9'],
+          mediaStatus: 'EMPTY'
+        }),
+        entry({ id: 'fail', mediaStatus: 'FAILED', startTime: 6, endTime: 8 }),
+        entry({
+          id: 'queue',
+          mediaStatus: 'QUEUED',
+          startTime: 8,
+          endTime: 10
+        }),
+        entry({
+          id: 'scene-only',
+          sceneId: null,
+          sceneIds: ['sc9'],
+          mediaStatus: 'EMPTY',
+          startTime: 10,
+          endTime: 12
+        }),
+        entry({
+          id: 'prop-only',
+          propId: null,
+          propIds: ['p9'],
+          mediaStatus: 'EMPTY',
+          startTime: 12,
+          endTime: 14
+        }),
+        entry({
+          id: 'act-only',
+          actionId: null,
+          actionIds: ['a9'],
+          mediaStatus: 'EMPTY',
+          startTime: 14,
+          endTime: 16
+        }),
+        entry({ id: 'blank', mediaStatus: 'EMPTY', startTime: 16, endTime: 18 })
+      ]
+    })
+    const shot = Object.fromEntries(
+      fills.find((l) => l.id === 'shot')!.clips.map((c) => [c.entryId, c.fill])
+    )
+    expect(shot['ids-only']).toBe('character')
+    expect(shot.fail).toBe('failed')
+    expect(shot.queue).toBe('generating')
+    expect(shot['scene-only']).toBe('scene')
+    expect(shot['prop-only']).toBe('prop')
+    expect(shot['act-only']).toBe('action')
+    expect(shot.blank).toBe('empty')
+  })
+
+  it('expands a tiny work area and ignores empty pool keys', () => {
+    expect(clampWorkArea(5, 5.02, 12)).toEqual({ start: 5, end: 5.1 })
+    expect(clampWorkArea(Number.NaN, Number.NaN, 8)).toEqual({ start: 0, end: 8 })
+    expect(numberMediaPool([{ key: '  ' }, { key: 'scene:s1' }])).toEqual({
+      'scene:s1': 1
+    })
   })
 })

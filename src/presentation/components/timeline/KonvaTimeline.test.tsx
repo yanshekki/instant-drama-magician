@@ -276,9 +276,35 @@ describe('KonvaTimeline', () => {
         workStart={0}
         workEnd={6}
         onWorkAreaChange={onWork}
+        stillByEntryId={{ t1: '/still.png' }}
       />
     )
     expect(screen.getByTestId('work-area-label')).toBeTruthy()
+    expect(screen.getByTestId('director-lanes')).toBeTruthy()
+    document.querySelectorAll('[data-konva="Group"]').forEach((el) => {
+      fireEvent.pointerDown(el)
+    })
+    expect(onWork).toHaveBeenCalled()
+  })
+
+  it('renders the single-track layout when lanes are off', () => {
+    render(
+      <KonvaTimeline
+        entries={entries}
+        labels={{ t1: 'Hero' }}
+        selectedId="t1"
+        playhead={1}
+        pxPerSec={40}
+        onPxPerSecChange={() => undefined}
+        onPlayheadChange={() => undefined}
+        onSelect={() => undefined}
+        onMove={() => undefined}
+        onDropAsset={() => undefined}
+        width={700}
+        showLanes={false}
+        stillByEntryId={{ t1: '/still.png' }}
+      />
+    )
     expect(screen.getByTestId('director-lanes')).toBeTruthy()
   })
 
