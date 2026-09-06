@@ -13,5 +13,10 @@ describe('spatialMesh', () => {
     expect(doc.images[0]?.uri).toBe('texture.png')
     expect(proxyMeshSizeForEntity('character').height).toBeGreaterThan(1)
     expect(proxyMeshSizeForEntity('scene').width).toBeGreaterThan(1)
+    expect(buildProxyGltf({ name: 'n', textureFileName: 'a.jpg' })).toContain('image/jpeg')
+    expect(buildProxyGltf({ name: 'n', textureFileName: 'a.webp' })).toContain('image/webp')
+    expect(
+      buildProxyGltf({ name: 'n', textureFileName: 'a.png', width: 0, height: 0 })
+    ).toContain('a.png')
   })
 })

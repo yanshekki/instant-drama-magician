@@ -2,7 +2,7 @@
  * Media gen prep IPC: extract materials → multi-vision polish → generate one image.
  */
 import { PromptCatalog } from '../../prompts'
-import { existsSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { imageSizeForClass } from '../../domain/residualLabels'
 import { ensureHardRules } from '../../domain/promptHardRules'
 import { mergeSexIntoHardRules, sexPromptLock } from '../../domain/sexLock'

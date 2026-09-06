@@ -8,18 +8,16 @@ import {
   readFileSync,
   writeFileSync
 } from 'fs'
-import { basename, extname, join } from 'path'
+import { extname, join } from 'path'
 import { execFileSync } from 'child_process'
 import type { HandlerContext } from './context'
 import { AppError } from '../../types/errors'
 import {
   defaultSpatialBlocking,
-  parseSpatialBlocking,
-  type SpatialBlocking
+  parseSpatialBlocking
 } from '../../domain/spatialRef'
 import {
   parseSpatialPackageManifest,
-  spatialPlayblastRef,
   SPATIAL_PACKAGE_KIND,
   type SpatialPackageManifest,
   type SpatialPackageMesh,
@@ -29,6 +27,28 @@ import { encodeClayPlayblastPng } from '../../domain/spatialPlayblast'
 import { buildProxyGltf, proxyMeshSizeForEntity } from '../../domain/spatialMesh'
 import { snapVideoSeconds } from '../../domain/videoDuration'
 import { hydrateTimelineBindings } from '../../domain/timelineBindings'
+
+type BeatRow = {
+  id: string
+  startTime?: number
+  endTime?: number
+  cameraTemplateId?: string | null
+  characterId?: string | null
+  sceneId?: string | null
+  propId?: string | null
+  actionId?: string | null
+  characterIds?: string | null
+  sceneIds?: string | null
+  propIds?: string | null
+  actionIds?: string | null
+}
+
+type NamedRow = {
+  id: string
+  name?: string | null
+  title?: string | null
+  description?: string | null
+}
 
 function safeId(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, '') || 'id'
@@ -121,7 +141,7 @@ export function registerSpatialHandlers(ctx: HandlerContext): void {
       throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound')
     }
     const entry = timeline
-      .map((e) => hydrateTimelineBindings(e as never))
+      .map((e) => hydrateTimelineBindings(e as BeatRow))
       .find((e) => e.id === entryId)
     if (!entry) {
       throw new AppError('NOT_FOUND', 'errors.timelineEntryNotFound')
@@ -130,7 +150,7 @@ export function registerSpatialHandlers(ctx: HandlerContext): void {
   }
 
   const named = async (
-    getter: (id: string) => Promise<{ id: string; name?: string; title?: string; description?: string }>,
+    getter: (id: string) => Promise<NamedRow>,
     ids: string[]
   ): Promise<Array<{ id: string; name: string }>> => {
     const out: Array<{ id: string; name: string }> = []

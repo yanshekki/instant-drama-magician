@@ -54,6 +54,8 @@ export default defineConfig({
         'src/presentation/hooks/useTimelineV2Studio.ts',
         'src/presentation/components/timeline/TimelineGraphNode.tsx',
         'src/presentation/components/timeline/TimelineGraphCanvas.tsx',
+        'src/presentation/components/timeline/TimelineShotStage.tsx',
+        'src/presentation/components/timeline/TimelineSpatialPanel.tsx',
         'src/presentation/context/PromptTemplateContext.tsx',
         'src/presentation/components/RecipeCompareStars.tsx',
         'src/presentation/components/MediaGenPrepModal.tsx',

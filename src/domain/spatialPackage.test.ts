@@ -22,5 +22,25 @@ describe('spatialPackage', () => {
     })
     expect(man?.storyId).toBe('s1')
     expect(spatialPlayblastRef(man!)?.path).toBe('/tmp/white.png')
+    const withMeshes = parseSpatialPackageManifest({
+      kind: SPATIAL_PACKAGE_KIND,
+      storyId: 's1',
+      entryId: 'e1',
+      blocking,
+      refs: [{ role: 'spatial', entityType: 'spatial', entityId: 'e1', path: '/p.png' }],
+      meshes: [
+        { path: '', entityId: 'skip' },
+        { path: '/m.gltf', entityId: 'p1', entityType: 'prop', sourceImagePath: '/t.png' }
+      ]
+    })
+    expect(withMeshes?.meshes).toHaveLength(1)
+    expect(spatialPlayblastRef(withMeshes!)?.path).toBe('/p.png')
+    const empty = parseSpatialPackageManifest({
+      kind: SPATIAL_PACKAGE_KIND,
+      storyId: 's1',
+      entryId: 'e1',
+      blocking
+    })
+    expect(spatialPlayblastRef(empty!)).toBeNull()
   })
 })

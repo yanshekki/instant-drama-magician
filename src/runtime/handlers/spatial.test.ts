@@ -6,6 +6,7 @@ import { makeHandlerContext, invokeRegistered } from '../../test/handlerTestUtil
 import { registerSpatialHandlers } from './spatial'
 import { MediaStore } from '../../infrastructure/media/MediaStore'
 import { SPATIAL_PACKAGE_KIND } from '../../domain/spatialPackage'
+import { AppError } from '../../types/errors'
 
 describe('registerSpatialHandlers', () => {
   let dir: string | undefined
@@ -159,5 +160,79 @@ describe('registerSpatialHandlers', () => {
       imagePath: join(dir!, 'bag.png')
     })) as { mesh: { path: string } }
     expect(existsSync(mesh.mesh.path)).toBe(true)
+  })
+
+  it('validates payloads and destDir / base64 attach / mesh fallback', async () => {
+    const { h } = setup()
+    await expect(
+      invokeRegistered(h as never, 'spatial:compileBeat', {})
+    ).rejects.toBeInstanceOf(AppError)
+    await expect(
+      invokeRegistered(h as never, 'spatial:compileBeat', {
+        storyId: 's1',
+        entryId: 'missing'
+      })
+    ).rejects.toBeInstanceOf(AppError)
+    const dest = join(dir!, 'export-pkg')
+    const exported = (await invokeRegistered(h as never, 'spatial:compileBeat', {
+      storyId: 's1',
+      entryId: 'e1',
+      destDir: dest
+    })) as { playblastPath: string }
+    expect(existsSync(join(dest, 'manifest.json'))).toBe(true)
+    expect(existsSync(exported.playblastPath)).toBe(true)
+
+    const attached = (await invokeRegistered(h as never, 'spatial:attachRef', {
+      storyId: 's1',
+      entryId: 'e1',
+      playblastPngBase64:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    })) as { playblastPath: string }
+    expect(existsSync(attached.playblastPath)).toBe(true)
+
+    await expect(
+      invokeRegistered(h as never, 'spatial:attachRef', {
+        storyId: 's1',
+        entryId: 'e1',
+        playblastPath: join(dir!, 'no-such.png')
+      })
+    ).rejects.toBeInstanceOf(AppError)
+
+    await expect(
+      invokeRegistered(h as never, 'spatial:importPackage', {
+        storyId: 's1',
+        entryId: 'e1'
+      })
+    ).rejects.toBeInstanceOf(AppError)
+    await expect(
+      invokeRegistered(h as never, 'spatial:importPackage', {
+        storyId: 's1',
+        entryId: 'e1',
+        packageDir: join(dir!, 'missing-pkg')
+      })
+    ).rejects.toBeInstanceOf(AppError)
+
+    const fromRef = (await invokeRegistered(h as never, 'spatial:generateMesh', {
+      storyId: 's1',
+      entryId: 'e1',
+      entityType: 'prop',
+      entityId: 'p1'
+    })) as { mesh: { path: string } }
+    expect(existsSync(fromRef.mesh.path)).toBe(true)
+
+    const fromPlayblast = (await invokeRegistered(h as never, 'spatial:generateMesh', {
+      storyId: 's1',
+      entryId: 'e1',
+      entityType: 'scene',
+      entityId: 'unknown-mesh'
+    })) as { mesh: { path: string } }
+    expect(existsSync(fromPlayblast.mesh.path)).toBe(true)
+
+    await expect(
+      invokeRegistered(h as never, 'spatial:generateMesh', {
+        storyId: 's1',
+        entryId: 'e1'
+      })
+    ).rejects.toBeInstanceOf(AppError)
   })
 })

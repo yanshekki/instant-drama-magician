@@ -78,4 +78,43 @@ describe('TimelineSpatialPanel', () => {
     fireEvent.click(screen.getByText('timeline.desk.spatialGenMesh'))
     await waitFor(() => expect(api.spatial.generateMesh).toHaveBeenCalled())
   })
+
+  it('toggles first-frame, picks a still, and warns without a bind', async () => {
+    api.spatial.blenderStatus = vi.fn().mockResolvedValue({
+      available: true,
+      path: '/usr/bin/blender',
+      version: '4.2'
+    })
+    api.media.pickRefImage = vi.fn().mockResolvedValue({ filePath: '/tmp/picked.png' })
+    const { rerender } = render(
+      <TimelineSpatialPanel
+        entry={makeTimelineEntry() as never}
+        characters={[makeCharacter() as never]}
+        scenes={[makeScene() as never]}
+        propsList={[makeProp() as never]}
+        actions={[makeAction() as never]}
+      />
+    )
+    await waitFor(() => expect(api.spatial.compileBeat).toHaveBeenCalled())
+    fireEvent.click(screen.getByTestId('spatial-first-frame'))
+    expect(screen.getByText('timeline.desk.spatialFirstFrameWarn')).toBeTruthy()
+    fireEvent.click(screen.getByText('timeline.desk.spatialPick'))
+    await waitFor(() => expect(api.spatial.attachRef).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(screen.getByText('timeline.desk.spatialBlender')).toBeTruthy()
+    )
+    rerender(
+      <TimelineSpatialPanel
+        entry={makeTimelineEntry() as never}
+        characters={[]}
+        scenes={[]}
+        propsList={[]}
+        actions={[]}
+      />
+    )
+    fireEvent.click(screen.getByText('timeline.desk.spatialGenMesh'))
+    await waitFor(() =>
+      expect(screen.getByText('timeline.desk.spatialMeshNeed')).toBeTruthy()
+    )
+  })
 })
