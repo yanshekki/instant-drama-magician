@@ -235,4 +235,141 @@ describe('registerSpatialHandlers', () => {
       })
     ).rejects.toBeInstanceOf(AppError)
   })
+
+  it('covers missing timeline, skipped refs, corrupt sidecar, and import edges', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-spatial-'))
+    const store = new MediaStore(dir)
+    const noTimeline = makeHandlerContext({
+      stories: () =>
+        ({
+          get: async (id: string) => ({ id, title: 'Empty' })
+        }) as never,
+      generation: () => ({ getMediaStore: () => store }) as never
+    })
+    registerSpatialHandlers(noTimeline)
+    const hMissing = (noTimeline as { handlers: Map<string, unknown> }).handlers
+    await expect(
+      invokeRegistered(hMissing as never, 'spatial:compileBeat', {
+        storyId: 's1',
+        entryId: 'e1'
+      })
+    ).rejects.toBeInstanceOf(AppError)
+
+    const skipCtx = makeHandlerContext({
+      stories: () =>
+        ({
+          get: async (id: string) => ({
+            id,
+            title: 'Demo',
+            timeline: [
+              {
+                id: 'e1',
+                startTime: 0,
+                endTime: 4,
+                characterIds: '["c1"]',
+                sceneIds: '["sc1"]',
+                propIds: '["p1"]',
+                actionIds: '["a1"]'
+              }
+            ]
+          })
+        }) as never,
+      characters: () =>
+        ({
+          get: async () => {
+            throw new Error('missing character')
+          }
+        }) as never,
+      scenes: () =>
+        ({
+          get: async (id: string) => ({
+            id,
+            description: 'court-only'
+          })
+        }) as never,
+      props: () =>
+        ({
+          get: async (id: string) => ({ id, name: 'Bag' })
+        }) as never,
+      actions: () =>
+        ({
+          get: async () => {
+            throw new Error('missing action')
+          }
+        }) as never,
+      generation: () => ({ getMediaStore: () => store }) as never
+    })
+    registerSpatialHandlers(skipCtx)
+    const hSkip = (skipCtx as { handlers: Map<string, unknown> }).handlers
+    const skipped = (await invokeRegistered(hSkip as never, 'spatial:compileBeat', {
+      storyId: 's1',
+      entryId: 'e1'
+    })) as { playblastPath: string; refs: Array<{ role: string }> }
+    expect(existsSync(skipped.playblastPath)).toBe(true)
+    expect(skipped.refs.some((r) => r.role === 'spatial')).toBe(true)
+
+    writeFileSync(store.spatialManifestPath('s1', 'e1'), '{not-json')
+    const recovered = (await invokeRegistered(hSkip as never, 'spatial:compileBeat', {
+      storyId: 's1',
+      entryId: 'e1'
+    })) as { kind: string }
+    expect(recovered.kind).toBe(SPATIAL_PACKAGE_KIND)
+
+    const badPkg = join(dir, 'bad-pkg')
+    mkdirSync(badPkg, { recursive: true })
+    writeFileSync(join(badPkg, 'manifest.json'), '{"kind":"nope"}')
+    await expect(
+      invokeRegistered(hSkip as never, 'spatial:importPackage', {
+        storyId: 's1',
+        entryId: 'e1',
+        packageDir: badPkg
+      })
+    ).rejects.toBeInstanceOf(AppError)
+
+    const absPlay = join(dir, 'from-blender.png')
+    writeFileSync(absPlay, 'png')
+    const absPkg = join(dir, 'abs-pkg')
+    mkdirSync(absPkg, { recursive: true })
+    writeFileSync(
+      join(absPkg, 'manifest.json'),
+      JSON.stringify({
+        kind: SPATIAL_PACKAGE_KIND,
+        storyId: 's1',
+        entryId: 'e1',
+        playblastPath: absPlay,
+        blocking: {
+          version: 1,
+          aspect: '9:16',
+          markers: [],
+          camera: {
+            x: 0.5,
+            y: 0.2,
+            z: 0.1,
+            fov: 35,
+            lookAtX: 0.5,
+            lookAtY: 0.1,
+            lookAtZ: 0.5
+          }
+        }
+      })
+    )
+    const importedAbs = (await invokeRegistered(
+      hSkip as never,
+      'spatial:importPackage',
+      { storyId: 's1', entryId: 'e1', packageDir: absPkg }
+    )) as { playblastPath: string }
+    expect(existsSync(importedAbs.playblastPath)).toBe(true)
+
+    await expect(
+      invokeRegistered(hSkip as never, 'spatial:attachRef', {})
+    ).rejects.toBeInstanceOf(AppError)
+    await expect(
+      invokeRegistered(hSkip as never, 'spatial:generateMesh', {
+        storyId: 's1',
+        entryId: 'e1',
+        entityId: 'p1',
+        imagePath: join(dir, 'missing-texture.png')
+      })
+    ).rejects.toBeInstanceOf(AppError)
+  })
 })
