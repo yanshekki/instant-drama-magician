@@ -1125,7 +1125,19 @@
       "workAreaHint": "केवल इस दायरे से कटने वाले क्लिप जनरेट करें",
       "start": "इन",
       "end": "आउट",
-      "noClip": "टाइमलाइन पर एक क्लिप चुनें।"
+      "noClip": "टाइमलाइन पर एक क्लिप चुनें।",
+      "spatialTitle": "ब्लॉकिंग मंच",
+      "spatialHint": "मार्कर खींचकर इस बीट की जगहें बाँधें। क्ले स्थिर चित्र निकालें, स्टोरीबोर्ड स्थिर चित्र बनाएँ, फिर मौजूदा I2V चलाएँ। पहचान चित्र चेहरा और पोशाक रखते हैं; सफ़ेद मॉडल केवल स्थान और कैमरा बाँधता है।",
+      "spatialUseAsFirstFrame": "सफ़ेद मॉडल को पहला फ्रेम बनाएँ (चेहरा कम कसा)",
+      "spatialFirstFrameWarn": "पहला फ्रेम पहने हुए पहचान चित्र की जगह क्ले स्थिर चित्र का अनुसरण करेगा।",
+      "spatialExportPlayblast": "क्ले स्थिर चित्र निर्यात",
+      "spatialPick": "सफ़ेद मॉडल PNG जोड़ें",
+      "spatialEmpty": "अभी कोई स्थानिक स्थिर चित्र नहीं",
+      "spatialBlender": "स्थानीय Blender मिला",
+      "spatialBlenderMissing": "PATH पर Blender नहीं (वैकल्पिक; ऐड-ऑन instant-drama CLI चलाता है)",
+      "spatialGenMesh": "प्रॉक्सी मेश बनाएँ",
+      "spatialMeshOk": "प्रॉक्सी glTF लिखा (टेक्सचर्ड समतल; कपड़ा या रिग नहीं)",
+      "spatialMeshNeed": "पहले कोई प्रॉप, दृश्य या पात्र बाँधें"
     },
     "lanes": {
       "shot": "शॉट",
@@ -2255,7 +2267,8 @@
       "art": "कला शैली",
       "other": "अन्य",
       "continuity": "स्टोरीबोर्ड स्थिर चित्र",
-      "comic": "कॉमिक"
+      "comic": "कॉमिक",
+      "spatial": "स्थानिक (सफ़ेद मॉडल)"
     },
     "kind": {
       "action-plate": "एक्शन प्लेट",
@@ -2323,7 +2336,13 @@
     "keyArtOwn": "यह चित्र",
     "keyArtPrev": "पिछला चित्र",
     "photoBookStill": "फोटोबुक चित्र {{n}}",
-    "photoBookStillScene": "फोटोबुक चित्र {{n}} · {{scene}}"
+    "photoBookStillScene": "फोटोबुक चित्र {{n}} · {{scene}}",
+    "refRole": {
+      "identity": "पहचान",
+      "spatial": "स्थान",
+      "motion": "गति",
+      "style": "शैली"
+    }
   },
   "promptTpl": {
     "title": "चुनें कि AI कैसे काम करे",

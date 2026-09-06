@@ -405,6 +405,17 @@ const api: ElectronApi & {
     generateImage: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke('mediaGen:generateImage', payload)
   },
+  spatial: {
+    compileBeat: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('spatial:compileBeat', payload),
+    importPackage: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('spatial:importPackage', payload),
+    attachRef: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('spatial:attachRef', payload),
+    blenderStatus: () => ipcRenderer.invoke('spatial:blenderStatus'),
+    generateMesh: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('spatial:generateMesh', payload)
+  },
   timeline: {
     list: (storyId: string) => ipcRenderer.invoke('timeline:list', storyId),
     create: (input: CreateTimelineEntryInput) => ipcRenderer.invoke('timeline:create', input),

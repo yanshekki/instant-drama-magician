@@ -15,6 +15,7 @@ Product version **1.10.0** · Vendor **YSK Limited** · Contact **[email@ysk.hk]
 | [project-brief.md](./project-brief.md) | [project-brief-ZH.md](./project-brief-ZH.md) | Product specification |
 | [architecture.md](./architecture.md) | [architecture-ZH.md](./architecture-ZH.md) | Architecture |
 | [cli.md](./cli.md) | [cli-ZH.md](./cli-ZH.md) | CLI `instant-drama` |
+| [blender.md](./blender.md) | [blender-ZH.md](./blender-ZH.md) | Blender spatial add-on |
 | [agent-cli.md](./agent-cli.md) | [agent-cli-ZH.md](./agent-cli-ZH.md) | Agents |
 | [self-host.md](./self-host.md) | [self-host-ZH.md](./self-host-ZH.md) | Web remote |
 | [grok-gateway.md](./grok-gateway.md) | [grok-gateway-ZH.md](./grok-gateway-ZH.md) | Grok Gateway |
@@ -37,7 +38,7 @@ Product version **1.10.0** · Vendor **YSK Limited** · Contact **[email@ysk.hk]
 | Fact | Value |
 |------|--------|
 | App version | `1.10.0` (`package.json`) |
-| IPC / CLI channels | **184** (shared `registerAllHandlers`) |
+| IPC / CLI channels | **189** (shared `registerAllHandlers`) |
 | Legal copy version | `LEGAL_VERSION` **1.0.0** (`src/domain/legal.ts`) |
 | Default LLM | Grok Gateway `http://127.0.0.1:3847/v1` |
 | AI clip duration | **6 or 10** seconds only (Grok-style video) |

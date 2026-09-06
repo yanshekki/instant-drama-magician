@@ -451,6 +451,7 @@ export const PROMPT_COPY_KEYS = [
   'charIntro.manner',
   'charIntro.cameraDefault',
   'mediaGen.honorCameraTemplate',
+  'mediaGen.refRoles',
   'sceneIntro.cameraNotes',
   'sceneIntro.cameraDefault',
   'quality.family.photo',

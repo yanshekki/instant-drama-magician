@@ -453,6 +453,7 @@ export const ptBrPromptCopy: PromptCopyTable = {
   "charIntro.manner": "Maneirismos: {{manner}}.",
   "charIntro.cameraDefault": "Câmera de atuação: aproximação suave ou leve câmera na mão; o personagem olha para a câmera ou um pouco fora do eixo.",
   "mediaGen.honorCameraTemplate": "Se os materiais incluírem um bloco de modelo de câmera, siga exatamente esse enquadramento e movimento. Não substitua por uma aproximação ou câmera na mão genéricas.",
+  "mediaGen.refRoles": "Cada still tem um ofício: IDENTITY (rosto/figurino), SPATIAL (blocking e câmara do modelo branco — não copies o cinza de argila como look final), MOTION (tempo/gesto) ou STYLE (paleta/luz). Não deixes um still mandar em tudo.",
   "sceneIntro.cameraNotes": "Notas de câmera: {{camera}}.",
   "sceneIntro.cameraDefault": "Câmera: movimento contínuo e suave. Não acrescente rostos novos do elenco, logos nem sobreposições de texto, salvo se os materiais já os mostrarem.",
   "quality.family.photo": "Qualidade: foco nítido nos olhos ou nas feições principais do rosto/cabeça, microdetalhe alto adequado a meio fotorrealista, iluminação profissional de estúdio em três pontos salvo se o estilo disser o contrário, aparência de objetiva prime (50–85 mm), sem desfoque de movimento, sem filtro de embelezamento que amoleça o rosto, sem marca d'água nem texto.",

@@ -1125,7 +1125,19 @@
       "workAreaHint": "Generar solo los clips que crucen este intervalo",
       "start": "Entrada",
       "end": "Salida",
-      "noClip": "Seleccione un clip en la línea de tiempo."
+      "noClip": "Seleccione un clip en la línea de tiempo.",
+      "spatialTitle": "Mesa de blocking",
+      "spatialHint": "Arrastre marcadores para fijar el blocking. Exporte un still de arcilla, genere el still de storyboard y use el I2V existente. Los stills de identidad guardan cara y vestuario; el modelo blanco solo fija posición y cámara.",
+      "spatialUseAsFirstFrame": "Usar el modelo blanco como primer fotograma (peor bloqueo facial)",
+      "spatialFirstFrameWarn": "El primer fotograma seguirá el still de arcilla, no el still de identidad vestida.",
+      "spatialExportPlayblast": "Exportar still de arcilla",
+      "spatialPick": "Adjuntar PNG de modelo blanco",
+      "spatialEmpty": "Aún no hay still espacial",
+      "spatialBlender": "Blender local detectado",
+      "spatialBlenderMissing": "Blender no está en PATH (opcional; el complemento llama a instant-drama CLI)",
+      "spatialGenMesh": "Generar malla proxy",
+      "spatialMeshOk": "glTF proxy escrito (plano texturizado; no tela ni rig)",
+      "spatialMeshNeed": "Vincule primero un atrezzo, escenario o personaje"
     },
     "lanes": {
       "shot": "Plano",
@@ -2255,7 +2267,8 @@
       "art": "estilo de arte",
       "other": "Otro",
       "continuity": "Fotograma de storyboard",
-      "comic": "Cómic"
+      "comic": "Cómic",
+      "spatial": "Espacial (modelo blanco)"
     },
     "kind": {
       "action-plate": "Placa de acción",
@@ -2323,7 +2336,13 @@
     "keyArtOwn": "Esta imagen",
     "keyArtPrev": "Imagen anterior",
     "photoBookStill": "Foto del álbum {{n}}",
-    "photoBookStillScene": "Foto del álbum {{n}} · {{scene}}"
+    "photoBookStillScene": "Foto del álbum {{n}} · {{scene}}",
+    "refRole": {
+      "identity": "Identidad",
+      "spatial": "Espacial",
+      "motion": "Movimiento",
+      "style": "Estilo visual"
+    }
   },
   "promptTpl": {
     "title": "Elige cómo debe trabajar la IA",

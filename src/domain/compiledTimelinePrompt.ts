@@ -12,6 +12,7 @@ import { collectTimelineHardRules } from './promptHardRules'
 import { buildClipPrompt } from './promptContinuity'
 import { timelineGraphBindIds } from './timelineGraph'
 import { numberMediaPool, pictureKey } from './timelineLanes'
+import { SPATIAL_ROLE_MODEL_LINES } from './spatialRef'
 
 export type CompiledPromptSection = {
   id: string
@@ -21,10 +22,11 @@ export type CompiledPromptSection = {
 
 export type CompiledPictureSlot = {
   index: number
-  kind: 'character' | 'scene' | 'prop' | 'action'
+  kind: 'character' | 'scene' | 'prop' | 'action' | 'spatial'
   entityId: string
   name: string
   imagePath: string | null
+  refRole?: 'identity' | 'spatial' | 'motion' | 'style'
 }
 
 export type CompiledTimelinePrompt = {
@@ -74,6 +76,11 @@ function subjectLine(
       ? `〈主體 ${pictureIndex}〉為 ${pic} 所示道具「${name}」。`
       : `<Subject ${pictureIndex}> is the prop shown in ${pic} (${name}).`
   }
+  if (kind === 'spatial') {
+    return zh
+      ? `〈主體 ${pictureIndex}〉為 ${pic} 所示白模空間契約：只鎖站位、比例與機位，不要抄黏土灰當成品。`
+      : `<Subject ${pictureIndex}> is the white-model spatial contract in ${pic} (${name}): positions, scale, and camera only — do not copy clay gray as the final look.`
+  }
   return zh
     ? `〈主體 ${pictureIndex}〉為 ${pic} 所示動作參考「${name}」。`
     : `<Subject ${pictureIndex}> is the action reference in ${pic} (${name}).`
@@ -91,6 +98,7 @@ export function compileTimelinePrompt(input: {
   previousContext?: string | null
   shotIndex?: number
   storyHardRules?: string | null
+  spatialPlayblastPath?: string | null
 }): CompiledTimelinePrompt {
   const locale = input.locale || 'zh-HK'
   const entry = input.entry
@@ -146,13 +154,24 @@ export function compileTimelinePrompt(input: {
       imagePath: a.refImagePath || null
     })
   }
+  const spatialPath = input.spatialPlayblastPath?.trim() || null
+  if (spatialPath) {
+    poolItems.push({
+      key: pictureKey('action', `spatial:${entry.id}`),
+      kind: 'spatial',
+      entityId: entry.id,
+      name: 'white-model',
+      imagePath: spatialPath
+    })
+  }
   const numbers = numberMediaPool(poolItems.map((p) => ({ key: p.key })))
   const pictures: CompiledPictureSlot[] = poolItems.map((p) => ({
     index: numbers[p.key] ?? 0,
     kind: p.kind,
     entityId: p.entityId,
     name: p.name,
-    imagePath: p.imagePath
+    imagePath: p.imagePath,
+    refRole: p.kind === 'spatial' ? 'spatial' : p.kind === 'action' ? 'motion' : 'identity'
   }))
 
   const zh = locale.toLowerCase().startsWith('zh')
@@ -162,7 +181,8 @@ export function compileTimelinePrompt(input: {
     shot: zh ? '分鏡' : 'detailed_description',
     dialogue: zh ? '對白' : 'dialogue',
     sound: zh ? '聲效' : 'overall_soundscape',
-    model: zh ? '模型提示' : 'model_prompt'
+    model: zh ? '模型提示' : 'model_prompt',
+    spatial: zh ? '空間契約' : 'spatial_contract'
   }
 
   const subjectBody = pictures
@@ -222,6 +242,13 @@ export function compileTimelinePrompt(input: {
     sections.push({ id, title, body: t })
   }
   push('subjects', titles.subjects, subjectBody)
+  push(
+    'spatial',
+    titles.spatial,
+    spatialPath
+      ? SPATIAL_ROLE_MODEL_LINES.spatial
+      : null
+  )
   push('retention', titles.retention, hardRules)
   push('shot', titles.shot, shotBody)
   push('dialogue', titles.dialogue, spoken)

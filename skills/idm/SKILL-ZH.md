@@ -1,7 +1,7 @@
 ---
 name: instant-drama
 description: >-
-  用 instant-drama CLI 控制 InstantDrama Magician——184 個共用 channel：故事、章節、劇情焦點
+  用 instant-drama CLI 控制 InstantDrama Magician——189 個共用 channel：故事、章節、劇情焦點
  （suggestFromStory/segmentKeys）、角色、戲服、場景、道具、動作、漫畫、劇照、時間軸、生成、設定。
   當用戶要在終端機建立短劇、由章節／段落填資產、出片或改設定時使用。
 metadata:
@@ -19,7 +19,7 @@ metadata:
 
 # InstantDrama Magician（`instant-drama`）
 
-透過 **`instant-drama` CLI**（非 GUI）控制 **InstantDrama Magician**。桌面／web／CLI 共用 **184** 個 channel。
+透過 **`instant-drama` CLI**（非 GUI）控制 **InstantDrama Magician**。桌面／web／CLI 共用 **189** 個 channel。
 
 ## 一次性設定
 
@@ -49,7 +49,7 @@ instant-drama channels list --json
 instant-drama channels describe scenes:aiFill --json
 ```
 
-只呼叫 `channels list` 出現的 channel（應 **184**）。若缺少 channel，多半是二進位過舊。
+只呼叫 `channels list` 出現的 channel（應 **189**）。若缺少 channel，多半是二進位過舊。
 
 ## 輸出契約
 
@@ -69,7 +69,7 @@ instant-drama open --dev
 
 支援 **macOS、Ubuntu/Linux、Windows**。macOS 目標在 Mac 上建。
 
-## 全控制（184 channels）
+## 全控制（189 channels）
 
 ```bash
 instant-drama channels list --json
@@ -87,6 +87,8 @@ instant-drama characters render-photo-book --args '[{"characterId":"…","mode":
 instant-drama characters render-photo-book --args '[{"characterId":"…","mode":"ai-clips","albumId":"album_default","concatOnly":true}]' --json
 instant-drama characters render-photo-book --args '[{"characterId":"…","mode":"slideshow"}]' --json
 instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","continuityMode":"chain-end","motionPriority":"action"}]' --json
+instant-drama spatial compile-beat --args '[{"storyId":"…","entryId":"…"}]' --json
+instant-drama spatial attach-ref --args '[{"storyId":"…","entryId":"…","playblastPath":"/tmp/playblast.png"}]' --json
 instant-drama timeline get-advanced-prep --args '["STORY_ID"]' --json
 instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"…","entryId":"…","stillOnly":true}]' --json
 instant-drama generation run STORY_ID --json
@@ -96,6 +98,8 @@ instant-drama media check-ffmpeg --json
 角色表／道具板／介紹片走 **`mediaGen:extract` → `polish` → `generateImage`**（舊 `generate-sheet`／`generatePlate` 已棄用）。攝影集短片提取（`character-photoshoot-clip`）以 `profileJson.photoBook.albums` 當前相冊靜圖做像素底圖，人設參考只作視覺參考。桌面鏡頭範本在攝影集編輯欄、時間軸節拍、主視覺鏡頭選擇（靜圖與視頻 MediaGen 彈窗可再改）。`mediaGen:extract` 的 `introTemplateId` 可覆寫已存的 `cameraTemplateId`。CLI `ai-clips` 仍然使用 `introTemplateId`；`characters:renderPhotoBook` 可傳 `albumId`。
 
 可選 payload 旗標（設定預設；**不要加新 channel**）：`continuityMode`（`storyboard`|`chain-end`）、`motionPriority`（`default`|`action`）、`advancedIdentity`、`identityCollage`、`lookPackId`（`follow-asset`|`identity-lock`|`continuous-clip`|`key-art`|`comic`）、`generateAudio`、`grokVideoVoice`（`ara`|`eve`|`leo`|`rex`|`sal`|`mio`）。用 `channels describe mediaGen:extract` 查看 argsHint。
+
+**空間／白模：** `spatial:compileBeat` 寫出 `idm-spatial-package`（身份靜圖 + 白模 PNG）。用 `spatial:attachRef` 掛上 Blender 或走位台 playblast。該靜圖鎖定分鏡靜圖走位，成片仍走現有圖生影片。可選 `spatial:generateMesh` 為貼圖平面 glTF 代理（道具／場景優先；不承諾布料）。Blender 外掛見 [docs/blender-ZH.md](../../docs/blender-ZH.md)。此處不羅列全部 channel。
 
 gctoac 原生片段配音為設定 + `POST /v1/videos` `voices[]`（gctoac 1.7.4+ → `reference_to_video`）。**不要**呼叫 `/v1/audio/speech`。例：
 

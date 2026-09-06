@@ -138,6 +138,6 @@ describe('WebAuthGate', () => {
         <div>x</div>
       </WebAuthGate>
     )
-    await waitFor(() => screen.getByText('web.authTitle'))
+    await waitFor(() => screen.getByText('web.authTitle'), { timeout: 3000 })
   })
 })

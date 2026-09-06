@@ -68,6 +68,8 @@ describe('registerMediagenHandlers', () => {
       ensureStoryDirs: vi.fn(),
       clipContinuityStillPath: (_sid: string, eid: string) =>
         join(dir!, `${eid}_cont.png`),
+      spatialManifestPath: (sid: string, eid: string) =>
+        join(dir!, 'spatial', sid, eid, 'manifest.json'),
       readStoryCastPrepJson: () => null as string | null,
       writeEntryStillPromptJson: vi.fn(),
       clearEntryStillUserCleared: vi.fn(),

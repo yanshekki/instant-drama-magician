@@ -1125,7 +1125,19 @@
       "workAreaHint": "この範囲と重なるクリップだけ生成します",
       "start": "イン",
       "end": "アウト",
-      "noClip": "タイムラインでクリップを選んでください。"
+      "noClip": "タイムラインでクリップを選んでください。",
+      "spatialTitle": "ブロッキング台",
+      "spatialHint": "マーカーをドラッグして配置を固定。クレイ静止画を書き出し、絵コンテ静止画を生成してから既存のI2Vへ。身分静止画が顔と衣装を担い、白模は位置とカメラのみ。",
+      "spatialUseAsFirstFrame": "白模をファーストフレームに使う（顔ロックは弱まる）",
+      "spatialFirstFrameWarn": "ファーストフレームは着装の身分静止画ではなくクレイ静止画に従います。",
+      "spatialExportPlayblast": "クレイ静止画を書き出す",
+      "spatialPick": "白模静止画を付ける",
+      "spatialEmpty": "空間静止画はまだない",
+      "spatialBlender": "ローカルのBlenderを検出",
+      "spatialBlenderMissing": "PATH上にBlenderなし（任意。アドオンはinstant-drama CLIを呼ぶ）",
+      "spatialGenMesh": "プロキシメッシュを生成",
+      "spatialMeshOk": "プロキシglTFを書き出した（テクスチャ平面。布やリグではない）",
+      "spatialMeshNeed": "先に小道具・場面・キャラクターを結び付けてください"
     },
     "lanes": {
       "shot": "ショット",
@@ -2255,7 +2267,8 @@
       "art": "画風",
       "other": "その他",
       "continuity": "絵コンテ静止画",
-      "comic": "漫画"
+      "comic": "漫画",
+      "spatial": "空間（白模）"
     },
     "kind": {
       "action-plate": "アクション指示図",
@@ -2323,7 +2336,13 @@
     "keyArtOwn": "この完成画",
     "keyArtPrev": "前のスチル",
     "photoBookStill": "フォトブック {{n}} 枚目",
-    "photoBookStillScene": "フォトブック {{n}} 枚目 · {{scene}}"
+    "photoBookStillScene": "フォトブック {{n}} 枚目 · {{scene}}",
+    "refRole": {
+      "identity": "身分",
+      "spatial": "空間",
+      "motion": "動作",
+      "style": "作風"
+    }
   },
   "promptTpl": {
     "title": "AI のやり方を選ぶ",

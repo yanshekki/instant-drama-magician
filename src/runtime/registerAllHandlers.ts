@@ -31,6 +31,7 @@ import { registerUpdatesHandlers } from './handlers/updates'
 import { registerActivityHandlers } from './handlers/activity'
 import { registerProjectbackupHandlers } from './handlers/projectBackup'
 import { registerAppBackupHandlers } from './handlers/appBackup'
+import { registerSpatialHandlers } from './handlers/spatial'
 
 export function registerAllHandlers(
   reg: (channel: string, fn: RuntimeHandler) => void,
@@ -70,6 +71,7 @@ export function registerAllHandlers(
   registerActivityHandlers(ctx)
   registerProjectbackupHandlers(ctx)
   registerAppBackupHandlers(ctx)
+  registerSpatialHandlers(ctx)
 }
 
 export { createHandlerContext } from './handlers/context'

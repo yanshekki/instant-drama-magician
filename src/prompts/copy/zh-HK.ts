@@ -453,6 +453,7 @@ export const zhHkPromptCopy: PromptCopyTable = {
   "charIntro.manner": "習慣：{{manner}}。",
   "charIntro.cameraDefault": "預設運鏡：輕微推近或手持微晃；角色望向鏡頭或略偏鏡頭。",
   "mediaGen.honorCameraTemplate": "若材料含鏡頭範本區塊，必須按該構圖與運鏡執行，禁止改回籠統的推近或手持。",
+  "mediaGen.refRoles": "每張附圖只負責一項：身份（臉與戲服）、空間（白模走位與機位，禁止把黏土灰當成品外觀）、動作（節奏與姿勢）、風格（色調與光）。禁止一張圖包辦全部。",
   "sceneIntro.cameraNotes": "運鏡備註：{{camera}}。",
   "sceneIntro.cameraDefault": "預設運鏡：連續輕微動態。除非材料已有，否則勿新增路人臉、標誌、字幕。",
   "quality.family.photo": "畫質：眼睛或主臉銳利對焦，寫實媒介的微觀細節，專業棚燈（風格另有規定除外），50–85mm 鏡頭感，無動態模糊、無過重美顏、無浮水印或文字。",

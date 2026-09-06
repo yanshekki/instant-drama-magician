@@ -1120,6 +1120,11 @@ export function MediaGenPrepModal({
                 {entityLabel(t, s.entityType)}
               </span>
             ) : null}
+            {s.refRole ? (
+              <span className="rounded-full border border-ink-600 px-1.5 py-0.5 text-[10px] text-ink-300">
+                {t(`mediaGen.refRole.${s.refRole}`)}
+              </span>
+            ) : null}
             {editBaseSectionId === s.id ? (
               <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
                 {t('mediaGen.reviewEditBaseBadge')}

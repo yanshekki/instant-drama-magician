@@ -1223,6 +1223,41 @@ export interface ElectronApi {
       aspectRatio?: string
     }>
   }
+  spatial: {
+    compileBeat: (payload: {
+      storyId: string
+      entryId: string
+      destDir?: string
+      blocking?: unknown
+      usePlayblastAsFirstFrame?: boolean
+    }) => Promise<unknown>
+    importPackage: (payload: {
+      storyId: string
+      entryId: string
+      packageDir: string
+    }) => Promise<unknown>
+    attachRef: (payload: {
+      storyId: string
+      entryId: string
+      playblastPath?: string
+      playblastPngBase64?: string
+      blocking?: unknown
+      usePlayblastAsFirstFrame?: boolean
+    }) => Promise<unknown>
+    blenderStatus: () => Promise<{
+      available: boolean
+      path: string | null
+      version: string | null
+      addonHint?: string
+    }>
+    generateMesh: (payload: {
+      storyId: string
+      entryId: string
+      entityType: string
+      entityId: string
+      imagePath?: string
+    }) => Promise<unknown>
+  }
   /** Shared video prep: materials → LLM prompt → still review → confirm video */
   videoPrep: {
     create: (payload: {

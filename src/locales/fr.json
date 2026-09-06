@@ -1125,7 +1125,19 @@
       "workAreaHint": "Ne générer que les clips qui recoupent cette plage",
       "start": "Entrée",
       "end": "Sortie",
-      "noClip": "Sélectionnez un clip sur la timeline."
+      "noClip": "Sélectionnez un clip sur la timeline.",
+      "spatialTitle": "Plateau de blocking",
+      "spatialHint": "Faites glisser les marqueurs pour verrouiller le blocking. Exportez un still d’argile, générez le still de storyboard, puis l’I2V existant. Les stills d’identité gardent visage et costume ; le modèle blanc ne contraint que la place et la caméra.",
+      "spatialUseAsFirstFrame": "Utiliser le modèle blanc comme première image (verrouillage du visage plus faible)",
+      "spatialFirstFrameWarn": "La première image suivra le still d’argile, pas le still d’identité habillée.",
+      "spatialExportPlayblast": "Exporter le still d’argile",
+      "spatialPick": "Joindre un PNG de maquette blanche",
+      "spatialEmpty": "Pas encore de still spatial",
+      "spatialBlender": "Blender local détecté",
+      "spatialBlenderMissing": "Blender absent du PATH (facultatif ; l’add-on appelle instant-drama CLI)",
+      "spatialGenMesh": "Générer un maillage proxy",
+      "spatialMeshOk": "glTF proxy écrit (plan texturé ; pas de tissu ni de rig)",
+      "spatialMeshNeed": "Liez d’abord un accessoire, un décor ou un personnage"
     },
     "lanes": {
       "shot": "Plan",
@@ -2255,7 +2267,8 @@
       "art": "Style artistique",
       "other": "Autre",
       "continuity": "Photogramme de storyboard",
-      "comic": "BD"
+      "comic": "BD",
+      "spatial": "Spatial (modèle blanc)"
     },
     "kind": {
       "action-plate": "Planche d’action",
@@ -2323,7 +2336,13 @@
     "keyArtOwn": "Cette image",
     "keyArtPrev": "Image précédente",
     "photoBookStill": "Photo du book {{n}}",
-    "photoBookStillScene": "Photo du book {{n}} · {{scene}}"
+    "photoBookStillScene": "Photo du book {{n}} · {{scene}}",
+    "refRole": {
+      "identity": "Identité",
+      "spatial": "Occupation de l'espace",
+      "motion": "Mouvement",
+      "style": "Habillage visuel"
+    }
   },
   "promptTpl": {
     "title": "Choisir comment l’IA doit travailler",

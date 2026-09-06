@@ -14,6 +14,7 @@ import {
   type ActionPanelLayoutId
 } from './actionPlateVariants'
 import { artStylePrompt, getArtStyle } from './characterArtStyles'
+import { SPATIAL_ROLE_MODEL_LINES } from './spatialRef'
 import { PromptCatalog, resolvePromptContext } from '../prompts'
 import { assembleSystemPrompt } from './promptTemplates'
 import {
@@ -112,6 +113,7 @@ export type MaterialEntityType =
   | 'art'
   | 'other'
   | 'comic'
+  | 'spatial'
 
 /** UI grouping — refs (images) vs task text vs hard rules. */
 export type MaterialSectionGroup = 'refs' | 'task' | 'rules'
@@ -134,6 +136,8 @@ export interface MediaGenMaterialSection {
   editBasePriority?: number
   /** UI section group. Default inferred from kind/entityType. */
   group?: MaterialSectionGroup
+  /** Still job: identity / spatial / motion / style. */
+  refRole?: 'identity' | 'spatial' | 'motion' | 'style'
 }
 
 export function materialSectionGroup(
@@ -658,6 +662,7 @@ export function buildMediaGenPolishSystemPrompt(
             : noRef),
           PromptCatalog.t(locale, 'mediaGen.videoHardRules'),
           PromptCatalog.t(locale, 'mediaGen.honorCameraTemplate'),
+          PromptCatalog.t(locale, 'mediaGen.refRoles'),
           lock
         ].join('\n')
       : [
@@ -677,6 +682,7 @@ export function buildMediaGenPolishSystemPrompt(
           PromptCatalog.t(locale, 'mediaGen.imagePackage'),
           PromptCatalog.t(locale, 'mediaGen.imageHardRules'),
           PromptCatalog.t(locale, 'mediaGen.honorCameraTemplate'),
+          PromptCatalog.t(locale, 'mediaGen.refRoles'),
           lock
         ].join('\n')
   return assembleSystemPrompt({
@@ -983,6 +989,9 @@ export function buildTimelineBeatMaterialSections(opts: {
   /** Optional video-oriented fallback when kind is timeline-clip. */
   fallbackPrompt?: string | null
   locale?: string | null
+  /** White-model / clay playblast for blocking + camera. */
+  spatialPlayblastPath?: string | null
+  usePlayblastAsFirstFrame?: boolean
 }): {
   sections: MediaGenMaterialSection[]
   editBaseSectionId: string | null
@@ -1048,7 +1057,31 @@ export function buildTimelineBeatMaterialSections(opts: {
       include: true,
       canBeEditBase: true,
       editBasePriority: timelineOwnStillEditPriority(continuityMode),
-      group: 'refs'
+      group: 'refs',
+      refRole: 'identity'
+    })
+  }
+
+  const spatial = opts.spatialPlayblastPath?.trim() || null
+  if (spatial) {
+    const asFirst = opts.usePlayblastAsFirstFrame === true
+    pushRef({
+      id: 'spatial_white_model',
+      kind: 'ref-image',
+      title: 'white-model',
+      entityType: 'spatial',
+      imagePath: spatial,
+      text: [
+        SPATIAL_ROLE_MODEL_LINES.spatial,
+        asFirst
+          ? 'User opted to use this blockout as first_frame — identity stills still apply for faces when included.'
+          : 'Do not use this still as the pixel edit base. Identity stills remain the visual ground truth.'
+      ].join(' '),
+      include: true,
+      canBeEditBase: asFirst,
+      editBasePriority: asFirst ? 90 : 15,
+      group: 'refs',
+      refRole: 'spatial'
     })
   }
 
@@ -1089,11 +1122,12 @@ export function buildTimelineBeatMaterialSections(opts: {
       title: c.name || `Character ${i + 1}`,
       entityType: 'character',
       imagePath: img,
-      text: `Character library still for "${c.name || 'cast'}". Match face/hair/body.`,
+      text: `Character library still for "${c.name || 'cast'}". ${SPATIAL_ROLE_MODEL_LINES.identity}`,
       include: !cast || i === 0,
       canBeEditBase: false,
       editBasePriority: 120 - i,
-      group: 'refs'
+      group: 'refs',
+      refRole: 'identity'
     })
   })
 
@@ -1118,11 +1152,12 @@ export function buildTimelineBeatMaterialSections(opts: {
       title: sc.name || `Scene ${i + 1}`,
       entityType: 'scene',
       imagePath: img,
-      text: 'Location plate — SPACE LOCK architecture, materials, light direction.',
+      text: `Location plate — ${SPATIAL_ROLE_MODEL_LINES.identity} SPACE LOCK architecture, materials, light direction.`,
       include: true,
       canBeEditBase: false,
       editBasePriority: 60 - i,
-      group: 'refs'
+      group: 'refs',
+      refRole: 'identity'
     })
   })
 
@@ -1147,11 +1182,12 @@ export function buildTimelineBeatMaterialSections(opts: {
       title: pr.name || `Prop ${i + 1}`,
       entityType: 'prop',
       imagePath: img,
-      text: `Prop still for "${pr.name || 'item'}". Match when the beat uses this prop.`,
+      text: `Prop still for "${pr.name || 'item'}". ${SPATIAL_ROLE_MODEL_LINES.identity} Match when the beat uses this prop.`,
       include: true,
       canBeEditBase: false,
       editBasePriority: 40 - i,
-      group: 'refs'
+      group: 'refs',
+      refRole: 'identity'
     })
   })
 
@@ -1176,7 +1212,8 @@ export function buildTimelineBeatMaterialSections(opts: {
       include: true,
       canBeEditBase: motionPriority === 'action',
       editBasePriority: actionEditPriority - i,
-      group: 'refs'
+      group: 'refs',
+      refRole: 'motion'
     })
   })
 

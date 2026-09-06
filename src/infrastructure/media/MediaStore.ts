@@ -102,6 +102,32 @@ export class MediaStore {
     return join(this.clipsDir(storyId), `${entryId}_continuity${ext}`)
   }
 
+  /** Beat spatial package (manifest + playblast + optional glTF proxies). */
+  spatialDir(storyId: string, entryId: string): string {
+    return join(this.storyDir(storyId), 'spatial', entryId)
+  }
+
+  spatialManifestPath(storyId: string, entryId: string): string {
+    return join(this.spatialDir(storyId, entryId), 'manifest.json')
+  }
+
+  spatialPlayblastPath(storyId: string, entryId: string, ext = '.png'): string {
+    return join(this.spatialDir(storyId, entryId), `playblast${ext}`)
+  }
+
+  spatialIdentityDir(storyId: string, entryId: string): string {
+    return join(this.spatialDir(storyId, entryId), 'identity')
+  }
+
+  spatialMeshDir(storyId: string, entryId: string): string {
+    return join(this.spatialDir(storyId, entryId), 'mesh')
+  }
+
+  spatialMeshPath(storyId: string, entryId: string, entityId: string): string {
+    const id = entityId.replace(/[^a-zA-Z0-9_-]/g, '') || 'mesh'
+    return join(this.spatialMeshDir(storyId, entryId), `${id}.gltf`)
+  }
+
   /** Story-level cast prep (ref image + costume look per character). */
   storyCastPrepPath(storyId: string): string {
     return join(this.storyDir(storyId), 'cast-prep.json')
@@ -428,6 +454,7 @@ export class MediaStore {
     mkdirSync(this.ttsDir(storyId), { recursive: true })
     mkdirSync(this.comicsDir(storyId), { recursive: true })
     mkdirSync(this.keyArtDir(storyId), { recursive: true })
+    mkdirSync(join(this.storyDir(storyId), 'spatial'), { recursive: true })
   }
 
   importClip(storyId: string, entryId: string, sourcePath: string): string {

@@ -103,7 +103,7 @@ Cross-build: mac installers need a Mac. Use `--force` only when you know the too
 
 ## Discovery & invoke
 
-Electron, Web, and CLI share **`registerAllHandlers`** — **184** channels.
+Electron, Web, and CLI share **`registerAllHandlers`** — **189** channels.
 
 ```bash
 instant-drama doctor --json
@@ -131,7 +131,7 @@ instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces include: `actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
+Namespaces include: `actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `spatial` `stories` `support` `timeline` `updates` `videoPrep` `webServer`.
 
 ## Recent API surface (1.10.0)
 
@@ -139,7 +139,9 @@ Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 
 **1.8.0 field kits** add **no new channel**. The desktop advanced builder compiles into existing text columns. Selection IDs persist under `profileJson` on character / scene / prop / action create-or-update (`appearanceKit`, `costumeKit`, `voiceKit`, `mannerismKit`, `locationKit`, `setDressingKit`, `cameraKit`, `propLookKit`, `motionKit`, `hardRulesKit`). Costume-library look + story style / hard rules are apply-only (no kit bag). Image / video handlers still consume the assembled text. `channels describe characters:update` stays the contract.
 
-**Character photo book** adds **one** channel (`characters:renderPhotoBook`) — **184** total. Stills use existing `mediaGen:*` (`kind=character-photoshoot`). GUI film uses `kind=character-photoshoot-clip` (same MediaGen video steps as intros: extract → polish director prompt → skip still → `videoPrep:confirm`), then `concatOnly` to stitch **the current album**. Clip extract uses that album’s stills as the pixel edit base (identity refs stay vision-only). Permanent albums live in `profileJson.photoBook.albums` (legacy top-level `shots` migrate into `album_default`; not identity `refGalleryJson`). GUI picks the camera template on the photo-book editor and can change it again in the MediaGen video shell. Timeline beats and key-art shots store `cameraTemplateId` the same way (`timeline:update` / `keyArt:updateShot`). MediaGen stills (`timeline-still`, `key-art`, `story-cover`, `character-photoshoot`) and video kinds accept payload `introTemplateId` on `mediaGen:extract`. CLI `ai-clips` still takes `introTemplateId`; optional `albumId` selects which album to stitch.
+**Character photo book** adds **one** channel (`characters:renderPhotoBook`). Stills use existing `mediaGen:*` (`kind=character-photoshoot`). GUI film uses `kind=character-photoshoot-clip` (same MediaGen video steps as intros: extract → polish director prompt → skip still → `videoPrep:confirm`), then `concatOnly` to stitch **the current album**. Clip extract uses that album’s stills as the pixel edit base (identity refs stay vision-only). Permanent albums live in `profileJson.photoBook.albums` (legacy top-level `shots` migrate into `album_default`; not identity `refGalleryJson`). GUI picks the camera template on the photo-book editor and can change it again in the MediaGen video shell. Timeline beats and key-art shots store `cameraTemplateId` the same way (`timeline:update` / `keyArt:updateShot`). MediaGen stills (`timeline-still`, `key-art`, `story-cover`, `character-photoshoot`) and video kinds accept payload `introTemplateId` on `mediaGen:extract`. CLI `ai-clips` still takes `introTemplateId`; optional `albumId` selects which album to stitch.
+
+**Spatial package** adds **five** channels (`spatial:compileBeat`, `spatial:importPackage`, `spatial:attachRef`, `spatial:blenderStatus`, `spatial:generateMesh`) — **189** total. Clay / playblast stills lock blocking for storyboard stills, then existing I2V. Optional textured-plane glTF is a stage proxy, not beauty render. Blender is a CLI client — see [blender.md](./blender.md). Do not list every channel here; use `channels describe`.
 
 **Ten-locale PromptCatalog** — sheet / plate / swap / geometry / quality locks and packs are native in all UI languages (Hong Kong written Chinese is the source register). `mediaGen:extract` passes `payload.locale`. No extra channel.
 
@@ -148,12 +150,13 @@ Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 | Channel | Purpose | Example |
 |---------|---------|---------|
 | generate / AI fill | Optional `promptTemplateId` (desktop recipe picker; no silent system defaults) | Desktop: pick a recipe before generate. CLI: pass `promptTemplateId` on generate / fill / MediaGen payloads |
-| `mediaGen:extract` | Build material sections (library + `timeline-still` / `timeline-clip` / `key-art` / `story-cover`). Optional: `continuityMode`, `motionPriority`, `advancedIdentity`, `identityCollage`, `lookPackId`, `introTemplateId` (camera catalog for single-shot kinds) | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","introTemplateId":"pov"}]' --json` |
+| `mediaGen:extract` | Build material sections (library + `timeline-still` / `timeline-clip` / `key-art` / `story-cover`). Optional: `continuityMode`, `motionPriority`, `advancedIdentity`, `identityCollage`, `lookPackId`, `introTemplateId` (camera catalog for single-shot kinds), `spatialPlayblastPath` | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","introTemplateId":"pov"}]' --json` |
 | `mediaGen:polish` | Multi-vision prompt polish | `instant-drama mediaGen polish --args '[{...}]' --json` |
 | `mediaGen:generateImage` | One still; timeline kinds write continuity path | `instant-drama mediaGen generate-image --args '[{...}]' --json` |
 | `costumes:appendTryOnStill` | Append try-on still to costume multi-gallery | `instant-drama costumes append-try-on-still --args '[{"costumeId":"C","sourcePath":"/a.png"}]' --json` |
 | `costumes:generateDressed` | Generate dressed still | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
 | `videoPrep:create` | Prep still / open clip flow | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
+| `spatial:compileBeat` | Compile `idm-spatial-package` (identity stills + clay playblast). Sister channels: `importPackage`, `attachRef`, `blenderStatus`, `generateMesh` (textured-plane proxy). [blender.md](./blender.md) | `instant-drama spatial compile-beat --args '[{"storyId":"S","entryId":"E"}]' --json` |
 | `videoPrep:confirm` | Confirm video from still. Timeline-clip builds Seedance `lastFramePath` from chain-end continuity (Grok ignores it). Photo-book clips (`character-photoshoot-clip`) write `clipPath` on `profileJson.photoBook` (not identity gallery). Native audio follows Settings `generateAudio` / `grokVideoVoice`. | `instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillPath":"/still.png","professionalPrompt":"…"}]' --json` |
 | `settings:set` | Merge settings; `generateAudio` + `grokVideoVoice` (`ara` `eve` `leo` `rex` `sal` `mio`) | `instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json` |
 | `characters:renderPhotoBook` | Stitch one photo-book **album**: `slideshow` (ffmpeg, CLI), `ai-clips` (headless intro-style clip per still, then concat — CLI), or `concatOnly:true` (stitch existing `clipPath` files after GUI MediaGen). Optional `albumId` (default: first album, or the album that owns `shotIds`). Optional `introTemplateId` injects a camera template into CLI clip polish (shots may also store `cameraTemplateId`). Paths in `profileJson.photoBook.albums` | `instant-drama characters render-photo-book --args '[{"characterId":"C","mode":"ai-clips","albumId":"album_default","introTemplateId":"hero-walkin"}]' --json` |
@@ -198,7 +201,7 @@ instant-drama channels describe costumes:appendTryOnStill --json
 bash scripts/cli-smoke.sh
 # or manually:
 npm run instant-drama -- version
-npm run instant-drama -- doctor --json          # expect channelCount 184
+npm run instant-drama -- doctor --json          # expect channelCount 189
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
@@ -244,7 +247,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 | Capability | Status |
 |------------|--------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel count | **184** |
+| Channel count | **189** |
 | `instant-drama invoke` | ✅ any channel |
 | Domain sugar | ✅ all namespaces |
 | OpenAI tool schema | ✅ |

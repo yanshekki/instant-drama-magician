@@ -42,7 +42,7 @@ export IDM_JSON=1
 
 ## Discovery loop
 
-1. `instant-drama doctor --json` — connectivity + **184 channels**
+1. `instant-drama doctor --json` — connectivity + **189 channels**
 2. `instant-drama channels list --json` — live capabilities (`chapters`, `keyArt`, `actions`, …)
 3. `instant-drama channels describe scenes:aiFill --json` — payload hints (`suggestFromStory`, `segmentKeys`)
 4. `instant-drama tools schema --openai` — OpenAI-style tool definitions

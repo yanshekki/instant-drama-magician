@@ -453,6 +453,7 @@ export const zhCnPromptCopy: PromptCopyTable = {
   "charIntro.manner": "习惯：{{manner}}。",
   "charIntro.cameraDefault": "预设运镜：轻微推近或手持微晃；角色望向镜头或略偏镜头。",
   "mediaGen.honorCameraTemplate": "若材料含镜头范本区块，必须按该构图与运镜执行，禁止改回笼统的推近或手持。",
+  "mediaGen.refRoles": "每张附图只负责一项：身份（脸与戏服）、空间（白模走位与机位，禁止把黏土灰当成品外观）、动作（节奏与姿势）、风格（色调与光）。禁止一张图包办全部。",
   "sceneIntro.cameraNotes": "运镜备注：{{camera}}。",
   "sceneIntro.cameraDefault": "预设运镜：连续轻微动态。除非材料已有，否则勿新增路人脸、标志、字幕。",
   "quality.family.photo": "画质：眼睛或主脸锐利对焦，写实媒介的微观细节，专业棚灯（风格另有规定除外），50–85mm 镜头感，无动态模糊、无过重美颜、无浮水印或文字。",

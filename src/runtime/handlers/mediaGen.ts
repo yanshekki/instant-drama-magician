@@ -1427,6 +1427,37 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         .filter(Boolean)
         .join('\n')
 
+      const { parseSpatialPackageManifest, spatialPlayblastRef } = await import(
+        '../../domain/spatialPackage'
+      )
+      let spatialPlayblastPath: string | null = null
+      let usePlayblastAsFirstFrame = false
+      try {
+        const manPath = (store as { spatialManifestPath?: (s: string, e: string) => string })
+          .spatialManifestPath?.(storyId, entryId)
+        if (manPath && existsSync(manPath)) {
+          const man = parseSpatialPackageManifest(
+            JSON.parse(readFileSync(manPath, 'utf8')) as unknown
+          )
+          if (man) {
+            spatialPlayblastPath = spatialPlayblastRef(man)?.path ?? null
+            if (spatialPlayblastPath && !existsSync(spatialPlayblastPath)) {
+              spatialPlayblastPath = null
+            }
+            usePlayblastAsFirstFrame = man.usePlayblastAsFirstFrame === true
+          }
+        }
+      } catch {
+        spatialPlayblastPath = null
+      }
+      const payloadSpatial =
+        typeof (payload as { spatialPlayblastPath?: string }).spatialPlayblastPath ===
+        'string'
+          ? (payload as { spatialPlayblastPath?: string }).spatialPlayblastPath?.trim()
+          : ''
+      if (payloadSpatial && existsSync(payloadSpatial)) {
+        spatialPlayblastPath = payloadSpatial
+      }
       let existingStillPath: string | null = null
       try {
         const own = store.clipContinuityStillPath(storyId, entryId)
@@ -1464,7 +1495,9 @@ export function registerMediagenHandlers(ctx: HandlerContext): void {
         ).id,
         durationSeconds: payload.durationSeconds ?? seconds,
         styleNote: (story as { styleNote?: string | null }).styleNote,
-        locale: PromptCatalog.locale(payload.locale)
+        locale: PromptCatalog.locale(payload.locale),
+        spatialPlayblastPath,
+        usePlayblastAsFirstFrame
       })
 
       const { applyCameraTemplateStillMaterials, resolveCameraTemplateId } =

@@ -290,6 +290,21 @@ describe('mediaGenPrep', () => {
     expect(built.fallbackPrompt).toMatch(/A, B|Cast/)
   })
 
+  it('buildTimelineBeatMaterialSections attaches spatial white-model', () => {
+    const built = buildTimelineBeatMaterialSections({
+      kind: 'timeline-still',
+      storyTitle: 'Demo',
+      displayIndex: 1,
+      spatialPlayblastPath: '/white.png',
+      characters: [{ id: 'c1', name: 'A', imagePath: '/a.png' }]
+    })
+    const spat = built.sections.find((s) => s.id === 'spatial_white_model')
+    expect(spat?.refRole).toBe('spatial')
+    expect(spat?.include).toBe(true)
+    expect(spat?.canBeEditBase).toBe(false)
+    expect(spat?.text).toMatch(/SPATIAL CONTRACT/i)
+  })
+
   it('buildMediaGenPolishSystemPrompt video mode', () => {
     const v = buildMediaGenPolishSystemPrompt('en', { mode: 'video' })
     expect(v).toMatch(/video|camera/i)

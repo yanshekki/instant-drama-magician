@@ -46,7 +46,7 @@ export function TimelineDirectorInspector({
   if (!entry) {
     return (
       <div
-        className="flex h-full items-center justify-center px-4 text-center text-xs text-ink-500"
+        className="flex h-full min-h-0 flex-1 items-center justify-center px-4 text-center text-xs text-ink-500"
         data-testid="director-inspector"
       >
         {t('timeline.desk.noClip')}
@@ -56,7 +56,7 @@ export function TimelineDirectorInspector({
   const dur = snapVideoSeconds(entry.endTime - entry.startTime)
   return (
     <div
-      className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 text-sm"
+      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 text-sm"
       data-testid="director-inspector"
     >
       <h3 className="text-sm font-semibold text-ink-100">

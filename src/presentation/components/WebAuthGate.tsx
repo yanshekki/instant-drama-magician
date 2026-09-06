@@ -37,16 +37,25 @@ export function WebAuthGate({ children }: { children: ReactNode }): JSX.Element 
     const existing = getStoredAuthToken()
     if (!existing) {
       // Try unauthenticated health — server may allow loopback without token
-      void fetch('/api/health')
-        .then((r) => r.json())
-        .then((h: { authRequired?: boolean }) => {
-          if (h.authRequired === false) {
-            setReady(true)
-            return
-          }
-          setReady(false)
-        })
-        .catch(() => setReady(false))
+      const tryHealth = (attempt: number): void => {
+        void fetch('/api/health')
+          .then((r) => r.json())
+          .then((h: { authRequired?: boolean }) => {
+            if (h.authRequired === false) {
+              setReady(true)
+              return
+            }
+            setReady(false)
+          })
+          .catch(() => {
+            if (attempt < 3) {
+              window.setTimeout(() => tryHealth(attempt + 1), 120 * attempt)
+              return
+            }
+            setReady(false)
+          })
+      }
+      tryHealth(1)
       return
     }
     void loginWithToken(existing).then((ok) => {

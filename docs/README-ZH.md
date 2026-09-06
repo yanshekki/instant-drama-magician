@@ -15,6 +15,7 @@
 | [project-brief.md](./project-brief.md) | [project-brief-ZH.md](./project-brief-ZH.md) | Product specification |
 | [architecture.md](./architecture.md) | [architecture-ZH.md](./architecture-ZH.md) | Architecture |
 | [cli.md](./cli.md) | [cli-ZH.md](./cli-ZH.md) | CLI `instant-drama` |
+| [blender.md](./blender.md) | [blender-ZH.md](./blender-ZH.md) | Blender 空間外掛 |
 | [agent-cli.md](./agent-cli.md) | [agent-cli-ZH.md](./agent-cli-ZH.md) | Agents |
 | [self-host.md](./self-host.md) | [self-host-ZH.md](./self-host-ZH.md) | Web remote |
 | [grok-gateway.md](./grok-gateway.md) | [grok-gateway-ZH.md](./grok-gateway-ZH.md) | Grok Gateway |
@@ -37,7 +38,7 @@
 | 項目 | 值 |
 |------|-----|
 | App 版本 | `1.10.0`（`package.json`） |
-| IPC／CLI channel | **184**（共用 `registerAllHandlers`） |
+| IPC／CLI channel | **189**（共用 `registerAllHandlers`） |
 | 法律文檔版本 | `LEGAL_VERSION` **1.0.0**（`src/domain/legal.ts`） |
 | 預設 LLM | Grok Gateway `http://127.0.0.1:3847/v1` |
 | AI clip 時長 | **僅 6 或 10** 秒（Grok 風格影片） |

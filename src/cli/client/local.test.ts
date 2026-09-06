@@ -32,12 +32,12 @@ describe('createLocalClient', () => {
     try {
       expect(client.mode).toBe('local')
       const ch = await client.channels()
-      expect(ch.length).toBe(184)
+      expect(ch.length).toBe(189)
       const list = await client.invoke('stories:list', [])
       expect(Array.isArray(list)).toBe(true)
       const d = client.describe?.()
       expect(d).toMatchObject({ mode: 'local' })
-      expect((d as { channelCount?: number }).channelCount).toBe(184)
+      expect((d as { channelCount?: number }).channelCount).toBe(189)
     } finally {
       await client.dispose?.()
       try {

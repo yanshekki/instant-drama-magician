@@ -39,6 +39,10 @@
 
 `snapVideoSeconds(d)`：`**d >= 8 → 10**`，否則 **`6`**。時間軸 AI clip 僅提供 6s／10s。
 
+## 空間靜圖再圖生影片
+
+Grok 與 Seedance 1.0 仍只吃 **一張** 首幀（`refImagePath`），Seedance 另可選 `lastFramePath`。它們**不能**一次吞白模影片加多張身份靜圖。`spatial:*` 掛上 **PNG**，讓 MediaGen 在**分鏡靜圖**鎖定走位；出片再用該靜圖（或着裝身份靜圖）做首幀。若改用白模當首幀，臉部鎖定會變弱。見 [blender-ZH.md](./blender-ZH.md)。
+
 ## 影像供應商（`imageProvider`）
 
 | 值 | 行為 |

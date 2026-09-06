@@ -453,6 +453,7 @@ export const frPromptCopy: PromptCopyTable = {
   "charIntro.manner": "Tics : {{manner}}.",
   "charIntro.cameraDefault": "Caméra de jeu : léger travelling avant ou caméra à l’épaule discrète ; le personnage regarde vers la caméra ou légèrement hors champ.",
   "mediaGen.honorCameraTemplate": "Si les matériaux contiennent un bloc de modèle de caméra, suivez exactement ce cadrage et ce mouvement. Ne le remplacez pas par un travelling avant ou une caméra à l’épaule génériques.",
+  "mediaGen.refRoles": "Chaque still a un métier : IDENTITY (visage/costume), SPATIAL (blocking et caméra du modèle blanc — ne pas copier le gris argile comme look final), MOTION (rythme/geste) ou STYLE (palette/lumière). Un still ne doit pas tout commander.",
   "sceneIntro.cameraNotes": "Notes de caméra : {{camera}}.",
   "sceneIntro.cameraDefault": "Caméra : mouvement continu et doux. N’ajoutez pas de visages de distribution, de logos ni d’incrustations de texte sauf si les matériaux les montrent déjà.",
   "quality.family.photo": "Qualité : mise au point piquée sur les yeux ou les traits principaux du visage/de la tête, micro-détail élevé adapté au support photoréaliste, éclairage studio trois points professionnel sauf si le style en dit autrement, rendu d’optique à focale fixe (50–85 mm), pas de flou de mouvement, pas de filtre beauté trop lissant, pas de filigrane ni de texte.",

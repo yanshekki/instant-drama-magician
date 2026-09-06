@@ -7,9 +7,10 @@ import {
 } from './channelManifest'
 
 describe('channelManifest', () => {
-  it('has 184 desktop channels unique', () => {
-    expect(DESKTOP_CHANNEL_NAMES.length).toBe(184)
-    expect(new Set(DESKTOP_CHANNEL_NAMES).size).toBe(184)
+  it('has 189 desktop channels unique', () => {
+    expect(DESKTOP_CHANNEL_NAMES.length).toBe(189)
+    expect(new Set(DESKTOP_CHANNEL_NAMES).size).toBe(189)
+    expect(CORE_CHANNELS.length).toBe(189)
   })
 
   it('specFor returns description', () => {
@@ -58,6 +59,17 @@ describe('channelManifest', () => {
     expect(s.argsHint).toContain('continuityMode')
     expect(s.argsHint).toContain('advancedIdentity')
     expect(s.argsHint).toContain('lookPackId')
+    expect(s.argsHint).toContain('spatialPlayblastPath')
+  })
+
+  it('spatial:compileBeat argsHint documents package fields', () => {
+    const s = specFor('spatial:compileBeat')
+    expect(s.argsHint).toContain('storyId')
+    expect(s.argsHint).toContain('entryId')
+    expect(s.argsHint).toContain('blocking')
+    expect(specFor('spatial:attachRef').argsHint).toContain('playblastPngBase64')
+    expect(specFor('spatial:importPackage').argsHint).toContain('packageDir')
+    expect(specFor('spatial:generateMesh').argsHint).toContain('entityType')
   })
 
   it('characters:renderPhotoBook argsHint documents introTemplateId', () => {

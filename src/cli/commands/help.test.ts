@@ -13,6 +13,7 @@ describe('printHelp', () => {
     expect(out).toMatch(/doctor|invoke|channels/i)
     expect(out).toContain('actions activity')
     expect(out).toContain('chapters characters')
+    expect(out).toContain('spatial')
     expect(out).toContain('generateAudio')
     expect(out).toContain('grokVideoVoice')
   })

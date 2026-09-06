@@ -30,6 +30,16 @@ export default defineConfig({
   },
   renderer: {
     root: '.',
+    server: {
+      port: Number(process.env.IDM_VITE_PORT || 5173),
+      strictPort: false,
+      proxy: {
+        '/api': {
+          target: process.env.IDM_API_PROXY ?? 'http://127.0.0.1:8787',
+          changeOrigin: true
+        }
+      }
+    },
     build: {
       rollupOptions: {
         input: {

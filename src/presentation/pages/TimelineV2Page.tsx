@@ -10,6 +10,7 @@ import { KonvaTimeline } from '../components/timeline/KonvaTimeline'
 import { PreviewPlayer } from '../components/timeline/PreviewPlayer'
 import { TimelineAdvancedStudio } from '../components/timeline/TimelineAdvancedStudio'
 import { TimelineDirectorInspector } from '../components/timeline/TimelineDirectorInspector'
+import { TimelineSpatialPanel } from '../components/timeline/TimelineSpatialPanel'
 import { TimelineGraphCanvas } from '../components/timeline/TimelineGraphCanvas'
 import { TimelineSetupPicker } from '../components/timeline/TimelineSetupPicker'
 import { ExportFinalDialog } from '../components/ExportFinalDialog'
@@ -451,6 +452,17 @@ export function TimelineV2Page(): JSX.Element {
                   selected
                     ? s.clipGenerateLabel(selected.id, selected.mediaStatus)
                     : undefined
+                }
+                extra={
+                  selected ? (
+                    <TimelineSpatialPanel
+                      entry={selected}
+                      characters={s.castCharacters}
+                      scenes={s.castScenes}
+                      propsList={s.castProps}
+                      actions={s.castActions}
+                    />
+                  ) : null
                 }
               />
             </aside>

@@ -1,7 +1,7 @@
 ---
 name: idm-dev
 description: >-
-  InstantDrama Magician repo conventions: shared 184-channel runtime (Electron,
+  InstantDrama Magician repo conventions: shared 189-channel runtime (Electron,
   Web, CLI), channelManifest argsHints, plot-focus segmentKeys, bilingual docs,
   OpenClaw skill, Electron main-process restart. Use when editing handlers,
   CLI, preload, electron-api, plot suggest, chapters, key art, or docs/skills
@@ -14,7 +14,7 @@ Reply to the user in **Hong Kong written Chinese (書面語繁體)**. Do not use
 
 ## Shared runtime (do not fork)
 
-Electron, Web (`POST /api/invoke`), and CLI (`instant-drama invoke`) share **`registerAllHandlers`** — **184** channels in `src/runtime/channelManifest.ts`.
+Electron, Web (`POST /api/invoke`), and CLI (`instant-drama invoke`) share **`registerAllHandlers`** — **189** channels in `src/runtime/channelManifest.ts`.
 
 Adding or changing an API:
 
@@ -27,7 +27,7 @@ Adding or changing an API:
 
 Do **not** add a new IPC channel for plot suggest — it is payload flags on `*:aiFill`. Do **not** add CLI-only sugar that duplicates `--args` JSON.
 
-Hardcoded channel counts (`157`, `158`) are stale. Tests and `scripts/cli-smoke.sh` expect **184**.
+Hardcoded channel counts (`157`, `158`) are stale. Tests and `scripts/cli-smoke.sh` expect **189**.
 
 ## Plot suggest
 
@@ -37,6 +37,10 @@ Hardcoded channel counts (`157`, `158`) are stale. Tests and `scripts/cli-smoke.
 - Details: `src/domain/plotFocus.ts`, `skills/idm/plot-focus.md`.
 
 Timeline multi-bind caps: characters 4 / scenes 2 / props 4 / actions 4 (`src/domain/timelineBindings.ts`).
+
+## Spatial
+
+`spatial:*` channels share the same runtime as everything else. White-model PNGs lock blocking for timeline stills, then existing I2V. Do not embed Blender. Sidecar: `story/spatial/<entryId>/` (not Prisma). Docs: `docs/blender.md` + `docs/blender-ZH.md`.
 
 ## Electron
 
@@ -48,4 +52,4 @@ Main-process handler changes need a **full Electron restart**. See [electron.md]
 - Commit leftover helpers such as `scripts/to_written_zh.py` or `src/prompts/copy/_*.mjs`
 - Force-push `main`
 - Skip git hooks
-- Dump all 184 methods into markdown; `channels list` / `channels describe` stay the catalog
+- Dump all 189 methods into markdown; `channels list` / `channels describe` stay the catalog

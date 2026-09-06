@@ -1125,7 +1125,19 @@
       "workAreaHint": "Gerar só os clipes que cruzam este intervalo",
       "start": "Entrada",
       "end": "Saída",
-      "noClip": "Selecione um clipe na timeline."
+      "noClip": "Selecione um clipe na timeline.",
+      "spatialTitle": "Palco de blocking",
+      "spatialHint": "Arraste marcadores para travar o blocking. Exporte um still de argila, gere o still do storyboard e use o I2V existente. Stills de identidade guardam rosto e figurino; o modelo branco só trava posição e câmara.",
+      "spatialUseAsFirstFrame": "Usar o modelo branco como primeiro fotograma (bloqueio facial mais fraco)",
+      "spatialFirstFrameWarn": "O primeiro fotograma seguirá o still de argila, não o still de identidade vestida.",
+      "spatialExportPlayblast": "Exportar still de argila",
+      "spatialPick": "Anexar PNG de modelo branco",
+      "spatialEmpty": "Ainda não há still espacial",
+      "spatialBlender": "Blender local detetado",
+      "spatialBlenderMissing": "Blender não está no PATH (opcional; o extra chama instant-drama CLI)",
+      "spatialGenMesh": "Gerar malha proxy",
+      "spatialMeshOk": "glTF proxy gravado (plano texturizado; não é tecido nem rig)",
+      "spatialMeshNeed": "Ligue primeiro um adereço, cenário ou personagem"
     },
     "lanes": {
       "shot": "Plano",
@@ -2255,7 +2267,8 @@
       "art": "Estilo artístico",
       "other": "Outro",
       "continuity": "Still do storyboard",
-      "comic": "Quadrinhos"
+      "comic": "Quadrinhos",
+      "spatial": "Espacial (modelo branco)"
     },
     "kind": {
       "action-plate": "Prancha de ação",
@@ -2323,7 +2336,13 @@
     "keyArtOwn": "Esta imagem",
     "keyArtPrev": "Imagem anterior",
     "photoBookStill": "Foto do álbum {{n}}",
-    "photoBookStillScene": "Foto do álbum {{n}} · {{scene}}"
+    "photoBookStillScene": "Foto do álbum {{n}} · {{scene}}",
+    "refRole": {
+      "identity": "Identidade",
+      "spatial": "Espacial",
+      "motion": "Movimento",
+      "style": "Visual"
+    }
   },
   "promptTpl": {
     "title": "Escolha como a IA deve trabalhar",

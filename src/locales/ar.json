@@ -1125,7 +1125,19 @@
       "workAreaHint": "ولّد فقط المقاطع التي تتقاطع مع هذا المدى",
       "start": "دخول",
       "end": "خروج",
-      "noClip": "اختر مقطعًا على الخط الزمني."
+      "noClip": "اختر مقطعًا على الخط الزمني.",
+      "spatialTitle": "منصة التموضع",
+      "spatialHint": "اسحب العلامات لتثبيت التموضع. صدّر لقطة صلصال، ولّد لقطة الستوري بورد، ثم استخدم توليد الفيديو من الصورة الحالي. لقطات الهوية تحفظ الوجه والزي؛ النموذج الأبيض يقيّد المكان والكاميرا فقط.",
+      "spatialUseAsFirstFrame": "استخدم النموذج الأبيض إطاراً أولاً (قفل الوجه أضعف)",
+      "spatialFirstFrameWarn": "سيتبع الإطار الأول لقطة الصلصال لا لقطة الهوية المرتدية.",
+      "spatialExportPlayblast": "تصدير لقطة الصلصال",
+      "spatialPick": "إرفاق PNG للنموذج الأبيض",
+      "spatialEmpty": "لا توجد لقطة مكانية بعد",
+      "spatialBlender": "تم اكتشاف Blender محلي",
+      "spatialBlenderMissing": "Blender غير موجود في PATH (اختياري؛ الإضافة تستدعي instant-drama CLI)",
+      "spatialGenMesh": "توليد شبكة وسيطة",
+      "spatialMeshOk": "كُتب glTF وسيط (سطح بنسيج؛ ليس قماشاً ولا هيكلاً)",
+      "spatialMeshNeed": "اربط أولاً دعامة أو مشهداً أو شخصية"
     },
     "lanes": {
       "shot": "لقطة",
@@ -2255,7 +2267,8 @@
       "art": "أسلوب فني",
       "other": "أخرى",
       "continuity": "لقطة الستوري بورد",
-      "comic": "قصة مصورة"
+      "comic": "قصة مصورة",
+      "spatial": "مكاني (نموذج أبيض)"
     },
     "kind": {
       "action-plate": "لوحة حركة",
@@ -2323,7 +2336,13 @@
     "keyArtOwn": "هذه الصورة",
     "keyArtPrev": "الصورة السابقة",
     "photoBookStill": "لقطة الألبوم {{n}}",
-    "photoBookStillScene": "لقطة الألبوم {{n}} · {{scene}}"
+    "photoBookStillScene": "لقطة الألبوم {{n}} · {{scene}}",
+    "refRole": {
+      "identity": "هوية",
+      "spatial": "مكان",
+      "motion": "حركة",
+      "style": "أسلوب"
+    }
   },
   "promptTpl": {
     "title": "اختر كيف يعمل الذكاء الاصطناعي",

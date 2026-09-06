@@ -103,7 +103,7 @@ instant-drama app open|build
 
 ## 探索與 invoke
 
-Electron、Web、CLI 共用 **`registerAllHandlers`** — **184** 個 channel。
+Electron、Web、CLI 共用 **`registerAllHandlers`** — **189** 個 channel。
 
 ```bash
 instant-drama doctor --json
@@ -131,7 +131,7 @@ instant-drama generation run <storyId> --json
 instant-drama media check-ffmpeg --json
 ```
 
-Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
+Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `comics` `costumes` `desktopNotify` `diagnostics` `gateway` `generation` `keyArt` `media` `mediaGen` `project` `props` `scenes` `settings` `shell` `souls` `spatial` `stories` `support` `timeline` `updates` `videoPrep` `webServer`。
 
 ## 近期 API 表面（1.10.0）
 
@@ -139,7 +139,9 @@ Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `com
 
 **1.8.0 進階碼板** **不加新 channel**。桌面「進階」把範本編入現有文字欄。角色／場景／道具／動作的 create／update 可把選擇 ID 寫入 `profileJson`（`appearanceKit`、`costumeKit`、`voiceKit`、`mannerismKit`、`locationKit`、`setDressingKit`、`cameraKit`、`propLookKit`、`motionKit`、`hardRulesKit`）。服裝館造型與故事風格／鐵則只套用文字（無 kit 袋）。圖像／影片處理程式仍只使用組裝後的文字。合約以 `channels describe characters:update` 為準。
 
-**角色攝影集**只加 **一條** channel（`characters:renderPhotoBook`）——合計 **184**。靜圖沿用現有 `mediaGen:*`（`kind=character-photoshoot`）。桌面出片走 `kind=character-photoshoot-clip`（與介紹片 MediaGen 步驟相同：提取 → 潤飾導演提示 → 跳過靜圖 → `videoPrep:confirm`），再以 `concatOnly` 串 **當前相冊**。短片提取以該相冊靜圖做像素底圖（人設參考只作視覺參考）。永久相冊記在 `profileJson.photoBook.albums`（舊頂層 `shots` 會遷入 `album_default`；不寫入身分 `refGalleryJson`）。桌面鏡頭範本在攝影集編輯欄選擇，出影片彈窗可再改。時間軸節拍與主視覺鏡頭同樣以 `cameraTemplateId` 記住（`timeline:update`／`keyArt:updateShot`）。MediaGen 靜圖（`timeline-still`、`key-art`、`story-cover`、`character-photoshoot`）與視頻 kind 可在 `mediaGen:extract` 傳 `introTemplateId`。CLI `ai-clips` 仍然使用 `introTemplateId`；可選 `albumId` 指定要串的相冊。
+**角色攝影集**只加 **一條** channel（`characters:renderPhotoBook`）。靜圖沿用現有 `mediaGen:*`（`kind=character-photoshoot`）。桌面出片走 `kind=character-photoshoot-clip`（與介紹片 MediaGen 步驟相同：提取 → 潤飾導演提示 → 跳過靜圖 → `videoPrep:confirm`），再以 `concatOnly` 串 **當前相冊**。短片提取以該相冊靜圖做像素底圖（人設參考只作視覺參考）。永久相冊記在 `profileJson.photoBook.albums`（舊頂層 `shots` 會遷入 `album_default`；不寫入身分 `refGalleryJson`）。桌面鏡頭範本在攝影集編輯欄選擇，出影片彈窗可再改。時間軸節拍與主視覺鏡頭同樣以 `cameraTemplateId` 記住（`timeline:update`／`keyArt:updateShot`）。MediaGen 靜圖（`timeline-still`、`key-art`、`story-cover`、`character-photoshoot`）與視頻 kind 可在 `mediaGen:extract` 傳 `introTemplateId`。CLI `ai-clips` 仍然使用 `introTemplateId`；可選 `albumId` 指定要串的相冊。
+
+**空間交換包**加 **五條** channel（`spatial:compileBeat`、`spatial:importPackage`、`spatial:attachRef`、`spatial:blenderStatus`、`spatial:generateMesh`）——合計 **189**。白模靜圖鎖定分鏡靜圖的走位，再走現有圖生影片。可選貼圖平面 glTF 只是走位代理，不是成片。Blender 是命令列客戶端——見 [blender-ZH.md](./blender-ZH.md)。請用 `channels describe`，此處不羅列全部 channel。
 
 **十語 PromptCatalog**——角色表／場地板／換裝／幾何／畫質鎖與 packs 均為該語正文（準則為香港書面語）。`mediaGen:extract` 傳 `payload.locale`。不加 channel。
 
@@ -148,12 +150,13 @@ Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `com
 | Channel | 用途 | 示例 |
 |---------|------|------|
 | generate／AI fill | 可選 `promptTemplateId`（桌面配方選擇器；不再暗中套系統預設） | 桌面：生成前選擇配方。CLI：在 generate／fill／MediaGen payload 傳 `promptTemplateId` |
-| `mediaGen:extract` | 建立材料 sections（庫頁 + `timeline-still`／`timeline-clip`／`key-art`／`story-cover`）。可選：`continuityMode`、`motionPriority`、`advancedIdentity`、`identityCollage`、`lookPackId`、`introTemplateId`（單鏡頭目錄） | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","introTemplateId":"pov"}]' --json` |
+| `mediaGen:extract` | 建立材料 sections（庫頁 + `timeline-still`／`timeline-clip`／`key-art`／`story-cover`）。可選：`continuityMode`、`motionPriority`、`advancedIdentity`、`identityCollage`、`lookPackId`、`introTemplateId`（單鏡頭目錄）、`spatialPlayblastPath` | `instant-drama mediaGen extract --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","introTemplateId":"pov"}]' --json` |
 | `mediaGen:polish` | 多圖視覺潤飾提示 | `instant-drama mediaGen polish --args '[{...}]' --json` |
 | `mediaGen:generateImage` | 單張靜圖；timeline 會寫入 continuity 路徑 | `instant-drama mediaGen generate-image --args '[{...}]' --json` |
 | `costumes:appendTryOnStill` | 試穿 still 追加至戲服多圖庫 | `instant-drama costumes append-try-on-still --args '[{"costumeId":"C","sourcePath":"/a.png"}]' --json` |
 | `costumes:generateDressed` | 生成試穿靜圖 | `instant-drama costumes generate-dressed --args '[{...}]' --json` |
 | `videoPrep:create` | 準備靜圖／開 clip 流程 | `instant-drama videoPrep create --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillOnly":true}]' --json` |
+| `spatial:compileBeat` | 編譯 `idm-spatial-package`（身份靜圖 + 白模 playblast）。同組：`importPackage`、`attachRef`、`blenderStatus`、`generateMesh`（貼圖平面代理）。[blender-ZH.md](./blender-ZH.md) | `instant-drama spatial compile-beat --args '[{"storyId":"S","entryId":"E"}]' --json` |
 | `videoPrep:confirm` | 由靜圖確認出片。timeline-clip 會由嚴格連續文脈組出 Seedance `lastFramePath`（Grok 會忽略）。攝影集短片（`character-photoshoot-clip`）把 `clipPath` 寫入 `profileJson.photoBook`（不寫入身分 gallery）。原生音訊跟設定 `generateAudio`／`grokVideoVoice`。 | `instant-drama videoPrep confirm --args '[{"kind":"timeline-clip","storyId":"S","entryId":"E","stillPath":"/still.png","professionalPrompt":"…"}]' --json` |
 | `settings:set` | 合併設定；`generateAudio` + `grokVideoVoice`（`ara` `eve` `leo` `rex` `sal` `mio`） | `instant-drama settings set --args '[{"generateAudio":true,"grokVideoVoice":"ara"}]' --json` |
 | `characters:renderPhotoBook` | 串一本攝影集**相冊**：`slideshow`（ffmpeg，CLI）、`ai-clips`（每張靜圖一條介紹式短片再串接——CLI）、或 `concatOnly:true`（桌面 MediaGen 出短片後只串現有 `clipPath`）。可選 `albumId`（缺省＝第一本，或含 `shotIds` 的那本）。可選 `introTemplateId` 會把鏡頭範本注入 CLI 短片潤飾（鏡頭亦可存 `cameraTemplateId`）。路徑在 `profileJson.photoBook.albums` | `instant-drama characters render-photo-book --args '[{"characterId":"C","mode":"ai-clips","albumId":"album_default","introTemplateId":"hero-walkin"}]' --json` |
@@ -198,7 +201,7 @@ instant-drama channels describe costumes:appendTryOnStill --json
 bash scripts/cli-smoke.sh
 # 或手動：
 npm run instant-drama -- version
-npm run instant-drama -- doctor --json          # 預期 channelCount 184
+npm run instant-drama -- doctor --json          # 預期 channelCount 189
 npm run instant-drama -- channels list --filter mediaGen --json
 npm run instant-drama -- channels describe mediaGen:extract --json
 npm run instant-drama -- channels describe costumes:appendTryOnStill --json
@@ -244,7 +247,7 @@ instant-drama server start --port 8787 --host 0.0.0.0
 | 能力 | 狀態 |
 |------|------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel 數 | **184** |
+| Channel 數 | **189** |
 | `instant-drama invoke` | ✅ 任意 channel |
 | Domain sugar | ✅ 全部 namespace |
 | OpenAI tool schema | ✅ |

@@ -172,4 +172,25 @@ describe('compileTimelinePrompt', () => {
     expect(compiled.text).toContain('action reference')
     expect(compiled.text).toContain('[Shot 2]')
   })
+
+  it('adds a spatial contract picture when a white-model is attached', () => {
+    const compiled = compileTimelinePrompt({
+      entry,
+      storyTitle: 'Demo',
+      locale: 'en',
+      spatialPlayblastPath: '/white.png',
+      characters: [
+        {
+          id: 'c1',
+          name: 'Nina',
+          description: 'lead',
+          soulMdPath: null,
+          refImagePath: '/n.png'
+        } as never
+      ]
+    })
+    expect(compiled.pictures.some((p) => p.kind === 'spatial')).toBe(true)
+    expect(compiled.text).toContain('spatial_contract')
+    expect(compiled.text).toContain('SPATIAL CONTRACT')
+  })
 })

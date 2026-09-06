@@ -360,6 +360,24 @@ export function createMockApi(
         suggestions: []
       })
     },
+    spatial: {
+      compileBeat: vi.fn().mockResolvedValue({
+        kind: 'idm-spatial-package',
+        storyId: 's1',
+        entryId: 'e1',
+        refs: [],
+        blocking: { version: 1, aspect: '16:9', markers: [], camera: {} },
+        playblastPath: '/tmp/playblast.png'
+      }),
+      importPackage: vi.fn().mockResolvedValue({ kind: 'idm-spatial-package' }),
+      attachRef: vi.fn().mockResolvedValue({ playblastPath: '/tmp/playblast.png' }),
+      blenderStatus: vi.fn().mockResolvedValue({
+        available: false,
+        path: null,
+        version: null
+      }),
+      generateMesh: vi.fn().mockResolvedValue({ mesh: { path: '/tmp/x.gltf' } })
+    },
     videoPrep: {
       create: vi.fn().mockResolvedValue({}),
       confirm: vi.fn().mockResolvedValue({}),

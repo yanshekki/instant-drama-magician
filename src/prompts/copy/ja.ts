@@ -453,6 +453,7 @@ export const jaPromptCopy: PromptCopyTable = {
   "charIntro.manner": "癖：{{manner}}。",
   "charIntro.cameraDefault": "演技カメラ：ゆるいプッシュイン、またはわずかな手持ち揺れ。キャラクターはレンズを見るか、わずかに外す。",
   "mediaGen.honorCameraTemplate": "材料にカメラ範本ブロックがある場合は、その構図と動きに正確に従え。汎用のプッシュインや手持ちに差し替えるな。",
+  "mediaGen.refRoles": "添付静止画は役割を分ける：IDENTITY（顔と衣装）、SPATIAL（白模の配置とカメラ経路のみ。粘土の灰色を完成見た目に使うな）、MOTION（間と所作）、STYLE（色と光）。一枚で全部を支配させるな。",
   "sceneIntro.cameraNotes": "カメラ備考：{{camera}}。",
   "sceneIntro.cameraDefault": "カメラ：連続したゆるい動き。材料に無い新しい出演者の顔・ロゴ・字幕を足すな。",
   "quality.family.photo": "画質：目または主顔／頭部の特徴に鋭く合焦。フォトリアル媒体に見合う微細ディテール。作風が別に定めない限りプロの三点スタジオ照明。単焦点レンズ感（50–85mm）。モーションブラーなし、過度な美肌フィルタなし、透かし・文字なし。",

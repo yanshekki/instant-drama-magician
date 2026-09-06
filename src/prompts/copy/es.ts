@@ -453,6 +453,7 @@ export const esPromptCopy: PromptCopyTable = {
   "charIntro.manner": "Manerismos: {{manner}}.",
   "charIntro.cameraDefault": "Cámara de interpretación: push-in suave o handheld sutil; el personaje mira a cámara o ligeramente fuera de cámara.",
   "mediaGen.honorCameraTemplate": "Si los materiales incluyen un bloque de plantilla de cámara, sigue ese encuadre y movimiento al pie de la letra. No lo sustituyas por un push-in o handheld genérico.",
+  "mediaGen.refRoles": "Cada still tiene un oficio: IDENTITY (rostro/vestuario), SPATIAL (bloqueo y cámara del modelo blanco; no copies el gris de arcilla como look final), MOTION (tiempo/gesto) o STYLE (paleta/luz). No dejes que un still controle todo.",
   "sceneIntro.cameraNotes": "Notas de cámara: {{camera}}.",
   "sceneIntro.cameraDefault": "Cámara: movimiento continuo suave. No añadas caras nuevas del elenco, logos ni superposiciones de texto salvo que los materiales ya los muestren.",
   "quality.family.photo": "Calidad: enfoque nítido en ojos o rasgos principales de cara/cabeza, microdetalle alto propio del medio fotorrealista, iluminación de estudio profesional de tres puntos salvo que el estilo indique otra, look de objetivo fijo (50–85 mm), sin desenfoque de movimiento, sin filtro de belleza que suavice el rostro, sin marca de agua ni texto.",

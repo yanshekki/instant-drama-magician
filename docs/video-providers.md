@@ -39,6 +39,10 @@ Optional: `aspect_ratio` (default `16:9`), `source_document_id` after uploading 
 
 `snapVideoSeconds(d)`: **`d >= 8 → 10`**, else **`6`**. Timeline UI only offers 6s / 10s for AI clips.
 
+## Spatial stills then I2V
+
+Grok and Seedance 1.0 still take **one** first-frame image (`refImagePath`), plus Seedance `lastFramePath`. They do **not** ingest a clay playblast movie plus many identity stills in one job. `spatial:*` attaches a **PNG** so MediaGen can lock blocking on the **storyboard still**; video then uses that still (or the dressed identity still) as first frame. Opting into clay-as-first-frame **weakens face lock**. See [blender.md](./blender.md).
+
 ## Image provider (`imageProvider`)
 
 | Value | Behavior |

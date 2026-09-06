@@ -1,0 +1,10 @@
+schema_version = "1.0.0"
+id = "idm_spatial"
+version = "1.0.0"
+name = "InstantDrama Spatial"
+tagline = "Read and write idm-spatial-package via instant-drama CLI"
+maintainer = "YSK Limited"
+type = "add-on"
+tags = ["Import-Export"]
+blender_version_min = "4.2.0"
+license = ["SPDX:MIT"]

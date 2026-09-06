@@ -68,6 +68,8 @@ Thumbs.db
 .turbo/
 test-results/
 playwright-report/
+__pycache__/
+*.py[cod]
 
 # --- Intermediate Imagine raster (optional) ---
 build/icons/ysk-logo-ref.png

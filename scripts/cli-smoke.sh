@@ -13,16 +13,16 @@ echo "== doctor =="
 DOC="$("${CLI[@]}" doctor --json)"
 echo "$DOC" | head -c 400
 echo "…"
-# channelCount must be 184
-echo "$DOC" | grep -q '"channelCount":184' || {
-  echo "FAIL: expected channelCount 184 in doctor output" >&2
+# channelCount must be 189
+echo "$DOC" | grep -q '"channelCount":189' || {
+  echo "FAIL: expected channelCount 189 in doctor output" >&2
   exit 1
 }
 
 echo "== channels list count =="
 LIST="$("${CLI[@]}" channels list --json)"
-echo "$LIST" | grep -q '"count":184' || {
-  echo "FAIL: expected channels list count 184" >&2
+echo "$LIST" | grep -q '"count":189' || {
+  echo "FAIL: expected channels list count 189" >&2
   exit 1
 }
 
@@ -57,4 +57,4 @@ echo "$HELP" | grep -q 'chapters characters' || {
   exit 1
 }
 
-echo "OK: CLI smoke passed (184 channels)."
+echo "OK: CLI smoke passed (189 channels)."

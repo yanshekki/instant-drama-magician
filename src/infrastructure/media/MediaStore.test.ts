@@ -35,6 +35,7 @@ describe('MediaStore', () => {
       join(root, 's1', 'clips', 'e1.mp4')
     )
     expect(store.clipContinuityStillPath('s1', 'e1')).toContain('_continuity')
+    expect(store.spatialManifestPath('s1', 'e1')).toContain('spatial')
     expect(store.ttsPath('s1', 'e1')).toContain('.wav')
     expect(store.exportHistoryPath('s1')).toContain('exports-history.json')
     expect(store.storyCastPrepPath('s1')).toContain('cast-prep.json')

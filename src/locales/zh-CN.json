@@ -1125,7 +1125,19 @@
       "workAreaHint": "只生成与此范围相交的镜头",
       "start": "入点",
       "end": "出点",
-      "noClip": "请在时间轴选取镜头。"
+      "noClip": "请在时间轴选取镜头。",
+      "spatialTitle": "走位台",
+      "spatialHint": "拖曳标记以锁定本拍走位。导出白模静图后先生成分镜静图，再沿用现有图生视频。身份静图管脸与戏服；白模只约束位置与机位。",
+      "spatialUseAsFirstFrame": "以白模作首帧（面部锁定较弱）",
+      "spatialFirstFrameWarn": "首帧将跟随白模静图，而非着装身份静图。",
+      "spatialExportPlayblast": "导出白模静图",
+      "spatialPick": "挂上白模静图",
+      "spatialEmpty": "尚未有空间静图",
+      "spatialBlender": "已检测到本机 Blender",
+      "spatialBlenderMissing": "未在 PATH 找到 Blender（可选；插件经 instant-drama 命令行调用）",
+      "spatialGenMesh": "生成代理网格",
+      "spatialMeshOk": "已写入代理 glTF（贴图平面；不承诺布料或绑骨）",
+      "spatialMeshNeed": "请先绑定道具、场景或角色"
     },
     "lanes": {
       "shot": "镜头",
@@ -2255,7 +2267,8 @@
       "art": "画风",
       "other": "其他",
       "continuity": "分镜静图",
-      "comic": "漫画"
+      "comic": "漫画",
+      "spatial": "空间（白模）"
     },
     "kind": {
       "action-plate": "动作指示图",
@@ -2323,7 +2336,13 @@
     "keyArtOwn": "本张成图",
     "keyArtPrev": "上一张剧照",
     "photoBookStill": "摄影集第 {{n}} 张",
-    "photoBookStillScene": "摄影集第 {{n}} 张 · {{scene}}"
+    "photoBookStillScene": "摄影集第 {{n}} 张 · {{scene}}",
+    "refRole": {
+      "identity": "身份",
+      "spatial": "空间",
+      "motion": "动作",
+      "style": "风格"
+    }
   },
   "promptTpl": {
     "title": "选择今次 AI 做法",

@@ -144,6 +144,9 @@ describe('TimelineV2Page', () => {
     expect(screen.getAllByText(/Board view|Board/i).length).toBeGreaterThan(0)
     expect(screen.getAllByTestId('director-inspector').length).toBeGreaterThan(0)
     expect(screen.getAllByTestId('compiled-prompt').length).toBeGreaterThan(0)
+    await waitFor(() =>
+      expect(screen.getAllByTestId('spatial-panel').length).toBeGreaterThan(0)
+    )
 
     const areas = Array.from(document.querySelectorAll('textarea'))
     expect(areas.length).toBeGreaterThan(0)

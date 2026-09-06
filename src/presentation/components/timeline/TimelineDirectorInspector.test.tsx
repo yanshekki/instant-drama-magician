@@ -88,6 +88,23 @@ describe('TimelineDirectorInspector', () => {
     expect(onDelete).toHaveBeenCalled()
   })
 
+  it('renders extra inspector content', () => {
+    render(
+      <TimelineDirectorInspector
+        entry={entry}
+        compiledText=""
+        compiledLocked={false}
+        compiledDraft=""
+        onCompiledDraftChange={() => undefined}
+        onLockCompiled={() => undefined}
+        onRevertCompiled={() => undefined}
+        onDuration={() => undefined}
+        extra={<div data-testid="inspector-extra">spatial</div>}
+      />
+    )
+    expect(screen.getByTestId('inspector-extra').textContent).toBe('spatial')
+  })
+
   it('omits optional clip buttons when handlers are absent', () => {
     render(
       <TimelineDirectorInspector

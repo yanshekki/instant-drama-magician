@@ -625,7 +625,7 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     channel: 'mediaGen:extract',
     description: 'mediaGen: extract material sections',
     argsHint:
-      '[{kind, actionId?, characterId?, storyId?, entryId?, galleryIdentityPaths?, preferIdentityEdit?, continuityMode?, motionPriority?, advancedIdentity?, identityCollage?, lookPackId?, shotId?, sourceImagePath?, skipStillIfExists?, introTemplateId?, ...}]'
+      '[{kind, actionId?, characterId?, storyId?, entryId?, galleryIdentityPaths?, preferIdentityEdit?, continuityMode?, motionPriority?, advancedIdentity?, identityCollage?, lookPackId?, shotId?, sourceImagePath?, skipStillIfExists?, introTemplateId?, spatialPlayblastPath?, ...}]'
   },
   {
     channel: 'mediaGen:polish',
@@ -715,6 +715,32 @@ export const CORE_CHANNELS: ChannelSpec[] = [
     channel: 'souls:suggestions',
     description: 'souls: suggestions',
     argsHint: '[{...}]'
+  },
+  {
+    channel: 'spatial:attachRef',
+    description: 'Attach a white-model playblast (PNG) to a timeline beat',
+    argsHint:
+      '[{storyId,entryId,playblastPath?,playblastPngBase64?,blocking?,usePlayblastAsFirstFrame?}]'
+  },
+  {
+    channel: 'spatial:blenderStatus',
+    description: 'Detect local Blender executable (BLENDER_PATH or PATH)',
+    argsHint: '[]'
+  },
+  {
+    channel: 'spatial:compileBeat',
+    description: 'Compile an idm-spatial-package for a timeline beat (identity stills + clay playblast)',
+    argsHint: '[{storyId,entryId,destDir?,blocking?,usePlayblastAsFirstFrame?}]'
+  },
+  {
+    channel: 'spatial:generateMesh',
+    description: 'Generate a textured-plane glTF proxy from an identity still (not production rigging)',
+    argsHint: '[{storyId,entryId,entityType,entityId,imagePath?}]'
+  },
+  {
+    channel: 'spatial:importPackage',
+    description: 'Import an idm-spatial-package directory into a beat',
+    argsHint: '[{storyId,entryId,packageDir}]'
   },
   {
     channel: 'stories:aiFillMeta',
@@ -1000,6 +1026,11 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'souls:list',
   'souls:searchLocal',
   'souls:suggestions',
+  'spatial:attachRef',
+  'spatial:blenderStatus',
+  'spatial:compileBeat',
+  'spatial:generateMesh',
+  'spatial:importPackage',
   'stories:aiFillMeta',
   'stories:aiFillScript',
   'stories:commitCover',

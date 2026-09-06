@@ -42,7 +42,7 @@ export IDM_JSON=1
 
 ## 探索迴圈
 
-1. `instant-drama doctor --json` — 連線 + **184 channels**
+1. `instant-drama doctor --json` — 連線 + **189 channels**
 2. `instant-drama channels list --json` — 即時能力（`chapters`、`keyArt`、`actions`…）
 3. `instant-drama channels describe scenes:aiFill --json` — payload 提示（`suggestFromStory`、`segmentKeys`）
 4. `instant-drama tools schema --openai` — OpenAI 風格 tool 定義

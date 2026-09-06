@@ -1125,7 +1125,19 @@
       "workAreaHint": "Generate only clips that overlap this range",
       "start": "In",
       "end": "Out",
-      "noClip": "Select a clip on the timeline."
+      "noClip": "Select a clip on the timeline.",
+      "spatialTitle": "Shot stage",
+      "spatialHint": "Drag markers to lock this beat’s blocking. Export a clay still, generate the storyboard still, then use existing image-to-video. Identity stills keep face and wardrobe; the white model only constrains placement and camera.",
+      "spatialUseAsFirstFrame": "Use white-model as first frame (weaker face lock)",
+      "spatialFirstFrameWarn": "First-frame lock will follow the clay still instead of the dressed identity still.",
+      "spatialExportPlayblast": "Export clay still",
+      "spatialPick": "Attach clay still",
+      "spatialEmpty": "No spatial still yet",
+      "spatialBlender": "Local Blender detected",
+      "spatialBlenderMissing": "Blender not on PATH (optional; the add-on calls instant-drama CLI)",
+      "spatialGenMesh": "Generate proxy mesh",
+      "spatialMeshOk": "Proxy glTF written (textured plane; not cloth or rig)",
+      "spatialMeshNeed": "Bind a prop, scene, or character first"
     },
     "lanes": {
       "shot": "Shot",
@@ -2255,7 +2267,8 @@
       "art": "Art style",
       "other": "Other",
       "continuity": "Storyboard still",
-      "comic": "Comic"
+      "comic": "Comic",
+      "spatial": "Spatial (white model)"
     },
     "kind": {
       "action-plate": "Action plate",
@@ -2323,7 +2336,13 @@
     "keyArtOwn": "This still",
     "keyArtPrev": "Previous still",
     "photoBookStill": "Photo-book still {{n}}",
-    "photoBookStillScene": "Photo-book still {{n}} · {{scene}}"
+    "photoBookStillScene": "Photo-book still {{n}} · {{scene}}",
+    "refRole": {
+      "identity": "Identity",
+      "spatial": "Spatial",
+      "motion": "Motion",
+      "style": "Style"
+    }
   },
   "promptTpl": {
     "title": "Choose how AI should work",

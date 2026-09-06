@@ -453,6 +453,7 @@ export const enPromptCopy: PromptCopyTable = {
   "charIntro.manner": "Mannerisms: {{manner}}.",
   "charIntro.cameraDefault": "Performance camera: gentle push-in or subtle handheld; the character looks toward camera or slightly off-camera.",
   "mediaGen.honorCameraTemplate": "If materials include a camera-template block, follow that framing and motion exactly. Do not replace it with a generic push-in or handheld.",
+  "mediaGen.refRoles": "Each attached still has one job: IDENTITY (face/wardrobe), SPATIAL (white-model blocking and camera path only — do not copy clay gray as the final look), MOTION (timing/gesture), or STYLE (palette/light). Do not let one still control every job.",
   "sceneIntro.cameraNotes": "Camera notes: {{camera}}.",
   "sceneIntro.cameraDefault": "Camera: continuous gentle motion. Do not add new cast faces, logos, or text overlays unless the materials already show them.",
   "quality.family.photo": "Quality: tack-sharp focus on eyes or primary face/head features, high micro-detail appropriate to photoreal media, professional three-point studio lighting unless the style says otherwise, prime-lens look (50–85mm), no motion blur, no heavy face-softening beauty filter, no watermark or text.",

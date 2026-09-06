@@ -204,6 +204,9 @@ export function useTimelineV2Studio() {
   const [compiledLockByEntry, setCompiledLockByEntry] = useState<
     Record<string, string>
   >({})
+  const [spatialPlayblastPath, setSpatialPlayblastPath] = useState<string | null>(
+    null
+  )
   const setGraphViewportFromCanvas = useCallback((h: number, top?: number) => {
     const next = timelineGraphWrapLimit({
       canvasH: h,
@@ -408,6 +411,39 @@ export function useTimelineV2Studio() {
     }
   }, [entries, selectedId])
 
+  useEffect(() => {
+    if (!selectedId || !activeStoryId) {
+      setSpatialPlayblastPath(null)
+      return
+    }
+    const entryId = selectedId
+    let cancelled = false
+    const load = async (): Promise<void> => {
+      try {
+        const pkg = (await getApi().spatial.compileBeat({
+          storyId: activeStoryId,
+          entryId
+        })) as { playblastPath?: string | null }
+        if (!cancelled) setSpatialPlayblastPath(pkg.playblastPath ?? null)
+      } catch {
+        if (!cancelled) setSpatialPlayblastPath(null)
+      }
+    }
+    void load()
+    const onUpdated = (ev: Event): void => {
+      const detail = (ev as CustomEvent<{ entryId?: string; playblastPath?: string | null }>)
+        .detail
+      if (detail?.entryId === entryId) {
+        setSpatialPlayblastPath(detail.playblastPath ?? null)
+      }
+    }
+    window.addEventListener('idm:spatial-ref-updated', onUpdated)
+    return () => {
+      cancelled = true
+      window.removeEventListener('idm:spatial-ref-updated', onUpdated)
+    }
+  }, [selectedId, activeStoryId])
+
   const entriesRef = useRef(entries)
   entriesRef.current = entries
   const selectedIdRef = useRef(selectedId)
@@ -526,7 +562,8 @@ export function useTimelineV2Studio() {
       actions: castActions,
       locale: getAiLocale(i18n.language),
       shotIndex: Math.max(1, shotIndex),
-      storyHardRules: undefined
+      storyHardRules: undefined,
+      spatialPlayblastPath
     })
   }, [
     selected,
@@ -536,7 +573,8 @@ export function useTimelineV2Studio() {
     castScenes,
     castProps,
     castActions,
-    i18n.language
+    i18n.language,
+    spatialPlayblastPath
   ])
 
   const compiledLocked = Boolean(
