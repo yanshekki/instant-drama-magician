@@ -61,6 +61,7 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+.cursor/
 *.local
 
 # --- Tool caches ---
@@ -81,5 +82,5 @@ build/icons/ysk-logo-ref.png
 #   src/locales/*.json
 #   package-lock.json
 #   prisma/schema.prisma
-#   docs/  skills/  scripts/  bin/
+#   docs/  skills/  scripts/  bin/   (skills/ = OpenClaw; .cursor/ stays local)
 # =============================================================================
