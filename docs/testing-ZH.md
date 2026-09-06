@@ -23,11 +23,12 @@ npm run test:ci          # CI 入口（coverage）
 | Presentation | `src/presentation/**/*.test.tsx`（happy-dom） |
 | Electron | `electron/*.contract.test.ts` |
 
-## 近期焦點（1.10.0）
+## 近期焦點（1.11.0）
 
 | 區域 | 測試（示例） |
 |------|----------------|
 | 導演臺（條件軌） | `timelineLanes.test.ts`、`compiledTimelinePrompt.test.ts`、`timelineWorkflowExport.test.ts`、`timelineGraph.test.ts`、`useTimelineV2Studio.test.tsx`、`TimelineV2Page.test.tsx`、`KonvaTimeline.test.tsx` |
+| 走位台／空間交換包 | `spatialRef.test.ts`、`spatialPackage.test.ts`、`spatialPlayblast.test.ts`、`spatialMesh.test.ts`、`spatial.test.ts`、`TimelineShotStage.test.tsx`、`TimelineSpatialPanel.test.tsx` |
 | 故事章節＋劇情焦點 | `ChapterService.test.ts`、`ChapterCastService.test.ts`、`chapters.test.ts`、`plotFocus.test.ts`、`storyChapterPrompt.test.ts`、`StoryChaptersTab.test.tsx`、`PlotContextPicker.test.tsx`、`StoriesPage.test.tsx` |
 | 劇照檯 | `KeyArtPage.test.tsx`、`KeyArtService.test.ts`、`keyArt.test.ts`、`keyArtShotTypes.test.ts`、`keyArtMakeMethods.test.ts`、`keyArtShotImages.test.ts` |
 | 漫畫工作室 | `ComicsPage.test.tsx`、`ComicService.test.ts`、`comics.test.ts`、`comicPageLayouts.test.ts`、`comicPageFormat.test.ts`、`comicPageVideos.test.ts` |
