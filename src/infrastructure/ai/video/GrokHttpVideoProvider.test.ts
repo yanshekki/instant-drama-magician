@@ -560,6 +560,50 @@ describe('GrokHttpVideoProvider (OpenAI /v1/videos)', () => {
     ).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 
+  it('create POST abort follows user video wait, not 60s', async () => {
+    const spy = vi.spyOn(AbortSignal, 'timeout')
+    const bytes = Buffer.alloc(128, 7)
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.endsWith('/videos')) {
+        return new Response(
+          JSON.stringify({ id: 'job-w', status: 'queued' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/videos/job-w') && !url.includes('/content')) {
+        return new Response(
+          JSON.stringify({ id: 'job-w', status: 'completed' }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (url.endsWith('/content')) {
+        return new Response(bytes, {
+          status: 200,
+          headers: { 'content-type': 'video/mp4' }
+        })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const dir = mkdtempSync(join(tmpdir(), 'idm-wait-'))
+    const p = new GrokHttpVideoProvider({
+      baseUrl: 'http://ex/v1',
+      apiKey: 'k',
+      model: 'm',
+      timeoutSec: 900,
+      pollMs: 1,
+      maxRetries: 0,
+      fetchImpl
+    })
+    await p.generate({
+      prompt: 'x',
+      durationSeconds: 6,
+      outputPath: join(dir, 'clip.mp4')
+    })
+    expect(spy).toHaveBeenCalledWith(900_000)
+    spy.mockRestore()
+  })
+
   it('poll failed status and content download error', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'idm-poll-'))
     const out = join(dir, 'p.mp4')

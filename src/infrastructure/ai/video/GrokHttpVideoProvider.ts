@@ -20,6 +20,11 @@ import {
 import { AppError, mapHttpStatusToVideoError } from '../../../types/errors'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { isRetryableError, sleep, withRetries } from './httpUtils'
+import {
+  videoCreateAbortMs,
+  videoDownloadAbortMs,
+  videoPollAbortMs
+} from '../../../domain/requestWait'
 
 /** Reject empty / smoke stubs / HTML interstitials / stills stored as "video". */
 export function isUsableVideoBytes(buf: Buffer): boolean {
@@ -256,7 +261,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify(body),
-            signal: AbortSignal.timeout(60_000)
+            signal: AbortSignal.timeout(videoCreateAbortMs(this.timeoutSec))
           })
         }
 
@@ -347,7 +352,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
       method: 'POST',
       headers: this.headers(),
       body: form,
-      signal: AbortSignal.timeout(60_000)
+      signal: AbortSignal.timeout(videoCreateAbortMs(this.timeoutSec))
     })
     if (!res.ok) return null
     const json = (await res.json()) as { data?: { id?: string }; id?: string }
@@ -360,7 +365,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
     while (Date.now() < deadline) {
       const res = await this.fetchFn(statusUrl, {
         headers: this.headers(),
-        signal: AbortSignal.timeout(30_000)
+        signal: AbortSignal.timeout(videoPollAbortMs(this.timeoutSec))
       })
       if (!res.ok) {
         throw new AppError('AI_FAILED', 'errors.videoPollHttpFailed', String(res.status))
@@ -397,7 +402,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
     const contentUrl = `${this.createUrl}/${jobId}/content`
     const res = await this.fetchFn(contentUrl, {
       headers: this.headers(),
-      signal: AbortSignal.timeout(180_000)
+      signal: AbortSignal.timeout(videoDownloadAbortMs(this.timeoutSec))
     })
     if (!res.ok) {
       throw new AppError('AI_FAILED', 'errors.videoContentHttpFailed', String(res.status))
@@ -436,7 +441,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
         duration: seconds,
         output_path: request.outputPath
       }),
-      signal: AbortSignal.timeout(180_000)
+      signal: AbortSignal.timeout(videoDownloadAbortMs(this.timeoutSec))
     })
     if (!res.ok) {
       const text = await res.text()
@@ -467,7 +472,7 @@ export class GrokHttpVideoProvider implements VideoProvider {
     const res = await this.fetchFn(url, {
       headers: sendAuth ? this.headers() : {},
       redirect: 'follow',
-      signal: AbortSignal.timeout(180_000)
+      signal: AbortSignal.timeout(videoDownloadAbortMs(this.timeoutSec))
     })
     if (!res.ok || !res.body) {
       throw new AppError('IO', 'errors.videoDownloadFailed', String(res.status))

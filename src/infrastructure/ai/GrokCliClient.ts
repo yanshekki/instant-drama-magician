@@ -440,7 +440,7 @@ export class GrokCliClient implements AIProvider {
         throw new AppError(
           'AI_FAILED',
           'errors.chatTimedOut',
-          String(timeoutMs)
+          'errors.requestWaitHint'
         )
       }
       // One auto-recover: start local gateway then retry once
@@ -455,7 +455,7 @@ export class GrokCliClient implements AIProvider {
             throw new AppError(
               'AI_FAILED',
               'errors.chatTimedOut',
-              String(timeoutMs)
+              'errors.requestWaitHint'
             )
           }
           throw new AppError(
@@ -624,7 +624,7 @@ export class GrokCliClient implements AIProvider {
         throw new AppError(
           'AI_TIMEOUT',
           'errors.imageTimedOut',
-          'errors.imageTimeoutHint'
+          'errors.requestWaitHint'
         )
       }
       throw error

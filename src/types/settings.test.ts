@@ -115,6 +115,15 @@ describe('settings defaults', () => {
     expect(m.legalAcceptedVersion).toBeNull()
     expect(m.legalAcceptedAt).toBeNull()
     expect(DEFAULT_SETTINGS.desktopNotifyEnabled).toBe(true)
+    expect(m.requestWaitPreset).toBe('standard')
+    expect(DEFAULT_SETTINGS.requestWaitPreset).toBe('standard')
+    expect(
+      mergeSettings({
+        chatTimeoutMs: 300_000,
+        imageTimeoutMs: 600_000,
+        videoTimeoutSec: 900
+      }).requestWaitPreset
+    ).toBe('patient')
     expect(mergeSettings({ grokVideoVoice: 'NOPE' as never }).grokVideoVoice).toBe(
       'ara'
     )

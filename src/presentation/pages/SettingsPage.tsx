@@ -73,6 +73,7 @@ import { useDialog } from '../context/DialogContext'
 import { PageHeader } from '../components/PageHeader'
 import { pageRootClass, pageScrollClass } from '../lib/mobileLayout'
 import { Button, Card, Input, Label, Select } from '../components/ui'
+import { RequestWaitCard } from '../components/RequestWaitCard'
 import {
   clearPromptTemplatePrefs,
   hasRememberedAlways,
@@ -697,24 +698,9 @@ export function SettingsPage(): JSX.Element {
                               }}
                             />
                           </div>
-                          <div>
-                            <Label>
-                              {t('settings.chatTimeoutMs')} (
-                              {settings.chatTimeoutMs}ms)
-                            </Label>
-                            <Input
-                              type="number"
-                              min={5000}
-                              step={1000}
-                              value={settings.chatTimeoutMs}
-                              onChange={(e) =>
-                                patch(
-                                  'chatTimeoutMs',
-                                  Number(e.target.value) || 120000
-                                )
-                              }
-                            />
-                          </div>
+                          <p className="text-[11px] text-ink-500">
+                            {t('settings.requestWaitAdvancedHint')}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1233,20 +1219,9 @@ export function SettingsPage(): JSX.Element {
                         {t('settings.preserveClipAudio')}
                       </label>
                     </div>
-                    <div>
-                      <Label>{t('settings.videoTimeoutSec')}</Label>
-                      <Input
-                        type="number"
-                        min={30}
-                        value={settings.videoTimeoutSec}
-                        onChange={(e) =>
-                          patch(
-                            'videoTimeoutSec',
-                            Number(e.target.value) || 300
-                          )
-                        }
-                      />
-                    </div>
+                    <p className="text-[11px] text-ink-500 sm:col-span-2">
+                      {t('settings.requestWaitAdvancedHint')}
+                    </p>
                   </div>
                 )}
               </Card>
@@ -1262,6 +1237,17 @@ export function SettingsPage(): JSX.Element {
                     {t('settings.appTabHint')}
                   </p>
                 </div>
+                <RequestWaitCard
+                  value={{
+                    chatTimeoutMs: settings.chatTimeoutMs,
+                    imageTimeoutMs: settings.imageTimeoutMs,
+                    videoTimeoutSec: settings.videoTimeoutSec,
+                    requestWaitPreset: settings.requestWaitPreset
+                  }}
+                  onChange={(patchWait) =>
+                    setSettings((s) => (s ? { ...s, ...patchWait } : s))
+                  }
+                />
                 <div>
                   <Label>{t('settings.uiLanguage')}</Label>
                   <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">

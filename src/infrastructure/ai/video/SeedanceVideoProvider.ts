@@ -21,6 +21,11 @@ import { DEFAULT_SEEDANCE_MODEL } from '../../../domain/openaiCompatible'
 import { AppError, mapHttpStatusToVideoError } from '../../../types/errors'
 import type { VideoProvider, VideoProviderStatus } from './types'
 import { isRetryableError, sleep, withRetries } from './httpUtils'
+import {
+  videoCreateAbortMs,
+  videoDownloadAbortMs,
+  videoPollAbortMs
+} from '../../../domain/requestWait'
 
 export interface SeedanceVideoOptions {
   /** e.g. https://ark.cn-beijing.volces.com/api/v3 */
@@ -235,7 +240,7 @@ export class SeedanceVideoProvider implements VideoProvider {
           method: 'POST',
           headers: this.headers(),
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(60_000)
+          signal: AbortSignal.timeout(videoCreateAbortMs(this.timeoutSec))
         })
 
         if (!res.ok) {
@@ -280,7 +285,7 @@ export class SeedanceVideoProvider implements VideoProvider {
     while (Date.now() < deadline) {
       const res = await this.fetchFn(url, {
         headers: this.headers(),
-        signal: AbortSignal.timeout(30_000)
+        signal: AbortSignal.timeout(videoPollAbortMs(this.timeoutSec))
       })
       if (!res.ok) {
         const text = await res.text()
@@ -322,7 +327,7 @@ export class SeedanceVideoProvider implements VideoProvider {
       return
     }
     const res = await this.fetchFn(url, {
-      signal: AbortSignal.timeout(120_000)
+      signal: AbortSignal.timeout(videoDownloadAbortMs(this.timeoutSec))
     })
     if (!res.ok) {
       throw new AppError('IO', 'errors.seedanceDownloadFailed', String(res.status))

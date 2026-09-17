@@ -29,6 +29,13 @@ import {
   type LookPackId
 } from '../domain/lookPacks'
 import { coerceGrokVideoVoice } from '../domain/grokVideoVoices'
+import {
+  clampChatTimeoutMs,
+  clampImageTimeoutMs,
+  clampVideoTimeoutSec,
+  detectRequestWaitPreset,
+  type RequestWaitPreset
+} from '../domain/requestWait'
 
 export type VideoMode = 'auto' | 'http' | 'stub'
 export type ExportProfile = 'fast' | 'balanced'
@@ -69,6 +76,8 @@ export interface AppSettings {
   model: string
   /** Chat completion timeout (ms) */
   chatTimeoutMs: number
+  /** Fast / standard / patient / custom — chips on Settings → App. */
+  requestWaitPreset: RequestWaitPreset
 
   /** Image generation endpoint (empty base/key → inherit LLM) */
   imageProvider: ImageProviderMode
@@ -202,6 +211,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   apiKey: '',
   model: 'grok-4.5',
   chatTimeoutMs: 120_000,
+  requestWaitPreset: 'standard',
   imageProvider: 'same-as-llm',
   imageBaseUrl: '',
   imageApiKey: '',
@@ -330,6 +340,7 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
   if (!merged.chatTimeoutMs || merged.chatTimeoutMs < 1000) {
     merged.chatTimeoutMs = DEFAULT_SETTINGS.chatTimeoutMs
   }
+  merged.chatTimeoutMs = clampChatTimeoutMs(merged.chatTimeoutMs)
   if (!merged.llmProvider) {
     merged.llmProvider = DEFAULT_SETTINGS.llmProvider
   }
@@ -379,6 +390,7 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
   if (!merged.videoTimeoutSec || merged.videoTimeoutSec < 10) {
     merged.videoTimeoutSec = DEFAULT_SETTINGS.videoTimeoutSec
   }
+  merged.videoTimeoutSec = clampVideoTimeoutSec(merged.videoTimeoutSec)
   if (
     !merged.defaultMaxClipSeconds ||
     ![6, 10].includes(merged.defaultMaxClipSeconds)
@@ -416,6 +428,12 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
     // Previous factory default — bump so existing installs match Gateway headroom.
     merged.imageTimeoutMs = DEFAULT_SETTINGS.imageTimeoutMs
   }
+  merged.imageTimeoutMs = clampImageTimeoutMs(merged.imageTimeoutMs)
+  merged.requestWaitPreset = detectRequestWaitPreset({
+    chatTimeoutMs: merged.chatTimeoutMs,
+    imageTimeoutMs: merged.imageTimeoutMs,
+    videoTimeoutSec: merged.videoTimeoutSec
+  })
   merged.continuityMode = coerceContinuityMode(merged.continuityMode)
   merged.motionPriority = coerceMotionPriority(merged.motionPriority)
   merged.lookPackId = coerceLookPackId(merged.lookPackId)
