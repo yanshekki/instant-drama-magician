@@ -3,17 +3,24 @@
  * Owns dataDir, Prisma, settings, media root, and full channel → handler map.
  */
 import { existsSync, mkdirSync, readFileSync, statSync } from 'fs'
-import { join, resolve as pathResolve, sep } from 'path'
+import { dirname, join, resolve as pathResolve, sep } from 'path'
 import { PrismaClient } from '../types/prisma'
 import { SettingsStore } from '../infrastructure/settings/SettingsStore'
 import { ActivityLog } from '../infrastructure/activity/ActivityLog'
 import { MediaStore } from '../infrastructure/media/MediaStore'
 import { normalizeSqliteDateTimes } from '../infrastructure/db/normalizeSqliteDateTimes'
+import { ensureSqliteSchema } from '../infrastructure/db/ensureSqliteSchema'
 import { AppError, toAppError } from '../types/errors'
 import { readFile } from 'fs/promises'
 import { registerAllHandlers } from './registerAllHandlers'
 import type { HandlerHost } from './HandlerHost'
 import { createHeadlessDialog, createHeadlessShell } from './adapters'
+import {
+  fileUrlToPath,
+  isAbsoluteFsPath,
+  normalizePrismaSqliteUrl,
+  pathToFileUrl
+} from '../domain/appPaths'
 
 /**
  * Channel handlers are registered with concrete parameter types; IPC always
@@ -64,11 +71,16 @@ export function createRuntime(opts: RuntimeOptions): AppRuntime {
   ensureDir(join(mediaRoot, 'uploads'))
   ensureDir(join(dataDir, 'exports'))
 
-  const databaseUrl =
+  const databaseUrl = normalizePrismaSqliteUrl(
     opts.databaseUrl ||
-    process.env.DATABASE_URL ||
-    `file:${join(dataDir, 'instant-drama.db')}`
+      process.env.DATABASE_URL ||
+      pathToFileUrl(join(dataDir, 'instant-drama.db'))
+  )
   process.env.DATABASE_URL = databaseUrl
+  const dbFile = fileUrlToPath(databaseUrl)
+  if (isAbsoluteFsPath(dbFile)) {
+    ensureDir(dirname(dbFile))
+  }
 
   const ownsPrisma = !opts.hostOverrides?.getPrisma
   const prisma: PrismaClient = ownsPrisma
@@ -77,14 +89,20 @@ export function createRuntime(opts: RuntimeOptions): AppRuntime {
       })
     : (null as unknown as PrismaClient)
 
-  /** Wait before first channel call so TEXT/INTEGER DateTime mix is fixed. */
-  const dbReady: Promise<void> = ownsPrisma
-    ? prisma
-        .$queryRaw`SELECT 1`
-        .then(() => normalizeSqliteDateTimes(prisma))
-        .then(() => undefined)
-        .catch(() => undefined)
-    : Promise.resolve()
+  const activePrisma = (): PrismaClient =>
+    opts.hostOverrides?.getPrisma
+      ? opts.hostOverrides.getPrisma()
+      : prisma
+
+  /**
+   * Wait before first channel call: create tables on a fresh install
+   * (Prisma Client does not), then fix TEXT/INTEGER DateTime mix.
+   */
+  const dbReady: Promise<void> = Promise.resolve()
+    .then(() => ensureSqliteSchema(activePrisma()))
+    .then(() => normalizeSqliteDateTimes(activePrisma()))
+    .then(() => undefined)
+    .catch(() => undefined)
 
   const settingsStore =
     opts.hostOverrides?.settingsStore ??

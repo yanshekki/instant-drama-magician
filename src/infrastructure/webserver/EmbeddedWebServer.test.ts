@@ -10,13 +10,17 @@ const invoke = vi.fn(async (ch: string) => {
 })
 const channels = vi.fn(() => ['stories:list', 'ai:status'])
 const dispose = vi.fn()
+const createCtl = vi.hoisted(() => ({ lastOpts: null as unknown }))
 
 vi.mock('../../runtime/createRuntime', () => ({
-  createRuntime: () => ({
-    invoke,
-    channels,
-    dispose
-  })
+  createRuntime: (opts: unknown) => {
+    createCtl.lastOpts = opts
+    return {
+      invoke,
+      channels,
+      dispose
+    }
+  }
 }))
 
 import {
@@ -314,6 +318,23 @@ describe('EmbeddedWebServer', () => {
     }
 
     void createRuntime
+  })
+
+  it('passes getPrisma through so desktop does not open a second SQLite handle', async () => {
+    dataDir = mkdtempSync(join(tmpdir(), 'idm-ews-prisma-'))
+    const getPrisma = () => ({}) as never
+    server = new EmbeddedWebServer()
+    await server.start({
+      dataDir,
+      port: 19156,
+      host: '127.0.0.1',
+      authDisabled: true,
+      getPrisma
+    })
+    expect(
+      (createCtl.lastOpts as { hostOverrides?: { getPrisma?: unknown } })
+        .hostOverrides?.getPrisma
+    ).toBe(getPrisma)
   })
 
   it('getEmbeddedWebServer singleton', async () => {

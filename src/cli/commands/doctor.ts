@@ -7,6 +7,10 @@ import { toAppError } from '../../types/errors'
 import { isAuthError, isNetworkError } from '../client/remote'
 import { createRemoteClient } from '../client/remote'
 import { probeNpmUpdate } from './update'
+import {
+  normalizePrismaSqliteUrl,
+  resolveAppPaths
+} from '../../domain/appPaths'
 
 export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
   const t0 = Date.now()
@@ -25,6 +29,20 @@ export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
     checks: {} as Record<string, unknown>
   }
   const checks = report.checks as Record<string, unknown>
+
+  const paths = resolveAppPaths({
+    dataDir: globals.dataDir,
+    envDataDir: process.env.IDM_DATA_DIR,
+    profile: globals.profile || process.env.IDM_PROFILE || 'default'
+  })
+  checks.database = {
+    platform: process.platform,
+    dataRoot: paths.dataRoot,
+    databasePath: paths.databasePath,
+    databaseUrl: normalizePrismaSqliteUrl(
+      process.env.DATABASE_URL || paths.databaseUrl
+    )
+  }
 
   // Prefer explicit remote probe when URL set and not forced local
   if (globals.url && !globals.local) {
@@ -95,6 +113,21 @@ export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
       } catch (e) {
         checks.ffmpeg = { ok: false, message: toAppError(e).message }
       }
+      try {
+        await client.invoke('stories:list')
+        checks.database = {
+          ...(checks.database as object),
+          ok: true
+        }
+      } catch (e) {
+        const err = toAppError(e)
+        checks.database = {
+          ...(checks.database as object),
+          ok: false,
+          error: err.message
+        }
+        report.ok = false
+      }
       await client.dispose?.()
     } catch (e) {
       const err = toAppError(e)
@@ -132,6 +165,22 @@ export async function cmdDoctor(globals: CliGlobalOptions): Promise<void> {
   printHuman(`instant-drama doctor — ${report.ok ? 'OK' : 'ISSUES'}`)
   printHuman(`  config: ${report.configPath}`)
   printHuman(`  mode probe: ${globals.url && !globals.local ? 'remote' : 'local'}`)
+  if (checks.database && typeof checks.database === 'object') {
+    const d = checks.database as {
+      platform?: string
+      dataRoot?: string
+      databasePath?: string
+      databaseUrl?: string
+      ok?: boolean
+      error?: string
+    }
+    printHuman(`  platform: ${d.platform ?? process.platform}`)
+    printHuman(`  dataRoot: ${d.dataRoot ?? ''}`)
+    printHuman(`  database: ${d.databasePath ?? ''}`)
+    printHuman(`  databaseUrl: ${d.databaseUrl ?? ''}`)
+    if (d.ok === false) printErr(`  sqlite: ${d.error ?? 'open failed'}`)
+    else if (d.ok === true) printHuman('  sqlite: ok')
+  }
   if (checks.channels && typeof checks.channels === 'object') {
     const c = checks.channels as { count?: number; message?: string }
     if (c.count != null) printHuman(`  channels: ${c.count}`)

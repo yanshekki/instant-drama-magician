@@ -7,7 +7,10 @@
  */
 import { resolve } from 'path'
 import { EmbeddedWebServer } from '../src/infrastructure/webserver/EmbeddedWebServer'
-import { resolveAppPaths } from '../src/domain/appPaths'
+import {
+  normalizePrismaSqliteUrl,
+  resolveAppPaths
+} from '../src/domain/appPaths'
 import { migrateAppDataIfNeeded } from '../src/application/services/AppDataMigrationService'
 import { resolveServerAppVersion } from '../src/domain/serverAppVersion'
 
@@ -43,9 +46,9 @@ async function main(): Promise<void> {
     /* non-fatal */
   }
 
-  if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = appPaths.databaseUrl
-  }
+  process.env.DATABASE_URL = normalizePrismaSqliteUrl(
+    process.env.DATABASE_URL?.trim() || appPaths.databaseUrl
+  )
 
   const server = new EmbeddedWebServer()
   const status = await server.start({

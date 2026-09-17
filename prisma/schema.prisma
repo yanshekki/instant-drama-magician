@@ -1,6 +1,9 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/types/prisma"
+  provider      = "prisma-client-js"
+  output        = "../src/types/prisma"
+  // Installers are built per OS (release.yml prisma generate on that runner).
+  // Do not pin extra targets here — a Linux dist:win would still ship the wrong engine.
+  binaryTargets = ["native"]
 }
 
 datasource db {

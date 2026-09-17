@@ -29,6 +29,12 @@ jobs:
       - name: Prisma generate
         run: npx prisma generate
 
+      - name: Prisma SQLite URL construction
+        run: node scripts/check-prisma-file-url.mjs
+
+      - name: SQLite first-run schema coverage
+        run: node scripts/check-sqlite-schema-drift.mjs
+
       - name: Test alignment (sibling unit tests)
         run: npm run test:align
 

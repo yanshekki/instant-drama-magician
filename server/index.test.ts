@@ -20,7 +20,9 @@ vi.mock('../src/domain/appPaths', () => ({
     dataRoot: '/tmp/idm-server-test-data',
     databaseUrl: 'file:/tmp/idm-server-test-data/db.sqlite',
     databasePath: '/tmp/idm-server-test-data/db.sqlite'
-  })
+  }),
+  normalizePrismaSqliteUrl: (u: string) =>
+    String(u).startsWith('file:') ? u.replace('file:///', 'file:/') : u
 }))
 
 describe('server entry', () => {

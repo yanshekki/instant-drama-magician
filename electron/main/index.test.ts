@@ -201,20 +201,24 @@ vi.mock('../../src/application/services', () => ({
   migrateAppDataIfNeeded: () => ({ ran: true, actions: ['migrated'] })
 }))
 
-vi.mock('../../src/domain/appPaths', () => ({
-  resolveAppPaths: () => {
-    const root = process.env.IDM_TEST_UD || join(tmpdir(), 'idm-e-ud')
-    return {
-      dataRoot: root,
-      mediaRoot: join(root, 'media'),
-      logsDir: join(root, 'logs'),
-      cacheDir: join(root, 'cache'),
-      exportsDir: join(root, 'exports'),
-      databaseUrl: `file:${join(root, 'db.sqlite')}`,
-      databasePath: join(root, 'db.sqlite')
+vi.mock('../../src/domain/appPaths', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/domain/appPaths')>()
+  return {
+    ...actual,
+    resolveAppPaths: () => {
+      const root = process.env.IDM_TEST_UD || join(tmpdir(), 'idm-e-ud')
+      return {
+        dataRoot: root,
+        mediaRoot: join(root, 'media'),
+        logsDir: join(root, 'logs'),
+        cacheDir: join(root, 'cache'),
+        exportsDir: join(root, 'exports'),
+        databaseUrl: `file:${join(root, 'db.sqlite')}`,
+        databasePath: join(root, 'db.sqlite')
+      }
     }
   }
-}))
+})
 
 vi.mock('../../src/infrastructure/activity/ActivityLog', () => ({
   ActivityLog: class {

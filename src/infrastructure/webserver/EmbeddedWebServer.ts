@@ -17,8 +17,10 @@ import {
 } from 'fs'
 import { basename, extname, join, resolve } from 'path'
 import { createRuntime, type AppRuntime } from '../../runtime/createRuntime'
+import { pathToFileUrl } from '../../domain/appPaths'
 import { toAppError } from '../../types/errors'
 import { randomBytes } from 'crypto'
+import type { PrismaClient } from '../../types/prisma'
 
 export interface WebServerStartOptions {
   dataDir: string
@@ -30,6 +32,11 @@ export interface WebServerStartOptions {
   staticDir?: string
   appVersion?: string
   isPackaged?: boolean
+  /**
+   * Desktop must pass the Electron PrismaClient so we do not open a second
+   * SQLite handle (Windows CANTOPEN / SQLITE_BUSY / WAL lock).
+   */
+  getPrisma?: () => PrismaClient
 }
 
 export interface WebServerStatus {
@@ -179,10 +186,13 @@ export class EmbeddedWebServer {
       // Prefer dataDir DB — do not inherit process.env.DATABASE_URL (e.g. ./prisma/dev.db)
       this.runtime = createRuntime({
         dataDir,
-        databaseUrl: `file:${join(dataDir, 'instant-drama.db')}`,
+        databaseUrl: pathToFileUrl(join(dataDir, 'instant-drama.db')),
         appVersion: this.appVersion,
         isPackaged: opts.isPackaged,
-        platform: process.platform
+        platform: process.platform,
+        hostOverrides: opts.getPrisma
+          ? { getPrisma: opts.getPrisma }
+          : undefined
       })
     } catch (e) {
       this.lastError = e instanceof Error ? e.message : String(e)

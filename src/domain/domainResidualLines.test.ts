@@ -5,7 +5,11 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppError } from '../types/errors'
-import { pathToFileUrl } from './appPaths'
+import {
+  fileUrlToPath,
+  normalizePrismaSqliteUrl,
+  pathToFileUrl
+} from './appPaths'
 import { parseEntryStillPromptCache, buildCastCardModel } from './advancedPrep'
 import {
   buildImproveUserPrompt
@@ -205,7 +209,7 @@ describe('residual: jsonProfileFields + profileFillMissing + aiImprove', () => {
 })
 
 describe('residual: appPaths + uiLanguages', () => {
-  it('pathToFileUrl uses file:/// on win32 platform', () => {
+  it('pathToFileUrl uses Prisma-safe file:C:/ on Windows drive paths', () => {
     const desc = Object.getOwnPropertyDescriptor(process, 'platform')
     Object.defineProperty(process, 'platform', {
       configurable: true,
@@ -213,12 +217,13 @@ describe('residual: appPaths + uiLanguages', () => {
     })
     try {
       const u = pathToFileUrl('/tmp/foo/instant-drama.db')
-      expect(u.startsWith('file:///')).toBe(true)
-      // drive-letter branch: path that still matches after resolve on this OS
-      // (regex path is covered when resolved starts with X:)
+      expect(u.startsWith('file:')).toBe(true)
       const driveLike = pathToFileUrl('C:/Users/ki/instant-drama.db')
-      // On Linux resolve rewrites drive paths; win32 platform still forces triple slash
-      expect(driveLike.startsWith('file:///')).toBe(true)
+      expect(driveLike).toBe('file:C:/Users/ki/instant-drama.db')
+      expect(fileUrlToPath(driveLike)).toBe('C:/Users/ki/instant-drama.db')
+      expect(normalizePrismaSqliteUrl('file:///C:/Users/ki/instant-drama.db')).toBe(
+        'file:C:/Users/ki/instant-drama.db'
+      )
     } finally {
       if (desc) Object.defineProperty(process, 'platform', desc)
       else

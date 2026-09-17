@@ -14,6 +14,7 @@ import type {
 import { app, BrowserWindow as BW, Notification } from 'electron'
 import type { PrismaClient } from '../../src/types/prisma'
 import { join } from 'path'
+import { pathToFileUrl } from '../../src/domain/appPaths'
 import { SettingsStore } from '../../src/infrastructure/settings/SettingsStore'
 import { ActivityLog } from '../../src/infrastructure/activity/ActivityLog'
 import { AppError, toAppError } from '../../src/types/errors'
@@ -228,7 +229,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   // Prefer Electron userData DB when available
   const dbPath =
     ctx.resolveDatabasePath?.() || join(userData, 'instant-drama.db')
-  const databaseUrl = `file:${dbPath}`
+  const databaseUrl = pathToFileUrl(dbPath)
 
   const runtime = createRuntime({
     dataDir: userData,

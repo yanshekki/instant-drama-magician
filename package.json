@@ -50,7 +50,7 @@
     "test:integration": "vitest run src/**/*.integration.test.ts",
     "test:ci": "vitest run --coverage",
     "test:align": "node scripts/check-test-alignment.mjs",
-    "ci": "npm run test:align && npm run locales:verify && npm run locales:frontend && npm run typecheck && npm run test:ci",
+    "ci": "npm run test:align && node scripts/check-prisma-file-url.mjs && node scripts/check-sqlite-schema-drift.mjs && npm run locales:verify && npm run locales:frontend && npm run typecheck && npm run test:ci",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:push:data": "DATABASE_URL=file:./data/instant-drama.db prisma db push --skip-generate",
@@ -61,11 +61,11 @@
     "locales:align": "node scripts/align-locales.mjs",
     "locales:zh-cn": "node scripts/generate-locales.mjs --zh-cn-only",
     "postinstall": "prisma generate",
-    "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder --publish never",
-    "dist:linux": "npm run build && electron-builder --linux AppImage deb --publish never",
-    "dist:win": "npm run build && electron-builder --win nsis --publish never",
-    "dist:mac": "npm run build && electron-builder --mac dmg --publish never"
+    "pack": "npm run build && node scripts/check-prisma-engine-for-platform.mjs && electron-builder --dir",
+    "dist": "npm run build && node scripts/check-prisma-engine-for-platform.mjs && electron-builder --publish never",
+    "dist:linux": "npm run build && node scripts/check-prisma-engine-for-platform.mjs linux && electron-builder --linux AppImage deb --publish never",
+    "dist:win": "npm run build && node scripts/check-prisma-engine-for-platform.mjs win32 && electron-builder --win nsis --publish never",
+    "dist:mac": "npm run build && node scripts/check-prisma-engine-for-platform.mjs darwin && electron-builder --mac dmg --publish never"
   },
   "build": {
     "appId": "hk.ysk.instant-drama-magician",
@@ -101,7 +101,10 @@
     "asarUnpack": [
       "**/node_modules/ffmpeg-static/**",
       "**/node_modules/grok-cli-to-openai-compatible/**",
-      "**/node_modules/.bin/gctoac"
+      "**/node_modules/.bin/gctoac",
+      "**/src/types/prisma/**",
+      "**/node_modules/.prisma/**",
+      "**/node_modules/@prisma/engines/**"
     ],
     "publish": [
       {

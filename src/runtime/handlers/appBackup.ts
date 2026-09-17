@@ -3,6 +3,7 @@
  */
 import { existsSync, mkdirSync } from 'fs'
 import { basename, join } from 'path'
+import { fileUrlToPath, isAbsoluteFsPath } from '../../domain/appPaths'
 import { AppDataBackupService, defaultFullBackupFileName } from '../../application/services'
 import { ActivityLog } from '../../infrastructure/activity/ActivityLog'
 import { AppError } from '../../types/errors'
@@ -23,12 +24,8 @@ const fullBackupService = (): AppDataBackupService => {
   const dbUrl = process.env.DATABASE_URL || ''
   let dbPath = join(host.userData, 'instant-drama.db')
   if (dbUrl.startsWith('file:')) {
-    let rest = dbUrl.slice('file:'.length)
-    if (rest.startsWith('///')) rest = rest.slice(2)
-    else if (rest.startsWith('//')) {
-      rest = rest.replace(/^\/\/[^/]*/, '') || rest
-    }
-    dbPath = rest.startsWith('/') ? rest : join(process.cwd(), rest)
+    const rest = fileUrlToPath(dbUrl)
+    dbPath = isAbsoluteFsPath(rest) ? rest : join(process.cwd(), rest)
   }
   if (host.resolveDatabasePath) {
     try {

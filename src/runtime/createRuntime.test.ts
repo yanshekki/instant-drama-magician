@@ -143,6 +143,36 @@ describe('createRuntime', () => {
     runtime = null
   })
 
+  it('opens sqlite when dataDir contains a space (macOS Application Support)', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm rt space '))
+    runtime = createRuntime({
+      dataDir: dir,
+      appVersion: 'test',
+      isPackaged: true
+    })
+    const list = await runtime.invoke('stories:list', [])
+    expect(Array.isArray(list)).toBe(true)
+    expect(process.env.DATABASE_URL).toContain(' ')
+    expect(process.env.DATABASE_URL).not.toContain('%20')
+  })
+
+  it('fresh install without prisma db push can list and create stories', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-rt-fresh-'))
+    runtime = createRuntime({
+      dataDir: dir,
+      appVersion: 'test',
+      isPackaged: true
+    })
+    const list = await runtime.invoke('stories:list', [])
+    expect(Array.isArray(list)).toBe(true)
+    const created = (await runtime.invoke('stories:create', [
+      { title: 'Windows fresh' }
+    ])) as { title: string }
+    expect(created.title).toBe('Windows fresh')
+    const chars = await runtime.invoke('characters:list', [])
+    expect(Array.isArray(chars)).toBe(true)
+  })
+
   it('uses process.env.DATABASE_URL when databaseUrl omitted', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-rt3-'))
     const dbPath = join(dir, 'env.db')

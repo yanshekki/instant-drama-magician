@@ -27,6 +27,7 @@ import {
 import {
   createReadStream,
   existsSync,
+  mkdirSync,
   readFileSync,
   statSync,
   writeFileSync
@@ -49,7 +50,12 @@ import {
   defaultFullBackupFileName,
   migrateAppDataIfNeeded
 } from '../../src/application/services'
-import { resolveAppPaths, type AppPaths } from '../../src/domain/appPaths'
+import {
+  resolveAppPaths,
+  fileUrlToPath,
+  normalizePrismaSqliteUrl,
+  type AppPaths
+} from '../../src/domain/appPaths'
 import { ActivityLog } from '../../src/infrastructure/activity/ActivityLog'
 import {
   redactSettings,
@@ -168,8 +174,18 @@ const appPaths: AppPaths = resolveAppPaths({
   profile: process.env.IDM_PROFILE || null
 })
 app.setPath('userData', appPaths.dataRoot)
+try {
+  mkdirSync(appPaths.dataRoot, { recursive: true })
+} catch (e) {
+  // eslint-disable-next-line no-console
+  console.error(
+    '[appPaths] cannot create data root (SQLite will fail with error 14):',
+    appPaths.dataRoot,
+    e
+  )
+  throw e
+}
 ensureDirsNonFatal([
-  appPaths.dataRoot,
   appPaths.mediaRoot,
   appPaths.logsDir,
   appPaths.cacheDir,
@@ -227,7 +243,7 @@ process.on('unhandledRejection', (reason) => {
 function isLegacyRepoDatabaseUrl(url: string): boolean {
   const u = url.trim()
   if (!u.startsWith('file:')) return false
-  const rest = u.slice('file:'.length).replace(/^\/\/\//, '/').replace(/^\/\//, '')
+  const rest = fileUrlToPath(u)
   return (
     rest.includes('prisma/dev.db') ||
     rest.startsWith('./') ||
@@ -242,7 +258,7 @@ function resolveDatabaseUrl(): string {
     process.env.DATABASE_URL?.trim() ||
     ''
   if (explicit && !isLegacyRepoDatabaseUrl(explicit)) {
-    return explicit
+    return normalizePrismaSqliteUrl(explicit)
   }
   return appPaths.databaseUrl
 }
@@ -272,8 +288,12 @@ let prisma: PrismaClient | null = null
 
 function getPrisma(): PrismaClient {
   if (!prisma) {
+    const url = normalizePrismaSqliteUrl(
+      process.env.DATABASE_URL || resolveDatabaseUrl()
+    )
+    process.env.DATABASE_URL = url
     prisma = new PrismaClient({
-      datasources: { db: { url: process.env.DATABASE_URL } }
+      datasources: { db: { url } }
     })
   }
   return prisma
@@ -281,15 +301,7 @@ function getPrisma(): PrismaClient {
 
 function resolveDbFilePath(): string {
   const url = process.env.DATABASE_URL ?? resolveDatabaseUrl()
-  if (!url.startsWith('file:')) return url
-  // Prisma: file:/abs, file:./rel, file:///abs
-  let rest = url.slice('file:'.length)
-  if (rest.startsWith('///')) rest = rest.slice(2)
-  else if (rest.startsWith('//')) {
-    // file://host/path → drop host
-    rest = rest.replace(/^\/\/[^/]*/, '') || rest
-  }
-  return rest
+  return fileUrlToPath(url)
 }
 
 function loadMenuLang(): MenuLang {
@@ -923,7 +935,8 @@ app.whenReady().then(() => {
           authDisabled: false,
           staticDir,
           appVersion: app.getVersion(),
-          isPackaged: app.isPackaged
+          isPackaged: app.isPackaged,
+          getPrisma
         })
       } catch {
         /* non-fatal — Settings can retry */

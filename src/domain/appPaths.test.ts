@@ -4,9 +4,14 @@ import { join } from 'path'
 import {
   APP_ID,
   appFolderName,
+  fileUrlToPath,
+  fromPrismaSqliteUrl,
+  isAbsoluteFsPath,
   legacyDataCandidates,
+  normalizePrismaSqliteUrl,
   pathToFileUrl,
   resolveAppPaths,
+  toPrismaSqliteUrl,
   resolveDataRoot,
   resolveOsAppDataBase,
   resolveProfile
@@ -113,6 +118,121 @@ describe('appPaths', () => {
   it('pathToFileUrl is absolute file URL', () => {
     const u = pathToFileUrl('/tmp/foo/instant-drama.db')
     expect(u).toBe('file:/tmp/foo/instant-drama.db')
+  })
+
+  it('Windows Prisma URL is file:C:/ not file:///C:/ (SQLITE_CANTOPEN)', () => {
+    const winDb =
+      'C:\\Users\\ki\\AppData\\Roaming\\instant-drama-magician\\instant-drama.db'
+    const u = pathToFileUrl(winDb)
+    expect(u).toBe(
+      'file:C:/Users/ki/AppData/Roaming/instant-drama-magician/instant-drama.db'
+    )
+    expect(u.startsWith('file:///')).toBe(false)
+    expect(u.startsWith('file:/C:')).toBe(false)
+  })
+
+  it('windows packaged paths use Prisma-safe file URL', () => {
+    const p = resolveAppPaths({
+      isDevRuntime: false,
+      platform: 'win32',
+      home: 'C:\\Users\\ki',
+      env: { APPDATA: 'C:\\Users\\ki\\AppData\\Roaming' }
+    })
+    expect(p.databaseUrl.replace(/\\/g, '/')).toBe(
+      'file:C:/Users/ki/AppData/Roaming/instant-drama-magician/instant-drama.db'
+    )
+    expect(p.databaseUrl.startsWith('file:///')).toBe(false)
+  })
+
+  it('fileUrlToPath round-trips unix and Windows forms', () => {
+    expect(fileUrlToPath('file:/tmp/foo.db')).toBe('/tmp/foo.db')
+    expect(fileUrlToPath('file:///tmp/foo.db')).toBe('/tmp/foo.db')
+    expect(fileUrlToPath('file:////tmp/foo.db')).toBe('/tmp/foo.db')
+    expect(fileUrlToPath('file://localhost/tmp/x.sqlite')).toBe('/tmp/x.sqlite')
+    expect(fileUrlToPath('file://hostname/tmp/db.sqlite')).toBe('/tmp/db.sqlite')
+    expect(fileUrlToPath('file:C:/Users/ki/x.db')).toBe('C:/Users/ki/x.db')
+    expect(fileUrlToPath('file:C:\\Users\\ki\\x.db')).toBe('C:\\Users\\ki\\x.db')
+    expect(fileUrlToPath('file:///C:/Users/ki/x.db')).toBe('C:/Users/ki/x.db')
+    expect(fileUrlToPath('file:/C:/Users/ki/x.db')).toBe('C:/Users/ki/x.db')
+    expect(fileUrlToPath('file://localhost/C:/Users/ki/x.db')).toBe(
+      'C:/Users/ki/x.db'
+    )
+    expect(fileUrlToPath('./rel.db')).toBe('./rel.db')
+    expect(fileUrlToPath('file:./rel.db')).toBe('./rel.db')
+  })
+
+  it('normalizePrismaSqliteUrl rewrites Windows CANTOPEN forms', () => {
+    expect(normalizePrismaSqliteUrl('file:///C:/Users/ki/x.db')).toBe(
+      'file:C:/Users/ki/x.db'
+    )
+    expect(normalizePrismaSqliteUrl('file:/C:/Users/ki/x.db')).toBe(
+      'file:C:/Users/ki/x.db'
+    )
+    expect(normalizePrismaSqliteUrl('file:C:/Users/ki/x.db')).toBe(
+      'file:C:/Users/ki/x.db'
+    )
+    expect(normalizePrismaSqliteUrl('file:C:\\Users\\ki\\x.db')).toBe(
+      'file:C:/Users/ki/x.db'
+    )
+    expect(normalizePrismaSqliteUrl('file:///tmp/foo.db')).toBe(
+      'file:/tmp/foo.db'
+    )
+    expect(normalizePrismaSqliteUrl('postgres://h/db')).toBe('postgres://h/db')
+    expect(isAbsoluteFsPath('C:/Users/ki/x.db')).toBe(true)
+    expect(isAbsoluteFsPath('/tmp/foo.db')).toBe(true)
+    expect(isAbsoluteFsPath('./rel.db')).toBe(false)
+  })
+
+  it('does not percent-encode spaces or CJK (macOS Application Support / Windows users)', () => {
+    const mac = pathToFileUrl(
+      '/Users/ki/Library/Application Support/instant-drama-magician/instant-drama.db'
+    )
+    expect(mac).toBe(
+      'file:/Users/ki/Library/Application Support/instant-drama-magician/instant-drama.db'
+    )
+    expect(mac).not.toContain('%20')
+    const winSpace = pathToFileUrl(
+      'C:\\Users\\Jane Doe\\AppData\\Roaming\\instant-drama-magician\\instant-drama.db'
+    )
+    expect(winSpace).toBe(
+      'file:C:/Users/Jane Doe/AppData/Roaming/instant-drama-magician/instant-drama.db'
+    )
+    expect(winSpace).not.toContain('%20')
+    const winCjk = pathToFileUrl(
+      'C:\\Users\\王小明\\AppData\\Roaming\\instant-drama-magician\\instant-drama.db'
+    )
+    expect(winCjk).toBe(
+      'file:C:/Users/王小明/AppData/Roaming/instant-drama-magician/instant-drama.db'
+    )
+    expect(
+      normalizePrismaSqliteUrl(
+        'file:///C:/Users/Jane Doe/AppData/Roaming/instant-drama-magician/instant-drama.db'
+      )
+    ).toBe(
+      'file:C:/Users/Jane Doe/AppData/Roaming/instant-drama-magician/instant-drama.db'
+    )
+    const macPack = resolveAppPaths({
+      isDevRuntime: false,
+      platform: 'darwin',
+      home: '/Users/ki',
+      env: {}
+    })
+    expect(macPack.databaseUrl).toContain('Application Support')
+    expect(macPack.databaseUrl).not.toContain('%20')
+  })
+
+  it('fileUrlToPath strips query and hash', () => {
+    expect(fileUrlToPath('file:/tmp/foo.db?connection_limit=1')).toBe(
+      '/tmp/foo.db'
+    )
+    expect(
+      fileUrlToPath('file:C:/Users/ki/x.db?connection_limit=1#frag')
+    ).toBe('C:/Users/ki/x.db')
+    expect(
+      normalizePrismaSqliteUrl('file:///tmp/foo.db?socket_timeout=10')
+    ).toBe('file:/tmp/foo.db')
+    expect(toPrismaSqliteUrl).toBe(pathToFileUrl)
+    expect(fromPrismaSqliteUrl).toBe(fileUrlToPath)
   })
 
   it('legacy candidates include prisma/dev.db and idm share', () => {

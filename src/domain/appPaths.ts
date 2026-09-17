@@ -168,16 +168,80 @@ export function resolveAppPaths(opts: ResolveAppPathsOptions = {}): AppPaths {
   }
 }
 
-/** Prisma-compatible file URL (absolute path). */
-export function pathToFileUrl(absPath: string): string {
-  const resolved = resolve(absPath)
-  // Windows: file:C:\... is accepted by Prisma; prefer file:///C:/...
-  if (process.platform === 'win32' || /^[A-Za-z]:[\\/]/.test(resolved)) {
-    const normalized = resolved.replace(/\\/g, '/')
-    return `file:///${normalized}`
-  }
-  return `file:${resolved}`
+function isWindowsDrivePath(p: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(p)
 }
+
+/** Absolute unix or Windows drive path (not a Prisma file: URL). */
+export function isAbsoluteFsPath(p: string): boolean {
+  return p.startsWith('/') || isWindowsDrivePath(p)
+}
+
+/**
+ * Prisma SQLite file URL.
+ *
+ * Windows must be `file:C:/Users/...` (forward slashes, no extra slashes).
+ * `file:///C:/...` is a valid RFC 8089 URL, but Prisma's query engine treats
+ * the path as `/C:/...`, and SQLite then fails with error 14 (CANTOPEN) —
+ * the failure mode of every fresh Windows install.
+ */
+export function pathToFileUrl(absPath: string): string {
+  const trimmed = String(absPath || '').trim()
+  // Don't run Windows drive paths through posix resolve() (rewrites C:/… on Linux).
+  const resolved = isWindowsDrivePath(trimmed) ? trimmed : resolve(trimmed)
+  const posix = resolved.replace(/\\/g, '/')
+  if (isWindowsDrivePath(posix) || isWindowsDrivePath(resolved)) {
+    return `file:${posix}`
+  }
+  return `file:${posix.startsWith('/') ? posix : resolved}`
+}
+
+/**
+ * Filesystem path from a Prisma `file:` URL (or a bare path).
+ * Accepts the forms Prisma and this app have historically emitted:
+ *   file:/abs, file:///abs, file:C:/abs, file:C:\abs,
+ *   file:///C:/abs, file:/C:/abs, file://localhost/abs, file://host/abs
+ *
+ * Query/hash (`?connection_limit=1`) is stripped so it cannot become a filename.
+ */
+export function fileUrlToPath(url: string): string {
+  const raw = String(url || '').trim()
+  if (!raw.startsWith('file:')) return raw
+  const withoutQuery = raw.replace(/[?#].*$/, '')
+
+  let rest = withoutQuery.slice('file:'.length)
+  if (isWindowsDrivePath(rest)) return rest
+
+  // file://authority/path  (authority may be empty, localhost, or a host)
+  if (rest.startsWith('//')) {
+    const afterAuthority = rest.slice(2)
+    if (afterAuthority.startsWith('/')) {
+      rest = afterAuthority
+    } else {
+      const slash = afterAuthority.indexOf('/')
+      rest = slash >= 0 ? afterAuthority.slice(slash) : '/'
+    }
+  }
+
+  const drive = rest.match(/^\/+([A-Za-z]:[\\/].*)$/)
+  if (drive) return drive[1]
+
+  if (rest.startsWith('/')) return rest.replace(/^\/+/, '/')
+  return rest
+}
+
+/** Rewrite any `file:` URL into the Prisma-safe form (no-op for non-file URLs). */
+export function normalizePrismaSqliteUrl(url: string): string {
+  const raw = String(url || '').trim()
+  if (!raw.startsWith('file:')) return raw
+  return pathToFileUrl(fileUrlToPath(raw))
+}
+
+/** Alias: path → Prisma SQLite URL (`file:C:/…` / `file:/Users/…`). */
+export const toPrismaSqliteUrl = pathToFileUrl
+
+/** Alias: Prisma SQLite URL → filesystem path. */
+export const fromPrismaSqliteUrl = fileUrlToPath
 
 /**
  * Legacy locations we may migrate from (never delete automatically).

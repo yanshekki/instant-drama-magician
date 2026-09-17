@@ -15,7 +15,7 @@ export function mkdirNonFatal(dir: string): void {
 import { createRuntime, type AppRuntime } from '../../runtime/createRuntime'
 import type { IdmClient } from '../types'
 import { defaultDataDir } from '../config'
-import { resolveAppPaths } from '../../domain/appPaths'
+import { pathToFileUrl, resolveAppPaths } from '../../domain/appPaths'
 import { migrateAppDataIfNeeded } from '../../application/services/AppDataMigrationService'
 
 export interface LocalClientOptions {
@@ -77,5 +77,5 @@ export function resolveLocalDataDir(explicit?: string | null): string {
 }
 
 export function localDbUrl(dataDir: string): string {
-  return `file:${join(resolve(dataDir), 'instant-drama.db')}`
+  return pathToFileUrl(join(resolve(dataDir), 'instant-drama.db'))
 }
