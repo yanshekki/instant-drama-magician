@@ -49,6 +49,28 @@ describe('cmdDoctor', () => {
     vi.restoreAllMocks()
   })
 
+  it('local doctor sqlite list failure marks issues', async () => {
+    vi.mocked(resolveClient).mockResolvedValue(
+      mockClient({
+        invoke: vi.fn().mockImplementation(async (ch: string) => {
+          if (ch === 'stories:list') throw new Error('Unable to open the database file')
+          if (ch === 'app:getInfo') return { version: '1' }
+          if (ch === 'media:checkFfmpeg') return { available: true }
+          return {}
+        })
+      }) as never
+    )
+    await expect(
+      cmdDoctor({
+        json: true,
+        pretty: true,
+        yes: false,
+        help: false,
+        local: true
+      } as never)
+    ).rejects.toThrow(/process.exit/)
+  })
+
   it('local doctor json and human', async () => {
     await cmdDoctor({
       json: true,

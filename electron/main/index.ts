@@ -11,6 +11,7 @@ import { homedir } from 'os'
 import { extname, join, resolve as pathResolve, sep } from 'path'
 
 import {
+  ensureDataRoot,
   ensureDirsNonFatal,
   resolveAppIconPathFrom,
   collectAllowedMediaRoots,
@@ -27,7 +28,6 @@ import {
 import {
   createReadStream,
   existsSync,
-  mkdirSync,
   readFileSync,
   statSync,
   writeFileSync
@@ -174,17 +174,7 @@ const appPaths: AppPaths = resolveAppPaths({
   profile: process.env.IDM_PROFILE || null
 })
 app.setPath('userData', appPaths.dataRoot)
-try {
-  mkdirSync(appPaths.dataRoot, { recursive: true })
-} catch (e) {
-  // eslint-disable-next-line no-console
-  console.error(
-    '[appPaths] cannot create data root (SQLite will fail with error 14):',
-    appPaths.dataRoot,
-    e
-  )
-  throw e
-}
+ensureDataRoot(appPaths.dataRoot)
 ensureDirsNonFatal([
   appPaths.mediaRoot,
   appPaths.logsDir,

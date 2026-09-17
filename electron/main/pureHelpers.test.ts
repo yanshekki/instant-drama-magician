@@ -33,6 +33,7 @@ vi.mock('fs', async (importOriginal) => {
 })
 
 import {
+  ensureDataRoot,
   ensureDirsNonFatal,
   resolveAppIconPathFrom,
   collectAllowedMediaRoots,
@@ -66,6 +67,16 @@ describe('pureHelpers', () => {
     mkdirThrow.v = false
     ensureDirsNonFatal([join(dir, 'ok')])
     expect(existsSync(join(dir, 'ok'))).toBe(true)
+  })
+
+  it('ensureDataRoot creates or throws a SQLite-path error', () => {
+    ensureDataRoot(join(dir, 'root'))
+    expect(existsSync(join(dir, 'root'))).toBe(true)
+    mkdirThrow.v = true
+    expect(() => ensureDataRoot(join(dir, 'deny'))).toThrow(
+      /cannot create data root.*error 14/
+    )
+    mkdirThrow.v = false
   })
 
   it('resolveAppIconPathFrom hit and miss', () => {

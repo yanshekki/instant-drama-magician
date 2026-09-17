@@ -22,6 +22,18 @@ export function ensureDirsNonFatal(dirs: string[]): void {
   }
 }
 
+/** SQLite parent dir must exist; swallowing this later looks like error 14. */
+export function ensureDataRoot(dir: string): void {
+  try {
+    mkdirSync(dir, { recursive: true })
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e)
+    throw new Error(
+      `cannot create data root (SQLite will fail with error 14): ${dir}: ${detail}`
+    )
+  }
+}
+
 export function resolveAppIconPathFrom(candidates: string[]): string | undefined {
   for (const p of candidates) {
     if (p && existsSync(p)) return p
