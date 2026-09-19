@@ -13,7 +13,7 @@ Presentation（React 頁面／CLI／瀏覽器 UI）
   IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
-  registerAllHandlers + HandlerHost   ← 單一真相來源（約 189 channels）
+  registerAllHandlers + HandlerHost   ← 單一真相來源（約 190 channels）
         │
         ▼
   Application 服務（Generation、Timeline、Export、Backup…）
@@ -48,7 +48,7 @@ Presentation（React 頁面／CLI／瀏覽器 UI）
 | CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR`（預設 `OS app data 根（與桌面相同）`） |
 | Web／server | `server/index.ts` + `EmbeddedWebServer` | 同一 handlers；SPA 自 `out/renderer` |
 
-Channel 目錄：`src/runtime/channelManifest.ts`（**189** 個唯一 id）。
+Channel 目錄：`src/runtime/channelManifest.ts`（**190** 個唯一 id）。
 
 主要媒體介面：
 
@@ -103,7 +103,7 @@ Channel 目錄：`src/runtime/channelManifest.ts`（**189** 個唯一 id）。
 
 ## 出圖鎖走 PromptCatalog
 
-角色表、場地板、道具板、動作板、換裝與換氣氛的鎖定／版式句由 **PromptCatalog** 按介面語言組裝，政策與漫畫頁（`comic.*`）及藝術媒介句（`art.*`）相同。**十語每一鍵都是該語正文**（非英文表不得與英文全等）。Packs（`outputLock`、性別鎖定、鐵則 fallback）跟同一語系；準則為香港書面語。格數、變體 id、`galleryLabel` 等幾何資料留在 TypeScript。`buildCharacterSheetImagePrompt(..., locale?)` 這類組裝函式預設 `zh-HK`。正式介面經 `mediaGen:extract` 傳入 `payload.locale`（不加新 IPC；頻道仍為 **189**）。英文 `ArtStyleDef.promptBlock` 與變體 `layout` 字串只供舊佇列提示詞覆寫成介面語言。`introVideoTemplates.ts` 的鏡頭靜圖／導演句暫仍只有 zh-HK／en，未搬進十語目錄。
+角色表、場地板、道具板、動作板、換裝與換氣氛的鎖定／版式句由 **PromptCatalog** 按介面語言組裝，政策與漫畫頁（`comic.*`）及藝術媒介句（`art.*`）相同。**十語每一鍵都是該語正文**（非英文表不得與英文全等）。Packs（`outputLock`、性別鎖定、鐵則 fallback）跟同一語系；準則為香港書面語。格數、變體 id、`galleryLabel` 等幾何資料留在 TypeScript。`buildCharacterSheetImagePrompt(..., locale?)` 這類組裝函式預設 `zh-HK`。正式介面經 `mediaGen:extract` 傳入 `payload.locale`（不加新 IPC；頻道仍為 **190**）。英文 `ArtStyleDef.promptBlock` 與變體 `layout` 字串只供舊佇列提示詞覆寫成介面語言。`introVideoTemplates.ts` 的鏡頭靜圖／導演句暫仍只有 zh-HK／en，未搬進十語目錄。
 
 ## 資料路徑（Linux）
 

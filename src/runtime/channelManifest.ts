@@ -250,6 +250,7 @@ export const CORE_CHANNELS: ChannelSpec[] = [
   },
   { channel: 'ai:status', description: 'AI provider status' },
   { channel: 'ai:listModels', description: 'List available models' },
+  { channel: 'ai:listSdModels', description: 'List Stable Diffusion checkpoints' },
   { channel: 'ai:testChat', description: 'Smoke-test chat provider' },
   { channel: 'app:getInfo', description: 'App version and paths' },
   {
@@ -894,6 +895,7 @@ export const DESKTOP_CHANNEL_NAMES: string[] = [
   'ai:applyGrokDefaults',
   'ai:applyLlmPreset',
   'ai:listModels',
+  'ai:listSdModels',
   'ai:probeChat',
   'ai:probeVideo',
   'ai:status',

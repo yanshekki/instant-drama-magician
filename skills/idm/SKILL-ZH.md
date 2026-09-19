@@ -1,7 +1,7 @@
 ---
 name: instant-drama
 description: >-
-  用 instant-drama CLI 控制 InstantDrama Magician——189 個共用 channel：故事、章節、劇情焦點
+  用 instant-drama CLI 控制 InstantDrama Magician——190 個共用 channel：故事、章節、劇情焦點
  （suggestFromStory/segmentKeys）、角色、戲服、場景、道具、動作、漫畫、劇照、時間軸、生成、設定。
   當用戶要在終端機建立短劇、由章節／段落填資產、出片或改設定時使用。
 metadata:
@@ -19,7 +19,7 @@ metadata:
 
 # InstantDrama Magician（`instant-drama`）
 
-透過 **`instant-drama` CLI**（非 GUI）控制 **InstantDrama Magician**。桌面／web／CLI 共用 **189** 個 channel。
+透過 **`instant-drama` CLI**（非 GUI）控制 **InstantDrama Magician**。桌面／web／CLI 共用 **190** 個 channel。
 
 ## 一次性設定
 
@@ -49,7 +49,7 @@ instant-drama channels list --json
 instant-drama channels describe scenes:aiFill --json
 ```
 
-只呼叫 `channels list` 出現的 channel（應 **189**）。若缺少 channel，多半是二進位過舊。
+只呼叫 `channels list` 出現的 channel（應 **190**）。若缺少 channel，多半是二進位過舊。
 
 ## 輸出契約
 
@@ -69,7 +69,7 @@ instant-drama open --dev
 
 支援 **macOS、Ubuntu/Linux、Windows**。macOS 目標在 Mac 上建。
 
-## 全控制（189 channels）
+## 全控制（190 channels）
 
 ```bash
 instant-drama channels list --json

@@ -103,7 +103,7 @@ Cross-build: mac installers need a Mac. Use `--force` only when you know the too
 
 ## Discovery & invoke
 
-Electron, Web, and CLI share **`registerAllHandlers`** — **189** channels.
+Electron, Web, and CLI share **`registerAllHandlers`** — **190** channels.
 
 ```bash
 instant-drama doctor --json
@@ -141,7 +141,7 @@ Desktop, Web, and CLI share one registry. Prefer **domain sugar** or `invoke`.
 
 **Character photo book** adds **one** channel (`characters:renderPhotoBook`). Stills use existing `mediaGen:*` (`kind=character-photoshoot`). GUI film uses `kind=character-photoshoot-clip` (same MediaGen video steps as intros: extract → polish director prompt → skip still → `videoPrep:confirm`), then `concatOnly` to stitch **the current album**. Clip extract uses that album’s stills as the pixel edit base (identity refs stay vision-only). Permanent albums live in `profileJson.photoBook.albums` (legacy top-level `shots` migrate into `album_default`; not identity `refGalleryJson`). GUI picks the camera template on the photo-book editor and can change it again in the MediaGen video shell. Timeline beats and key-art shots store `cameraTemplateId` the same way (`timeline:update` / `keyArt:updateShot`). MediaGen stills (`timeline-still`, `key-art`, `story-cover`, `character-photoshoot`) and video kinds accept payload `introTemplateId` on `mediaGen:extract`. CLI `ai-clips` still takes `introTemplateId`; optional `albumId` selects which album to stitch.
 
-**Spatial package (1.11.3)** adds **five** channels (`spatial:compileBeat`, `spatial:importPackage`, `spatial:attachRef`, `spatial:blenderStatus`, `spatial:generateMesh`) — **189** total. Clay / playblast stills lock blocking for storyboard stills, then existing I2V. Optional textured-plane glTF is a stage proxy, not beauty render. Blender is a CLI client — see [blender.md](./blender.md). Do not list every channel here; use `channels describe`.
+**Spatial package (1.11.3)** adds **five** channels (`spatial:compileBeat`, `spatial:importPackage`, `spatial:attachRef`, `spatial:blenderStatus`, `spatial:generateMesh`) — **190** total. Clay / playblast stills lock blocking for storyboard stills, then existing I2V. Optional textured-plane glTF is a stage proxy, not beauty render. Blender is a CLI client — see [blender.md](./blender.md). Do not list every channel here; use `channels describe`.
 
 **Ten-locale PromptCatalog** — sheet / plate / swap / geometry / quality locks and packs are native in all UI languages (Hong Kong written Chinese is the source register). `mediaGen:extract` passes `payload.locale`. No extra channel.
 
@@ -247,7 +247,7 @@ Failure: `{ "ok": false, "error": { "code", "message" } }`
 | Capability | Status |
 |------------|--------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel count | **189** |
+| Channel count | **190** |
 | `instant-drama invoke` | ✅ any channel |
 | Domain sugar | ✅ all namespaces |
 | OpenAI tool schema | ✅ |

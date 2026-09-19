@@ -35,6 +35,6 @@ Trial-deepening layer on top of Beta: **controllable generation, dialogue audio,
 - Compositing multi-track NLE (condition lanes on the timeline are not overlay layers)  
 - Studio-grade TTS / auto scoring  
 
-> **After v1.0.0:** multi-platform GitHub Release, electron-updater, activity log + support report, full CLI/Web runtime (now **189** channels). See [commercial.md](./commercial.md).
+> **After v1.0.0:** multi-platform GitHub Release, electron-updater, activity log + support report, full CLI/Web runtime (now **190** channels). See [commercial.md](./commercial.md).
 
 RC transitions/aspect: [rc.md](./rc.md). Release: [release.md](./release.md).

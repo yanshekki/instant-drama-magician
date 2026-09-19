@@ -13,7 +13,7 @@ Presentation (React pages / CLI / browser UI)
   IPC  |  HTTP POST /api/invoke  |  instant-drama invoke
         │
         ▼
-  registerAllHandlers + HandlerHost   ← single source of truth (~189 channels)
+  registerAllHandlers + HandlerHost   ← single source of truth (~190 channels)
         │
         ▼
   Application services (Generation, Timeline, Export, Backup, …)
@@ -48,7 +48,7 @@ Same runtime, three desks — timeline board, comic page, key-art still:
 | CLI local | `src/cli` + `createRuntime` | `IDM_DATA_DIR` (default `OS app data root (same as desktop)`) |
 | Web / server | `server/index.ts` + `EmbeddedWebServer` | Same handlers; SPA from `out/renderer` |
 
-Channel catalog: `src/runtime/channelManifest.ts` (**189** unique ids).
+Channel catalog: `src/runtime/channelManifest.ts` (**190** unique ids).
 
 Notable media surfaces:
 
@@ -103,7 +103,7 @@ Chapters → Cast (generateCast) → Beats → Characters / Scenes / Props / Act
 
 ## Image prompt locks (PromptCatalog)
 
-Character sheets, location plates, prop plates, action boards, costume swap, and atmosphere swap assemble lock and layout sentences from **PromptCatalog** in the UI language — the same policy as comic pages (`comic.*`) and art-medium lines (`art.*`). **Every catalog key is native in all ten locales** (non-English tables must not equal English). Packs (`outputLock`, sex locks, hard-rule fallbacks) follow the same locale; Hong Kong written Chinese is the source register. Geometry (panel counts, variant ids, `galleryLabel`) stays in TypeScript. Builders such as `buildCharacterSheetImagePrompt(..., locale?)` default to `zh-HK`. Production UI goes through `mediaGen:extract` and passes `payload.locale` (no extra IPC channel; catalog stays **189**). English `ArtStyleDef.promptBlock` and variant `layout` strings remain only so leftover queued prompts can be rewritten into the UI language. Camera still/director templates in `introVideoTemplates.ts` stay zh-HK / en until a later catalog move.
+Character sheets, location plates, prop plates, action boards, costume swap, and atmosphere swap assemble lock and layout sentences from **PromptCatalog** in the UI language — the same policy as comic pages (`comic.*`) and art-medium lines (`art.*`). **Every catalog key is native in all ten locales** (non-English tables must not equal English). Packs (`outputLock`, sex locks, hard-rule fallbacks) follow the same locale; Hong Kong written Chinese is the source register. Geometry (panel counts, variant ids, `galleryLabel`) stays in TypeScript. Builders such as `buildCharacterSheetImagePrompt(..., locale?)` default to `zh-HK`. Production UI goes through `mediaGen:extract` and passes `payload.locale` (no extra IPC channel; catalog stays **190**). English `ArtStyleDef.promptBlock` and variant `layout` strings remain only so leftover queued prompts can be rewritten into the UI language. Camera still/director templates in `introVideoTemplates.ts` stay zh-HK / en until a later catalog move.
 
 ## Data paths (Linux)
 

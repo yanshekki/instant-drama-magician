@@ -35,6 +35,6 @@
 - 後期合成式多軌（時間軸條件軌不是疊圖層）  
 - 商用級 TTS／自動配樂  
 
-> **v1.0.0 之後已補：** 多平台 GitHub Release、electron-updater、活動日誌與支援報告、完整 CLI／Web runtime（現為 **189** channels）。見 [commercial-ZH.md](./commercial-ZH.md)。
+> **v1.0.0 之後已補：** 多平台 GitHub Release、electron-updater、活動日誌與支援報告、完整 CLI／Web runtime（現為 **190** channels）。見 [commercial-ZH.md](./commercial-ZH.md)。
 
 RC 轉場／比例：[rc-ZH.md](./rc-ZH.md)。發版：[release-ZH.md](./release-ZH.md)。

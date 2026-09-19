@@ -103,7 +103,7 @@ instant-drama app open|build
 
 ## 探索與 invoke
 
-Electron、Web、CLI 共用 **`registerAllHandlers`** — **189** 個 channel。
+Electron、Web、CLI 共用 **`registerAllHandlers`** — **190** 個 channel。
 
 ```bash
 instant-drama doctor --json
@@ -141,7 +141,7 @@ Namespaces 包括：`actions` `activity` `ai` `app` `chapters` `characters` `com
 
 **角色攝影集**只加 **一條** channel（`characters:renderPhotoBook`）。靜圖沿用現有 `mediaGen:*`（`kind=character-photoshoot`）。桌面出片走 `kind=character-photoshoot-clip`（與介紹片 MediaGen 步驟相同：提取 → 潤飾導演提示 → 跳過靜圖 → `videoPrep:confirm`），再以 `concatOnly` 串 **當前相冊**。短片提取以該相冊靜圖做像素底圖（人設參考只作視覺參考）。永久相冊記在 `profileJson.photoBook.albums`（舊頂層 `shots` 會遷入 `album_default`；不寫入身分 `refGalleryJson`）。桌面鏡頭範本在攝影集編輯欄選擇，出影片彈窗可再改。時間軸節拍與主視覺鏡頭同樣以 `cameraTemplateId` 記住（`timeline:update`／`keyArt:updateShot`）。MediaGen 靜圖（`timeline-still`、`key-art`、`story-cover`、`character-photoshoot`）與視頻 kind 可在 `mediaGen:extract` 傳 `introTemplateId`。CLI `ai-clips` 仍然使用 `introTemplateId`；可選 `albumId` 指定要串的相冊。
 
-**空間交換包（1.11.3）**加 **五條** channel（`spatial:compileBeat`、`spatial:importPackage`、`spatial:attachRef`、`spatial:blenderStatus`、`spatial:generateMesh`）——合計 **189**。白模靜圖鎖定分鏡靜圖的走位，再走現有圖生影片。可選貼圖平面 glTF 只是走位代理，不是成片。Blender 是命令列客戶端——見 [blender-ZH.md](./blender-ZH.md)。請用 `channels describe`，此處不羅列全部 channel。
+**空間交換包（1.11.3）**加 **五條** channel（`spatial:compileBeat`、`spatial:importPackage`、`spatial:attachRef`、`spatial:blenderStatus`、`spatial:generateMesh`）——合計 **190**。白模靜圖鎖定分鏡靜圖的走位，再走現有圖生影片。可選貼圖平面 glTF 只是走位代理，不是成片。Blender 是命令列客戶端——見 [blender-ZH.md](./blender-ZH.md)。請用 `channels describe`，此處不羅列全部 channel。
 
 **十語 PromptCatalog**——角色表／場地板／換裝／幾何／畫質鎖與 packs 均為該語正文（準則為香港書面語）。`mediaGen:extract` 傳 `payload.locale`。不加 channel。
 
@@ -247,7 +247,7 @@ instant-drama server start --port 8787 --host 0.0.0.0
 | 能力 | 狀態 |
 |------|------|
 | Shared `registerAllHandlers` | ✅ Electron + web + CLI |
-| Channel 數 | **189** |
+| Channel 數 | **190** |
 | `instant-drama invoke` | ✅ 任意 channel |
 | Domain sugar | ✅ 全部 namespace |
 | OpenAI tool schema | ✅ |

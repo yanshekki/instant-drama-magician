@@ -21,7 +21,7 @@ metadata:
 
 # InstantDrama Magician (`instant-drama`)
 
-You control **InstantDrama Magician** through the **`instant-drama` CLI** (not the GUI). Desktop, web, and CLI share **189** channels.
+You control **InstantDrama Magician** through the **`instant-drama` CLI** (not the GUI). Desktop, web, and CLI share **190** channels.
 
 ## Setup (once)
 
@@ -51,7 +51,7 @@ instant-drama channels list --json
 instant-drama channels describe scenes:aiFill --json
 ```
 
-Only call channels that appear in `channels list` (expect **189**). If a channel is missing, the binary is likely outdated.
+Only call channels that appear in `channels list` (expect **190**). If a channel is missing, the binary is likely outdated.
 
 ## Output contract
 
@@ -71,7 +71,7 @@ instant-drama open --dev
 
 Supports **macOS, Ubuntu/Linux, Windows**. Build macOS targets on a Mac.
 
-## Full control (189 channels)
+## Full control (190 channels)
 
 ```bash
 instant-drama channels list --json
