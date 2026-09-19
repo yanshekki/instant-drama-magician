@@ -6,11 +6,11 @@
 **Tagline:** AI professional short-drama desktop tool  
 **Type:** Cross-platform Electron desktop application  
 
-> ### Status note (v1.11.3)
+> ### Status note (v1.11.4)
 >
 > | Item | Current |
 > |------|---------|
-> | Version | **1.11.3** |
+> | Version | **1.11.4** |
 > | Pages | Stories (chapters + multi-select plot beats) · Characters · **Costumes** · Scenes · Props · **Comics** · **Key art** · Timeline (track + pipeline board) · Activity · Settings |
 > | i18n | **10** locales; OS completion notifications; native system / director prompts (PromptCatalog + packs); HK / Mainland written Chinese; **photo book** + camera templates; **advanced field-kit chrome** |
 > | CLI / Web | Full **190**-channel shared runtime |
