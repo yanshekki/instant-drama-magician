@@ -2,7 +2,7 @@
 
 > **Language:** [English](./architecture.md) · [中文](./architecture-ZH.md)
 
-Version **1.11.2**. Presentation → Application → Domain → Infrastructure, with a **shared handler runtime** used by Electron, Web, and CLI.
+Version **1.11.3**. Presentation → Application → Domain → Infrastructure, with a **shared handler runtime** used by Electron, Web, and CLI.
 
 ## Layers
 
