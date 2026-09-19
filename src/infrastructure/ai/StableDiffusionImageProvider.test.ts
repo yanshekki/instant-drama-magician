@@ -383,6 +383,15 @@ describe('StableDiffusionImageProvider', () => {
     expect(await p.listCheckpoints()).toEqual([])
   })
 
+  it('listCheckpoints returns [] when both HTTP responses are not ok', async () => {
+    const fetchImpl = vi.fn(async () => new Response('no', { status: 404 })) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:8188',
+      fetchImpl
+    })
+    expect(await p.listCheckpoints()).toEqual([])
+  })
+
   it('Stability edit uses image-to-image', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-sdi-'))
     const img = join(dir, 'b.png')
