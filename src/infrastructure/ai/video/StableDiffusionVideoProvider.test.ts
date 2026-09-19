@@ -617,6 +617,69 @@ describe('StableDiffusionVideoProvider', () => {
     ).rejects.toThrow('ad-fail')
   })
 
+  it('ComfyUI 9:16 workflow', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const out = join(dir, 'c.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/video/models')) return new Response('no', { status: 404 })
+      if (url.includes('/system_stats')) return new Response('{}', { status: 200 })
+      if (url.endsWith('/prompt')) {
+        return new Response(JSON.stringify({ prompt_id: 'p16' }), { status: 200 })
+      }
+      if (url.includes('/history/p16')) {
+        return new Response(
+          JSON.stringify({
+            p16: { outputs: { '9': { images: [{ filename: 'v.mp4' }] } } }
+          }),
+          { status: 200 }
+        )
+      }
+      if (url.includes('/view')) return new Response(MP4, { status: 200 })
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:8188',
+      aspectRatio: '9:16',
+      comfyWorkflow: '{"n":{"class_type":"X","inputs":{}}}',
+      fetchImpl
+    })
+    await p.generate({ prompt: 'x', durationSeconds: 2, outputPath: out })
+  })
+
+  it('Stability T2V 1:1 still-then-I2V', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const out = join(dir, 'clip.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/stable-image/generate/sd3')) {
+        return new Response(
+          JSON.stringify({ image: PNG.toString('base64') }),
+          { status: 200 }
+        )
+      }
+      if (init?.method === 'POST' && url.includes('/image-to-video')) {
+        return new Response(JSON.stringify({ id: 'j9' }), { status: 200 })
+      }
+      if (url.includes('/image-to-video/result/')) {
+        return new Response(JSON.stringify({ video: MP4.toString('base64') }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+      }
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk-test',
+      pollMs: 1,
+      timeoutSec: 30,
+      aspectRatio: '1:1',
+      fetchImpl
+    })
+    await p.generate({ prompt: 'x', durationSeconds: 4, outputPath: out })
+  })
+
   it('ComfyUI 1:1 workflow', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
     const out = join(dir, 'c.mp4')
