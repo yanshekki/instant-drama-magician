@@ -52,6 +52,8 @@ describe('GrokCliClient', () => {
     })
     const r = await c.generateImage({ prompt: 'a lamp', size: '1024x1024' })
     expect(r.b64).toBe(png)
+    const names = await c.listSdModels()
+    expect(Array.isArray(names)).toBe(true)
   })
 
   it('aliases OpenAiCompatibleClient and videoProvider modes', () => {

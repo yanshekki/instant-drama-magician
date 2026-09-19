@@ -132,4 +132,133 @@ describe('StableDiffusionImageProvider', () => {
     })
     await p.generate({ prompt: 'x', size: '1024x1024' })
   })
+
+  it('probe Stability without key', async () => {
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: ''
+    })
+    const s = await p.probe()
+    expect(s.available).toBe(false)
+  })
+
+  it('probe ComfyUI via system_stats', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (String(input).includes('/system_stats')) {
+        return new Response('{}', { status: 200 })
+      }
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:8188',
+      fetchImpl
+    })
+    expect((await p.probe()).message).toContain('ComfyUI')
+  })
+
+  it('listCheckpoints from WebUI titles', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (String(input).includes('/system_stats')) {
+        return new Response('no', { status: 404 })
+      }
+      return new Response(
+        JSON.stringify([{ model_name: 'a.safetensors', title: 'A' }]),
+        { status: 200 }
+      )
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    expect(await p.listCheckpoints()).toContain('a.safetensors')
+  })
+
+  it('listCheckpoints Stability catalog', async () => {
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk'
+    })
+    expect(await p.listCheckpoints()).toContain('sd3.5-large')
+  })
+
+  it('WebUI 404 maps to sdWebuiNoApi', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (String(input).includes('/system_stats')) {
+        return new Response('no', { status: 404 })
+      }
+      return new Response('missing', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toMatchObject({
+      message: 'errors.sdWebuiNoApi'
+    })
+  })
+
+  it('empty WebUI images array fails', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (String(input).includes('/system_stats')) {
+        return new Response('no', { status: 404 })
+      }
+      return new Response(JSON.stringify({ images: [] }), { status: 200 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toMatchObject({
+      code: 'AI_FAILED'
+    })
+  })
+
+  it('ComfyUI generate uses /prompt and /view', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/system_stats')) return new Response('{}', { status: 200 })
+      if (url.endsWith('/prompt')) {
+        return new Response(JSON.stringify({ prompt_id: 'p1' }), { status: 200 })
+      }
+      if (url.includes('/history/')) {
+        return new Response(
+          JSON.stringify({
+            p1: { outputs: { '9': { images: [{ filename: 'a.png' }] } } }
+          }),
+          { status: 200 }
+        )
+      }
+      if (url.includes('/view')) return new Response(PNG, { status: 200 })
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:8188',
+      fetchImpl
+    })
+    const r = await p.generate({ prompt: 'lamp', size: '1024x1024' })
+    expect(r.b64).toBeTruthy()
+  })
+
+  it('edit missing file throws VALIDATION', async () => {
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860'
+    })
+    await expect(
+      p.edit({ prompt: 'x', imagePath: '/no/such.png', size: '1024x1024' })
+    ).rejects.toMatchObject({ code: 'VALIDATION' })
+  })
+
+  it('Stability 402 maps to credits error', async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response('no credits', { status: 402 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      fetchImpl
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toMatchObject({
+      message: 'errors.sdStabilityCredits'
+    })
+  })
 })

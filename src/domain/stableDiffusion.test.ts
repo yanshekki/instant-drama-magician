@@ -9,6 +9,7 @@ import {
   animateDiffFrameCount,
   clampSdMotionBucket,
   clampSdVideoFps,
+  comfySamplerName,
   detectSdBackend,
   mergeSdNegative,
   sdAuthHeaders,
@@ -83,5 +84,7 @@ describe('stableDiffusion mapping', () => {
     )
     expect(clampSdMotionBucket(0)).toBe(1)
     expect(clampSdVideoFps(3)).toBe(6)
+    expect(comfySamplerName('Euler a')).toBe('euler_ancestral')
+    expect(comfySamplerName('nope')).toBe('dpmpp_2m')
   })
 })
