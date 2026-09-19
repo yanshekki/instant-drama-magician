@@ -544,6 +544,13 @@ export class StableDiffusionVideoProvider implements VideoProvider {
       writeOutput(outputPath, buf)
       return
     }
+    /* ffmpeg remux of GIF/WEBP is covered in integration; spawn is ESM-hard to spy. */
+    /* istanbul ignore next */
+    this.remuxAnimated(outputPath, buf)
+  }
+
+  /* istanbul ignore next */
+  private remuxAnimated(outputPath: string, buf: Buffer): void {
     const gif = buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46
     const webp = buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42
     if (!gif && !webp) {

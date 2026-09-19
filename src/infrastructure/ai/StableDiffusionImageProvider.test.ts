@@ -460,4 +460,15 @@ describe('StableDiffusionImageProvider', () => {
     })
     await p.edit({ prompt: 'x', imagePath: img, size: '1024x1024' })
   })
+
+  it('probe non-Error throw uses Unreachable message', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw 'offline'
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    expect((await p.probe()).message).toContain('Unreachable')
+  })
 })
