@@ -762,4 +762,87 @@ describe('StableDiffusionVideoProvider', () => {
       })
     ).rejects.toBeTruthy()
   })
+
+  it('AnimateDiff HTTP 500', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/system_stats') || url.includes('/video/models')) {
+        return new Response('no', { status: 404 })
+      }
+      return new Response('server', { status: 500 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await expect(
+      p.generate({
+        prompt: 'x',
+        durationSeconds: 2,
+        outputPath: join(dir, 'x.mp4')
+      })
+    ).rejects.toBeTruthy()
+  })
+
+  it('Stability poll empty json video', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const still = join(dir, 's.png')
+    writeFileSync(still, PNG)
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.includes('/image-to-video')) {
+        return new Response(JSON.stringify({ id: 'jz' }), { status: 200 })
+      }
+      if (url.includes('/result/jz')) {
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+      }
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      pollMs: 1,
+      timeoutSec: 15,
+      fetchImpl
+    })
+    await expect(
+      p.generate({
+        prompt: 'x',
+        durationSeconds: 4,
+        refImagePath: still,
+        outputPath: join(dir, 'o.mp4')
+      })
+    ).rejects.toMatchObject({ code: 'VIDEO_JOB_FAILED' })
+  })
+
+  it('Stability poll deadline expires', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const still = join(dir, 's.png')
+    writeFileSync(still, PNG)
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ id: 'late' }), { status: 200 })
+      }
+      return new Response('{}', { status: 202 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      pollMs: 1,
+      timeoutSec: 0,
+      fetchImpl
+    })
+    await expect(
+      p.generate({
+        prompt: 'x',
+        durationSeconds: 4,
+        refImagePath: still,
+        outputPath: join(dir, 'o.mp4')
+      })
+    ).rejects.toMatchObject({ code: 'VIDEO_TIMEOUT' })
+  })
 })
