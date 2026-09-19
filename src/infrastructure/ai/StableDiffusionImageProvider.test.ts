@@ -461,6 +461,59 @@ describe('StableDiffusionImageProvider', () => {
     await p.edit({ prompt: 'x', imagePath: img, size: '1024x1024' })
   })
 
+  it('listCheckpoints non-array checkpoints payload', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/sd-models')) return new Response('no', { status: 500 })
+      if (url.includes('/models/checkpoints')) {
+        return new Response(JSON.stringify({ not: 'array' }), { status: 200 })
+      }
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:8188',
+      fetchImpl
+    })
+    expect(await p.listCheckpoints()).toEqual([])
+  })
+
+  it('Stability fetch timeout', async () => {
+    const err = Object.assign(new Error('aborted'), { name: 'TimeoutError' })
+    const fetchImpl = vi.fn(async () => {
+      throw err
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      fetchImpl
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toMatchObject({
+      code: 'AI_TIMEOUT'
+    })
+  })
+
+  it('Stability fetch generic error', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('net')
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      fetchImpl
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toThrow('net')
+  })
+
+  it('Stability HTTP 500', async () => {
+    const fetchImpl = vi.fn(async () => new Response('x', { status: 500 })) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      fetchImpl
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toBeTruthy()
+  })
+
   it('probe non-Error throw uses Unreachable message', async () => {
     const fetchImpl = vi.fn(async () => {
       throw 'offline'

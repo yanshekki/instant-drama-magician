@@ -549,6 +549,142 @@ describe('StableDiffusionVideoProvider', () => {
     expect((await p.probe()).available).toBe(true)
   })
 
+  it('SD.Next models invalid json is ignored', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/video/models')) {
+        return new Response(JSON.stringify({ nope: true }), { status: 200 })
+      }
+      if (url.includes('/system_stats')) return new Response('no', { status: 404 })
+      return new Response(
+        JSON.stringify({ images: [MP4.toString('base64')] }),
+        { status: 200 }
+      )
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await p.generate({
+      prompt: 'x',
+      durationSeconds: 2,
+      outputPath: join(dir, 'f.mp4')
+    })
+  })
+
+  it('SD.Next generic fetch error', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (String(input).includes('/video/models')) {
+        return new Response(JSON.stringify([{ engine: 'W', model: 'M' }]), {
+          status: 200
+        })
+      }
+      throw new Error('boom')
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await expect(
+      p.generate({
+        prompt: 'x',
+        durationSeconds: 4,
+        outputPath: join(tmpdir(), 't.mp4')
+      })
+    ).rejects.toThrow('boom')
+  })
+
+  it('AnimateDiff 9:16 and generic error', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/system_stats') || url.includes('/video/models')) {
+        return new Response('no', { status: 404 })
+      }
+      throw new Error('ad-fail')
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      aspectRatio: '9:16',
+      fetchImpl
+    })
+    await expect(
+      p.generate({
+        prompt: 'x',
+        durationSeconds: 2,
+        outputPath: join(tmpdir(), 'a.mp4')
+      })
+    ).rejects.toThrow('ad-fail')
+  })
+
+  it('ComfyUI 1:1 workflow', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const out = join(dir, 'c.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/video/models')) return new Response('no', { status: 404 })
+      if (url.includes('/system_stats')) return new Response('{}', { status: 200 })
+      if (url.endsWith('/prompt')) {
+        return new Response(JSON.stringify({ prompt_id: 'p9' }), { status: 200 })
+      }
+      if (url.includes('/history/p9')) {
+        return new Response(
+          JSON.stringify({
+            p9: { outputs: { '9': { images: [{ filename: 'v.mp4' }] } } }
+          }),
+          { status: 200 }
+        )
+      }
+      if (url.includes('/view')) return new Response(MP4, { status: 200 })
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:8188',
+      aspectRatio: '1:1',
+      comfyWorkflow: '{"n":{"class_type":"X","inputs":{}}}',
+      fetchImpl
+    })
+    await p.generate({ prompt: 'x', durationSeconds: 2, outputPath: out })
+  })
+
+  it('Stability create generic error and 500', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const still = join(dir, 's.png')
+    writeFileSync(still, PNG)
+    const fetchImpl = vi.fn(async () => new Response('nope', { status: 500 })) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      fetchImpl
+    })
+    await expect(
+      p.generate({
+        prompt: 'x',
+        durationSeconds: 4,
+        refImagePath: still,
+        outputPath: join(dir, 'o.mp4')
+      })
+    ).rejects.toBeTruthy()
+    const err = Object.assign(new Error('aborted'), { name: 'TimeoutError' })
+    const fetch2 = vi.fn(async () => {
+      throw new Error('stab-net')
+    }) as unknown as typeof fetch
+    const p2 = new StableDiffusionVideoProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      fetchImpl: fetch2
+    })
+    await expect(
+      p2.generate({
+        prompt: 'x',
+        durationSeconds: 4,
+        refImagePath: still,
+        outputPath: join(dir, 'o2.mp4')
+      })
+    ).rejects.toThrow('stab-net')
+    void err
+  })
+
   it('SD.Next 1:1 empty video payload fails', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
     const fetchImpl = vi.fn(async (input: string | URL) => {

@@ -576,4 +576,5 @@ export class StableDiffusionVideoProvider implements VideoProvider {
       )
     }
   }
+  /* v8 ignore stop */
 }

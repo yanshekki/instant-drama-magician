@@ -71,6 +71,25 @@ describe('ComfyUiClient', () => {
     })
   })
 
+  it('queue timeout', async () => {
+    const err = Object.assign(new Error('aborted'), { name: 'TimeoutError' })
+    const fetchImpl = vi.fn(async () => {
+      throw err
+    }) as unknown as typeof fetch
+    const c = ComfyUiClient.from('http://x', '', fetchImpl, 1000)
+    await expect(c.queue({ '1': { class_type: 'X', inputs: {} } })).rejects.toMatchObject({
+      code: 'AI_TIMEOUT'
+    })
+  })
+
+  it('queue generic network error', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('down')
+    }) as unknown as typeof fetch
+    const c = ComfyUiClient.from('http://x', '', fetchImpl, 1000)
+    await expect(c.queue({ '1': { class_type: 'X', inputs: {} } })).rejects.toThrow('down')
+  })
+
   it('queue HTTP error', async () => {
     const fetchImpl = vi.fn(async () => {
       return new Response('bad graph', { status: 400 })
