@@ -476,6 +476,7 @@ const api: ElectronApi & {
     probeVideo: () => ipcRenderer.invoke('ai:probeVideo'),
     probeChat: () => ipcRenderer.invoke('ai:probeChat'),
     listModels: () => ipcRenderer.invoke('ai:listModels'),
+    listSdModels: () => ipcRenderer.invoke('ai:listSdModels'),
     testChat: (prompt?: string) => ipcRenderer.invoke('ai:testChat', prompt),
     applyLlmPreset: (preset: string) =>
       ipcRenderer.invoke('ai:applyLlmPreset', preset),

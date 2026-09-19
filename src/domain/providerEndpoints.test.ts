@@ -32,6 +32,24 @@ describe('resolveChatEndpoint', () => {
 })
 
 describe('resolveImageEndpoint', () => {
+  it('resolves Stable Diffusion WebUI default 7860', () => {
+    const ep = resolveImageEndpoint(
+      s({
+        imageProvider: 'stable-diffusion',
+        imageBaseUrl: '',
+        imageApiKey: ''
+      })
+    )
+    expect(ep.baseUrl).toBe('http://127.0.0.1:7860')
+    expect(ep.apiKey).toBe('')
+    expect(imageProviderOptions().some((o) => o.id === 'stable-diffusion')).toBe(
+      true
+    )
+    expect(channelPresetBaseUrl('stable-diffusion')).toBe(
+      'http://127.0.0.1:7860'
+    )
+  })
+
   it('inherits chat when same-as-llm', () => {
     const chat = s({
       baseUrl: 'http://127.0.0.1:3847/v1',
@@ -112,6 +130,15 @@ describe('resolveVideoEndpoint', () => {
     expect(ep.apiKey).toBe('gk')
   })
 
+  it('resolves Stable Diffusion video to WebUI 7860', () => {
+    const ep = resolveVideoEndpoint(
+      s({ videoProvider: 'stable-diffusion', videoBaseUrl: '' })
+    )
+    expect(ep.baseUrl).toBe('http://127.0.0.1:7860')
+    expect(ep.videoPath).toBe('sd://video')
+    expect(ep.mode).toBe('http')
+  })
+
   it('stub forces stub mode', () => {
     const ep = resolveVideoEndpoint(s({ videoProvider: 'stub' }))
     expect(ep.mode).toBe('stub')
@@ -153,6 +180,7 @@ describe('provider option catalogs (capability-filtered)', () => {
     expect(ids).toEqual([
       'same-as-llm',
       'seedream',
+      'stable-diffusion',
       ...imageCapablePresets().map((p) => p.id)
     ])
     // Chat-only must not appear
@@ -177,6 +205,7 @@ describe('provider option catalogs (capability-filtered)', () => {
       'same-as-llm',
       'stub',
       'seedance',
+      'stable-diffusion',
       ...videoCapablePresets().map((p) => p.id)
     ])
     // xAI video uses /videos/generations — not our client

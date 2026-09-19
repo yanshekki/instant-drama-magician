@@ -18,6 +18,7 @@ import {
   VOLC_ARK_BASE_URL,
   type LlmProviderPreset
 } from './openaiCompatible'
+import { SD_WEBUI_DEFAULT_BASE } from './stableDiffusion'
 import type {
   AppSettings,
   ImageProviderMode,
@@ -73,6 +74,15 @@ export function resolveImageEndpoint(s: AppSettings): ResolvedEndpoint {
         (s.model?.toLowerCase().includes('seedream')
           ? s.model
           : DEFAULT_SEEDREAM_MODEL)
+    }
+  }
+  if (s.imageProvider === 'stable-diffusion') {
+    return {
+      baseUrl: stripSlash(
+        s.imageBaseUrl?.trim() || SD_WEBUI_DEFAULT_BASE
+      ),
+      apiKey: s.imageApiKey?.trim() || '',
+      model: s.imageModel?.trim() || ''
     }
   }
   const preset = coerceLlmProviderPreset(s.imageProvider)
@@ -148,6 +158,20 @@ export function resolveVideoEndpoint(s: AppSettings): ResolvedVideoEndpoint {
       model: chat.model,
       mode: 'stub',
       videoPath: s.videoPath || GROK_GATEWAY_VIDEO_PATH
+    }
+  }
+
+  if (vp === 'stable-diffusion') {
+    const imgSd =
+      s.imageProvider === 'stable-diffusion' ? resolveImageEndpoint(s) : null
+    return {
+      baseUrl: stripSlash(
+        s.videoBaseUrl?.trim() || imgSd?.baseUrl || SD_WEBUI_DEFAULT_BASE
+      ),
+      apiKey: s.videoApiKey?.trim() || imgSd?.apiKey || '',
+      model: s.videoModel?.trim() || '',
+      mode: 'http',
+      videoPath: 'sd://video'
     }
   }
 
@@ -227,6 +251,7 @@ export function channelPresetBaseUrl(
 ): string {
   if (id === 'same-as-llm' || id === 'stub') return ''
   if (id === 'seedance' || id === 'seedream') return VOLC_ARK_BASE_URL
+  if (id === 'stable-diffusion') return SD_WEBUI_DEFAULT_BASE
   if (!isLlmProviderPreset(id)) return ''
   return getLlmPresetDef(id)?.baseUrl ?? ''
 }
@@ -254,6 +279,12 @@ export function imageProviderOptions(): ChannelOption[] {
       labelKey: 'seedream',
       channelLabel: true,
       group: 'channel'
+    },
+    {
+      id: 'stable-diffusion',
+      labelKey: 'stableDiffusion',
+      channelLabel: true,
+      group: 'local'
     },
     ...imageCapablePresets().map((p) => ({
       id: p.id,
@@ -283,6 +314,12 @@ export function videoProviderOptions(): ChannelOption[] {
       labelKey: 'seedance',
       channelLabel: true,
       group: 'channel'
+    },
+    {
+      id: 'stable-diffusion',
+      labelKey: 'stableDiffusion',
+      channelLabel: true,
+      group: 'local'
     },
     ...videoCapablePresets().map((p) => ({
       id: p.id,

@@ -30,6 +30,22 @@ import {
 } from '../domain/lookPacks'
 import { coerceGrokVideoVoice } from '../domain/grokVideoVoices'
 import {
+  clampSdCfg,
+  clampSdDenoising,
+  clampSdMotionBucket,
+  clampSdSteps,
+  clampSdVideoFps,
+  coerceSdSampler,
+  DEFAULT_SD_CFG,
+  DEFAULT_SD_DENOISING,
+  DEFAULT_SD_MOTION_BUCKET,
+  DEFAULT_SD_MOTION_MODULE,
+  DEFAULT_SD_NEGATIVE,
+  DEFAULT_SD_SAMPLER,
+  DEFAULT_SD_STEPS,
+  DEFAULT_SD_VIDEO_FPS
+} from '../domain/stableDiffusion'
+import {
   clampChatTimeoutMs,
   clampImageTimeoutMs,
   clampVideoTimeoutSec,
@@ -53,7 +69,11 @@ export {
 } from '../domain/colorScheme'
 
 /** Image channel may share LLM endpoint or use its own (incl. Seedream / 方舟). */
-export type ImageProviderMode = 'same-as-llm' | LlmProviderPreset | 'seedream'
+export type ImageProviderMode =
+  | 'same-as-llm'
+  | LlmProviderPreset
+  | 'seedream'
+  | 'stable-diffusion'
 /**
  * Video channel: inherit chat, stub placeholders, OpenAI-compatible preset, or Seedance.
  */
@@ -62,6 +82,7 @@ export type VideoProviderMode =
   | 'stub'
   | LlmProviderPreset
   | 'seedance'
+  | 'stable-diffusion'
 
 export interface AppSettings {
   videoMode: VideoMode
@@ -153,6 +174,17 @@ export interface AppSettings {
   imageEnhanceScale: number
   /** Image gen / edit HTTP timeout (ms) */
   imageTimeoutMs: number
+  /** Stable Diffusion WebUI / Stability extras */
+  sdSteps: number
+  sdCfgScale: number
+  sdSampler: string
+  sdDenoising: number
+  sdNegativePrompt: string
+  sdMotionBucket: number
+  sdVideoFps: number
+  sdMotionModule: string
+  /** ComfyUI API-format workflow JSON with {{PROMPT}} placeholders (video). */
+  sdComfyWorkflow: string
 
   /**
    * Timeline clip-to-clip lock.
@@ -257,6 +289,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   imageEnhanceMaxEdge: 1600,
   imageEnhanceScale: 2,
   imageTimeoutMs: 300_000,
+  sdSteps: DEFAULT_SD_STEPS,
+  sdCfgScale: DEFAULT_SD_CFG,
+  sdSampler: DEFAULT_SD_SAMPLER,
+  sdDenoising: DEFAULT_SD_DENOISING,
+  sdNegativePrompt: DEFAULT_SD_NEGATIVE,
+  sdMotionBucket: DEFAULT_SD_MOTION_BUCKET,
+  sdVideoFps: DEFAULT_SD_VIDEO_FPS,
+  sdMotionModule: DEFAULT_SD_MOTION_MODULE,
+  sdComfyWorkflow: '',
   continuityMode: 'storyboard',
   motionPriority: 'default',
   advancedIdentity: false,
@@ -287,7 +328,11 @@ export const VIDEO_SETTING_KEYS = [
   'motionPriority',
   'generateAudio',
   'grokVideoVoice',
-  'preserveClipAudio'
+  'preserveClipAudio',
+  'sdMotionBucket',
+  'sdVideoFps',
+  'sdMotionModule',
+  'sdComfyWorkflow'
 ] as const satisfies ReadonlyArray<keyof AppSettings>
 
 /** Keys that belong to the Photo settings card. */
@@ -299,6 +344,11 @@ export const PHOTO_SETTING_KEYS = [
   'imageEnhanceMaxEdge',
   'imageEnhanceScale',
   'imageTimeoutMs',
+  'sdSteps',
+  'sdCfgScale',
+  'sdSampler',
+  'sdDenoising',
+  'sdNegativePrompt',
   'advancedIdentity',
   'identityCollage',
   'lookPackId'
@@ -429,6 +479,21 @@ export function mergeSettings(partial?: Partial<AppSettings> | null): AppSetting
     merged.imageTimeoutMs = DEFAULT_SETTINGS.imageTimeoutMs
   }
   merged.imageTimeoutMs = clampImageTimeoutMs(merged.imageTimeoutMs)
+  merged.sdSteps = clampSdSteps(merged.sdSteps)
+  merged.sdCfgScale = clampSdCfg(merged.sdCfgScale)
+  merged.sdSampler = coerceSdSampler(merged.sdSampler)
+  merged.sdDenoising = clampSdDenoising(merged.sdDenoising)
+  if (typeof merged.sdNegativePrompt !== 'string') {
+    merged.sdNegativePrompt = DEFAULT_SD_NEGATIVE
+  }
+  merged.sdMotionBucket = clampSdMotionBucket(merged.sdMotionBucket)
+  merged.sdVideoFps = clampSdVideoFps(merged.sdVideoFps)
+  if (typeof merged.sdMotionModule !== 'string' || !merged.sdMotionModule.trim()) {
+    merged.sdMotionModule = DEFAULT_SD_MOTION_MODULE
+  }
+  if (typeof merged.sdComfyWorkflow !== 'string') {
+    merged.sdComfyWorkflow = ''
+  }
   merged.requestWaitPreset = detectRequestWaitPreset({
     chatTimeoutMs: merged.chatTimeoutMs,
     imageTimeoutMs: merged.imageTimeoutMs,

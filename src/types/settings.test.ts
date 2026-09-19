@@ -116,6 +116,8 @@ describe('settings defaults', () => {
     expect(m.legalAcceptedAt).toBeNull()
     expect(DEFAULT_SETTINGS.desktopNotifyEnabled).toBe(true)
     expect(m.requestWaitPreset).toBe('standard')
+    expect(m.sdSteps).toBe(28)
+    expect(mergeSettings({ sdSteps: 3 }).sdSteps).toBe(10)
     expect(DEFAULT_SETTINGS.requestWaitPreset).toBe('standard')
     expect(
       mergeSettings({

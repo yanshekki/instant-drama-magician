@@ -38,7 +38,9 @@ import {
   type LlmProviderPreset
 } from '../../domain/openaiCompatible'
 import { CompositeVideoProvider } from './video/CompositeVideoProvider'
+import { StableDiffusionImageProvider } from './StableDiffusionImageProvider'
 import { SeedanceVideoProvider } from './video/SeedanceVideoProvider'
+import { StableDiffusionVideoProvider } from './video/StableDiffusionVideoProvider'
 import type { VideoProvider } from './video/types'
 import {
   resolveChatEndpoint,
@@ -84,6 +86,7 @@ export class GrokCliClient implements AIProvider {
   private readonly imageProvider: string
   private readonly videoProviderMode: string
   private readonly llmProvider: LlmProviderPreset
+  private readonly sd: StableDiffusionImageProvider | null = null
 
   constructor(settings?: Partial<AppSettings>) {
     const s = { ...DEFAULT_SETTINGS, ...settings }
@@ -108,6 +111,19 @@ export class GrokCliClient implements AIProvider {
       this.llmProvider,
       chat.baseUrl
     )
+    if (this.imageProvider === 'stable-diffusion') {
+      this.sd = new StableDiffusionImageProvider({
+        baseUrl: this.imageBaseUrl,
+        apiKey: this.imageApiKey,
+        model: this.imageModel,
+        timeoutMs: this.imageTimeoutMs,
+        steps: s.sdSteps,
+        cfgScale: s.sdCfgScale,
+        sampler: s.sdSampler,
+        denoising: s.sdDenoising,
+        negativePrompt: s.sdNegativePrompt
+      })
+    }
     if (s.videoProvider === 'seedance') {
       this.video = new SeedanceVideoProvider({
         baseUrl: videoEp.baseUrl,
@@ -117,6 +133,23 @@ export class GrokCliClient implements AIProvider {
         timeoutSec: s.videoTimeoutSec,
         maxRetries: s.videoMaxRetries,
         aspectRatio: s.aspectRatio
+      })
+    } else if (s.videoProvider === 'stable-diffusion') {
+      this.video = new StableDiffusionVideoProvider({
+        baseUrl: videoEp.baseUrl,
+        apiKey: videoEp.apiKey,
+        model: videoEp.model,
+        pollMs: s.videoPollMs,
+        timeoutSec: s.videoTimeoutSec,
+        steps: s.sdSteps,
+        cfgScale: s.sdCfgScale,
+        sampler: s.sdSampler,
+        negativePrompt: s.sdNegativePrompt,
+        motionBucket: s.sdMotionBucket,
+        fps: s.sdVideoFps,
+        motionModule: s.sdMotionModule,
+        aspectRatio: s.aspectRatio,
+        comfyWorkflow: s.sdComfyWorkflow
       })
     } else {
       this.video = new CompositeVideoProvider(
@@ -141,6 +174,9 @@ export class GrokCliClient implements AIProvider {
 
   /** Lightweight probe of the image base (OpenAI-compatible /models). */
   async probeImage(): Promise<{ available: boolean; message: string }> {
+    if (this.sd) {
+      return this.sd.probe()
+    }
     if (!this.imageApiKey.trim() && !this.imageBaseUrl.includes('127.0.0.1')) {
       return {
         available: false,
@@ -240,6 +276,11 @@ export class GrokCliClient implements AIProvider {
       image,
       video
     }
+  }
+
+  async listSdModels(): Promise<string[]> {
+    if (this.sd) return this.sd.listCheckpoints()
+    return []
   }
 
   async listModels(): Promise<ModelInfo[]> {
@@ -497,6 +538,9 @@ export class GrokCliClient implements AIProvider {
     size?: string
     n?: number
   }): Promise<{ b64: string; mime: string; sizeUsed: string; aspectUsed: string }> {
+    if (this.sd) {
+      return this.sd.generate(options)
+    }
     this.assertImageKey()
     const { size, aspectRatio } = this.resolveImageSize(options)
 
@@ -538,6 +582,9 @@ export class GrokCliClient implements AIProvider {
     size?: string
     n?: number
   }): Promise<{ b64: string; mime: string; sizeUsed: string; aspectUsed: string }> {
+    if (this.sd) {
+      return this.sd.edit(options)
+    }
     this.assertImageKey()
     const { size, aspectRatio } = this.resolveImageSize(options)
 
@@ -582,6 +629,7 @@ export class GrokCliClient implements AIProvider {
   }
 
   private assertImageKey(): void {
+    if (this.sd && !this.sd.requiresKey()) return
     if (!this.imageApiKey.trim()) {
       throw new AppError(
         'AI_UNAUTHORIZED',

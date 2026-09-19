@@ -57,6 +57,7 @@ import {
   type LookPackId
 } from '../../domain/lookPacks'
 import { GROK_VIDEO_VOICES } from '../../domain/grokVideoVoices'
+import { SD_SAMPLERS, SD_WEBUI_DEFAULT_BASE } from '../../domain/stableDiffusion'
 import {
   applyColorScheme,
   coerceColorScheme,
@@ -108,6 +109,7 @@ export function SettingsPage(): JSX.Element {
   const [modelIds, setModelIds] = useState<string[]>([])
   const [chatBusy, setChatBusy] = useState(false)
   const [showLlmAdvanced, setShowLlmAdvanced] = useState(false)
+  const [showSdAdvanced, setShowSdAdvanced] = useState(false)
   const [showVideoAdvanced, setShowVideoAdvanced] = useState(false)
   const [gatewayStatus, setGatewayStatus] = useState<{
     state: string
@@ -765,6 +767,13 @@ export function SettingsPage(): JSX.Element {
                           }
                           return
                         }
+                        if (v === 'stable-diffusion') {
+                          patch(
+                            'imageBaseUrl',
+                            settings.imageBaseUrl?.trim() || SD_WEBUI_DEFAULT_BASE
+                          )
+                          return
+                        }
                         if (v === 'custom') {
                           settingsImageCustomBaseUrl(
                             settings.imageBaseUrl,
@@ -815,6 +824,7 @@ export function SettingsPage(): JSX.Element {
                       />
                     </div>
                     {(settings.imageProvider === 'seedream' ||
+                      settings.imageProvider === 'stable-diffusion' ||
                       settings.imageModel?.trim()) && (
                       <div>
                         <Label>{t('settings.imageModel')}</Label>
@@ -823,11 +833,137 @@ export function SettingsPage(): JSX.Element {
                           onChange={(e) =>
                             patch('imageModel', e.target.value)
                           }
-                          placeholder="doubao-seedream-4-0"
+                          placeholder={
+                            settings.imageProvider === 'stable-diffusion'
+                              ? t('settings.sdCheckpointPlaceholder')
+                              : 'doubao-seedream-4-0'
+                          }
                         />
                         <p className="mt-1 text-[11px] text-ink-500">
-                          {t('settings.imageModelHint')}
+                          {settings.imageProvider === 'stable-diffusion'
+                            ? t('settings.sdModelHint')
+                            : t('settings.imageModelHint')}
                         </p>
+                        {settings.imageProvider === 'stable-diffusion' && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="mt-2 !h-8 !text-xs"
+                            onClick={() => {
+                              void getApi()
+                                .ai.listSdModels()
+                                .then((names) => {
+                                  if (names[0] && !settings.imageModel?.trim()) {
+                                    patch('imageModel', names[0])
+                                  }
+                                  if (names.length) {
+                                    toast.success(
+                                      t('settings.sdCheckpointsLoaded', {
+                                        n: names.length
+                                      })
+                                    )
+                                  }
+                                })
+                                .catch((e: unknown) =>
+                                  toast.error(
+                                    e instanceof Error ? e.message : String(e)
+                                  )
+                                )
+                            }}
+                          >
+                            {t('settings.sdRefreshCheckpoints')}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {settings.imageProvider === 'stable-diffusion' && (
+                      <p className="text-[11px] text-ink-500">
+                        {t('settings.sdHint')}
+                      </p>
+                    )}
+                    {settings.imageProvider === 'stable-diffusion' && (
+                      <div className="space-y-3">
+                        <button
+                          type="button"
+                          className="text-[11px] text-brand-300 hover:underline"
+                          onClick={() => setShowSdAdvanced((v) => !v)}
+                        >
+                          {showSdAdvanced
+                            ? t('settings.hideAdvanced')
+                            : t('settings.showAdvanced')}
+                        </button>
+                        {showSdAdvanced && (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <Label>{t('settings.sdSteps')}</Label>
+                              <Input
+                                type="number"
+                                min={10}
+                                max={50}
+                                value={settings.sdSteps}
+                                onChange={(e) =>
+                                  patch('sdSteps', Number(e.target.value) || 28)
+                                }
+                              />
+                            </div>
+                            <div>
+                              <Label>{t('settings.sdCfgScale')}</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={15}
+                                step={0.5}
+                                value={settings.sdCfgScale}
+                                onChange={(e) =>
+                                  patch(
+                                    'sdCfgScale',
+                                    Number(e.target.value) || 7
+                                  )
+                                }
+                              />
+                            </div>
+                            <div>
+                              <Label>{t('settings.sdSampler')}</Label>
+                              <Select
+                                value={settings.sdSampler}
+                                onChange={(e) =>
+                                  patch('sdSampler', e.target.value)
+                                }
+                              >
+                                {SD_SAMPLERS.map((name) => (
+                                  <option key={name} value={name}>
+                                    {name}
+                                  </option>
+                                ))}
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>{t('settings.sdDenoising')}</Label>
+                              <Input
+                                type="number"
+                                min={0.2}
+                                max={0.8}
+                                step={0.05}
+                                value={settings.sdDenoising}
+                                onChange={(e) =>
+                                  patch(
+                                    'sdDenoising',
+                                    Number(e.target.value) || 0.45
+                                  )
+                                }
+                              />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <Label>{t('settings.sdNegativePrompt')}</Label>
+                              <Input
+                                value={settings.sdNegativePrompt}
+                                onChange={(e) =>
+                                  patch('sdNegativePrompt', e.target.value)
+                                }
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
@@ -978,6 +1114,20 @@ export function SettingsPage(): JSX.Element {
                           }
                           return
                         }
+                        if (v === 'stable-diffusion') {
+                          patch('videoMode', 'http')
+                          const inherit =
+                            settings.imageProvider === 'stable-diffusion'
+                              ? settings.imageBaseUrl
+                              : ''
+                          patch(
+                            'videoBaseUrl',
+                            settings.videoBaseUrl?.trim() ||
+                              inherit ||
+                              SD_WEBUI_DEFAULT_BASE
+                          )
+                          return
+                        }
                         if (v === 'grok-gateway') {
                           patch('videoMode', 'auto')
                           patch(
@@ -1032,8 +1182,14 @@ export function SettingsPage(): JSX.Element {
                           {t('settings.seedanceBaseHint')}
                         </p>
                       )}
+                      {settings.videoProvider === 'stable-diffusion' && (
+                        <p className="mt-1 text-[11px] text-ink-500">
+                          {t('settings.sdVideoHint')}
+                        </p>
+                      )}
                     </div>
                     {(settings.videoProvider === 'seedance' ||
+                      settings.videoProvider === 'stable-diffusion' ||
                       settings.videoModel?.trim()) && (
                       <div>
                         <Label>{t('settings.videoModel')}</Label>
@@ -1045,8 +1201,66 @@ export function SettingsPage(): JSX.Element {
                           placeholder="doubao-seedance-1-0-pro"
                         />
                         <p className="mt-1 text-[11px] text-ink-500">
-                          {t('settings.videoModelHint')}
+                          {settings.videoProvider === 'stable-diffusion'
+                            ? t('settings.sdVideoModelHint')
+                            : t('settings.videoModelHint')}
                         </p>
+                      </div>
+                    )}
+                    {settings.videoProvider === 'stable-diffusion' && (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <Label>{t('settings.sdMotionBucket')}</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={255}
+                            value={settings.sdMotionBucket}
+                            onChange={(e) =>
+                              patch(
+                                'sdMotionBucket',
+                                Number(e.target.value) || 127
+                              )
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label>{t('settings.sdVideoFps')}</Label>
+                          <Input
+                            type="number"
+                            min={6}
+                            max={16}
+                            value={settings.sdVideoFps}
+                            onChange={(e) =>
+                              patch('sdVideoFps', Number(e.target.value) || 8)
+                            }
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Label>{t('settings.sdMotionModule')}</Label>
+                          <Input
+                            value={settings.sdMotionModule}
+                            onChange={(e) =>
+                              patch('sdMotionModule', e.target.value)
+                            }
+                            placeholder="mm_sd_v15_v2.ckpt"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Label>{t('settings.sdComfyWorkflow')}</Label>
+                          <textarea
+                            className="mt-1 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-[11px] text-ink-200"
+                            rows={6}
+                            value={settings.sdComfyWorkflow}
+                            onChange={(e) =>
+                              patch('sdComfyWorkflow', e.target.value)
+                            }
+                            placeholder='{"3":{"class_type":"KSampler","inputs":{"seed":0}}}'
+                          />
+                          <p className="mt-1 text-[11px] text-ink-500">
+                            {t('settings.sdComfyWorkflowHint')}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </>
@@ -2976,6 +3190,7 @@ export function settingsImageBaseUrlChange(
   if (
     imageProvider === 'custom' ||
     imageProvider === 'seedream' ||
+    imageProvider === 'stable-diffusion' ||
     !isPreset(String(imageProvider))
   ) {
     return

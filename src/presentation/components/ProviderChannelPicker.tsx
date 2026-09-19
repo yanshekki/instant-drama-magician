@@ -18,6 +18,7 @@ export type ChannelExtraId =
   | 'stub'
   | 'seedance'
   | 'seedream'
+  | 'stable-diffusion'
 
 export type ChannelPickerValue = ChannelExtraId | LlmProviderPreset
 
@@ -120,7 +121,9 @@ export function ProviderChannelPicker({
         ? { chat: false, image: false, video: true }
         : value === 'seedream'
           ? { chat: false, image: true, video: false }
-          : { chat: true, image: true, video: true }
+          : value === 'stable-diffusion'
+            ? { chat: false, image: true, video: true }
+            : { chat: true, image: true, video: true }
 
   const extras: Array<{ id: ChannelExtraId; title: string; hint: string }> = [
     {
@@ -140,15 +143,27 @@ export function ProviderChannelPicker({
         id: 'seedance',
         title: t('settings.channelPreset.seedance'),
         hint: t('settings.channelPresetHint.seedance')
+      },
+      {
+        id: 'stable-diffusion',
+        title: t('settings.channelPreset.stableDiffusion'),
+        hint: t('settings.channelPresetHint.stableDiffusionVideo')
       }
     )
   }
   if (channel === 'image') {
-    extras.push({
-      id: 'seedream',
-      title: t('settings.channelPreset.seedream'),
-      hint: t('settings.channelPresetHint.seedream')
-    })
+    extras.push(
+      {
+        id: 'seedream',
+        title: t('settings.channelPreset.seedream'),
+        hint: t('settings.channelPresetHint.seedream')
+      },
+      {
+        id: 'stable-diffusion',
+        title: t('settings.channelPreset.stableDiffusion'),
+        hint: t('settings.channelPresetHint.stableDiffusion')
+      }
+    )
   }
 
   return (

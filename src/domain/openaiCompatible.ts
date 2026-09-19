@@ -28,7 +28,7 @@ export type LlmProviderPreset =
   | 'custom'
 
 /** Image/video channel-only providers (not chat presets). */
-export type SpecialChannelProvider = 'seedance' | 'seedream'
+export type SpecialChannelProvider = 'seedance' | 'seedream' | 'stable-diffusion'
 
 /** Volcengine Ark (China) — Seedance / Seedream */
 export const VOLC_ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
@@ -379,14 +379,14 @@ export function videoCapablePresets(): LlmPresetDef[] {
 export function isSpecialChannelProvider(
   id: string | null | undefined
 ): id is SpecialChannelProvider {
-  return id === 'seedance' || id === 'seedream'
+  return id === 'seedance' || id === 'seedream' || id === 'stable-diffusion'
 }
 
 export function isImageCapableProvider(
   id: string | null | undefined
 ): boolean {
   if (!id || id === 'same-as-llm') return true
-  if (id === 'seedream') return true
+  if (id === 'seedream' || id === 'stable-diffusion') return true
   return isLlmProviderPreset(id) && providerCaps(id).image
 }
 
@@ -394,7 +394,7 @@ export function isVideoCapableProvider(
   id: string | null | undefined
 ): boolean {
   if (!id || id === 'same-as-llm' || id === 'stub') return true
-  if (id === 'seedance') return true
+  if (id === 'seedance' || id === 'stable-diffusion') return true
   return isLlmProviderPreset(id) && providerCaps(id).video
 }
 

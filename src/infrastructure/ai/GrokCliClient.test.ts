@@ -32,6 +32,28 @@ describe('GrokCliClient', () => {
     vi.restoreAllMocks()
   })
 
+  it('dispatches generateImage to Stable Diffusion WebUI without a key', async () => {
+    const png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/system_stats')) {
+        return new Response('no', { status: 404 })
+      }
+      expect(url).toContain('/sdapi/v1/txt2img')
+      return new Response(JSON.stringify({ images: [png] }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchImpl)
+    const c = client({
+      imageProvider: 'stable-diffusion',
+      imageBaseUrl: 'http://127.0.0.1:7860',
+      imageApiKey: '',
+      apiKey: ''
+    })
+    const r = await c.generateImage({ prompt: 'a lamp', size: '1024x1024' })
+    expect(r.b64).toBe(png)
+  })
+
   it('aliases OpenAiCompatibleClient and videoProvider modes', () => {
     expect(OpenAiCompatibleClient).toBe(GrokCliClient)
     const seed = new GrokCliClient({

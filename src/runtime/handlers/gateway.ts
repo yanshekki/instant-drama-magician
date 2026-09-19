@@ -112,6 +112,14 @@ reg(
 )
 
 reg(
+  'ai:listSdModels',
+  (async () =>
+    typeof ctx.aiClient.listSdModels === 'function'
+      ? ctx.aiClient.listSdModels()
+      : [])
+)
+
+reg(
   'ai:testChat',
   (async ( prompt?: string) => ctx.aiClient.testChat(prompt))
 )

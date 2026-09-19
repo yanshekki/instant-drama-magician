@@ -237,6 +237,7 @@ export function createMockApi(
     ai: {
       status: vi.fn().mockResolvedValue({ available: true, message: 'ok' }),
       listModels: vi.fn().mockResolvedValue([]),
+      listSdModels: vi.fn().mockResolvedValue([]),
       testChat: vi.fn().mockResolvedValue({ ok: true }),
       probeChat: vi.fn().mockResolvedValue({ available: true }),
       probeVideo: vi.fn().mockResolvedValue({ available: false }),

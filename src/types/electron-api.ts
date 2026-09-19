@@ -1449,6 +1449,7 @@ export interface ElectronApi {
       healthOk?: boolean
     }>
     listModels: () => Promise<Array<{ id: string; ownedBy?: string }>>
+    listSdModels: () => Promise<string[]>
     testChat: (prompt?: string) => Promise<{
       ok: boolean
       latencyMs: number
