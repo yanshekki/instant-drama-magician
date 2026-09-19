@@ -16,6 +16,7 @@ import {
   SD_COMFY_VIDEO_SLOTS,
   sdComfySlotGuide,
   sdNextFrameCount,
+  idmSizeFromAspect,
   sdSizeFromAspect,
   sdSizeFromImageSize,
   stabilityApiRoot
@@ -43,6 +44,9 @@ describe('stableDiffusion mapping', () => {
     expect(sdSizeFromAspect('1:1').width).toBe(1024)
     expect(sdSizeFromAspect('16:9').width).toBe(1344)
     expect(sdSizeFromAspect(undefined).aspectRatio).toBe('16:9')
+    expect(idmSizeFromAspect('9:16')).toBe('1024x1792')
+    expect(idmSizeFromAspect('1:1')).toBe('1024x1024')
+    expect(idmSizeFromAspect()).toBe('1792x1024')
   })
 
   it('detects Stability vs WebUI from the base URL', () => {

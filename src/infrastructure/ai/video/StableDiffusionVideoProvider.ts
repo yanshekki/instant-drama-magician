@@ -27,8 +27,8 @@ import {
   mergeSdNegative,
   sdAuthHeaders,
   sdNextFrameCount,
+  idmSizeFromAspect,
   sdSizeFromAspect,
-  sdSizeFromImageSize,
   stabilityApiRoot,
   stripSdBase,
   type SdBackend
@@ -434,12 +434,7 @@ export class StableDiffusionVideoProvider implements VideoProvider {
       })
       const plate = await stills.generate({
         prompt: request.prompt,
-        size:
-          this.aspectRatio === '9:16'
-            ? '1024x1792'
-            : this.aspectRatio === '1:1'
-              ? '1024x1024'
-              : '1792x1024'
+        size: idmSizeFromAspect(this.aspectRatio)
       })
       writeOutput(stillPath, Buffer.from(plate.b64, 'base64'))
     }
