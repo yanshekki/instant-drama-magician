@@ -13,6 +13,8 @@ import {
   detectSdBackend,
   mergeSdNegative,
   sdAuthHeaders,
+  SD_COMFY_VIDEO_SLOTS,
+  sdComfySlotGuide,
   sdNextFrameCount,
   sdSizeFromImageSize,
   stabilityApiRoot
@@ -86,5 +88,8 @@ describe('stableDiffusion mapping', () => {
     expect(clampSdVideoFps(3)).toBe(6)
     expect(comfySamplerName('Euler a')).toBe('euler_ancestral')
     expect(comfySamplerName('nope')).toBe('dpmpp_2m')
+    expect(sdComfySlotGuide()).toContain('{{PROMPT}}')
+    expect(sdComfySlotGuide()).toContain('{{IMAGE}}')
+    expect(SD_COMFY_VIDEO_SLOTS).toHaveLength(10)
   })
 })

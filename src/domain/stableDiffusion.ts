@@ -59,6 +59,24 @@ export function applyComfyPlaceholders(
   return out
 }
 
+/** Slots ComfyUI video workflows should include (API JSON). */
+export const SD_COMFY_VIDEO_SLOTS = [
+  'PROMPT',
+  'NEGATIVE',
+  'WIDTH',
+  'HEIGHT',
+  'STEPS',
+  'CFG',
+  'CKPT',
+  'FRAMES',
+  'FPS',
+  'IMAGE'
+] as const
+
+export function sdComfySlotGuide(): string {
+  return SD_COMFY_VIDEO_SLOTS.map((s) => `{{${s}}}`).join(' ')
+}
+
 /** OpenAI-style IDM sizes → SDXL-safe multiples of 64. */
 export function sdSizeFromImageSize(size?: string): SdPixelSize {
   if (size === '1024x1024') {
