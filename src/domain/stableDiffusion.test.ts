@@ -73,6 +73,11 @@ describe('stableDiffusion mapping', () => {
     )
     expect(decorateSdPrompt('street', 'cinematic')).toContain('photorealistic')
     expect(decorateSdPrompt('plain', '')).toBe('plain')
+    expect(decorateSdPrompt('cinematic street', 'photoreal')).toBe(
+      'cinematic street'
+    )
+    expect(decorateSdPrompt('', 'anime')).toBe(', anime, illustration')
+    expect(decorateSdPrompt('x', 'watercolor')).toBe('x')
   })
 
   it('merges extra negatives once', () => {
