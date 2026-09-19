@@ -77,6 +77,12 @@ export function sdComfySlotGuide(): string {
   return SD_COMFY_VIDEO_SLOTS.map((s) => `{{${s}}}`).join(' ')
 }
 
+export function sdSizeFromAspect(aspect?: string): SdPixelSize {
+  if (aspect === '9:16') return sdSizeFromImageSize('1024x1792')
+  if (aspect === '1:1') return sdSizeFromImageSize('1024x1024')
+  return sdSizeFromImageSize('1792x1024')
+}
+
 /** OpenAI-style IDM sizes → SDXL-safe multiples of 64. */
 export function sdSizeFromImageSize(size?: string): SdPixelSize {
   if (size === '1024x1024') {

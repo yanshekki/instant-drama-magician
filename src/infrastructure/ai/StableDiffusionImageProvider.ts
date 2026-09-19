@@ -141,14 +141,12 @@ export class StableDiffusionImageProvider {
         headers: this.headers(),
         signal: AbortSignal.timeout(5000)
       })
-      if (res.ok) {
-        const json = (await res.json()) as unknown
-        return Array.isArray(json) ? json.map(String) : []
-      }
+      if (!res.ok) return []
+      const json = (await res.json()) as unknown
+      return Array.isArray(json) ? json.map(String) : []
     } catch {
       return []
     }
-    return []
   }
 
   async generate(options: {

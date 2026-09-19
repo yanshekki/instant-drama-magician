@@ -16,6 +16,7 @@ import {
   SD_COMFY_VIDEO_SLOTS,
   sdComfySlotGuide,
   sdNextFrameCount,
+  sdSizeFromAspect,
   sdSizeFromImageSize,
   stabilityApiRoot
 } from './stableDiffusion'
@@ -38,6 +39,10 @@ describe('stableDiffusion mapping', () => {
       aspectRatio: '9:16'
     })
     expect(sdSizeFromImageSize(undefined).aspectRatio).toBe('16:9')
+    expect(sdSizeFromAspect('9:16').aspectRatio).toBe('9:16')
+    expect(sdSizeFromAspect('1:1').width).toBe(1024)
+    expect(sdSizeFromAspect('16:9').width).toBe(1344)
+    expect(sdSizeFromAspect(undefined).aspectRatio).toBe('16:9')
   })
 
   it('detects Stability vs WebUI from the base URL', () => {

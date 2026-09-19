@@ -27,6 +27,7 @@ import {
   mergeSdNegative,
   sdAuthHeaders,
   sdNextFrameCount,
+  sdSizeFromAspect,
   sdSizeFromImageSize,
   stabilityApiRoot,
   stripSdBase,
@@ -236,13 +237,7 @@ export class StableDiffusionVideoProvider implements VideoProvider {
   ): Promise<VideoGenResult> {
     const still = request.refImagePath && existsSync(request.refImagePath)
     const picked = this.pickSdNextModel(models, Boolean(still))
-    const dim = sdSizeFromImageSize(
-      this.aspectRatio === '9:16'
-        ? '1024x1792'
-        : this.aspectRatio === '1:1'
-          ? '1024x1024'
-          : '1792x1024'
-    )
+    const dim = sdSizeFromAspect(this.aspectRatio)
     const fps = 16
     const frames = sdNextFrameCount(request.durationSeconds, fps)
     const body: Record<string, unknown> = {
@@ -312,13 +307,7 @@ export class StableDiffusionVideoProvider implements VideoProvider {
     if (request.refImagePath && existsSync(request.refImagePath)) {
       imageName = await comfy.uploadImage(request.refImagePath)
     }
-    const dim = sdSizeFromImageSize(
-      this.aspectRatio === '9:16'
-        ? '1024x1792'
-        : this.aspectRatio === '1:1'
-          ? '1024x1024'
-          : '1792x1024'
-    )
+    const dim = sdSizeFromAspect(this.aspectRatio)
     const frames = animateDiffFrameCount(request.durationSeconds, this.fps)
     const filled = applyComfyPlaceholders(this.comfyWorkflow, {
       PROMPT: decorateSdPrompt(request.prompt),
@@ -353,13 +342,7 @@ export class StableDiffusionVideoProvider implements VideoProvider {
     request: VideoGenRequest
   ): Promise<VideoGenResult> {
     const still = request.refImagePath && existsSync(request.refImagePath)
-    const dim = sdSizeFromImageSize(
-      this.aspectRatio === '9:16'
-        ? '1024x1792'
-        : this.aspectRatio === '1:1'
-          ? '1024x1024'
-          : '1792x1024'
-    )
+    const dim = sdSizeFromAspect(this.aspectRatio)
     const videoLength = animateDiffFrameCount(request.durationSeconds, this.fps)
     const script = {
       model: this.motionModule,
