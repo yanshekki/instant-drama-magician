@@ -1869,6 +1869,7 @@
     "ttsHttpFailed": "TTS リクエストに失敗しました。",
     "ttsUnavailable": "TTS を利用できません。",
     "unauthorized": "無許可。",
+    "webUnauthorized": "This page is not signed in to the web server. Open Settings on the desktop app and paste the web token here.",
     "unknownSegmentKey": "不明なプロットセグメントキーです。",
     "unknownVideoPrepKind": "不明な動画準備タイプです。",
     "unsupportedUrlProtocol": "未対応の URL プロトコルです。",

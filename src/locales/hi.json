@@ -1869,6 +1869,7 @@
     "ttsHttpFailed": "TTS request विफल।",
     "ttsUnavailable": "TTS उपलब्ध नहीं।",
     "unauthorized": "अनाधिकृत.",
+    "webUnauthorized": "This page is not signed in to the web server. Open Settings on the desktop app and paste the web token here.",
     "unknownSegmentKey": "अज्ञात प्लॉट खंड कुंजी।",
     "unknownVideoPrepKind": "अज्ञात वीडियो-prep प्रकार।",
     "unsupportedUrlProtocol": "असमर्थित URL प्रोटोकॉल।",

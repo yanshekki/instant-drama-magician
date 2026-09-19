@@ -3,6 +3,7 @@ import {
   AppError,
   isAppErrorBody,
   isTimeoutAbort,
+  isUnauthorizedError,
   mapChatHttpStatus,
   mapChatMessage,
   mapHttpStatusToVideoError,
@@ -33,6 +34,15 @@ describe('AppError', () => {
     const timeout = new Error('The operation was aborted due to timeout')
     timeout.name = 'TimeoutError'
     expect(isTimeoutAbort(timeout)).toBe(true)
+    expect(
+      isUnauthorizedError(
+        new AppError(
+          'AI_UNAUTHORIZED',
+          'Unauthorized — set Authorization: Bearer <token>'
+        )
+      )
+    ).toBe(true)
+    expect(isUnauthorizedError(new Error('plain boom'))).toBe(false)
     expect(toAppError(timeout)).toMatchObject({
       code: 'AI_TIMEOUT',
       message: 'errors.imageTimedOut'

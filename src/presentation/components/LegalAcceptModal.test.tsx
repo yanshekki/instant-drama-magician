@@ -20,6 +20,7 @@ vi.mock('./LegalDocumentBody', () => ({
   )
 }))
 
+import { AppError } from '../../types/errors'
 import { LegalAcceptModal } from './LegalAcceptModal'
 
 describe('LegalAcceptModal', () => {
@@ -61,6 +62,34 @@ describe('LegalAcceptModal', () => {
     await waitFor(() =>
       expect(screen.getByText('legal.menuTitle')).toBeTruthy()
     )
+  })
+
+  it('does not open the legal gate on invoke 401', async () => {
+    api.settings.get = vi.fn().mockRejectedValue(
+      new AppError(
+        'AI_UNAUTHORIZED',
+        'Unauthorized — set Authorization: Bearer <token>'
+      )
+    )
+    render(<LegalAcceptModal />)
+    await waitFor(() => expect(api.settings.get).toHaveBeenCalled())
+    expect(screen.queryByText('legal.menuTitle')).toBeNull()
+  })
+
+  it('shows an error if accept cannot save', async () => {
+    api.settings.set = vi.fn().mockRejectedValue(
+      new AppError(
+        'AI_UNAUTHORIZED',
+        'Unauthorized — set Authorization: Bearer <token>'
+      )
+    )
+    render(<LegalAcceptModal />)
+    await waitFor(() => screen.getByText('legal.menuTitle'))
+    fireEvent.click(document.querySelector('input[type="checkbox"]') as HTMLInputElement)
+    fireEvent.click(screen.getByText('legal.acceptContinue'))
+    await waitFor(() => expect(api.settings.set).toHaveBeenCalled())
+    expect(screen.getByRole('alert')).toBeTruthy()
+    expect(screen.getByText('legal.menuTitle')).toBeTruthy()
   })
 
   it('accept requires checkbox then closes', async () => {

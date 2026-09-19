@@ -10,6 +10,8 @@ import {
   needsLegalAccept,
   type LegalDocKind
 } from '../../domain/legal'
+import { isUnauthorizedError } from '../../types/errors'
+import { formatUserError } from '../lib/formatUserError'
 import { LegalDocumentBody } from './LegalDocumentBody'
 import { Button } from './ui'
 
@@ -19,6 +21,7 @@ export function LegalAcceptModal(): JSX.Element | null {
   const [tab, setTab] = useState<LegalDocKind>('disclaimer')
   const [checked, setChecked] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     void getApi()
@@ -26,8 +29,12 @@ export function LegalAcceptModal(): JSX.Element | null {
       .then((s) => {
         setOpen(needsLegalAccept(s))
       })
-      .catch(() => {
-        // If settings fail, still require accept for safety
+      .catch((e: unknown) => {
+        // LAN /api/invoke 401 is a login problem, not a legal-accept problem.
+        if (isUnauthorizedError(e)) {
+          setOpen(false)
+          return
+        }
         setOpen(true)
       })
   }, [])
@@ -37,12 +44,21 @@ export function LegalAcceptModal(): JSX.Element | null {
   const accept = async (): Promise<void> => {
     if (!checked || busy) return
     setBusy(true)
+    setError(null)
     try {
       await getApi().settings.set({
         legalAcceptedVersion: LEGAL_VERSION,
         legalAcceptedAt: new Date().toISOString()
       })
       setOpen(false)
+    } catch (e: unknown) {
+      setError(
+        formatUserError(
+          e instanceof Error ? e.message : String(e),
+          t,
+          'errors.webUnauthorized'
+        )
+      )
     } finally {
       setBusy(false)
     }
@@ -109,6 +125,11 @@ export function LegalAcceptModal(): JSX.Element | null {
             />
             <span>{t('legal.acceptCheckbox')}</span>
           </label>
+          {error ? (
+            <p className="text-sm text-rose-300" role="alert">
+              {error}
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => void accept()}

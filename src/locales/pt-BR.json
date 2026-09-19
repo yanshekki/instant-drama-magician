@@ -1869,6 +1869,7 @@
     "ttsHttpFailed": "Falhou la solicitud TTS.",
     "ttsUnavailable": "TTS no disponible.",
     "unauthorized": "Não autorizado.",
+    "webUnauthorized": "This page is not signed in to the web server. Open Settings on the desktop app and paste the web token here.",
     "unknownSegmentKey": "Chave de segmento de trama desconocida.",
     "unknownVideoPrepKind": "Tipo de preparación de vídeo desconocido.",
     "unsupportedUrlProtocol": "Protocolo de URL não suportado.",

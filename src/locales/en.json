@@ -1869,6 +1869,7 @@
     "ttsHttpFailed": "TTS request failed.",
     "ttsUnavailable": "TTS is unavailable.",
     "unauthorized": "Unauthorized.",
+    "webUnauthorized": "This page is not signed in to the web server. Open Settings on the desktop app and paste the web token here.",
     "unknownSegmentKey": "Unknown plot segment key.",
     "unknownVideoPrepKind": "Unknown video-prep kind.",
     "unsupportedUrlProtocol": "Unsupported URL protocol.",

@@ -48,6 +48,15 @@ export class AppError extends Error {
   }
 }
 
+/** Web invoke / CLI 401 (not an LLM API-key rejection). */
+export function isUnauthorizedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const code = 'code' in error ? String((error as { code?: string }).code) : ''
+  const msg = error instanceof Error ? error.message : String(error)
+  if (code === 'AI_UNAUTHORIZED') return true
+  return /unauthorized/i.test(msg)
+}
+
 /** Fetch AbortSignal.timeout / DOMException TimeoutError. */
 export function isTimeoutAbort(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false

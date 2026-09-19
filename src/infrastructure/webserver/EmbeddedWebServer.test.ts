@@ -25,8 +25,42 @@ vi.mock('../../runtime/createRuntime', () => ({
 
 import {
   EmbeddedWebServer,
-  generateWebServerToken
+  generateWebServerToken,
+  requestRequiresAuth
 } from './EmbeddedWebServer'
+
+describe('requestRequiresAuth', () => {
+  it('LAN without a token still requires auth (health must match invoke)', () => {
+    expect(
+      requestRequiresAuth({
+        authDisabled: false,
+        authToken: '',
+        remoteAddress: '192.168.10.32'
+      })
+    ).toBe(true)
+    expect(
+      requestRequiresAuth({
+        authDisabled: false,
+        authToken: '',
+        remoteAddress: '127.0.0.1'
+      })
+    ).toBe(false)
+    expect(
+      requestRequiresAuth({
+        authDisabled: false,
+        authToken: 'secret',
+        remoteAddress: '192.168.10.32'
+      })
+    ).toBe(true)
+    expect(
+      requestRequiresAuth({
+        authDisabled: true,
+        authToken: '',
+        remoteAddress: '192.168.10.32'
+      })
+    ).toBe(false)
+  })
+})
 
 describe('EmbeddedWebServer', () => {
   let dataDir: string

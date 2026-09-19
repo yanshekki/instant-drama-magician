@@ -118,6 +118,21 @@ export function isLoopbackRemote(ra: string | undefined): boolean {
   )
 }
 
+/**
+ * Health and invoke must agree. Empty token still requires auth on LAN
+ * (loopback-only anonymous). Otherwise the SPA skips login and every
+ * /api/invoke 401s — which used to open the legal-accept modal forever.
+ */
+export function requestRequiresAuth(opts: {
+  authDisabled: boolean
+  authToken: string
+  remoteAddress?: string
+}): boolean {
+  if (opts.authDisabled) return false
+  if (opts.authToken.trim()) return true
+  return !isLoopbackRemote(opts.remoteAddress)
+}
+
 
 /** Bearer token from Authorization or ?token= query (exported for residual tests). */
 export function tokenFromRequestUrl(
@@ -206,17 +221,21 @@ export class EmbeddedWebServer {
     const appVersion = this.appVersion
 
     const checkAuth = (req: IncomingMessage): boolean => {
-      if (authDisabled) return true
-      if (!authToken) {
-        const ra = req.socket.remoteAddress || ''
-        return isLoopbackRemote(ra)
+      if (
+        !requestRequiresAuth({
+          authDisabled,
+          authToken,
+          remoteAddress: req.socket.remoteAddress || ''
+        })
+      ) {
+        return true
       }
       const bearer = tokenFromRequestUrl(
         req.headers.authorization,
         req.url,
         req.headers.host
       )
-      return bearer === authToken
+      return Boolean(authToken) && bearer === authToken
     }
 
     const serveStatic = (req: IncomingMessage, res: ServerResponse): void => {
@@ -280,7 +299,11 @@ export class EmbeddedWebServer {
             version: appVersion,
             runtime: 'web',
             channels: runtime.channels().length,
-            authRequired: !authDisabled && Boolean(authToken),
+            authRequired: requestRequiresAuth({
+              authDisabled,
+              authToken,
+              remoteAddress: req.socket.remoteAddress || ''
+            }),
             authDisabled
           })
           return

@@ -1869,6 +1869,7 @@
     "ttsHttpFailed": "TTS request فشل.",
     "ttsUnavailable": "TTS غير متاح.",
     "unauthorized": "غير مصرح به.",
+    "webUnauthorized": "This page is not signed in to the web server. Open Settings on the desktop app and paste the web token here.",
     "unknownSegmentKey": "مفتاح مقطع حبكة غير معروف.",
     "unknownVideoPrepKind": "نوع تجهيز فيديو غير معروف.",
     "unsupportedUrlProtocol": "بروتوكول URL غير مدعوم.",

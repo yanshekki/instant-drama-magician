@@ -12,6 +12,15 @@ describe('formatUserError', () => {
     )
   })
 
+  it('maps web invoke 401 to webUnauthorized not api-key rejected', () => {
+    expect(
+      formatUserError(
+        'Unauthorized — set Authorization: Bearer <token>',
+        t
+      )
+    ).toBe('T:errors.webUnauthorized')
+  })
+
   it('maps legacy English costume dress error', () => {
     expect(
       formatUserError(

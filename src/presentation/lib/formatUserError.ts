@@ -145,6 +145,7 @@ const ERROR_KEYS = new Set([
   'errors.ttsHttpFailed',
   'errors.ttsUnavailable',
   'errors.unauthorized',
+  'errors.webUnauthorized',
   'errors.unknownSegmentKey',
   'errors.unknownVideoPrepKind',
   'errors.unsupportedUrlProtocol',
@@ -266,6 +267,10 @@ const LEGACY_EN_TO_KEY: Array<{ re: RegExp; key: string }> = [
   {
     re: /^cancelled$/i,
     key: 'errors.cancelled'
+  },
+  {
+    re: /unauthorized — set authorization|bearer <token>/i,
+    key: 'errors.webUnauthorized'
   },
   {
     re: /^unauthorized$/i,

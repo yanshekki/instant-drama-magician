@@ -1869,6 +1869,7 @@
     "ttsHttpFailed": "语音合成请求失败。",
     "ttsUnavailable": "TTS 不可用。",
     "unauthorized": "未授权。",
+    "webUnauthorized": "此页尚未登入网页伺服器。请在桌面应用程式「设定」复制网页权杖后贴上。",
     "unknownSegmentKey": "未知的剧情段落键。",
     "unknownVideoPrepKind": "未知的影片准备类型。",
     "unsupportedUrlProtocol": "不支援的网址协定。",

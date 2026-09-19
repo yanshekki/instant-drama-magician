@@ -1869,6 +1869,7 @@
     "ttsHttpFailed": "語音合成請求失敗。",
     "ttsUnavailable": "TTS 不可用。",
     "unauthorized": "未授權。",
+    "webUnauthorized": "此頁尚未登入網頁伺服器。請在桌面應用程式「設定」複製網頁權杖後貼上。",
     "unknownSegmentKey": "未知的劇情段落鍵。",
     "unknownVideoPrepKind": "未知的影片準備類型。",
     "unsupportedUrlProtocol": "不支援的網址協定。",
