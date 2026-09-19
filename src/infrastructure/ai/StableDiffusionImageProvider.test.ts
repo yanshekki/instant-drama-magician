@@ -345,4 +345,84 @@ describe('StableDiffusionImageProvider', () => {
     })
     await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toBeTruthy()
   })
+
+  it('probe reports HTTP status when sd-models is not ok', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/system_stats')) return new Response('no', { status: 404 })
+      return new Response('denied', { status: 401 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    const s = await p.probe()
+    expect(s.available).toBe(false)
+    expect(s.message).toContain('401')
+  })
+
+  it('probe catch on network error', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('offline')
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    expect((await p.probe()).message).toContain('offline')
+  })
+
+  it('listCheckpoints empty when both endpoints fail', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('x')
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    expect(await p.listCheckpoints()).toEqual([])
+  })
+
+  it('Stability edit uses image-to-image', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdi-'))
+    const img = join(dir, 'b.png')
+    writeFileSync(img, PNG)
+    const fetchImpl = vi.fn(async () => {
+      return new Response(JSON.stringify({ image: PNG.toString('base64') }), {
+        status: 200
+      })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      fetchImpl
+    })
+    const r = await p.edit({ prompt: 'blue', imagePath: img, size: '1024x1792' })
+    expect(r.aspectUsed).toBe('9:16')
+  })
+
+  it('WebUI fetch timeout maps to imageTimedOut', async () => {
+    const err = Object.assign(new Error('aborted'), { name: 'TimeoutError' })
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (String(input).includes('/system_stats')) return new Response('no', { status: 404 })
+      throw err
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toMatchObject({
+      code: 'AI_TIMEOUT'
+    })
+  })
+
+  it('Stability generate without key throws unauthorized', async () => {
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: ''
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toMatchObject({
+      code: 'AI_UNAUTHORIZED'
+    })
+  })
 })

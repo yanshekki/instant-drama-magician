@@ -414,6 +414,132 @@ describe('StableDiffusionVideoProvider', () => {
     ).rejects.toMatchObject({ code: 'VIDEO_JOB_FAILED' })
   })
 
+  it('ComfyUI probe mentions workflow when JSON is set', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/video/models')) return new Response('no', { status: 404 })
+      if (url.includes('/system_stats')) return new Response('{}', { status: 200 })
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:8188',
+      comfyWorkflow: '{}',
+      fetchImpl
+    })
+    expect((await p.probe()).message).toContain('workflow')
+  })
+
+  it('SD.Next models wrapper object and 9:16 aspect', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const out = join(dir, 'clip.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/video/models')) {
+        return new Response(
+          JSON.stringify({ models: [{ engine: 'WAN', model: 'T2V' }] }),
+          { status: 200 }
+        )
+      }
+      if (url.endsWith('/sdapi/v1/video')) {
+        return new Response(JSON.stringify({ video: MP4.toString('base64') }), {
+          status: 200
+        })
+      }
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      aspectRatio: '9:16',
+      fetchImpl
+    })
+    await p.generate({ prompt: 'x', durationSeconds: 4, outputPath: out })
+  })
+
+  it('SD.Next HTTP error', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/video/models')) {
+        return new Response(JSON.stringify([{ engine: 'WAN', model: 'T' }]), {
+          status: 200
+        })
+      }
+      return new Response('fail', { status: 502 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await expect(
+      p.generate({
+        prompt: 'x',
+        durationSeconds: 4,
+        outputPath: join(dir, 'x.mp4')
+      })
+    ).rejects.toBeTruthy()
+  })
+
+  it('AnimateDiff timeout maps VIDEO_TIMEOUT', async () => {
+    const err = Object.assign(new Error('aborted'), { name: 'TimeoutError' })
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/system_stats') || url.includes('/video/models')) {
+        return new Response('no', { status: 404 })
+      }
+      throw err
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await expect(
+      p.generate({
+        prompt: 'x',
+        durationSeconds: 2,
+        outputPath: join(tmpdir(), 't.mp4')
+      })
+    ).rejects.toMatchObject({ code: 'VIDEO_TIMEOUT' })
+  })
+
+  it('ComfyUI workflow with still uploads IMAGE', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const still = join(dir, 's.png')
+    writeFileSync(still, PNG)
+    const out = join(dir, 'c.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/video/models')) return new Response('no', { status: 404 })
+      if (url.includes('/system_stats')) return new Response('{}', { status: 200 })
+      if (url.includes('/upload/image')) {
+        return new Response(JSON.stringify({ name: 's.png' }), { status: 200 })
+      }
+      if (url.endsWith('/prompt')) {
+        return new Response(JSON.stringify({ prompt_id: 'p2' }), { status: 200 })
+      }
+      if (url.includes('/history/p2')) {
+        return new Response(
+          JSON.stringify({
+            p2: { outputs: { '9': { images: [{ filename: 'v.mp4' }] } } }
+          }),
+          { status: 200 }
+        )
+      }
+      if (url.includes('/view')) return new Response(MP4, { status: 200 })
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:8188',
+      comfyWorkflow: '{"n":{"class_type":"X","inputs":{"image":"{{IMAGE}}"}}}',
+      fetchImpl
+    })
+    await p.generate({
+      prompt: 'go',
+      durationSeconds: 2,
+      refImagePath: still,
+      outputPath: out
+    })
+  })
+
   it('probe Stability with key', async () => {
     const p = new StableDiffusionVideoProvider({
       baseUrl: 'https://api.stability.ai',
