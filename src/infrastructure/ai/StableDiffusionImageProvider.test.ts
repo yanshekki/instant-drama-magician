@@ -425,4 +425,39 @@ describe('StableDiffusionImageProvider', () => {
       code: 'AI_UNAUTHORIZED'
     })
   })
+
+  it('WebUI fetch generic error bubbles', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      if (String(input).includes('/system_stats')) return new Response('no', { status: 404 })
+      throw new Error('boom')
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      fetchImpl
+    })
+    await expect(p.generate({ prompt: 'x', size: '1024x1024' })).rejects.toThrow('boom')
+  })
+
+  it('img2img with checkpoint override', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdi-'))
+    const img = join(dir, 'c.png')
+    writeFileSync(img, PNG)
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/system_stats')) return new Response('no', { status: 404 })
+      const body = JSON.parse(String(init?.body)) as {
+        override_settings?: { sd_model_checkpoint?: string }
+      }
+      expect(body.override_settings?.sd_model_checkpoint).toBe('ckpt.safetensors')
+      return new Response(JSON.stringify({ images: [PNG.toString('base64')] }), {
+        status: 200
+      })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionImageProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      model: 'ckpt.safetensors',
+      fetchImpl
+    })
+    await p.edit({ prompt: 'x', imagePath: img, size: '1024x1024' })
+  })
 })
