@@ -21,6 +21,64 @@ describe('StableDiffusionVideoProvider', () => {
     vi.restoreAllMocks()
   })
 
+  it('AnimateDiff 1:1 writes MP4', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const out = join(dir, 'sq.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/system_stats') || url.endsWith('/sdapi/v1/video/models')) {
+        return new Response('not found', { status: 404 })
+      }
+      if (url.endsWith('/sdapi/v1/txt2img')) {
+        return new Response(
+          JSON.stringify({ images: [MP4.toString('base64')] }),
+          { status: 200 }
+        )
+      }
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'http://127.0.0.1:7860',
+      aspectRatio: '1:1',
+      fetchImpl
+    })
+    await p.generate({ prompt: 'sq', durationSeconds: 2, outputPath: out })
+    expect(readFileSync(out).subarray(4, 8).toString()).toBe('ftyp')
+  })
+
+  it('Stability T2V 9:16', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
+    const out = join(dir, 'p.mp4')
+    const fetchImpl = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/stable-image/generate/sd3')) {
+        return new Response(
+          JSON.stringify({ image: PNG.toString('base64') }),
+          { status: 200 }
+        )
+      }
+      if (init?.method === 'POST' && url.includes('/image-to-video')) {
+        return new Response(JSON.stringify({ id: 'jp' }), { status: 200 })
+      }
+      if (url.includes('/result/jp')) {
+        return new Response(JSON.stringify({ video: MP4.toString('base64') }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+      }
+      return new Response('no', { status: 404 })
+    }) as unknown as typeof fetch
+    const p = new StableDiffusionVideoProvider({
+      baseUrl: 'https://api.stability.ai',
+      apiKey: 'sk',
+      pollMs: 1,
+      timeoutSec: 20,
+      aspectRatio: '9:16',
+      fetchImpl
+    })
+    await p.generate({ prompt: 'p', durationSeconds: 4, outputPath: out })
+  })
+
   it('AnimateDiff txt2img enables alwayson_scripts and writes MP4', async () => {
     dir = mkdtempSync(join(tmpdir(), 'idm-sdv-'))
     const out = join(dir, 'clip.mp4')
