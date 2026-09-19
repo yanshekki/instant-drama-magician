@@ -113,6 +113,41 @@ describe('ComfyUiClient', () => {
     expect(g['11'].class_type).toBe('VAEEncode')
   })
 
+  it('uploadImage posts multipart', async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import('fs')
+    const { join } = await import('path')
+    const { tmpdir } = await import('os')
+    const dir = mkdtempSync(join(tmpdir(), 'idm-cui-'))
+    const img = join(dir, 'a.png')
+    writeFileSync(img, 'x')
+    const fetchImpl = vi.fn(async (input: string | URL) => {
+      expect(String(input)).toContain('/upload/image')
+      return new Response(JSON.stringify({ name: 'a.png' }), { status: 200 })
+    }) as unknown as typeof fetch
+    const c = ComfyUiClient.from('http://127.0.0.1:8188', '', fetchImpl, 5000)
+    expect(await c.uploadImage(img)).toBe('a.png')
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('uploadImage HTTP error', async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import('fs')
+    const { join } = await import('path')
+    const { tmpdir } = await import('os')
+    const dir = mkdtempSync(join(tmpdir(), 'idm-cui-'))
+    const img = join(dir, 'a.png')
+    writeFileSync(img, 'x')
+    const fetchImpl = vi.fn(async () => new Response('no', { status: 500 })) as unknown as typeof fetch
+    const c = ComfyUiClient.from('http://x', '', fetchImpl, 1000)
+    await expect(c.uploadImage(img)).rejects.toMatchObject({ code: 'AI_FAILED' })
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('waitHistory times out', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 })) as unknown as typeof fetch
+    const c = ComfyUiClient.from('http://x', '', fetchImpl, 1)
+    await expect(c.waitHistory('never')).rejects.toMatchObject({ code: 'AI_TIMEOUT' })
+  })
+
   it('applyComfyPlaceholders fills slots', () => {
     expect(
       applyComfyPlaceholders('{"t":"{{PROMPT}}","w":{{WIDTH}}}', {
