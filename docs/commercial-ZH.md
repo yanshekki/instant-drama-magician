@@ -9,7 +9,7 @@
 
 | 項目 | 狀態 |
 |------|------|
-| GitHub 多平台安裝包（Linux／Windows／mac，預設 unsigned） | **已做** |
+| GitHub 多平台安裝包（Linux／Windows；mac 上傳前 ad-hoc 簽名） | **已做** |
 | `electron-updater` 檢查／下載／重啟 | **已做**（打包版） |
 | 活動日誌 + 支援報告（遮罩 API key） | **已做** |
 | publish → GitHub Releases | **已做** |
@@ -39,8 +39,9 @@ Feed：`latest.yml`／`latest-linux.yml`／`latest-mac.yml`。
 | 平台 | 變數 |
 |------|------|
 | Windows | `CSC_LINK`／`CSC_KEY_PASSWORD` |
-| macOS | `CSC_LINK`／Apple ID／team（+ Notarize） |
-| 無 | `CSC_IDENTITY_AUTO_DISCOVERY=false`（CI 預設） |
+| macOS 發版 | `scripts/adhoc-sign-mac.cjs` ad-hoc（上傳前必須） |
+| macOS 商店級 | `CSC_LINK`／Apple ID／team（+ Notarize），未設定 |
+| 無（Windows／Linux） | `CSC_IDENTITY_AUTO_DISCOVERY=false`（CI 預設；唔會跳過 mac ad-hoc hook） |
 
 見 [release-ZH.md](./release-ZH.md)。
 

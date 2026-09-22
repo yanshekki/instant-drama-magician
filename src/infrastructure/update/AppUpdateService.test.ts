@@ -63,6 +63,17 @@ describe('installer artifactName (GitHub auto-update)', () => {
       'InstantDrama-Magician-${version}-${arch}.${ext}'
     )
   })
+
+  it('keeps mac ad-hoc signing on and Developer ID discovery off', () => {
+    const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as {
+      build: {
+        afterPack?: string
+        mac?: { identity?: string | null }
+      }
+    }
+    expect(pkg.build.afterPack).toBe('scripts/adhoc-sign-mac.cjs')
+    expect(pkg.build.mac?.identity).toBeNull()
+  })
 })
 
 describe('classifyUpdateError', () => {

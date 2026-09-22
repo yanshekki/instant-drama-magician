@@ -3,7 +3,7 @@
 <p align="center">
   <strong>From one idea to a finished short drama — on your desk.</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
-  · <strong>v1.11.4</strong> · MIT
+  · <strong>v1.11.5</strong> · MIT
   · <a href="https://ysk.hk/products/instant-drama">Product page</a>
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>

@@ -3,7 +3,7 @@
 <p align="center">
   <strong>由一個構想，到完整短劇——在你的工作檯上完成。</strong><br>
   <a href="./README.md">English</a> · <a href="./README-ZH.md">中文</a>
-  · <strong>v1.11.4</strong> · MIT
+  · <strong>v1.11.5</strong> · MIT
   · <a href="https://ysk.hk/products/instant-drama">產品頁</a>
   · <a href="https://ysk.hk">YSK Limited</a>
   · <a href="mailto:email@ysk.hk">email@ysk.hk</a>

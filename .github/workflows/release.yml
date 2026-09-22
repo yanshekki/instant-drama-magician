@@ -135,7 +135,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # macOS unsigned dmg (no Apple Developer cert). Optional secrets enable signing later.
+  # macOS ad-hoc signed dmg (no Apple Developer cert). Do not upload unless codesign verifies.
   macos:
     needs: [version-guard]
     runs-on: macos-latest
@@ -151,7 +151,7 @@ jobs:
         run: npx prisma generate
       - name: Build
         run: npm run build
-      - name: Dist (dmg unsigned)
+      - name: Dist (dmg ad-hoc signed)
         run: npx electron-builder --mac dmg --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -160,6 +160,10 @@ jobs:
           test -n "$(ls release/*.dmg 2>/dev/null)" || { echo "missing dmg"; exit 1; }
           test -f release/latest-mac.yml || { echo "missing latest-mac.yml"; exit 1; }
           node scripts/verify-update-feed.mjs release
+          APP=$(find release -name '*.app' -type d -print -quit)
+          test -n "$APP" || { echo "missing .app"; exit 1; }
+          codesign --verify --deep --strict "$APP"
+          codesign -dv "$APP" 2>&1 | grep -q 'Signature=adhoc' || { echo "macOS app is not ad-hoc signed"; exit 1; }
           echo "macOS assets OK"
       - name: Upload mac artifacts
         uses: actions/upload-artifact@v4

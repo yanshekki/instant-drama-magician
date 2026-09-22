@@ -9,7 +9,7 @@ Ship path for **commercial distribution** (GitHub Releases + auto-update + suppo
 
 | Item | Status |
 |------|--------|
-| GitHub multi-platform packages (Linux / Windows / mac, unsigned by default) | **Done** |
+| GitHub multi-platform packages (Linux / Windows; mac ad-hoc signed before upload) | **Done** |
 | `electron-updater` check / download / restart | **Done** (packaged) |
 | Activity log + support report (redacted API keys) | **Done** |
 | publish → GitHub Releases | **Done** |
@@ -39,8 +39,9 @@ Feeds: `latest.yml` / `latest-linux.yml` / `latest-mac.yml`.
 | Platform | Variables |
 |----------|-----------|
 | Windows | `CSC_LINK` / `CSC_KEY_PASSWORD` |
-| macOS | `CSC_LINK` / Apple ID / team (+ notarize) |
-| None | `CSC_IDENTITY_AUTO_DISCOVERY=false` (CI default) |
+| macOS release | Ad-hoc via `scripts/adhoc-sign-mac.cjs` (required before upload) |
+| macOS store-grade | `CSC_LINK` / Apple ID / team (+ notarize), not configured |
+| None (Windows / Linux) | `CSC_IDENTITY_AUTO_DISCOVERY=false` (CI default; does not skip the mac ad-hoc hook) |
 
 See [release.md](./release.md).
 

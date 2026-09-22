@@ -16,7 +16,7 @@
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
-# → release.yml: Linux AppImage/deb + Windows NSIS + macOS dmg (unsigned by default)
+# → release.yml: Linux AppImage/deb + Windows NSIS + macOS dmg (mac ad-hoc signed before upload)
 ```
 
 Manual:
@@ -27,11 +27,13 @@ CSC_IDENTITY_AUTO_DISCOVERY=false npm run dist:linux
 
 Auto-update feed: GitHub Releases (`build.publish`). See [commercial.md](./commercial.md).
 
-## Optional code signing
+## Code signing
 
-- `CSC_LINK` / `CSC_KEY_PASSWORD`  
-- Apple notarization secrets for macOS store-grade builds  
-- Without secrets, CI sets `CSC_IDENTITY_AUTO_DISCOVERY=false`  
+- macOS GitHub Release builds are **ad-hoc signed** (`scripts/adhoc-sign-mac.cjs`) before upload. `mac.identity` stays `null` so electron-builder 25 does not look up a keychain cert named `-`. CI runs `codesign --verify --deep --strict` and requires `Signature=adhoc`; a failed check does not upload.
+- First launch still needs System Settings → Privacy & Security → Open Anyway. Notarization is not included.
+- `CSC_LINK` / `CSC_KEY_PASSWORD` for Windows Developer signing  
+- Apple Developer ID + notarization secrets for store-grade macOS builds  
+- CI sets `CSC_IDENTITY_AUTO_DISCOVERY=false` so a missing Developer ID cert does not skip the ad-hoc hook  
 
 ## CI
 
