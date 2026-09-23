@@ -1,6 +1,6 @@
 {
   "name": "instant-drama-magician",
-  "version": "1.11.4",
+  "version": "1.11.5",
   "description": "InstantDrama Magician — AI short-drama desktop studio + idm CLI (OpenClaw/Hermes ready)",
   "main": "./out/main/index.js",
   "bin": {
@@ -106,6 +106,7 @@
       "**/node_modules/.prisma/**",
       "**/node_modules/@prisma/engines/**"
     ],
+    "afterPack": "scripts/adhoc-sign-mac.cjs",
     "publish": [
       {
         "provider": "github",
