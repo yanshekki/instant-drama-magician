@@ -5,21 +5,28 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v1.11.5
+        required: true
+        type: string
 
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  # Guard: package.json version must match tag vX.Y.Z (skip on workflow_dispatch without tag)
+  # Guard: package.json version must match the release tag.
   version-guard:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Verify package.json version matches tag
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${RELEASE_TAG#v}"
           PKG=$(node -p "require('./package.json').version")
           echo "tag=$TAG package=$PKG"
           if [ "$TAG" != "$PKG" ]; then
@@ -73,9 +80,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Publish GitHub Release (linux)
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: |
             release/*.AppImage
             release/*.deb
@@ -124,9 +132,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Attach Windows to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: |
             release/*.exe
             release/latest.yml
@@ -177,9 +186,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Attach macOS to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: |
             release/*.dmg
             release/latest-mac.yml
@@ -192,7 +202,7 @@ jobs:
   # Publish same version to npm so CLI channel matches GitHub Releases
   npm-publish:
     needs: [version-guard, linux]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
