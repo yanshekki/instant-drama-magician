@@ -16,7 +16,7 @@
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
-# → release.yml：Linux AppImage/deb + Windows NSIS + macOS dmg（預設 unsigned）
+# → release.yml：Linux AppImage/deb + Windows NSIS + macOS dmg（mac 先 ad-hoc 簽名先上傳）
 ```
 
 手動：
@@ -27,11 +27,13 @@ CSC_IDENTITY_AUTO_DISCOVERY=false npm run dist:linux
 
 自動更新 feed：GitHub Releases（`build.publish`）。見 [commercial-ZH.md](./commercial-ZH.md)。
 
-## 可選代碼簽章
+## 代碼簽章
 
-- `CSC_LINK`／`CSC_KEY_PASSWORD`  
-- macOS 商店級需 Apple notarization secrets  
-- 無 secrets 時 CI 設 `CSC_IDENTITY_AUTO_DISCOVERY=false`  
+- macOS GitHub Release 必須 **ad-hoc 簽名**（`scripts/adhoc-sign-mac.cjs`）先上傳。`mac.identity` 保持 `null`，避免 electron-builder 25 去 keychain 搵名為 `-` 的憑證。CI 跑 `codesign --verify --deep --strict`，並要求 `Signature=adhoc`；失敗就唔上傳。
+- 第一次打開仍要去「系統設定 → 私隱與保安 → 仍要打開」。未包含 notarization。
+- Windows 開發者簽章：`CSC_LINK`／`CSC_KEY_PASSWORD`  
+- macOS 商店級：Apple Developer ID + notarization secrets  
+- CI 設 `CSC_IDENTITY_AUTO_DISCOVERY=false`，冇 Developer ID 時都唔會跳過 ad-hoc hook  
 
 ## CI
 
