@@ -5,21 +5,27 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v1.11.5
+        required: true
+        type: string
 
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  # Guard: package.json version must match tag vX.Y.Z (skip on workflow_dispatch without tag)
   version-guard:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Verify package.json version matches tag
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${RELEASE_TAG#v}"
           PKG=$(node -p "require('./package.json').version")
           echo "tag=$TAG package=$PKG"
           if [ "$TAG" != "$PKG" ]; then
@@ -73,9 +79,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Publish GitHub Release (linux)
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: |
             release/*.AppImage
             release/*.deb
@@ -124,9 +131,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Attach Windows to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: |
             release/*.exe
             release/latest.yml
@@ -135,7 +143,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # macOS unsigned dmg (no Apple Developer cert). Optional secrets enable signing later.
   macos:
     needs: [version-guard]
     runs-on: macos-latest
@@ -151,7 +158,7 @@ jobs:
         run: npx prisma generate
       - name: Build
         run: npm run build
-      - name: Dist (dmg unsigned)
+      - name: Dist (dmg ad-hoc signed)
         run: npx electron-builder --mac dmg --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -160,6 +167,10 @@ jobs:
           test -n "$(ls release/*.dmg 2>/dev/null)" || { echo "missing dmg"; exit 1; }
           test -f release/latest-mac.yml || { echo "missing latest-mac.yml"; exit 1; }
           node scripts/verify-update-feed.mjs release
+          APP=$(find release -name '*.app' -type d -print -quit)
+          test -n "$APP" || { echo "missing .app"; exit 1; }
+          codesign --verify --deep --strict "$APP"
+          codesign -dv "$APP" 2>&1 | grep -q 'Signature=adhoc' || { echo "macOS app is not ad-hoc signed"; exit 1; }
           echo "macOS assets OK"
       - name: Upload mac artifacts
         uses: actions/upload-artifact@v4
@@ -173,9 +184,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Attach macOS to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: |
             release/*.dmg
             release/latest-mac.yml
@@ -185,10 +197,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Publish same version to npm so CLI channel matches GitHub Releases
   npm-publish:
     needs: [version-guard, linux]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -203,7 +214,6 @@ jobs:
         run: npx prisma generate
       - name: Publish to npm
         env:
-          # Repo secret is NPM (added 2026-08-16); keep NPM_TOKEN as alias.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NPM }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
